@@ -10,7 +10,7 @@
 #
 # config: /etc/firehol/firehol.conf
 #
-# $Id: firehol.sh,v 1.196 2004/07/29 22:31:14 ktsaou Exp $
+# $Id: firehol.sh,v 1.197 2004/07/31 22:31:08 ktsaou Exp $
 #
 
 # Remember who you are.
@@ -1879,7 +1879,7 @@ protection() {
 	local prface="${work_inface}"
 	
 	local pre="pr"
-	unset reverse
+	local reverse=
 	if [ "${1}" = "reverse" ]
 	then
 		local reverse="reverse"	# needed to recursion
@@ -2853,7 +2853,7 @@ rule() {
 				action="${2}"
 				shift 2
 				
-				unset action_param
+				local -a action_param=()
 				local action_is_chain=0
 				case "${action}" in
 					accept|ACCEPT)
@@ -3449,7 +3449,7 @@ rule() {
 			local pr=
 			for pr in ${proto}
 			do
-				unset proto_arg
+				local -a proto_arg=()
 				
 				case ${pr} in
 					any|ANY)
@@ -3461,7 +3461,7 @@ rule() {
 				esac
 				
 				rule_action_param "${negative_action}" "${pr}" "${action_param[@]}" -- ${table} -A "${negative_chain}" "${proto_arg[@]}"
-				unset action_param
+				local -a action_param=()
 			done
 		fi
 	fi
@@ -3473,8 +3473,8 @@ rule() {
 	local tuid=
 	for tuid in ${uid}
 	do
-		unset uid_arg
-		unset owner_arg
+		local -a uid_arg=()
+		local -a owner_arg=()
 		
 		case ${tuid} in
 			any|ANY)
@@ -3489,7 +3489,7 @@ rule() {
 		local tgid=
 		for tgid in ${gid}
 		do
-			unset gid_arg
+			local -a gid_arg=()
 			
 			case ${tgid} in
 				any|ANY)
@@ -3504,7 +3504,7 @@ rule() {
 			local tpid=
 			for tpid in ${pid}
 			do
-				unset pid_arg
+				local -a pid_arg=()
 				
 				case ${tpid} in
 					any|ANY)
@@ -3519,7 +3519,7 @@ rule() {
 				local tsid=
 				for tsid in ${sid}
 				do
-					unset sid_arg
+					local -a sid_arg=()
 					
 					case ${tsid} in
 						any|ANY)
@@ -3534,7 +3534,7 @@ rule() {
 					local tcmd=
 					for tcmd in ${cmd}
 					do
-						unset cmd_arg
+						local -a cmd_arg=()
 						
 						case ${tcmd} in
 							any|ANY)
@@ -3549,7 +3549,7 @@ rule() {
 						local pr=
 						for pr in ${proto}
 						do
-							unset proto_arg
+							local -a proto_arg=()
 							
 							case ${pr} in
 								any|ANY)
@@ -3563,7 +3563,7 @@ rule() {
 							local inf=
 							for inf in ${inface}
 							do
-								unset inf_arg
+								local -a inf_arg=()
 								case ${inf} in
 									any|ANY)
 										;;
@@ -3576,7 +3576,7 @@ rule() {
 								local outf=
 								for outf in ${outface}
 								do
-									unset outf_arg
+									local -a outf_arg=()
 									case ${outf} in
 										any|ANY)
 											;;
@@ -3589,7 +3589,7 @@ rule() {
 									local inph=
 									for inph in ${physin}
 									do
-										unset inph_arg
+										local -a inph_arg=()
 										case ${inph} in
 											any|ANY)
 												;;
@@ -3603,7 +3603,7 @@ rule() {
 										local outph=
 										for outph in ${physout}
 										do
-											unset outph_arg
+											local -a outph_arg=()
 											case ${outph} in
 												any|ANY)
 													;;
@@ -3617,7 +3617,7 @@ rule() {
 											local sp=
 											for sp in ${sport}
 											do
-												unset sp_arg
+												local -a sp_arg=()
 												case ${sp} in
 													any|ANY)
 													;;
@@ -3630,7 +3630,7 @@ rule() {
 												local dp=
 												for dp in ${dport}
 												do
-													unset dp_arg
+													local -a dp_arg=()
 													case ${dp} in
 														any|ANY)
 															;;
@@ -3643,7 +3643,7 @@ rule() {
 													local mc=
 													for mc in ${mac}
 													do
-														unset mc_arg
+														local -a mc_arg=()
 														case ${mc} in
 															any|ANY)
 																;;
@@ -3656,7 +3656,7 @@ rule() {
 														local s=
 														for s in ${src}
 														do
-															unset s_arg
+															local -a s_arg=()
 															case ${s} in
 																any|ANY)
 																	;;
@@ -3669,7 +3669,7 @@ rule() {
 															local d=
 															for d in ${dst}
 															do
-																unset d_arg
+																local -a d_arg=()
 																case ${d} in
 																	any|ANY)
 																		;;
@@ -3679,19 +3679,19 @@ rule() {
 																		;;
 																esac
 																
-																unset state_arg
+																local -a state_arg=()
 																if [ ! -z "${state}" ]
 																then
 																	local -a state_arg=("-m" "state" "${statenot}" "--state" "${state}")
 																fi
 																
-																unset limit_arg
+																local -a limit_arg=()
 																if [ ! -z "${limit}" ]
 																then
 																	local -a limit_arg=("-m" "limit" "--limit" "${limit}" "--limit-burst" "${burst}")
 																fi
 																
-																unset iplimit_arg
+																local -a iplimit_arg=()
 																if [ ! -z "${iplimit}" ]
 																then
 																	local -a iplimit_arg=("-m" "iplimit" "--iplimit-above" "${iplimit}" "--iplimit-mask" "${iplimit_mask}")
@@ -3699,7 +3699,7 @@ rule() {
 																
 																declare -a basecmd=("${inf_arg[@]}" "${outf_arg[@]}" "${physdev_arg[@]}" "${inph_arg[@]}" "${outph_arg[@]}" "${limit_arg[@]}" "${iplimit_arg[@]}" "${proto_arg[@]}" "${s_arg[@]}" "${sp_arg[@]}" "${d_arg[@]}" "${dp_arg[@]}" "${owner_arg[@]}" "${uid_arg[@]}" "${gid_arg[@]}" "${pid_arg[@]}" "${sid_arg[@]}" "${cmd_arg[@]}" "${state_arg[@]}" "${mc_arg[@]}")
 																
-																unset logopts_arg
+																local -a logopts_arg=()
 																if [ "${FIREHOL_LOG_MODE}" = "ULOG" ]
 																then
 																	local -a logopts_arg=("--ulog-prefix='${logtxt}:'")
@@ -4274,7 +4274,7 @@ case "${arg}" in
 		else
 		
 		${CAT_CMD} <<EOF
-$Id: firehol.sh,v 1.196 2004/07/29 22:31:14 ktsaou Exp $
+$Id: firehol.sh,v 1.197 2004/07/31 22:31:08 ktsaou Exp $
 (C) Copyright 2003, Costa Tsaousis <costa@tsaousis.gr>
 FireHOL is distributed under GPL.
 
@@ -4460,7 +4460,7 @@ then
 	
 	${CAT_CMD} <<EOF
 
-$Id: firehol.sh,v 1.196 2004/07/29 22:31:14 ktsaou Exp $
+$Id: firehol.sh,v 1.197 2004/07/31 22:31:08 ktsaou Exp $
 (C) Copyright 2003, Costa Tsaousis <costa@tsaousis.gr>
 FireHOL is distributed under GPL.
 Home Page: http://firehol.sourceforge.net
@@ -4754,7 +4754,7 @@ then
 	
 	${CAT_CMD} >&2 <<EOF
 
-$Id: firehol.sh,v 1.196 2004/07/29 22:31:14 ktsaou Exp $
+$Id: firehol.sh,v 1.197 2004/07/31 22:31:08 ktsaou Exp $
 (C) Copyright 2003, Costa Tsaousis <costa@tsaousis.gr>
 FireHOL is distributed under GPL.
 Home Page: http://firehol.sourceforge.net
@@ -4837,7 +4837,7 @@ EOF
 	echo "# "
 
 	${CAT_CMD} <<EOF
-# $Id: firehol.sh,v 1.196 2004/07/29 22:31:14 ktsaou Exp $
+# $Id: firehol.sh,v 1.197 2004/07/31 22:31:08 ktsaou Exp $
 # (C) Copyright 2003, Costa Tsaousis <costa@tsaousis.gr>
 # FireHOL is distributed under GPL.
 # Home Page: http://firehol.sourceforge.net
@@ -4984,10 +4984,8 @@ EOF
 			# find all the networks this IP can access directly
 			# or through its peer
 			netcount=0
-			unset ifnets
-			unset ofnets
-			set -a ifnets=
-			set -a ofnets=
+			ifnets=
+			ofnets=
 			for net in ${nets}
 			do
 				test "${net}" = "default" && continue
