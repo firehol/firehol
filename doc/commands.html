@@ -242,14 +242,16 @@
 	<ul><b>syn-floods</b>
 	<br>Allows only a certain amount of new TCP connections per second. The optional two arguments [requests/sec] and [burst]
 	are used by this rule in order to provide control on the number of connections to be allowed.
-	The default is 100 connections per second that can be bursted by 4.
+	The default is 100 connections per second that can match 50 (it was 4 in v1.38 and before) packets initially
+	(this is implemented using the <b>limit</b> module of iptables: see <b>man iptables</b> for more).
 	<br>Note that this rule applies to all connections attempted regardless of their final result (rejected, dropped, established, etc).
 	Therefore it might not be a good idea to set it too low.
 	</ul>
 	<ul><b>icmp-floods</b>
 	<br>Allows only a certain amount of ICMP echo requests per second. The optional two arguments [requests/sec] and [burst]
 	are used by this rule in order to provide control on the number of connections to be allowed.
-	The default is 100 connections per second that can be bursted by 4.
+	The default is 100 connections per second that can match 50 (it was 4 in v1.38 and before) packets initially
+	(this is implemented using the <b>limit</b> module of iptables: see <b>man iptables</b> for more).
 	</ul>
 	<ul><b>malformed-xmas</b>
 	<br>Drops all TCP packets that have all the TCP flags set.
@@ -461,7 +463,7 @@
 	The values of these variables are passed as is to iptables, so use capitals. Be carefull not to accept this traffic,
 	as it will break your firewall.
 	<p>
-	Default: <b>DROP</b>
+	Default: <b>DEFAULT_INPUT_POLICY="DROP"</b>
 	<br>
 	Example: <b>DEFAULT_INPUT_POLICY="REJECT"</b>
 	<p>
@@ -469,13 +471,27 @@
 <hr noshade size=1 width="70%">
 
 	<a name="FIREHOL_LOG_OPTIONS"><h3><b>FIREHOL_LOG_OPTIONS</b></h3></a>
+	<a name="FIREHOL_LOG_FREQUENCY"><h3><b>FIREHOL_LOG_FREQUENCY</b></h3></a>
+	<a name="FIREHOL_LOG_BURST"><h3><b>FIREHOL_LOG_BURST</b></h3></a>
 	<H4>Description</H4>
 	FIREHOL_LOG_OPTIONS controls way iptables will log things to the syslog.
 	The value of this variable is passed as is to iptables, so use exact iptables parameters.
 	<p>
-	Default: <b>--log-level warning</b>
+	FIREHOL_LOG_FREQUENCY and FIREHOL_LOG_BURST (added in v1.39 of FireHOL) control the frequency at each each logging
+	rule will write packets to the syslog. FIREHOL_LOG_FREQUENCY is set to the maximum average
+	frequency and FIREHOL_LOG_BURST specifies the maximum initial number of packets to match.
+	<p>
+	Default: <b>FIREHOL_LOG_OPTIONS="--log-level warning"</b><br>
+	Default: <b>FIREHOL_LOG_FREQUENCY="1/second"</b><br>
+	Default: <b>FIREHOL_LOG_BURST="5"</b><br>
 	<br>
-	Example: <b>FIREHOL_LOG_OPTIONS="--log-level info --log-tcp-options --log-ip-options"</b>
+	Example: <b>FIREHOL_LOG_OPTIONS="--log-level info --log-tcp-options --log-ip-options"</b><br>
+	Example: <b>FIREHOL_LOG_FREQUENCY="30/minute"</b><br>
+	Example: <b>FIREHOL_LOG_BURST="2"</b><br>
+	<br>
+	To see the available iptables log options, run <b>/sbin/iptables -j LOG --help</b><br>
+	To see what iptables accepts as frequencies and bursts run, <b>/sbin/iptables -m limit --help</b></br>
+	You can also check <b>man iptables</b>.
 	<p>
 	
 <hr noshade size=1 width="70%">
@@ -539,7 +555,7 @@
 <tr><td align=center valign=middle>
 	<A href="http://sourceforge.net"><IMG src="http://sourceforge.net/sflogo.php?group_id=58425&amp;type=5" width="210" height="62" border="0" alt="SourceForge Logo"></A>
 </td><td align=center valign=middle>
-	<small>$Id: commands.html,v 1.5 2002/12/10 18:11:07 ktsaou Exp $</small>
+	<small>$Id: commands.html,v 1.6 2002/12/10 23:32:16 ktsaou Exp $</small>
 	<p>
 	<b>FireHOL</b>, a firewall for humans...<br>
 	&copy; Copyright 2002
