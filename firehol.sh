@@ -10,7 +10,7 @@
 #
 # config: /etc/firehol.conf
 #
-# $Id: firehol.sh,v 1.87 2003/01/30 21:36:07 ktsaou Exp $
+# $Id: firehol.sh,v 1.88 2003/01/30 21:39:36 ktsaou Exp $
 #
 
 
@@ -1025,7 +1025,7 @@ snat() {
 	set_work_function -ne "Initializing $FUNCNAME"
 	
 	local to="${1}"; shift
-	test "${to}" = "to" && (local to="${1}"; shift)
+	test "${to}" = "to" && local to="${1}" && shift
 	
 	nat "to-source" "${to}" "$@"
 }
@@ -1036,7 +1036,7 @@ dnat() {
 	set_work_function -ne "Initializing $FUNCNAME"
 	
 	local to="${1}"; shift
-	test "${to}" = "to" && (local to="${1}"; shift)
+	test "${to}" = "to" && local to="${1}" && shift
 	
 	nat "to-destination" "${to}" "$@"
 }
@@ -1047,7 +1047,7 @@ redirect() {
 	set_work_function -ne "Initializing $FUNCNAME"
 	
 	local to="${1}"; shift
-	test "${to}" = "to" -o "${to}" = "to-port" && (local to="${1}"; shift)
+	test "${to}" = "to" -o "${to}" = "to-port" && local to="${1}" && shift
 	
 	nat "redirect-to" "${to}" "$@"
 }
@@ -3116,7 +3116,7 @@ case "${arg}" in
 		else
 		
 		cat <<"EOF"
-$Id: firehol.sh,v 1.87 2003/01/30 21:36:07 ktsaou Exp $
+$Id: firehol.sh,v 1.88 2003/01/30 21:39:36 ktsaou Exp $
 (C) Copyright 2002, Costa Tsaousis <costa@tsaousis.gr>
 FireHOL is distributed under GPL.
 
@@ -3284,7 +3284,7 @@ then
 	
 	cat <<"EOF"
 
-$Id: firehol.sh,v 1.87 2003/01/30 21:36:07 ktsaou Exp $
+$Id: firehol.sh,v 1.88 2003/01/30 21:39:36 ktsaou Exp $
 (C) Copyright 2002, Costa Tsaousis <costa@tsaousis.gr>
 FireHOL is distributed under GPL.
 Home Page: http://firehol.sourceforge.net
