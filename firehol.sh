@@ -10,7 +10,7 @@
 #
 # config: /etc/firehol.conf
 #
-# $Id: firehol.sh,v 1.94 2003/02/22 03:41:16 ktsaou Exp $
+# $Id: firehol.sh,v 1.95 2003/02/22 03:50:55 ktsaou Exp $
 #
 
 
@@ -3189,7 +3189,7 @@ case "${arg}" in
 		else
 		
 		cat <<"EOF"
-$Id: firehol.sh,v 1.94 2003/02/22 03:41:16 ktsaou Exp $
+$Id: firehol.sh,v 1.95 2003/02/22 03:50:55 ktsaou Exp $
 (C) Copyright 2002, Costa Tsaousis <costa@tsaousis.gr>
 FireHOL is distributed under GPL.
 
@@ -3360,7 +3360,7 @@ then
 	
 	cat <<"EOF"
 
-$Id: firehol.sh,v 1.94 2003/02/22 03:41:16 ktsaou Exp $
+$Id: firehol.sh,v 1.95 2003/02/22 03:50:55 ktsaou Exp $
 (C) Copyright 2002, Costa Tsaousis <costa@tsaousis.gr>
 FireHOL is distributed under GPL.
 Home Page: http://firehol.sourceforge.net
@@ -3580,7 +3580,7 @@ then
 	
 	cat >&2 <<"EOF"
 
-$Id: firehol.sh,v 1.94 2003/02/22 03:41:16 ktsaou Exp $
+$Id: firehol.sh,v 1.95 2003/02/22 03:50:55 ktsaou Exp $
 (C) Copyright 2002, Costa Tsaousis <costa@tsaousis.gr>
 FireHOL is distributed under GPL.
 Home Page: http://firehol.sourceforge.net
@@ -3592,6 +3592,13 @@ Subscribe (at the home page) to get notified of new releases.
 
 FireHOL will now try to figure out its configuration file on this system.
 Please have all the services and network interfaces on this system running.
+
+Your running firewall will not be stopped or altered.
+
+You can re-run the same command with output redirection to get the config
+to a file. Example:
+
+/etc/init.d/firehol helpme >/tmp/firehol.conf
 
 EOF
 	
@@ -3698,13 +3705,13 @@ EOF
 		) | sort | uniq
 		
 		echo
-		echo "	# The following server ports are not known by FireHOL:"
+		echo "	# The following ${iface} server ports are not known by FireHOL:"
 		echo "	# `cat unknown.ports`"
 		echo "	# TODO: If you need any of them, you should define new services."
 		echo "	#       (see Adding Services at the web site - http://firehol.sf.net)."
 		echo
 		
-		echo "	# The following means that this machine can ask anything."
+		echo "	# The following means that this machine can REQUEST anything via ${iface}."
 		echo "	# TODO: On production servers, avoid this and allow only the"
 		echo "	#       client services you really need."
 		echo "	client all accept"
@@ -3730,7 +3737,8 @@ EOF
 				echo "# TODO: Add src/dst to further narrow the traffic routed."
 				echo "router router${x} inface ${inface} outface ${outface}"
 				echo 
-				echo "	# If you don't trust the clients on ${inface}, add this."
+				echo "	# If you don't trust the clients on ${inface}, or"
+				echo "	# if you want to protect the servers on ${outface}, add this."
 				echo "	# protection strong"
 				echo
 				echo "	# To NAT client requests on the output of ${outface}, add this."
