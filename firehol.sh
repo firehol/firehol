@@ -10,7 +10,7 @@
 #
 # config: /etc/firehol.conf
 #
-# $Id: firehol.sh,v 1.34 2002/12/07 18:12:43 ktsaou Exp $
+# $Id: firehol.sh,v 1.35 2002/12/08 22:05:40 ktsaou Exp $
 #
 
 # ------------------------------------------------------------------------------
@@ -75,6 +75,12 @@ case "${arg}" in
 		FIREHOL_TRY=0
 		;;
 	
+	stop)
+		test -f /var/lock/subsys/firehol && rm -f /var/lock/subsys/firehol
+		/etc/init.d/iptables stop
+		exit 0
+		;;
+	
 	restart)
 		FIREHOL_TRY=0
 		;;
@@ -115,7 +121,7 @@ case "${arg}" in
 		else
 		
 		cat <<"EOF"
-$Id: firehol.sh,v 1.34 2002/12/07 18:12:43 ktsaou Exp $
+$Id: firehol.sh,v 1.35 2002/12/08 22:05:40 ktsaou Exp $
 (C) Copyright 2002, Costa Tsaousis
 FireHOL is distributed under GPL.
 
