@@ -10,7 +10,7 @@
 #
 # config: /etc/firehol.conf
 #
-# $Id: firehol.sh,v 1.38 2002/12/10 23:08:07 ktsaou Exp $
+# $Id: firehol.sh,v 1.39 2002/12/10 23:31:32 ktsaou Exp $
 #
 
 # ------------------------------------------------------------------------------
@@ -121,7 +121,7 @@ case "${arg}" in
 		else
 		
 		cat <<"EOF"
-$Id: firehol.sh,v 1.38 2002/12/10 23:08:07 ktsaou Exp $
+$Id: firehol.sh,v 1.39 2002/12/10 23:31:32 ktsaou Exp $
 (C) Copyright 2002, Costa Tsaousis
 FireHOL is distributed under GPL.
 
@@ -2271,7 +2271,7 @@ protection() {
 	local burst="${3}"
 	
 	test -z "${rate}"  && rate="100/s"
-	test -z "${burst}" && burst="4"
+	test -z "${burst}" && burst="50"
 	
 	work_function="Generating protections on '${prface}' for ${work_cmd} '${work_name}'"
 	
