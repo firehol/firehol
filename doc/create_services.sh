@@ -400,6 +400,10 @@ service_pptp_notes="
 Additionally to the above the PPTP service allows stateful GRE traffic (protocol 47) to flow between the PPTP server and the client.
 "
 
+service_rdp_notes="
+<b>Remote Desktop Protocol</b> is the protocol used for Windows Remote Desktop Connections (known also as Terminal Services).<p>
+For more information see <a href=\"http://www.microsoft.com/windows2000/community/centers/terminal/terminal_faq.mspx\">this FAQ</a>.
+"
 
 server_samba_ports="many"
 client_samba_ports="default"
@@ -794,7 +798,7 @@ cat <<"EOF"
 <tr><td align=center valign=middle>
 	<A href="http://sourceforge.net"><IMG src="http://sourceforge.net/sflogo.php?group_id=58425&amp;type=5" width="210" height="62" border="0" alt="SourceForge Logo"></A>
 </td><td align=center valign=middle>
-	<small>$Id: create_services.sh,v 1.46 2004/09/12 06:57:49 ktsaou Exp $</small>
+	<small>$Id: create_services.sh,v 1.47 2004/09/12 07:24:58 ktsaou Exp $</small>
 	<p>
 	<b>FireHOL</b>, a firewall for humans...<br>
 	&copy; Copyright 2003
