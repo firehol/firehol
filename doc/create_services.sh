@@ -529,6 +529,16 @@ service_stun_notes="
 <a href=\"http://www.voip-info.org/wiki-STUN\">STUN</a> is a protocol for assisting devices behind a NAT firewall or router with their packet routing.
 "
 
+server_timestamp_ports="N/A"
+client_timestamp_ports="N/A"
+service_timestamp_type="complex"
+service_timestamp_notes="
+This services matches requests of protocol <b>ICMP</b> and type <b>timestamp-request</b> (TYPE=13)
+and their replies of type <b>timestamp-reply</b> (TYPE=14).
+<p>
+The <b>timestamp</b> service is stateful.
+"
+
 service_upnp_notes="
 <a href=\"http://upnp.sourceforge.net/\">UPNP</a> is Univeral Plug and Play.<p>
 For a linux implementation check: <a href=\"http://linux-igd.sourceforge.net/\">Linux IGD</a>.
@@ -938,7 +948,7 @@ cat <<"EOF"
 <tr><td align=center valign=middle>
 	<A href="http://sourceforge.net"><IMG src="http://sourceforge.net/sflogo.php?group_id=58425&amp;type=5" width="210" height="62" border="0" alt="SourceForge Logo"></A>
 </td><td align=center valign=middle>
-	<small>$Id: create_services.sh,v 1.53 2004/10/31 23:43:25 ktsaou Exp $</small>
+	<small>$Id: create_services.sh,v 1.54 2004/12/03 21:29:43 ktsaou Exp $</small>
 	<p>
 	<b>FireHOL</b>, a firewall for humans...<br>
 	&copy; Copyright 2004
