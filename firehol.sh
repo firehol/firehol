@@ -10,7 +10,7 @@
 #
 # config: /etc/firehol/firehol.conf
 #
-# $Id: firehol.sh,v 1.174 2003/12/29 22:46:00 ktsaou Exp $
+# $Id: firehol.sh,v 1.175 2004/01/02 22:32:28 ktsaou Exp $
 #
 
 # Remember who you are.
@@ -1530,7 +1530,7 @@ mark() {
 	
 	set_work_function "Setting up rules for MARK"
 	
-	create_chain mangle "mark.${mark_count}" "${where}" "$@" action "mark.${mark_count}" || return 1
+	create_chain mangle "mark.${mark_count}" "${where}" "$@" || return 1
 	iptables -t mangle -A "mark.${mark_count}" -j MARK --set-mark ${num}
 	
 	return 0
@@ -4022,7 +4022,7 @@ case "${arg}" in
 		else
 		
 		${CAT_CMD} <<EOF
-$Id: firehol.sh,v 1.174 2003/12/29 22:46:00 ktsaou Exp $
+$Id: firehol.sh,v 1.175 2004/01/02 22:32:28 ktsaou Exp $
 (C) Copyright 2003, Costa Tsaousis <costa@tsaousis.gr>
 FireHOL is distributed under GPL.
 
@@ -4208,7 +4208,7 @@ then
 	
 	${CAT_CMD} <<EOF
 
-$Id: firehol.sh,v 1.174 2003/12/29 22:46:00 ktsaou Exp $
+$Id: firehol.sh,v 1.175 2004/01/02 22:32:28 ktsaou Exp $
 (C) Copyright 2003, Costa Tsaousis <costa@tsaousis.gr>
 FireHOL is distributed under GPL.
 Home Page: http://firehol.sourceforge.net
@@ -4503,7 +4503,7 @@ then
 	
 	${CAT_CMD} >&2 <<EOF
 
-$Id: firehol.sh,v 1.174 2003/12/29 22:46:00 ktsaou Exp $
+$Id: firehol.sh,v 1.175 2004/01/02 22:32:28 ktsaou Exp $
 (C) Copyright 2003, Costa Tsaousis <costa@tsaousis.gr>
 FireHOL is distributed under GPL.
 Home Page: http://firehol.sourceforge.net
@@ -4586,7 +4586,7 @@ EOF
 	echo "# "
 
 	${CAT_CMD} <<EOF
-# $Id: firehol.sh,v 1.174 2003/12/29 22:46:00 ktsaou Exp $
+# $Id: firehol.sh,v 1.175 2004/01/02 22:32:28 ktsaou Exp $
 # (C) Copyright 2003, Costa Tsaousis <costa@tsaousis.gr>
 # FireHOL is distributed under GPL.
 # Home Page: http://firehol.sourceforge.net
