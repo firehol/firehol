@@ -10,7 +10,7 @@
 #
 # config: /etc/firehol.conf
 #
-# $Id: firehol.sh,v 1.99 2003/03/03 21:51:04 ktsaou Exp $
+# $Id: firehol.sh,v 1.100 2003/03/05 00:11:56 ktsaou Exp $
 #
 
 
@@ -3189,7 +3189,7 @@ case "${arg}" in
 		else
 		
 		cat <<"EOF"
-$Id: firehol.sh,v 1.99 2003/03/03 21:51:04 ktsaou Exp $
+$Id: firehol.sh,v 1.100 2003/03/05 00:11:56 ktsaou Exp $
 (C) Copyright 2002, Costa Tsaousis <costa@tsaousis.gr>
 FireHOL is distributed under GPL.
 
@@ -3360,7 +3360,7 @@ then
 	
 	cat <<"EOF"
 
-$Id: firehol.sh,v 1.99 2003/03/03 21:51:04 ktsaou Exp $
+$Id: firehol.sh,v 1.100 2003/03/05 00:11:56 ktsaou Exp $
 (C) Copyright 2002, Costa Tsaousis <costa@tsaousis.gr>
 FireHOL is distributed under GPL.
 Home Page: http://firehol.sourceforge.net
@@ -3515,6 +3515,51 @@ then
 		return 0
 	}
 	
+	ip_in_net() {
+		local ip="${1}"; shift
+		local net="${1}"; shift
+		
+		set -- `echo ${ip} | tr '.' ' '`
+		local i1=${1}
+		local i2=${2}
+		local i3=${3}
+		local i4=${4}
+		
+		set -- `echo ${net} | tr './' '  '`
+		local n1=${1}
+		local n2=${2}
+		local n3=${3}
+		local n4=${4}
+		local n5=${5:-32}
+		
+		local i=$[i1*256*256*256 + i2*256*256 + i3*256 + i4]
+		local n=$[n1*256*256*256 + n2*256*256 + n3*256 + n4]
+		
+		# echo "IP : '${i1}' . '${i2}' . '${i3}' . '${i4}'"
+		# echo "NET: '${n1}' . '${n2}' . '${n3}' . '${n4}' / '${n5}'"
+		
+		local d=1
+		local c=${n5}
+		while [ $c -lt 32 ]
+		do
+			c=$[c + 1]
+			d=$[d * 2]
+		done
+		
+		local nm=$[n + d - 1]
+		
+		printf "### DEBUG: Is ${ip} part of network ${net}? "
+		
+		if [ ${i} -ge ${n} -a ${i} -lt ${nm} ]
+		then
+			echo "yes"
+			return 0
+		else
+			echo "no"
+			return 1
+		fi
+	}
+	
 	cd "${FIREHOL_DIR}"
 	mkdir ports
 	cd ports
@@ -3523,7 +3568,7 @@ then
 	
 	cat >&2 <<"EOF"
 
-$Id: firehol.sh,v 1.99 2003/03/03 21:51:04 ktsaou Exp $
+$Id: firehol.sh,v 1.100 2003/03/05 00:11:56 ktsaou Exp $
 (C) Copyright 2002, Costa Tsaousis <costa@tsaousis.gr>
 FireHOL is distributed under GPL.
 Home Page: http://firehol.sourceforge.net
@@ -3615,7 +3660,7 @@ EOF
 	echo "# "
 
 	cat <<"EOF"
-# $Id: firehol.sh,v 1.99 2003/03/03 21:51:04 ktsaou Exp $
+# $Id: firehol.sh,v 1.100 2003/03/05 00:11:56 ktsaou Exp $
 # (C) Copyright 2002, Costa Tsaousis <costa@tsaousis.gr>
 # FireHOL is distributed under GPL.
 # Home Page: http://firehol.sourceforge.net
@@ -3635,79 +3680,129 @@ EOF
 	echo
 	
 	interfaces=`/sbin/ip link show | egrep "^[0-9A-Za-z]+:" | cut -d ':' -f 2 | sed "s/^ //" | grep -v "^lo$" | sort | uniq | tr "\n" " "`
-	gateway=`/sbin/ip route | grep "^default" | sed "s/dev /dev:/g" | tr " " "\n" | grep "^dev:" | cut -d ':' -f 2`
+	gw_if=`/sbin/ip route show | grep "^default" | sed "s/dev /dev:/g" | tr " " "\n" | grep "^dev:" | cut -d ':' -f 2`
+	gw_ip=`/sbin/ip route show | grep "^default" | sed "s/via /via:/g" | tr " " "\n" | grep "^via:" | cut -d ':' -f 2`
 	
-	valid_interfaces=
+	# globals for routing
+	set -a found_interfaces=
+	set -a found_ips=
+	set -a found_nets=
 	
 	i=0
 	for iface in ${interfaces}
 	do
+		echo "### DEBUG: Processing interface '${iface}'"
 		ips=`/sbin/ip addr show dev ${iface} | sed "s/  / /g" | sed "s/  / /g" | sed "s/  / /g" | grep "^ inet " | cut -d ' ' -f 3 | cut -d '/' -f 1 | sort | uniq | tr "\n" " "`
-		nets=`/sbin/ip route show | grep " dev ${iface} " | egrep "^[0-9\./]+ " | cut -d ' ' -f 1 | sort | uniq | tr "\n" " "`
+		nets=`/sbin/ip route show dev ${iface} | egrep "^[0-9\./]+ " | cut -d ' ' -f 1 | sort | uniq | tr "\n" " "`
 		
 		if [ -z "${ips}" -o -z "${nets}" ]
 		then
-			echo >&2
-			echo >&2 "# Ignoring interface '${iface}' because does not have an IP or route."
-			echo >&2
+			echo
+			echo "# Ignoring interface '${iface}' because does not have an IP or route."
+			echo
 			continue
 		fi
 		
-		i=$[i + 1]
-		
-		valid_interfaces="${iface} ${valid_interfaces}"
-		
-		internet=no
-		test "${iface}" = "${gateway}" && internet=yes
-		
-		iface_src=
-		if [ $internet = yes ]
-		then
-			iface_src="not_routable"
-		else
-			iface_src="${nets}"
-		fi
-		
-		iface_dst="\"${ips}\""
-		
-		# prepare the routers variables
-		eval "interface_${iface}_ips=${iface_dst}"
-		eval "interface_${iface}_nets='${iface_src}'"
-		
-		case "${iface_src}" in
-			not_routable)
-				iface_src="not \"\${UNROUTABLE_IPS}\""
-				;;
-				
-			*)
-				iface_src="\"${iface_src}\""
-				;;
-		esac
-		
-		
-		# output the interface
-		echo
-		echo "# Interface No $i."
-		echo "# Protecting this host on its ${iface} interface."
-		echo "# TODO: Change \"${iface}_name\" to something with meaning to you."
-		echo "# TODO: Check the optional rule parameters (src/dst)."
-		echo "# TODO: Remove 'dst ${iface_dst}' if this is dynamically assigned."
-		echo "interface ${iface} \"${iface}_name\" src ${iface_src} dst ${iface_dst}"
-		echo
-		echo "	# The default policy is DROP. You can be more polite with REJECT."
-		echo "	# Prefer to be polite on your own clients to prevent timeouts."
-		echo "	policy drop"
-		echo
-		echo "	# If you don't trust the clients behind ${iface}, add something like this."
-		echo "	# > protection strong"
-		echo
-		echo "	# Here are the services listening on ${iface}."
-		echo "	# TODO: Normally, you will have to remove those not needed."
-		
-		(
-			ports=
-			for ip in ${ips}
+		for ip in ${ips}
+		do
+			echo "### DEBUG: Processing IP ${ip} of interface '${iface}'"
+			
+			# find all the networks this IP can access directly
+			unset ifnets
+			unset ofnets
+			set -a ifnets=
+			set -a ofnets=
+			for net in ${nets}
 			do
+				if ip_in_net ${ip} ${net}
+				then
+					ifnets=(${net} ${ifnets[@]})
+				else
+					ofnets=(${net} ${ofnets[@]})
+				fi
+			done
+			
+			if [ -z "${ifnets[*]}" ]
+			then
+				# This might be a point-to-point with default route.
+				if [ "${iface}" = "${gw_if}" ]
+				then
+					for net in ${nets}
+					do
+						if [ "${net}" = "${gw_ip}" ]
+						then
+							echo "### DEBUG: '${iface}' found to be a default Point-To-Point gateway."
+							ifnets="0.0.0.0/0"
+							break
+						fi
+					done
+				fi
+				
+				if [ -z "${ifnets}" ]
+				then
+					echo
+					echo "# Ignoring interface's '${iface}' IP ${ip} because does not have a valid route."
+					echo
+					continue
+				fi
+			fi
+			
+			
+			# find all the networks this IP can access through gateways
+			if [ ! -z "${ofnets[*]}" ]
+			then
+				for net in ${ofnets[@]}
+				do
+					gw=`/sbin/ip route show ${net} dev ${iface} | egrep "^${net}[[:space:]]+via[[:space:]][0-9\.]+" | cut -d ' ' -f 3`
+					test -z "${gw}" && continue
+					
+					for nn in ${ifnets[@]}
+					do
+						if ip_in_net ${gw} ${nn}
+						then
+							echo "### DEBUG: Route ${net} is accessed through ${gw}"
+							ifnets=(${net} ${ifnets[@]})
+							break
+						fi
+					done
+				done
+			fi
+			
+			i=$[i + 1]
+			found_interfaces[$i]=${iface}
+			found_ips[$i]=${ip}
+			found_nets[$i]=${ifnets}
+			
+			# output the interface
+			echo
+			echo "# Interface No $i."
+			echo "# Protecting this host on its ${iface} interface (IP: ${ip})."
+			echo "# TODO: Change \"interface${i}\" to something with meaning to you."
+			echo "# TODO: Check the optional rule parameters (src/dst)."
+			echo "# TODO: Remove 'dst ${ip}' if this is dynamically assigned."
+			
+			if [ ${ifnets[0]} = 0.0.0.0/0 ]
+			then
+				ifnets="not \"\${UNROUTABLE_IPS}\""
+			else
+				ifnets="\"${ifnets[*]}\""
+			fi
+			
+			echo "interface ${iface} interface${i} src ${ifnets} dst ${ip}"
+			echo
+			echo "	# The default policy is DROP. You can be more polite with REJECT."
+			echo "	# Prefer to be polite on your own clients to prevent timeouts."
+			echo "	policy drop"
+			echo
+			echo "	# If you don't trust the clients behind ${iface} (net ${ifnets}),"
+			echo "	# add something like this."
+			echo "	# > protection strong"
+			echo
+			echo "	# Here are the services listening on ${iface}."
+			echo "	# TODO: Normally, you will have to remove those not needed."
+			
+			(
+				ports=
 				for x in `netstat -an | egrep "^tcp" | grep "0.0.0.0:*" | egrep " (${ip}|0.0.0.0):[0-9]+" | cut -d ':' -f 2 | cut -d ' ' -f 1 | sort -n | uniq`
 				do
 					if [ -f "tcp/${x}" ]
@@ -3727,27 +3822,27 @@ EOF
 						ports="${ports} udp/${x}"
 					fi
 				done
-			done
+				
+				echo "${ports}" | tr " " "\n" | sort -n | uniq | tr "\n" " " >unknown.ports
+			) | sort | uniq
 			
-			echo "${ports}" | tr " " "\n" | sort -n | uniq | tr "\n" " " >unknown.ports
-		) | sort | uniq
-		
-		echo
-		echo "	# The following ${iface} server ports are not known by FireHOL:"
-		echo "	# `cat unknown.ports`"
-		echo "	# TODO: If you need any of them, you should define new services."
-		echo "	#       (see Adding Services at the web site - http://firehol.sf.net)."
-		echo
-		
-		echo "	# The following means that this machine can REQUEST anything via ${iface}."
-		echo "	# TODO: On production servers, avoid this and allow only the"
-		echo "	#       client services you really need."
-		echo "	client all accept"
-		echo
+			echo
+			echo "	# The following ${iface} server ports are not known by FireHOL:"
+			echo "	# `cat unknown.ports`"
+			echo "	# TODO: If you need any of them, you should define new services."
+			echo "	#       (see Adding Services at the web site - http://firehol.sf.net)."
+			echo
+			
+			echo "	# The following means that this machine can REQUEST anything via ${iface}."
+			echo "	# TODO: On production servers, avoid this and allow only the"
+			echo "	#       client services you really need."
+			echo "	client all accept"
+			echo
+		done
 	done
-	
+		
 	echo
-	echo "# The above $i interfaces ( ${valid_interfaces}) were found active at this moment."
+	echo "# The above $i interfaces (${found_interfaces[*]}) were found active at this moment."
 	echo "# Add more interfaces that can potentially be activated in the future."
 	echo "# FireHOL will not complain if you setup a firewall on an interface that is"
 	echo "# not active when you activate the firewall."
@@ -3760,80 +3855,63 @@ EOF
 	if [ "1" = "`cat /proc/sys/net/ipv4/ip_forward`" ]
 	then
 		x=0
-		for inface in ${valid_interfaces}
+		i=0
+		while [ $i -lt ${#found_interfaces[*]} ]
 		do
-			eval srcs="\${interface_${inface}_nets}"
-			eval srcs_ips="\${interface_${inface}_ips}"
+			i=$[i + 1]
 			
-			for s in ${srcs}
+			inface="${found_interfaces[$i]}"
+			src="${found_nets[$i]}"
+			
+			j=0
+			while [ $j -lt ${#found_interfaces[*]} ]
 			do
-				for outface in ${valid_interfaces}	
-				do
-					eval dsts="\${interface_${outface}_nets}"
-					eval dsts_ips="\${interface_${outface}_ips}"
-					
-					for d in ${dsts}
-					do
-						test "${s}" = "${d}" && continue
-						
-						x=$[x + 1]
-						
-						case ${s} in
-							not_routable)
-								src="not \"\${UNROUTABLE_IPS}\""
-								;;
-								
-							*)
-								src=${s}
-								;;
-						esac
-						
-						case ${d} in
-							not_routable)
-								dst="not \"\${UNROUTABLE_IPS}\""
-								;;
-								
-							*)
-								dst=${d}
-								;;
-						esac
-						
-						echo
-						echo "# Router No ${x}."
-						echo "# Clients on ${inface} (from ${src}) accessing servers on ${outface} (to ${dst})."
-						echo "# TODO: Change \"router${x}\" to something with meaning to you."
-						echo "# TODO: Check the optional rule parameters (src/dst)."
-						echo "router router${x} inface ${inface} outface ${outface} src ${src} dst ${dst}"
-						echo 
-						echo "	# If you don't trust the clients on ${inface}, or"
-						echo "	# if you want to protect the servers on ${outface}, add this."
-						echo "	# > protection strong"
-						echo
-						echo "	# To NAT client requests on the output of ${outface}, add this."
-						echo "	# > masquerade"
-						
-						echo "	# Alternatively, you can SNAT them by placing this at the top of this config:"
-						i=0
-						for ip in ${dsts_ips}
-						do
-							i=$[i + 1]
-							echo "	# > snat to ${ip} outface ${outface} src ${src} dst ${dst}"
-						done
-						if [ $i -gt 1 ]
-						then
-							echo "	# From the above $i lines, you should choose the one that the 'to' parameter is one"
-							echo "	# of the IPs of the 'dst' network. If you fail to choose the right, it will not work."
-						fi
-						
-						echo "	# SNAT commands can be enhanced using 'proto', 'sport', 'dport', etc in order to"
-						echo "	# NAT only some specific traffic."
-						echo
-						echo "	# TODO: This will allow all traffic to pass."
-						echo "	# If you remove it, no REQUEST will pass matching this traffic."
-						echo "	route all accept"
-						echo
-					done
-				done
+				j=$[j + 1]
+				
+				test $j -eq $i && continue
+				
+				outface="${found_interfaces[$j]}"
+				dst="${found_nets[$j]}"
+				dst_ip="${found_ips[$j]}"
+				
+				x=$[x + 1]
+				
+				case ${src} in
+					"0.0.0.0/0")
+						src="not \"\${UNROUTABLE_IPS}\""
+						;;
+				esac
+				
+				case ${dst} in
+					"0.0.0.0/0")
+						dst="not \"\${UNROUTABLE_IPS}\""
+						;;
+				esac
+				
+				echo
+				echo "# Router No ${x}."
+				echo "# Clients on ${inface} (from ${src}) accessing servers on ${outface} (to ${dst})."
+				echo "# TODO: Change \"router${x}\" to something with meaning to you."
+				echo "# TODO: Check the optional rule parameters (src/dst)."
+				echo "router router${x} inface ${inface} outface ${outface} src ${src} dst ${dst}"
+				echo 
+				echo "	# If you don't trust the clients on ${inface} (from ${src}), or"
+				echo "	# if you want to protect the servers on ${outface} (to ${dst}),"
+				echo "	# uncomment the following line."
+				echo "	# > protection strong"
+				echo
+				echo "	# To NAT client requests on the output of ${outface}, add this."
+				echo "	# > masquerade"
+				
+				echo "	# Alternatively, you can SNAT them by placing this at the top of this config:"
+				echo "	# > snat to ${dst_ip} outface ${outface} src ${src} dst ${dst}"
+				echo "	# SNAT commands can be enhanced using 'proto', 'sport', 'dport', etc in order to"
+				echo "	# NAT only some specific traffic."
+				echo
+				echo "	# TODO: This will allow all traffic to pass."
+				echo "	# If you remove it, no REQUEST will pass matching this traffic."
+				echo "	route all accept"
+				echo
 			done
 		done
 	else
