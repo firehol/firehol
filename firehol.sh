@@ -13,8 +13,15 @@
 # ------------------------------------------------------------------------------
 # Copied from /etc/init.d/iptables
 
-# Source 'em up
-. /etc/init.d/functions
+# On on RedHat machines we need success and failure
+success() {
+	echo " OK"
+}
+failure() {
+	echo " FAILED"
+}
+
+test -f /etc/init.d/functions && . /etc/init.d/functions
 
 if [ ! -x /sbin/iptables ]; then
 	exit 0
@@ -137,7 +144,7 @@ FIREHOL_TMP="/tmp/firehol-tmp-$$.sh"
 # This is our version number. It is increased when the configuration file commands
 # and arguments change their meaning and usage, so that the user will have to review
 # it more precisely.
-FIREHOL_VERSION=3
+FIREHOL_VERSION=4
 FIREHOL_VERSION_CHECKED=0
 
 FIREHOL_LINEID="INIT"
@@ -419,7 +426,7 @@ rules_nfs() {
 		rpcinfo -p ${x} >"${tmp}"
 		if [ $? -gt 0 -o ! -s "${tmp}" ]
 		then
-			error "Cannot get rpcinfo from host '${x}'"
+			error "Cannot get rpcinfo from host '${x}' (using the previous firewall rules)"
 			rm -f "${tmp}"
 			return 1
 		fi
@@ -1374,22 +1381,25 @@ error() {
 
 smart_function() {
 	local type="${1}"	# The current subcommand: server/client/route
-	local service="${2}"	# The service to implement
+	local services="${2}"	# The services to implement
 	shift 2
 	
-	# Try the simple services first
-	simple_service "${type}" "${service}" "$@"
-	test $? -eq 0 && return 0
-	
-	
-	# Try the custom services
-	fn="rules_${service}"
-	"${fn}" "${type}" "$@"
-	if [ $? -gt 0 ]
-	then
-		error "Function ${fn} returned an error."
-		return 1
-	fi
+	local service=
+	for service in $services
+	do
+		# Try the simple services first
+		simple_service "${type}" "${service}" "$@"
+		test $? -eq 0 && continue
+		
+		# Try the custom services
+		local fn="rules_${service}"
+		"${fn}" "${type}" "$@"
+		if [ $? -gt 0 ]
+		then
+			error "Function ${fn} returned an error."
+			return 1
+		fi
+	done
 	
 	return 0
 }
