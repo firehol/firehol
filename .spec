@@ -65,6 +65,9 @@ install -m 644 examples/client-all.conf /etc/firehol/examples/client-all.conf
 
 %pre
 test ! -d /etc/firehol && mkdir /etc/firehol
+test ! -d /etc/firehol/examples && mkdir /etc/firehol/examples
+
+%post
 if [ -f /etc/firehol.conf ]
 then
 	mv -f /etc/firehol.conf /etc/firehol/firehol.conf
@@ -74,8 +77,6 @@ then
 	echo "Your existing configuration has been moved to its new place."
 	echo
 fi
-
-%post
 /sbin/chkconfig --del firehol
 /sbin/chkconfig --add firehol
 
@@ -92,6 +93,8 @@ rm -rf ${RPM_BUILD_DIR}/%{name}-%{version}
 %doc README TODO COPYING ChangeLog
 
 /etc/init.d/firehol
+/usr/man/man1/firehol.1.gz
+
 %config(noreplace) /etc/firehol/firehol.conf
 
 %config /etc/firehol/examples/home-adsl.conf
