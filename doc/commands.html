@@ -565,7 +565,6 @@ Subcommands must be given within <a href="#primary_commands">Primary commands</a
 		</tr>
 	</table>
 	</center>
-	
 	<p>
 	Example 1: <b>nat to-source 1.1.1.1 outface eth0 src 2.2.2.2 dst 3.3.3.3</b>
 	<br>Example 2: <b>nat to-destination 4.4.4.4 inface eth0 src 5.5.5.5 dst 6.6.6.6</b>
@@ -1265,6 +1264,18 @@ about optional rule parameters that should not be used in certain commands.
 	If set to 0 (zero), FireHOL will not attempt to load kernel modules at all. Set this to 0 (zero)
 	if you have compiled a kernel that has all the modules build into it.
 	<p>
+	Since v1.165 of the FireHOL this feature is almost useless.
+	FireHOL now tries to find the .config file of your kernel
+	(in <b>/proc/config</b> or <b>/lib/modules/`uname -r`/build/.config</b>
+	or <b>/usr/src/linux/.config</b>, in this order) and figures out which kernel modules are compiled
+	build-in and which are modules.
+	<br>
+	So, this variable is only used in cases where FireHOL has no access at all to kernel configuration.
+	<p>
+	Keep in mind, that FireHOL is able to detect the <b>ip_tables</b> and <b>ip_conntrack</b> modules
+	by examining the relative entries in /proc, so it can detect whether these are loaded without the
+	need for the kernel configuration.
+	<p>
 	Default: <b>FIREHOL_LOAD_KERNEL_MODULES=1</b>
 	<br>
 	Example: <b>FIREHOL_LOAD_KERNEL_MODULES=0</b>
@@ -1306,7 +1317,7 @@ about optional rule parameters that should not be used in certain commands.
 <tr><td align=center valign=middle>
 	<A href="http://sourceforge.net"><IMG src="http://sourceforge.net/sflogo.php?group_id=58425&amp;type=5" width="210" height="62" border="0" alt="SourceForge Logo"></A>
 </td><td align=center valign=middle>
-	<small>$Id: commands.html,v 1.41 2003/10/16 22:05:23 ktsaou Exp $</small>
+	<small>$Id: commands.html,v 1.42 2003/11/23 13:43:19 ktsaou Exp $</small>
 	<p>
 	<b>FireHOL</b>, a firewall for humans...<br>
 	&copy; Copyright 2003

@@ -457,8 +457,10 @@ and any combination of stateful firewalls routing traffic from one
 interface to another. There are no limitations on the number of 
 interfaces or on the number of routing routes (except the ones iptables 
 has, if any).
-<p>FireHOL, still lacks a few features: MANGLING and QoS are not supported.
-You are welcome to extend FireHOL and send me your patches to integrate within FireHOL.</p>
+<p>FireHOL, still lacks a few features: QoS for example is not supported directly.
+You are welcome to extend FireHOL and send me your patches to integrate within FireHOL.
+In any case however, you can embed normal iptables commands in a FireHOL
+configuration to do whatever iptables supports.</p>
 
 <p>
 Since FireHOL produces stateful commands, for every supported service 
@@ -486,7 +488,7 @@ supports the following services:</p>
 <tr><td align=center valign=middle>
 	<A href="http://sourceforge.net"><IMG src="http://sourceforge.net/sflogo.php?group_id=58425&amp;type=5" width="210" height="62" border="0" alt="SourceForge Logo"></A>
 </td><td align=center valign=middle>
-	<small>$Id: overview.html,v 1.23 2003/10/13 18:57:02 ktsaou Exp $</small>
+	<small>$Id: overview.html,v 1.24 2003/11/23 13:43:19 ktsaou Exp $</small>
 	<p>
 	<b>FireHOL</b>, a firewall for humans...<br>
 	&copy; Copyright 2003

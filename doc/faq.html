@@ -161,7 +161,7 @@ Processing of FireHOL configuration files is somewhat slow since all processing
 is done by BASH (I have not programmed a parser, BASH runs the configuration as if it was a BASH script). This processing however,
 even if it takes several seconds, it does not affect your security, since the running firewall is not touched during this phase.
 <p>
-Firewall activation is again slow in a few situations, especially if you have lists of hosts that should be allowed or ejected
+Firewall activation is again slow in a few situations, especially if you have lists of hosts that should be allowed or rejected
 (like <a href="commands.html#UNROUTABLE_IPS">UNROUTABLE_IPS</a>). During the processing phase, FireHOL produces a list of the iptables commands to
 be executed at the activation phase. This list of iptables commands, first clears the running firewall and then it runs
 iptables commands, one-by-one, until all have executed. As an example, my personal machine configuration file is about 50 lines.
@@ -228,9 +228,11 @@ need regarding FireHOL.
 <table border=0 cellpadding=10 cellspacing=0 width="100%">
 <tr><td bgcolor="#EEEEEE"><b><A NAME="mangling">How can I mangle the packets (set TOS, MARK, etc)?</a></td></tr></table>
 <br>
-You can put normal iptables statements anywhere in the configuration file, using the <a href="commands.html#iptables">iptables</a>
+For MARKing packets, you can use the <a href="commands.html#mark">mark</a> helper.
+For all the other iptables features that FireHOL does not support directly,
+you can put normal iptables statements anywhere in the configuration file, using the <a href="commands.html#iptables">iptables</a>
 helper. If you really like the FireHOL optional rule parameters for doing this job, just send me an e-mail and I'll write a few
-helper statements especially for TOS, MARK, or whatever.
+helper statements especially for TOS, or whatever.
 <p>
 
 <table border=0 cellpadding=10 cellspacing=0 width="100%">
@@ -250,7 +252,7 @@ exist in most kernels distributed today with the main Linux distributions.
 <tr><td align=center valign=middle>
 	<A href="http://sourceforge.net"><IMG src="http://sourceforge.net/sflogo.php?group_id=58425&amp;type=5" width="210" height="62" border="0" alt="SourceForge Logo"></A>
 </td><td align=center valign=middle>
-	<small>$Id: faq.html,v 1.2 2003/08/19 22:49:50 ktsaou Exp $</small>
+	<small>$Id: faq.html,v 1.3 2003/11/23 13:43:19 ktsaou Exp $</small>
 	<p>
 	<b>FireHOL</b>, a firewall for humans...<br>
 	&copy; Copyright 2003

@@ -10,7 +10,7 @@
 #
 # config: /etc/firehol/firehol.conf
 #
-# $Id: firehol.sh,v 1.169 2003/11/18 23:00:48 ktsaou Exp $
+# $Id: firehol.sh,v 1.170 2003/11/23 13:43:19 ktsaou Exp $
 #
 
 # Remember who you are.
@@ -1830,6 +1830,11 @@ then
 	source /tmp/kcfg.$$
 	${RM_CMD} -f /tmp/kcfg.$$
 	
+elif [ -f "/lib/modules/`${UNAME_CMD} -r`/build/.config" ]
+then
+	KERNEL_CONFIG="/lib/modules/`${UNAME_CMD} -r`/build/.config"
+	. "${KERNEL_CONFIG}"
+	
 elif [ -f "/usr/src/linux/.config" ]
 then
 	KERNEL_CONFIG="/usr/src/linux/.config"
@@ -1848,6 +1853,7 @@ else
 	echo >&2 " being able to detect failures."
 	echo >&2 " "
 fi
+
 
 # activation-phase command to check for the existance of
 # a kernel configuration directive. It returns:
@@ -3948,7 +3954,7 @@ case "${arg}" in
 		else
 		
 		${CAT_CMD} <<EOF
-$Id: firehol.sh,v 1.169 2003/11/18 23:00:48 ktsaou Exp $
+$Id: firehol.sh,v 1.170 2003/11/23 13:43:19 ktsaou Exp $
 (C) Copyright 2003, Costa Tsaousis <costa@tsaousis.gr>
 FireHOL is distributed under GPL.
 
@@ -4134,7 +4140,7 @@ then
 	
 	${CAT_CMD} <<EOF
 
-$Id: firehol.sh,v 1.169 2003/11/18 23:00:48 ktsaou Exp $
+$Id: firehol.sh,v 1.170 2003/11/23 13:43:19 ktsaou Exp $
 (C) Copyright 2003, Costa Tsaousis <costa@tsaousis.gr>
 FireHOL is distributed under GPL.
 Home Page: http://firehol.sourceforge.net
@@ -4429,7 +4435,7 @@ then
 	
 	${CAT_CMD} >&2 <<EOF
 
-$Id: firehol.sh,v 1.169 2003/11/18 23:00:48 ktsaou Exp $
+$Id: firehol.sh,v 1.170 2003/11/23 13:43:19 ktsaou Exp $
 (C) Copyright 2003, Costa Tsaousis <costa@tsaousis.gr>
 FireHOL is distributed under GPL.
 Home Page: http://firehol.sourceforge.net
@@ -4512,7 +4518,7 @@ EOF
 	echo "# "
 
 	${CAT_CMD} <<EOF
-# $Id: firehol.sh,v 1.169 2003/11/18 23:00:48 ktsaou Exp $
+# $Id: firehol.sh,v 1.170 2003/11/23 13:43:19 ktsaou Exp $
 # (C) Copyright 2003, Costa Tsaousis <costa@tsaousis.gr>
 # FireHOL is distributed under GPL.
 # Home Page: http://firehol.sourceforge.net

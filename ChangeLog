@@ -1,7 +1,7 @@
 
 RCS file: /cvsroot/firehol/firehol/firehol.sh,v
 Working file: firehol.sh
-head: 1.166
+head: 1.169
 branch:
 locks: strict
 access list:
@@ -9,8 +9,29 @@ symbolic names:
 	start: 1.1.1.1
 	vendor: 1.1.1
 keyword substitution: kv
-total revisions: 167;	selected revisions: 167
+total revisions: 170;	selected revisions: 170
 description:
+----------------------------
+revision 1.169
+date: 2003/11/18 23:00:48;  author: ktsaou;  state: Exp;  lines: +6 -6
+There was an extra - (minus) in the iptables command generation for
+negative protocol expressions. Fixed.
+----------------------------
+revision 1.168
+date: 2003/11/04 21:43:02;  author: ktsaou;  state: Exp;  lines: +21 -6
+NETBIOS initiates based on the broadcast address of an interface
+(request goes to broadcast address) but the server responds from
+its own IP address. This makes the server samba accept statement
+drop the server reply.
+Bellow is a hack, that allows a linux samba server to respond
+correctly, as it allows new outgoing connections from the well
+known netbios-ns port to the clients high ports.
+For clients and routers this hack is not applied because it
+would be a huge security hole.
+----------------------------
+revision 1.167
+date: 2003/11/03 20:43:09;  author: ktsaou;  state: Exp;  lines: +6 -6
+Added again 172.16.0.0/12 to PRIVATE_IPS.
 ----------------------------
 revision 1.166
 date: 2003/10/26 21:40:30;  author: ktsaou;  state: Exp;  lines: +67 -56
