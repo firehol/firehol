@@ -10,7 +10,7 @@
 #
 # config: /etc/firehol.conf
 #
-# $Id: firehol.sh,v 1.121 2003/04/08 00:12:02 ktsaou Exp $
+# $Id: firehol.sh,v 1.122 2003/04/18 20:52:44 ktsaou Exp $
 #
 FIREHOL_FILE="${0}"
 
@@ -196,6 +196,10 @@ FIREHOL_EXPLAIN=0
 # If set to 1, FireHOL enters a wizard mode to help the user build a firewall.
 # It can be changed on the command line
 FIREHOL_WIZARD=0
+
+# If set to 0, FireHOL will not try to load the required kernel modules.
+# It can be set in the configuration file.
+FIREHOL_LOAD_KERNEL_MODULES=1
 
 
 # ------------------------------------------------------------------------------
@@ -1500,6 +1504,40 @@ set_work_function() {
 # We need to load a set of kernel modules during postprocessing, and after the
 # new firewall has been activated. Here we just keep a list of the required
 # kernel modules.
+
+check_kernel_module() {
+	local mod="${1}"
+	
+	case ${mod} in
+		ip_tables)
+			test -f /proc/net/ip_tables_name && return 0
+			return 1
+			;;
+		
+		ip_conntrack)
+			test -f /proc/net/ip_conntrack && return 0
+			return 1
+			;;
+	esac
+	
+	return 1
+}
+
+load_kernel_module() {
+	local mod="${1}"
+	
+	if [ ! ${FIREHOL_LOAD_KERNEL_MODULES} -eq 0 ]
+	then
+		check_kernel_module ${mod}
+		if [ $? -gt 0 ]
+		then
+			${MODPROBE_CMD} ${mod} >${FIREHOL_OUTPUT}.log 2>&1
+			local r=$?
+			test ! ${r} -eq 0 && runtime_error warn ${r} ${FIREHOL_LINEID} ${MODPROBE_CMD} ${mod}
+		fi
+	fi
+	return 0
+}
 
 require_kernel_module() {
 	local new="${1}"
@@ -3207,7 +3245,7 @@ case "${arg}" in
 		fi
 		
 		echo -n $"FireHOL: Blocking all communications:"
-		${MODPROBE_CMD} ip_tables >/dev/null 2>&1
+		load_kernel_module ip_tables
 		tables=`${CAT_CMD} /proc/net/ip_tables_names`
 		for t in ${tables}
 		do
@@ -3276,7 +3314,7 @@ case "${arg}" in
 		else
 		
 		${CAT_CMD} <<"EOF"
-$Id: firehol.sh,v 1.121 2003/04/08 00:12:02 ktsaou Exp $
+$Id: firehol.sh,v 1.122 2003/04/18 20:52:44 ktsaou Exp $
 (C) Copyright 2003, Costa Tsaousis <costa@tsaousis.gr>
 FireHOL is distributed under GPL.
 
@@ -3462,7 +3500,7 @@ then
 	
 	${CAT_CMD} <<"EOF"
 
-$Id: firehol.sh,v 1.121 2003/04/08 00:12:02 ktsaou Exp $
+$Id: firehol.sh,v 1.122 2003/04/18 20:52:44 ktsaou Exp $
 (C) Copyright 2003, Costa Tsaousis <costa@tsaousis.gr>
 FireHOL is distributed under GPL.
 Home Page: http://firehol.sourceforge.net
@@ -3756,7 +3794,7 @@ then
 	
 	${CAT_CMD} >&2 <<"EOF"
 
-$Id: firehol.sh,v 1.121 2003/04/08 00:12:02 ktsaou Exp $
+$Id: firehol.sh,v 1.122 2003/04/18 20:52:44 ktsaou Exp $
 (C) Copyright 2003, Costa Tsaousis <costa@tsaousis.gr>
 FireHOL is distributed under GPL.
 Home Page: http://firehol.sourceforge.net
@@ -3849,7 +3887,7 @@ EOF
 	echo "# "
 
 	${CAT_CMD} <<"EOF"
-# $Id: firehol.sh,v 1.121 2003/04/08 00:12:02 ktsaou Exp $
+# $Id: firehol.sh,v 1.122 2003/04/18 20:52:44 ktsaou Exp $
 # (C) Copyright 2003, Costa Tsaousis <costa@tsaousis.gr>
 # FireHOL is distributed under GPL.
 # Home Page: http://firehol.sourceforge.net
@@ -4233,7 +4271,7 @@ fixed_iptables_save() {
 	local tmp="${FIREHOL_DIR}/iptables-save-$$"
 	local err=
 	
-	${MODPROBE_CMD} ip_tables >/dev/null 2>&1
+	load_kernel_module ip_tables
 	${IPTABLES_SAVE_CMD} -c >$tmp
 	err=$?
 	if [ ! $err -eq 0 ]
@@ -4274,11 +4312,8 @@ fi
 ${CAT_CMD} >"${FIREHOL_OUTPUT}" <<"EOF"
 #!/bin/sh
 
-${MODPROBE_CMD} ip_tables >${FIREHOL_OUTPUT}.log 2>&1
-r=$?; test ! ${r} -eq 0 && runtime_error warn ${r} INIT ${MODPROBE_CMD} ip_tables
-
-${MODPROBE_CMD} ip_conntrack >${FIREHOL_OUTPUT}.log 2>&1
-r=$?; test ! ${r} -eq 0 && runtime_error warn ${r} INIT ${MODPROBE_CMD} ip_conntrack
+load_kernel_module ip_tables
+load_kernel_module ip_conntrack
 
 # Find all tables supported
 tables=`${CAT_CMD} /proc/net/ip_tables_names`
@@ -4395,7 +4430,7 @@ echo
 
 for m in ${FIREHOL_KERNEL_MODULES}
 do
-	postprocess -warn ${MODPROBE_CMD} $m
+	postprocess -ne load_kernel_module $m
 done
 
 # XXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXX
