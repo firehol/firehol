@@ -203,6 +203,18 @@ service_isakmp_notes="IPSec key negotiation (IKE on UDP port 500).
 For more information see the <a href=\"http://www.freeswan.org/freeswan_trees/freeswan-1.99/doc/quickstart-firewall.html#quick_firewall\">FreeS/WAN documentation</a>.
 "
 
+service_jabber_notes="<a href=\"http://www.jabber.org\">Jabber</a> Instant Messenger
+<p>
+This definition allows both clear and SSL jabber client - to - jabber server connections, as given in this <a href=\"http://www.jabber.org/user/userfaq.html#id2781037\">Jabber FAQ</a>.
+"
+
+service_jabberd_notes="<a href=\"http://www.jabber.org\">Jabberd</a> Instant Messenger Server
+<p>
+This definition allows both clear and SSL jabber client - to - jabber server and jabber server - to - server connections, as given in this <a href=\"http://www.jabber.org/admin/adminguide.html#requirements-ports\">Jabberd FAQ</a>.
+<p>
+Use this service for a jabberd server. In all other cases, use the <a href=\"#jabber\">jabber</a> service.
+"
+
 service_lpd_notes="Line Printer Deamon Protocol (LPD)
 <p>
 LPD is documented in <a href=\"http://www.ietf.org/rfc/rfc1179.txt?number=1179\">RFC 1179</a>.
@@ -682,7 +694,7 @@ cat <<"EOF"
 <tr><td align=center valign=middle>
 	<A href="http://sourceforge.net"><IMG src="http://sourceforge.net/sflogo.php?group_id=58425&amp;type=5" width="210" height="62" border="0" alt="SourceForge Logo"></A>
 </td><td align=center valign=middle>
-	<small>$Id: create_services.sh,v 1.31 2003/06/28 21:26:21 ktsaou Exp $</small>
+	<small>$Id: create_services.sh,v 1.32 2003/06/30 22:07:02 ktsaou Exp $</small>
 	<p>
 	<b>FireHOL</b>, a firewall for humans...<br>
 	&copy; Copyright 2003

@@ -10,7 +10,7 @@
 #
 # config: /etc/firehol/firehol.conf
 #
-# $Id: firehol.sh,v 1.137 2003/06/28 23:22:49 ktsaou Exp $
+# $Id: firehol.sh,v 1.138 2003/06/30 22:07:01 ktsaou Exp $
 #
 FIREHOL_FILE="${0}"
 
@@ -364,6 +364,12 @@ ALL_SHOULD_ALSO_RUN="${ALL_SHOULD_ALSO_RUN} irc"
 # for IPSec Key negotiation
 server_isakmp_ports="udp/500"
 client_isakmp_ports="500"
+
+server_jabber_ports="tcp/5222 tcp/5223"
+client_jabber_ports="default"
+
+server_jabberd_ports="tcp/5222 tcp/5223 tcp/5269"
+client_jabberd_ports="default"
 
 server_ldap_ports="tcp/ldap"
 client_ldap_ports="default"
@@ -3441,7 +3447,7 @@ case "${arg}" in
 		else
 		
 		${CAT_CMD} <<"EOF"
-$Id: firehol.sh,v 1.137 2003/06/28 23:22:49 ktsaou Exp $
+$Id: firehol.sh,v 1.138 2003/06/30 22:07:01 ktsaou Exp $
 (C) Copyright 2003, Costa Tsaousis <costa@tsaousis.gr>
 FireHOL is distributed under GPL.
 
@@ -3627,7 +3633,7 @@ then
 	
 	${CAT_CMD} <<"EOF"
 
-$Id: firehol.sh,v 1.137 2003/06/28 23:22:49 ktsaou Exp $
+$Id: firehol.sh,v 1.138 2003/06/30 22:07:01 ktsaou Exp $
 (C) Copyright 2003, Costa Tsaousis <costa@tsaousis.gr>
 FireHOL is distributed under GPL.
 Home Page: http://firehol.sourceforge.net
@@ -3922,7 +3928,7 @@ then
 	
 	${CAT_CMD} >&2 <<"EOF"
 
-$Id: firehol.sh,v 1.137 2003/06/28 23:22:49 ktsaou Exp $
+$Id: firehol.sh,v 1.138 2003/06/30 22:07:01 ktsaou Exp $
 (C) Copyright 2003, Costa Tsaousis <costa@tsaousis.gr>
 FireHOL is distributed under GPL.
 Home Page: http://firehol.sourceforge.net
@@ -4015,7 +4021,7 @@ EOF
 	echo "# "
 
 	${CAT_CMD} <<"EOF"
-# $Id: firehol.sh,v 1.137 2003/06/28 23:22:49 ktsaou Exp $
+# $Id: firehol.sh,v 1.138 2003/06/30 22:07:01 ktsaou Exp $
 # (C) Copyright 2003, Costa Tsaousis <costa@tsaousis.gr>
 # FireHOL is distributed under GPL.
 # Home Page: http://firehol.sourceforge.net

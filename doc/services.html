@@ -94,6 +94,13 @@ All the services defined by name in FireHOL are known to resolve in <a href="htt
 
 <td width="25%" align=left valign=top>
 	<table border=0 cellpadding=2 cellspacing=2 width="100%">
+	<tr><td align=left valign=top><font color="gray" size=+1><b>J</td></tr>
+	<tr><td align=left valign=top><small>
+
+<a href="#jabber">jabber</a>, <a href="#jabberd">jabberd</a></td></tr></table></td>
+
+<td width="25%" align=left valign=top>
+	<table border=0 cellpadding=2 cellspacing=2 width="100%">
 	<tr><td align=left valign=top><font color="gray" size=+1><b>L</td></tr>
 	<tr><td align=left valign=top><small>
 
@@ -112,6 +119,7 @@ All the services defined by name in FireHOL are known to resolve in <a href="htt
 	<tr><td align=left valign=top><small>
 
 <a href="#netbios_dgm">netbios_dgm</a>, <a href="#netbios_ns">netbios_ns</a>, <a href="#netbios_ssn">netbios_ssn</a>, <a href="#nfs">nfs</a>, <a href="#nntp">nntp</a>, <a href="#ntp">ntp</a></td></tr></table></td>
+</tr><tr>
 
 <td width="25%" align=left valign=top>
 	<table border=0 cellpadding=2 cellspacing=2 width="100%">
@@ -119,7 +127,6 @@ All the services defined by name in FireHOL are known to resolve in <a href="htt
 	<tr><td align=left valign=top><small>
 
 <a href="#ping">ping</a>, <a href="#pop3">pop3</a>, <a href="#pop3s">pop3s</a>, <a href="#portmap">portmap</a>, <a href="#pptp">pptp</a>, <a href="#privoxy">privoxy</a></td></tr></table></td>
-</tr><tr>
 
 <td width="25%" align=left valign=top>
 	<table border=0 cellpadding=2 cellspacing=2 width="100%">
@@ -141,6 +148,7 @@ All the services defined by name in FireHOL are known to resolve in <a href="htt
 	<tr><td align=left valign=top><small>
 
 <a href="#telnet">telnet</a></td></tr></table></td>
+</tr><tr>
 
 <td width="25%" align=left valign=top>
 	<table border=0 cellpadding=2 cellspacing=2 width="100%">
@@ -148,7 +156,6 @@ All the services defined by name in FireHOL are known to resolve in <a href="htt
 	<tr><td align=left valign=top><small>
 
 <a href="#uucp">uucp</a></td></tr></table></td>
-</tr><tr>
 
 <td width="25%" align=left valign=top>
 	<table border=0 cellpadding=2 cellspacing=2 width="100%">
@@ -696,6 +703,46 @@ All the services defined by name in FireHOL are known to resolve in <a href="htt
 	</tr>
 	<tr><td align=right valign=top nowrap><small><font color="gray">Notes</td><td>IPSec key negotiation (IKE on UDP port 500). <p> For more information see the <a href="http://www.freeswan.org/freeswan_trees/freeswan-1.99/doc/quickstart-firewall.html#quick_firewall">FreeS/WAN documentation</a>.<br>&nbsp;</td></tr>
 	<tr><td align=right valign=top nowrap><small><font color="gray">Example</td><td><b>server isakmp accept</b></td></tr>
+	</table>
+	</td>
+	</tr>
+<tr  bgcolor="#F0F0F0">
+	<td align="center" valign="top"><a name="jabber"><b>jabber</b></a></td>
+	<td align="center" valign="top">simple</td>
+	<td>
+		<table cellspacing=0 cellpadding=2 border=0>
+		<tr>
+<td align=right valign=top nowrap><small><font color=gray>Server Ports</td><td>
+<b>tcp/5222</b>
+, 
+<b>tcp/5223</b>
+</td></tr><tr><td align=right valign=top nowrap><small><font color=gray>Client Ports</td><td>
+<b>default</b>
+</td>
+	</tr>
+	<tr><td align=right valign=top nowrap><small><font color="gray">Notes</td><td><a href="http://www.jabber.org">Jabber</a> Instant Messenger <p> This definition allows both clear and SSL jabber client - to - jabber server connections, as given in this <a href="http://www.jabber.org/user/userfaq.html#id2781037">Jabber FAQ</a>.<br>&nbsp;</td></tr>
+	<tr><td align=right valign=top nowrap><small><font color="gray">Example</td><td><b>server jabber accept</b></td></tr>
+	</table>
+	</td>
+	</tr>
+<tr >
+	<td align="center" valign="top"><a name="jabberd"><b>jabberd</b></a></td>
+	<td align="center" valign="top">simple</td>
+	<td>
+		<table cellspacing=0 cellpadding=2 border=0>
+		<tr>
+<td align=right valign=top nowrap><small><font color=gray>Server Ports</td><td>
+<b>tcp/5222</b>
+, 
+<b>tcp/5223</b>
+, 
+<b>tcp/5269</b>
+</td></tr><tr><td align=right valign=top nowrap><small><font color=gray>Client Ports</td><td>
+<b>default</b>
+</td>
+	</tr>
+	<tr><td align=right valign=top nowrap><small><font color="gray">Notes</td><td><a href="http://www.jabber.org">Jabberd</a> Instant Messenger Server <p> This definition allows both clear and SSL jabber client - to - jabber server and jabber server - to - server connections, as given in this <a href="http://www.jabber.org/admin/adminguide.html#requirements-ports">Jabberd FAQ</a>. <p> Use this service for a jabberd server. In all other cases, use the <a href="#jabber">jabber</a> service.<br>&nbsp;</td></tr>
+	<tr><td align=right valign=top nowrap><small><font color="gray">Example</td><td><b>server jabberd accept</b></td></tr>
 	</table>
 	</td>
 	</tr>
@@ -1445,7 +1492,7 @@ All the services defined by name in FireHOL are known to resolve in <a href="htt
 <tr><td align=center valign=middle>
 	<A href="http://sourceforge.net"><IMG src="http://sourceforge.net/sflogo.php?group_id=58425&amp;type=5" width="210" height="62" border="0" alt="SourceForge Logo"></A>
 </td><td align=center valign=middle>
-	<small>$Id: services.html,v 1.36 2003/06/28 21:26:21 ktsaou Exp $</small>
+	<small>$Id: services.html,v 1.37 2003/06/30 22:07:02 ktsaou Exp $</small>
 	<p>
 	<b>FireHOL</b>, a firewall for humans...<br>
 	&copy; Copyright 2003
