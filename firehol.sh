@@ -10,7 +10,7 @@
 #
 # config: /etc/firehol.conf
 #
-# $Id: firehol.sh,v 1.101 2003/03/05 00:33:56 ktsaou Exp $
+# $Id: firehol.sh,v 1.102 2003/03/05 18:23:57 ktsaou Exp $
 #
 FIREHOL_FILE="${0}"
 
@@ -3189,7 +3189,7 @@ case "${arg}" in
 		else
 		
 		cat <<"EOF"
-$Id: firehol.sh,v 1.101 2003/03/05 00:33:56 ktsaou Exp $
+$Id: firehol.sh,v 1.102 2003/03/05 18:23:57 ktsaou Exp $
 (C) Copyright 2002, Costa Tsaousis <costa@tsaousis.gr>
 FireHOL is distributed under GPL.
 
@@ -3372,7 +3372,7 @@ then
 	
 	cat <<"EOF"
 
-$Id: firehol.sh,v 1.101 2003/03/05 00:33:56 ktsaou Exp $
+$Id: firehol.sh,v 1.102 2003/03/05 18:23:57 ktsaou Exp $
 (C) Copyright 2002, Costa Tsaousis <costa@tsaousis.gr>
 FireHOL is distributed under GPL.
 Home Page: http://firehol.sourceforge.net
@@ -3580,7 +3580,7 @@ then
 	
 	cat >&2 <<"EOF"
 
-$Id: firehol.sh,v 1.101 2003/03/05 00:33:56 ktsaou Exp $
+$Id: firehol.sh,v 1.102 2003/03/05 18:23:57 ktsaou Exp $
 (C) Copyright 2002, Costa Tsaousis <costa@tsaousis.gr>
 FireHOL is distributed under GPL.
 Home Page: http://firehol.sourceforge.net
@@ -3673,7 +3673,7 @@ EOF
 	echo "# "
 
 	cat <<"EOF"
-# $Id: firehol.sh,v 1.101 2003/03/05 00:33:56 ktsaou Exp $
+# $Id: firehol.sh,v 1.102 2003/03/05 18:23:57 ktsaou Exp $
 # (C) Copyright 2002, Costa Tsaousis <costa@tsaousis.gr>
 # FireHOL is distributed under GPL.
 # Home Page: http://firehol.sourceforge.net
@@ -3692,14 +3692,99 @@ EOF
 	echo "# The TODOs bellow, are YOUR to-dos !!!"
 	echo
 	
-	interfaces=`/sbin/ip link show | egrep "^[0-9A-Za-z]+:" | cut -d ':' -f 2 | sed "s/^ //" | grep -v "^lo$" | sort | uniq | tr "\n" " "`
-	gw_if=`/sbin/ip route show | grep "^default" | sed "s/dev /dev:/g" | tr " " "\n" | grep "^dev:" | cut -d ':' -f 2`
-	gw_ip=`/sbin/ip route show | grep "^default" | sed "s/via /via:/g" | tr " " "\n" | grep "^via:" | cut -d ':' -f 2`
-	
 	# globals for routing
 	set -a found_interfaces=
 	set -a found_ips=
 	set -a found_nets=
+	
+	helpme_iface() {
+		local i="${1}"; shift
+		local iface="${1}"; shift
+		local ifip="${1}"; shift
+		local ifnets="${1}"; shift
+		local ifreason="${1}"; shift
+		
+		found_interfaces[$i]=${iface}
+		found_ips[$i]=${ifip}
+		found_nets[$i]=${ifnets}
+		
+		# output the interface
+		echo
+		echo "# Interface No $i."
+		echo "# The purpose of this interface is to control the traffic"
+		if [ ! -z "${ifreason}" ]
+		then
+			echo "# ${ifreason}."
+		else
+			echo "# on the ${iface} interface with IP ${ifip} (net: ${ifnets})."
+		fi
+		echo "# TODO: Change \"interface${i}\" to something with meaning to you."
+		echo "# TODO: Check the optional rule parameters (src/dst)."
+		echo "# TODO: Remove 'dst ${ifip}' if this is dynamically assigned."
+		
+		if [ "${ifnets}" = "0.0.0.0/0" ]
+		then
+			ifnets="not \"\${UNROUTABLE_IPS} ${1}\""
+		else
+			ifnets="\"${ifnets}\""
+		fi
+		
+		echo "interface ${iface} interface${i} src ${ifnets} dst ${ifip}"
+		echo
+		echo "	# The default policy is DROP. You can be more polite with REJECT."
+		echo "	# Prefer to be polite on your own clients to prevent timeouts."
+		echo "	policy drop"
+		echo
+		echo "	# If you don't trust the clients behind ${iface} (net ${ifnets}),"
+		echo "	# add something like this."
+		echo "	# > protection strong"
+		echo
+		echo "	# Here are the services listening on ${iface}."
+		echo "	# TODO: Normally, you will have to remove those not needed."
+		
+		(
+			local x=
+			local ports=
+			for x in `netstat -an | egrep "^tcp" | grep "0.0.0.0:*" | egrep " (${ifip}|0.0.0.0):[0-9]+" | cut -d ':' -f 2 | cut -d ' ' -f 1 | sort -n | uniq`
+			do
+				if [ -f "tcp/${x}" ]
+				then
+					echo "	`cat tcp/${x}` accept"
+				else
+					ports="${ports} tcp/${x}"
+				fi
+			done
+			
+			for x in `netstat -an | egrep "^udp" | grep "0.0.0.0:*" | egrep " (${ifip}|0.0.0.0):[0-9]+" | cut -d ':' -f 2 | cut -d ' ' -f 1 | sort -n | uniq`
+			do
+				if [ -f "udp/${x}" ]
+				then
+					echo "	`cat udp/${x}` accept"
+				else
+					ports="${ports} udp/${x}"
+				fi
+			done
+			
+			echo "${ports}" | tr " " "\n" | sort -n | uniq | tr "\n" " " >unknown.ports
+		) | sort | uniq
+		
+		echo
+		echo "	# The following ${iface} server ports are not known by FireHOL:"
+		echo "	# `cat unknown.ports`"
+		echo "	# TODO: If you need any of them, you should define new services."
+		echo "	#       (see Adding Services at the web site - http://firehol.sf.net)."
+		echo
+		
+		echo "	# The following means that this machine can REQUEST anything via ${iface}."
+		echo "	# TODO: On production servers, avoid this and allow only the"
+		echo "	#       client services you really need."
+		echo "	client all accept"
+		echo
+	}
+	
+	interfaces=`/sbin/ip link show | egrep "^[0-9A-Za-z]+:" | cut -d ':' -f 2 | sed "s/^ //" | grep -v "^lo$" | sort | uniq | tr "\n" " "`
+	gw_if=`/sbin/ip route show | grep "^default" | sed "s/dev /dev:/g" | tr " " "\n" | grep "^dev:" | cut -d ':' -f 2`
+	gw_ip=`/sbin/ip route show | grep "^default" | sed "s/via /via:/g" | tr " " "\n" | grep "^via:" | cut -d ':' -f 2`
 	
 	i=0
 	for iface in ${interfaces}
@@ -3782,75 +3867,24 @@ EOF
 			fi
 			
 			i=$[i + 1]
-			found_interfaces[$i]=${iface}
-			found_ips[$i]=${ip}
-			found_nets[$i]=${ifnets}
+			helpme_iface $i "${iface}" "${ip}" "${ifnets[*]}" ""
 			
-			# output the interface
-			echo
-			echo "# Interface No $i."
-			echo "# Protecting this host on its ${iface} interface (IP: ${ip})."
-			echo "# TODO: Change \"interface${i}\" to something with meaning to you."
-			echo "# TODO: Check the optional rule parameters (src/dst)."
-			echo "# TODO: Remove 'dst ${ip}' if this is dynamically assigned."
-			
-			if [ ${ifnets[0]} = 0.0.0.0/0 ]
+			# Is this interface the default gateway too?
+			if [ "${gw_if}" = "${iface}" ]
 			then
-				ifnets="not \"\${UNROUTABLE_IPS}\""
-			else
-				ifnets="\"${ifnets[*]}\""
+				for nn in ${ifnets[@]}
+				do
+					if ip_in_net "${gw_ip}" ${nn}
+					then
+						echo "### DEBUG: Default gateway ${gw_ip} is part of network ${nn}"
+						
+						i=$[i + 1]
+						helpme_iface $i "${iface}" "${ip}" "0.0.0.0/0" "from/to unknown networks behind the default gateway ${gw_ip}" "${ifnets[*]}"
+						
+						break
+					fi
+				done
 			fi
-			
-			echo "interface ${iface} interface${i} src ${ifnets} dst ${ip}"
-			echo
-			echo "	# The default policy is DROP. You can be more polite with REJECT."
-			echo "	# Prefer to be polite on your own clients to prevent timeouts."
-			echo "	policy drop"
-			echo
-			echo "	# If you don't trust the clients behind ${iface} (net ${ifnets}),"
-			echo "	# add something like this."
-			echo "	# > protection strong"
-			echo
-			echo "	# Here are the services listening on ${iface}."
-			echo "	# TODO: Normally, you will have to remove those not needed."
-			
-			(
-				ports=
-				for x in `netstat -an | egrep "^tcp" | grep "0.0.0.0:*" | egrep " (${ip}|0.0.0.0):[0-9]+" | cut -d ':' -f 2 | cut -d ' ' -f 1 | sort -n | uniq`
-				do
-					if [ -f "tcp/${x}" ]
-					then
-						echo "	`cat tcp/${x}` accept"
-					else
-						ports="${ports} tcp/${x}"
-					fi
-				done
-				
-				for x in `netstat -an | egrep "^udp" | grep "0.0.0.0:*" | egrep " (${ip}|0.0.0.0):[0-9]+" | cut -d ':' -f 2 | cut -d ' ' -f 1 | sort -n | uniq`
-				do
-					if [ -f "udp/${x}" ]
-					then
-						echo "	`cat udp/${x}` accept"
-					else
-						ports="${ports} udp/${x}"
-					fi
-				done
-				
-				echo "${ports}" | tr " " "\n" | sort -n | uniq | tr "\n" " " >unknown.ports
-			) | sort | uniq
-			
-			echo
-			echo "	# The following ${iface} server ports are not known by FireHOL:"
-			echo "	# `cat unknown.ports`"
-			echo "	# TODO: If you need any of them, you should define new services."
-			echo "	#       (see Adding Services at the web site - http://firehol.sf.net)."
-			echo
-			
-			echo "	# The following means that this machine can REQUEST anything via ${iface}."
-			echo "	# TODO: On production servers, avoid this and allow only the"
-			echo "	#       client services you really need."
-			echo "	client all accept"
-			echo
 		done
 	done
 		
