@@ -134,12 +134,24 @@ For example:
 <br>
 <br>&nbsp;&nbsp;&nbsp;&nbsp;interface eth0 lan src \"\$mylan\" dst \"\$myip\"
 <br>&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;...
+<br>&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;client all accept
 </td></tr></table>
 Note that if you are running a DHCP client and your provider has installed more than one DHCP servers, you
 may see a few entries in your system log about packets dropped from the IP of some
 DHCP server to 255.255.255.255 with source port 67 and destination port 68 (protocol UDP).
 This is normal, since the iptables connection tracker will allow only <b>one</b> reply
 to match the DHCP client request. All the other replies will not match a request and will be dropped (and logged).
+<p>
+Also, if \$mylan does not include 255.255.255.255 or if the <b>client all accept</b> is not wanted,
+there may be a need to add in the <b>dhcp</b> interface:
+<p>
+client custom rev_dhcp udp/bootpc bootps accept
+<p>
+This is needed because the iptables connection tracker gets confused when it receives:<p>
+SRC=0.0.0.0 DST=255.255.255.255 PROTO=UDP SPORT=BOOTPC(68) DPORT=BOOTPS(67)<p>
+and the reply from the server is:<p>
+SRC=some_IP DST=255.255.255.255 PROTO=UDP SPORT=BOOTPS(67) DPORT=BOOTPC(68)<p>
+since the reply does not match the request.
 "
 
 service_dhcprelay_notes="DHCP Relay.
@@ -772,7 +784,7 @@ cat <<"EOF"
 <tr><td align=center valign=middle>
 	<A href="http://sourceforge.net"><IMG src="http://sourceforge.net/sflogo.php?group_id=58425&amp;type=5" width="210" height="62" border="0" alt="SourceForge Logo"></A>
 </td><td align=center valign=middle>
-	<small>$Id: create_services.sh,v 1.43 2004/04/21 22:23:18 ktsaou Exp $</small>
+	<small>$Id: create_services.sh,v 1.44 2004/07/29 22:31:15 ktsaou Exp $</small>
 	<p>
 	<b>FireHOL</b>, a firewall for humans...<br>
 	&copy; Copyright 2003
