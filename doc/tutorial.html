@@ -119,15 +119,15 @@ Keep in mind that:
 <ul>
 	<li><b>incoming requests</b> represent <b>servers</b> running on the firewall host.<br>&nbsp;</li>
 	<li><b>outgoing requests</b> represent <b>clients</b> running on the firewall host.<br>&nbsp;</li>
-	<li><b>routing requests in</b> represent <b>servers</b> running on a host accessible via some other interface.<br>&nbsp;</li>
-	<li><b>routing requests out</b> represent <b>clients</b> running on a host accessible via some other interface.<br>&nbsp;</li>
+	<li><b>routing requests in</b> represent <b>clients</b> on hosts at the network interface in question.<br>&nbsp;</li>
+	<li><b>routing requests out</b> represent <b>servers</b> on hosts at the network interface in question.<br>&nbsp;</li>
 </ul>
 
 So, the above could also be presented as:
 
 	<center>
 	<table border=0 cellpadding=3 cellspacing=5 width="70%">
-	<tr><th bgcolor="#000000"><font color="white">interface</th><th bgcolor="#000000"><font color="white">name</th><th bgcolor="#000000"><font color="white">servers</th><th bgcolor="#000000"><font color="white">clients</th><th bgcolor="#000000"><font color="white">routing&nbsp;in</th><th bgcolor="#000000"><font color="white">routing&nbsp;out</th></tr>
+	<tr><th bgcolor="#000000"><font color="white">interface</th><th bgcolor="#000000"><font color="white">name</th><th bgcolor="#000000"><font color="white">servers</th><th bgcolor="#000000"><font color="white">clients</th><th bgcolor="#000000"><font color="white">routing&nbsp;clients</th><th bgcolor="#000000"><font color="white">routing&nbsp;servers</th></tr>
 	<tr>	<td align="center"><b>eth0</td>
 		<td align=center>home</td>
 		<td align=center>dns, ftp, samba, squid, dhcp, http, ssh, icmp</td>
@@ -557,7 +557,7 @@ We could use the first router (home2internet) to do everything, but then the cli
 <tr><td align=center valign=middle>
 	<A href="http://sourceforge.net"><IMG src="http://sourceforge.net/sflogo.php?group_id=58425&amp;type=5" width="210" height="62" border="0" alt="SourceForge Logo"></A>
 </td><td align=center valign=middle>
-	<small>$Id: tutorial.html,v 1.7 2002/12/21 20:10:44 ktsaou Exp $</small>
+	<small>$Id: tutorial.html,v 1.8 2002/12/22 03:36:16 ktsaou Exp $</small>
 	<p>
 	<b>FireHOL</b>, a firewall for humans...<br>
 	&copy; Copyright 2002
