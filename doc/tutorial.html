@@ -6,14 +6,439 @@
 
 <BODY bgcolor="#FFFFFF">
 
-This section will eventually have a tutorial for building your firewall with FireHOL.
+This quick tutorial will give you an idea of how to design your firewall, based on real life examples.
 <p>
-For the moment I'll give you a hint: <b>you should do something with all interfaces ifconfig shows</b> (except of course <b>lo</b>
-which is handled automatically). Also, be sure to check all the example configurations included.
+Even if you don't use FireHOL, designing a firewall requires a few steps:
 <p>
-More later...
+<table border=0 cellpadding=10 cellspacing=0 width="100%">
+<tr><td bgcolor="#EEEEEE"><b>1. Identify all the network interfaces your firewall host has</td></tr></table>
+<br>
+Network interfaces are there for some reason. You have to do something about all the interfaces of your host.
+If you don't do something at the firewall level with a network interface, then it depends of the firewall policy what will happen
+with traffic on this interface. By default FireHOL will <b>drop</b> all traffic comming in and going out, so the network interface
+will have no meaning to be there.
+<p>
+To identify your network interfaces use the <b>ifconfig</b> command. The example bellow shows my home router ifconfig output:
+
+<center><table border=0 cellpadding=15 cellspacing=20 width="70%">
+<tr><td bgcolor="#F0F0F0">
+<b><pre>
+[root@gateway /]# ifconfig
+eth0      Link encap:Ethernet  HWaddr 00:50:FC:21:9A:AB
+          inet addr:195.97.5.193  Bcast:195.97.5.207  Mask:255.255.255.240
+          UP BROADCAST RUNNING MULTICAST  MTU:1500  Metric:1
+          RX packets:273856 errors:0 dropped:0 overruns:0 frame:0
+          TX packets:197377 errors:0 dropped:0 overruns:1 carrier:0
+          collisions:0 txqueuelen:100
+          RX bytes:311341519 (296.9 Mb)  TX bytes:93281783 (88.9 Mb)
+          Interrupt:9 Base address:0x3f00
+
+lo        Link encap:Local Loopback
+          inet addr:127.0.0.1  Mask:255.0.0.0
+          UP LOOPBACK RUNNING  MTU:16436  Metric:1
+          RX packets:7041 errors:0 dropped:0 overruns:0 frame:0
+          TX packets:7041 errors:0 dropped:0 overruns:0 carrier:0
+          collisions:0 txqueuelen:0
+          RX bytes:2079959 (1.9 Mb)  TX bytes:2079959 (1.9 Mb)
+
+ppp0      Link encap:Point-to-Point Protocol
+          inet addr:195.97.5.206  P-t-P:194.30.220.213  Mask:255.255.255.255
+          UP POINTOPOINT RUNNING NOARP MULTICAST  MTU:572  Metric:1
+          RX packets:8883 errors:0 dropped:0 overruns:0 frame:0
+          TX packets:8807 errors:0 dropped:45 overruns:0 carrier:0
+          collisions:0 txqueuelen:3
+          RX bytes:5652345 (5.3 Mb)  TX bytes:1077765 (1.0 Mb)
+</pre></b>
+</td></tr>
+</table>
+</center>
+
+There are a few important thinks to always remember:<p>
+<ul>
+	<li><b>lo</b> exists on all machines and is used for communication between programs running on this machine.
+	FireHOL handles this automatically. You don't have to do anything about <b>lo</b>.
+	<br>&nbsp;
+	</li>
+	<li>Network interfaces (except the <b>lo</b> interface) are used for two purposes:
+	<br>&nbsp;
+	<ul>
+		<li>By the firewall host for its own communication with the rest of the world. This is the case when the
+		firewall host requests something from some other host (a DNS lookup may be) for its own needs, or when
+		some other host requests something from the firewall host, when the later is running some deamons (servers) too.
+		<br>&nbsp;
+		</li>
+		<li>By other hosts as <b>gateways</b> in order to reach other hosts behind the firewall host.
+		In this case, the firewall host simply passes traffic from one of its network interfaces to another.
+		This is also called <b>routing</b>.
+		<br>&nbsp;
+		</li>
+	</ul>
+</ul>
+In the above example, it is clear that I have two network interfaces (except <b>lo</b>): <b>eth0</b> and <b>ppp0</b>.
+<p>
+One extra step is to identify if the network interfaces appearing here might dynamically change during run-time.
+For example my <b>ppp0</b> might become <b>ppp1</b> or <b>ppp2</b> in certain cases. To overcome this problem, I can
+say that my link to the outside world is not <b>ppp0</b> but <b>ppp+</b>. The plus character matches all the interfaces
+that <b>begin</b> with the text given before the plus sign. In this case, it matches all the possible network interfaces
+that start with <b>ppp</b>.
+<p>
+Keep in mind that FireHOL (and iptables) does not really care if the interface defined in a firewall actually exists or not.
+This means that you can setup firewalls on interfaces that might become available later or altered during run time.
+This also means that if you define an interface with a wrong name, FireHOL and iptables will not complain.
+<p>
+
+<table border=0 cellpadding=10 cellspacing=0 width="100%">
+<tr><td bgcolor="#EEEEEE"><b>2. Give a role to each interface identified</td></tr></table>
+<br>
+Now I have to assign a role to each network interface, i.e. what is the function of each of those interfaces?<br>
+For this, I create a table similar to the one bellow. It is important to focus on the <u>REQUESTS</u>; forget the replies.
+
+	<center>
+	<table border=0 cellpadding=3 cellspacing=5 width="70%">
+	<tr><th bgcolor="#000000"><font color="white">interface</th><th bgcolor="#000000"><font color="white">description</th><th bgcolor="#000000"><font color="white">incoming&nbsp;requests</th><th bgcolor="#000000"><font color="white">outgoing&nbsp;requests</th><th bgcolor="#000000"><font color="white">routing&nbsp;requests&nbsp;in</th><th bgcolor="#000000"><font color="white">routing&nbsp;requests&nbsp;out</th></tr>
+	<tr>	<td align="center"><b>eth0</td>
+		<td>My home LAN</td>
+		<td>Many services from my LAN workstations (i.e. dns, ftp, samba, squid, dhcp, http, ssh, icmp)</td>
+		<td>A few services my LAN workstations provide (i.e. samba, icmp)</td>
+		<td>All LAN workstations requests going to the internet</td>
+		<td>Nothing</td>
+		</tr>
+	<tr bgcolor="#F0F0F0">	<td align="center"><b>ppp+</td>
+		<td>The Internet</td>
+		<td>I run a public mailer, a public web server and a public ftp server for my domain</td>
+		<td>All the services my Linux could ask from the internet</td>
+		<td>Nothing</td>
+		<td>All LAN workstations requests going to the internet</td>
+		</tr>
+	</table>
+	</center><p>
+
+Keep in mind that:
+<p>
+<ul>
+	<li><b>incoming requests</b> represent <b>servers</b> running on the firewall host.<br>&nbsp;</li>
+	<li><b>outgoing requests</b> represent <b>clients</b> running on the firewall host.<br>&nbsp;</li>
+	<li><b>routing requests in</b> represent <b>servers</b> running on a host accessible via some other interface.<br>&nbsp;</li>
+	<li><b>routing requests out</b> represent <b>clients</b> running on a host accessible via some other interface.<br>&nbsp;</li>
+</ul>
+
+So, the above could also be presented as:
+
+	<center>
+	<table border=0 cellpadding=3 cellspacing=5 width="70%">
+	<tr><th bgcolor="#000000"><font color="white">interface</th><th bgcolor="#000000"><font color="white">name</th><th bgcolor="#000000"><font color="white">servers</th><th bgcolor="#000000"><font color="white">clients</th><th bgcolor="#000000"><font color="white">routing&nbsp;in</th><th bgcolor="#000000"><font color="white">routing&nbsp;out</th></tr>
+	<tr>	<td align="center"><b>eth0</td>
+		<td align=center>home</td>
+		<td align=center>dns, ftp, samba, squid, dhcp, http, ssh, icmp</td>
+		<td align=center>samba, icmp</td>
+		<td align=center>all</td>
+		<td align=center>none</td>
+		</tr>
+	<tr bgcolor="#F0F0F0">	<td align="center"><b>ppp+</td>
+		<td align=center>internet</td>
+		<td align=center>smtp, http, ftp</td>
+		<td align=center>all</td>
+		<td align=center>none</td>
+		<td align=center>all</td>
+		</tr>
+	</table>
+	</center><p>
 
 
+<table border=0 cellpadding=10 cellspacing=0 width="100%">
+<tr><td bgcolor="#EEEEEE"><b>3. Create the FireHOL configuration structure</td></tr></table>
+<br>
+Now that you have a list of all the interfaces and their roles, it is time to start writing the FireHOL configuration file.
+<p>
+First write one interface statement for each network interface you identified above:
+
+<center><table border=0 cellpadding=15 cellspacing=20 width="70%">
+<tr><td bgcolor="#F0F0F0">
+<b><pre>
+	version 5
+	
+	interface eth0 home
+	
+	
+	interface ppp+ internet
+	
+	
+</pre></b>
+</td></tr>
+</table>
+</center>
+<p>
+Now, we can add the servers for each interface (based on the table above). Remember that these servers are all running on the firewall host:
+
+<center><table border=0 cellpadding=15 cellspacing=20 width="70%">
+<tr><td bgcolor="#F0F0F0">
+<b><pre>
+	version 5
+	
+	interface eth0 home<font color="red">
+		server dns	accept
+		server ftp	accept
+		server samba	accept
+		server squid	accept
+		server dhcp	accept
+		server http	accept
+		server ssh	accept
+		server icmp	accept
+	</font>
+	interface ppp+ internet<font color="red">
+		server smtp	accept
+		server http	accept
+		server ftp	accept
+	</font>
+</pre></b>
+</td></tr>
+</table>
+</center>
+Now, we can add the clients for each interface. Remember that these clients are all running on the firewall host:
+
+<center><table border=0 cellpadding=15 cellspacing=20 width="70%">
+<tr><td bgcolor="#F0F0F0">
+<b><pre>
+	version 5
+	
+	interface eth0 home
+		server dns	accept
+		server ftp	accept
+		server samba	accept
+		server squid	accept
+		server dhcp	accept
+		server http	accept
+		server ssh	accept
+		server icmp	accept
+		<font color="red">
+		client samba	accept
+		client icmp	accept
+		</font>
+	
+	interface ppp+ internet
+		server smtp	accept
+		server http	accept
+		server ftp	accept
+		<font color="red">
+		client all	accept
+		</font>
+</pre></b>
+</td></tr>
+</table>
+</center>
+<p>
+At this point, everyone should be able to inter-operate correctly with the firewall host, but still we don't route any traffic.
+This means that the linux box can "see" all the workstations on the LAN and these workstations can "see" the linux box, also that
+the linux box can "see" the Internet and the Internet can "see" the servers of the ppp+ interface of the linux box, but the LAN
+workstations cannot "see" the Internet.
+<p>
+It is now time to setup routing. To do this we will have to define a set of routers for all the interface combinations. This means
+that if we have two interfaces we will have to define two routers. If we have 3 interfaces, we will have to define 6 routers, and
+so on.
+
+<center><table border=0 cellpadding=15 cellspacing=20 width="70%">
+<tr><td bgcolor="#F0F0F0">
+<b><pre>
+	version 5
+	
+	interface eth0 home
+		server dns	accept
+		server ftp	accept
+		server samba	accept
+		server squid	accept
+		server dhcp	accept
+		server http	accept
+		server ssh	accept
+		server icmp	accept
+		
+		client samba	accept
+		client icmp	accept
+	
+	
+	interface ppp+ internet
+		server smtp	accept
+		server http	accept
+		server ftp	accept
+		
+		client all	accept
+	
+	<font color="red">
+	router home2internet inface eth0 outface ppp+
+	
+	
+	router internet2home inface ppp+ outface eth0
+	
+	</font>
+</pre></b>
+</td></tr>
+</table>
+</center>
+<p>
+Remember that <a href="commands.html#inface">inface</a> and <a href="commands.html#outface">outface</a> match the <u>requests</u>,
+not the replies. This means that the router <b>home2internet</b> matches all requests originated from eth0 and going out to ppp+
+(and of course their relative replies in the opposite direction), while the router <b>internet2home</b> matches all the requests from the Internet to the
+home LAN (and their relative replies back).
+<p>
+Now, based on the roles table of the previous section we see that we should route all requests comming in from eth0 and going out to
+ppp+, and do not route any request comming from the internet and going out to the home LAN. Here it is:
+
+<center><table border=0 cellpadding=15 cellspacing=20 width="70%">
+<tr><td bgcolor="#F0F0F0">
+<b><pre>
+	version 5
+	
+	interface eth0 home
+		server dns	accept
+		server ftp	accept
+		server samba	accept
+		server squid	accept
+		server dhcp	accept
+		server http	accept
+		server ssh	accept
+		server icmp	accept
+		
+		client samba	accept
+		client icmp	accept
+	
+	
+	interface ppp+ internet
+		server smtp	accept
+		server http	accept
+		server ftp	accept
+		
+		client all	accept
+	
+	
+	router home2internet inface eth0 outface ppp+
+		<font color="red">route all accept</font>
+	
+	
+	router internet2home inface ppp+ outface eth0
+	
+	
+</pre></b>
+</td></tr>
+</table>
+</center>
+<p>
+<b>This is it. We are done!</b>
+<p>
+<table border=0 cellpadding=10 cellspacing=0 width="100%">
+<tr><td bgcolor="#EEEEEE"><b>4. Optimizing the firewall</td></tr></table>
+<br>
+To save typing time, you can use this:
+
+<center><table border=0 cellpadding=15 cellspacing=20 width="70%">
+<tr><td bgcolor="#F0F0F0">
+<b><pre>
+	version 5
+	
+	interface eth0 home
+		server "dns ftp samba squid dhcp http ssh icmp"	accept
+		client "samba icmp"				accept
+	
+	
+	interface ppp+ internet
+		server "smtp http ftp"	accept
+		client all		accept
+	
+	
+	router home2internet inface eth0 outface ppp+
+		route all accept
+</pre></b>
+</td></tr>
+</table>
+</center>
+<p>
+Note that we can remove any router statements not having any rules in them, so the <b>internet2home</b> router has been eliminated.
+<p>
+We might want to have extra checks on each interface to prevent spoofing:
+
+<center><table border=0 cellpadding=15 cellspacing=20 width="70%">
+<tr><td bgcolor="#F0F0F0">
+<b><pre>
+	version 5
+	<font color="red">
+	# The network of our eth0 LAN.
+	home_ips="195.97.5.192/28"
+	</font>
+	interface eth0 home <font color="red">src "${home_ips}"</font>
+		server "dns ftp samba squid dhcp http ssh icmp"	accept
+		client "samba icmp"				accept
+	
+	
+	interface ppp+ internet <font color="red">src not "${home_ips} ${UNROUTABLE_IPS}"</font>
+		server "smtp http ftp"	accept
+		client all		accept
+	
+	
+	router home2internet inface eth0 outface ppp+
+		route all accept
+</pre></b>
+</td></tr>
+</table>
+</center>
+<a href="commands.html#UNROUTABLE_IPS">UNROUTABLE_IPS</a> is a variable defined by FireHOL and contains all the IPs that should not
+be routed on the internet.
+<p>
+If home LAN did not had real IP addresses, we would have to add a <a href="commands.html#masquerade">masquerade</a> command in our
+router:
+
+<center><table border=0 cellpadding=15 cellspacing=20 width="70%">
+<tr><td bgcolor="#F0F0F0">
+<b><pre>
+	version 5
+	
+	# The network of our eth0 LAN.
+	home_ips="195.97.5.192/28"
+	
+	interface eth0 home src "${home_ips}"
+		server "dns ftp samba squid dhcp http ssh icmp"	accept
+		client "samba icmp"				accept
+	
+	
+	interface ppp+ internet src not "${home_ips} ${UNROUTABLE_IPS}"
+		server "smtp http ftp"	accept
+		client all		accept
+	
+	
+	router home2internet inface eth0 outface ppp+
+		<font color="red">masquerade</font>
+		route all accept
+</pre></b>
+</td></tr>
+</table>
+</center>
+The <a href="commands.html#masquerade">masquerade</a> command sets up itself on the <b>outface</b> of a router.
+<p>
+We can now protect our ppp interface even further. For this we use the <a href="commands.html#protection">protection</a> command:
+
+<center><table border=0 cellpadding=15 cellspacing=20 width="70%">
+<tr><td bgcolor="#F0F0F0">
+<b><pre>
+	version 5
+	
+	# The network of our eth0 LAN.
+	home_ips="195.97.5.192/28"
+	
+	interface eth0 home src "${home_ips}"
+		server "dns ftp samba squid dhcp http ssh icmp"	accept
+		client "samba icmp"				accept
+	
+	
+	interface ppp+ internet src not "${home_ips} ${UNROUTABLE_IPS}"
+		<font color="red">protection strong 10/sec 10</font>
+		server "smtp http ftp"	accept
+		client all		accept
+	
+	
+	router home2internet inface eth0 outface ppp+
+		masquerade
+		route all accept
+</pre></b>
+</td></tr>
+</table>
+</center>
 
 <p>
 <hr noshade size=1>
@@ -21,7 +446,7 @@ More later...
 <tr><td align=center valign=middle>
 	<A href="http://sourceforge.net"><IMG src="http://sourceforge.net/sflogo.php?group_id=58425&amp;type=5" width="210" height="62" border="0" alt="SourceForge Logo"></A>
 </td><td align=center valign=middle>
-	<small>$Id: tutorial.html,v 1.3 2002/12/09 22:40:41 ktsaou Exp $</small>
+	<small>$Id: tutorial.html,v 1.4 2002/12/15 20:55:35 ktsaou Exp $</small>
 	<p>
 	<b>FireHOL</b>, a firewall for humans...<br>
 	&copy; Copyright 2002
