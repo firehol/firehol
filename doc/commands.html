@@ -888,6 +888,7 @@ multiple iptables statements to achieve both the logging and the action.
 	<p>
 	You can use the same knock name in more than one FireHOL services to enable/disable all the services together, without any extra effort in knockd configuration (just one ACCEPT row like above
 	- i.e. the same knock as far as knockd is concerned - will allow all the FireHOL services with the same knock name to serve requests for the given IP).
+	Check also <a href="https://sourceforge.net/forum/forum.php?thread_id=1199404&forum_id=196547">this forum post</a>.
 	<p>
 	Example 1: <b>server smtp accept</b>, to allow SMTP requests and their replies to flow.<br>
 	Example 2: <b>server smtp accept with limit 10/s 100</b>, to allow SMTP requests to come at 10/second max, with a burst of 100, and their replies to flow back.<br>
@@ -1640,7 +1641,7 @@ about optional rule parameters that should not be used in certain commands.
 <tr><td align=center valign=middle>
 	<A href="http://sourceforge.net"><IMG src="http://sourceforge.net/sflogo.php?group_id=58425&amp;type=5" width="210" height="62" border="0" alt="SourceForge Logo"></A>
 </td><td align=center valign=middle>
-	<small>$Id: commands.html,v 1.61 2004/12/29 22:34:47 ktsaou Exp $</small>
+	<small>$Id: commands.html,v 1.62 2005/01/24 22:19:43 ktsaou Exp $</small>
 	<p>
 	<b>FireHOL</b>, a firewall for humans...<br>
 	&copy; Copyright 2004

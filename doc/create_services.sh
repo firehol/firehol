@@ -92,6 +92,17 @@ In combination with the <a href=\"commands.html#parameters\">Optional Rule Param
 "
 service_any_example="server any <u>myname</u> accept proto 47"
 
+server_anystateless_ports="all"
+client_anystateless_ports="all"
+service_anystateless_type="complex"
+service_anystateless_notes="
+Matches all traffic (all protocols, ports, etc), but does not care about kernel modules and does not activate any other service indirectly.
+In combination with the <a href=\"commands.html#parameters\">Optional Rule Parameters</a> this service can match unusual traffic (e.g. GRE - protocol 47).
+<p>
+Also, this service is exactly the same with service <a href=\"#any\">any</a>, but does not care about the state of traffic.
+"
+service_anystateless_example="server anystateless <u>myname</u> accept proto 47"
+
 service_asterisk_notes="
 <a href=\"http://www.asterisk.org\">Asterisk</a> is an open source PABX and the Swiss knife of VoIP.<p>
 This service refers only to the <b>manager</b> interface of asterisk.
@@ -177,6 +188,10 @@ and section 4 of
 <a href=\"http://www.ietf.org/rfc/rfc1542.txt?number=1542\">RFC 1542</a>
 "
 
+service_dict_notes="
+The Dictionary Server Protocol (DICT) is a TCP transaction based query/response protocol that allows a client to access dictionary definitions from a set of natural language dictionary databases.
+See <a href=\"http://www.ietf.org/rfc/rfc2229.txt?number=2229\">RFC2229</a>.
+"
 
 service_ESP_notes="IPSec Encapsulated Security Payload (ESP).
 <p>
@@ -948,7 +963,7 @@ cat <<"EOF"
 <tr><td align=center valign=middle>
 	<A href="http://sourceforge.net"><IMG src="http://sourceforge.net/sflogo.php?group_id=58425&amp;type=5" width="210" height="62" border="0" alt="SourceForge Logo"></A>
 </td><td align=center valign=middle>
-	<small>$Id: create_services.sh,v 1.54 2004/12/03 21:29:43 ktsaou Exp $</small>
+	<small>$Id: create_services.sh,v 1.55 2005/01/24 22:19:49 ktsaou Exp $</small>
 	<p>
 	<b>FireHOL</b>, a firewall for humans...<br>
 	&copy; Copyright 2004

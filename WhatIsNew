@@ -1,11 +1,12 @@
-$Id: WhatIsNew,v 1.6 2005/01/24 21:55:31 ktsaou Exp $
+$Id: WhatIsNew,v 1.7 2005/01/24 22:19:40 ktsaou Exp $
 
 What Is New in public releases.
 -------------------------------
 
 R5 v1.223, Jan 24, 2005
 Added services ANYSTATELESS, TIMESTAMP, DICT. Added support for
-knockd. Fixed various minor bugs and eliminated all vulnerabilities
+knockd (http://www.zeroflux.org/knock/).
+Fixed various minor bugs and eliminated all vulnerabilities
 where malicious local system users could use FireHOL's temporary
 files to overwrite arbitrary files on the system
 (http://secunia.com/advisories/13970/).

@@ -288,18 +288,20 @@ All the services defined by name in FireHOL are known to resolve in <a href="htt
 	</tr>
 <tr >
 	<td align="center" valign="top"><a name="anystateless"><b>anystateless</b></a></td>
-	<td align="center" valign="top">simple</td>
+	<td align="center" valign="top">complex</td>
 	<td>
 		<table cellspacing=0 cellpadding=2 border=0>
 		<tr>
 <td align=right valign=top nowrap><small><font color=gray>Server Ports</td><td>&nbsp;
+<b>all</b>
 </td></tr><tr><td align=right valign=top nowrap><small><font color=gray>Client Ports</td><td>&nbsp;
+<b>all</b>
 </td></tr><tr><td align=right valign=top nowrap><small><font color=gray>Netfilter Modules</td><td>&nbsp;
 </td></tr><tr><td align=right valign=top nowrap><small><font color=gray>Netfilter NAT Modules</td><td>&nbsp;
 </td>
 	</tr>
-	<tr><td align=right valign=top nowrap><small><font color="gray">Notes</td><td><br>&nbsp;</td></tr>
-	<tr><td align=right valign=top nowrap><small><font color="gray">Example</td><td><b>server anystateless accept</b></td></tr>
+	<tr><td align=right valign=top nowrap><small><font color="gray">Notes</td><td>Matches all traffic (all protocols, ports, etc), but does not care about kernel modules and does not activate any other service indirectly. In combination with the <a href="commands.html#parameters">Optional Rule Parameters</a> this service can match unusual traffic (e.g. GRE - protocol 47). <p> Also, this service is exactly the same with service <a href="#any">any</a>, but does not care about the state of traffic.<br>&nbsp;</td></tr>
+	<tr><td align=right valign=top nowrap><small><font color="gray">Example</td><td><b>server anystateless <u>myname</u> accept proto 47</b></td></tr>
 	</table>
 	</td>
 	</tr>
@@ -570,7 +572,7 @@ All the services defined by name in FireHOL are known to resolve in <a href="htt
 </td></tr><tr><td align=right valign=top nowrap><small><font color=gray>Netfilter NAT Modules</td><td>&nbsp;
 </td>
 	</tr>
-	<tr><td align=right valign=top nowrap><small><font color="gray">Notes</td><td><br>&nbsp;</td></tr>
+	<tr><td align=right valign=top nowrap><small><font color="gray">Notes</td><td>The Dictionary Server Protocol (DICT) is a TCP transaction based query/response protocol that allows a client to access dictionary definitions from a set of natural language dictionary databases. See <a href="http://www.ietf.org/rfc/rfc2229.txt?number=2229">RFC2229</a>.<br>&nbsp;</td></tr>
 	<tr><td align=right valign=top nowrap><small><font color="gray">Example</td><td><b>server dict accept</b></td></tr>
 	</table>
 	</td>
@@ -2424,7 +2426,7 @@ All the services defined by name in FireHOL are known to resolve in <a href="htt
 <tr><td align=center valign=middle>
 	<A href="http://sourceforge.net"><IMG src="http://sourceforge.net/sflogo.php?group_id=58425&amp;type=5" width="210" height="62" border="0" alt="SourceForge Logo"></A>
 </td><td align=center valign=middle>
-	<small>$Id: services.html,v 1.63 2005/01/24 21:48:17 ktsaou Exp $</small>
+	<small>$Id: services.html,v 1.64 2005/01/24 22:19:55 ktsaou Exp $</small>
 	<p>
 	<b>FireHOL</b>, a firewall for humans...<br>
 	&copy; Copyright 2004

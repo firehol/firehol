@@ -48,56 +48,21 @@ google_color_text = "000000";
 <table border=0 cellpadding=10 cellspacing=0 width="100%">
 <tr><td bgcolor="#EEEEEE"><b>Latest News</td></tr></table>
 <br>
-<b>Nov 1, 2004</b>, FireHOL R5 v1.214 released.<br>
+<b>Jan 24, 2005</b>, FireHOL R5 v1.223 released.<br>
 <font color="#555555">
-This is a major release which includes several updates and fixes.
+This release fixes vulnerabilities where malicious local
+system users could use FireHOL's temporary files to overwrite
+arbitrary files on the system (See <a href="http://secunia.com/advisories/13970/">Secunia Advisory SA13970</a>).
 <p>
 <b>All users are advised to update to this version.</b>
 <p>
 This release includes new service definitions:
-<a href="services.html#nis">NIS</a>,
-<a href="services.html#nut">NUT</a>,
-<a href="services.html#nntps">NNTPS</a>,
-<a href="services.html#asterisk">ASTERISK</a>,
-<a href="services.html#darkstat">DARKSTAT</a>,
-<a href="services.html#distcc">DISTCC</a>,
-<a href="services.html#eserver">ESERVER</a>,
-<a href="services.html#gift">GIFT</a>,
-<a href="services.html#giftui">GIFTUI</a>,
-<a href="services.html#h323">H323</a>,
-<a href="services.html#iax">IAX</a>,
-<a href="services.html#iax2">IAX2</a>,
-<a href="services.html#icp">ICP</a>,
-<a href="services.html#rtp">RTP</a>,
-<a href="services.html#sip">SIP</a>,
-<a href="services.html#stun">STUN</a>,
-<a href="services.html#upnp">UPNP</a>,
-<a href="services.html#rdp">RDP</a>,
-<a href="services.html#nxserver">NXSERVER</a>,
-<a href="services.html#radiusproxy">RADIUSPROXY</a>,
-<a href="services.html#radiusoldproxy">RADIUSOLDPROXY</a>.
-The following service definitions have been updated:
-<a href="services.html#dhcp">DHCP</a>,
-<a href="services.html#samba">SAMBA</a>,
-<a href="services.html#nfs">NFS</a>.
+<a href="services.html#anystateless">ANYSTATELESS</a>,
+<a href="services.html#timestamp">TIMESTAMP</a> and
+<a href="services.html#dict">DICT</a>.
 The following helpers have been added:
-<a href="commands.html#tos">TOS</a>,
-<a href="commands.html#dscp">DSCP</a>,
-<a href="commands.html#tcpmss">TCPMSS</a>,
-<a href="commands.html#ecn_shame">ECN_SHAME</a>.
-The following optional rule parameters have been added:
-<a href="commands.html#tos_param">TOS</a>,
-<a href="commands.html#mark_param">MARK</a>,
-<a href="commands.html#dscp_param">DSCP</a>.
-Added support for automatic installation of
-service definitions with third party packages, in
-<a href="adding.html#distributed">/etc/firehol/services/</a>.
-Also, FireHOL now has improved interoperability with various
-Linux distributions, including BASH 3.x, updated <a href="commands.html#RESERVED_IPS">RESERVED_IPS</a>
-for current IANA IPv4 reservations, finer control on <a href="commands.html#accept">ACCEPT</a>ed
-services to allow controllable requests per second, the
-ability to <a href="commands.html#FIREHOL_TRUST_LOOPBACK">control loopback traffic</a> and support for service
-<a href="commands.html#group_cmd">groups</a>.
+<a href="commands.html#transparent_proxy">TRANSPARENT_PROXY</a>.
+Also, added support for <a href="http://www.zeroflux.org/knock/">knockd</a> as an argument to the <a href="commands.html#accept">accept</a> action.
 </font>
 <p>
 
@@ -585,7 +550,7 @@ supports the following services:</p>
 <tr><td align=center valign=middle>
 	<A href="http://sourceforge.net"><IMG src="http://sourceforge.net/sflogo.php?group_id=58425&amp;type=5" width="210" height="62" border="0" alt="SourceForge Logo"></A>
 </td><td align=center valign=middle>
-	<small>$Id: overview.html,v 1.30 2004/11/01 00:13:02 ktsaou Exp $</small>
+	<small>$Id: overview.html,v 1.31 2005/01/24 22:19:51 ktsaou Exp $</small>
 	<p>
 	<b>FireHOL</b>, a firewall for humans...<br>
 	&copy; Copyright 2004
