@@ -10,7 +10,7 @@
 #
 # config: /etc/firehol.conf
 #
-# $Id: firehol.sh,v 1.67 2003/01/07 01:51:47 ktsaou Exp $
+# $Id: firehol.sh,v 1.68 2003/01/07 20:21:57 ktsaou Exp $
 #
 
 
@@ -987,6 +987,28 @@ fi
 # XXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXX
 # ------------------------------------------------------------------------------
 
+masquerade() {
+        work_realcmd=(${FUNCNAME} "$@")
+	
+	set_work_function -ne "Initializing masquerade"
+	
+	local f="${work_outface}"
+	test "${1}" = "reverse" && f="${work_inface}"
+	
+	test -z "${f}" && local f="${1}"
+	
+	test -z "${f}" && error "masquerade requires an interface set or as argument" && return 1
+	
+	set_work_function "Initializing masquerade on interface '${f}'"
+	
+	rule table nat chain POSTROUTING "$@" outface "${f}" action MASQUERADE || return 1
+	
+	FIREHOL_NAT=1
+	FIREHOL_ROUTING=1
+	
+	return 0
+}
+
 # helper transparent_squid <squid_port> <squid_user>
 transparent_squid_count=0
 transparent_squid() {
@@ -996,8 +1018,6 @@ transparent_squid() {
 	local user="${1}"; shift
 	
 	test -z "${redirect}" && error "Squid port number is empty" && return 1
-	test -z "${user}"     && error "Squid user not specified" && return 1
-	
 	
 	transparent_squid_count=$[transparent_squid_count + 1]
 	
@@ -1006,11 +1026,22 @@ transparent_squid() {
 	create_chain nat "in_trsquid.${transparent_squid_count}" PREROUTING "$@" proto tcp dport http || return 1
 	rule table nat chain "in_trsquid.${transparent_squid_count}" proto tcp dport http action REDIRECT to-port ${redirect} || return 1
 	
-	set_work_function "Setting up rules for catching outgoing web traffic"
-	create_chain nat "out_trsquid.${transparent_squid_count}" OUTPUT proto tcp dport http dst not "127.0.0.1" custom "-m owner ! --uid-owner ${user}" || return 1
-	rule table nat chain "out_trsquid.${transparent_squid_count}" proto tcp dport http action REDIRECT to-port ${redirect} || return 1
+	if [ ! -z "${user}" ]
+	then
+		set_work_function "Setting up rules for catching outgoing web traffic"
+		create_chain nat "out_trsquid.${transparent_squid_count}" OUTPUT proto tcp dport http dst not "127.0.0.1" || return 1
+		
+		local x=
+		for x in ${user}
+		do
+			rule table nat chain "out_trsquid.${transparent_squid_count}" custom "-m owner --uid-owner ${x}" action RETURN || return 1
+		done
+		
+		rule table nat chain "out_trsquid.${transparent_squid_count}" proto tcp dport http action REDIRECT to-port ${redirect} || return 1
+	fi
 	
 	FIREHOL_NAT=1
+	FIREHOL_ROUTING=1
 	
 	return 0
 }
@@ -1165,28 +1196,6 @@ iptables() {
 # XXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXX
 # ------------------------------------------------------------------------------
 
-
-masquerade() {
-        work_realcmd=(${FUNCNAME} "$@")
-	
-	set_work_function -ne "Initializing masquerade"
-	
-	local f="${work_outface}"
-	test "${1}" = "reverse" && f="${work_inface}"
-	
-	test -z "${f}" && local f="${1}"
-	
-	test -z "${f}" && error "masquerade requires an interface set or as argument" && return 1
-	
-	set_work_function "Initializing masquerade on interface '${f}'"
-	
-	rule table nat chain POSTROUTING "$@" outface "${f}" action MASQUERADE || return 1
-	
-	FIREHOL_NAT=1
-	FIREHOL_ROUTING=1
-	
-	return 0
-}
 
 # ------------------------------------------------------------------------------
 # Change the policy of an interface
@@ -2693,7 +2702,7 @@ case "${arg}" in
 		else
 		
 		cat <<"EOF"
-$Id: firehol.sh,v 1.67 2003/01/07 01:51:47 ktsaou Exp $
+$Id: firehol.sh,v 1.68 2003/01/07 20:21:57 ktsaou Exp $
 (C) Copyright 2002, Costa Tsaousis <costa@tsaousis.gr>
 FireHOL is distributed under GPL.
 
@@ -2861,7 +2870,7 @@ then
 	
 	cat <<"EOF"
 
-$Id: firehol.sh,v 1.67 2003/01/07 01:51:47 ktsaou Exp $
+$Id: firehol.sh,v 1.68 2003/01/07 20:21:57 ktsaou Exp $
 (C) Copyright 2002, Costa Tsaousis <costa@tsaousis.gr>
 FireHOL is distributed under GPL.
 Home Page: http://firehol.sourceforge.net
