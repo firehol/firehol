@@ -59,11 +59,18 @@
 			<li><a href="#dst">dst</a>, set the destination of traffic</li>
 			<li><a href="#inface">inface</a>, set the network interface traffic is received via</li>
 			<li><a href="#outface">outface</a>, set the network interface traffic is send via</li>
-			<li><a href="#proto">proto</a>, match a specific protocol</li>
 			<li><a href="#custom">custom</a>, pass a few custom parameters to the generated iptables
 			statements</li>
 			<li><a href="#log">log</a>, write something to the syslog when traffic is matched</li>
 			<li><a href="#loglimit">loglimit</a>, write (limited) something to the syslog when traffic is matched</li>
+			<li><a href="#proto">proto</a>, match a specific protocol</li>
+			<li><a href="#limit">limit</a>, limit the frequency traffic is matched</li>
+			<li><a href="#sport">sport</a>, set the source ports</li>
+			<li><a href="#dport">dport</a>, set the destination ports</li>
+			<li><a href="#uid">uid, user</a>, set the users sending this traffic</li>
+			<li><a href="#gid">gid, group</a>, set the user groups sending this traffic</li>
+			<li><a href="#pid">pid, process</a>, set the process IDs sending this traffic</li>
+			<li><a href="#sid">sid, session</a>, set the process session IDs sending this traffic</li>
 		</ul>
 		&nbsp;
 	</li>
@@ -191,7 +198,7 @@ The optional rule parameters given to the primary commands are <b>indirectly</b>
 
 <table border=0 cellpadding=10 cellspacing=0 width="100%"><tr bgcolor="#777777"><td align=center><font color="white"><b><big><a name="subcommands">Sub-Commands</a></td</tr></table>
 <small>
-Subcommands must be given within <a href="primary_commands">Primary commands</a>.
+Subcommands must be given within <a href="#primary_commands">Primary commands</a>.
 </small>
 
 	<a name="policy"><h3><b>policy</b> <font color="red">&lt;action&gt;</font></h3></a>
@@ -582,7 +589,11 @@ multiple iptables statements to achieve both the logging and the action.
 <small>
 Optional rule parameters are accepted by many commands to narrow the match they do by default.
 The parameters described bellow are all that FireHOL supports. You should check the documentation of each command to find which parameters should not be used with it.
-Normally, all FireHOL commands are designed so that if you specify a parameters that is also used internally, the internal one will overwrite the one given in the configuration file.
+Normally, all FireHOL commands are designed so that if you specify a parameters that is also used internally, the internal one will overwrite the one given in the configuration file. In such a case,
+FireHOL will present you a warning with the old and the new value.<p>
+Not all parameters should be used in all cases. For example <a href="#sport">sport</a> and <a href="#dport">dport</a> should not be used in normal <a href="#server">server</a> and
+<a href="#client">client</a> commands since such ports are internally defined by the <a href="services.html">services</a> themselves. In any case, FireHOL will complain
+about optional rule parameters that should not be used in certain commands.
 </small>
 <p>
 
@@ -652,14 +663,6 @@ Normally, all FireHOL commands are designed so that if you specify a parameters 
 	<b>outface</b> cannot be used in <b>interface</b> commands.
 	<p>
 	<b>outface</b> accepts the same parameters as <b>inface</b>.
-	<p>
-
-<hr noshade size=1 width="100%">
-
-	<a name="proto"><h3><b>proto</b> [not] <font color="red">&lt;protocol&gt;</font></h3></a>
-	<H4>Description</H4>
-	<b>proto</b> sets the required protocol for the traffic. This command accepts anything iptables accepts as
-	protocols.
 	<p>
 
 <hr noshade size=1 width="100%">
@@ -753,6 +756,95 @@ Normally, all FireHOL commands are designed so that if you specify a parameters 
 	<H4>Description</H4>
 	<b>loglimit</b> is the same with <b>log</b> but limits the frequency of logging according to the setting of
 	<a href="#FIREHOL_LOG_FREQUENCY">FIREHOL_LOG_FREQUENCY</a> and <a href="#FIREHOL_LOG_BURST">FIREHOL_LOG_BURST</a>.
+	<p>
+
+<hr noshade size=1 width="100%">
+
+	<a name="proto"><h3><b>proto</b> [not] <font color="red">&lt;protocol&gt;</font></h3></a>
+	<H4>Description</H4>
+	<b>proto</b> sets the required protocol for the traffic. This command accepts anything iptables accepts as
+	protocols.
+	<p>
+
+<hr noshade size=1 width="100%">
+
+	<a name="limit"><h3><b>limit</b> <font color="red">&lt;frequency&gt; &lt;burst&gt;</font></h3></a>
+	<H4>Description</H4>
+	<b>limit</b> will limit the match in both directions of the traffic (request and reply). This is used internally by FireHOL and its effects has not been tested in the high level
+	configuration file directives.
+	<p>
+
+<hr noshade size=1 width="100%">
+
+	<a name="sport"><h3><b>sport</b> <font color="red">&lt;port&gt;</font></h3></a>
+	<H4>Description</H4>
+	<b>sport</b> defines the source port of a request. It accepts port names, port numbers, port ranges (FROM:TO) and multiple ports (or ranges) seperated by spaces and quoted as a single argument.
+	This parameter should not be used in normal <a href="services.html">services</a> definitions (<a href="#client">client</a> and <a href="#server">server</a> commands) or
+	<a href="#interface">interface</a> and <a href="#router">router</a> definitions, unless you really understand what you are doing.
+	<p>
+
+<hr noshade size=1 width="100%">
+
+	<a name="dport"><h3><b>dport</b> <font color="red">&lt;port&gt;</font></h3></a>
+	<H4>Description</H4>
+	<b>dport</b> defines the destination port of a request. It accepts port names, port numbers, port ranges (FROM:TO) and multiple ports (or ranges) seperated by spaces and quoted as a single argument.
+	This parameter should not be used in normal <a href="services.html">services</a> definitions (<a href="#client">client</a> and <a href="#server">server</a> commands) or
+	<a href="#interface">interface</a> and <a href="#router">router</a> definitions, unless you really understand what you are doing.
+	<p>
+
+<hr noshade size=1 width="100%">
+
+	<a name="uid"><h3><b>uid</b> [not] <font color="red">&lt;user&gt;</font></h3></a>
+	<a name="user"><h3><b>user</b> [not] <font color="red">&lt;user&gt;</font></h3></a>
+	<H4>Description</H4>
+	<b>uid</b> or <b>user</b> define the operating system user sending this traffic. The parameter can be a username, a user number or a list of these two, seperated by spaces and quoted as
+	a single argument.<p>
+	This parameter can be used only in services (<a href="#client">client</a> and <a href="#server">server</a> commands) defined within <a href="#interface">interfaces</a>, not <a href="#router">routers</a>.
+	FireHOL is "smart" enough to apply this parameter only to traffic send by the localhost, i.e. the replies of <a href="#server">servers</a> and requests of <a href="#clients">clients</a>.
+	It is not possible, and FireHOL will simply ignore this parameter, on traffic coming in or passign through the firewall host.
+	<p>
+	<br>Example 1: <b>client "pop3 imap" accept user not "user1 user2 user3" dst mymailer.example.com</b>
+	<br>The above will allow local users except user1, user2 and user3 to use POP3 and IMAP services on mymailer.example.com.
+	You can use this, for example, to allow only a few of the local users use the fetchmail program to fetch their mail from the mail server.
+	<p>
+	<br>Example 2: <b>server http accept user apache</b>
+	<br>The above will allow all HTTP to reach the local http server, but only if the web server is running as user apache the replies will be send back to the HTTP client.
+	<p>
+	
+<hr noshade size=1 width="100%">
+
+	<a name="gid"><h3><b>gid</b> <font color="red">&lt;group&gt;</font></h3></a>
+	<a name="group"><h3><b>group</b> <font color="red">&lt;group&gt;</font></h3></a>
+	<H4>Description</H4>
+	<b>gid</b> or <b>group</b> define the operating system user group sending this traffic. The parameter can be a group name, a group number or a list of these two, seperated by spaces and quoted as
+	a single argument.<p>
+	This parameter can be used only in services (<a href="#client">client</a> and <a href="#server">server</a> commands) defined within <a href="#interface">interfaces</a>, not <a href="#router">routers</a>.
+	FireHOL is "smart" enough to apply this parameter only to traffic send by the localhost, i.e. the replies of <a href="#server">servers</a> and requests of <a href="#clients">clients</a>.
+	It is not possible, and FireHOL will simply ignore this parameter, on traffic coming in or passign through the firewall host.
+	<p>
+	
+<hr noshade size=1 width="100%">
+
+	<a name="pid"><h3><b>pid</b> <font color="red">&lt;process&gt;</font></h3></a>
+	<a name="process"><h3><b>process</b> <font color="red">&lt;process&gt;</font></h3></a>
+	<H4>Description</H4>
+	<b>pid</b> or <b>process</b> define the operating system process ID (or PID) sending this traffic. The parameter can be a PID or a list of PIDs, seperated by spaces and quoted as
+	a single argument.<p>
+	This parameter can be used only in services (<a href="#client">client</a> and <a href="#server">server</a> commands) defined within <a href="#interface">interfaces</a>, not <a href="#router">routers</a>.
+	FireHOL is "smart" enough to apply this parameter only to traffic send by the localhost, i.e. the replies of <a href="#server">servers</a> and requests of <a href="#clients">clients</a>.
+	It is not possible, and FireHOL will simply ignore this parameter, on traffic coming in or passign through the firewall host.
+	<p>
+
+<hr noshade size=1 width="100%">
+
+	<a name="sid"><h3><b>sid</b> <font color="red">&lt;session&gt;</font></h3></a>
+	<a name="session"><h3><b>session</b> <font color="red">&lt;session&gt;</font></h3></a>
+	<H4>Description</H4>
+	<b>sid</b> or <b>session</b> define the operating system session ID of the process sending this traffic (The session ID of a process is the process group ID of the session leader).
+	The parameter can be a list of such IDs, seperated by spaces and quoted as a single argument.<p>
+	This parameter can be used only in services (<a href="#client">client</a> and <a href="#server">server</a> commands) defined within <a href="#interface">interfaces</a>, not <a href="#router">routers</a>.
+	FireHOL is "smart" enough to apply this parameter only to traffic send by the localhost, i.e. the replies of <a href="#server">servers</a> and requests of <a href="#clients">clients</a>.
+	It is not possible, and FireHOL will simply ignore this parameter, on traffic coming in or passign through the firewall host.
 	<p>
 
 <table border=0 cellpadding=10 cellspacing=0 width="100%"><tr bgcolor="#777777"><td align=center><font color="white"><b><big><a name="control_variables">Variables that control FireHOL</a></td</tr></table>
@@ -881,7 +973,7 @@ Normally, all FireHOL commands are designed so that if you specify a parameters 
 <tr><td align=center valign=middle>
 	<A href="http://sourceforge.net"><IMG src="http://sourceforge.net/sflogo.php?group_id=58425&amp;type=5" width="210" height="62" border="0" alt="SourceForge Logo"></A>
 </td><td align=center valign=middle>
-	<small>$Id: commands.html,v 1.14 2003/01/08 23:33:57 ktsaou Exp $</small>
+	<small>$Id: commands.html,v 1.15 2003/01/13 23:36:21 ktsaou Exp $</small>
 	<p>
 	<b>FireHOL</b>, a firewall for humans...<br>
 	&copy; Copyright 2002

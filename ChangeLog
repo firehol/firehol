@@ -1,7 +1,7 @@
 
 RCS file: /cvsroot/firehol/firehol/firehol.sh,v
 Working file: firehol.sh
-head: 1.70
+head: 1.71
 branch:
 locks: strict
 access list:
@@ -9,8 +9,15 @@ symbolic names:
 	start: 1.1.1.1
 	vendor: 1.1.1
 keyword substitution: kv
-total revisions: 71;	selected revisions: 71
+total revisions: 72;	selected revisions: 72
 description:
+----------------------------
+revision 1.71
+date: 2003/01/13 23:31:03;  author: ktsaou;  state: Exp;  lines: +406 -281
+Added user (uid), group (gid), process (pid), session (sid) to optional
+rule parameters. Modified FireHOL to apply such parameters only to
+traffic send by the localhost and silently ignore them on incoming and
+passing through traffic.
 ----------------------------
 revision 1.70
 date: 2003/01/08 23:33:25;  author: ktsaou;  state: Exp;  lines: +68 -6
