@@ -106,6 +106,10 @@ To find more about this service please check the <a href=\"adding.html\">Adding 
 service_custom_example="server custom <u>myimap</u> <u>tcp/143</u> <u>default</u> accept"
 
 
+service_dcpp_notes="
+Direct Connect++ P2P, can be found <a href=\"http://dcplusplus.sourceforge.net\">here</a>.
+"
+
 service_dhcp_notes="
 Keep in mind that DHCP clients broadcast the network (src 0.0.0.0 dst 255.255.255.255) to find a DHCP server.
 This means that if your <b>server dhcp accept</b> command is placed within
@@ -213,6 +217,11 @@ so that either direct hosted or traditional SMB can be served simultaneously.
 Please refer to the <a href=\"#netbios_ssn\">netbios_ssn</a> service for more information.
 "
 
+service_msn_notes="
+Microsoft MSN Messenger Service<p>
+For a discussion about what works and what is not, please take a look at
+<A HREF=\"http://www.microsoft.com/technet/treeview/default.asp?url=/technet/prodtechnol/winxppro/evaluate/worki01.asp\">this technet note</A>.
+"
 
 server_multicast_ports="N/A"
 client_multicast_ports="N/A"
@@ -666,7 +675,7 @@ cat <<"EOF"
 <tr><td align=center valign=middle>
 	<A href="http://sourceforge.net"><IMG src="http://sourceforge.net/sflogo.php?group_id=58425&amp;type=5" width="210" height="62" border="0" alt="SourceForge Logo"></A>
 </td><td align=center valign=middle>
-	<small>$Id: create_services.sh,v 1.29 2003/04/05 21:20:56 ktsaou Exp $</small>
+	<small>$Id: create_services.sh,v 1.30 2003/06/10 21:27:48 ktsaou Exp $</small>
 	<p>
 	<b>FireHOL</b>, a firewall for humans...<br>
 	&copy; Copyright 2003
