@@ -1,7 +1,7 @@
 
 RCS file: /cvsroot/firehol/firehol/firehol.sh,v
 Working file: firehol.sh
-head: 1.184
+head: 1.191
 branch:
 locks: strict
 access list:
@@ -9,8 +9,53 @@ symbolic names:
 	start: 1.1.1.1
 	vendor: 1.1.1
 keyword substitution: kv
-total revisions: 185;	selected revisions: 185
+total revisions: 192;	selected revisions: 192
 description:
+----------------------------
+revision 1.191
+date: 2004/04/23 22:15:18;  author: ktsaou;  state: Exp;  lines: +26 -15
+Made the nat helpers print their real statements instead of always
+appearing as 'nat'.
+----------------------------
+revision 1.190
+date: 2004/04/23 07:36:12;  author: ktsaou;  state: Exp;  lines: +7 -7
+Changed two:
+
+tr [a-z] [A-Z]
+
+to:
+
+tr a-z A-Z
+
+because a few versions of tr complain with the first format.
+----------------------------
+revision 1.189
+date: 2004/04/23 07:32:01;  author: ktsaou;  state: Exp;  lines: +6 -6
+Fixed a printf that was giving errors because an argument was not numeric.
+----------------------------
+revision 1.188
+date: 2004/04/21 22:57:11;  author: ktsaou;  state: Exp;  lines: +5 -7
+Removed the "press return to continue" from the 'debug' mode.
+----------------------------
+revision 1.187
+date: 2004/04/21 22:39:40;  author: ktsaou;  state: Exp;  lines: +12 -7
+FireHOL now checks that /var/lock/subsys (the dir RH uses for startup
+services lock files) exists before using it.
+----------------------------
+revision 1.186
+date: 2004/04/21 22:23:10;  author: ktsaou;  state: Exp;  lines: +8 -5
+Added service WHOIS.
+----------------------------
+revision 1.185
+date: 2004/04/21 21:48:32;  author: ktsaou;  state: Exp;  lines: +10 -5
+Kernel configuration is now searched in this order:
+
+1. /proc/config
+2. /lib/modules/`uname -r`/build/.config
+3. /boot/config-`uname -r`
+4. /usr/src/linux/.config
+
+Check No 3 was added now.
 ----------------------------
 revision 1.184
 date: 2004/04/21 21:35:29;  author: ktsaou;  state: Exp;  lines: +108 -49
