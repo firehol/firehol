@@ -1,3 +1,5 @@
+$Id: README,v 1.3 2002/12/22 20:37:57 ktsaou Exp $
+
 FireHOL, an iptables stateful packet filtering firewall for humans!
 Copyright (C) 2002 Costa Tsaousis <costa@tsaousis.gr>
 
@@ -21,5 +23,56 @@ Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA 02111-1307 USA
 
 DOCUMENTATION
 -------------
-Documentation for FireHOL is available at: http://firehol.sourceforge.net
+If you received this program in as a RPM, documentation should be
+installed at /usr/share/doc/firehol-X.XX.
+Otherwise, documentation should be available in the doc/ directory
+of the .tar.bz2 archive you received.
 
+In any case, you can also find the documentation online, at:
+
+                     http://firehol.sf.net
+
+
+INSTALLATION
+------------
+
+RPM
+~~~
+RPM distributions automatically install the program. After a RPM
+installation, FireHOL should be available at /etc/init.d/firehol
+and its default configuration at /etc/firehol.conf.
+Please use the chkconfig system utility to enable/disable
+firehol's activity at boot time.
+
+TAR.BZ2
+~~~~~~~
+This type of distribution includes all the files in the directory
+where you uncompress it.
+To make FireHOL start at boot time you have to add it to the startup
+procedure of your operating system.
+
+Three things are needed to start FireHOL properly:
+
+1. Move firehol.sh to the directory where your startup scripts exist
+   and rename it to firehol (i.e. remove the .sh).
+
+2. Make sure FireHOL is called with something like:
+
+         /path/to/startup/scripts/firehol start
+
+3. Make sure there is a valid configuration file in /etc/firehol.conf
+
+This is it.
+
+
+IMPORTANT NOTES
+---------------
+If you decide to use FireHOL regularly (or permanently) you have to
+understand that it will control your firewall and therefore be a
+key point of your security. You should do something to be notified
+of bugs or other kind of problems as soon as they appear.
+
+I suggest to subscribe to the notification engine of freshmeat.net
+under this project or to monitor FireHOL's file releases at
+sourceforge.net. Both of these service will keep you anonymous
+(to me) but will update you if and when new releases become available.
