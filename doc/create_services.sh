@@ -485,34 +485,150 @@ All the services defined by name in FireHOL are known to resolve in <a href="htt
 <p>
 <center>
 <hr noshade size=1>
-<small>
+<table border=0 cellspacing=3 cellpadding=5 width="80%">
+<tr>
 EOF
 
+lc=0
+last_letter=
+do_letter() {
+	if [ ! -z "${last_letter}" ]
+	then
+		echo "</td></tr></table></td>"
+		echo >&2 "Closing ${last_letter}"
+		last_letter=
+	fi
+	
+	if [ ! -z "${1}" ]
+	then
+		lc=$[lc + 1]
+		if [ $lc -eq 5 ]
+		then
+			echo "</tr><tr>"
+			echo >&2 "--- break ---"
+			lc=1
+		fi
+		
+		printf >&2 "Openning ${1}... "
+		last_letter=${1}
+		
+		echo "
+<td width=\"25%\" align=left valign=top>
+	<table border=0 cellpadding=2 cellspacing=2 width=\"100%\">
+	<tr><td align=left valign=top><font color=\"gray\" size=+1><b>${last_letter}</td></tr>
+	<tr><td align=left valign=top><small>
+"
+	fi
+}
 
 all_services |\
 	(
+		last=
 		t=0
 		while read
 		do
-			t=$[t + 1]
-			if [ $t -eq 10000 ]
-			then
-				t=1
-				echo "<br>"
-			fi
+			first=`echo ${REPLY:0:1} | tr "[a-z]" "[A-Z]"`
 			
-			test $t -gt 1 && printf " | "
-			printf "&nbsp;<a href=\"#$REPLY\">$REPLY</a>&nbsp;"
+			while [ ! "$first" = "$last" ]
+			do
+				t=0
+				case "$last" in
+					A)	last=B
+						test "$first" = "$last" && do_letter $last
+						;;
+					B)	last=C
+						test "$first" = "$last" && do_letter $last
+						;;
+					C)	last=D
+						test "$first" = "$last" && do_letter $last
+						;;
+					D)	last=E
+						test "$first" = "$last" && do_letter $last
+						;;
+					E)	last=F
+						test "$first" = "$last" && do_letter $last
+						;;
+					F)	last=G
+						test "$first" = "$last" && do_letter $last
+						;;
+					G)	last=H
+						test "$first" = "$last" && do_letter $last
+						;;
+					H)	last=I
+						test "$first" = "$last" && do_letter $last
+						;;
+					I)	last=J
+						test "$first" = "$last" && do_letter $last
+						;;
+					J)	last=K
+						test "$first" = "$last" && do_letter $last
+						;;
+					K)	last=L
+						test "$first" = "$last" && do_letter $last
+						;;
+					L)	last=M
+						test "$first" = "$last" && do_letter $last
+						;;
+					M)	last=N
+						test "$first" = "$last" && do_letter $last
+						;;
+					N)	last=O
+						test "$first" = "$last" && do_letter $last
+						;;
+					O)	last=P
+						test "$first" = "$last" && do_letter $last
+						;;
+					P)	last=Q
+						test "$first" = "$last" && do_letter $last
+						;;
+					Q)	last=R
+						test "$first" = "$last" && do_letter $last
+						;;
+					R)	last=S
+						test "$first" = "$last" && do_letter $last
+						;;
+					S)	last=T
+						test "$first" = "$last" && do_letter $last
+						;;
+					T)	last=U
+						test "$first" = "$last" && do_letter $last
+						;;
+					U)	last=V
+						test "$first" = "$last" && do_letter $last
+						;;
+					V)	last=W
+						test "$first" = "$last" && do_letter $last
+						;;
+					W)	last=X
+						test "$first" = "$last" && do_letter $last
+						;;
+					X)	last=Y
+						test "$first" = "$last" && do_letter $last
+						;;
+					Y)	last=Z
+						test "$first" = "$last" && do_letter $last
+						;;
+					Z)	echo >&2 "internal error"
+						exit 1
+						;;
+					*)	last=A
+						test "$first" = "$last" && do_letter $last
+						;;
+				esac
+			done
+			
+			t=$[t + 1]
+			test $t -gt 1 && printf ", "
+			printf "<a href=\"#$REPLY\">$REPLY</a>"
 		done
+		do_letter ""
 	)
-	
 
 
 cat <<"EOF"
-</small>
+</table>
 <hr noshade size=1>
 <p>
-
 <table border=0 cellspacing=5 cellpadding=10 width="80%">
 <tr bgcolor="#EEEEEE"><th>Service</th><th>Type</th><th>Description</th></tr>
 EOF
@@ -536,7 +652,7 @@ cat <<"EOF"
 <tr><td align=center valign=middle>
 	<A href="http://sourceforge.net"><IMG src="http://sourceforge.net/sflogo.php?group_id=58425&amp;type=5" width="210" height="62" border="0" alt="SourceForge Logo"></A>
 </td><td align=center valign=middle>
-	<small>$Id: create_services.sh,v 1.24 2003/02/11 22:57:56 ktsaou Exp $</small>
+	<small>$Id: create_services.sh,v 1.25 2003/02/11 23:41:35 ktsaou Exp $</small>
 	<p>
 	<b>FireHOL</b>, a firewall for humans...<br>
 	&copy; Copyright 2002
