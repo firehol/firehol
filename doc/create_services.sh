@@ -10,10 +10,8 @@ fi
 service_aptproxy_notes="Debian package proxy."
 
 
-service_apcupsd_notes="APC UPS server ports. This service must be defined as <b>server apcupsd accept</b> on all machines
+service_apcupsd_notes="<a href=\"http://www.apcupsd.com/\">APC UPS Deamon</a> ports. This service must be defined as <b>server apcupsd accept</b> on all machines
 not directly connected to the UPS (i.e. slaves).
-<p>
-For more information see <a href=\"http://www.apcupsd.com/\">http://www.apcupsd.com/</a>
 <p>
 Note that the port defined here is not the default port (6666) used if you download and compile
 APCUPSD, since the default is conflicting with IRC and many distributions (like Debian) have
@@ -22,12 +20,13 @@ changed this to 6544.
 You can define port 6544 in APCUPSD, by changing the value of NETPORT in its configuration file,
 or overwrite this FireHOL service definition using the procedures described in
 <a href=\"adding.html\">Adding Services</a>.
-<p>
-Please note that APCUPSD uses also port 3551 (NISPORT) for its Network Information Server (NIS)
-that is used from the WEB interface it has.
-FireHOL has not defined this. If you run APCUPSD and its WEB interface on the same machine,
-these two will still be able to communicate with each other using the <b>lo</b> device.
 "
+
+
+service_apcupsdnis_notes="APC UPS Network Information Server. This service allows the remote WEB interfaces
+<a href=\"http://www.apcupsd.com/\">APCUPSD</a> has, to connect and get information from the server directly connected to the UPS device.
+"
+
 
 server_all_ports="all"
 client_all_ports="all"
@@ -348,7 +347,7 @@ cat <<"EOF"
 <tr><td align=center valign=middle>
 	<A href="http://sourceforge.net"><IMG src="http://sourceforge.net/sflogo.php?group_id=58425&amp;type=5" width="210" height="62" border="0" alt="SourceForge Logo"></A>
 </td><td align=center valign=middle>
-	<small>$Id: create_services.sh,v 1.14 2002/12/20 21:11:53 ktsaou Exp $</small>
+	<small>$Id: create_services.sh,v 1.15 2002/12/22 14:02:54 ktsaou Exp $</small>
 	<p>
 	<b>FireHOL</b>, a firewall for humans...<br>
 	&copy; Copyright 2002

@@ -10,7 +10,7 @@
 #
 # config: /etc/firehol.conf
 #
-# $Id: firehol.sh,v 1.54 2002/12/20 20:31:11 ktsaou Exp $
+# $Id: firehol.sh,v 1.55 2002/12/22 14:02:54 ktsaou Exp $
 #
 
 # ------------------------------------------------------------------------------
@@ -151,7 +151,7 @@ case "${arg}" in
 		else
 		
 		cat <<"EOF"
-$Id: firehol.sh,v 1.54 2002/12/20 20:31:11 ktsaou Exp $
+$Id: firehol.sh,v 1.55 2002/12/22 14:02:54 ktsaou Exp $
 (C) Copyright 2002, Costa Tsaousis <costa@tsaousis.gr>
 FireHOL is distributed under GPL.
 
@@ -460,6 +460,9 @@ client_aptproxy_ports="default"
 # directly connected to the UPS (e.g. the slaves)
 server_apcupsd_ports="tcp/6544"
 client_apcupsd_ports="default"
+
+server_apcupsdnis_ports="tcp/3551"
+client_apcupsdnis_ports="default"
 
 server_cups_ports="tcp/ipp"
 client_cups_ports="default"
@@ -2527,7 +2530,7 @@ then
 	
 	cat <<"EOF"
 
-$Id: firehol.sh,v 1.54 2002/12/20 20:31:11 ktsaou Exp $
+$Id: firehol.sh,v 1.55 2002/12/22 14:02:54 ktsaou Exp $
 (C) Copyright 2002, Costa Tsaousis <costa@tsaousis.gr>
 FireHOL is distributed under GPL.
 Home Page: http://firehol.sourceforge.net
