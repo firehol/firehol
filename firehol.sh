@@ -10,7 +10,7 @@
 #
 # config: /etc/firehol.conf
 #
-# $Id: firehol.sh,v 1.62 2003/01/03 23:34:37 ktsaou Exp $
+# $Id: firehol.sh,v 1.63 2003/01/05 20:03:07 ktsaou Exp $
 #
 
 # ------------------------------------------------------------------------------
@@ -155,7 +155,7 @@ case "${arg}" in
 		else
 		
 		cat <<"EOF"
-$Id: firehol.sh,v 1.62 2003/01/03 23:34:37 ktsaou Exp $
+$Id: firehol.sh,v 1.63 2003/01/05 20:03:07 ktsaou Exp $
 (C) Copyright 2002, Costa Tsaousis <costa@tsaousis.gr>
 FireHOL is distributed under GPL.
 
@@ -1024,6 +1024,32 @@ rules_ftp() {
 #	
 #	return 0
 #}
+
+
+# --- PING ---------------------------------------------------------------------
+
+rules_ping() {
+        local mychain="${1}"; shift
+	local type="${1}"; shift
+	
+	local in=in
+	local out=out
+	if [ "${type}" = "client" ]
+	then
+		in=out
+		out=in
+	fi
+	
+	# ----------------------------------------------------------------------
+	
+	# allow incoming new and established PING packets
+	rule action "$@" chain "${in}_${mychain}" proto icmp custom "--icmp-type echo-request" state NEW,ESTABLISHED || return 1
+	
+	# allow outgoing established packets
+	rule reverse action "$@" chain "${out}_${mychain}" proto icmp custom "--icmp-type echo-reply" state ESTABLISHED || return 1
+	
+	return 0
+}
 
 
 # --- ALL ----------------------------------------------------------------------
@@ -2699,7 +2725,7 @@ then
 	
 	cat <<"EOF"
 
-$Id: firehol.sh,v 1.62 2003/01/03 23:34:37 ktsaou Exp $
+$Id: firehol.sh,v 1.63 2003/01/05 20:03:07 ktsaou Exp $
 (C) Copyright 2002, Costa Tsaousis <costa@tsaousis.gr>
 FireHOL is distributed under GPL.
 Home Page: http://firehol.sourceforge.net
