@@ -10,7 +10,7 @@
 #
 # config: /etc/firehol.conf
 #
-# $Id: firehol.sh,v 1.88 2003/01/30 21:39:36 ktsaou Exp $
+# $Id: firehol.sh,v 1.89 2003/02/03 23:11:49 ktsaou Exp $
 #
 
 
@@ -431,6 +431,55 @@ client_webcache_ports="default"
 # b) The output rules use ${out}_${mychain} instead of ${in}_${mychain}
 # c) The state rules match the client operation, not the server.
 
+
+# --- EMULE --------------------------------------------------------------------
+
+rules_emule() {
+        local mychain="${1}"; shift
+	local type="${1}"; shift
+	
+	local in=in
+	local out=out
+	if [ "${type}" = "client" ]
+	then
+		in=out
+		out=in
+	fi
+	
+	local client_ports="${DEFAULT_CLIENT_PORTS}"
+	if [ "${type}" = "client" -a "${work_cmd}" = "interface" ]
+	then
+		client_ports="${LOCAL_CLIENT_PORTS}"
+	fi
+	
+	# ----------------------------------------------------------------------
+	
+	# allow incomming to server tcp/4662
+	rule ${in} action "$@" chain "${in}_${mychain}" proto "tcp" sport any dport 4662 state NEW,ESTABLISHED || return 1
+	rule ${out} reverse action "$@" chain "${out}_${mychain}" proto "tcp" sport any dport 4662 state ESTABLISHED || return 1
+	
+	# allow outgoing to server tcp/4662
+	rule ${out} reverse action "$@" chain "${out}_${mychain}" proto "tcp" dport any sport 4662 state NEW,ESTABLISHED || return 1
+	rule ${in} action "$@" chain "${in}_${mychain}" proto "tcp" dport any sport 4662 state ESTABLISHED || return 1
+	
+	# allow incomming to server udp/4672
+	rule ${in} action "$@" chain "${in}_${mychain}" proto "udp" sport any dport 4672 state NEW,ESTABLISHED || return 1
+	rule ${out} reverse action "$@" chain "${out}_${mychain}" proto "udp" sport any dport 4672 state ESTABLISHED || return 1
+	
+	# allow outgoing to server udp/4672
+	rule ${out} reverse action "$@" chain "${out}_${mychain}" proto "udp" dport any sport 4672 state NEW,ESTABLISHED || return 1
+	rule ${in} action "$@" chain "${in}_${mychain}" proto "udp" dport any sport 4672 state ESTABLISHED || return 1
+	
+	# allow incomming to server tcp/4661
+	rule ${in} action "$@" chain "${in}_${mychain}" proto "tcp" sport any dport 4661 state NEW,ESTABLISHED || return 1
+	rule ${out} reverse action "$@" chain "${out}_${mychain}" proto "tcp" sport any dport 4661 state ESTABLISHED || return 1
+	
+	# allow incomming to server udp/4665
+	rule ${in} action "$@" chain "${in}_${mychain}" proto "udp" sport any dport 4665 state NEW,ESTABLISHED || return 1
+	rule ${out} reverse action "$@" chain "${out}_${mychain}" proto "udp" sport any dport 4665 state ESTABLISHED || return 1
+	
+	return 0
+}
 
 # --- SAMBA --------------------------------------------------------------------
 
@@ -3116,7 +3165,7 @@ case "${arg}" in
 		else
 		
 		cat <<"EOF"
-$Id: firehol.sh,v 1.88 2003/01/30 21:39:36 ktsaou Exp $
+$Id: firehol.sh,v 1.89 2003/02/03 23:11:49 ktsaou Exp $
 (C) Copyright 2002, Costa Tsaousis <costa@tsaousis.gr>
 FireHOL is distributed under GPL.
 
@@ -3284,7 +3333,7 @@ then
 	
 	cat <<"EOF"
 
-$Id: firehol.sh,v 1.88 2003/01/30 21:39:36 ktsaou Exp $
+$Id: firehol.sh,v 1.89 2003/02/03 23:11:49 ktsaou Exp $
 (C) Copyright 2002, Costa Tsaousis <costa@tsaousis.gr>
 FireHOL is distributed under GPL.
 Home Page: http://firehol.sourceforge.net

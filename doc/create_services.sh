@@ -149,6 +149,26 @@ For more information see the <a href=\"http://www.freeswan.org/freeswan_trees/fr
 and RFC <a href=\"http://www.ietf.org/rfc/rfc2406.txt?number=2406\">RFC 2406</a>.
 "
 
+server_emule_ports="many"
+client_emule_ports="many"
+service_emule_example="client emule accept src 1.1.1.1"
+service_emule_type="complex"
+service_emule_notes="<a href=\"http://www.emule-project.com\">eMule</a> (Donkey network client).
+<p>
+According to <a href=\"http://www.emule-project.net/faq/ports.htm\">eMule Port Definitions</a>, FireHOL defines:
+<ul>
+	<li>Connection from any client port to the server at tcp/4661<br>&nbsp;</li>
+	<li>Connection from any client port to the server at tcp/4662<br>&nbsp;</li>
+	<li>Connection from any client port to the server at udp/4665<br>&nbsp;</li>
+	<li>Connection from any client port to the server at udp/4672<br>&nbsp;</li>
+	<li>Connection from any server port to the client at tcp/4662<br>&nbsp;</li>
+	<li>Connection from any server port to the client at udp/4672<br>&nbsp;</li>
+</ul>
+Use the FireHOL <a href=\"commands.html#client\">client</a> command to match the eMule client.
+<p>
+Please note that the <a href=\"http://www.emule-project.com\">eMule</a> client is an HTTP client also.
+"
+
 
 server_ftp_ports="many"
 client_ftp_ports="many"
@@ -475,7 +495,7 @@ cat <<"EOF"
 <tr><td align=center valign=middle>
 	<A href="http://sourceforge.net"><IMG src="http://sourceforge.net/sflogo.php?group_id=58425&amp;type=5" width="210" height="62" border="0" alt="SourceForge Logo"></A>
 </td><td align=center valign=middle>
-	<small>$Id: create_services.sh,v 1.21 2003/01/25 01:22:51 ktsaou Exp $</small>
+	<small>$Id: create_services.sh,v 1.22 2003/02/03 23:11:49 ktsaou Exp $</small>
 	<p>
 	<b>FireHOL</b>, a firewall for humans...<br>
 	&copy; Copyright 2002
