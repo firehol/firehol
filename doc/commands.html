@@ -1342,6 +1342,28 @@ about optional rule parameters that should not be used in certain commands.
 	Example: <b>FIREHOL_LOAD_KERNEL_MODULES=0</b>
 	<p>
 
+<hr noshade size=1 width="100%">
+
+	<a name="FIREHOL_TRUST_LOOPBACK"><h3><b>FIREHOL_TRUST_LOOPBACK</b></h3></a>
+	<H4>Description</H4>
+	FIREHOL_TRUST_LOOPBACK allows you to choose if FireHOL will trust the <b>lo</b> interface and
+	accept all traffic to or from it (although not FORWARD, it matches only INPUT and OUTPUT).
+	<p>
+	The default is to accept all traffic from/to <b>lo</b>. If however you need to control what
+	the local system users can use on the local machine, you can set this to anything other than 1
+	allowing you to setup the firewall as you will.
+	<p>
+	<b>IMPORTANT: If you choose not to trust interface lo and you don't specifically setup the lo
+	interface in firehol.conf, no local process will be able to communicate to any other local process,
+	which most likely will break several things. Be sure you know what you are doing.</b>
+	<p>
+	This option appeared in FireHOL version 1.195.
+	<p>
+	Default: <b>FIREHOL_TRUST_LOOPBACK=1</b>
+	<br>
+	Example: <b>FIREHOL_TRUST_LOOPBACK=0</b>
+	<p>
+
 <table border=0 cellpadding=10 cellspacing=0 width="100%"><tr bgcolor="#777777"><td align=center><font color="white"><b><big><a name="use_variables">Variables that FireHOL offers</a></td</tr></table>
 <p>
 	<a name="RESERVED_IPS"><h3><b>RESERVED_IPS</b></h3></a>
@@ -1378,7 +1400,7 @@ about optional rule parameters that should not be used in certain commands.
 <tr><td align=center valign=middle>
 	<A href="http://sourceforge.net"><IMG src="http://sourceforge.net/sflogo.php?group_id=58425&amp;type=5" width="210" height="62" border="0" alt="SourceForge Logo"></A>
 </td><td align=center valign=middle>
-	<small>$Id: commands.html,v 1.48 2004/04/01 23:33:15 ktsaou Exp $</small>
+	<small>$Id: commands.html,v 1.49 2004/07/07 22:22:05 ktsaou Exp $</small>
 	<p>
 	<b>FireHOL</b>, a firewall for humans...<br>
 	&copy; Copyright 2003
