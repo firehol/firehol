@@ -30,11 +30,11 @@ For example the following:
 Where:
 <ul>
 	<li><b>myservice</b> is the name of the service,<br>&nbsp;</li>
-	<li><b>proto</b> is either <b>tcp</b> or <b>udp</b> - or whatever else iptables accepts 
-	as protocol,<br>&nbsp;</li>
-	<li><b>sports</b> is the port (or port name or port range) the server is listening at.
+	<li><b>proto</b> is either <b>tcp</b>, <b>udp</b>, <b>icmp</b> - or whatever else iptables accepts 
+	as protocol, including numeric representations of protocols<br>&nbsp;</li>
+	<li><b>sports</b> is the port number (or port name or port range) the server is listening at.
 	To specify port ranges use the iptables syntax: i.e. 1000:1010 will match all ports from
-	1000 to 1010 inclusive.<br>&nbsp;</li>
+	1000 to 1010 inclusive.<br>The special keyword <b>any</b> will match any server port.<br>&nbsp;</li>
 	<li><b>cports</b> is the port (or port name or port range) the server is listening at.
 	There are two keywords that can be used for <b>cports</b>:
 	<br>&nbsp;
@@ -251,7 +251,7 @@ own.
 <tr><td align=center valign=middle>
 	<A href="http://sourceforge.net"><IMG src="http://sourceforge.net/sflogo.php?group_id=58425&amp;type=5" width="210" height="62" border="0" alt="SourceForge Logo"></A>
 </td><td align=center valign=middle>
-	<small>$Id: adding.html,v 1.5 2002/12/13 09:04:44 ktsaou Exp $</small>
+	<small>$Id: adding.html,v 1.6 2002/12/18 00:50:00 ktsaou Exp $</small>
 	<p>
 	<b>FireHOL</b>, a firewall for humans...<br>
 	&copy; Copyright 2002

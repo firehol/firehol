@@ -70,6 +70,20 @@ FireHOL has been designed to be a startup service. As such, FireHOL accepts all 
 		statements.
 	</td>
 	</tr>
+<tr>	<td><b>explain</td>
+	<td>	Enters an interactive mode where it accepts normal configuration commands
+		and presents the generated iptables commands for each of them, together
+		with some reasoning for its purpose. Additionally, it automatically generates
+		a configuration script based on the successfull commands given.
+		<p>
+		When in directive mode, FireHOL has the following special commands:
+		<ul>
+			<li><b>help</b> to present some help</li>
+			<li><b>show</b> to present the generated FireHOL configuration</li>
+			<li><b>quit</b> to exit interactive mode and quit FireHOL</li>
+		</ul>
+	</td>
+	</tr>
 <tr>	<td bgcolor="#EEEEEE"><b>&lt;a&nbsp;filename&gt;</td>
 	<td bgcolor="#EEEEEE">	a different configuration file.
 		If no other argument is given, the configuration
@@ -84,6 +98,10 @@ FireHOL has been designed to be a startup service. As such, FireHOL accepts all 
 </table>
 </center>
 
+Since version 1.45 of FireHOL, configuration files can accept command line arguments. These commands line
+arguments are given to FireHOL which passes them to the configuration file.
+All the above FireHOL parameters support this feature. To activate it, add a double dash (--) as the
+command line argument to FireHOL and then just give parameters to be passed to the configuration file.
 <p>
 <table border=0 cellpadding=10 cellspacing=0 width="100%">
 <tr><td bgcolor="#EEEEEE"><b>What happens when FireHOL runs?</td></tr></table>
@@ -143,7 +161,7 @@ its line number in the original configuration file.
 <tr><td align=center valign=middle>
 	<A href="http://sourceforge.net"><IMG src="http://sourceforge.net/sflogo.php?group_id=58425&amp;type=5" width="210" height="62" border="0" alt="SourceForge Logo"></A>
 </td><td align=center valign=middle>
-	<small>$Id: invoking.html,v 1.3 2002/12/10 15:27:12 ktsaou Exp $</small>
+	<small>$Id: invoking.html,v 1.4 2002/12/18 00:50:00 ktsaou Exp $</small>
 	<p>
 	<b>FireHOL</b>, a firewall for humans...<br>
 	&copy; Copyright 2002
