@@ -245,6 +245,16 @@ If you do this then you will have to define the the ports using the procedure de
 service_nfs_example="client nfs accept <u>dst</u> <u>1.2.3.4</u>"
 
 
+server_ping_ports="N/A"
+client_ping_ports="N/A"
+service_ping_type="complex"
+service_ping_notes="
+This services matches requests of protocol <b>ICMP</b> and type <b>echo-request</b> (TYPE=8)
+and their replies of type <b>echo-reply</b> (TYPE=0).
+<p>
+The <b>ping</b> service is stateful.
+"
+
 server_pptp_ports="tcp/1723"
 client_pptp_ports="default"
 service_pptp_type="complex"
@@ -317,8 +327,8 @@ print_service() {
 	
 cat <<EOF
 <tr ${color}>
-	<td align="center"><a name="${service}"><b>${service}</a></td>
-	<td align="center">${type}</td>
+	<td align="center" valign="top"><a name="${service}"><b>${service}</b></a></td>
+	<td align="center" valign="top">${type}</td>
 	<td>
 		<table cellspacing=0 cellpadding=2 border=0>
 		<tr>
@@ -356,7 +366,8 @@ cat <<EOF
 	<tr><td align=right valign=top nowrap><small><font color="gray">Notes</td><td>${notes}<br>&nbsp;</td></tr>
 	<tr><td align=right valign=top nowrap><small><font color="gray">Example</td><td><b>${example}</b></td></tr>
 	</table>
-	</td></tr>
+	</td>
+	</tr>
 EOF
 }
 
@@ -438,7 +449,7 @@ cat <<"EOF"
 <tr><td align=center valign=middle>
 	<A href="http://sourceforge.net"><IMG src="http://sourceforge.net/sflogo.php?group_id=58425&amp;type=5" width="210" height="62" border="0" alt="SourceForge Logo"></A>
 </td><td align=center valign=middle>
-	<small>$Id: create_services.sh,v 1.19 2003/01/01 04:55:35 ktsaou Exp $</small>
+	<small>$Id: create_services.sh,v 1.20 2003/01/05 20:18:08 ktsaou Exp $</small>
 	<p>
 	<b>FireHOL</b>, a firewall for humans...<br>
 	&copy; Copyright 2002

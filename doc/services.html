@@ -20,8 +20,25 @@ All the services defined by name in FireHOL are known to resolve in <a href="htt
 <table border=0 cellspacing=5 cellpadding=10 width="80%">
 <tr bgcolor="#EEEEEE"><th>Service</th><th>Type</th><th>Description</th></tr>
 <tr >
-	<td align="center"><a name="all"><b>all</a></td>
-	<td align="center">complex</td>
+	<td align="center" valign="top"><a name="AH"><b>AH</b></a></td>
+	<td align="center" valign="top">simple</td>
+	<td>
+		<table cellspacing=0 cellpadding=2 border=0>
+		<tr>
+<td align=right valign=top nowrap><small><font color=gray>Server Ports</td><td>
+<b>51/any</b>
+</td></tr><tr><td align=right valign=top nowrap><small><font color=gray>Client Ports</td><td>
+<b>any</b>
+</td>
+	</tr>
+	<tr><td align=right valign=top nowrap><small><font color="gray">Notes</td><td><br>&nbsp;</td></tr>
+	<tr><td align=right valign=top nowrap><small><font color="gray">Example</td><td><b>server AH accept</b></td></tr>
+	</table>
+	</td>
+	</tr>
+<tr  bgcolor="#F0F0F0">
+	<td align="center" valign="top"><a name="all"><b>all</b></a></td>
+	<td align="center" valign="top">complex</td>
 	<td>
 		<table cellspacing=0 cellpadding=2 border=0>
 		<tr>
@@ -34,10 +51,11 @@ All the services defined by name in FireHOL are known to resolve in <a href="htt
 	<tr><td align=right valign=top nowrap><small><font color="gray">Notes</td><td>Matches all traffic (all protocols, ports, etc) while ensuring that required kernel modules are loaded. <br>This service may indirectly setup a set of other services, if they are required by the kernel modules to be loaded. Currently it activates also <a href="#ftp">ftp</a>, <a href="#irc">irc</a> and <a href="#icmp">icmp</a>.<br>&nbsp;</td></tr>
 	<tr><td align=right valign=top nowrap><small><font color="gray">Example</td><td><b>server all accept</b></td></tr>
 	</table>
-	</td></tr>
-<tr  bgcolor="#F0F0F0">
-	<td align="center"><a name="amanda"><b>amanda</a></td>
-	<td align="center">complex</td>
+	</td>
+	</tr>
+<tr >
+	<td align="center" valign="top"><a name="amanda"><b>amanda</b></a></td>
+	<td align="center" valign="top">complex</td>
 	<td>
 		<table cellspacing=0 cellpadding=2 border=0>
 		<tr>
@@ -50,10 +68,11 @@ All the services defined by name in FireHOL are known to resolve in <a href="htt
 	<tr><td align=right valign=top nowrap><small><font color="gray">Notes</td><td>This implementation of <a href="http://amanda.sf.net">AMANDA, the Advanced Maryland Automatic Network Disk Archiver</a> is based on the <a href="http://amanda.sourceforge.net/cgi-bin/fom?_highlightWords=firewall&file=139">notes posted at Amanda's Faq-O-Matic</a>. <p> Based on this, FireHOL allows:<br> <ul> <li>a connection from the server to the client at <b>udp 10080</b></li> <li>connections from the client to the server at <b>tcp & udp</b> ports controlled by the variable <b>FIREHOL_AMANDA_PORTS</b>. <p> Default: <b>FIREHOL_AMANDA_PORTS="850:859"</b> <p>It has been written in amanda mailing lists that by default amanda chooses ports in the range of 600 to 950. If you don't compile amanda yourself you may have to change the variable FIREHOL_AMANDA_PORTS to accept a wider match (but consider the trust relationship you are building with this). </li> </ul> I <b>strongly suggest</b> to use this service in your firewall like: <p> <b><a href="commands.html#server">server</a> amanda accept <a href="commands.html#src">src</a> 1.2.3.4</b>, or <br> <b><a href="commands.html#client">client</a> amanda accept <a href="commands.html#dst">dst</a> 5.6.7.8</b> <p> in order to limit the hosts that have access to the ports controlled by the variable <b>FIREHOL_AMANDA_PORTS</b>. <p> This complex service handles correctly the multi-socket bi-directional environment required. Use the FireHOL <b>server</b> directive on the Amanda server, and FireHOL's <b>client</b> on the Amanda client. <p> The <b>amanda</b> service will break if it is NATed (to work it would require a bi-directional NAT and a modification in the amanda code to allow connections from/to high ports). <p> <b>USE THIS WITH CARE. MISUSE OF THIS SERVICE MAY LEAD TO OPENING PRIVILEGED PORTS TO ANYONE.</b><br>&nbsp;</td></tr>
 	<tr><td align=right valign=top nowrap><small><font color="gray">Example</td><td><b>server amanda accept <u>src</u> <u>1.2.3.4</u></b></td></tr>
 	</table>
-	</td></tr>
-<tr >
-	<td align="center"><a name="any"><b>any</a></td>
-	<td align="center">complex</td>
+	</td>
+	</tr>
+<tr  bgcolor="#F0F0F0">
+	<td align="center" valign="top"><a name="any"><b>any</b></a></td>
+	<td align="center" valign="top">complex</td>
 	<td>
 		<table cellspacing=0 cellpadding=2 border=0>
 		<tr>
@@ -66,10 +85,11 @@ All the services defined by name in FireHOL are known to resolve in <a href="htt
 	<tr><td align=right valign=top nowrap><small><font color="gray">Notes</td><td>Matches all traffic (all protocols, ports, etc), but does not care about kernel modules and does not activate any other service indirectly. In combination with the <a href="commands.html#parameters">Optional Rule Parameters</a> this service can match unusual traffic (e.g. GRE - protocol 47).<br>&nbsp;</td></tr>
 	<tr><td align=right valign=top nowrap><small><font color="gray">Example</td><td><b>server any <u>myname</u> accept proto 47</b></td></tr>
 	</table>
-	</td></tr>
-<tr  bgcolor="#F0F0F0">
-	<td align="center"><a name="apcupsd"><b>apcupsd</a></td>
-	<td align="center">simple</td>
+	</td>
+	</tr>
+<tr >
+	<td align="center" valign="top"><a name="apcupsd"><b>apcupsd</b></a></td>
+	<td align="center" valign="top">simple</td>
 	<td>
 		<table cellspacing=0 cellpadding=2 border=0>
 		<tr>
@@ -82,10 +102,11 @@ All the services defined by name in FireHOL are known to resolve in <a href="htt
 	<tr><td align=right valign=top nowrap><small><font color="gray">Notes</td><td><a href="http://www.apcupsd.com/">APC UPS Deamon</a> ports. This service must be defined as <b>server apcupsd accept</b> on all machines not directly connected to the UPS (i.e. slaves). <p> Note that the port defined here is not the default port (6666) used if you download and compile APCUPSD, since the default is conflicting with IRC and many distributions (like Debian) have changed this to 6544. <p> You can define port 6544 in APCUPSD, by changing the value of NETPORT in its configuration file, or overwrite this FireHOL service definition using the procedures described in <a href="adding.html">Adding Services</a>.<br>&nbsp;</td></tr>
 	<tr><td align=right valign=top nowrap><small><font color="gray">Example</td><td><b>server apcupsd accept</b></td></tr>
 	</table>
-	</td></tr>
-<tr >
-	<td align="center"><a name="apcupsdnis"><b>apcupsdnis</a></td>
-	<td align="center">simple</td>
+	</td>
+	</tr>
+<tr  bgcolor="#F0F0F0">
+	<td align="center" valign="top"><a name="apcupsdnis"><b>apcupsdnis</b></a></td>
+	<td align="center" valign="top">simple</td>
 	<td>
 		<table cellspacing=0 cellpadding=2 border=0>
 		<tr>
@@ -98,10 +119,11 @@ All the services defined by name in FireHOL are known to resolve in <a href="htt
 	<tr><td align=right valign=top nowrap><small><font color="gray">Notes</td><td>APC UPS Network Information Server. This service allows the remote WEB interfaces <a href="http://www.apcupsd.com/">APCUPSD</a> has, to connect and get information from the server directly connected to the UPS device.<br>&nbsp;</td></tr>
 	<tr><td align=right valign=top nowrap><small><font color="gray">Example</td><td><b>server apcupsdnis accept</b></td></tr>
 	</table>
-	</td></tr>
-<tr  bgcolor="#F0F0F0">
-	<td align="center"><a name="aptproxy"><b>aptproxy</a></td>
-	<td align="center">simple</td>
+	</td>
+	</tr>
+<tr >
+	<td align="center" valign="top"><a name="aptproxy"><b>aptproxy</b></a></td>
+	<td align="center" valign="top">simple</td>
 	<td>
 		<table cellspacing=0 cellpadding=2 border=0>
 		<tr>
@@ -114,10 +136,11 @@ All the services defined by name in FireHOL are known to resolve in <a href="htt
 	<tr><td align=right valign=top nowrap><small><font color="gray">Notes</td><td>Debian package proxy.<br>&nbsp;</td></tr>
 	<tr><td align=right valign=top nowrap><small><font color="gray">Example</td><td><b>server aptproxy accept</b></td></tr>
 	</table>
-	</td></tr>
-<tr >
-	<td align="center"><a name="cups"><b>cups</a></td>
-	<td align="center">simple</td>
+	</td>
+	</tr>
+<tr  bgcolor="#F0F0F0">
+	<td align="center" valign="top"><a name="cups"><b>cups</b></a></td>
+	<td align="center" valign="top">simple</td>
 	<td>
 		<table cellspacing=0 cellpadding=2 border=0>
 		<tr>
@@ -130,10 +153,11 @@ All the services defined by name in FireHOL are known to resolve in <a href="htt
 	<tr><td align=right valign=top nowrap><small><font color="gray">Notes</td><td><a href="http://www.cups.org">Common UNIX Printing System</a><br>&nbsp;</td></tr>
 	<tr><td align=right valign=top nowrap><small><font color="gray">Example</td><td><b>server cups accept</b></td></tr>
 	</table>
-	</td></tr>
-<tr  bgcolor="#F0F0F0">
-	<td align="center"><a name="custom"><b>custom</a></td>
-	<td align="center">complex</td>
+	</td>
+	</tr>
+<tr >
+	<td align="center" valign="top"><a name="custom"><b>custom</b></a></td>
+	<td align="center" valign="top">complex</td>
 	<td>
 		<table cellspacing=0 cellpadding=2 border=0>
 		<tr>
@@ -146,10 +170,11 @@ All the services defined by name in FireHOL are known to resolve in <a href="htt
 	<tr><td align=right valign=top nowrap><small><font color="gray">Notes</td><td>This service is used by FireHOL to allow you define services it currently does not support.<br> To find more about this service please check the <a href="adding.html">Adding Services</a> section.<br>&nbsp;</td></tr>
 	<tr><td align=right valign=top nowrap><small><font color="gray">Example</td><td><b>server custom <u>myimap</u> <u>tcp/143</u> <u>default</u> accept</b></td></tr>
 	</table>
-	</td></tr>
-<tr >
-	<td align="center"><a name="daytime"><b>daytime</a></td>
-	<td align="center">simple</td>
+	</td>
+	</tr>
+<tr  bgcolor="#F0F0F0">
+	<td align="center" valign="top"><a name="daytime"><b>daytime</b></a></td>
+	<td align="center" valign="top">simple</td>
 	<td>
 		<table cellspacing=0 cellpadding=2 border=0>
 		<tr>
@@ -162,10 +187,11 @@ All the services defined by name in FireHOL are known to resolve in <a href="htt
 	<tr><td align=right valign=top nowrap><small><font color="gray">Notes</td><td><br>&nbsp;</td></tr>
 	<tr><td align=right valign=top nowrap><small><font color="gray">Example</td><td><b>server daytime accept</b></td></tr>
 	</table>
-	</td></tr>
-<tr  bgcolor="#F0F0F0">
-	<td align="center"><a name="dhcp"><b>dhcp</a></td>
-	<td align="center">simple</td>
+	</td>
+	</tr>
+<tr >
+	<td align="center" valign="top"><a name="dhcp"><b>dhcp</b></a></td>
+	<td align="center" valign="top">simple</td>
 	<td>
 		<table cellspacing=0 cellpadding=2 border=0>
 		<tr>
@@ -178,10 +204,11 @@ All the services defined by name in FireHOL are known to resolve in <a href="htt
 	<tr><td align=right valign=top nowrap><small><font color="gray">Notes</td><td>Keep in mind that DHCP clients broadcast the network (src 0.0.0.0 dst 255.255.255.255) to find a DHCP server. This means that if your <b>server dhcp accept</b> command is placed within an interface that has <b>src</b> and / or <b>dst</b> parameters, DHCP broadcasts will not enter this interface. <p> You can overcome this problem by placing the DHCP service on a separate interface, without an <b>src</b> or <b>dst</b> but with a <b>policy return</b>. Place this interface before the one that defines the rest of the services. <p> For example: <table border=0 cellpadding=0 cellspacing=0> <tr><td><pre> <br>&nbsp;&nbsp;&nbsp;&nbsp;interface eth0 dhcp <br>&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;policy return <br>&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;server dhcp accept <br> <br>&nbsp;&nbsp;&nbsp;&nbsp;interface eth0 lan src "$mylan" dst "$myip" <br>&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;... </td></tr></table><br>&nbsp;</td></tr>
 	<tr><td align=right valign=top nowrap><small><font color="gray">Example</td><td><b>server dhcp accept</b></td></tr>
 	</table>
-	</td></tr>
-<tr >
-	<td align="center"><a name="dhcprelay"><b>dhcprelay</a></td>
-	<td align="center">simple</td>
+	</td>
+	</tr>
+<tr  bgcolor="#F0F0F0">
+	<td align="center" valign="top"><a name="dhcprelay"><b>dhcprelay</b></a></td>
+	<td align="center" valign="top">simple</td>
 	<td>
 		<table cellspacing=0 cellpadding=2 border=0>
 		<tr>
@@ -194,10 +221,11 @@ All the services defined by name in FireHOL are known to resolve in <a href="htt
 	<tr><td align=right valign=top nowrap><small><font color="gray">Notes</td><td>DHCP Relay. <p><small><b><font color="gray">From RFC 1812 section 9.1.2</font></b></small><br> In many cases, BOOTP clients and their associated BOOTP server(s) do not reside on the same IP (sub)network. In such cases, a third-party agent is required to transfer BOOTP messages between clients and servers. Such an agent was originally referred to as a BOOTP forwarding agent. However, to avoid confusion with the IP forwarding function of a router, the name BOOTP relay agent has been adopted instead. <p> For more information about DHCP Relay see section 9.1.2 of <a href="http://www.ietf.org/rfc/rfc1812.txt?number=1812">RFC 1812</a><br>&nbsp;</td></tr>
 	<tr><td align=right valign=top nowrap><small><font color="gray">Example</td><td><b>server dhcprelay accept</b></td></tr>
 	</table>
-	</td></tr>
-<tr  bgcolor="#F0F0F0">
-	<td align="center"><a name="dns"><b>dns</a></td>
-	<td align="center">simple</td>
+	</td>
+	</tr>
+<tr >
+	<td align="center" valign="top"><a name="dns"><b>dns</b></a></td>
+	<td align="center" valign="top">simple</td>
 	<td>
 		<table cellspacing=0 cellpadding=2 border=0>
 		<tr>
@@ -212,10 +240,11 @@ All the services defined by name in FireHOL are known to resolve in <a href="htt
 	<tr><td align=right valign=top nowrap><small><font color="gray">Notes</td><td><br>&nbsp;</td></tr>
 	<tr><td align=right valign=top nowrap><small><font color="gray">Example</td><td><b>server dns accept</b></td></tr>
 	</table>
-	</td></tr>
-<tr >
-	<td align="center"><a name="echo"><b>echo</a></td>
-	<td align="center">simple</td>
+	</td>
+	</tr>
+<tr  bgcolor="#F0F0F0">
+	<td align="center" valign="top"><a name="echo"><b>echo</b></a></td>
+	<td align="center" valign="top">simple</td>
 	<td>
 		<table cellspacing=0 cellpadding=2 border=0>
 		<tr>
@@ -228,10 +257,28 @@ All the services defined by name in FireHOL are known to resolve in <a href="htt
 	<tr><td align=right valign=top nowrap><small><font color="gray">Notes</td><td><br>&nbsp;</td></tr>
 	<tr><td align=right valign=top nowrap><small><font color="gray">Example</td><td><b>server echo accept</b></td></tr>
 	</table>
-	</td></tr>
+	</td>
+	</tr>
+<tr >
+	<td align="center" valign="top"><a name="ESP"><b>ESP</b></a></td>
+	<td align="center" valign="top">simple</td>
+	<td>
+		<table cellspacing=0 cellpadding=2 border=0>
+		<tr>
+<td align=right valign=top nowrap><small><font color=gray>Server Ports</td><td>
+<b>50/any</b>
+</td></tr><tr><td align=right valign=top nowrap><small><font color=gray>Client Ports</td><td>
+<b>any</b>
+</td>
+	</tr>
+	<tr><td align=right valign=top nowrap><small><font color="gray">Notes</td><td><br>&nbsp;</td></tr>
+	<tr><td align=right valign=top nowrap><small><font color="gray">Example</td><td><b>server ESP accept</b></td></tr>
+	</table>
+	</td>
+	</tr>
 <tr  bgcolor="#F0F0F0">
-	<td align="center"><a name="finger"><b>finger</a></td>
-	<td align="center">simple</td>
+	<td align="center" valign="top"><a name="finger"><b>finger</b></a></td>
+	<td align="center" valign="top">simple</td>
 	<td>
 		<table cellspacing=0 cellpadding=2 border=0>
 		<tr>
@@ -244,10 +291,11 @@ All the services defined by name in FireHOL are known to resolve in <a href="htt
 	<tr><td align=right valign=top nowrap><small><font color="gray">Notes</td><td><br>&nbsp;</td></tr>
 	<tr><td align=right valign=top nowrap><small><font color="gray">Example</td><td><b>server finger accept</b></td></tr>
 	</table>
-	</td></tr>
+	</td>
+	</tr>
 <tr >
-	<td align="center"><a name="ftp"><b>ftp</a></td>
-	<td align="center">complex</td>
+	<td align="center" valign="top"><a name="ftp"><b>ftp</b></a></td>
+	<td align="center" valign="top">complex</td>
 	<td>
 		<table cellspacing=0 cellpadding=2 border=0>
 		<tr>
@@ -260,10 +308,28 @@ All the services defined by name in FireHOL are known to resolve in <a href="htt
 	<tr><td align=right valign=top nowrap><small><font color="gray">Notes</td><td>The FTP service matches both active and passive FTP connections by utilizing the FTP connection tracker kernel module.<br>&nbsp;</td></tr>
 	<tr><td align=right valign=top nowrap><small><font color="gray">Example</td><td><b>server ftp accept</b></td></tr>
 	</table>
-	</td></tr>
+	</td>
+	</tr>
 <tr  bgcolor="#F0F0F0">
-	<td align="center"><a name="heartbeat"><b>heartbeat</a></td>
-	<td align="center">simple</td>
+	<td align="center" valign="top"><a name="GRE"><b>GRE</b></a></td>
+	<td align="center" valign="top">simple</td>
+	<td>
+		<table cellspacing=0 cellpadding=2 border=0>
+		<tr>
+<td align=right valign=top nowrap><small><font color=gray>Server Ports</td><td>
+<b>47/any</b>
+</td></tr><tr><td align=right valign=top nowrap><small><font color=gray>Client Ports</td><td>
+<b>any</b>
+</td>
+	</tr>
+	<tr><td align=right valign=top nowrap><small><font color="gray">Notes</td><td><br>&nbsp;</td></tr>
+	<tr><td align=right valign=top nowrap><small><font color="gray">Example</td><td><b>server GRE accept</b></td></tr>
+	</table>
+	</td>
+	</tr>
+<tr >
+	<td align="center" valign="top"><a name="heartbeat"><b>heartbeat</b></a></td>
+	<td align="center" valign="top">simple</td>
 	<td>
 		<table cellspacing=0 cellpadding=2 border=0>
 		<tr>
@@ -276,10 +342,11 @@ All the services defined by name in FireHOL are known to resolve in <a href="htt
 	<tr><td align=right valign=top nowrap><small><font color="gray">Notes</td><td>HeartBeat is the Linux clustering solution available <a href=http://www.linux-ha.org/>http://www.linux-ha.org/</a>. This FireHOL service has been designed such a way that it will allow multiple heartbeat clusters on the same LAN.<br>&nbsp;</td></tr>
 	<tr><td align=right valign=top nowrap><small><font color="gray">Example</td><td><b>server heartbeat accept</b></td></tr>
 	</table>
-	</td></tr>
-<tr >
-	<td align="center"><a name="http"><b>http</a></td>
-	<td align="center">simple</td>
+	</td>
+	</tr>
+<tr  bgcolor="#F0F0F0">
+	<td align="center" valign="top"><a name="http"><b>http</b></a></td>
+	<td align="center" valign="top">simple</td>
 	<td>
 		<table cellspacing=0 cellpadding=2 border=0>
 		<tr>
@@ -292,10 +359,11 @@ All the services defined by name in FireHOL are known to resolve in <a href="htt
 	<tr><td align=right valign=top nowrap><small><font color="gray">Notes</td><td><br>&nbsp;</td></tr>
 	<tr><td align=right valign=top nowrap><small><font color="gray">Example</td><td><b>server http accept</b></td></tr>
 	</table>
-	</td></tr>
-<tr  bgcolor="#F0F0F0">
-	<td align="center"><a name="https"><b>https</a></td>
-	<td align="center">simple</td>
+	</td>
+	</tr>
+<tr >
+	<td align="center" valign="top"><a name="https"><b>https</b></a></td>
+	<td align="center" valign="top">simple</td>
 	<td>
 		<table cellspacing=0 cellpadding=2 border=0>
 		<tr>
@@ -308,10 +376,11 @@ All the services defined by name in FireHOL are known to resolve in <a href="htt
 	<tr><td align=right valign=top nowrap><small><font color="gray">Notes</td><td><br>&nbsp;</td></tr>
 	<tr><td align=right valign=top nowrap><small><font color="gray">Example</td><td><b>server https accept</b></td></tr>
 	</table>
-	</td></tr>
-<tr >
-	<td align="center"><a name="icmp"><b>icmp</a></td>
-	<td align="center">simple</td>
+	</td>
+	</tr>
+<tr  bgcolor="#F0F0F0">
+	<td align="center" valign="top"><a name="icmp"><b>icmp</b></a></td>
+	<td align="center" valign="top">simple</td>
 	<td>
 		<table cellspacing=0 cellpadding=2 border=0>
 		<tr>
@@ -324,10 +393,28 @@ All the services defined by name in FireHOL are known to resolve in <a href="htt
 	<tr><td align=right valign=top nowrap><small><font color="gray">Notes</td><td><br>&nbsp;</td></tr>
 	<tr><td align=right valign=top nowrap><small><font color="gray">Example</td><td><b>server icmp accept</b></td></tr>
 	</table>
-	</td></tr>
+	</td>
+	</tr>
+<tr >
+	<td align="center" valign="top"><a name="ICMP"><b>ICMP</b></a></td>
+	<td align="center" valign="top">simple</td>
+	<td>
+		<table cellspacing=0 cellpadding=2 border=0>
+		<tr>
+<td align=right valign=top nowrap><small><font color=gray>Server Ports</td><td>
+<b>icmp/any</b>
+</td></tr><tr><td align=right valign=top nowrap><small><font color=gray>Client Ports</td><td>
+<b>any</b>
+</td>
+	</tr>
+	<tr><td align=right valign=top nowrap><small><font color="gray">Notes</td><td><br>&nbsp;</td></tr>
+	<tr><td align=right valign=top nowrap><small><font color="gray">Example</td><td><b>server ICMP accept</b></td></tr>
+	</table>
+	</td>
+	</tr>
 <tr  bgcolor="#F0F0F0">
-	<td align="center"><a name="ident"><b>ident</a></td>
-	<td align="center">simple</td>
+	<td align="center" valign="top"><a name="ident"><b>ident</b></a></td>
+	<td align="center" valign="top">simple</td>
 	<td>
 		<table cellspacing=0 cellpadding=2 border=0>
 		<tr>
@@ -340,10 +427,11 @@ All the services defined by name in FireHOL are known to resolve in <a href="htt
 	<tr><td align=right valign=top nowrap><small><font color="gray">Notes</td><td><br>&nbsp;</td></tr>
 	<tr><td align=right valign=top nowrap><small><font color="gray">Example</td><td><b>server ident reject with tcp-reset</b></td></tr>
 	</table>
-	</td></tr>
+	</td>
+	</tr>
 <tr >
-	<td align="center"><a name="imap"><b>imap</a></td>
-	<td align="center">simple</td>
+	<td align="center" valign="top"><a name="imap"><b>imap</b></a></td>
+	<td align="center" valign="top">simple</td>
 	<td>
 		<table cellspacing=0 cellpadding=2 border=0>
 		<tr>
@@ -356,10 +444,11 @@ All the services defined by name in FireHOL are known to resolve in <a href="htt
 	<tr><td align=right valign=top nowrap><small><font color="gray">Notes</td><td><br>&nbsp;</td></tr>
 	<tr><td align=right valign=top nowrap><small><font color="gray">Example</td><td><b>server imap accept</b></td></tr>
 	</table>
-	</td></tr>
+	</td>
+	</tr>
 <tr  bgcolor="#F0F0F0">
-	<td align="center"><a name="imaps"><b>imaps</a></td>
-	<td align="center">simple</td>
+	<td align="center" valign="top"><a name="imaps"><b>imaps</b></a></td>
+	<td align="center" valign="top">simple</td>
 	<td>
 		<table cellspacing=0 cellpadding=2 border=0>
 		<tr>
@@ -372,10 +461,11 @@ All the services defined by name in FireHOL are known to resolve in <a href="htt
 	<tr><td align=right valign=top nowrap><small><font color="gray">Notes</td><td><br>&nbsp;</td></tr>
 	<tr><td align=right valign=top nowrap><small><font color="gray">Example</td><td><b>server imaps accept</b></td></tr>
 	</table>
-	</td></tr>
+	</td>
+	</tr>
 <tr >
-	<td align="center"><a name="irc"><b>irc</a></td>
-	<td align="center">simple</td>
+	<td align="center" valign="top"><a name="irc"><b>irc</b></a></td>
+	<td align="center" valign="top">simple</td>
 	<td>
 		<table cellspacing=0 cellpadding=2 border=0>
 		<tr>
@@ -388,10 +478,11 @@ All the services defined by name in FireHOL are known to resolve in <a href="htt
 	<tr><td align=right valign=top nowrap><small><font color="gray">Notes</td><td><br>&nbsp;</td></tr>
 	<tr><td align=right valign=top nowrap><small><font color="gray">Example</td><td><b>server irc accept</b></td></tr>
 	</table>
-	</td></tr>
+	</td>
+	</tr>
 <tr  bgcolor="#F0F0F0">
-	<td align="center"><a name="isakmp"><b>isakmp</a></td>
-	<td align="center">simple</td>
+	<td align="center" valign="top"><a name="isakmp"><b>isakmp</b></a></td>
+	<td align="center" valign="top">simple</td>
 	<td>
 		<table cellspacing=0 cellpadding=2 border=0>
 		<tr>
@@ -404,10 +495,11 @@ All the services defined by name in FireHOL are known to resolve in <a href="htt
 	<tr><td align=right valign=top nowrap><small><font color="gray">Notes</td><td>IPSec key negotiation.<br>&nbsp;</td></tr>
 	<tr><td align=right valign=top nowrap><small><font color="gray">Example</td><td><b>server isakmp accept</b></td></tr>
 	</table>
-	</td></tr>
+	</td>
+	</tr>
 <tr >
-	<td align="center"><a name="ldap"><b>ldap</a></td>
-	<td align="center">simple</td>
+	<td align="center" valign="top"><a name="ldap"><b>ldap</b></a></td>
+	<td align="center" valign="top">simple</td>
 	<td>
 		<table cellspacing=0 cellpadding=2 border=0>
 		<tr>
@@ -420,10 +512,11 @@ All the services defined by name in FireHOL are known to resolve in <a href="htt
 	<tr><td align=right valign=top nowrap><small><font color="gray">Notes</td><td><br>&nbsp;</td></tr>
 	<tr><td align=right valign=top nowrap><small><font color="gray">Example</td><td><b>server ldap accept</b></td></tr>
 	</table>
-	</td></tr>
+	</td>
+	</tr>
 <tr  bgcolor="#F0F0F0">
-	<td align="center"><a name="ldaps"><b>ldaps</a></td>
-	<td align="center">simple</td>
+	<td align="center" valign="top"><a name="ldaps"><b>ldaps</b></a></td>
+	<td align="center" valign="top">simple</td>
 	<td>
 		<table cellspacing=0 cellpadding=2 border=0>
 		<tr>
@@ -436,10 +529,11 @@ All the services defined by name in FireHOL are known to resolve in <a href="htt
 	<tr><td align=right valign=top nowrap><small><font color="gray">Notes</td><td><br>&nbsp;</td></tr>
 	<tr><td align=right valign=top nowrap><small><font color="gray">Example</td><td><b>server ldaps accept</b></td></tr>
 	</table>
-	</td></tr>
+	</td>
+	</tr>
 <tr >
-	<td align="center"><a name="lpd"><b>lpd</a></td>
-	<td align="center">simple</td>
+	<td align="center" valign="top"><a name="lpd"><b>lpd</b></a></td>
+	<td align="center" valign="top">simple</td>
 	<td>
 		<table cellspacing=0 cellpadding=2 border=0>
 		<tr>
@@ -452,10 +546,11 @@ All the services defined by name in FireHOL are known to resolve in <a href="htt
 	<tr><td align=right valign=top nowrap><small><font color="gray">Notes</td><td><br>&nbsp;</td></tr>
 	<tr><td align=right valign=top nowrap><small><font color="gray">Example</td><td><b>server lpd accept</b></td></tr>
 	</table>
-	</td></tr>
+	</td>
+	</tr>
 <tr  bgcolor="#F0F0F0">
-	<td align="center"><a name="microsoft_ds"><b>microsoft_ds</a></td>
-	<td align="center">simple</td>
+	<td align="center" valign="top"><a name="microsoft_ds"><b>microsoft_ds</b></a></td>
+	<td align="center" valign="top">simple</td>
 	<td>
 		<table cellspacing=0 cellpadding=2 border=0>
 		<tr>
@@ -468,10 +563,11 @@ All the services defined by name in FireHOL are known to resolve in <a href="htt
 	<tr><td align=right valign=top nowrap><small><font color="gray">Notes</td><td>Direct Hosted (i.e. NETBIOS-less SMB) <p> This is another NETBIOS Session Service with minor differences with <a href="#netbios_ssn">netbios_ssn</a>. It is supported only by Windows 2000 and Windows XP and it offers the advantage of being indepedent of WINS for name resolution. <p> It seems that samba supports transparently this protocol on the <a href="#netbios_ssn">netbios_ssn</a> ports, so that either direct hosted or traditional SMB can be served simultaneously. <p> Please refer to the <a href="#netbios_ssn">netbios_ssn</a> service for more information.<br>&nbsp;</td></tr>
 	<tr><td align=right valign=top nowrap><small><font color="gray">Example</td><td><b>server microsoft_ds accept</b></td></tr>
 	</table>
-	</td></tr>
+	</td>
+	</tr>
 <tr >
-	<td align="center"><a name="multicast"><b>multicast</a></td>
-	<td align="center">complex</td>
+	<td align="center" valign="top"><a name="multicast"><b>multicast</b></a></td>
+	<td align="center" valign="top">complex</td>
 	<td>
 		<table cellspacing=0 cellpadding=2 border=0>
 		<tr>
@@ -484,10 +580,11 @@ All the services defined by name in FireHOL are known to resolve in <a href="htt
 	<tr><td align=right valign=top nowrap><small><font color="gray">Notes</td><td>The multicast service matches all packets send to 224.0.0.0/8 using protocol No 2.<br>&nbsp;</td></tr>
 	<tr><td align=right valign=top nowrap><small><font color="gray">Example</td><td><b>server multicast reject with proto-unreach</b></td></tr>
 	</table>
-	</td></tr>
+	</td>
+	</tr>
 <tr  bgcolor="#F0F0F0">
-	<td align="center"><a name="mysql"><b>mysql</a></td>
-	<td align="center">simple</td>
+	<td align="center" valign="top"><a name="mysql"><b>mysql</b></a></td>
+	<td align="center" valign="top">simple</td>
 	<td>
 		<table cellspacing=0 cellpadding=2 border=0>
 		<tr>
@@ -500,10 +597,11 @@ All the services defined by name in FireHOL are known to resolve in <a href="htt
 	<tr><td align=right valign=top nowrap><small><font color="gray">Notes</td><td><br>&nbsp;</td></tr>
 	<tr><td align=right valign=top nowrap><small><font color="gray">Example</td><td><b>server mysql accept</b></td></tr>
 	</table>
-	</td></tr>
+	</td>
+	</tr>
 <tr >
-	<td align="center"><a name="netbios_dgm"><b>netbios_dgm</a></td>
-	<td align="center">simple</td>
+	<td align="center" valign="top"><a name="netbios_dgm"><b>netbios_dgm</b></a></td>
+	<td align="center" valign="top">simple</td>
 	<td>
 		<table cellspacing=0 cellpadding=2 border=0>
 		<tr>
@@ -518,10 +616,11 @@ All the services defined by name in FireHOL are known to resolve in <a href="htt
 	<tr><td align=right valign=top nowrap><small><font color="gray">Notes</td><td>NETBIOS Datagram Service <p> See also the <a href="#samba">samba</a> service. <p> Keep in mind that this service broadcasts (to the broadcast address of your LAN) UDP packets. If you place this service within an interface that has a <b>dst</b> parameter, remember to include (in the <b>dst</b> parameter) the broadcast address of your LAN too.<br>&nbsp;</td></tr>
 	<tr><td align=right valign=top nowrap><small><font color="gray">Example</td><td><b>server netbios_dgm accept</b></td></tr>
 	</table>
-	</td></tr>
+	</td>
+	</tr>
 <tr  bgcolor="#F0F0F0">
-	<td align="center"><a name="netbios_ns"><b>netbios_ns</a></td>
-	<td align="center">simple</td>
+	<td align="center" valign="top"><a name="netbios_ns"><b>netbios_ns</b></a></td>
+	<td align="center" valign="top">simple</td>
 	<td>
 		<table cellspacing=0 cellpadding=2 border=0>
 		<tr>
@@ -536,10 +635,11 @@ All the services defined by name in FireHOL are known to resolve in <a href="htt
 	<tr><td align=right valign=top nowrap><small><font color="gray">Notes</td><td>NETBIOS Name Service <p> See also the <a href="#samba">samba</a> service.<br>&nbsp;</td></tr>
 	<tr><td align=right valign=top nowrap><small><font color="gray">Example</td><td><b>server netbios_ns accept</b></td></tr>
 	</table>
-	</td></tr>
+	</td>
+	</tr>
 <tr >
-	<td align="center"><a name="netbios_ssn"><b>netbios_ssn</a></td>
-	<td align="center">simple</td>
+	<td align="center" valign="top"><a name="netbios_ssn"><b>netbios_ssn</b></a></td>
+	<td align="center" valign="top">simple</td>
 	<td>
 		<table cellspacing=0 cellpadding=2 border=0>
 		<tr>
@@ -552,10 +652,11 @@ All the services defined by name in FireHOL are known to resolve in <a href="htt
 	<tr><td align=right valign=top nowrap><small><font color="gray">Notes</td><td>NETBIOS Session Service <p> See also the <a href="#samba">samba</a> service. <p> Newer NETBIOS clients prefer to use port 445 (<a href="#microsoft_ds">microsoft_ds</a>) for the NETBIOS session service, and when this is not available they fall back to port 139 (netbios_ssn). <p> If your policy on an interface or router is <b>DROP</b>, clients trying to access port 445 will have to timeout before falling back to port 139. This timeout can be up to several minutes. <p> To overcome this problem either explicitly <b>REJECT</b> the <a href="#microsoft_ds">microsoft_ds</a> service with a tcp-reset message (<b>server microsoft_ds reject with tcp-reset</b>), or redirect port 445 to port 139 using the following rule (put it all-in-one-line at the top of your FireHOL config): <p> <b> iptables -t nat -A PREROUTING -i eth0 -p tcp -s 1.1.1.1/24 --dport 445 -d 2.2.2.2 -j REDIRECT --to-port 139 </b><p> where: <ul> <li><b>eth0</b> is the network interface your NETBIOS server uses <br>&nbsp; </li> <li><b>1.1.1.1/24</b> is the subnet matching all the clients IP addresses <br>&nbsp; </li> <li><b>2.2.2.2</b> is the IP of your linux server on eth0 (or whatever you set the first one above) </li> </ul><br>&nbsp;</td></tr>
 	<tr><td align=right valign=top nowrap><small><font color="gray">Example</td><td><b>server netbios_ssn accept</b></td></tr>
 	</table>
-	</td></tr>
+	</td>
+	</tr>
 <tr  bgcolor="#F0F0F0">
-	<td align="center"><a name="nfs"><b>nfs</a></td>
-	<td align="center">complex</td>
+	<td align="center" valign="top"><a name="nfs"><b>nfs</b></a></td>
+	<td align="center" valign="top">complex</td>
 	<td>
 		<table cellspacing=0 cellpadding=2 border=0>
 		<tr>
@@ -568,10 +669,11 @@ All the services defined by name in FireHOL are known to resolve in <a href="htt
 	<tr><td align=right valign=top nowrap><small><font color="gray">Notes</td><td>The NFS service queries the RPC service on the NFS server host to find out the ports <b>nfsd</b> and <b>mountd</b> are listening. Then, according to these ports it sets up rules on all the supported protocols (as reported by RPC) in order the clients to be able to reach the server. <p> For this reason, the NFS service requires that: <ul> <li>the firewall is restarted if the NFS server is restarted</li> <li>the NFS server must be specified on all nfs statements (only if it is not the localhost)</li> </ul> Since NFS queries the remote RPC server, it is required to also be allowed to do so, by allowing the <a href="#portmap">portmap</a> service too. Take care, that this is allowed by the <b>running firewall</b> when FireHOL tries to query the RPC server. So you might have to setup NFS in two steps: First add the portmap service and activate the firewall, then add the NFS service and restart the firewall. <p> To avoid this you can setup your NFS server to listen on pre-defined ports, as it is well documented in <a href="http://nfs.sourceforge.net/nfs-howto/security.html#FIREWALLS">http://nfs.sourceforge.net/nfs-howto/security.html#FIREWALLS</a>. If you do this then you will have to define the the ports using the procedure described in <a href="adding.html">Adding Services</a>.<br>&nbsp;</td></tr>
 	<tr><td align=right valign=top nowrap><small><font color="gray">Example</td><td><b>client nfs accept <u>dst</u> <u>1.2.3.4</u></b></td></tr>
 	</table>
-	</td></tr>
+	</td>
+	</tr>
 <tr >
-	<td align="center"><a name="nntp"><b>nntp</a></td>
-	<td align="center">simple</td>
+	<td align="center" valign="top"><a name="nntp"><b>nntp</b></a></td>
+	<td align="center" valign="top">simple</td>
 	<td>
 		<table cellspacing=0 cellpadding=2 border=0>
 		<tr>
@@ -584,10 +686,11 @@ All the services defined by name in FireHOL are known to resolve in <a href="htt
 	<tr><td align=right valign=top nowrap><small><font color="gray">Notes</td><td><br>&nbsp;</td></tr>
 	<tr><td align=right valign=top nowrap><small><font color="gray">Example</td><td><b>server nntp accept</b></td></tr>
 	</table>
-	</td></tr>
+	</td>
+	</tr>
 <tr  bgcolor="#F0F0F0">
-	<td align="center"><a name="ntp"><b>ntp</a></td>
-	<td align="center">simple</td>
+	<td align="center" valign="top"><a name="ntp"><b>ntp</b></a></td>
+	<td align="center" valign="top">simple</td>
 	<td>
 		<table cellspacing=0 cellpadding=2 border=0>
 		<tr>
@@ -604,10 +707,28 @@ All the services defined by name in FireHOL are known to resolve in <a href="htt
 	<tr><td align=right valign=top nowrap><small><font color="gray">Notes</td><td><br>&nbsp;</td></tr>
 	<tr><td align=right valign=top nowrap><small><font color="gray">Example</td><td><b>server ntp accept</b></td></tr>
 	</table>
-	</td></tr>
+	</td>
+	</tr>
 <tr >
-	<td align="center"><a name="pop3"><b>pop3</a></td>
-	<td align="center">simple</td>
+	<td align="center" valign="top"><a name="ping"><b>ping</b></a></td>
+	<td align="center" valign="top">complex</td>
+	<td>
+		<table cellspacing=0 cellpadding=2 border=0>
+		<tr>
+<td align=right valign=top nowrap><small><font color=gray>Server Ports</td><td>
+<b>N/A</b>
+</td></tr><tr><td align=right valign=top nowrap><small><font color=gray>Client Ports</td><td>
+<b>N/A</b>
+</td>
+	</tr>
+	<tr><td align=right valign=top nowrap><small><font color="gray">Notes</td><td>This services matches requests of protocol <b>ICMP</b> and type <b>echo-request</b> (TYPE=8) and their replies of type <b>echo-reply</b> (TYPE=0). <p> The <b>ping</b> service is stateful.<br>&nbsp;</td></tr>
+	<tr><td align=right valign=top nowrap><small><font color="gray">Example</td><td><b>server ping accept</b></td></tr>
+	</table>
+	</td>
+	</tr>
+<tr  bgcolor="#F0F0F0">
+	<td align="center" valign="top"><a name="pop3"><b>pop3</b></a></td>
+	<td align="center" valign="top">simple</td>
 	<td>
 		<table cellspacing=0 cellpadding=2 border=0>
 		<tr>
@@ -620,10 +741,11 @@ All the services defined by name in FireHOL are known to resolve in <a href="htt
 	<tr><td align=right valign=top nowrap><small><font color="gray">Notes</td><td><br>&nbsp;</td></tr>
 	<tr><td align=right valign=top nowrap><small><font color="gray">Example</td><td><b>server pop3 accept</b></td></tr>
 	</table>
-	</td></tr>
-<tr  bgcolor="#F0F0F0">
-	<td align="center"><a name="pop3s"><b>pop3s</a></td>
-	<td align="center">simple</td>
+	</td>
+	</tr>
+<tr >
+	<td align="center" valign="top"><a name="pop3s"><b>pop3s</b></a></td>
+	<td align="center" valign="top">simple</td>
 	<td>
 		<table cellspacing=0 cellpadding=2 border=0>
 		<tr>
@@ -636,10 +758,11 @@ All the services defined by name in FireHOL are known to resolve in <a href="htt
 	<tr><td align=right valign=top nowrap><small><font color="gray">Notes</td><td><br>&nbsp;</td></tr>
 	<tr><td align=right valign=top nowrap><small><font color="gray">Example</td><td><b>server pop3s accept</b></td></tr>
 	</table>
-	</td></tr>
-<tr >
-	<td align="center"><a name="portmap"><b>portmap</a></td>
-	<td align="center">simple</td>
+	</td>
+	</tr>
+<tr  bgcolor="#F0F0F0">
+	<td align="center" valign="top"><a name="portmap"><b>portmap</b></a></td>
+	<td align="center" valign="top">simple</td>
 	<td>
 		<table cellspacing=0 cellpadding=2 border=0>
 		<tr>
@@ -654,10 +777,11 @@ All the services defined by name in FireHOL are known to resolve in <a href="htt
 	<tr><td align=right valign=top nowrap><small><font color="gray">Notes</td><td><br>&nbsp;</td></tr>
 	<tr><td align=right valign=top nowrap><small><font color="gray">Example</td><td><b>server portmap accept</b></td></tr>
 	</table>
-	</td></tr>
-<tr  bgcolor="#F0F0F0">
-	<td align="center"><a name="pptp"><b>pptp</a></td>
-	<td align="center">complex</td>
+	</td>
+	</tr>
+<tr >
+	<td align="center" valign="top"><a name="pptp"><b>pptp</b></a></td>
+	<td align="center" valign="top">complex</td>
 	<td>
 		<table cellspacing=0 cellpadding=2 border=0>
 		<tr>
@@ -670,10 +794,11 @@ All the services defined by name in FireHOL are known to resolve in <a href="htt
 	<tr><td align=right valign=top nowrap><small><font color="gray">Notes</td><td>Additionally to the above the PPTP service allows stateful GRE traffic (protocol 47) to flow between the PPTP server and the client.<br>&nbsp;</td></tr>
 	<tr><td align=right valign=top nowrap><small><font color="gray">Example</td><td><b>server pptp accept</b></td></tr>
 	</table>
-	</td></tr>
-<tr >
-	<td align="center"><a name="privoxy"><b>privoxy</a></td>
-	<td align="center">simple</td>
+	</td>
+	</tr>
+<tr  bgcolor="#F0F0F0">
+	<td align="center" valign="top"><a name="privoxy"><b>privoxy</b></a></td>
+	<td align="center" valign="top">simple</td>
 	<td>
 		<table cellspacing=0 cellpadding=2 border=0>
 		<tr>
@@ -686,10 +811,11 @@ All the services defined by name in FireHOL are known to resolve in <a href="htt
 	<tr><td align=right valign=top nowrap><small><font color="gray">Notes</td><td><br>&nbsp;</td></tr>
 	<tr><td align=right valign=top nowrap><small><font color="gray">Example</td><td><b>server privoxy accept</b></td></tr>
 	</table>
-	</td></tr>
-<tr  bgcolor="#F0F0F0">
-	<td align="center"><a name="radius"><b>radius</a></td>
-	<td align="center">simple</td>
+	</td>
+	</tr>
+<tr >
+	<td align="center" valign="top"><a name="radius"><b>radius</b></a></td>
+	<td align="center" valign="top">simple</td>
 	<td>
 		<table cellspacing=0 cellpadding=2 border=0>
 		<tr>
@@ -704,10 +830,11 @@ All the services defined by name in FireHOL are known to resolve in <a href="htt
 	<tr><td align=right valign=top nowrap><small><font color="gray">Notes</td><td><br>&nbsp;</td></tr>
 	<tr><td align=right valign=top nowrap><small><font color="gray">Example</td><td><b>server radius accept</b></td></tr>
 	</table>
-	</td></tr>
-<tr >
-	<td align="center"><a name="radiusold"><b>radiusold</a></td>
-	<td align="center">simple</td>
+	</td>
+	</tr>
+<tr  bgcolor="#F0F0F0">
+	<td align="center" valign="top"><a name="radiusold"><b>radiusold</b></a></td>
+	<td align="center" valign="top">simple</td>
 	<td>
 		<table cellspacing=0 cellpadding=2 border=0>
 		<tr>
@@ -722,10 +849,11 @@ All the services defined by name in FireHOL are known to resolve in <a href="htt
 	<tr><td align=right valign=top nowrap><small><font color="gray">Notes</td><td><br>&nbsp;</td></tr>
 	<tr><td align=right valign=top nowrap><small><font color="gray">Example</td><td><b>server radiusold accept</b></td></tr>
 	</table>
-	</td></tr>
-<tr  bgcolor="#F0F0F0">
-	<td align="center"><a name="rndc"><b>rndc</a></td>
-	<td align="center">simple</td>
+	</td>
+	</tr>
+<tr >
+	<td align="center" valign="top"><a name="rndc"><b>rndc</b></a></td>
+	<td align="center" valign="top">simple</td>
 	<td>
 		<table cellspacing=0 cellpadding=2 border=0>
 		<tr>
@@ -738,10 +866,11 @@ All the services defined by name in FireHOL are known to resolve in <a href="htt
 	<tr><td align=right valign=top nowrap><small><font color="gray">Notes</td><td><br>&nbsp;</td></tr>
 	<tr><td align=right valign=top nowrap><small><font color="gray">Example</td><td><b>server rndc accept</b></td></tr>
 	</table>
-	</td></tr>
-<tr >
-	<td align="center"><a name="rsync"><b>rsync</a></td>
-	<td align="center">simple</td>
+	</td>
+	</tr>
+<tr  bgcolor="#F0F0F0">
+	<td align="center" valign="top"><a name="rsync"><b>rsync</b></a></td>
+	<td align="center" valign="top">simple</td>
 	<td>
 		<table cellspacing=0 cellpadding=2 border=0>
 		<tr>
@@ -756,10 +885,11 @@ All the services defined by name in FireHOL are known to resolve in <a href="htt
 	<tr><td align=right valign=top nowrap><small><font color="gray">Notes</td><td><br>&nbsp;</td></tr>
 	<tr><td align=right valign=top nowrap><small><font color="gray">Example</td><td><b>server rsync accept</b></td></tr>
 	</table>
-	</td></tr>
-<tr  bgcolor="#F0F0F0">
-	<td align="center"><a name="samba"><b>samba</a></td>
-	<td align="center">complex</td>
+	</td>
+	</tr>
+<tr >
+	<td align="center" valign="top"><a name="samba"><b>samba</b></a></td>
+	<td align="center" valign="top">complex</td>
 	<td>
 		<table cellspacing=0 cellpadding=2 border=0>
 		<tr>
@@ -772,10 +902,11 @@ All the services defined by name in FireHOL are known to resolve in <a href="htt
 	<tr><td align=right valign=top nowrap><small><font color="gray">Notes</td><td>The samba service automatically sets all the rules for <a href="#netbios_ns">netbios_ns</a>, <a href="#netbios_dgm">netbios_dgm</a> and <a href="#netbios_ssn">netbios_ssn</a>. <p> Please refer to the notes of the above services for more information.<br>&nbsp;</td></tr>
 	<tr><td align=right valign=top nowrap><small><font color="gray">Example</td><td><b>server samba accept</b></td></tr>
 	</table>
-	</td></tr>
-<tr >
-	<td align="center"><a name="smtp"><b>smtp</a></td>
-	<td align="center">simple</td>
+	</td>
+	</tr>
+<tr  bgcolor="#F0F0F0">
+	<td align="center" valign="top"><a name="smtp"><b>smtp</b></a></td>
+	<td align="center" valign="top">simple</td>
 	<td>
 		<table cellspacing=0 cellpadding=2 border=0>
 		<tr>
@@ -788,10 +919,11 @@ All the services defined by name in FireHOL are known to resolve in <a href="htt
 	<tr><td align=right valign=top nowrap><small><font color="gray">Notes</td><td><br>&nbsp;</td></tr>
 	<tr><td align=right valign=top nowrap><small><font color="gray">Example</td><td><b>server smtp accept</b></td></tr>
 	</table>
-	</td></tr>
-<tr  bgcolor="#F0F0F0">
-	<td align="center"><a name="smtps"><b>smtps</a></td>
-	<td align="center">simple</td>
+	</td>
+	</tr>
+<tr >
+	<td align="center" valign="top"><a name="smtps"><b>smtps</b></a></td>
+	<td align="center" valign="top">simple</td>
 	<td>
 		<table cellspacing=0 cellpadding=2 border=0>
 		<tr>
@@ -804,10 +936,11 @@ All the services defined by name in FireHOL are known to resolve in <a href="htt
 	<tr><td align=right valign=top nowrap><small><font color="gray">Notes</td><td><br>&nbsp;</td></tr>
 	<tr><td align=right valign=top nowrap><small><font color="gray">Example</td><td><b>server smtps accept</b></td></tr>
 	</table>
-	</td></tr>
-<tr >
-	<td align="center"><a name="snmp"><b>snmp</a></td>
-	<td align="center">simple</td>
+	</td>
+	</tr>
+<tr  bgcolor="#F0F0F0">
+	<td align="center" valign="top"><a name="snmp"><b>snmp</b></a></td>
+	<td align="center" valign="top">simple</td>
 	<td>
 		<table cellspacing=0 cellpadding=2 border=0>
 		<tr>
@@ -820,10 +953,11 @@ All the services defined by name in FireHOL are known to resolve in <a href="htt
 	<tr><td align=right valign=top nowrap><small><font color="gray">Notes</td><td><br>&nbsp;</td></tr>
 	<tr><td align=right valign=top nowrap><small><font color="gray">Example</td><td><b>server snmp accept</b></td></tr>
 	</table>
-	</td></tr>
-<tr  bgcolor="#F0F0F0">
-	<td align="center"><a name="snmptrap"><b>snmptrap</a></td>
-	<td align="center">simple</td>
+	</td>
+	</tr>
+<tr >
+	<td align="center" valign="top"><a name="snmptrap"><b>snmptrap</b></a></td>
+	<td align="center" valign="top">simple</td>
 	<td>
 		<table cellspacing=0 cellpadding=2 border=0>
 		<tr>
@@ -836,10 +970,11 @@ All the services defined by name in FireHOL are known to resolve in <a href="htt
 	<tr><td align=right valign=top nowrap><small><font color="gray">Notes</td><td><br>&nbsp;</td></tr>
 	<tr><td align=right valign=top nowrap><small><font color="gray">Example</td><td><b>server snmptrap accept</b></td></tr>
 	</table>
-	</td></tr>
-<tr >
-	<td align="center"><a name="squid"><b>squid</a></td>
-	<td align="center">simple</td>
+	</td>
+	</tr>
+<tr  bgcolor="#F0F0F0">
+	<td align="center" valign="top"><a name="squid"><b>squid</b></a></td>
+	<td align="center" valign="top">simple</td>
 	<td>
 		<table cellspacing=0 cellpadding=2 border=0>
 		<tr>
@@ -852,10 +987,11 @@ All the services defined by name in FireHOL are known to resolve in <a href="htt
 	<tr><td align=right valign=top nowrap><small><font color="gray">Notes</td><td><br>&nbsp;</td></tr>
 	<tr><td align=right valign=top nowrap><small><font color="gray">Example</td><td><b>server squid accept</b></td></tr>
 	</table>
-	</td></tr>
-<tr  bgcolor="#F0F0F0">
-	<td align="center"><a name="ssh"><b>ssh</a></td>
-	<td align="center">simple</td>
+	</td>
+	</tr>
+<tr >
+	<td align="center" valign="top"><a name="ssh"><b>ssh</b></a></td>
+	<td align="center" valign="top">simple</td>
 	<td>
 		<table cellspacing=0 cellpadding=2 border=0>
 		<tr>
@@ -868,10 +1004,11 @@ All the services defined by name in FireHOL are known to resolve in <a href="htt
 	<tr><td align=right valign=top nowrap><small><font color="gray">Notes</td><td><br>&nbsp;</td></tr>
 	<tr><td align=right valign=top nowrap><small><font color="gray">Example</td><td><b>server ssh accept</b></td></tr>
 	</table>
-	</td></tr>
-<tr >
-	<td align="center"><a name="submission"><b>submission</a></td>
-	<td align="center">simple</td>
+	</td>
+	</tr>
+<tr  bgcolor="#F0F0F0">
+	<td align="center" valign="top"><a name="submission"><b>submission</b></a></td>
+	<td align="center" valign="top">simple</td>
 	<td>
 		<table cellspacing=0 cellpadding=2 border=0>
 		<tr>
@@ -884,10 +1021,11 @@ All the services defined by name in FireHOL are known to resolve in <a href="htt
 	<tr><td align=right valign=top nowrap><small><font color="gray">Notes</td><td><br>&nbsp;</td></tr>
 	<tr><td align=right valign=top nowrap><small><font color="gray">Example</td><td><b>server submission accept</b></td></tr>
 	</table>
-	</td></tr>
-<tr  bgcolor="#F0F0F0">
-	<td align="center"><a name="sunrpc"><b>sunrpc</a></td>
-	<td align="center">simple</td>
+	</td>
+	</tr>
+<tr >
+	<td align="center" valign="top"><a name="sunrpc"><b>sunrpc</b></a></td>
+	<td align="center" valign="top">simple</td>
 	<td>
 		<table cellspacing=0 cellpadding=2 border=0>
 		<tr>
@@ -902,10 +1040,11 @@ All the services defined by name in FireHOL are known to resolve in <a href="htt
 	<tr><td align=right valign=top nowrap><small><font color="gray">Notes</td><td><br>&nbsp;</td></tr>
 	<tr><td align=right valign=top nowrap><small><font color="gray">Example</td><td><b>server sunrpc accept</b></td></tr>
 	</table>
-	</td></tr>
-<tr >
-	<td align="center"><a name="swat"><b>swat</a></td>
-	<td align="center">simple</td>
+	</td>
+	</tr>
+<tr  bgcolor="#F0F0F0">
+	<td align="center" valign="top"><a name="swat"><b>swat</b></a></td>
+	<td align="center" valign="top">simple</td>
 	<td>
 		<table cellspacing=0 cellpadding=2 border=0>
 		<tr>
@@ -918,10 +1057,11 @@ All the services defined by name in FireHOL are known to resolve in <a href="htt
 	<tr><td align=right valign=top nowrap><small><font color="gray">Notes</td><td><br>&nbsp;</td></tr>
 	<tr><td align=right valign=top nowrap><small><font color="gray">Example</td><td><b>server swat accept</b></td></tr>
 	</table>
-	</td></tr>
-<tr  bgcolor="#F0F0F0">
-	<td align="center"><a name="syslog"><b>syslog</a></td>
-	<td align="center">simple</td>
+	</td>
+	</tr>
+<tr >
+	<td align="center" valign="top"><a name="syslog"><b>syslog</b></a></td>
+	<td align="center" valign="top">simple</td>
 	<td>
 		<table cellspacing=0 cellpadding=2 border=0>
 		<tr>
@@ -934,10 +1074,11 @@ All the services defined by name in FireHOL are known to resolve in <a href="htt
 	<tr><td align=right valign=top nowrap><small><font color="gray">Notes</td><td><br>&nbsp;</td></tr>
 	<tr><td align=right valign=top nowrap><small><font color="gray">Example</td><td><b>server syslog accept</b></td></tr>
 	</table>
-	</td></tr>
-<tr >
-	<td align="center"><a name="telnet"><b>telnet</a></td>
-	<td align="center">simple</td>
+	</td>
+	</tr>
+<tr  bgcolor="#F0F0F0">
+	<td align="center" valign="top"><a name="telnet"><b>telnet</b></a></td>
+	<td align="center" valign="top">simple</td>
 	<td>
 		<table cellspacing=0 cellpadding=2 border=0>
 		<tr>
@@ -950,10 +1091,11 @@ All the services defined by name in FireHOL are known to resolve in <a href="htt
 	<tr><td align=right valign=top nowrap><small><font color="gray">Notes</td><td><br>&nbsp;</td></tr>
 	<tr><td align=right valign=top nowrap><small><font color="gray">Example</td><td><b>server telnet accept</b></td></tr>
 	</table>
-	</td></tr>
-<tr  bgcolor="#F0F0F0">
-	<td align="center"><a name="uucp"><b>uucp</a></td>
-	<td align="center">simple</td>
+	</td>
+	</tr>
+<tr >
+	<td align="center" valign="top"><a name="uucp"><b>uucp</b></a></td>
+	<td align="center" valign="top">simple</td>
 	<td>
 		<table cellspacing=0 cellpadding=2 border=0>
 		<tr>
@@ -966,10 +1108,11 @@ All the services defined by name in FireHOL are known to resolve in <a href="htt
 	<tr><td align=right valign=top nowrap><small><font color="gray">Notes</td><td><br>&nbsp;</td></tr>
 	<tr><td align=right valign=top nowrap><small><font color="gray">Example</td><td><b>server uucp accept</b></td></tr>
 	</table>
-	</td></tr>
-<tr >
-	<td align="center"><a name="vmware"><b>vmware</a></td>
-	<td align="center">simple</td>
+	</td>
+	</tr>
+<tr  bgcolor="#F0F0F0">
+	<td align="center" valign="top"><a name="vmware"><b>vmware</b></a></td>
+	<td align="center" valign="top">simple</td>
 	<td>
 		<table cellspacing=0 cellpadding=2 border=0>
 		<tr>
@@ -982,10 +1125,11 @@ All the services defined by name in FireHOL are known to resolve in <a href="htt
 	<tr><td align=right valign=top nowrap><small><font color="gray">Notes</td><td><br>&nbsp;</td></tr>
 	<tr><td align=right valign=top nowrap><small><font color="gray">Example</td><td><b>server vmware accept</b></td></tr>
 	</table>
-	</td></tr>
-<tr  bgcolor="#F0F0F0">
-	<td align="center"><a name="vmwareauth"><b>vmwareauth</a></td>
-	<td align="center">simple</td>
+	</td>
+	</tr>
+<tr >
+	<td align="center" valign="top"><a name="vmwareauth"><b>vmwareauth</b></a></td>
+	<td align="center" valign="top">simple</td>
 	<td>
 		<table cellspacing=0 cellpadding=2 border=0>
 		<tr>
@@ -998,10 +1142,11 @@ All the services defined by name in FireHOL are known to resolve in <a href="htt
 	<tr><td align=right valign=top nowrap><small><font color="gray">Notes</td><td><br>&nbsp;</td></tr>
 	<tr><td align=right valign=top nowrap><small><font color="gray">Example</td><td><b>server vmwareauth accept</b></td></tr>
 	</table>
-	</td></tr>
-<tr >
-	<td align="center"><a name="vmwareweb"><b>vmwareweb</a></td>
-	<td align="center">simple</td>
+	</td>
+	</tr>
+<tr  bgcolor="#F0F0F0">
+	<td align="center" valign="top"><a name="vmwareweb"><b>vmwareweb</b></a></td>
+	<td align="center" valign="top">simple</td>
 	<td>
 		<table cellspacing=0 cellpadding=2 border=0>
 		<tr>
@@ -1014,10 +1159,11 @@ All the services defined by name in FireHOL are known to resolve in <a href="htt
 	<tr><td align=right valign=top nowrap><small><font color="gray">Notes</td><td><br>&nbsp;</td></tr>
 	<tr><td align=right valign=top nowrap><small><font color="gray">Example</td><td><b>server vmwareweb accept</b></td></tr>
 	</table>
-	</td></tr>
-<tr  bgcolor="#F0F0F0">
-	<td align="center"><a name="vnc"><b>vnc</a></td>
-	<td align="center">simple</td>
+	</td>
+	</tr>
+<tr >
+	<td align="center" valign="top"><a name="vnc"><b>vnc</b></a></td>
+	<td align="center" valign="top">simple</td>
 	<td>
 		<table cellspacing=0 cellpadding=2 border=0>
 		<tr>
@@ -1030,10 +1176,11 @@ All the services defined by name in FireHOL are known to resolve in <a href="htt
 	<tr><td align=right valign=top nowrap><small><font color="gray">Notes</td><td><br>&nbsp;</td></tr>
 	<tr><td align=right valign=top nowrap><small><font color="gray">Example</td><td><b>server vnc accept</b></td></tr>
 	</table>
-	</td></tr>
-<tr >
-	<td align="center"><a name="webcache"><b>webcache</a></td>
-	<td align="center">simple</td>
+	</td>
+	</tr>
+<tr  bgcolor="#F0F0F0">
+	<td align="center" valign="top"><a name="webcache"><b>webcache</b></a></td>
+	<td align="center" valign="top">simple</td>
 	<td>
 		<table cellspacing=0 cellpadding=2 border=0>
 		<tr>
@@ -1046,7 +1193,8 @@ All the services defined by name in FireHOL are known to resolve in <a href="htt
 	<tr><td align=right valign=top nowrap><small><font color="gray">Notes</td><td><br>&nbsp;</td></tr>
 	<tr><td align=right valign=top nowrap><small><font color="gray">Example</td><td><b>server webcache accept</b></td></tr>
 	</table>
-	</td></tr>
+	</td>
+	</tr>
 </table>
 </center>
 <p>
@@ -1055,7 +1203,7 @@ All the services defined by name in FireHOL are known to resolve in <a href="htt
 <tr><td align=center valign=middle>
 	<A href="http://sourceforge.net"><IMG src="http://sourceforge.net/sflogo.php?group_id=58425&amp;type=5" width="210" height="62" border="0" alt="SourceForge Logo"></A>
 </td><td align=center valign=middle>
-	<small>$Id: services.html,v 1.22 2003/01/01 04:55:35 ktsaou Exp $</small>
+	<small>$Id: services.html,v 1.23 2003/01/05 20:18:08 ktsaou Exp $</small>
 	<p>
 	<b>FireHOL</b>, a firewall for humans...<br>
 	&copy; Copyright 2002
