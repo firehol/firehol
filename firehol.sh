@@ -10,9 +10,40 @@
 #
 # config: /etc/firehol.conf
 #
-# $Id: firehol.sh,v 1.120 2003/03/19 21:51:56 ktsaou Exp $
+# $Id: firehol.sh,v 1.121 2003/04/08 00:12:02 ktsaou Exp $
 #
 FIREHOL_FILE="${0}"
+
+PATH="${PATH}:/bin:/usr/bin:/sbin:/usr/sbin"
+
+# External commands FireHOL will need.
+# If one of those is not found, FireHOL will refuse to run.
+
+CAT_CMD=`which cat`			|| exit 1
+CUT_CMD=`which cut`			|| exit 1
+DATE_CMD=`which date`			|| exit 1
+EGREP_CMD=`which egrep`			|| exit 1
+GAWK_CMD=`which gawk`			|| exit 1
+GREP_CMD=`which grep`			|| exit 1
+HOSTNAME_CMD=`which hostname`		|| exit 1
+IP_CMD=`which ip`			|| exit 1
+IPTABLES_CMD=`which iptables`		|| exit 1
+IPTABLES_SAVE_CMD=`which iptables-save`	|| exit 1
+LESS_CMD=`which less`			|| exit 1
+LSMOD_CMD=`which lsmod`			|| exit 1
+MKDIR_CMD=`which mkdir`			|| exit 1
+MODPROBE_CMD=`which modprobe`		|| exit 1
+NETSTAT_CMD=`which netstat`		|| exit 1
+RENICE_CMD=`which renice`		|| exit 1
+RM_CMD=`which rm`			|| exit 1
+SED_CMD=`which sed`			|| exit 1
+SORT_CMD=`which sort`			|| exit 1
+SYSCTL_CMD=`which sysctl`		|| exit 1
+TOUCH_CMD=`which touch`			|| exit 1
+TR_CMD=`which tr`			|| exit 1
+UNAME_CMD=`which uname`			|| exit 1
+UNIQ_CMD=`which uniq`			|| exit 1
+
 
 # ------------------------------------------------------------------------------
 # XXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXX
@@ -80,8 +111,8 @@ DEFAULT_CLIENT_PORTS="1000:65535"
 # Get the default client ports from the kernel configuration.
 # This is formed to a range of ports to be used for all "default"
 # client ports when the client specified is the localhost.
-LOCAL_CLIENT_PORTS_LOW=`/sbin/sysctl net.ipv4.ip_local_port_range | cut -d '=' -f 2 | cut -f 1`
-LOCAL_CLIENT_PORTS_HIGH=`/sbin/sysctl net.ipv4.ip_local_port_range | cut -d '=' -f 2 | cut -f 2`
+LOCAL_CLIENT_PORTS_LOW=`${SYSCTL_CMD} net.ipv4.ip_local_port_range | ${CUT_CMD} -d '=' -f 2 | ${CUT_CMD} -f 1`
+LOCAL_CLIENT_PORTS_HIGH=`${SYSCTL_CMD} net.ipv4.ip_local_port_range | ${CUT_CMD} -d '=' -f 2 | ${CUT_CMD} -f 2`
 LOCAL_CLIENT_PORTS="${LOCAL_CLIENT_PORTS_LOW}:${LOCAL_CLIENT_PORTS_HIGH}"
 
 
@@ -610,7 +641,7 @@ rules_nfs() {
 	local x=
 	for x in ${servers}
 	do
-		local tmp="/tmp/firehol.rpcinfo.$$"
+		local tmp="${FIREHOL_DIR}/firehol.rpcinfo.$$"
 		
 		set_work_function "Getting RPC information from server '${x}'"
 		
@@ -618,12 +649,12 @@ rules_nfs() {
 		if [ $? -gt 0 -o ! -s "${tmp}" ]
 		then
 			error "Cannot get rpcinfo from host '${x}' (using the previous firewall rules)"
-			rm -f "${tmp}"
+			${RM_CMD} -f "${tmp}"
 			return 1
 		fi
 		
-		local server_mountd_ports="`cat "${tmp}" | grep " mountd$" | ( while read a b proto port s; do echo "$proto/$port"; done ) | sort | uniq`"
-		local server_nfsd_ports="`cat "${tmp}" | grep " nfs$" | ( while read a b proto port s; do echo "$proto/$port"; done ) | sort | uniq`"
+		local server_mountd_ports="`${CAT_CMD} "${tmp}" | ${GREP_CMD} " mountd$" | ( while read a b proto port s; do echo "$proto/$port"; done ) | ${SORT_CMD} | ${UNIQ_CMD}`"
+		local server_nfsd_ports="`${CAT_CMD} "${tmp}" | ${GREP_CMD} " nfs$" | ( while read a b proto port s; do echo "$proto/$port"; done ) | ${SORT_CMD} | ${UNIQ_CMD}`"
 		
 		test -z "${server_mountd_ports}" && error "Cannot find mountd ports for nfs server '${x}'" && return 1
 		test -z "${server_nfsd_ports}"   && error "Cannot find nfsd ports for nfs server '${x}'" && return 1
@@ -640,7 +671,7 @@ rules_nfs() {
 		set_work_function "Processing nfsd rules for server '${x}'"
 		rules_custom "${mychain}" "${type}" nfs-nfsd   "${server_nfsd_ports}"   "500:65535" "${action}" $dst "$@"
 		
-		rm -f "${tmp}"
+		${RM_CMD} -f "${tmp}"
 		
 		echo >&2 ""
 		echo >&2 "WARNING:"
@@ -1236,9 +1267,9 @@ postprocess() {
 	
 	if [ ${FIREHOL_EXPLAIN} -eq 1 ]
 	then
-		cat ${FIREHOL_OUTPUT}
+		${CAT_CMD} ${FIREHOL_OUTPUT}
 		echo
-		rm -f ${FIREHOL_OUTPUT}
+		${RM_CMD} -f ${FIREHOL_OUTPUT}
 	fi
 	
 	test ${FIREHOL_DEBUG}   -eq 1 && local check="none"
@@ -1255,7 +1286,7 @@ postprocess() {
 }
 
 iptables() {
-	postprocess "/sbin/iptables" "$@"
+	postprocess "${IPTABLES_CMD}" "$@"
 	
 	return 0
 }
@@ -1507,18 +1538,18 @@ firehol_exit() {
 		echo
 	fi
 	
-	test -d "${FIREHOL_DIR}" && rm -rf "${FIREHOL_DIR}"
+	test -d "${FIREHOL_DIR}" && ${RM_CMD} -rf "${FIREHOL_DIR}"
 	return 0
 }
 
 # Run our exit even if we don't call exit.
 trap firehol_exit EXIT
 
-test -d "${FIREHOL_DIR}" && rm -rf "${FIREHOL_DIR}"
-mkdir -p "${FIREHOL_DIR}"
+test -d "${FIREHOL_DIR}" && ${RM_CMD} -rf "${FIREHOL_DIR}"
+${MKDIR_CMD} -p "${FIREHOL_DIR}"
 test $? -gt 0 && exit 1
 
-mkdir -p "${FIREHOL_CHAINS_DIR}"
+${MKDIR_CMD} -p "${FIREHOL_CHAINS_DIR}"
 test $? -gt 0 && exit 1
 
 
@@ -2861,7 +2892,7 @@ runtime_error() {
 	printf >&2 "\n"
 	echo >&2 "OUTPUT  : "
 	echo >&2
-	cat ${FIREHOL_OUTPUT}.log
+	${CAT_CMD} ${FIREHOL_OUTPUT}.log
 	echo >&2
 	
 	return 0
@@ -2902,7 +2933,7 @@ create_chain() {
 	test $? -eq 1 && error "Chain '${newchain}' already exists." && return 1
 	
 	iptables -t ${table} -N "${newchain}" || return 1
-	touch "${FIREHOL_CHAINS_DIR}/${newchain}"
+	${TOUCH_CMD} "${FIREHOL_CHAINS_DIR}/${newchain}"
 	
 	rule table ${table} chain "${oldchain}" action "${newchain}" "$@" || return 1
 	
@@ -3061,7 +3092,7 @@ failure() {
 }
 
 # Be nice on production environments
-renice 10 $$ >/dev/null 2>/dev/null
+${RENICE_CMD} 10 $$ >/dev/null 2>/dev/null
 
 # ------------------------------------------------------------------------------
 # A small part bellow is copied from /etc/init.d/iptables
@@ -3069,12 +3100,12 @@ renice 10 $$ >/dev/null 2>/dev/null
 # On RedHat systems this will define success() and failure()
 test -f /etc/init.d/functions && . /etc/init.d/functions
 
-if [ ! -x /sbin/iptables ]; then
+if [ -z "${IPTABLES_CMD}" -o ! -x "${IPTABLES_CMD}" ]; then
 	exit 0
 fi
 
-KERNELMAJ=`uname -r | sed                   -e 's,\..*,,'`
-KERNELMIN=`uname -r | sed -e 's,[^\.]*\.,,' -e 's,\..*,,'`
+KERNELMAJ=`${UNAME_CMD} -r | ${SED_CMD}                   -e 's,\..*,,'`
+KERNELMIN=`${UNAME_CMD} -r | ${SED_CMD} -e 's,[^\.]*\.,,' -e 's,\..*,,'`
 
 if [ "$KERNELMAJ" -lt 2 ] ; then
 	exit 0
@@ -3083,7 +3114,7 @@ if [ "$KERNELMAJ" -eq 2 -a "$KERNELMIN" -lt 3 ] ; then
 	exit 0
 fi
 
-if  /sbin/lsmod 2>/dev/null | grep -q ipchains ; then
+if  ${LSMOD_CMD} 2>/dev/null | ${GREP_CMD} -q ipchains ; then
 	# Don't do both
 	exit 0
 fi
@@ -3121,7 +3152,7 @@ case "${arg}" in
 		;;
 	
 	stop)
-		test -f /var/lock/subsys/firehol && rm -f /var/lock/subsys/firehol
+		test -f /var/lock/subsys/firehol && ${RM_CMD} -f /var/lock/subsys/firehol
 		/etc/init.d/iptables stop
 		exit 0
 		;;
@@ -3143,20 +3174,20 @@ case "${arg}" in
 			echo 
 			echo "--- MANGLE ---------------------------------------------------------------------"
 			echo 
-			/sbin/iptables -t mangle -nxvL
+			${IPTABLES_CMD} -t mangle -nxvL
 			
 			echo 
 			echo 
 			echo "--- NAT ------------------------------------------------------------------------"
 			echo 
-			/sbin/iptables -t nat -nxvL
+			${IPTABLES_CMD} -t nat -nxvL
 			
 			echo 
 			echo 
 			echo "--- FILTER ---------------------------------------------------------------------"
 			echo 
-			/sbin/iptables -nxvL
-		) | less
+			${IPTABLES_CMD} -nxvL
+		) | ${LESS_CMD}
 		exit $?
 		;;
 	
@@ -3176,26 +3207,26 @@ case "${arg}" in
 		fi
 		
 		echo -n $"FireHOL: Blocking all communications:"
-		/sbin/modprobe ip_tables >/dev/null 2>&1
-		tables=`cat /proc/net/ip_tables_names`
+		${MODPROBE_CMD} ip_tables >/dev/null 2>&1
+		tables=`${CAT_CMD} /proc/net/ip_tables_names`
 		for t in ${tables}
 		do
-			/sbin/iptables -t "${t}" -F
-			/sbin/iptables -t "${t}" -X
-			/sbin/iptables -t "${t}" -Z
+			${IPTABLES_CMD} -t "${t}" -F
+			${IPTABLES_CMD} -t "${t}" -X
+			${IPTABLES_CMD} -t "${t}" -Z
 			
 			# Find all default chains in this table.
-			chains=`/sbin/iptables -t "${t}" -nL | grep "^Chain " | cut -d ' ' -f 2`
+			chains=`${IPTABLES_CMD} -t "${t}" -nL | ${GREP_CMD} "^Chain " | ${CUT_CMD} -d ' ' -f 2`
 			for c in ${chains}
 			do
-				/sbin/iptables -t "${t}" -P "${c}" ACCEPT
+				${IPTABLES_CMD} -t "${t}" -P "${c}" ACCEPT
 				
 				if [ ! -z "${ssh_src}" ]
 				then
-					/sbin/iptables -t "${t}" -A "${c}" -p tcp -s "${ssh_src}" --sport "${ssh_sport}" --dport "${ssh_dport}" -m state --state ESTABLISHED -j ACCEPT
-					/sbin/iptables -t "${t}" -A "${c}" -p tcp -d "${ssh_src}" --dport "${ssh_sport}" --sport "${ssh_dport}" -m state --state ESTABLISHED -j ACCEPT
+					${IPTABLES_CMD} -t "${t}" -A "${c}" -p tcp -s "${ssh_src}" --sport "${ssh_sport}" --dport "${ssh_dport}" -m state --state ESTABLISHED -j ACCEPT
+					${IPTABLES_CMD} -t "${t}" -A "${c}" -p tcp -d "${ssh_src}" --dport "${ssh_sport}" --sport "${ssh_dport}" -m state --state ESTABLISHED -j ACCEPT
 				fi
-				/sbin/iptables -t "${t}" -A "${c}" -j DROP
+				${IPTABLES_CMD} -t "${t}" -A "${c}" -j DROP
 			done
 		done
 		success $"FireHOL: Blocking all communications:"
@@ -3244,11 +3275,14 @@ case "${arg}" in
 			esac
 		else
 		
-		cat <<"EOF"
-$Id: firehol.sh,v 1.120 2003/03/19 21:51:56 ktsaou Exp $
+		${CAT_CMD} <<"EOF"
+$Id: firehol.sh,v 1.121 2003/04/08 00:12:02 ktsaou Exp $
 (C) Copyright 2003, Costa Tsaousis <costa@tsaousis.gr>
 FireHOL is distributed under GPL.
 
+EOF
+
+		${CAT_CMD} <<EOF
 FireHOL supports the following command line arguments (only one of them):
 
 	start		to activate the firewall configuration.
@@ -3271,12 +3305,12 @@ FireHOL supports the following command line arguments (only one of them):
 			configuration file.
 	
 	status		will show the running firewall, as in:
-			/sbin/iptables -nxvL | less
+			${IPTABLES_CMD} -nxvL | ${LESS_CMD}
 			
-	panic		will execute "/etc/init.d/iptables panic"
+	panic		will block all IP communication.
 	
 	save		to start the firewall and then save it using
-			/sbin/iptables-save to /etc/sysconfig/iptables
+			${IPTABLES_SAVE_CMD} to /etc/sysconfig/iptables
 			
 			Note that not all firewalls will work if
 			restored with:
@@ -3310,18 +3344,18 @@ EOF
 
 		(
 			# The simple services
-			cat "${me}"				|\
-				grep -e "^server_.*_ports="	|\
-				cut -d '=' -f 1			|\
-				sed "s/^server_//"		|\
-				sed "s/_ports\$//"
+			${CAT_CMD} "${me}"				|\
+				${GREP_CMD} -e "^server_.*_ports="	|\
+				${CUT_CMD} -d '=' -f 1			|\
+				${SED_CMD} "s/^server_//"		|\
+				${SED_CMD} "s/_ports\$//"
 			
 			# The complex services
-			cat "${me}"				|\
-				grep -e "^rules_.*()"		|\
-				cut -d '(' -f 1			|\
-				sed "s/^rules_/(*) /"
-		) | sort | uniq |\
+			${CAT_CMD} "${me}"				|\
+				${GREP_CMD} -e "^rules_.*()"		|\
+				${CUT_CMD} -d '(' -f 1			|\
+				${SED_CMD} "s/^rules_/(*) /"
+		) | ${SORT_CMD} | ${UNIQ_CMD} |\
 		(
 			x=0
 			while read
@@ -3337,7 +3371,7 @@ EOF
 			printf "\n\n"
 		)
 		
-		cat <<EOF
+		${CAT_CMD} <<EOF
 
 Services marked with (*) are "smart" or complex services.
 All the others are simple single socket services.
@@ -3426,9 +3460,9 @@ then
 	echo "version ${FIREHOL_VERSION}" >"${FIREHOL_TEMP_CONFIG}"
 	version ${FIREHOL_VERSION}
 	
-	cat <<"EOF"
+	${CAT_CMD} <<"EOF"
 
-$Id: firehol.sh,v 1.120 2003/03/19 21:51:56 ktsaou Exp $
+$Id: firehol.sh,v 1.121 2003/04/08 00:12:02 ktsaou Exp $
 (C) Copyright 2003, Costa Tsaousis <costa@tsaousis.gr>
 FireHOL is distributed under GPL.
 Home Page: http://firehol.sourceforge.net
@@ -3457,7 +3491,7 @@ EOF
 		
 		case "${1}" in
 			help)
-				cat <<"EOF"
+				${CAT_CMD} <<"EOF"
 You can use anything a FireHOL configuration file accepts, including variables,
 loops, etc. Take only care to write loops in one row.
 
@@ -3481,14 +3515,14 @@ EOF
 				
 			show)
 				echo
-				cat "${FIREHOL_TEMP_CONFIG}"
+				${CAT_CMD} "${FIREHOL_TEMP_CONFIG}"
 				echo
 				break
 				;;
 				
 			quit)
 				echo
-				cat "${FIREHOL_TEMP_CONFIG}"
+				${CAT_CMD} "${FIREHOL_TEMP_CONFIG}"
 				echo
 				exit 1
 				;;
@@ -3499,7 +3533,7 @@ EOF
 				;;
 				
 			*)
-				cat <<EOF
+				${CAT_CMD} <<EOF
 
 # \/\/\/\/\/\/\/\/\/\/\/\/\/\/\/\/\/\/\/\/\/\/\/\/\/\/\/\/\/\/\/\/\/\/\/\/\/\/\/
 # Cmd Line : ${FIREHOL_LINEID}
@@ -3594,13 +3628,13 @@ then
 		
 		test "${net}" = "default" && net="0.0.0.0/0"
 		
-		set -- `echo ${ip} | tr './' '  '`
+		set -- `echo ${ip} | ${TR_CMD} './' '  '`
 		local i1=${1}
 		local i2=${2}
 		local i3=${3}
 		local i4=${4}
 		
-		set -- `echo ${net} | tr './' '  '`
+		set -- `echo ${net} | ${TR_CMD} './' '  '`
 		local n1=${1}
 		local n2=${2}
 		local n3=${3}
@@ -3646,14 +3680,14 @@ then
 		
 		test "${net}" = "default" && net="0.0.0.0/0"
 		
-		set -- `echo ${ip} | tr './' '  '`
+		set -- `echo ${ip} | ${TR_CMD} './' '  '`
 		local i1=${1}
 		local i2=${2}
 		local i3=${3}
 		local i4=${4}
 		local i5=${5:-32}
 		
-		set -- `echo ${net} | tr './' '  '`
+		set -- `echo ${net} | ${TR_CMD} './' '  '`
 		local n1=${1}
 		local n2=${2}
 		local n3=${3}
@@ -3685,7 +3719,7 @@ then
 			return 0
 		fi
 		
-		set -- `echo ${ip} | tr './' '  '`
+		set -- `echo ${ip} | ${TR_CMD} './' '  '`
 		local i1=${1}
 		local i2=${2}
 		local i3=${3}
@@ -3711,18 +3745,18 @@ then
 					shift 
 				done
 			fi
-		) | sort | uniq | tr "\n" " "
+		) | ${SORT_CMD} | ${UNIQ_CMD} | ${TR_CMD} "\n" " "
 	}
 	
 	cd "${FIREHOL_DIR}"
-	mkdir ports
+	${MKDIR_CMD} ports
 	cd ports
-	mkdir tcp
-	mkdir udp
+	${MKDIR_CMD} tcp
+	${MKDIR_CMD} udp
 	
-	cat >&2 <<"EOF"
+	${CAT_CMD} >&2 <<"EOF"
 
-$Id: firehol.sh,v 1.120 2003/03/19 21:51:56 ktsaou Exp $
+$Id: firehol.sh,v 1.121 2003/04/08 00:12:02 ktsaou Exp $
 (C) Copyright 2003, Costa Tsaousis <costa@tsaousis.gr>
 FireHOL is distributed under GPL.
 Home Page: http://firehol.sourceforge.net
@@ -3749,33 +3783,33 @@ EOF
 	echo >&2 "Building list of known services."
 	echo >&2 "Please wait..."
 	
-	cat /etc/services	|\
-		tr '\t' ' '	|\
-		sed "s/     / /g" |\
-		sed "s/     / /g" |\
-		sed "s/    / /g" |\
-		sed "s/    / /g" |\
-		sed "s/   / /g"	|\
-		sed "s/   / /g"	|\
-		sed "s/  / /g"	|\
-		sed "s/  / /g"	|\
-		sed "s/  / /g"	|\
-		sed "s/  / /g"	|\
-		sed "s/  / /g"	>services
+	${CAT_CMD} /etc/services	|\
+		${TR_CMD} '\t' ' '	|\
+		${SED_CMD} "s/     / /g" |\
+		${SED_CMD} "s/     / /g" |\
+		${SED_CMD} "s/    / /g" |\
+		${SED_CMD} "s/    / /g" |\
+		${SED_CMD} "s/   / /g"	|\
+		${SED_CMD} "s/   / /g"	|\
+		${SED_CMD} "s/  / /g"	|\
+		${SED_CMD} "s/  / /g"	|\
+		${SED_CMD} "s/  / /g"	|\
+		${SED_CMD} "s/  / /g"	|\
+		${SED_CMD} "s/  / /g"	>services
 	
-	for c in `echo ${!server_*} | tr ' ' '\n' | grep "_ports$"`
+	for c in `echo ${!server_*} | ${TR_CMD} ' ' '\n' | ${GREP_CMD} "_ports$"`
 	do
-		serv=`echo $c | sed "s/server_//" | sed "s/_ports//"`
+		serv=`echo $c | ${SED_CMD} "s/server_//" | ${SED_CMD} "s/_ports//"`
 		
 		eval "ret=\${$c}"
 		for x in ${ret}
 		do
-			proto=`echo $x | cut -d '/' -f 1`
-			port=`echo $x | cut -d '/' -f 2`
+			proto=`echo $x | ${CUT_CMD} -d '/' -f 1`
+			port=`echo $x | ${CUT_CMD} -d '/' -f 2`
 			
 			test ! -d "${proto}" && continue
 			
-			nport=`egrep "^${port}[[:space:]][0-9]+/${proto}" services | cut -d ' ' -f 2 | cut -d '/' -f 1`
+			nport=`${EGREP_CMD} "^${port}[[:space:]][0-9]+/${proto}" services | ${CUT_CMD} -d ' ' -f 2 | ${CUT_CMD} -d '/' -f 1`
 			test -z "${nport}" && nport="${port}"
 			
 			echo "server ${serv}" >"${proto}/${nport}"
@@ -3814,8 +3848,8 @@ EOF
 	echo "#             *** NEVER USE THIS CONFIG AS-IS ***"
 	echo "# "
 
-	cat <<"EOF"
-# $Id: firehol.sh,v 1.120 2003/03/19 21:51:56 ktsaou Exp $
+	${CAT_CMD} <<"EOF"
+# $Id: firehol.sh,v 1.121 2003/04/08 00:12:02 ktsaou Exp $
 # (C) Copyright 2003, Costa Tsaousis <costa@tsaousis.gr>
 # FireHOL is distributed under GPL.
 # Home Page: http://firehol.sourceforge.net
@@ -3829,7 +3863,7 @@ EOF
 	echo "# This config will have the same effect as NO PROTECTION !!!"
 	echo "# Everything that found to be running, is allowed."
 	echo "# "
-	echo "# Date: `date` on host `hostname`"
+	echo "# Date: `${DATE_CMD}` on host `${HOSTNAME_CMD}`"
 	echo "# "
 	echo "# The TODOs bellow, are YOUR to-dos !!!"
 	echo
@@ -3894,21 +3928,21 @@ EOF
 		(
 			local x=
 			local ports=
-			for x in `netstat -an | egrep "^tcp" | grep "0.0.0.0:*" | egrep " (${ifip}|0.0.0.0):[0-9]+" | cut -d ':' -f 2 | cut -d ' ' -f 1 | sort -n | uniq`
+			for x in `${NETSTAT_CMD} -an | ${EGREP_CMD} "^tcp" | ${GREP_CMD} "0.0.0.0:*" | ${EGREP_CMD} " (${ifip}|0.0.0.0):[0-9]+" | ${CUT_CMD} -d ':' -f 2 | ${CUT_CMD} -d ' ' -f 1 | ${SORT_CMD} -n | ${UNIQ_CMD}`
 			do
 				if [ -f "tcp/${x}" ]
 				then
-					echo "	`cat tcp/${x}` accept"
+					echo "	`${CAT_CMD} tcp/${x}` accept"
 				else
 					ports="${ports} tcp/${x}"
 				fi
 			done
 			
-			for x in `netstat -an | egrep "^udp" | grep "0.0.0.0:*" | egrep " (${ifip}|0.0.0.0):[0-9]+" | cut -d ':' -f 2 | cut -d ' ' -f 1 | sort -n | uniq`
+			for x in `${NETSTAT_CMD} -an | ${EGREP_CMD} "^udp" | ${GREP_CMD} "0.0.0.0:*" | ${EGREP_CMD} " (${ifip}|0.0.0.0):[0-9]+" | ${CUT_CMD} -d ':' -f 2 | ${CUT_CMD} -d ' ' -f 1 | ${SORT_CMD} -n | ${UNIQ_CMD}`
 			do
 				if [ -f "udp/${x}" ]
 				then
-					echo "	`cat udp/${x}` accept"
+					echo "	`${CAT_CMD} udp/${x}` accept"
 				else
 					ports="${ports} udp/${x}"
 				fi
@@ -3916,12 +3950,12 @@ EOF
 			
 			echo "	server ICMP accept"
 			
-			echo "${ports}" | tr " " "\n" | sort -n | uniq | tr "\n" " " >unknown.ports
-		) | sort | uniq
+			echo "${ports}" | ${TR_CMD} " " "\n" | ${SORT_CMD} -n | ${UNIQ_CMD} | ${TR_CMD} "\n" " " >unknown.ports
+		) | ${SORT_CMD} | ${UNIQ_CMD}
 		
 		echo
 		echo "	# The following ${iface} server ports are not known by FireHOL:"
-		echo "	# `cat unknown.ports`"
+		echo "	# `${CAT_CMD} unknown.ports`"
 		echo "	# TODO: If you need any of them, you should define new services."
 		echo "	#       (see Adding Services at the web site - http://firehol.sf.net)."
 		echo
@@ -3933,17 +3967,17 @@ EOF
 		echo
 	}
 	
-	interfaces=`/sbin/ip link show | egrep "^[0-9A-Za-z]+:" | cut -d ':' -f 2 | sed "s/^ //" | grep -v "^lo$" | sort | uniq | tr "\n" " "`
-	gw_if=`/sbin/ip route show | grep "^default" | sed "s/dev /dev:/g" | tr " " "\n" | grep "^dev:" | cut -d ':' -f 2`
-	gw_ip=`/sbin/ip route show | grep "^default" | sed "s/via /via:/g" | tr " " "\n" | grep "^via:" | cut -d ':' -f 2 | ips2net -`
+	interfaces=`${IP_CMD} link show | ${EGREP_CMD} "^[0-9A-Za-z]+:" | ${CUT_CMD} -d ':' -f 2 | ${SED_CMD} "s/^ //" | ${GREP_CMD} -v "^lo$" | ${SORT_CMD} | ${UNIQ_CMD} | ${TR_CMD} "\n" " "`
+	gw_if=`${IP_CMD} route show | ${GREP_CMD} "^default" | ${SED_CMD} "s/dev /dev:/g" | ${TR_CMD} " " "\n" | ${GREP_CMD} "^dev:" | ${CUT_CMD} -d ':' -f 2`
+	gw_ip=`${IP_CMD} route show | ${GREP_CMD} "^default" | ${SED_CMD} "s/via /via:/g" | ${TR_CMD} " " "\n" | ${GREP_CMD} "^via:" | ${CUT_CMD} -d ':' -f 2 | ips2net -`
 	
 	i=0
 	for iface in ${interfaces}
 	do
 		echo "### DEBUG: Processing interface '${iface}'"
-		ips=`/sbin/ip addr show dev ${iface} | sed "s/  / /g" | sed "s/  / /g" | sed "s/  / /g" | grep "^ inet " | cut -d ' ' -f 3 | cut -d '/' -f 1 | ips2net -`
-		peer=`/sbin/ip addr show dev ${iface} | sed "s/  / /g" | sed "s/  / /g" | sed "s/  / /g" | sed "s/peer /peer:/g" | tr " " "\n" | grep "^peer:" | cut -d ':' -f 2 | ips2net -`
-		nets=`/sbin/ip route show dev ${iface} | cut -d ' ' -f 1 | ips2net -`
+		ips=`${IP_CMD} addr show dev ${iface} | ${SED_CMD} "s/  / /g" | ${SED_CMD} "s/  / /g" | ${SED_CMD} "s/  / /g" | ${GREP_CMD} "^ inet " | ${CUT_CMD} -d ' ' -f 3 | ${CUT_CMD} -d '/' -f 1 | ips2net -`
+		peer=`${IP_CMD} addr show dev ${iface} | ${SED_CMD} "s/  / /g" | ${SED_CMD} "s/  / /g" | ${SED_CMD} "s/  / /g" | ${SED_CMD} "s/peer /peer:/g" | ${TR_CMD} " " "\n" | ${GREP_CMD} "^peer:" | ${CUT_CMD} -d ':' -f 2 | ips2net -`
+		nets=`${IP_CMD} route show dev ${iface} | ${CUT_CMD} -d ' ' -f 1 | ips2net -`
 		
 		if [ -z "${ips}" -o -z "${nets}" ]
 		then
@@ -4018,8 +4052,8 @@ EOF
 				do
 					test "${net}" = "default" && continue
 					
-					nn=`echo "${net}" | cut -d "/" -f 1`
-					gw=`/sbin/ip route show ${nn} dev ${iface} | egrep "^${nn}[[:space:]]+via[[:space:]][0-9\.]+" | cut -d ' ' -f 3 | ips2net -`
+					nn=`echo "${net}" | ${CUT_CMD} -d "/" -f 1`
+					gw=`${IP_CMD} route show ${nn} dev ${iface} | ${EGREP_CMD} "^${nn}[[:space:]]+via[[:space:]][0-9\.]+" | ${CUT_CMD} -d ' ' -f 3 | ips2net -`
 					test -z "${gw}" && continue
 					
 					for nn in ${ifnets[@]}
@@ -4102,7 +4136,7 @@ EOF
 	echo "# you can use the plus (+) character to match all of them (i.e. ppp+)."
 	echo
 	
-	if [ "1" = "`cat /proc/sys/net/ipv4/ip_forward`" ]
+	if [ "1" = "`${CAT_CMD} /proc/sys/net/ipv4/ip_forward`" ]
 	then
 		x=0
 		i=0
@@ -4196,27 +4230,27 @@ fi
 # --- Initialization -----------------------------------------------------------
 
 fixed_iptables_save() {
-	local tmp="/tmp/iptables-save-$$"
+	local tmp="${FIREHOL_DIR}/iptables-save-$$"
 	local err=
 	
-	/sbin/modprobe ip_tables >/dev/null 2>&1
-	/sbin/iptables-save -c >$tmp
+	${MODPROBE_CMD} ip_tables >/dev/null 2>&1
+	${IPTABLES_SAVE_CMD} -c >$tmp
 	err=$?
 	if [ ! $err -eq 0 ]
 	then
-		rm -f $tmp >/dev/null 2>&1
+		${RM_CMD} -f $tmp >/dev/null 2>&1
 		return $err
 	fi
 	
-	cat ${tmp} |\
-		sed "s/--uid-owner !/! --uid-owner /g"	|\
-		sed "s/--gid-owner !/! --gid-owner /g"	|\
-		sed "s/--pid-owner !/! --pid-owner /g"	|\
-		sed "s/--sid-owner !/! --sid-owner /g"
+	${CAT_CMD} ${tmp} |\
+		${SED_CMD} "s/--uid-owner !/! --uid-owner /g"	|\
+		${SED_CMD} "s/--gid-owner !/! --gid-owner /g"	|\
+		${SED_CMD} "s/--pid-owner !/! --pid-owner /g"	|\
+		${SED_CMD} "s/--sid-owner !/! --sid-owner /g"
 	
 	err=$?
 	
-	rm -f $tmp >/dev/null 2>&1
+	${RM_CMD} -f $tmp >/dev/null 2>&1
 	return $err
 }
 
@@ -4227,7 +4261,7 @@ then
 	success $"FireHOL: Saving your old firewall to a temporary file:"
 	echo
 else
-	test -f "${FIREHOL_SAVED}" && rm -f "${FIREHOL_SAVED}"
+	test -f "${FIREHOL_SAVED}" && ${RM_CMD} -f "${FIREHOL_SAVED}"
 	failure $"FireHOL: Saving your old firewall to a temporary file:"
 	echo
 	exit 1
@@ -4237,31 +4271,31 @@ fi
 # XXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXX
 
 # Place all the statements bellow to the beginning of the final firewall script.
-cat >"${FIREHOL_OUTPUT}" <<"EOF"
+${CAT_CMD} >"${FIREHOL_OUTPUT}" <<"EOF"
 #!/bin/sh
 
-/sbin/modprobe ip_tables >${FIREHOL_OUTPUT}.log 2>&1
-r=$?; test ! ${r} -eq 0 && runtime_error warn ${r} INIT /sbin/modprobe ip_tables
+${MODPROBE_CMD} ip_tables >${FIREHOL_OUTPUT}.log 2>&1
+r=$?; test ! ${r} -eq 0 && runtime_error warn ${r} INIT ${MODPROBE_CMD} ip_tables
 
-/sbin/modprobe ip_conntrack >${FIREHOL_OUTPUT}.log 2>&1
-r=$?; test ! ${r} -eq 0 && runtime_error warn ${r} INIT /sbin/modprobe ip_conntrack
+${MODPROBE_CMD} ip_conntrack >${FIREHOL_OUTPUT}.log 2>&1
+r=$?; test ! ${r} -eq 0 && runtime_error warn ${r} INIT ${MODPROBE_CMD} ip_conntrack
 
 # Find all tables supported
-tables=`cat /proc/net/ip_tables_names`
+tables=`${CAT_CMD} /proc/net/ip_tables_names`
 for t in ${tables}
 do
 	# Reset/empty this table.
-	/sbin/iptables -t "${t}" -F >${FIREHOL_OUTPUT}.log 2>&1
-	r=$?; test ! ${r} -eq 0 && runtime_error error ${r} INIT /sbin/iptables -t "${t}" -F
+	${IPTABLES_CMD} -t "${t}" -F >${FIREHOL_OUTPUT}.log 2>&1
+	r=$?; test ! ${r} -eq 0 && runtime_error error ${r} INIT ${IPTABLES_CMD} -t "${t}" -F
 	
-	/sbin/iptables -t "${t}" -X >${FIREHOL_OUTPUT}.log 2>&1
-	r=$?; test ! ${r} -eq 0 && runtime_error error ${r} INIT /sbin/iptables -t "${t}" -X
+	${IPTABLES_CMD} -t "${t}" -X >${FIREHOL_OUTPUT}.log 2>&1
+	r=$?; test ! ${r} -eq 0 && runtime_error error ${r} INIT ${IPTABLES_CMD} -t "${t}" -X
 	
-	/sbin/iptables -t "${t}" -Z >${FIREHOL_OUTPUT}.log 2>&1
-	r=$?; test ! ${r} -eq 0 && runtime_error error ${r} INIT /sbin/iptables -t "${t}" -Z
+	${IPTABLES_CMD} -t "${t}" -Z >${FIREHOL_OUTPUT}.log 2>&1
+	r=$?; test ! ${r} -eq 0 && runtime_error error ${r} INIT ${IPTABLES_CMD} -t "${t}" -Z
 		
 	# Find all default chains in this table.
-	chains=`/sbin/iptables -t "${t}" -nL | grep "^Chain " | cut -d ' ' -f 2`
+	chains=`${IPTABLES_CMD} -t "${t}" -nL | ${GREP_CMD} "^Chain " | ${CUT_CMD} -d ' ' -f 2`
 	
 	# If this is the 'filter' table, remember the default chains.
 	# This will be used at the end to make it DROP all packets.
@@ -4270,20 +4304,20 @@ do
 	# Set the policy to ACCEPT on all default chains.
 	for c in ${chains}
 	do
-		/sbin/iptables -t "${t}" -P "${c}" ACCEPT >${FIREHOL_OUTPUT}.log 2>&1
-		r=$?; test ! ${r} -eq 0 && runtime_error error ${r} INIT /sbin/iptables -t "${t}" -P "${c}" ACCEPT
+		${IPTABLES_CMD} -t "${t}" -P "${c}" ACCEPT >${FIREHOL_OUTPUT}.log 2>&1
+		r=$?; test ! ${r} -eq 0 && runtime_error error ${r} INIT ${IPTABLES_CMD} -t "${t}" -P "${c}" ACCEPT
 	done
 done
 
 # Accept everything in/out the loopback device.
-/sbin/iptables -A INPUT -i lo -j ACCEPT
-/sbin/iptables -A OUTPUT -o lo -j ACCEPT
+${IPTABLES_CMD} -A INPUT -i lo -j ACCEPT
+${IPTABLES_CMD} -A OUTPUT -o lo -j ACCEPT
 
 # Drop all invalid packets.
 # Netfilter HOWTO suggests to DROP all INVALID packets.
-/sbin/iptables -A INPUT -m state --state INVALID -j DROP
-/sbin/iptables -A OUTPUT -m state --state INVALID -j DROP
-/sbin/iptables -A FORWARD -m state --state INVALID -j DROP
+${IPTABLES_CMD} -A INPUT -m state --state INVALID -j DROP
+${IPTABLES_CMD} -A OUTPUT -m state --state INVALID -j DROP
+${IPTABLES_CMD} -A FORWARD -m state --state INVALID -j DROP
 
 EOF
 
@@ -4297,7 +4331,7 @@ ret=0
 # just before each known directive.
 # These line numbers will be used for debugging the configuration script.
 
-cat >"${FIREHOL_TMP}.awk" <<"EOF"
+${CAT_CMD} >"${FIREHOL_TMP}.awk" <<"EOF"
 /^[[:space:]]*interface[[:space:]]/ { printf "FIREHOL_LINEID=${LINENO} " }
 /^[[:space:]]*router[[:space:]]/ { printf "FIREHOL_LINEID=${LINENO} " }
 /^[[:space:]]*route[[:space:]]/ { printf "FIREHOL_LINEID=${LINENO} " }
@@ -4316,8 +4350,8 @@ cat >"${FIREHOL_TMP}.awk" <<"EOF"
 { print }
 EOF
 
-cat ${FIREHOL_CONFIG} | gawk -f "${FIREHOL_TMP}.awk" >${FIREHOL_TMP}
-rm -f "${FIREHOL_TMP}.awk"
+${CAT_CMD} ${FIREHOL_CONFIG} | ${GAWK_CMD} -f "${FIREHOL_TMP}.awk" >${FIREHOL_TMP}
+${RM_CMD} -f "${FIREHOL_TMP}.awk"
 
 # ------------------------------------------------------------------------------
 # Run the configuration file.
@@ -4333,13 +4367,13 @@ enable exit			# Enable the exit buildin shell command.
 close_cmd					|| ret=$[ret + 1]
 close_master					|| ret=$[ret + 1]
 
-cat >>"${FIREHOL_OUTPUT}" <<"EOF"
+${CAT_CMD} >>"${FIREHOL_OUTPUT}" <<"EOF"
 
 # Make it drop everything on table 'filter'.
 for c in ${firehol_filter_chains}
 do
-	/sbin/iptables -t filter -P "${c}" DROP >${FIREHOL_OUTPUT}.log 2>&1
-	r=$?; test ! ${r} -eq 0 && runtime_error error ${r} INIT /sbin/iptables -t filter -P "${c}" DROP
+	${IPTABLES_CMD} -t filter -P "${c}" DROP >${FIREHOL_OUTPUT}.log 2>&1
+	r=$?; test ! ${r} -eq 0 && runtime_error error ${r} INIT ${IPTABLES_CMD} -t filter -P "${c}" DROP
 done
 
 EOF
@@ -4361,21 +4395,21 @@ echo
 
 for m in ${FIREHOL_KERNEL_MODULES}
 do
-	postprocess -warn /sbin/modprobe $m
+	postprocess -warn ${MODPROBE_CMD} $m
 done
 
 # XXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXX
 
 if [ $FIREHOL_ROUTING -eq 1 ]
 then
-	postprocess /sbin/sysctl -w "net.ipv4.ip_forward=1"
+	postprocess ${SYSCTL_CMD} -w "net.ipv4.ip_forward=1"
 fi
 
 # XXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXX
 
 if [ ${FIREHOL_DEBUG} -eq 1 ]
 then
-	cat ${FIREHOL_OUTPUT}
+	${CAT_CMD} ${FIREHOL_OUTPUT}
 	exit 1
 fi
 
@@ -4414,10 +4448,10 @@ then
 fi
 
 # Remove the saved firewall, so that the trap will not restore it.
-rm -f "${FIREHOL_SAVED}"
+${RM_CMD} -f "${FIREHOL_SAVED}"
 
-touch /var/lock/subsys/iptables
-touch /var/lock/subsys/firehol
+${TOUCH_CMD} /var/lock/subsys/iptables
+${TOUCH_CMD} /var/lock/subsys/firehol
 
 # XXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXX
 
