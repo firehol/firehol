@@ -10,7 +10,7 @@
 #
 # config: /etc/firehol/firehol.conf
 #
-# $Id: firehol.sh,v 1.202 2004/09/12 07:24:58 ktsaou Exp $
+# $Id: firehol.sh,v 1.203 2004/09/14 21:15:44 ktsaou Exp $
 #
 
 # Remember who you are.
@@ -2457,9 +2457,13 @@ close_all_groups() {
 
 # rule_action_param() should only be used within rule() - no other place
 
+FIREHOL_ACCEPT_CHAIN_COUNT=0
 rule_action_param() {
 	local action="${1}"; shift
 	local protocol="${1}"; shift
+	local statenot="${1}"; shift
+	local state="${1}"; shift
+	local table="${1}"; shift
 	local -a action_param=()
 	
 	local count=0
@@ -2482,6 +2486,90 @@ rule_action_param() {
 	case "${action}" in
 		NONE)
 			return 0
+			;;
+			
+		ACCEPT)
+			# do we have any options for this accept?
+			if [ ! -z "${state}" -a ! -z "${action_param[0]}" ]
+			then
+				# find the options we have
+				case "${action_param[0]}" in
+					"limit")
+						# limit NEW connections to the specified rate
+						local freq="${action_param[1]}"
+						local burst="${action_param[2]}"
+						local overflow="REJECT"
+						
+						# if we have a custom overflow action, parse it.
+						test "${action_param[3]}" = "overflow" && local overflow="`echo "${action_param[4]}" | tr "a-z" "A-Z"`"
+						
+						# unset the action_param, so that if this rule does not include NEW connections,
+						# we will not append anything to the generated iptables statements.
+						local -a action_param=()
+						
+						# find is this rule matches NEW connections
+						local has_new=`echo "${state}" | grep -i NEW`
+						local do_accept_limit=0
+						if [ -z "${statenot}" ]
+						then
+							test ! -z "${has_new}" && local do_accept_limit=1
+						else
+							test -z "${has_new}" && local do_accept_limit=1
+						fi
+						
+						# we have a match for NEW connections.
+						# redirect the traffic to a new chain, which will control
+						# the NEW connections while allowing all the other traffic
+						# to pass.
+						if [ "${do_accept_limit}" = "1" ]
+						then
+							local accept_limit_chain="`echo "ACCEPT ${freq} ${burst} ${overflow}" | tr " /." "___"`"
+							
+							# does the chain we need already exist?
+							if [ ! -f "${FIREHOL_CHAINS_DIR}/${accept_limit_chain}" ]
+							then
+								# the chain does not exist. create it.
+								iptables ${table} -N "${accept_limit_chain}"
+								touch "${FIREHOL_CHAINS_DIR}/${accept_limit_chain}"
+								
+								# first, if the traffic is not a NEW connection, allow it.
+								# doing this first will speed up normal traffic.
+								iptables ${table} -A "${accept_limit_chain}" -m state ! --state NEW -j ACCEPT
+								
+								# accept NEW connections within the given limits.
+								iptables ${table} -A "${accept_limit_chain}" -m limit --limit "${freq}" --limit-burst "${burst}" -j ACCEPT
+								
+								# log the overflow NEW connections reaching this step within the new chain
+								local -a logopts_arg=()
+								if [ "${FIREHOL_LOG_MODE}" = "ULOG" ]
+								then
+									local -a logopts_arg=("--ulog-prefix='OVERFLOW:'")
+								else
+									local -a logopts_arg=("--log-level" "${FIREHOL_LOG_LEVEL}" "--log-prefix='OVERFLOW:'")
+								fi
+								iptables ${table} -A "${accept_limit_chain}" -m limit --limit "${FIREHOL_LOG_FREQUENCY}" --limit-burst "${FIREHOL_LOG_BURST}" -j ${FIREHOL_LOG_MODE} ${FIREHOL_LOG_OPTIONS} "${logopts_arg[@]}"
+								
+								# if the overflow is to be rejected is tcp, reject it with TCP-RESET
+								if [ "${overflow}" = "REJECT" ]
+								then
+									iptables ${table} -A "${accept_limit_chain}" -p tcp -j REJECT --reject-with tcp-reset
+								fi
+								
+								# do the specified action on the overflow
+								iptables ${table} -A "${accept_limit_chain}" -j ${overflow}
+							fi
+							
+							# send the rule to be generated to this chain
+							local action=${accept_limit_chain}
+						fi
+						;;
+						
+					*)
+						error "Internal error. Cannot understand action ${action} with parameter '${action_param[1]}'."
+						return 1
+						;;
+				esac
+			fi
 			;;
 			
 		REJECT)
@@ -2872,6 +2960,30 @@ rule() {
 				case "${action}" in
 					accept|ACCEPT)
 						action="ACCEPT"
+						
+						if [ "${1}" = "with" ]
+						then
+							shift
+							
+							case "${1}" in
+								limit|LIMIT)
+									local -a action_param=("limit" "${2}" "${3}")
+									shift 3
+									
+									if [ "${1}" = "overflow" ]
+									then
+										action_param[3]="overflow"
+										action_param[4]="${2}"
+										shift 2
+									fi
+									;;
+								
+								*)
+									error "Cannot understand action's '${action}' directive '${1}'"
+									return 1
+									;;
+							esac
+						fi
 						;;
 						
 					deny|DENY|drop|DROP)
@@ -3474,7 +3586,7 @@ rule() {
 						;;
 				esac
 				
-				rule_action_param "${negative_action}" "${pr}" "${action_param[@]}" -- ${table} -A "${negative_chain}" "${proto_arg[@]}"
+				rule_action_param "${negative_action}" "${pr}" "" "" "${table}" "${action_param[@]}" -- ${table} -A "${negative_chain}" "${proto_arg[@]}"
 				local -a action_param=()
 			done
 		fi
@@ -3738,7 +3850,7 @@ rule() {
 																		;;
 																esac
 																
-																rule_action_param "${action}" "${pr}" "${action_param[@]}" -- ${table} -A "${chain}" "${basecmd[@]}" ${custom}
+																rule_action_param "${action}" "${pr}" "${statenot}" "${state}" "${table}" "${action_param[@]}" -- ${table} -A "${chain}" "${basecmd[@]}" ${custom}
 															done # dst
 														done # src
 													done # mac
@@ -4299,7 +4411,7 @@ case "${arg}" in
 		else
 		
 		${CAT_CMD} <<EOF
-$Id: firehol.sh,v 1.202 2004/09/12 07:24:58 ktsaou Exp $
+$Id: firehol.sh,v 1.203 2004/09/14 21:15:44 ktsaou Exp $
 (C) Copyright 2003, Costa Tsaousis <costa@tsaousis.gr>
 FireHOL is distributed under GPL.
 
@@ -4485,7 +4597,7 @@ then
 	
 	${CAT_CMD} <<EOF
 
-$Id: firehol.sh,v 1.202 2004/09/12 07:24:58 ktsaou Exp $
+$Id: firehol.sh,v 1.203 2004/09/14 21:15:44 ktsaou Exp $
 (C) Copyright 2003, Costa Tsaousis <costa@tsaousis.gr>
 FireHOL is distributed under GPL.
 Home Page: http://firehol.sourceforge.net
@@ -4779,7 +4891,7 @@ then
 	
 	${CAT_CMD} >&2 <<EOF
 
-$Id: firehol.sh,v 1.202 2004/09/12 07:24:58 ktsaou Exp $
+$Id: firehol.sh,v 1.203 2004/09/14 21:15:44 ktsaou Exp $
 (C) Copyright 2003, Costa Tsaousis <costa@tsaousis.gr>
 FireHOL is distributed under GPL.
 Home Page: http://firehol.sourceforge.net
@@ -4862,7 +4974,7 @@ EOF
 	echo "# "
 
 	${CAT_CMD} <<EOF
-# $Id: firehol.sh,v 1.202 2004/09/12 07:24:58 ktsaou Exp $
+# $Id: firehol.sh,v 1.203 2004/09/14 21:15:44 ktsaou Exp $
 # (C) Copyright 2003, Costa Tsaousis <costa@tsaousis.gr>
 # FireHOL is distributed under GPL.
 # Home Page: http://firehol.sourceforge.net
