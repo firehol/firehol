@@ -1,7 +1,7 @@
 
 RCS file: /cvsroot/firehol/firehol/firehol.sh,v
 Working file: firehol.sh
-head: 1.45
+head: 1.50
 branch:
 locks: strict
 access list:
@@ -9,8 +9,46 @@ symbolic names:
 	start: 1.1.1.1
 	vendor: 1.1.1
 keyword substitution: kv
-total revisions: 46;	selected revisions: 46
+total revisions: 51;	selected revisions: 51
 description:
+----------------------------
+revision 1.50
+date: 2002/12/18 20:44:08;  author: ktsaou;  state: Exp;  lines: +78 -71
+Fixed a potential security hole where UDP traffic could come in
+uncoditionally from source port 53 when there was a:
+
+client dns accept
+
+This means that DNS is back to statefull mode.
+
+Also, removed from ICMP the RELATED state, since it will be matched
+at the end of the end of the interface or firewall.
+----------------------------
+revision 1.49
+date: 2002/12/18 20:18:53;  author: ktsaou;  state: Exp;  lines: +13 -5
+Fixed active FTP bug. It was not working.
+----------------------------
+revision 1.48
+date: 2002/12/18 00:35:42;  author: ktsaou;  state: Exp;  lines: +7 -3
+Added help entry for explain.
+----------------------------
+revision 1.47
+date: 2002/12/18 00:30:28;  author: ktsaou;  state: Exp;  lines: +67 -13
+More changes regarding explain.
+Added interactive commands 'help', 'show' and 'quit'.
+Now the interactive mode automatically generates a configuration file
+from all the successfull commands.
+Made interactive mode accept variable definitions and loops.
+----------------------------
+revision 1.46
+date: 2002/12/17 20:47:34;  author: ktsaou;  state: Exp;  lines: +100 -24
+Added command line argument "explain" to run in interactive debugging
+mode.
+
+This resulted in discovering bugs in NFS (fixed) and masquerade (fixed).
+
+Also, enriched the error handler to be more descriptive about what
+FireHOL is doing.
 ----------------------------
 revision 1.45
 date: 2002/12/16 20:41:39;  author: ktsaou;  state: Exp;  lines: +56 -86
