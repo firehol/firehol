@@ -10,7 +10,7 @@
 #
 # config: /etc/firehol.conf
 #
-# $Id: firehol.sh,v 1.91 2003/02/18 20:42:20 ktsaou Exp $
+# $Id: firehol.sh,v 1.92 2003/02/20 22:32:56 ktsaou Exp $
 #
 
 
@@ -157,6 +157,10 @@ FIREHOL_TRY=1
 # If set to 1, FireHOL enters interactive mode to answer questions.
 # It can be changed on the command line
 FIREHOL_EXPLAIN=0
+
+# If set to 1, FireHOL enters a wizard mode to help the user build a firewall.
+# It can be changed on the command line
+FIREHOL_WIZARD=0
 
 
 # ------------------------------------------------------------------------------
@@ -357,7 +361,7 @@ server_snmp_ports="udp/snmp"
 client_snmp_ports="default"
 
 server_snmptrap_ports="udp/snmptrap"
-client_snmptrap_ports="default"
+client_snmptrap_ports="any"
 
 server_ssh_ports="tcp/ssh"
 client_ssh_ports="default"
@@ -374,7 +378,7 @@ server_swat_ports="tcp/swat"
 client_swat_ports="default"
 
 server_syslog_ports="udp/syslog"
-client_syslog_ports="syslog"
+client_syslog_ports="syslog default"
 
 server_telnet_ports="tcp/telnet"
 client_telnet_ports="default"
@@ -3087,6 +3091,10 @@ case "${arg}" in
 		FIREHOL_EXPLAIN=1
 		;;
 	
+	helpme|wizard)
+		FIREHOL_WIZARD=1
+		;;
+	
 	try)
 		FIREHOL_TRY=1
 		;;
@@ -3181,7 +3189,7 @@ case "${arg}" in
 		else
 		
 		cat <<"EOF"
-$Id: firehol.sh,v 1.91 2003/02/18 20:42:20 ktsaou Exp $
+$Id: firehol.sh,v 1.92 2003/02/20 22:32:56 ktsaou Exp $
 (C) Copyright 2002, Costa Tsaousis <costa@tsaousis.gr>
 FireHOL is distributed under GPL.
 
@@ -3225,6 +3233,9 @@ FireHOL supports the following command line arguments (only one of them):
 	explain		to enter interactive mode and accept configuration
 			directives. It also gives the iptables commands
 			for each directive together with reasoning.
+			
+	helpme	or	to enter a wizard mode where FireHOL will try
+	wizard		to figure out the configuration you need.
 			
 	<a filename>	a different configuration file.
 			If not other argument is given, the configuration
@@ -3349,7 +3360,7 @@ then
 	
 	cat <<"EOF"
 
-$Id: firehol.sh,v 1.91 2003/02/18 20:42:20 ktsaou Exp $
+$Id: firehol.sh,v 1.92 2003/02/20 22:32:56 ktsaou Exp $
 (C) Copyright 2002, Costa Tsaousis <costa@tsaousis.gr>
 FireHOL is distributed under GPL.
 Home Page: http://firehol.sourceforge.net
@@ -3455,6 +3466,116 @@ EOF
 	exit 0
 fi
 
+
+# ------------------------------------------------------------------------------
+# XXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXX
+# ------------------------------------------------------------------------------
+#
+# MAIN PROCESSING - help wizard
+#
+# ------------------------------------------------------------------------------
+# XXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXX
+# ------------------------------------------------------------------------------
+
+
+if [ ${FIREHOL_WIZARD} -eq 1 ]
+then
+	wizard_ask() {
+		local prompt="${1}"; shift
+		local def="${1}"; shift
+		
+		echo
+		
+		while [ 1 = 1 ]
+		do
+			printf "%s [%s] > " "${prompt}" "${def}"
+			read
+			
+			local ans="${REPLY}"
+			
+			test -z "${ans}" && ans="${def}"
+			
+			local c=0
+			while [ $c -le $# ]
+			do
+				eval local t="\${${c}}"
+				
+				test "${ans}" = "${t}" && break
+				c=$[c + 1]
+			done
+			
+			test $c -le $# && return $c
+			
+			printf "*** '${ans}' is not a valid answer. Pick one of "
+			printf "%s " "$@"
+			echo
+			echo
+		done
+		
+		return 0
+	}
+	
+	cat <<"EOF"
+
+$Id: firehol.sh,v 1.92 2003/02/20 22:32:56 ktsaou Exp $
+(C) Copyright 2002, Costa Tsaousis <costa@tsaousis.gr>
+FireHOL is distributed under GPL.
+Home Page: http://firehol.sourceforge.net
+
+--------------------------------------------------------------------------------
+FireHOL controls your firewall. You should want to get updates quickly.
+Subscribe (at the home page) to get notified of new releases.
+--------------------------------------------------------------------------------
+
+FireHOL will now try to figure out its configuration file on this system.
+Please have all the services and network interfaces on this system running.
+
+EOF
+	
+	wizard_ask "Press RETURN to start." "continue" "continue"
+	
+	interfaces=`/sbin/ifconfig | egrep "^[a-zA-Z]+[0-9]+" | cut -d ' ' -f 1`
+	gateway=`/sbin/ip route | grep "^default" | sed "s/dev /dev:/g" | tr " " "\n" | grep "^dev:" | cut -d ':' -f 2`
+	
+	for iface in ${interfaces}
+	do
+		ip=`/sbin/ifconfig | grep -A 1 "^${iface}" | grep "inet addr:" | tr " " "\n" | grep "^addr:" | cut -d ':' -f 2`
+		mask=`/sbin/ifconfig | grep -A 1 "^${iface}" | grep "inet addr:" | tr " " "\n" | grep "^Mask:" | cut -d ':' -f 2`
+		
+		internet=no
+		test "${iface}" = "${gateway}" && internet=yes
+		
+		clear
+		echo "--------------------------------------------------------------------------------"
+		echo "Working on interface '${iface}' ${ip}/${mask}, default gateway=${internet}"
+		
+		cat <<EOF
+
+We need to know if the traffic coming to ${iface} comes only from specific hosts
+and networks you already know, or from unknown hosts and networks you could not
+possibly define.
+EOF
+		wizard_ask "Does '${iface}' accepts traffic from unknown hosts?" "${internet}" "yes" "no"
+		ret=$?
+		
+		case ${ret} in
+			1)	internet="yes"
+				;;
+				
+			2)	internet="no"
+				;;
+				
+			*)	echo "Internal Error"
+				exit 1
+				;;
+		esac
+		
+		
+	done
+	
+	echo "UNDER CONSTRUCTION"
+	exit 0
+fi
 
 # ------------------------------------------------------------------------------
 # XXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXX
