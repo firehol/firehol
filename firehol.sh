@@ -10,11 +10,12 @@
 #
 # config: /etc/firehol/firehol.conf
 #
-# $Id: firehol.sh,v 1.206 2004/10/28 22:02:43 ktsaou Exp $
+# $Id: firehol.sh,v 1.207 2004/10/28 23:03:06 ktsaou Exp $
 #
 
 # Remember who you are.
 FIREHOL_FILE="${0}"
+FIREHOL_DEFAULT_WORKING_DIRECTORY="${PWD}"
 
 
 # ------------------------------------------------------------------------------
@@ -53,9 +54,11 @@ which_cmd() {
 			echo >&2
 			exit 1
 		fi
+		return 1
 	fi
 	
 	eval $1=${cmd}
+	return 0
 }
 
 which_cmd CAT_CMD cat
@@ -64,8 +67,10 @@ which_cmd CHOWN_CMD chown
 which_cmd CHMOD_CMD chmod
 which_cmd DATE_CMD date
 which_cmd EGREP_CMD egrep
+which_cmd EXPR_CMD expr
 which_cmd GAWK_CMD gawk
 which_cmd GREP_CMD grep
+which_cmd HEAD_CMD head
 which_cmd HOSTNAME_CMD hostname
 which_cmd IP_CMD ip
 which_cmd IPTABLES_CMD iptables
@@ -85,8 +90,7 @@ which_cmd TOUCH_CMD touch
 which_cmd TR_CMD tr
 which_cmd UNAME_CMD uname
 which_cmd UNIQ_CMD uniq
-which_cmd -n WGET_CMD wget
-which_cmd -n CURL_CMD curl
+which_cmd -n WGET_CMD wget || which_cmd CURL_CMD curl
 
 
 # Initialize iptables
@@ -241,13 +245,14 @@ ALL_SHOULD_ALSO_RUN=
 
 # The default configuration file
 # It can be changed on the command line
-FIREHOL_CONFIG="/etc/firehol/firehol.conf"
+FIREHOL_CONFIG_DIR="/etc/firehol"
+FIREHOL_CONFIG="${FIREHOL_CONFIG_DIR}/firehol.conf"
 
-if [ ! -d /etc/firehol -a -f /etc/firehol.conf ]
+if [ ! -d "${FIREHOL_CONFIG_DIR}" -a -f /etc/firehol.conf ]
 then
-	mkdir /etc/firehol
-	${CHOWN_CMD} root:root /etc/firehol
-	${CHMOD_CMD} 700 /etc/firehol
+	mkdir "${FIREHOL_CONFIG_DIR}"
+	${CHOWN_CMD} root:root "${FIREHOL_CONFIG_DIR}"
+	${CHMOD_CMD} 700 "${FIREHOL_CONFIG_DIR}"
 	${MV_CMD} /etc/firehol.conf "${FIREHOL_CONFIG}"
 	
 	echo >&2
@@ -318,6 +323,9 @@ FIREHOL_DYNAMIC_CHAIN_COUNTER=1
 # If set to 0, FireHOL will not trust interface lo for all traffic.
 # This means the admin could setup a firewall on lo.
 FIREHOL_TRUST_LOOPBACK=1
+
+# Services API version
+FIREHOL_SERVICES_API="1"
 
 
 # ------------------------------------------------------------------------------
@@ -1389,6 +1397,52 @@ then
 	return 0
 	exit 1
 fi
+
+
+# ------------------------------------------------------------------------------
+# XXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXX
+# ------------------------------------------------------------------------------
+#
+# SUPPORT FOR EXTERNAL DEFINITIONS OF SERVICES
+#
+# ------------------------------------------------------------------------------
+# XXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXX
+# ------------------------------------------------------------------------------
+
+# Externally defined services can be placed in "${FIREHOL_CONFIG_DIR}/services/"
+if [ ! -d "${FIREHOL_CONFIG_DIR}/services" ]
+then
+	"${MKDIR_CMD}" -p "${FIREHOL_CONFIG_DIR}/services"
+	"${CHOWN_CMD}" root:root "${FIREHOL_CONFIG_DIR}/services"
+	"${CHMOD_CMD}" 700 "${FIREHOL_CONFIG_DIR}/services"
+fi
+
+# Load all the services.
+# All these files should start with: #FHVER: 1
+cd "${FIREHOL_CONFIG_DIR}/services"
+for f in `ls *.conf 2>/dev/null`
+do
+	cd "${FIREHOL_CONFIG_DIR}/services"
+	
+	n=`"${HEAD_CMD}" -n 1 "${f}" | "${CUT_CMD}" -d ':' -f 2`
+	"${EXPR_CMD}" ${n} + 0 >/dev/null 2>&1
+	if [ $? -ne 0 ]
+	then
+		echo >&2 " >>> Ignoring service in '${FIREHOL_CONFIG_DIR}/services/${f}' due to malformed header."
+	elif [ ${n} -ne ${FIREHOL_SERVICES_API} ]
+	then
+		echo >&2 " >>> Ignoring service '${FIREHOL_CONFIG_DIR}/services/${f}' due to incompatible API version."
+	else
+		source ${f}
+		ret=$?
+		if [ ${ret} -ne 0 ]
+		then
+			echo >&2 " >>> Service in '${FIREHOL_CONFIG_DIR}/services/${f}' returned code ${ret}."
+			continue
+		fi
+	fi
+done
+cd "${FIREHOL_DEFAULT_WORKING_DIRECTORY}"
 
 
 # ------------------------------------------------------------------------------
@@ -4508,7 +4562,7 @@ case "${arg}" in
 		else
 		
 		${CAT_CMD} <<EOF
-$Id: firehol.sh,v 1.206 2004/10/28 22:02:43 ktsaou Exp $
+$Id: firehol.sh,v 1.207 2004/10/28 23:03:06 ktsaou Exp $
 (C) Copyright 2003, Costa Tsaousis <costa@tsaousis.gr>
 FireHOL is distributed under GPL.
 
@@ -4519,7 +4573,7 @@ FireHOL supports the following command line arguments (only one of them):
 
 	start		to activate the firewall configuration.
 			The configuration is expected to be found in
-			/etc/firehol/firehol.conf
+			${FIREHOL_CONFIG_DIR}/firehol.conf
 			
 	try		to activate the firewall, but wait until
 			the user types the word "commit". If this word
@@ -4694,7 +4748,7 @@ then
 	
 	${CAT_CMD} <<EOF
 
-$Id: firehol.sh,v 1.206 2004/10/28 22:02:43 ktsaou Exp $
+$Id: firehol.sh,v 1.207 2004/10/28 23:03:06 ktsaou Exp $
 (C) Copyright 2003, Costa Tsaousis <costa@tsaousis.gr>
 FireHOL is distributed under GPL.
 Home Page: http://firehol.sourceforge.net
@@ -4988,7 +5042,7 @@ then
 	
 	${CAT_CMD} >&2 <<EOF
 
-$Id: firehol.sh,v 1.206 2004/10/28 22:02:43 ktsaou Exp $
+$Id: firehol.sh,v 1.207 2004/10/28 23:03:06 ktsaou Exp $
 (C) Copyright 2003, Costa Tsaousis <costa@tsaousis.gr>
 FireHOL is distributed under GPL.
 Home Page: http://firehol.sourceforge.net
@@ -5071,7 +5125,7 @@ EOF
 	echo "# "
 
 	${CAT_CMD} <<EOF
-# $Id: firehol.sh,v 1.206 2004/10/28 22:02:43 ktsaou Exp $
+# $Id: firehol.sh,v 1.207 2004/10/28 23:03:06 ktsaou Exp $
 # (C) Copyright 2003, Costa Tsaousis <costa@tsaousis.gr>
 # FireHOL is distributed under GPL.
 # Home Page: http://firehol.sourceforge.net
