@@ -10,7 +10,7 @@
 #
 # config: /etc/firehol.conf
 #
-# $Id: firehol.sh,v 1.98 2003/02/26 22:26:16 ktsaou Exp $
+# $Id: firehol.sh,v 1.99 2003/03/03 21:51:04 ktsaou Exp $
 #
 
 
@@ -3189,7 +3189,7 @@ case "${arg}" in
 		else
 		
 		cat <<"EOF"
-$Id: firehol.sh,v 1.98 2003/02/26 22:26:16 ktsaou Exp $
+$Id: firehol.sh,v 1.99 2003/03/03 21:51:04 ktsaou Exp $
 (C) Copyright 2002, Costa Tsaousis <costa@tsaousis.gr>
 FireHOL is distributed under GPL.
 
@@ -3360,7 +3360,7 @@ then
 	
 	cat <<"EOF"
 
-$Id: firehol.sh,v 1.98 2003/02/26 22:26:16 ktsaou Exp $
+$Id: firehol.sh,v 1.99 2003/03/03 21:51:04 ktsaou Exp $
 (C) Copyright 2002, Costa Tsaousis <costa@tsaousis.gr>
 FireHOL is distributed under GPL.
 Home Page: http://firehol.sourceforge.net
@@ -3523,7 +3523,7 @@ then
 	
 	cat >&2 <<"EOF"
 
-$Id: firehol.sh,v 1.98 2003/02/26 22:26:16 ktsaou Exp $
+$Id: firehol.sh,v 1.99 2003/03/03 21:51:04 ktsaou Exp $
 (C) Copyright 2002, Costa Tsaousis <costa@tsaousis.gr>
 FireHOL is distributed under GPL.
 Home Page: http://firehol.sourceforge.net
@@ -3615,7 +3615,7 @@ EOF
 	echo "# "
 
 	cat <<"EOF"
-# $Id: firehol.sh,v 1.98 2003/02/26 22:26:16 ktsaou Exp $
+# $Id: firehol.sh,v 1.99 2003/03/03 21:51:04 ktsaou Exp $
 # (C) Copyright 2002, Costa Tsaousis <costa@tsaousis.gr>
 # FireHOL is distributed under GPL.
 # Home Page: http://firehol.sourceforge.net
@@ -3637,13 +3637,25 @@ EOF
 	interfaces=`/sbin/ip link show | egrep "^[0-9A-Za-z]+:" | cut -d ':' -f 2 | sed "s/^ //" | grep -v "^lo$" | sort | uniq | tr "\n" " "`
 	gateway=`/sbin/ip route | grep "^default" | sed "s/dev /dev:/g" | tr " " "\n" | grep "^dev:" | cut -d ':' -f 2`
 	
+	valid_interfaces=
+	
 	i=0
 	for iface in ${interfaces}
 	do
-		i=$[i + 1]
-		
 		ips=`/sbin/ip addr show dev ${iface} | sed "s/  / /g" | sed "s/  / /g" | sed "s/  / /g" | grep "^ inet " | cut -d ' ' -f 3 | cut -d '/' -f 1 | sort | uniq | tr "\n" " "`
 		nets=`/sbin/ip route show | grep " dev ${iface} " | egrep "^[0-9\./]+ " | cut -d ' ' -f 1 | sort | uniq | tr "\n" " "`
+		
+		if [ -z "${ips}" -o -z "${nets}" ]
+		then
+			echo >&2
+			echo >&2 "# Ignoring interface '${iface}' because does not have an IP or route."
+			echo >&2
+			continue
+		fi
+		
+		i=$[i + 1]
+		
+		valid_interfaces="${iface} ${valid_interfaces}"
 		
 		internet=no
 		test "${iface}" = "${gateway}" && internet=yes
@@ -3735,7 +3747,7 @@ EOF
 	done
 	
 	echo
-	echo "# The above $i interfaces ( ${interfaces}) were found active at this moment."
+	echo "# The above $i interfaces ( ${valid_interfaces}) were found active at this moment."
 	echo "# Add more interfaces that can potentially be activated in the future."
 	echo "# FireHOL will not complain if you setup a firewall on an interface that is"
 	echo "# not active when you activate the firewall."
@@ -3748,14 +3760,14 @@ EOF
 	if [ "1" = "`cat /proc/sys/net/ipv4/ip_forward`" ]
 	then
 		x=0
-		for inface in ${interfaces}
+		for inface in ${valid_interfaces}
 		do
 			eval srcs="\${interface_${inface}_nets}"
 			eval srcs_ips="\${interface_${inface}_ips}"
 			
 			for s in ${srcs}
 			do
-				for outface in ${interfaces}	
+				for outface in ${valid_interfaces}	
 				do
 					eval dsts="\${interface_${outface}_nets}"
 					eval dsts_ips="\${interface_${outface}_ips}"
