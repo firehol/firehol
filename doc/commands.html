@@ -424,15 +424,80 @@
 
 	<a name="log"><h3><b>log</b> <font color="red">"&lt;some text&gt;"</font></h3></a>
 	<H4>Description</H4>
-	<b>log</b> will log the matching packets to syslog. Note that this is not an action.
+	<b>log</b> will log the matching packets to syslog. Note that this is not an action (in iptables it is).
 	FireHOL will actually produce multiple iptables commands to accomplish both the action for the rule and the logging.
+	You can control how logging works, by altering the variable <a href="#FIREHOL_LOG_OPTIONS">FIREHOL_LOG_OPTIONS</a>.
+	<p>
+	FireHOL logs traffic, exactly the same way iptables does. Many users have complained about packet logs appearing at
+	their console. To avoid this you will have to:
+	<ul>
+		<li>setup <b>klogd</b> to log only more important traffic</li>
+		<li>change <a href="#FIREHOL_LOG_OPTIONS">FIREHOL_LOG_OPTIONS</a> to log at a not so important log-level</li>
+	</ul>
+	Actually <b>klogd</b>'s -c option and <b>iptables</b>' --log-level option are the same thing (iptables accepts also
+	the numeric values klogd accepts). If iptables logs at a
+	higher priority than klogd is configured to use, then your packets will appear in the console too.
+	<p>
+	In most kernels klogd is by default configured to log everything, so if you don't also change <b>klogd</b>'s -c option,
+	the --log-level setting of iptables has no effect. Use the table bellow to match klogd options with --log-level options:
+	
+	<center>
+	<table border=0 cellpadding=3 cellspacing=5 width="70%">
+	<tr><th bgcolor="#000000"><font color="white">Priority</th><th bgcolor="#000000"><font color="white">klogd</th><th bgcolor="#000000"><font color="white">iptables</th><th bgcolor="#000000"><font color="white">Description</th></tr>
+	<tr>	<td align="center"><b>0</td>
+		<td align="center">0</td>
+		<td align="center">emerg</td>
+		<td>system is unusable</td>
+		</tr>
+	<tr bgcolor="#F0F0F0">	<td align="center"><b>1</td>
+		<td align="center">1</td>
+		<td align="center">alert</td>
+		<td>action must be taken immediately</td>
+		</tr>
+	<tr>	<td align="center"><b>2</td>
+		<td align="center">2</td>
+		<td align="center">crit</td>
+		<td>critical conditions</td>
+		</tr>
+	<tr bgcolor="#F0F0F0">	<td align="center"><b>3</td>
+		<td align="center">3</td>
+		<td align="center">error</td>
+		<td>error conditions</td>
+		</tr>
+	<tr>	<td align="center"><b>4</td>
+		<td align="center">4</td>
+		<td align="center">warning (default)</td>
+		<td>warning conditions</td>
+		</tr>
+	<tr bgcolor="#F0F0F0">	<td align="center"><b>5</td>
+		<td align="center">5</td>
+		<td align="center">notice</td>
+		<td>normal but significant condition</td>
+		</tr>
+	<tr>	<td align="center"><b>6</td>
+		<td align="center">6</td>
+		<td align="center">info</td>
+		<td>informational</td>
+		</tr>
+	<tr bgcolor="#F0F0F0">	<td align="center"><b>7</td>
+		<td align="center">7 (default)</td>
+		<td align="center">debug</td>
+		<td>debug-level messages</td>
+		</tr>
+	</table>
+	</center><p>
+	To prevent packet logs appearing to the console, <b>klogd</b> option must be LOWER than the one iptables uses.
+	<p>
+	On <a href="http://www.redhat.com">RedHat</a> systems, you can configure <b>klogd</b> by changing
+	<b>/etc/sysconfig/syslog</b> and adding to <b>KLOGD_OPTIONS</b> the required -c level.
 	<p>
 	
 <hr noshade size=1 width="70%">
 
 	<a name="loglimit"><h3><b>loglimit</b> <font color="red">"&lt;some text&gt;"</font></h3></a>
 	<H4>Description</H4>
-	<b>loglimit</b> is the same with <b>log</b> but limits logging of packets to 1/sec.
+	<b>loglimit</b> is the same with <b>log</b> but limits the frequency of logging according to the setting of
+	<a href="#FIREHOL_LOG_FREQUENCY">FIREHOL_LOG_FREQUENCY</a> and <a href="#FIREHOL_LOG_BURST">FIREHOL_LOG_BURST</a>.
 	<p>
 
 <hr noshade size=1 width="70%">
@@ -445,7 +510,10 @@
 	not matched by any rule, as it will break your firewall. It is however safe enough to use RETURN here (but see bellow
 	to find out what happens at the end of your firewall).
 	<p>
-	Default: <b>DROP</b>
+	All packets that reach the end of an interface are logged only if the action is not RETURN or ACCEPT.
+	You can control the frequency of this logging by altering the frequency <a href="#loglimit">loglimit</a> uses.
+	<p>
+	Default: <b>DEFAULT_INTERFACE_POLICY="DROP"</b><br>
 	<br>
 	Example: <b>DEFAULT_INTERFACE_POLICY="REJECT"</b>
 	<p>
@@ -460,12 +528,16 @@
 	<br>UNMATCHED_OUTPUT_POLICY controls the default action to be taken for outgoing traffic not matched by any interface command.
 	<br>UNMATCHED_FORWARD_POLICY controls the default action to be taken for forwarded traffic not matched by any router command.
 	<p>
-	The values of these variables are passed as is to iptables, so use capitals. Be carefull not to accept this traffic,
-	as it will break your firewall.
+	All packets that reach the end of firewall in all three chains are logged (always, regardless of these settings).
+	You can control the frequency of this logging by altering the frequency <a href="#loglimit">loglimit</a> uses.
 	<p>
-	Default: <b>DEFAULT_INPUT_POLICY="DROP"</b>
+	Default: <b>DEFAULT_INPUT_POLICY="DROP"</b><br>
+	Default: <b>DEFAULT_OUTPUT_POLICY="DROP"</b><br>
+	Default: <b>DEFAULT_FORWARD_POLICY="DROP"</b><br>
 	<br>
-	Example: <b>DEFAULT_INPUT_POLICY="REJECT"</b>
+	Example: <b>DEFAULT_INPUT_POLICY="REJECT"</b><br>
+	Example: <b>DEFAULT_OUTPUT_POLICY="REJECT"</b><br>
+	Example: <b>DEFAULT_FORWARD_POLICY="REJECT"</b>
 	<p>
 	
 <hr noshade size=1 width="70%">
@@ -555,7 +627,7 @@
 <tr><td align=center valign=middle>
 	<A href="http://sourceforge.net"><IMG src="http://sourceforge.net/sflogo.php?group_id=58425&amp;type=5" width="210" height="62" border="0" alt="SourceForge Logo"></A>
 </td><td align=center valign=middle>
-	<small>$Id: commands.html,v 1.6 2002/12/10 23:32:16 ktsaou Exp $</small>
+	<small>$Id: commands.html,v 1.7 2002/12/11 09:16:11 ktsaou Exp $</small>
 	<p>
 	<b>FireHOL</b>, a firewall for humans...<br>
 	&copy; Copyright 2002
