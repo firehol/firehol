@@ -1,4 +1,4 @@
-$Id: TODO,v 1.14 2004/09/14 19:16:52 ktsaou Exp $
+$Id: TODO,v 1.15 2004/10/30 22:04:16 ktsaou Exp $
 
 The following is a list of features I plan to add to FireHOL,
 assuming that my time permits and there is demand for them.
@@ -129,4 +129,22 @@ The list appears in no particular order.
     This can be done with something:
 
     server smtp accept with limit 10/s 50
+
+23. Allow limit as a second parameter to policy:
+
+Instead of this:
+
+interface ...
+   policy drop
+
+   ...
+
+   server any myreject reject limit 5/s 5
+
+
+Allow something like this:
+
+interface ...
+   policy reject limit 10/s 10 then drop
+
 
