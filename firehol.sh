@@ -10,7 +10,7 @@
 #
 # config: /etc/firehol/firehol.conf
 #
-# $Id: firehol.sh,v 1.218 2004/12/21 21:49:11 ktsaou Exp $
+# $Id: firehol.sh,v 1.219 2004/12/22 23:05:57 ktsaou Exp $
 #
 
 # Remember who you are.
@@ -2909,6 +2909,7 @@ rule_action_param() {
 	local table="${1}"; shift
 	local -a action_param=()
 	
+	# All arguments until the separator are the parameters of the action
 	local count=0
 	while [ ! -z "${1}" -a ! "A${1}" = "A--" ]
 	do
@@ -2918,10 +2919,11 @@ rule_action_param() {
 		count=$[count + 1]
 	done
 	
+	# If we don't have a seperator, generate an error
 	local sep="${1}"; shift
 	if [ ! "A${sep}" = "A--" ]
 	then
-		error "Internal Error, in parsing action_param parameters ($FUNCNAME '${action}' '${protocol}' '${action_param[@]}' ${sep} $@)."
+		error "Internal Error, in parsing action_param parameters ($FUNCNAME '${action}' '${protocol}' '${statenot}' '${state}' '${table}' '${action_param[@]}' ${sep} '$@')."
 		return 1
 	fi
 	
@@ -2933,7 +2935,7 @@ rule_action_param() {
 			
 		ACCEPT)
 			# do we have any options for this accept?
-			if [ ! -z "${state}" -a ! -z "${action_param[0]}" ]
+			if [ ! -z "${action_param[0]}" ]
 			then
 				# find the options we have
 				case "${action_param[0]}" in
@@ -3007,8 +3009,31 @@ rule_action_param() {
 						fi
 						;;
 						
+					'knock')
+						# the name of the knock
+						local name="knock_${action_param[1]}"
+						
+						# unset the action_param, so that if this rule does not include NEW connections,
+						# we will not append anything to the generated iptables statements.
+						local -a action_param=()
+						
+						# does the knock chain exists?
+						if [ ! -f "${FIREHOL_CHAINS_DIR}/${name}" ]
+						then
+							# the chain does not exist. create it.
+							iptables ${table} -N "${name}"
+							touch "${FIREHOL_CHAINS_DIR}/${name}"
+							
+							# knockd (http://www.zeroflux.org/knock/)
+							# will create the rules inside this chain.
+						fi
+						
+						# send the rule to be generated to this knock chain
+						local action=${name}
+						;;
+						
 					*)
-						error "Internal error. Cannot understand action ${action} with parameter '${action_param[1]}'."
+						error "Internal error. Cannot understand action ${action} with parameter '${action_param[0]}'."
 						return 1
 						;;
 				esac
@@ -3475,6 +3500,11 @@ rule() {
 										action_param[4]="${2}"
 										shift 2
 									fi
+									;;
+								
+								knock|KNOCK)
+									local -a action_param=("knock" "${2}")
+									shift 2
 									;;
 								
 								*)
@@ -5038,7 +5068,7 @@ case "${arg}" in
 		else
 		
 		${CAT_CMD} <<EOF
-$Id: firehol.sh,v 1.218 2004/12/21 21:49:11 ktsaou Exp $
+$Id: firehol.sh,v 1.219 2004/12/22 23:05:57 ktsaou Exp $
 (C) Copyright 2003, Costa Tsaousis <costa@tsaousis.gr>
 FireHOL is distributed under GPL.
 
@@ -5224,7 +5254,7 @@ then
 	
 	${CAT_CMD} <<EOF
 
-$Id: firehol.sh,v 1.218 2004/12/21 21:49:11 ktsaou Exp $
+$Id: firehol.sh,v 1.219 2004/12/22 23:05:57 ktsaou Exp $
 (C) Copyright 2003, Costa Tsaousis <costa@tsaousis.gr>
 FireHOL is distributed under GPL.
 Home Page: http://firehol.sourceforge.net
@@ -5518,7 +5548,7 @@ then
 	
 	${CAT_CMD} >&2 <<EOF
 
-$Id: firehol.sh,v 1.218 2004/12/21 21:49:11 ktsaou Exp $
+$Id: firehol.sh,v 1.219 2004/12/22 23:05:57 ktsaou Exp $
 (C) Copyright 2003, Costa Tsaousis <costa@tsaousis.gr>
 FireHOL is distributed under GPL.
 Home Page: http://firehol.sourceforge.net
@@ -5601,7 +5631,7 @@ EOF
 	echo "# "
 
 	${CAT_CMD} <<EOF
-# $Id: firehol.sh,v 1.218 2004/12/21 21:49:11 ktsaou Exp $
+# $Id: firehol.sh,v 1.219 2004/12/22 23:05:57 ktsaou Exp $
 # (C) Copyright 2003, Costa Tsaousis <costa@tsaousis.gr>
 # FireHOL is distributed under GPL.
 # Home Page: http://firehol.sourceforge.net

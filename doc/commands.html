@@ -853,15 +853,37 @@ multiple iptables statements to achieve both the logging and the action.
 <p>
 
 	<a name="accept"><h3><b>accept</b> [with limit &lt;frequency&gt; &lt;burst&gt; [overflow &lt;action&gt;]]</h3></a>
+	<h3><b>accept</b> [with knock &lt;name&gt;]</h3>
 	<b>accept</b> allows the traffic matching the rules to reach its destination.
 	<p>
+	<b>with limit</b><br>
 	The optional parameter <b>with limit</b> offers control over the allowed frequency of NEW connections. <b>frequency</b> and <b>burst</b> have the same syntax of the <a href="#limit">limit</a>
 	optional rule parameter.
 	<p>
 	The overflow <b>action</b> offers control over the overflowed NEW connections. The default is to REJECT overflowed connections (not DROP them, since DROP produces timeouts
 	on the otherwise valid service clients). Also, the REJECT overflow action, will reject TCP connections with <b>tcp-reset</b> and all others with <b>icmp-host-unreachable</b>.
-	<p>
+	<br>
 	The overflowed NEW connection attempts will be logged with a <b>OVERFLOW</b> message, with the options the <a href="#loglimit">loglimit</a> parameter works.
+	<p>
+	<b>with knock</b><br>
+	The optional parameter <b>with knock</b> allows easy integration with <a href="http://www.zeroflux.org/knock/">knockd</a>, a server that allows you to control access to services, by sending certain packets to "knock" the
+	door, before the door is open for service.<br>
+	This parameter accepts just a name. This name is used to build a special chain <b>knock_&lt;name&gt;</b> which will contain no rules, so that the traffic entering this chain will just return back
+	and continue to match against the other rules until the end of the firewall.
+	<p>
+	As an example, lets say that you want to allow https traffic based on a knock. In FireHOL you write:
+	<p>
+	<pre>server https accept with knock hidden</pre>
+	<p>
+	and you configure knockd so that it runs:
+	<p>
+	<pre>iptables -A knock_hidden -s %IP% -j ACCEPT</pre>
+	<p>
+	to enable the https service (notice that there is no need to match anything else than the IP. FireHOL already matches everything else needed for its rule to work), and:
+	<p>
+	<pre>iptables -D knock_hidden -s %IP% -j ACCEPT</pre>
+	<p>
+	to disable this service for the given IP.
 	<p>
 	Example 1: <b>server smtp accept</b>, to allow SMTP requests and their replies to flow.<br>
 	Example 2: <b>server smtp accept with limit 10/s 100</b>, to allow SMTP requests to come at 10/second max, with a burst of 100, and their replies to flow back.<br>
@@ -1614,7 +1636,7 @@ about optional rule parameters that should not be used in certain commands.
 <tr><td align=center valign=middle>
 	<A href="http://sourceforge.net"><IMG src="http://sourceforge.net/sflogo.php?group_id=58425&amp;type=5" width="210" height="62" border="0" alt="SourceForge Logo"></A>
 </td><td align=center valign=middle>
-	<small>$Id: commands.html,v 1.57 2004/12/21 21:49:20 ktsaou Exp $</small>
+	<small>$Id: commands.html,v 1.58 2004/12/22 23:06:00 ktsaou Exp $</small>
 	<p>
 	<b>FireHOL</b>, a firewall for humans...<br>
 	&copy; Copyright 2004
