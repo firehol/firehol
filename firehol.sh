@@ -10,9 +10,14 @@
 #
 # config: /etc/firehol.conf
 #
-# $Id: firehol.sh,v 1.27 2002/12/04 07:20:19 ktsaou Exp $
+# $Id: firehol.sh,v 1.28 2002/12/04 21:32:26 ktsaou Exp $
 #
 # $Log: firehol.sh,v $
+# Revision 1.28  2002/12/04 21:32:26  ktsaou
+# Fixed a bug that FireHOL was incorrectly choosing LOCAL_CLIENT_PORTS on
+# router configurations. This bug appeared when the router configurations
+# were made to accept normal server/client statements.
+#
 # Revision 1.27  2002/12/04 07:20:19  ktsaou
 # Error handler now works on protections too.
 #
@@ -240,7 +245,7 @@ case "${arg}" in
 	
 	*)
 		cat <<"EOF"
-$Id: firehol.sh,v 1.27 2002/12/04 07:20:19 ktsaou Exp $
+$Id: firehol.sh,v 1.28 2002/12/04 21:32:26 ktsaou Exp $
 (C) Copyright 2002, Costa Tsaousis
 FireHOL is distributed under GPL.
 
@@ -677,7 +682,7 @@ rules_samba() {
 	fi
 	
 	local client_ports="${DEFAULT_CLIENT_PORTS}"
-	if [ "${type}" = "client" ]
+	if [ "${type}" = "client" -a "${work_cmd}" = "interface" ]
 	then
 		client_ports="${LOCAL_CLIENT_PORTS}"
 	fi
@@ -713,7 +718,7 @@ rules_pptp() {
 	fi
 	
 	local client_ports="${DEFAULT_CLIENT_PORTS}"
-	if [ "${type}" = "client" ]
+	if [ "${type}" = "client" -a "${work_cmd}" = "interface" ]
 	then
 		client_ports="${LOCAL_CLIENT_PORTS}"
 	fi
@@ -747,7 +752,7 @@ rules_nfs() {
 	fi
 	
 	local client_ports="${DEFAULT_CLIENT_PORTS}"
-	if [ "${type}" = "client" ]
+	if [ "${type}" = "client" -a "${work_cmd}" = "interface" ]
 	then
 		client_ports="${LOCAL_CLIENT_PORTS}"
 	fi
@@ -828,7 +833,7 @@ rules_dns() {
 	fi
 	
 	local client_ports="${DEFAULT_CLIENT_PORTS}"
-	if [ "${type}" = "client" ]
+	if [ "${type}" = "client" -a "${work_cmd}" = "interface" ]
 	then
 		client_ports="${LOCAL_CLIENT_PORTS}"
 	fi
@@ -867,7 +872,7 @@ rules_ftp() {
 	fi
 	
 	local client_ports="${DEFAULT_CLIENT_PORTS}"
-	if [ "${type}" = "client" ]
+	if [ "${type}" = "client" -a "${work_cmd}" = "interface" ]
 	then
 		client_ports="${LOCAL_CLIENT_PORTS}"
 	fi
@@ -890,10 +895,10 @@ rules_ftp() {
 	local s_client_ports="${DEFAULT_CLIENT_PORTS}"
 	local c_client_ports="${DEFAULT_CLIENT_PORTS}"
 	
-	if [ "${type}" = "client" ]
+	if [ "${type}" = "client" -a "${work_cmd}" = "interface" ]
 	then
 		c_client_ports="${LOCAL_CLIENT_PORTS}"
-	elif [ "${type}" = "server" ]
+	elif [ "${type}" = "server" -a "${work_cmd}" = "interface" ]
 	then
 		s_client_ports="${LOCAL_CLIENT_PORTS}"
 	fi
@@ -927,7 +932,7 @@ rules_icmp() {
 	fi
 	
 	local client_ports="${DEFAULT_CLIENT_PORTS}"
-	if [ "${type}" = "client" ]
+	if [ "${type}" = "client" -a "${work_cmd}" = "interface" ]
 	then
 		client_ports="${LOCAL_CLIENT_PORTS}"
 	fi
@@ -961,7 +966,7 @@ rules_all() {
 	fi
 	
 	local client_ports="${DEFAULT_CLIENT_PORTS}"
-	if [ "${type}" = "client" ]
+	if [ "${type}" = "client" -a "${work_cmd}" = "interface" ]
 	then
 		client_ports="${LOCAL_CLIENT_PORTS}"
 	fi
@@ -1000,7 +1005,7 @@ rules_any() {
 	fi
 	
 	local client_ports="${DEFAULT_CLIENT_PORTS}"
-	if [ "${type}" = "client" ]
+	if [ "${type}" = "client" -a "${work_cmd}" = "interface" ]
 	then
 		client_ports="${LOCAL_CLIENT_PORTS}"
 	fi
@@ -1032,7 +1037,7 @@ rules_multicast() {
 	fi
 	
 	local client_ports="${DEFAULT_CLIENT_PORTS}"
-	if [ "${type}" = "client" ]
+	if [ "${type}" = "client" -a "${work_cmd}" = "interface" ]
 	then
 		client_ports="${LOCAL_CLIENT_PORTS}"
 	fi
@@ -2227,7 +2232,7 @@ rules_custom() {
 	fi
 	
 	local client_ports="${DEFAULT_CLIENT_PORTS}"
-	if [ "${type}" = "client" ]
+	if [ "${type}" = "client" -a "${work_cmd}" = "interface" ]
 	then
 		client_ports="${LOCAL_CLIENT_PORTS}"
 	fi
