@@ -10,7 +10,7 @@
 #
 # config: /etc/firehol.conf
 #
-# $Id: firehol.sh,v 1.76 2003/01/20 22:10:56 ktsaou Exp $
+# $Id: firehol.sh,v 1.77 2003/01/22 19:13:27 ktsaou Exp $
 #
 
 
@@ -1199,7 +1199,7 @@ policy() {
 	
 	require_work set interface || return 1
 	
-	set_work_function "Setting interface '${work_interface}' (${work_name}) policy to ${1}"
+	set_work_function "Setting interface '${work_inface}' (${work_name}) policy to ${1}"
 	work_policy="$*"
 	
 	return 0
@@ -1618,7 +1618,7 @@ rule_action_param() {
 		return 1
 	fi
 	
-	if [ "${action_param[0]}" = "none" ]
+	if [ "${action_param[0]}" = "" ]
 	then
 		unset action_param
 	fi
@@ -3006,7 +3006,7 @@ case "${arg}" in
 		else
 		
 		cat <<"EOF"
-$Id: firehol.sh,v 1.76 2003/01/20 22:10:56 ktsaou Exp $
+$Id: firehol.sh,v 1.77 2003/01/22 19:13:27 ktsaou Exp $
 (C) Copyright 2002, Costa Tsaousis <costa@tsaousis.gr>
 FireHOL is distributed under GPL.
 
@@ -3174,7 +3174,7 @@ then
 	
 	cat <<"EOF"
 
-$Id: firehol.sh,v 1.76 2003/01/20 22:10:56 ktsaou Exp $
+$Id: firehol.sh,v 1.77 2003/01/22 19:13:27 ktsaou Exp $
 (C) Copyright 2002, Costa Tsaousis <costa@tsaousis.gr>
 FireHOL is distributed under GPL.
 Home Page: http://firehol.sourceforge.net
