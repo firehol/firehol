@@ -126,6 +126,11 @@ For example:
 <br>&nbsp;&nbsp;&nbsp;&nbsp;interface eth0 lan src \"\$mylan\" dst \"\$myip\"
 <br>&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;...
 </td></tr></table>
+Note that if you are running a DHCP client and your provider has installed more than one DHCP servers, you
+may see a few entries in your system log about packets dropped from the IP of some
+DHCP server to 255.255.255.255 with source port 67 and destination port 68 (protocol UDP).
+This is normal, since the iptables connection tracker will allow only <b>one</b> reply
+to match the DHCP client request. All the other replies will not match a request and will be dropped (and logged).
 "
 
 service_dhcprelay_notes="DHCP Relay.
@@ -326,32 +331,7 @@ HeartBeat is the Linux clustering solution available <a href="http://www.linux-h
 This FireHOL service has been designed such a way that it will allow multiple heartbeat clusters on the same LAN.
 "
 
-
-# header
-cat <<"EOF"
-<HTML>
-<HEAD>
-<link rel="stylesheet" type="text/css" href="css.css">
-<TITLE>FireHOL, supported services</TITLE>
-</HEAD>
-
-<BODY bgcolor="#FFFFFF">
-
-Bellow is the list of FireHOL supported services. You can overwrite all the services (including those marked as complex) with the
-procedures defined in <a href="adding.html">Adding Services</a>.
-<p>
-In case you have problems with some service because it is defined by its port names instead of its port numbers, you can find the
-required port numbers at <a href="http://www.graffiti.com/services">http://www.graffiti.com/services</a>.
-<p>
-Please report problems related to port names usage. I will replace the faulty names with the relative numbers to eliminate this problem.
-All the services defined by name in FireHOL are known to resolve in <a href="http://www.redhat.com">RedHat</a> systems 7.x and 8.
-
-
-<center>
-<table border=0 cellspacing=5 cellpadding=10 width="80%">
-<tr bgcolor="#EEEEEE"><th>Service</th><th>Type</th><th>Description</th></tr>
-EOF
-
+# ---------------------------------------------------------------------------------------------------------------
 
 scount=0
 print_service() {
@@ -467,19 +447,78 @@ cat "../firehol.sh"			|\
 . "${tmp}"
 rm -f "${tmp}"
 
-(
-	cat "../firehol.sh"			|\
-		grep -e "^server_.*_ports="	|\
-		cut -d '=' -f 1			|\
-		sed "s/^server_//"		|\
-		sed "s/_ports\$//"
-		
-	cat "../firehol.sh"			|\
-		grep -e "^rules_.*()"		|\
-		cut -d '(' -f 1			|\
-		sed "s/^rules_//"
-) |\
-	sort | uniq |\
+all_services() {
+	(
+		cat "../firehol.sh"			|\
+			grep -e "^server_.*_ports="	|\
+			cut -d '=' -f 1			|\
+			sed "s/^server_//"		|\
+			sed "s/_ports\$//"
+			
+		cat "../firehol.sh"			|\
+			grep -e "^rules_.*()"		|\
+			cut -d '(' -f 1			|\
+			sed "s/^rules_//"
+	) | sort | uniq
+}
+
+
+
+# header
+cat <<"EOF"
+<HTML>
+<HEAD>
+<link rel="stylesheet" type="text/css" href="css.css">
+<TITLE>FireHOL, supported services</TITLE>
+</HEAD>
+
+<BODY bgcolor="#FFFFFF">
+
+Bellow is the list of FireHOL supported services. You can overwrite all the services (including those marked as complex) with the
+procedures defined in <a href="adding.html">Adding Services</a>.
+<p>
+In case you have problems with some service because it is defined by its port names instead of its port numbers, you can find the
+required port numbers at <a href="http://www.graffiti.com/services">http://www.graffiti.com/services</a>.
+<p>
+Please report problems related to port names usage. I will replace the faulty names with the relative numbers to eliminate this problem.
+All the services defined by name in FireHOL are known to resolve in <a href="http://www.redhat.com">RedHat</a> systems 7.x and 8.
+<p>
+<center>
+<hr noshade size=1>
+<small>
+EOF
+
+
+all_services |\
+	(
+		t=0
+		while read
+		do
+			t=$[t + 1]
+			if [ $t -eq 10000 ]
+			then
+				t=1
+				echo "<br>"
+			fi
+			
+			test $t -gt 1 && printf " | "
+			printf "&nbsp;<a href=\"#$REPLY\">$REPLY</a>&nbsp;"
+		done
+	)
+	
+
+
+cat <<"EOF"
+</small>
+<hr noshade size=1>
+<p>
+
+<table border=0 cellspacing=5 cellpadding=10 width="80%">
+<tr bgcolor="#EEEEEE"><th>Service</th><th>Type</th><th>Description</th></tr>
+EOF
+
+
+all_services |\
 	(
 		while read
 		do
@@ -497,7 +536,7 @@ cat <<"EOF"
 <tr><td align=center valign=middle>
 	<A href="http://sourceforge.net"><IMG src="http://sourceforge.net/sflogo.php?group_id=58425&amp;type=5" width="210" height="62" border="0" alt="SourceForge Logo"></A>
 </td><td align=center valign=middle>
-	<small>$Id: create_services.sh,v 1.23 2003/02/11 22:20:18 ktsaou Exp $</small>
+	<small>$Id: create_services.sh,v 1.24 2003/02/11 22:57:56 ktsaou Exp $</small>
 	<p>
 	<b>FireHOL</b>, a firewall for humans...<br>
 	&copy; Copyright 2002
