@@ -10,7 +10,7 @@
 #
 # config: /etc/firehol.conf
 #
-# $Id: firehol.sh,v 1.107 2003/03/07 23:12:15 ktsaou Exp $
+# $Id: firehol.sh,v 1.108 2003/03/07 23:17:38 ktsaou Exp $
 #
 FIREHOL_FILE="${0}"
 
@@ -3189,7 +3189,7 @@ case "${arg}" in
 		else
 		
 		cat <<"EOF"
-$Id: firehol.sh,v 1.107 2003/03/07 23:12:15 ktsaou Exp $
+$Id: firehol.sh,v 1.108 2003/03/07 23:17:38 ktsaou Exp $
 (C) Copyright 2002, Costa Tsaousis <costa@tsaousis.gr>
 FireHOL is distributed under GPL.
 
@@ -3372,7 +3372,7 @@ then
 	
 	cat <<"EOF"
 
-$Id: firehol.sh,v 1.107 2003/03/07 23:12:15 ktsaou Exp $
+$Id: firehol.sh,v 1.108 2003/03/07 23:17:38 ktsaou Exp $
 (C) Copyright 2002, Costa Tsaousis <costa@tsaousis.gr>
 FireHOL is distributed under GPL.
 Home Page: http://firehol.sourceforge.net
@@ -3580,7 +3580,7 @@ then
 	
 	cat >&2 <<"EOF"
 
-$Id: firehol.sh,v 1.107 2003/03/07 23:12:15 ktsaou Exp $
+$Id: firehol.sh,v 1.108 2003/03/07 23:17:38 ktsaou Exp $
 (C) Copyright 2002, Costa Tsaousis <costa@tsaousis.gr>
 FireHOL is distributed under GPL.
 Home Page: http://firehol.sourceforge.net
@@ -3673,7 +3673,7 @@ EOF
 	echo "# "
 
 	cat <<"EOF"
-# $Id: firehol.sh,v 1.107 2003/03/07 23:12:15 ktsaou Exp $
+# $Id: firehol.sh,v 1.108 2003/03/07 23:17:38 ktsaou Exp $
 # (C) Copyright 2002, Costa Tsaousis <costa@tsaousis.gr>
 # FireHOL is distributed under GPL.
 # Home Page: http://firehol.sourceforge.net
@@ -3922,6 +3922,16 @@ EOF
 			inface="${found_interfaces[$i]}"
 			src="${found_nets[$i]}"
 			
+			case "${src}" in
+				"0.0.0.0/0")
+					src="not \"\${UNROUTABLE_IPS} ${found_excludes[$i]}\""
+					;;
+					
+					*)
+					src="\"${src}\""
+					;;
+			esac
+			
 			j=0
 			while [ $j -lt ${#found_interfaces[*]} ]
 			do
@@ -3934,16 +3944,6 @@ EOF
 				dst_ip="${found_ips[$j]}"
 				
 				x=$[x + 1]
-				
-				case "${src}" in
-					"0.0.0.0/0")
-						src="not \"\${UNROUTABLE_IPS} ${found_excludes[$i]}\""
-						;;
-						
-						*)
-						src="\"${src}\""
-						;;
-				esac
 				
 				case "${dst}" in
 					"0.0.0.0/0")
