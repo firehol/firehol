@@ -10,9 +10,15 @@
 #
 # config: /etc/firehol.conf
 #
-# $Id: firehol.sh,v 1.29 2002/12/04 22:41:13 ktsaou Exp $
+# $Id: firehol.sh,v 1.30 2002/12/04 23:12:10 ktsaou Exp $
 #
 # $Log: firehol.sh,v $
+# Revision 1.30  2002/12/04 23:12:10  ktsaou
+# Fixed a problem where empty parameters to src, dst, etc where not giving
+# an error and where not producing any iptables statements.
+# This was happening because FireHOL relies on nested BASH loops, and bash
+# does not loop with empty iterations...
+#
 # Revision 1.29  2002/12/04 22:41:13  ktsaou
 # Re-wrote the negative expressions handling to archieve near hand-made
 # (i.e. optimum) quality of iptables firewall.
@@ -262,7 +268,7 @@ case "${arg}" in
 	
 	*)
 		cat <<"EOF"
-$Id: firehol.sh,v 1.29 2002/12/04 22:41:13 ktsaou Exp $
+$Id: firehol.sh,v 1.30 2002/12/04 23:12:10 ktsaou Exp $
 (C) Copyright 2002, Costa Tsaousis
 FireHOL is distributed under GPL.
 
@@ -1747,6 +1753,8 @@ rule() {
 		esac
 	done
 	
+	# we cannot accept empty strings to a few parameters, since this
+	# will prevent us from generating a rule (due to nested BASH loops).
 	
 	local action_is_chain=0
 	case "${action}" in
@@ -1818,6 +1826,7 @@ rule() {
 		if [ ! "${infacenot}" = "" ]
 		then
 			local inf=
+			test -z "${inface}" && error "Cannot accept an empty 'inface'." && return 1
 			for inf in ${inface}
 			do
 				iptables ${table} -A "${negative_chain}" -i "${inf}" -j RETURN
@@ -1829,6 +1838,7 @@ rule() {
 		if [ ! "${outfacenot}" = "" ]
 		then
 			local outf=
+			test -z "${outface}" && error "Cannot accept an empty 'outface'." && return 1
 			for outf in ${outface}
 			do
 				iptables ${table} -A "${negative_chain}" -o "${outf}" -j RETURN
@@ -1840,6 +1850,7 @@ rule() {
 		if [ ! "${srcnot}" = "" ]
 		then
 			local s=
+			test -z "${src}" && error "Cannot accept an empty 'src'." && return 1
 			for s in ${src}
 			do
 				iptables ${table} -A "${negative_chain}" -s "${s}" -j RETURN
@@ -1851,6 +1862,7 @@ rule() {
 		if [ ! "${dstnot}" = "" ]
 		then
 			local d=
+			test -z "${dst}" && error "Cannot accept an empty 'dst'." && return 1
 			for d in ${dst}
 			do
 				iptables ${table} -A "${negative_chain}" -d "${d}" -j RETURN
@@ -1862,6 +1874,7 @@ rule() {
 		if [ ! "${sportnot}" = "" ]
 		then
 			local sp=
+			test -z "${sport}" && error "Cannot accept an empty 'sport'." && return 1
 			for sp in ${sport}
 			do
 				iptables ${table} -A "${negative_chain}" --sport "${sp}" -j RETURN
@@ -1873,6 +1886,7 @@ rule() {
 		if [ ! "${dportnot}" = "" ]
 		then
 			local dp=
+			test -z "${dport}" && error "Cannot accept an empty 'dport'." && return 1
 			for dp in ${dport}
 			do
 				iptables ${table} -A "${negative_chain}" --dport "${dp}" -j RETURN
@@ -1884,6 +1898,7 @@ rule() {
 		if [ ! "${protonot}" = "" ]
 		then
 			local pr=
+			test -z "${proto}" && error "Cannot accept an empty 'proto'." && return 1
 			for pr in ${proto}
 			do
 				iptables ${table} -A "${negative_chain}" --p "${pr}" -j RETURN
@@ -1905,6 +1920,7 @@ rule() {
 	# Process the positive rules
 	
 	local inf=
+	test -z "${inface}" && error "Cannot accept an empty 'inface'." && return 1
 	for inf in ${inface}
 	do
 		unset inf_arg
@@ -1919,6 +1935,7 @@ rule() {
 		esac
 		
 		local outf=
+		test -z "${outface}" && error "Cannot accept an empty 'outface'." && return 1
 		for outf in ${outface}
 		do
 			unset outf_arg
@@ -1933,6 +1950,7 @@ rule() {
 			esac
 			
 			local s=
+			test -z "${src}" && error "Cannot accept an empty 'src'." && return 1
 			for s in ${src}
 			do
 				unset s_arg
@@ -1946,6 +1964,7 @@ rule() {
 				esac
 				
 				local d=
+				test -z "${dst}" && error "Cannot accept an empty 'dst'." && return 1
 				for d in ${dst}
 				do
 					unset d_arg
@@ -1959,6 +1978,7 @@ rule() {
 					esac
 					
 					local sp=
+					test -z "${sport}" && error "Cannot accept an empty 'sport'." && return 1
 					for sp in ${sport}
 					do
 						unset sp_arg
@@ -1972,6 +1992,7 @@ rule() {
 						esac
 						
 						local dp=
+						test -z "${dport}" && error "Cannot accept an empty 'dport'." && return 1
 						for dp in ${dport}
 						do
 							unset dp_arg
@@ -1985,6 +2006,7 @@ rule() {
 							esac
 							
 							local pr=
+							test -z "${proto}" && error "Cannot accept an empty 'proto'." && return 1
 							for pr in ${proto}
 							do
 								unset proto_arg
