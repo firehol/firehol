@@ -10,9 +10,19 @@
 #
 # config: /etc/firehol.conf
 #
-# $Id: firehol.sh,v 1.15 2002/10/30 23:25:07 ktsaou Exp $
+# $Id: firehol.sh,v 1.16 2002/10/31 15:31:52 ktsaou Exp $
 #
 # $Log: firehol.sh,v $
+# Revision 1.16  2002/10/31 15:31:52  ktsaou
+# Added command line parameter 'try' (in addition to 'start', 'stop', etc)
+# that when used it activates the firewall and waits 30 seconds for the
+# administrator to type 'commit' in order to keep the firewall active.
+# If the administrator does not write 'commit' or the timeout passes, FireHOL
+# restores the previous firewall.
+#
+# Also, if you break (Ctrl-C) FireHOL while activating the new firewall,
+# FireHOL will restore the old firewall.
+#
 # Revision 1.15  2002/10/30 23:25:07  ktsaou
 # Rearranged default RELATED rules to match after normal processing and
 # protections.
@@ -72,7 +82,7 @@ if [ "$KERNELMAJ" -eq 2 -a "$KERNELMIN" -lt 3 ] ; then
 fi
 
 
-if  /sbin/lsmod 2>/dev/null |grep -q ipchains ; then
+if  /sbin/lsmod 2>/dev/null | grep -q ipchains ; then
 	# Don't do both
 	exit 0
 fi
@@ -89,6 +99,8 @@ FIREHOL_DEBUG=0
 # If set to 1, the firewall will be saved for normal iptables processing.
 FIREHOL_SAVE=0
 
+# If set to 1, the firewall will be restored if you don't commit it.
+FIREHOL_TRY=1
 
 arg="${1}"
 shift
@@ -96,7 +108,7 @@ shift
 if [ ! -z "${arg}" -a -f "${arg}" ]
 then
 	FIREHOL_CONFIG="${arg}"
-	arg="start"
+	arg="try"
 fi
 
 if [ ! -f "${FIREHOL_CONFIG}" ]
@@ -108,13 +120,20 @@ then
 fi
 
 case "${arg}" in
+	try)
+		FIREHOL_TRY=1
+		;;
+	
 	start)
+		FIREHOL_TRY=0
 		;;
 	
 	restart)
+		FIREHOL_TRY=0
 		;;
 	
 	condrestart)
+		FIREHOL_TRY=0
 		if [ ! -e /var/lock/subsys/iptables ]
 		then
 			exit 0
@@ -122,10 +141,12 @@ case "${arg}" in
 		;;
 	
 	save)
+		FIREHOL_TRY=0
 		FIREHOL_SAVE=1
 		;;
 		
 	debug)
+		FIREHOL_TRY=0
 		FIREHOL_DEBUG=1
 		;;
 	
@@ -135,7 +156,7 @@ case "${arg}" in
 		ret=$?
 		if [ $ret -gt 0 ]
 		then
-			echo >&2 "FireHOL: use also the 'debug' parameter to test your script."
+			echo >&2 "FireHOL: use also the 'debug' to see and 'try' to test the configuration."
 		fi
 		exit $ret
 		;;
@@ -821,6 +842,21 @@ version() {
 # We trap this, so even a CTRL-C will call this and we will not leave tmp files.
 
 firehol_exit() {
+	
+	if [ -f ${FIREHOL_SAVED} ]
+	then
+		echo
+		echo -n "FireHOL: Restoring old firewall:"
+		iptables-restore <${FIREHOL_SAVED}
+		if [ $? -eq 0 ]
+		then
+			success "FireHOL: Restoring old firewall:"
+		else
+			failure "FireHOL: Restoring old firewall:"
+		fi
+		echo
+	fi
+	
 	test -f "${FIREHOL_OUTPUT}"	&& rm -f "${FIREHOL_OUTPUT}"
 	test -f "${FIREHOL_OUTPUT}.log"	&& rm -f "${FIREHOL_OUTPUT}.log"
 	test -f "${FIREHOL_SAVED}"	&& rm -f "${FIREHOL_SAVED}"
@@ -829,6 +865,9 @@ firehol_exit() {
 	
 	return 0
 }
+
+# Make sure there is no saved firewall.
+test -f ${FIREHOL_SAVED} && rm -f ${FIREHOL_SAVED}
 
 # Run our exit even if we don't call exit.
 trap firehol_exit EXIT
@@ -2258,19 +2297,31 @@ then
 	failure $"FireHOL: Activating new firewall:"
 	echo
 	
-	echo -n "FireHOL: Restoring old firewall:"
-	iptables-restore <${FIREHOL_SAVED}
-	if [ $? -eq 0 ]
-	then
-		success "FireHOL: Restoring old firewall:"
-	else
-		failure "FireHOL: Restoring old firewall:"
-	fi
-	echo
+	# The trap will restore the firewall.
+	
 	exit 1
 fi
 success $"FireHOL: Activating new firewall:"
 echo
+
+if [ ${FIREHOL_TRY} -eq 1 ]
+then
+	read -p "Keep the firewall? (type 'commit' to accept - 30 seconds timeout) : " -t 30 -e
+	ret=$?
+	echo
+	if [ ! $ret -eq 0 -o ! "${REPLY}" = "commit" ]
+	then
+		# The trap will restore the firewall.
+		
+		exit 1
+	else
+		echo "Successfull activation of FireHOL firewall."
+	fi
+fi
+
+# Remove the saved firewall, so that the trap will not restore it.
+rm -f "${FIREHOL_SAVED}"
+
 touch /var/lock/subsys/iptables
 
 # XXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXX
