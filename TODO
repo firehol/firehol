@@ -1,4 +1,4 @@
-$Id: TODO,v 1.8 2003/12/29 22:40:11 ktsaou Exp $
+$Id: TODO,v 1.9 2003/12/29 22:52:06 ktsaou Exp $
 
 The following is a list of features I plan to add to FireHOL,
 assuming that my time permits and there is demand for them.
@@ -123,3 +123,10 @@ The list appears in no particular order.
     the firewall to "DROP".
 
 
+17. Change the way "debug" mode is handled so that the
+    generated debug file can be run without FireHOL
+    installed. This requires a change in the way FireHOL
+    configuration settings are processed and the way it
+    is inlined/sourced, since a few configuration
+    settings affect the standard header ruleset
+    generated.
