@@ -10,7 +10,7 @@
 #
 # config: /etc/firehol/firehol.conf
 #
-# $Id: firehol.sh,v 1.154 2003/09/13 01:03:46 ktsaou Exp $
+# $Id: firehol.sh,v 1.155 2003/09/18 20:54:25 ktsaou Exp $
 #
 FIREHOL_FILE="${0}"
 
@@ -3443,14 +3443,17 @@ KERNELMAJ=`${UNAME_CMD} -r | ${SED_CMD}                   -e 's,\..*,,'`
 KERNELMIN=`${UNAME_CMD} -r | ${SED_CMD} -e 's,[^\.]*\.,,' -e 's,\..*,,'`
 
 if [ "$KERNELMAJ" -lt 2 ] ; then
+	echo >&2 "FireHOL requires a kernel version higher than 2.3."
 	exit 0
 fi
 if [ "$KERNELMAJ" -eq 2 -a "$KERNELMIN" -lt 3 ] ; then
+	echo >&2 "FireHOL requires a kernel version higher than 2.3."
 	exit 0
 fi
 
 if  ${LSMOD_CMD} 2>/dev/null | ${GREP_CMD} -q ipchains ; then
 	# Don't do both
+	echo >&2 "ipchains is loaded in the kernel. Please remove ipchains to run iptables."
 	exit 0
 fi
 
@@ -3631,7 +3634,7 @@ case "${arg}" in
 		else
 		
 		${CAT_CMD} <<EOF
-$Id: firehol.sh,v 1.154 2003/09/13 01:03:46 ktsaou Exp $
+$Id: firehol.sh,v 1.155 2003/09/18 20:54:25 ktsaou Exp $
 (C) Copyright 2003, Costa Tsaousis <costa@tsaousis.gr>
 FireHOL is distributed under GPL.
 
@@ -3817,7 +3820,7 @@ then
 	
 	${CAT_CMD} <<EOF
 
-$Id: firehol.sh,v 1.154 2003/09/13 01:03:46 ktsaou Exp $
+$Id: firehol.sh,v 1.155 2003/09/18 20:54:25 ktsaou Exp $
 (C) Copyright 2003, Costa Tsaousis <costa@tsaousis.gr>
 FireHOL is distributed under GPL.
 Home Page: http://firehol.sourceforge.net
@@ -4112,7 +4115,7 @@ then
 	
 	${CAT_CMD} >&2 <<EOF
 
-$Id: firehol.sh,v 1.154 2003/09/13 01:03:46 ktsaou Exp $
+$Id: firehol.sh,v 1.155 2003/09/18 20:54:25 ktsaou Exp $
 (C) Copyright 2003, Costa Tsaousis <costa@tsaousis.gr>
 FireHOL is distributed under GPL.
 Home Page: http://firehol.sourceforge.net
@@ -4205,7 +4208,7 @@ EOF
 	echo "# "
 
 	${CAT_CMD} <<EOF
-# $Id: firehol.sh,v 1.154 2003/09/13 01:03:46 ktsaou Exp $
+# $Id: firehol.sh,v 1.155 2003/09/18 20:54:25 ktsaou Exp $
 # (C) Copyright 2003, Costa Tsaousis <costa@tsaousis.gr>
 # FireHOL is distributed under GPL.
 # Home Page: http://firehol.sourceforge.net
