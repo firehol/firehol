@@ -10,7 +10,7 @@
 #
 # config: /etc/firehol/firehol.conf
 #
-# $Id: firehol.sh,v 1.171 2003/11/23 19:27:58 ktsaou Exp $
+# $Id: firehol.sh,v 1.172 2003/12/01 05:03:11 ktsaou Exp $
 #
 
 # Remember who you are.
@@ -129,6 +129,7 @@ UNMATCHED_ROUTER_POLICY="DROP"
 # FIREHOL_LOG_OPTIONS="--log-tcp-sequence --log-tcp-options --log-ip-options"
 FIREHOL_LOG_OPTIONS=""
 FIREHOL_LOG_LEVEL="warning"
+FIREHOL_LOG_MODE="LOG"
 FIREHOL_LOG_FREQUENCY="1/second"
 FIREHOL_LOG_BURST="5"
 
@@ -3423,23 +3424,31 @@ rule() {
 																
 																declare -a basecmd=("${inf_arg[@]}" "${outf_arg[@]}" "${physdev_arg[@]}" "${inph_arg[@]}" "${outph_arg[@]}" "${limit_arg[@]}" "${iplimit_arg[@]}" "${proto_arg[@]}" "${s_arg[@]}" "${sp_arg[@]}" "${d_arg[@]}" "${dp_arg[@]}" "${owner_arg[@]}" "${uid_arg[@]}" "${gid_arg[@]}" "${pid_arg[@]}" "${sid_arg[@]}" "${cmd_arg[@]}" "${state_arg[@]}" "${mc_arg[@]}")
 																
+																unset logopts_arg
+																if [ "${FIREHOL_LOG_MODE}" = "ULOG" ]
+																then
+																	local -a logopts_arg=("--ulog-prefix='${logtxt}:'")
+																else
+																	local -a logopts_arg=("--log-level" "${loglevel}" "--log-prefix='${logtxt}:'")
+																fi
+																
 																case "${log}" in
 																	'')
 																		;;
 																	
 																	limit)
-																		iptables ${table} -A "${chain}" "${basecmd[@]}" ${custom} -m limit --limit "${FIREHOL_LOG_FREQUENCY}" --limit-burst "${FIREHOL_LOG_BURST}" -j LOG ${FIREHOL_LOG_OPTIONS} --log-level "${loglevel}" --log-prefix="${logtxt}:"
+																		iptables ${table} -A "${chain}" "${basecmd[@]}" ${custom} -m limit --limit "${FIREHOL_LOG_FREQUENCY}" --limit-burst "${FIREHOL_LOG_BURST}" -j ${FIREHOL_LOG_MODE} ${FIREHOL_LOG_OPTIONS} "${logopts_arg[@]}"
 																		;;
 																		
 																	normal)
-																		iptables ${table} -A "${chain}" "${basecmd[@]}" ${custom} -j LOG ${FIREHOL_LOG_OPTIONS} --log-level "${loglevel}" --log-prefix="${logtxt}:"
+																		iptables ${table} -A "${chain}" "${basecmd[@]}" ${custom}  -j ${FIREHOL_LOG_MODE} ${FIREHOL_LOG_OPTIONS} "${logopts_arg[@]}"
 																		;;
 																		
 																	*)
 																		error "Unknown log value '${log}'."
 																		;;
 																esac
-															
+																
 																rule_action_param "${action}" "${pr}" "${action_param[@]}" -- ${table} -A "${chain}" "${basecmd[@]}" ${custom}
 															done # dst
 														done # src
@@ -3954,7 +3963,7 @@ case "${arg}" in
 		else
 		
 		${CAT_CMD} <<EOF
-$Id: firehol.sh,v 1.171 2003/11/23 19:27:58 ktsaou Exp $
+$Id: firehol.sh,v 1.172 2003/12/01 05:03:11 ktsaou Exp $
 (C) Copyright 2003, Costa Tsaousis <costa@tsaousis.gr>
 FireHOL is distributed under GPL.
 
@@ -4140,7 +4149,7 @@ then
 	
 	${CAT_CMD} <<EOF
 
-$Id: firehol.sh,v 1.171 2003/11/23 19:27:58 ktsaou Exp $
+$Id: firehol.sh,v 1.172 2003/12/01 05:03:11 ktsaou Exp $
 (C) Copyright 2003, Costa Tsaousis <costa@tsaousis.gr>
 FireHOL is distributed under GPL.
 Home Page: http://firehol.sourceforge.net
@@ -4435,7 +4444,7 @@ then
 	
 	${CAT_CMD} >&2 <<EOF
 
-$Id: firehol.sh,v 1.171 2003/11/23 19:27:58 ktsaou Exp $
+$Id: firehol.sh,v 1.172 2003/12/01 05:03:11 ktsaou Exp $
 (C) Copyright 2003, Costa Tsaousis <costa@tsaousis.gr>
 FireHOL is distributed under GPL.
 Home Page: http://firehol.sourceforge.net
@@ -4518,7 +4527,7 @@ EOF
 	echo "# "
 
 	${CAT_CMD} <<EOF
-# $Id: firehol.sh,v 1.171 2003/11/23 19:27:58 ktsaou Exp $
+# $Id: firehol.sh,v 1.172 2003/12/01 05:03:11 ktsaou Exp $
 # (C) Copyright 2003, Costa Tsaousis <costa@tsaousis.gr>
 # FireHOL is distributed under GPL.
 # Home Page: http://firehol.sourceforge.net
