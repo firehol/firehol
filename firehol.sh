@@ -10,9 +10,16 @@
 #
 # config: /etc/firehol.conf
 #
-# $Id: firehol.sh,v 1.14 2002/10/29 22:20:41 ktsaou Exp $
+# $Id: firehol.sh,v 1.15 2002/10/30 23:25:07 ktsaou Exp $
 #
 # $Log: firehol.sh,v $
+# Revision 1.15  2002/10/30 23:25:07  ktsaou
+# Rearranged default RELATED rules to match after normal processing and
+# protections.
+# Made the core of FireHOL operate on multiple tables (not assuming the
+# rules refer to the 'filter' table). This will allow FireHOL to support
+# all kinds of NAT chains in the future.
+#
 # Revision 1.14  2002/10/29 22:20:41  ktsaou
 # Client and server keywords now work on routers too.
 # (The old 'route' subcommand is an alias for the 'server' subcommand -
@@ -424,8 +431,8 @@ rules_samba() {
 	
 	local mychain="${work_name}_samba_${type}"
 	
-	create_chain in_${mychain} in_${work_name}
-	create_chain out_${mychain} out_${work_name}
+	create_chain filter in_${mychain} in_${work_name}
+	create_chain filter out_${mychain} out_${work_name}
 	
 	local in=in
 	local out=out
@@ -464,8 +471,8 @@ rules_pptp() {
 	
 	local mychain="${work_name}_pptp_${type}"
 	
-	create_chain in_${mychain} in_${work_name}
-	create_chain out_${mychain} out_${work_name}
+	create_chain filter in_${mychain} in_${work_name}
+	create_chain filter out_${mychain} out_${work_name}
 	
 	local in=in
 	local out=out
@@ -502,8 +509,8 @@ rules_nfs() {
 	
 	local mychain="${work_name}_nfs_${type}"
 	
-	create_chain in_${mychain} in_${work_name}
-	create_chain out_${mychain} out_${work_name}
+	create_chain filter in_${mychain} in_${work_name}
+	create_chain filter out_${mychain} out_${work_name}
 	
 	local in=in
 	local out=out
@@ -587,8 +594,8 @@ rules_dns() {
 	
 	local mychain="${work_name}_all_${type}"
 	
-	create_chain in_${mychain} in_${work_name}
-	create_chain out_${mychain} out_${work_name}
+	create_chain filter in_${mychain} in_${work_name}
+	create_chain filter out_${mychain} out_${work_name}
 	
 	local in=in
 	local out=out
@@ -630,8 +637,8 @@ rules_ftp() {
 	
 	local mychain="${work_name}_ftp_${type}"
 	
-	create_chain in_${mychain} in_${work_name}
-	create_chain out_${mychain} out_${work_name}
+	create_chain filter in_${mychain} in_${work_name}
+	create_chain filter out_${mychain} out_${work_name}
 	
 	local in=in
 	local out=out
@@ -694,8 +701,8 @@ rules_icmp() {
 	
 	local mychain="${work_name}_icmp_${type}"
 	
-	create_chain in_${mychain} in_${work_name}
-	create_chain out_${mychain} out_${work_name}
+	create_chain filter in_${mychain} in_${work_name}
+	create_chain filter out_${mychain} out_${work_name}
 	
 	local in=in
 	local out=out
@@ -732,8 +739,8 @@ rules_all() {
 	
 	local mychain="${work_name}_all_${type}"
 	
-	create_chain in_${mychain} in_${work_name}
-	create_chain out_${mychain} out_${work_name}
+	create_chain filter in_${mychain} in_${work_name}
+	create_chain filter out_${mychain} out_${work_name}
 	
 	local in=in
 	local out=out
@@ -933,7 +940,8 @@ masquerade() {
 	local x=
 	for x in ${f}
 	do
-		iptables -t nat -A POSTROUTING -o ${x} -j MASQUERADE || return 1
+#		iptables -t nat -A POSTROUTING -o ${x} -j MASQUERADE || return 1
+		rule table nat chain POSTROUTING outface ${x} action MASQUERADE "$@" || return 1
 	done
 	
 	FIREHOL_NAT=1
@@ -972,8 +980,8 @@ interface() {
 	work_cmd="${FUNCNAME}"
 	work_name="${name}"
 	
-	create_chain in_${work_name} INPUT set_work_inface inface ${inface} "$@"
-	create_chain out_${work_name} OUTPUT set_work_outface reverse inface ${inface} "$@"
+	create_chain filter in_${work_name} INPUT set_work_inface inface ${inface} "$@"
+	create_chain filter out_${work_name} OUTPUT set_work_outface reverse inface ${inface} "$@"
 	
 	return 0
 }
@@ -1002,6 +1010,10 @@ close_interface() {
 			outlog="loglimit OUT-${work_name}"
 			;;
 	esac
+	
+	# Accept all related traffic to the established connections
+	rule chain in_${work_name} state RELATED action ACCEPT
+	rule chain out_${work_name} state RELATED action ACCEPT
 	
 	rule chain in_${work_name} ${inlog} action ${work_policy}
 	rule reverse chain out_${work_name} ${outlog} action ${work_policy}
@@ -1033,15 +1045,19 @@ router() {
 	work_cmd="${FUNCNAME}"
 	work_name="${name}"
 	
-	create_chain in_${work_name} FORWARD set_work_inface set_work_outface "$@"
-	create_chain out_${work_name} FORWARD reverse "$@"
+	create_chain filter in_${work_name} FORWARD set_work_inface set_work_outface "$@"
+	create_chain filter out_${work_name} FORWARD reverse "$@"
 	
 	return 0
 }
 
 close_router() {
 	require_work set router || return 1
-
+	
+	# Accept all related traffic to the established connections
+	rule chain in_${work_name} state RELATED action ACCEPT
+	rule chain out_${work_name} state RELATED action ACCEPT
+	
 # routers always have RETURN as policy	
 #	local inlog=
 #	local outlog=
@@ -1068,6 +1084,11 @@ close_router() {
 }
 
 close_master() {
+	# Accept all related traffic to the established connections
+	rule chain INPUT state RELATED action ACCEPT
+	rule chain OUTPUT state RELATED action ACCEPT
+	rule chain FORWARD state RELATED action ACCEPT
+	
 	rule chain INPUT loglimit "IN-unknown" action ${UNMATCHED_INPUT_POLICY}
 	rule chain OUTPUT loglimit "OUT-unknown" action ${UNMATCHED_OUTPUT_POLICY}
 	rule chain FORWARD loglimit "PASS-unknown" action ${UNMATCHED_ROUTER_POLICY}
@@ -1084,6 +1105,7 @@ close_master() {
 FIREHOL_DYNAMIC_CHAIN_COUNTER=1
 
 rule() {
+	local table="-t filter"
 	local chain=
 	
 	local inface=any
@@ -1145,6 +1167,11 @@ rule() {
 			reverse|REVERSE)
 				reverse=1
 				shift
+				;;
+				
+			table|TABLE)
+				table="-t $2"
+				shift 2
 				;;
 				
 			chain|CHAIN)
@@ -1416,8 +1443,8 @@ rule() {
 			chain2="${chain_orig}.${FIREHOL_DYNAMIC_CHAIN_COUNTER}"
 			FIREHOL_DYNAMIC_CHAIN_COUNTER="$[FIREHOL_DYNAMIC_CHAIN_COUNTER + 1]"
 			
-			iptables -N "${chain2}"
-			iptables -A "${chain}" -i ! "${inf}" -j "${chain2}"
+			iptables ${table} -N "${chain2}"
+			iptables ${table} -A "${chain}" -i ! "${inf}" -j "${chain2}"
 			chain="${chain2}"
 		done
 		infacenot=
@@ -1432,8 +1459,8 @@ rule() {
 			chain2="${chain_orig}.${FIREHOL_DYNAMIC_CHAIN_COUNTER}"
 			FIREHOL_DYNAMIC_CHAIN_COUNTER="$[FIREHOL_DYNAMIC_CHAIN_COUNTER + 1]"
 			
-			iptables -N "${chain2}"
-			iptables -A "${chain}" -o ! "${outf}" -j "${chain2}"
+			iptables ${table} -N "${chain2}"
+			iptables ${table} -A "${chain}" -o ! "${outf}" -j "${chain2}"
 			chain="${chain2}"
 		done
 		outfacenot=
@@ -1448,8 +1475,8 @@ rule() {
 			chain2="${chain_orig}.${FIREHOL_DYNAMIC_CHAIN_COUNTER}"
 			FIREHOL_DYNAMIC_CHAIN_COUNTER="$[FIREHOL_DYNAMIC_CHAIN_COUNTER + 1]"
 			
-			iptables -N "${chain2}"
-			iptables -A "${chain}" -s ! "${s}" -j "${chain2}"
+			iptables ${table} -N "${chain2}"
+			iptables ${table} -A "${chain}" -s ! "${s}" -j "${chain2}"
 			chain="${chain2}"
 		done
 		srcnot=
@@ -1464,8 +1491,8 @@ rule() {
 			chain2="${chain_orig}.${FIREHOL_DYNAMIC_CHAIN_COUNTER}"
 			FIREHOL_DYNAMIC_CHAIN_COUNTER="$[FIREHOL_DYNAMIC_CHAIN_COUNTER + 1]"
 			
-			iptables -N "${chain2}"
-			iptables -A "${chain}" -d ! "${d}" -j "${chain2}"
+			iptables ${table} -N "${chain2}"
+			iptables ${table} -A "${chain}" -d ! "${d}" -j "${chain2}"
 			chain="${chain2}"
 		done
 		dstnot=
@@ -1480,8 +1507,8 @@ rule() {
 			chain2="${chain_orig}.${FIREHOL_DYNAMIC_CHAIN_COUNTER}"
 			FIREHOL_DYNAMIC_CHAIN_COUNTER="$[FIREHOL_DYNAMIC_CHAIN_COUNTER + 1]"
 			
-			iptables -N "${chain2}"
-			iptables -A "${chain}" --sport ! "${sp}" -j "${chain2}"
+			iptables ${table} -N "${chain2}"
+			iptables ${table} -A "${chain}" --sport ! "${sp}" -j "${chain2}"
 			chain="${chain2}"
 		done
 		sportnot=
@@ -1496,8 +1523,8 @@ rule() {
 			chain2="${chain_orig}.${FIREHOL_DYNAMIC_CHAIN_COUNTER}"
 			FIREHOL_DYNAMIC_CHAIN_COUNTER="$[FIREHOL_DYNAMIC_CHAIN_COUNTER + 1]"
 			
-			iptables -N "${chain2}"
-			iptables -A "${chain}" --dport ! "${dp}" -j "${chain2}"
+			iptables ${table} -N "${chain2}"
+			iptables ${table} -A "${chain}" --dport ! "${dp}" -j "${chain2}"
 			chain="${chain2}"
 		done
 		dportnot=
@@ -1512,8 +1539,8 @@ rule() {
 			chain2="${chain_orig}.${FIREHOL_DYNAMIC_CHAIN_COUNTER}"
 			FIREHOL_DYNAMIC_CHAIN_COUNTER="$[FIREHOL_DYNAMIC_CHAIN_COUNTER + 1]"
 			
-			iptables -N "${chain2}"
-			iptables -A "${chain}" --p ! "${pr}" -j "${chain2}"
+			iptables ${table} -N "${chain2}"
+			iptables ${table} -A "${chain}" --p ! "${pr}" -j "${chain2}"
 			chain="${chain2}"
 		done
 		protonot=
@@ -1655,7 +1682,7 @@ rule() {
 									iplimit_arg=
 								fi
 								
-								local basecmd="-A ${chain} ${inf_arg} ${outf_arg} ${state_arg} ${limit_arg} ${iplimit_arg} ${proto_arg} ${s_arg} ${sp_arg} ${d_arg} ${dp_arg} ${custom}"
+								local basecmd="${table} -A ${chain} ${inf_arg} ${outf_arg} ${state_arg} ${limit_arg} ${iplimit_arg} ${proto_arg} ${s_arg} ${sp_arg} ${d_arg} ${dp_arg} ${custom}"
 								
 								case "${log}" in
 									'')
@@ -1727,9 +1754,10 @@ check_final_status() {
 }
 
 create_chain() {
-	local newchain="${1}"
-	local oldchain="${2}"
-	shift 2
+	local table="${1}"
+	local newchain="${2}"
+	local oldchain="${3}"
+	shift 3
 	
 #	echo >&2 "CREATED CHAINS : ${work_created_chains}"
 #	echo >&2 "REQUESTED CHAIN: ${newchain}"
@@ -1740,8 +1768,8 @@ create_chain() {
 		test "${x}" = "${newchain}" && return 1
 	done
 	
-	iptables -N "${newchain}" || return 1
-	rule chain "${oldchain}" action "${newchain}" "$@" || return 1
+	iptables -t ${table} -N "${newchain}" || return 1
+	rule table ${table} chain "${oldchain}" action "${newchain}" "$@" || return 1
 	
 	work_created_chains="${work_created_chains} ${newchain}"
 	
@@ -1844,8 +1872,8 @@ rules_custom() {
 	
 	local mychain="${work_name}_${server}_${type}"
 	
-	create_chain in_${mychain} in_${work_name}
-	create_chain out_${mychain} out_${work_name}
+	create_chain filter in_${mychain} in_${work_name}
+	create_chain filter out_${mychain} out_${work_name}
 	
 	local in=in
 	local out=out
@@ -1929,21 +1957,21 @@ protection() {
 				
 			fragments|FRAGMENTS)
 				local mychain="pr_${work_name}_fragments"
-				create_chain ${mychain} ${in}_${work_name} custom "-f"					|| return 1
+				create_chain filter ${mychain} ${in}_${work_name} custom "-f"					|| return 1
 				
 				rule chain ${mychain} loglimit "PACKET FRAGMENTS" action drop 				|| return 1
 				;;
 				
 			new-tcp-w/o-syn|NEW-TCP-W/O-SYN)
 				local mychain="pr_${work_name}_nosyn"
-				create_chain ${mychain} ${in}_${work_name} proto tcp state NEW custom "! --syn"		|| return 1
+				create_chain filter ${mychain} ${in}_${work_name} proto tcp state NEW custom "! --syn"		|| return 1
 				
 				rule chain ${mychain} loglimit "NEW TCP w/o SYN" action drop				|| return 1
 				;;
 				
 			icmp-floods|ICMP-FLOODS)
 				local mychain="pr_${work_name}_icmpflood"
-				create_chain ${mychain} ${in}_${work_name} proto icmp custom "--icmp-type echo-request"	|| return 1
+				create_chain filter ${mychain} ${in}_${work_name} proto icmp custom "--icmp-type echo-request"	|| return 1
 				
 				rule chain ${mychain} limit "${rate}" "${burst}" action return				|| return 1
 				rule chain ${mychain} loglimit "ICMP FLOOD" action drop					|| return 1
@@ -1951,7 +1979,7 @@ protection() {
 				
 			syn-floods|SYN-FLOODS)
 				local mychain="pr_${work_name}_synflood"
-				create_chain ${mychain} ${in}_${work_name} proto tcp custom "--syn"			|| return 1
+				create_chain filter ${mychain} ${in}_${work_name} proto tcp custom "--syn"			|| return 1
 				
 				rule chain ${mychain} limit "${rate}" "${burst}" action return				|| return 1
 				rule chain ${mychain} loglimit "SYN FLOOD" action drop					|| return 1
@@ -1959,21 +1987,21 @@ protection() {
 				
 			malformed-xmas|MALFORMED-XMAS)
 				local mychain="pr_${work_name}_malxmas"
-				create_chain ${mychain} ${in}_${work_name} proto tcp custom "--tcp-flags ALL ALL"	|| return 1
+				create_chain filter ${mychain} ${in}_${work_name} proto tcp custom "--tcp-flags ALL ALL"	|| return 1
 				
 				rule chain ${mychain} loglimit "MALFORMED XMAS" action drop				|| return 1
 				;;
 				
 			malformed-null|MALFORMED-NULL)
 				local mychain="pr_${work_name}_malnull"
-				create_chain ${mychain} ${in}_${work_name} proto tcp custom "--tcp-flags ALL NONE"	|| return 1
+				create_chain filter ${mychain} ${in}_${work_name} proto tcp custom "--tcp-flags ALL NONE"	|| return 1
 				
 				rule chain ${mychain} loglimit "MALFORMED NULL" action drop				|| return 1
 				;;
 				
 			malformed-bad|MALFORMED-BAD)
 				local mychain="pr_${work_name}_malbad"
-				create_chain ${mychain} ${in}_${work_name}      proto tcp custom "--tcp-flags SYN,FIN SYN,FIN"			|| return 1
+				create_chain filter ${mychain} ${in}_${work_name}      proto tcp custom "--tcp-flags SYN,FIN SYN,FIN"			|| return 1
 				rule chain ${in}_${work_name} action ${mychain} proto tcp custom "--tcp-flags SYN,RST SYN,RST"			|| return 1
 				rule chain ${in}_${work_name} action ${mychain} proto tcp custom "--tcp-flags ALL     SYN,RST,ACK,FIN,URG"	|| return 1
 				rule chain ${in}_${work_name} action ${mychain} proto tcp custom "--tcp-flags ALL     FIN,URG,PSH"		|| return 1
@@ -2081,17 +2109,6 @@ iptables -P FORWARD ACCEPT		|| ret=$[ret + 1]
 
 iptables -A INPUT -i lo -j ACCEPT	|| ret=$[ret + 1]
 iptables -A OUTPUT -o lo -j ACCEPT	|| ret=$[ret + 1]
-
-
-# ------------------------------------------------------------------------------
-# Accept all related sockets.
-# This is required in a stateful firewall in order to match all the packets
-# that although are not part of an existing connection, are somehow related to
-# this existing connection.
-
-iptables -A INPUT -m state --state RELATED -j ACCEPT	|| ret=$[ret + 1]
-iptables -A OUTPUT -m state --state RELATED -j ACCEPT	|| ret=$[ret + 1]
-iptables -A FORWARD -m state --state RELATED -j ACCEPT	|| ret=$[ret + 1]
 
 
 # ------------------------------------------------------------------------------
