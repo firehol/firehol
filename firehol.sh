@@ -10,7 +10,7 @@
 #
 # config: /etc/firehol/firehol.conf
 #
-# $Id: firehol.sh,v 1.227 2005/02/07 20:56:09 ktsaou Exp $
+# $Id: firehol.sh,v 1.228 2005/02/09 22:36:24 ktsaou Exp $
 #
 
 # Make sure only root can run us.
@@ -77,7 +77,8 @@ which_cmd() {
 # Check for a command during runtime.
 # Currently the following commands are required only when needed:
 #
-# wget or curl
+# wget or curl (either is fine)
+# gzcat
 #
 require_cmd() {
 	for x in $1
@@ -133,7 +134,7 @@ ${RENICE_CMD} 10 $$ >/dev/null 2>/dev/null
 # Find our minor version
 firehol_minor_version() {
 ${CAT_CMD} <<"EOF" | ${CUT_CMD} -d ' ' -f 3 | ${CUT_CMD} -d '.' -f 2
-$Id: firehol.sh,v 1.227 2005/02/07 20:56:09 ktsaou Exp $
+$Id: firehol.sh,v 1.228 2005/02/09 22:36:24 ktsaou Exp $
 EOF
 }
 
@@ -2587,11 +2588,20 @@ protection() {
 # new firewall has been activated. Here we just keep a list of the required
 # kernel modules.
 
+# optionaly require command gzcat
+require_cmd gzcat
+
 KERNEL_CONFIG=
 if [ -f "/proc/config" ]
 then
 	KERNEL_CONFIG="/proc/config"
 	${CAT_CMD} /proc/config >${FIREHOL_DIR}/kcfg
+	source ${FIREHOL_DIR}/kcfg
+	${RM_CMD} -f ${FIREHOL_DIR}/kcfg	
+elif [ -f "/proc/config.gz" -a ! -z "${GZCAT_CMD}" ]
+then
+	KERNEL_CONFIG="/proc/config.gz"
+	${GZCAT_CMD} /proc/config.gz >${FIREHOL_DIR}/kcfg
 	source ${FIREHOL_DIR}/kcfg
 	${RM_CMD} -f ${FIREHOL_DIR}/kcfg
 	
@@ -2623,7 +2633,6 @@ else
 	echo >&2 " being able to detect failures."
 	echo >&2 " "
 fi
-
 
 # activation-phase command to check for the existance of
 # a kernel configuration directive. It returns:
@@ -5145,7 +5154,7 @@ case "${arg}" in
 		else
 		
 		${CAT_CMD} <<EOF
-$Id: firehol.sh,v 1.227 2005/02/07 20:56:09 ktsaou Exp $
+$Id: firehol.sh,v 1.228 2005/02/09 22:36:24 ktsaou Exp $
 (C) Copyright 2003, Costa Tsaousis <costa@tsaousis.gr>
 FireHOL is distributed under GPL.
 
@@ -5331,7 +5340,7 @@ then
 	
 	${CAT_CMD} <<EOF
 
-$Id: firehol.sh,v 1.227 2005/02/07 20:56:09 ktsaou Exp $
+$Id: firehol.sh,v 1.228 2005/02/09 22:36:24 ktsaou Exp $
 (C) Copyright 2003, Costa Tsaousis <costa@tsaousis.gr>
 FireHOL is distributed under GPL.
 Home Page: http://firehol.sourceforge.net
@@ -5625,7 +5634,7 @@ then
 	
 	"${CAT_CMD}" >&2 <<EOF
 
-$Id: firehol.sh,v 1.227 2005/02/07 20:56:09 ktsaou Exp $
+$Id: firehol.sh,v 1.228 2005/02/09 22:36:24 ktsaou Exp $
 (C) Copyright 2003, Costa Tsaousis <costa@tsaousis.gr>
 FireHOL is distributed under GPL.
 Home Page: http://firehol.sourceforge.net
@@ -5708,7 +5717,7 @@ EOF
 	echo "# "
 
 	${CAT_CMD} <<EOF
-# $Id: firehol.sh,v 1.227 2005/02/07 20:56:09 ktsaou Exp $
+# $Id: firehol.sh,v 1.228 2005/02/09 22:36:24 ktsaou Exp $
 # (C) Copyright 2003, Costa Tsaousis <costa@tsaousis.gr>
 # FireHOL is distributed under GPL.
 # Home Page: http://firehol.sourceforge.net
