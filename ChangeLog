@@ -1,7 +1,7 @@
 
 RCS file: /cvsroot/firehol/firehol/firehol.sh,v
 Working file: firehol.sh
-head: 1.55
+head: 1.56
 branch:
 locks: strict
 access list:
@@ -9,8 +9,13 @@ symbolic names:
 	start: 1.1.1.1
 	vendor: 1.1.1
 keyword substitution: kv
-total revisions: 56;	selected revisions: 56
+total revisions: 57;	selected revisions: 57
 description:
+----------------------------
+revision 1.56
+date: 2002/12/23 13:49:09;  author: ktsaou;  state: Exp;  lines: +27 -4
+Error handles now shows the command line that generated the error
+as-is in the configuration file.
 ----------------------------
 revision 1.55
 date: 2002/12/22 14:02:54;  author: ktsaou;  state: Exp;  lines: +6 -3
