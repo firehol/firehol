@@ -10,7 +10,7 @@
 #
 # config: /etc/firehol.conf
 #
-# $Id: firehol.sh,v 1.117 2003/03/17 22:57:26 ktsaou Exp $
+# $Id: firehol.sh,v 1.118 2003/03/17 23:03:00 ktsaou Exp $
 #
 FIREHOL_FILE="${0}"
 
@@ -3235,7 +3235,7 @@ case "${arg}" in
 		else
 		
 		cat <<"EOF"
-$Id: firehol.sh,v 1.117 2003/03/17 22:57:26 ktsaou Exp $
+$Id: firehol.sh,v 1.118 2003/03/17 23:03:00 ktsaou Exp $
 (C) Copyright 2002, Costa Tsaousis <costa@tsaousis.gr>
 FireHOL is distributed under GPL.
 
@@ -3418,7 +3418,7 @@ then
 	
 	cat <<"EOF"
 
-$Id: firehol.sh,v 1.117 2003/03/17 22:57:26 ktsaou Exp $
+$Id: firehol.sh,v 1.118 2003/03/17 23:03:00 ktsaou Exp $
 (C) Copyright 2002, Costa Tsaousis <costa@tsaousis.gr>
 FireHOL is distributed under GPL.
 Home Page: http://firehol.sourceforge.net
@@ -3712,7 +3712,7 @@ then
 	
 	cat >&2 <<"EOF"
 
-$Id: firehol.sh,v 1.117 2003/03/17 22:57:26 ktsaou Exp $
+$Id: firehol.sh,v 1.118 2003/03/17 23:03:00 ktsaou Exp $
 (C) Copyright 2002, Costa Tsaousis <costa@tsaousis.gr>
 FireHOL is distributed under GPL.
 Home Page: http://firehol.sourceforge.net
@@ -3805,7 +3805,7 @@ EOF
 	echo "# "
 
 	cat <<"EOF"
-# $Id: firehol.sh,v 1.117 2003/03/17 22:57:26 ktsaou Exp $
+# $Id: firehol.sh,v 1.118 2003/03/17 23:03:00 ktsaou Exp $
 # (C) Copyright 2002, Costa Tsaousis <costa@tsaousis.gr>
 # FireHOL is distributed under GPL.
 # Home Page: http://firehol.sourceforge.net
@@ -3933,7 +3933,6 @@ EOF
 		echo "### DEBUG: Processing interface '${iface}'"
 		ips=`/sbin/ip addr show dev ${iface} | sed "s/  / /g" | sed "s/  / /g" | sed "s/  / /g" | grep "^ inet " | cut -d ' ' -f 3 | cut -d '/' -f 1 | ips2net -`
 		peer=`/sbin/ip addr show dev ${iface} | sed "s/  / /g" | sed "s/  / /g" | sed "s/  / /g" | sed "s/peer /peer:/g" | tr " " "\n" | grep "^peer:" | cut -d ':' -f 2 | ips2net -`
-#		nets=`/sbin/ip route show dev ${iface} | egrep "^[0-9\./]+ " | cut -d ' ' -f 1 | sort | uniq | tr "\n" " "`
 		nets=`/sbin/ip route show dev ${iface} | cut -d ' ' -f 1 | ips2net -`
 		
 		if [ -z "${ips}" -o -z "${nets}" ]
@@ -3973,14 +3972,17 @@ EOF
 				
 				if [ ${found} -eq 0 ]
 				then
+					# Add it to ifnets
 					f=0; ff=0
 					while [ $f -lt $netcount ]
 					do
 						if ip_in_net ${net} ${ifnets[$f]}
 						then
+							# Already satisfied
 							ff=1
 						elif ip_in_net ${ifnets[$f]} ${net}
 						then
+							# New one is superset of old
 							ff=1
 							ifnets[$f]=${net}
 						fi
@@ -3990,6 +3992,7 @@ EOF
 					
 					if [ $ff -eq 0 ]
 					then
+						# Add it
 						netcount=$[netcount + 1]
 						ifnets=(${net} ${ifnets[@]})
 					fi
@@ -4017,14 +4020,17 @@ EOF
 						then
 							echo "### DEBUG: Route ${net} is accessed through ${gw}"
 							
+							# Add it to ifnets
 							f=0; ff=0
 							while [ $f -lt $netcount ]
 							do
 								if ip_in_net ${net} ${ifnets[$f]}
 								then
+									# Already satisfied
 									ff=1
 								elif ip_in_net ${ifnets[$f]} ${net}
 								then
+									# New one is superset of old
 									ff=1
 									ifnets[$f]=${net}
 								fi
@@ -4034,6 +4040,7 @@ EOF
 							
 							if [ $ff -eq 0 ]
 							then
+								# Add it
 								netcount=$[netcount + 1]
 								ifnets=(${net} ${ifnets[@]})
 							fi
