@@ -10,7 +10,7 @@
 #
 # config: /etc/firehol.conf
 #
-# $Id: firehol.sh,v 1.64 2003/01/06 00:41:10 ktsaou Exp $
+# $Id: firehol.sh,v 1.65 2003/01/06 01:16:41 ktsaou Exp $
 #
 
 
@@ -788,6 +788,12 @@ rules_ping() {
 		out=in
 	fi
 	
+	local client_ports="${DEFAULT_CLIENT_PORTS}"
+	if [ "${type}" = "client" -a "${work_cmd}" = "interface" ]
+	then
+		client_ports="${LOCAL_CLIENT_PORTS}"
+	fi
+	
 	# ----------------------------------------------------------------------
 	
 	# allow incoming new and established PING packets
@@ -960,6 +966,16 @@ EOF
 	
 	return 0
 }
+
+
+# ------------------------------------------------------------------------------
+
+# The caller may need just our services definitions
+if [ "$1" = "gimme-the-services-defs" ]
+then
+	return 0
+	exit 1
+fi
 
 
 # ------------------------------------------------------------------------------
@@ -2591,7 +2607,7 @@ case "${arg}" in
 		else
 		
 		cat <<"EOF"
-$Id: firehol.sh,v 1.64 2003/01/06 00:41:10 ktsaou Exp $
+$Id: firehol.sh,v 1.65 2003/01/06 01:16:41 ktsaou Exp $
 (C) Copyright 2002, Costa Tsaousis <costa@tsaousis.gr>
 FireHOL is distributed under GPL.
 
@@ -2759,7 +2775,7 @@ then
 	
 	cat <<"EOF"
 
-$Id: firehol.sh,v 1.64 2003/01/06 00:41:10 ktsaou Exp $
+$Id: firehol.sh,v 1.65 2003/01/06 01:16:41 ktsaou Exp $
 (C) Copyright 2002, Costa Tsaousis <costa@tsaousis.gr>
 FireHOL is distributed under GPL.
 Home Page: http://firehol.sourceforge.net
