@@ -1,4 +1,4 @@
-$Id: TODO,v 1.15 2004/10/30 22:04:16 ktsaou Exp $
+$Id: TODO,v 1.16 2004/10/31 02:25:15 ktsaou Exp $
 
 The following is a list of features I plan to add to FireHOL,
 assuming that my time permits and there is demand for them.
@@ -56,7 +56,7 @@ The list appears in no particular order.
 
 11. FireHOL services should be left to an external directory
     when installation programs could just drop in files for
-    adding services to FireHOL.
+    adding services to FireHOL. ==> DONE <==
     
     Ideally, this should also allow a "service documentation
     navigrator", something like a dynamic services.html (from
@@ -109,6 +109,7 @@ The list appears in no particular order.
     generated.
 
 17. Support for TCPMSS action.
+    ==> DONE <==
 
 18. Support for ULOG as rule parameter.
 
@@ -129,6 +130,8 @@ The list appears in no particular order.
     This can be done with something:
 
     server smtp accept with limit 10/s 50
+
+    ==> DONE <==
 
 23. Allow limit as a second parameter to policy:
 

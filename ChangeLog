@@ -1,7 +1,7 @@
 
 RCS file: /cvsroot/firehol/firehol/firehol.sh,v
 Working file: firehol.sh
-head: 1.203
+head: 1.212
 branch:
 locks: strict
 access list:
@@ -9,8 +9,96 @@ symbolic names:
 	start: 1.1.1.1
 	vendor: 1.1.1
 keyword substitution: kv
-total revisions: 204;	selected revisions: 204
+total revisions: 213;	selected revisions: 213
 description:
+----------------------------
+revision 1.212
+date: 2004/10/31 02:21:02;  author: ktsaou;  state: Exp;  lines: +497 -256
+Added helpers:
+
+tos	- to set the TOS of packets
+dscp	- to set the DSCP field of packets (both raw and class)
+
+
+Added optional rule parameters:
+
+tos	- to match the TOS of packets
+mark	- to match the MARK ID of packets
+dscp	- to match the DSCP field of packets (both raw and class)
+
+
+Added the following actions to the rule() function:
+
+dscp
+
+The rule() function already had support for TOS and MARK.
+----------------------------
+revision 1.211
+date: 2004/10/30 23:03:57;  author: ktsaou;  state: Exp;  lines: +35 -8
+Created the complex service DHCP and removed the simple one.
+The complex DHCP is now stateless to overcome all the problems that
+arise due to the initial DHCP broadcast.
+----------------------------
+revision 1.210
+date: 2004/10/30 22:41:21;  author: ktsaou;  state: Exp;  lines: +16 -12
+Service SAMBA now includes MICROSOFT_DS (tcp/445). Also, updated samba
+related documentation.
+----------------------------
+revision 1.209
+date: 2004/10/30 21:27:00;  author: ktsaou;  state: Exp;  lines: +18 -8
+Some error detection for /etc/firehol/services directory creation.
+----------------------------
+revision 1.208
+date: 2004/10/30 21:13:26;  author: ktsaou;  state: Exp;  lines: +109 -5
+Added service NIS.
+
+Created by Carlos Rodrigues <crlf@users.sourceforge.net>
+Feature Requests item #1050951 <https://sourceforge.net/tracker/?func=detail&atid=487695&aid=1050951&group_id=58425>
+
+These rules work for client access only!
+
+Pushing changes to slave servers won't work if these rules are active
+somewhere between the master and its slaves, because it is impossible to
+predict the ports where "yppush" will be listening on each push.
+
+Pulling changes directly on the slaves will work, and could be improved
+performance-wise if these rules are modified to open "fypxfrd". This wasn't
+done because it doesn't make that much sense since pushing changes on the
+master server is the most common, and recommended, way to replicate maps.
+----------------------------
+revision 1.207
+date: 2004/10/28 23:03:06;  author: ktsaou;  state: Exp;  lines: +67 -13
+Added support for externally defined services in files under directory:
+
+/etc/firehol/services
+
+This directory may contain files ending with .conf. Example: imap.conf
+Each file should *start* with a line like this:
+
+#FHVER: 1
+
+This must be the FIRST line of the file.
+The number 1 is the FIREHOL_SERVICES_API version number. If the API within
+FireHOL changes, FireHOL will refuse to load all those services files that
+their API version number does not match.
+----------------------------
+revision 1.206
+date: 2004/10/28 22:02:43;  author: ktsaou;  state: Exp;  lines: +9 -5
+Added service nut.
+----------------------------
+revision 1.205
+date: 2004/10/08 22:30:52;  author: ktsaou;  state: Exp;  lines: +90 -46
+Added helper 'tcpmss'.
+Added service 'nntps'.
+Converted all simple services' port definitions to numeric.
+Updated documentation accordingly.
+----------------------------
+revision 1.204
+date: 2004/09/26 00:52:55;  author: ktsaou;  state: Exp;  lines: +55 -6
+Added services:
+
+asterisk, darkstat, distcc, eserver, gift, giftui, h323, iax, iax2, icp,
+rtp, sip, stun, upnp.
 ----------------------------
 revision 1.203
 date: 2004/09/14 21:15:44;  author: ktsaou;  state: Exp;  lines: +119 -7
