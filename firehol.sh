@@ -10,7 +10,7 @@
 #
 # config: /etc/firehol/firehol.conf
 #
-# $Id: firehol.sh,v 1.134 2003/06/18 22:56:24 ktsaou Exp $
+# $Id: firehol.sh,v 1.135 2003/06/28 20:52:09 ktsaou Exp $
 #
 FIREHOL_FILE="${0}"
 
@@ -125,7 +125,7 @@ FIREHOL_LOG_BURST="5"
 # use this range.
 # Note that FireHOL will ask the kernel for default client ports of
 # the local host. This only applies to client ports of remote hosts.
-DEFAULT_CLIENT_PORTS="1000:65535"
+DEFAULT_CLIENT_PORTS="1024:65535"
 
 # Get the default client ports from the kernel configuration.
 # This is formed to a range of ports to be used for all "default"
@@ -372,7 +372,7 @@ server_ldaps_ports="tcp/ldaps"
 client_ldaps_ports="default"
 
 server_lpd_ports="tcp/printer"
-client_lpd_ports="default"
+client_lpd_ports="any"
 
 server_microsoft_ds_ports="tcp/microsoft-ds"
 client_microsoft_ds_ports="default"
@@ -3439,7 +3439,7 @@ case "${arg}" in
 		else
 		
 		${CAT_CMD} <<"EOF"
-$Id: firehol.sh,v 1.134 2003/06/18 22:56:24 ktsaou Exp $
+$Id: firehol.sh,v 1.135 2003/06/28 20:52:09 ktsaou Exp $
 (C) Copyright 2003, Costa Tsaousis <costa@tsaousis.gr>
 FireHOL is distributed under GPL.
 
@@ -3625,7 +3625,7 @@ then
 	
 	${CAT_CMD} <<"EOF"
 
-$Id: firehol.sh,v 1.134 2003/06/18 22:56:24 ktsaou Exp $
+$Id: firehol.sh,v 1.135 2003/06/28 20:52:09 ktsaou Exp $
 (C) Copyright 2003, Costa Tsaousis <costa@tsaousis.gr>
 FireHOL is distributed under GPL.
 Home Page: http://firehol.sourceforge.net
@@ -3920,7 +3920,7 @@ then
 	
 	${CAT_CMD} >&2 <<"EOF"
 
-$Id: firehol.sh,v 1.134 2003/06/18 22:56:24 ktsaou Exp $
+$Id: firehol.sh,v 1.135 2003/06/28 20:52:09 ktsaou Exp $
 (C) Copyright 2003, Costa Tsaousis <costa@tsaousis.gr>
 FireHOL is distributed under GPL.
 Home Page: http://firehol.sourceforge.net
@@ -4013,7 +4013,7 @@ EOF
 	echo "# "
 
 	${CAT_CMD} <<"EOF"
-# $Id: firehol.sh,v 1.134 2003/06/18 22:56:24 ktsaou Exp $
+# $Id: firehol.sh,v 1.135 2003/06/28 20:52:09 ktsaou Exp $
 # (C) Copyright 2003, Costa Tsaousis <costa@tsaousis.gr>
 # FireHOL is distributed under GPL.
 # Home Page: http://firehol.sourceforge.net
