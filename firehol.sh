@@ -10,9 +10,12 @@
 #
 # config: /etc/firehol.conf
 #
-# $Id: firehol.sh,v 1.26 2002/12/03 22:49:16 ktsaou Exp $
+# $Id: firehol.sh,v 1.27 2002/12/04 07:20:19 ktsaou Exp $
 #
 # $Log: firehol.sh,v $
+# Revision 1.27  2002/12/04 07:20:19  ktsaou
+# Error handler now works on protections too.
+#
 # Revision 1.26  2002/12/03 22:49:16  ktsaou
 # Changed the banner to be much more descriptive. It now also shows the
 # services FireHOL supports (removed the services parameter).
@@ -237,7 +240,7 @@ case "${arg}" in
 	
 	*)
 		cat <<"EOF"
-$Id: firehol.sh,v 1.26 2002/12/03 22:49:16 ktsaou Exp $
+$Id: firehol.sh,v 1.27 2002/12/04 07:20:19 ktsaou Exp $
 (C) Copyright 2002, Costa Tsaousis
 FireHOL is distributed under GPL.
 
@@ -2284,6 +2287,8 @@ protection() {
 	test -z "${rate}"  && rate="100/s"
 	test -z "${burst}" && burst="4"
 	
+	work_function="Generating protections on '${prface}' for ${work_cmd} '${work_name}'"
+	
 	local x=
 	for x in ${type}
 	do
@@ -2349,6 +2354,11 @@ protection() {
 				rule chain "${in}_${work_name}" action "${mychain}"   proto tcp custom "--tcp-flags ALL     FIN,URG,PSH"		|| return 1
 				
 				rule chain "${mychain}" loglimit "MALFORMED BAD" action drop							|| return 1
+				;;
+				
+			*)
+				error "Protection '${x}' does not exists."
+				return 1
 				;;
 		esac
 	done
