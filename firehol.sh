@@ -10,7 +10,7 @@
 #
 # config: /etc/firehol.conf
 #
-# $Id: firehol.sh,v 1.74 2003/01/16 00:55:36 ktsaou Exp $
+# $Id: firehol.sh,v 1.75 2003/01/20 21:50:36 ktsaou Exp $
 #
 
 
@@ -221,6 +221,9 @@ client_apcupsdnis_ports="default"
 
 server_cups_ports="tcp/ipp"
 client_cups_ports="default"
+
+server_cvspserver_ports="tcp/2401"
+client_cvspserver_ports="default"
 
 server_daytime_ports="tcp/daytime"
 client_daytime_ports="default"
@@ -2993,7 +2996,7 @@ case "${arg}" in
 		else
 		
 		cat <<"EOF"
-$Id: firehol.sh,v 1.74 2003/01/16 00:55:36 ktsaou Exp $
+$Id: firehol.sh,v 1.75 2003/01/20 21:50:36 ktsaou Exp $
 (C) Copyright 2002, Costa Tsaousis <costa@tsaousis.gr>
 FireHOL is distributed under GPL.
 
@@ -3161,7 +3164,7 @@ then
 	
 	cat <<"EOF"
 
-$Id: firehol.sh,v 1.74 2003/01/16 00:55:36 ktsaou Exp $
+$Id: firehol.sh,v 1.75 2003/01/20 21:50:36 ktsaou Exp $
 (C) Copyright 2002, Costa Tsaousis <costa@tsaousis.gr>
 FireHOL is distributed under GPL.
 Home Page: http://firehol.sourceforge.net
