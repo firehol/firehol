@@ -47,7 +47,7 @@ All the services defined by name in FireHOL are known to resolve in <a href="htt
 <b>see&nbsp;notes</b>
 </td>
 	</tr>
-	<tr><td align=right valign=top nowrap><small><font color="gray">Notes</td><td>This implementation of <a href="http://amanda.sf.net">AMANDA, the Advanced Maryland Automatic Network Disk Archiver</a> is based on the <a href="http://amanda.sourceforge.net/cgi-bin/fom?_highlightWords=firewall&file=139">notes posted at Amanda's Faq-O-Matic</a>. <p> Based on this, FireHOL allows:<br> <ul> <li>a connection from the server to the client at <b>udp 10080</b></li> <li>connections from the client to the server at <b>tcp & udp</b> ports controlled by the variable <b>FIREHOL_AMANDA_PORTS</b>. <p> Default: <b>FIREHOL_AMANDA_PORTS="850:859"</b> <p>It has been written in amanda mailing lists that by default amanda chooses ports in the range of 600 to 950. If you don't compile amanda yourself you may have to change the variable FIREHOL_AMANDA_PORTS to accept a wider match (but consider the trust relathionship you are building with this). </li> </ul> I <b>strongly suggest</b> to use this service in your firewall like: <p> <b><a href="commands.html#server">server</a> amanda accept <a href="commands.html#src">src</a> 1.2.3.4</b>, or <br> <b><a href="commands.html#client">client</a> amanda accept <a href="commands.html#dst">dst</a> 5.6.7.8</b> <p> in order to limit the hosts that have access to the ports controlled by the variable <b>FIREHOL_AMANDA_PORTS</b>. <p> This complex service handles correctly the multi-socket bi-directional environment required. Use the FireHOL <b>server</b> directive on the Amanda server, and FireHOL's <b>client</b> on the Amanda client. <p> The <b>amanda</b> service will break if it is NATed (to work it would require a bi-directional NAT and a modification in the amanda code to allow connections from/to high ports). <p> <b>USE THIS WITH CARE. MISUSE OF THIS SERVICE MAY LEAD TO OPENING PRIVILEGED PORTS TO ANYONE.</b><br>&nbsp;</td></tr>
+	<tr><td align=right valign=top nowrap><small><font color="gray">Notes</td><td>This implementation of <a href="http://amanda.sf.net">AMANDA, the Advanced Maryland Automatic Network Disk Archiver</a> is based on the <a href="http://amanda.sourceforge.net/cgi-bin/fom?_highlightWords=firewall&file=139">notes posted at Amanda's Faq-O-Matic</a>. <p> Based on this, FireHOL allows:<br> <ul> <li>a connection from the server to the client at <b>udp 10080</b></li> <li>connections from the client to the server at <b>tcp & udp</b> ports controlled by the variable <b>FIREHOL_AMANDA_PORTS</b>. <p> Default: <b>FIREHOL_AMANDA_PORTS="850:859"</b> <p>It has been written in amanda mailing lists that by default amanda chooses ports in the range of 600 to 950. If you don't compile amanda yourself you may have to change the variable FIREHOL_AMANDA_PORTS to accept a wider match (but consider the trust relationship you are building with this). </li> </ul> I <b>strongly suggest</b> to use this service in your firewall like: <p> <b><a href="commands.html#server">server</a> amanda accept <a href="commands.html#src">src</a> 1.2.3.4</b>, or <br> <b><a href="commands.html#client">client</a> amanda accept <a href="commands.html#dst">dst</a> 5.6.7.8</b> <p> in order to limit the hosts that have access to the ports controlled by the variable <b>FIREHOL_AMANDA_PORTS</b>. <p> This complex service handles correctly the multi-socket bi-directional environment required. Use the FireHOL <b>server</b> directive on the Amanda server, and FireHOL's <b>client</b> on the Amanda client. <p> The <b>amanda</b> service will break if it is NATed (to work it would require a bi-directional NAT and a modification in the amanda code to allow connections from/to high ports). <p> <b>USE THIS WITH CARE. MISUSE OF THIS SERVICE MAY LEAD TO OPENING PRIVILEGED PORTS TO ANYONE.</b><br>&nbsp;</td></tr>
 	<tr><td align=right valign=top nowrap><small><font color="gray">Example</td><td><b>server amanda accept <u>src</u> <u>1.2.3.4</u></b></td></tr>
 	</table>
 	</td></tr>
@@ -191,7 +191,7 @@ All the services defined by name in FireHOL are known to resolve in <a href="htt
 <b>bootps</b>
 </td>
 	</tr>
-	<tr><td align=right valign=top nowrap><small><font color="gray">Notes</td><td>DHCP Relay.<br>&nbsp;</td></tr>
+	<tr><td align=right valign=top nowrap><small><font color="gray">Notes</td><td>DHCP Relay. <p><small><b><font color="gray">From RFC 1812 section 9.1.2</font></b></small><br> In many cases, BOOTP clients and their associated BOOTP server(s) do not reside on the same IP (sub)network. In such cases, a third-party agent is required to transfer BOOTP messages between clients and servers. Such an agent was originally referred to as a BOOTP forwarding agent. However, to avoid confusion with the IP forwarding function of a router, the name BOOTP relay agent has been adopted instead. <p> For more information about DHCP Relay see section 9.1.2 of <a href="http://www.ietf.org/rfc/rfc1812.txt?number=1812">RFC 1812</a><br>&nbsp;</td></tr>
 	<tr><td align=right valign=top nowrap><small><font color="gray">Example</td><td><b>server dhcprelay accept</b></td></tr>
 	</table>
 	</td></tr>
@@ -338,7 +338,7 @@ All the services defined by name in FireHOL are known to resolve in <a href="htt
 </td>
 	</tr>
 	<tr><td align=right valign=top nowrap><small><font color="gray">Notes</td><td><br>&nbsp;</td></tr>
-	<tr><td align=right valign=top nowrap><small><font color="gray">Example</td><td><b>server ident accept</b></td></tr>
+	<tr><td align=right valign=top nowrap><small><font color="gray">Example</td><td><b>server ident reject with tcp-reset</b></td></tr>
 	</table>
 	</td></tr>
 <tr >
@@ -466,7 +466,7 @@ All the services defined by name in FireHOL are known to resolve in <a href="htt
 </td>
 	</tr>
 	<tr><td align=right valign=top nowrap><small><font color="gray">Notes</td><td>The multicast service matches all packets send to 224.0.0.0/8<br>&nbsp;</td></tr>
-	<tr><td align=right valign=top nowrap><small><font color="gray">Example</td><td><b>server multicast accept</b></td></tr>
+	<tr><td align=right valign=top nowrap><small><font color="gray">Example</td><td><b>server multicast reject with proto-unreach</b></td></tr>
 	</table>
 	</td></tr>
 <tr >
@@ -1039,7 +1039,7 @@ All the services defined by name in FireHOL are known to resolve in <a href="htt
 <tr><td align=center valign=middle>
 	<A href="http://sourceforge.net"><IMG src="http://sourceforge.net/sflogo.php?group_id=58425&amp;type=5" width="210" height="62" border="0" alt="SourceForge Logo"></A>
 </td><td align=center valign=middle>
-	<small>$Id: services.html,v 1.19 2002/12/24 02:36:34 ktsaou Exp $</small>
+	<small>$Id: services.html,v 1.20 2002/12/31 11:57:40 ktsaou Exp $</small>
 	<p>
 	<b>FireHOL</b>, a firewall for humans...<br>
 	&copy; Copyright 2002

@@ -55,7 +55,7 @@ Based on this, FireHOL allows:<br>
 	<p>It has been written in amanda mailing lists that by default amanda
 	chooses ports in the range of 600 to 950. If you don't compile amanda
 	yourself you may have to change the variable FIREHOL_AMANDA_PORTS to
-	accept a wider match (but consider the trust relathionship you are
+	accept a wider match (but consider the trust relationship you are
 	building with this).
 	</li>
 </ul>
@@ -98,7 +98,19 @@ To find more about this service please check the <a href=\"adding.html\">Adding 
 service_custom_example="server custom <u>myimap</u> <u>tcp/143</u> <u>default</u> accept"
 
 
-service_dhcprelay_notes="DHCP Relay."
+service_dhcprelay_notes="DHCP Relay.
+<p><small><b><font color=\"gray\">From RFC 1812 section 9.1.2</font></b></small><br>
+   In many cases, BOOTP clients and their associated BOOTP server(s) do
+   not reside on the same IP (sub)network.  In such cases, a third-party
+   agent is required to transfer BOOTP messages between clients and
+   servers.  Such an agent was originally referred to as a BOOTP
+   forwarding agent.  However, to avoid confusion with the IP forwarding
+   function of a router, the name BOOTP relay agent has been adopted
+   instead.
+<p>
+For more information about DHCP Relay see section 9.1.2 of
+<a href=\"http://www.ietf.org/rfc/rfc1812.txt?number=1812\">RFC 1812</a>
+"
 
 
 server_ftp_ports="many"
@@ -107,6 +119,9 @@ service_ftp_type="complex"
 service_ftp_notes="
 The FTP service matches both active and passive FTP connections by utilizing the FTP connection tracker kernel module.
 "
+
+
+service_ident_example="server ident reject with tcp-reset"
 
 
 service_isakmp_notes="IPSec key negotiation."
@@ -118,6 +133,7 @@ service_multicast_type="complex"
 service_multicast_notes="
 The multicast service matches all packets send to 224.0.0.0/8
 "
+service_multicast_example="server multicast reject with proto-unreach"
 
 
 service_netbios_ns_notes="
@@ -347,7 +363,7 @@ cat <<"EOF"
 <tr><td align=center valign=middle>
 	<A href="http://sourceforge.net"><IMG src="http://sourceforge.net/sflogo.php?group_id=58425&amp;type=5" width="210" height="62" border="0" alt="SourceForge Logo"></A>
 </td><td align=center valign=middle>
-	<small>$Id: create_services.sh,v 1.16 2002/12/24 02:36:34 ktsaou Exp $</small>
+	<small>$Id: create_services.sh,v 1.17 2002/12/31 11:57:40 ktsaou Exp $</small>
 	<p>
 	<b>FireHOL</b>, a firewall for humans...<br>
 	&copy; Copyright 2002

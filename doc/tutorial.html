@@ -15,7 +15,7 @@ Even if you don't use FireHOL, designing a firewall requires a few steps:
 <br>
 Network interfaces are there for some reason. You have to do something about all the interfaces of your host.
 If you don't do something at the firewall level with a network interface, then it depends of the firewall policy what will happen
-with traffic on this interface. By default FireHOL will <b>drop</b> all traffic comming in and going out via an undefined network interface,
+with traffic on this interface. By default FireHOL will <b>drop</b> all traffic coming in and going out via an undefined network interface,
 so the network interface will have no meaning to be up and running. This is a common mistake on some ADSL configurations, where users
 ignore the loop device that connects the linux router with the ADSL device.
 <p>
@@ -65,7 +65,7 @@ There are a few important thinks to always remember:<p>
 	<ul>
 		<li>By the firewall host for its own communication with the rest of the world. This is the case when the
 		firewall host requests something from some other host (a DNS lookup may be) for its own needs, or when
-		some other host requests something from the firewall host, when the later is running some deamons (servers) too.
+		some other host requests something from the firewall host, when the later is running some daemons (servers) too.
 		<br>&nbsp;
 		</li>
 		<li>By other hosts as <b>gateways</b> in order to reach other hosts behind the firewall host.
@@ -280,8 +280,8 @@ not the replies. This means that the router <b>home2internet</b> matches all req
 (and of course their relative replies in the opposite direction), while the router <b>internet2home</b> matches all the requests from the Internet to the
 home LAN (and their relative replies back).
 <p>
-Now, based on the roles table of the previous section we see that we should route all requests comming in from eth0 and going out to
-ppp+, and do not route any request comming from the internet and going out to the home LAN. Here it is:
+Now, based on the roles table of the previous section we see that we should route all requests coming in from eth0 and going out to
+ppp+, and do not route any request coming from the internet and going out to the home LAN. Here it is:
 
 <center><table border=0 cellpadding=15 cellspacing=20 width="70%">
 <tr><td bgcolor="#F0F0F0">
@@ -441,7 +441,7 @@ We can now protect our ppp interface even further. For this we use the <a href="
 </table>
 </center>
 <p>
-It could be nice if instead of dropping wrong packets originated from the ethernet, to reject them so that our workstations
+It could be nice if instead of dropping wrong packets originated from the Ethernet, to reject them so that our workstations
 will not have to timeout if we do something that is not allowed. To do this we use the <a href="commands.html#policy">policy</a>
 command:
 
@@ -494,7 +494,7 @@ With our current firewall, such servers will have to timeout before accepting ou
 		protection strong 10/sec 10
 		server "smtp http ftp"	accept
 		
-		<font color="red">server ident reject</font>
+		<font color="red">server ident reject with tcp-reset</font>
 		
 		client all		accept
 	
@@ -505,7 +505,7 @@ With our current firewall, such servers will have to timeout before accepting ou
 	
 	<font color="red">
 	router internet2home inface ppp+ outface eth0
-		route ident reject
+		route ident reject with tcp-reset
 	</font>
 </font></pre></b>
 </td></tr>
@@ -532,7 +532,7 @@ The whole routing schema could be rewritten as:
 		protection strong 10/sec 10
 		server "smtp http ftp"	accept
 		
-		server ident reject
+		server ident reject with tcp-reset
 		
 		client all		accept
 	
@@ -540,14 +540,14 @@ The whole routing schema could be rewritten as:
 	router internet2home inface ppp+ outface eth0
 		masquerade reverse
 		client all	accept
-		server ident	reject
+		server ident	reject with tcp-reset
 	</font>
 </font></pre></b>
 </td></tr>
 </table>
 </center>
-Now we have elimited the first router, but we defined everything in the second. We have used the <b>reverse</b> keyword in
-<a href="commands.html#masqurade">masqurade</a> to make it set up in <b>inface</b> this time.<p>
+Now we have elicited the first router, but we defined everything in the second. We have used the <b>reverse</b> keyword in
+<a href="commands.html#masquerade">masquerade</a> to make it set up in <b>inface</b> this time.<p>
 We could use the first router (home2internet) to do everything, but then the client and server commands would need be reversed
 (server all, client ident) which would be confusing.
 
@@ -557,7 +557,7 @@ We could use the first router (home2internet) to do everything, but then the cli
 <tr><td align=center valign=middle>
 	<A href="http://sourceforge.net"><IMG src="http://sourceforge.net/sflogo.php?group_id=58425&amp;type=5" width="210" height="62" border="0" alt="SourceForge Logo"></A>
 </td><td align=center valign=middle>
-	<small>$Id: tutorial.html,v 1.8 2002/12/22 03:36:16 ktsaou Exp $</small>
+	<small>$Id: tutorial.html,v 1.9 2002/12/31 11:57:40 ktsaou Exp $</small>
 	<p>
 	<b>FireHOL</b>, a firewall for humans...<br>
 	&copy; Copyright 2002

@@ -29,7 +29,7 @@ Dec 21 22:25:39 gateway kernel: OUT-unknown:IN= OUT=ppp0 SRC=195.97.5.193 DST=19
 Dec 21 20:01:07 gateway kernel: PASS-unknown:IN=ppp0 OUT=eth0 SRC=200.75.88.187 DST=195.97.5.194 \
 	LEN=78 TOS=0x00 PREC=0x00 TTL=110 ID=64840 PROTO=UDP SPT=34132 DPT=137 LEN=58 
 </pre></small>
-Each of such lines represent one packet that did not satifly the requirements of the configuration file rules.
+Each of such lines represent one packet that did not satisfy the requirements of the configuration file rules.
 <p>
 The important things to look in these logs are:
 <br>&nbsp;
@@ -71,7 +71,7 @@ The important things to look in these logs are:
 	
 	<li><b>IN=</b> gives the real network interface name the packet came in from.
 	<br>
-	It can be empty when the packet was generated localy.
+	It can be empty when the packet was generated locally.
 	<br>&nbsp;
 	</li>
 	
@@ -102,17 +102,17 @@ The important things to look in these logs are:
 	</li>
 </ul>
 
-Generally, you should monitor the system log for such entries and decide if each entry was something usefull or not.
-If it was something usefull, you should have added another service somewhere in your FireHOL configuration to match
-that packet and allow it to reach its destination. If it was not something usefull, then FireHOL did the right job
+Generally, you should monitor the system log for such entries and decide if each entry was something useful or not.
+If it was something useful, you should have added another service somewhere in your FireHOL configuration to match
+that packet and allow it to reach its destination. If it was not something useful, then FireHOL did the right job
 and dropped it.
 <p>
 Keep in mind that there are certain cases where packets get dropped even though FireHOL has specific rules that should
-allow them to pass. Such cases are not allways errors, and here is why:
+allow them to pass. Such cases are not always errors, and here is why:
 <p>
 The iptables connection tracker has a mechanism for matching request packets and reply packets.
 When an allowed request comes in, the connection tracker keeps it in a list and then waits for a matching reply to
-come in the opposite direction. This list of <b>active connections</b> is availble for you to see at <b>/proc/net/ip_conntrack</b>.
+come in the opposite direction. This list of <b>active connections</b> is available for you to see at <b>/proc/net/ip_conntrack</b>.
 Simply <b>cat</b> this file to see all the current connections your system has.
 <p>
 The connection tracker will wait for a reply a certain amount of time. This time is, for example, about 20 seconds for UDP traffic.
@@ -134,7 +134,7 @@ list.
 <tr><td align=center valign=middle>
 	<A href="http://sourceforge.net"><IMG src="http://sourceforge.net/sflogo.php?group_id=58425&amp;type=5" width="210" height="62" border="0" alt="SourceForge Logo"></A>
 </td><td align=center valign=middle>
-	<small>$Id: trouble.html,v 1.4 2002/12/22 04:52:13 ktsaou Exp $</small>
+	<small>$Id: trouble.html,v 1.5 2002/12/31 11:57:40 ktsaou Exp $</small>
 	<p>
 	<b>FireHOL</b>, a firewall for humans...<br>
 	&copy; Copyright 2002

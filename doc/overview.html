@@ -172,7 +172,7 @@ router lan2internet inface eth0 outface ppp+
 They don't say anything about replies (see for example the <b>src</b>, <b>inface</b> or <b>outface</b> parameters). This is because FireHOL handles the replies
 automatically. You don't have to do anything about them: If a request is allowed, then the corresponding reply is also allowed.
 This also means that FireHOL produces the iptables statements to exactly match what is allowed <b>in both directions</b> and nothing more. If for example we remove the <b>client all accept</b>
-from the <b>internet</b> interface, our Linux will not be able to do anything with its PPP device execpt to send replies matching the <b>server</b> statements within this interface;
+from the <b>internet</b> interface, our Linux will not be able to do anything with its PPP device except to send replies matching the <b>server</b> statements within this interface;
 no pings, no DNS, no web browsing, no nothing!
 <p>
 The complete configuration file (a little bit enriched) of the above example could be (all FireHOL directives are clickable):
@@ -195,7 +195,7 @@ The complete configuration file (a little bit enriched) of the above example cou
 		<a href="commands.html#policy">policy</a> accept	<font color="gray"># The default is 'drop'.</font>
 	
 	
-	<font color="gray"># Make sure the traffic comming in, comes from valid Internet IPs,
+	<font color="gray"># Make sure the traffic coming in, comes from valid Internet IPs,
 	# and that is targeting my public IP</font>
 	<a href="commands.html#interface">interface</a> ppp+ internet <a href="commands.html#src">src</a> not "$<a href="commands.html#UNROUTABLE_IPS">UNROUTABLE_IPS</a>" <a href="commands.html#dst">dst</a> "$public_ip"
 		<font color="gray"># Protect me from various kinds of attacks.</font>
@@ -208,7 +208,7 @@ The complete configuration file (a little bit enriched) of the above example cou
 		<a href="commands.html#server">server</a> <a href="services.html#ssh">ssh</a>  accept <a href="commands.html#src">src</a> "$office"
 		
 		<font color="gray"># Make sure idents do not timeout.</font>
-		<a href="commands.html#server">server</a> <a href="services.html#ident">ident</a> reject
+		<a href="commands.html#server">server</a> <a href="services.html#ident">ident</a> reject <a href="commands.html#with">with</a> tcp-reset
 		
 		<font color="gray"># This is also a workstation.</font>
 		<a href="commands.html#client">client</a> <a href="services.html#all">all</a>  accept
@@ -299,7 +299,7 @@ supports the following services:</p>
 <tr><td align=center valign=middle>
 	<A href="http://sourceforge.net"><IMG src="http://sourceforge.net/sflogo.php?group_id=58425&amp;type=5" width="210" height="62" border="0" alt="SourceForge Logo"></A>
 </td><td align=center valign=middle>
-	<small>$Id: overview.html,v 1.13 2002/12/24 02:36:34 ktsaou Exp $</small>
+	<small>$Id: overview.html,v 1.14 2002/12/31 11:57:40 ktsaou Exp $</small>
 	<p>
 	<b>FireHOL</b>, a firewall for humans...<br>
 	&copy; Copyright 2002
