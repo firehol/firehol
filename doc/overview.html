@@ -61,7 +61,7 @@ The goals of FireHOL are:
 	can configure any service you like and FireHOL will turn it into a <b>client</b>, a <b>server</b>, or a <b>router</b>.
 	<br>&nbsp;
 	</li>
-	<li>Be flexible enough to be used by end users and guru administrator requiring extremely complex firewalls.
+	<li>Be flexible enough to be used by end users and guru administrators requiring extremely complex firewalls.
 	<br>FireHOL configuration files are BASH scripts; you can write in them anything BASH accepts, including variables,
 	pipes, loops, conditions, calls to external programs, run other BASH scripts with FireHOL directives in them, etc.
 	<br>&nbsp;
@@ -350,13 +350,8 @@ and any combination of stateful firewalls routing traffic from one
 interface to another. There are no limitations on the number of 
 interfaces or on the number of routing routes (except the ones iptables 
 has, if any).
-<p>FireHOL, still lacks a few features: SNAT and DNAT are not supported. 
-PREROUTING and MANGLING are not supported either. QoS, although not 
-iptables stuff, is missing too. You are welcome to extend FireHOL and 
-send me your patches to integrate within FireHOL.</p>
-
-<p>Note however that you can embed normal iptables commands in a FireHOL 
-configuration script for NATing, REDIRECTing ports, etc.</p>
+<p>FireHOL, still lacks a few features: MANGLING and QoS are not supported.
+You are welcome to extend FireHOL and send me your patches to integrate within FireHOL.</p>
 
 <p>
 Since FireHOL produces stateful commands, for every supported service 
@@ -384,10 +379,10 @@ supports the following services:</p>
 <tr><td align=center valign=middle>
 	<A href="http://sourceforge.net"><IMG src="http://sourceforge.net/sflogo.php?group_id=58425&amp;type=5" width="210" height="62" border="0" alt="SourceForge Logo"></A>
 </td><td align=center valign=middle>
-	<small>$Id: overview.html,v 1.16 2003/01/27 23:34:24 ktsaou Exp $</small>
+	<small>$Id: overview.html,v 1.17 2003/03/18 21:27:37 ktsaou Exp $</small>
 	<p>
 	<b>FireHOL</b>, a firewall for humans...<br>
-	&copy; Copyright 2002
+	&copy; Copyright 2003
 	Costa Tsaousis <a href="mailto: costa@tsaousis.gr">&lt;costa@tsaousis.gr&gt</a>
 </body>
 </html>

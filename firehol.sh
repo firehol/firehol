@@ -10,7 +10,7 @@
 #
 # config: /etc/firehol.conf
 #
-# $Id: firehol.sh,v 1.118 2003/03/17 23:03:00 ktsaou Exp $
+# $Id: firehol.sh,v 1.119 2003/03/18 21:27:35 ktsaou Exp $
 #
 FIREHOL_FILE="${0}"
 
@@ -3235,8 +3235,8 @@ case "${arg}" in
 		else
 		
 		cat <<"EOF"
-$Id: firehol.sh,v 1.118 2003/03/17 23:03:00 ktsaou Exp $
-(C) Copyright 2002, Costa Tsaousis <costa@tsaousis.gr>
+$Id: firehol.sh,v 1.119 2003/03/18 21:27:35 ktsaou Exp $
+(C) Copyright 2003, Costa Tsaousis <costa@tsaousis.gr>
 FireHOL is distributed under GPL.
 
 FireHOL supports the following command line arguments (only one of them):
@@ -3418,8 +3418,8 @@ then
 	
 	cat <<"EOF"
 
-$Id: firehol.sh,v 1.118 2003/03/17 23:03:00 ktsaou Exp $
-(C) Copyright 2002, Costa Tsaousis <costa@tsaousis.gr>
+$Id: firehol.sh,v 1.119 2003/03/18 21:27:35 ktsaou Exp $
+(C) Copyright 2003, Costa Tsaousis <costa@tsaousis.gr>
 FireHOL is distributed under GPL.
 Home Page: http://firehol.sourceforge.net
 
@@ -3712,8 +3712,8 @@ then
 	
 	cat >&2 <<"EOF"
 
-$Id: firehol.sh,v 1.118 2003/03/17 23:03:00 ktsaou Exp $
-(C) Copyright 2002, Costa Tsaousis <costa@tsaousis.gr>
+$Id: firehol.sh,v 1.119 2003/03/18 21:27:35 ktsaou Exp $
+(C) Copyright 2003, Costa Tsaousis <costa@tsaousis.gr>
 FireHOL is distributed under GPL.
 Home Page: http://firehol.sourceforge.net
 
@@ -3805,8 +3805,8 @@ EOF
 	echo "# "
 
 	cat <<"EOF"
-# $Id: firehol.sh,v 1.118 2003/03/17 23:03:00 ktsaou Exp $
-# (C) Copyright 2002, Costa Tsaousis <costa@tsaousis.gr>
+# $Id: firehol.sh,v 1.119 2003/03/18 21:27:35 ktsaou Exp $
+# (C) Copyright 2003, Costa Tsaousis <costa@tsaousis.gr>
 # FireHOL is distributed under GPL.
 # Home Page: http://firehol.sourceforge.net
 # 
