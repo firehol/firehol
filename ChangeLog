@@ -1,7 +1,7 @@
 
 RCS file: /cvsroot/firehol/firehol/firehol.sh,v
 Working file: firehol.sh
-head: 1.158
+head: 1.159
 branch:
 locks: strict
 access list:
@@ -9,8 +9,12 @@ symbolic names:
 	start: 1.1.1.1
 	vendor: 1.1.1
 keyword substitution: kv
-total revisions: 159;	selected revisions: 159
+total revisions: 160;	selected revisions: 160
 description:
+----------------------------
+revision 1.159
+date: 2003/10/09 10:01:26;  author: ktsaou;  state: Exp;  lines: +9 -5
+Added service Veritas NetBackup.
 ----------------------------
 revision 1.158
 date: 2003/10/07 22:31:06;  author: ktsaou;  state: Exp;  lines: +12 -7
