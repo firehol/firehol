@@ -10,7 +10,7 @@
 #
 # config: /etc/firehol/firehol.conf
 #
-# $Id: firehol.sh,v 1.133 2003/06/18 21:44:52 ktsaou Exp $
+# $Id: firehol.sh,v 1.134 2003/06/18 22:56:24 ktsaou Exp $
 #
 FIREHOL_FILE="${0}"
 
@@ -1185,6 +1185,29 @@ redirect() {
 	nat "redirect-to" "${to}" "$@"
 }
 
+wrongmac_chain=0
+mac() {
+	work_realcmd=($FUNCNAME "$@")
+	
+	set_work_function -ne "Initializing $FUNCNAME"
+	
+	require_work clear || ( error "$FUNCNAME cannot be used in '${work_cmd}'. Put it before any '${work_cmd}' definition."; return 1 )
+	
+	set_work_function "Setting up rules for MAC address match"
+	
+	if [ ${wrongmac_chain} -eq 0 ]
+	then
+		iptables -t filter -N WRONGMAC
+		rule table filter chain WRONGMAC loglimit "MAC MISSMATCH" action DROP || return 1
+		
+		wrongmac_chain=1
+	fi
+	
+	iptables -t filter -A INPUT   -s "${1}" -m mac --mac-source ! "${2}" -j WRONGMAC
+	iptables -t filter -A FORWARD -s "${1}" -m mac --mac-source ! "${2}" -j WRONGMAC
+	
+	return 0
+}
 
 # ------------------------------------------------------------------------------
 # XXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXX
@@ -1846,6 +1869,9 @@ rule() {
 	local outface=any
 	local outfacenot=
 	
+	local mac=any
+	local macnot=
+	
 	local src=any
 	local srcnot=
 	
@@ -1998,6 +2024,22 @@ rule() {
 					fi
 					test ${softwarnings} -eq 1 -a ! "${inface}" = "any" && softwarning "Overwritting param: inface '${inface}' becomes '${1}'"
 					inface="${1}"
+				fi
+				shift
+				;;
+				
+			mac|MAC)
+				shift
+				if [ ${reverse} -eq 0 ]
+				then
+					macnot=
+					if [ "${1}" = "not" -o "${1}" = "NOT" ]
+					then
+						shift
+						macnot="!"
+					fi
+					test ${softwarnings} -eq 1 -a ! "${mac}" = "any" && softwarning "Overwritting param: mac '${mac}' becomes '${1}'"
+					mac="${1}"
 				fi
 				shift
 				;;
@@ -2445,6 +2487,7 @@ rule() {
 	# will prevent us from generating a rule (due to nested BASH loops).
 	test -z "${inface}"	&& error "Cannot accept an empty 'inface'."	&& return 1
 	test -z "${outface}"	&& error "Cannot accept an empty 'outface'."	&& return 1
+	test -z "${mac}"	&& error "Cannot accept an empty 'mac'."	&& return 1
 	test -z "${src}"	&& error "Cannot accept an empty 'src'."	&& return 1
 	test -z "${dst}"	&& error "Cannot accept an empty 'dst'."	&& return 1
 	test -z "${sport}"	&& error "Cannot accept an empty 'sport'."	&& return 1
@@ -2473,7 +2516,7 @@ rule() {
 	
 	
 	# ignore 'statenot' since it is negated in the positive rules
-	if [ ! -z "${infacenot}${outfacenot}${srcnot}${dstnot}${sportnot}${dportnot}${protonot}${uidnot}${gidnot}${pidnot}${sidnot}" ]
+	if [ ! -z "${infacenot}${outfacenot}${macnot}${srcnot}${dstnot}${sportnot}${dportnot}${protonot}${uidnot}${gidnot}${pidnot}${sidnot}" ]
 	then
 		if [ ${action_is_chain} -eq 1 ]
 		then
@@ -2519,6 +2562,17 @@ rule() {
 			done
 			outfacenot=
 			outface=any
+		fi
+		
+		if [ ! -z "${macnot}" ]
+		then
+			local m=
+			for m in ${mac}
+			do
+				iptables ${table} -A "${negative_chain}" -m mac --mac-source "${m}" -j RETURN
+			done
+			macnot=
+			mac=any
 		fi
 		
 		if [ ! -z "${srcnot}" ]
@@ -2801,70 +2855,84 @@ rule() {
 												;;
 										esac
 										
-										local s=
-										for s in ${src}
+										local mc=
+										for mc in ${mac}
 										do
-											unset s_arg
-											case ${s} in
+											unset mc_arg
+											case ${mc} in
 												any|ANY)
 													;;
 												
 												*)
-													local -a s_arg=("-s" "${s}")
+													local -a mc_arg=("-m" "mac" "--mac-source" "${mc}")
 													;;
 											esac
 											
-											local d=
-											for d in ${dst}
+											local s=
+											for s in ${src}
 											do
-												unset d_arg
-												case ${d} in
+												unset s_arg
+												case ${s} in
 													any|ANY)
 														;;
 													
 													*)
-														local -a d_arg=("-d" "${d}")
+														local -a s_arg=("-s" "${s}")
 														;;
 												esac
 												
-												unset state_arg
-												if [ ! -z "${state}" ]
-												then
-													local -a state_arg=("-m" "state" "${statenot}" "--state" "${state}")
-												fi
-												
-												unset limit_arg
-												if [ ! -z "${limit}" ]
-												then
-													local -a limit_arg=("-m" "limit" "--limit" "${limit}" "--limit-burst" "${burst}")
-												fi
-												
-												unset iplimit_arg
-												if [ ! -z "${iplimit}" ]
-												then
-													local -a iplimit_arg=("-m" "iplimit" "--iplimit-above" "${iplimit}" "--iplimit-mask" "${iplimit_mask}")
-												fi
-												
-												declare -a basecmd=("${inf_arg[@]}" "${outf_arg[@]}" "${limit_arg[@]}" "${iplimit_arg[@]}" "${proto_arg[@]}" "${s_arg[@]}" "${sp_arg[@]}" "${d_arg[@]}" "${dp_arg[@]}" "${owner_arg[@]}" "${uid_arg[@]}" "${gid_arg[@]}" "${pid_arg[@]}" "${sid_arg[@]}" "${state_arg[@]}")
-												
-												case "${log}" in
-													'')
-														;;
+												local d=
+												for d in ${dst}
+												do
+													unset d_arg
+													case ${d} in
+														any|ANY)
+															;;
+														
+														*)
+															local -a d_arg=("-d" "${d}")
+															;;
+													esac
 													
-													limit)
-														iptables ${table} -A "${chain}" "${basecmd[@]}" ${custom} -m limit --limit "${FIREHOL_LOG_FREQUENCY}" --limit-burst "${FIREHOL_LOG_BURST}" -j LOG ${FIREHOL_LOG_OPTIONS} --log-level "${loglevel}" --log-prefix="${logtxt}:"
-														;;
+													unset state_arg
+													if [ ! -z "${state}" ]
+													then
+														local -a state_arg=("-m" "state" "${statenot}" "--state" "${state}")
+													fi
+													
+													unset limit_arg
+													if [ ! -z "${limit}" ]
+													then
+														local -a limit_arg=("-m" "limit" "--limit" "${limit}" "--limit-burst" "${burst}")
+													fi
+													
+													unset iplimit_arg
+													if [ ! -z "${iplimit}" ]
+													then
+														local -a iplimit_arg=("-m" "iplimit" "--iplimit-above" "${iplimit}" "--iplimit-mask" "${iplimit_mask}")
+													fi
+													
+													declare -a basecmd=("${inf_arg[@]}" "${outf_arg[@]}" "${limit_arg[@]}" "${iplimit_arg[@]}" "${proto_arg[@]}" "${s_arg[@]}" "${sp_arg[@]}" "${d_arg[@]}" "${dp_arg[@]}" "${owner_arg[@]}" "${uid_arg[@]}" "${gid_arg[@]}" "${pid_arg[@]}" "${sid_arg[@]}" "${state_arg[@]}" "${mc_arg[@]}")
+													
+													case "${log}" in
+														'')
+															;;
 														
-													normal)
-														iptables ${table} -A "${chain}" "${basecmd[@]}" ${custom} -j LOG ${FIREHOL_LOG_OPTIONS} --log-level "${loglevel}" --log-prefix="${logtxt}:"
-														;;
-														
-													*)
-														error "Unknown log value '${log}'."
-														;;
-												esac
-												
-												rule_action_param "${action}" "${pr}" "${action_param[@]}" -- ${table} -A "${chain}" "${basecmd[@]}" ${custom}
+														limit)
+															iptables ${table} -A "${chain}" "${basecmd[@]}" ${custom} -m limit --limit "${FIREHOL_LOG_FREQUENCY}" --limit-burst "${FIREHOL_LOG_BURST}" -j LOG ${FIREHOL_LOG_OPTIONS} --log-level "${loglevel}" --log-prefix="${logtxt}:"
+															;;
+															
+														normal)
+															iptables ${table} -A "${chain}" "${basecmd[@]}" ${custom} -j LOG ${FIREHOL_LOG_OPTIONS} --log-level "${loglevel}" --log-prefix="${logtxt}:"
+															;;
+															
+														*)
+															error "Unknown log value '${log}'."
+															;;
+													esac
+													
+													rule_action_param "${action}" "${pr}" "${action_param[@]}" -- ${table} -A "${chain}" "${basecmd[@]}" ${custom}
+												done
 											done
 										done
 									done
@@ -3371,7 +3439,7 @@ case "${arg}" in
 		else
 		
 		${CAT_CMD} <<"EOF"
-$Id: firehol.sh,v 1.133 2003/06/18 21:44:52 ktsaou Exp $
+$Id: firehol.sh,v 1.134 2003/06/18 22:56:24 ktsaou Exp $
 (C) Copyright 2003, Costa Tsaousis <costa@tsaousis.gr>
 FireHOL is distributed under GPL.
 
@@ -3557,7 +3625,7 @@ then
 	
 	${CAT_CMD} <<"EOF"
 
-$Id: firehol.sh,v 1.133 2003/06/18 21:44:52 ktsaou Exp $
+$Id: firehol.sh,v 1.134 2003/06/18 22:56:24 ktsaou Exp $
 (C) Copyright 2003, Costa Tsaousis <costa@tsaousis.gr>
 FireHOL is distributed under GPL.
 Home Page: http://firehol.sourceforge.net
@@ -3852,7 +3920,7 @@ then
 	
 	${CAT_CMD} >&2 <<"EOF"
 
-$Id: firehol.sh,v 1.133 2003/06/18 21:44:52 ktsaou Exp $
+$Id: firehol.sh,v 1.134 2003/06/18 22:56:24 ktsaou Exp $
 (C) Copyright 2003, Costa Tsaousis <costa@tsaousis.gr>
 FireHOL is distributed under GPL.
 Home Page: http://firehol.sourceforge.net
@@ -3945,7 +4013,7 @@ EOF
 	echo "# "
 
 	${CAT_CMD} <<"EOF"
-# $Id: firehol.sh,v 1.133 2003/06/18 21:44:52 ktsaou Exp $
+# $Id: firehol.sh,v 1.134 2003/06/18 22:56:24 ktsaou Exp $
 # (C) Copyright 2003, Costa Tsaousis <costa@tsaousis.gr>
 # FireHOL is distributed under GPL.
 # Home Page: http://firehol.sourceforge.net
