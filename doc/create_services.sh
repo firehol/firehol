@@ -42,7 +42,8 @@ uncoditionally to everyone.
 This complex service handles correctly the multi-socket bi-directional connections made.
 Use the FireHOL <b>server</b> directive on the Amanda server, and FireHOL's <b>client</b> on the Amanda client.
 <p>
-Most probably, the <b>amanda</b> service will break if it is NATed (to work it would require a iptables kernel module).
+The <b>amanda</b> service will break if it is NATed (to work it would require a bi-directional NAT and
+a modification in the amanda code to allow connections from/to high ports).
 "
 
 
@@ -315,7 +316,7 @@ cat <<"EOF"
 <tr><td align=center valign=middle>
 	<A href="http://sourceforge.net"><IMG src="http://sourceforge.net/sflogo.php?group_id=58425&amp;type=5" width="210" height="62" border="0" alt="SourceForge Logo"></A>
 </td><td align=center valign=middle>
-	<small>$Id: create_services.sh,v 1.11 2002/12/19 23:31:45 ktsaou Exp $</small>
+	<small>$Id: create_services.sh,v 1.12 2002/12/19 23:35:43 ktsaou Exp $</small>
 	<p>
 	<b>FireHOL</b>, a firewall for humans...<br>
 	&copy; Copyright 2002
