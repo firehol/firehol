@@ -10,7 +10,7 @@
 #
 # config: /etc/firehol/firehol.conf
 #
-# $Id: firehol.sh,v 1.156 2003/10/05 22:58:57 ktsaou Exp $
+# $Id: firehol.sh,v 1.157 2003/10/06 00:17:23 ktsaou Exp $
 #
 FIREHOL_FILE="${0}"
 
@@ -908,11 +908,23 @@ rules_tftp() {
 	fi
 	
 	# ---------------------------------------------------------------------
+	# TFTP is a broken protokol. It works like this:
+	#
+	# 1. The client sends from a high port (a) to the server's tftp port an
+	#    udp packet with "give me file 'bla'".
+	#
+	# 2. The server replies from a high port (b) to the highport the client
+	#    used (a) with "this is part 0 if your file"
+	#
+	# 3. The client now has to send a reply (from his highport a) to the
+	#    servers high port (b): "got part 0, send next part 1".
+	#
+	# 4. repeat 2. and 3. till file transmitted
 	
 	# allow the initial TFTP connection
 	set_work_function "Setting up rules for initial TFTP connection (${type})"
 	rule ${in}          action "$@" chain "${in}_${mychain}"  proto "udp" sport "${client_ports}" dport tftp state NEW,ESTABLISHED || return 1
-	rule ${out} reverse action "$@" chain "${out}_${mychain}" proto "udp" sport "${client_ports}" dport tftp state ESTABLISHED     || return 1
+#	rule ${out} reverse action "$@" chain "${out}_${mychain}" proto "udp" sport "${client_ports}" dport tftp state ESTABLISHED     || return 1
 	
 	# We now need both server and client port ranges
 	local s_client_ports="${DEFAULT_CLIENT_PORTS}"
@@ -3686,7 +3698,7 @@ case "${arg}" in
 		else
 		
 		${CAT_CMD} <<EOF
-$Id: firehol.sh,v 1.156 2003/10/05 22:58:57 ktsaou Exp $
+$Id: firehol.sh,v 1.157 2003/10/06 00:17:23 ktsaou Exp $
 (C) Copyright 2003, Costa Tsaousis <costa@tsaousis.gr>
 FireHOL is distributed under GPL.
 
@@ -3872,7 +3884,7 @@ then
 	
 	${CAT_CMD} <<EOF
 
-$Id: firehol.sh,v 1.156 2003/10/05 22:58:57 ktsaou Exp $
+$Id: firehol.sh,v 1.157 2003/10/06 00:17:23 ktsaou Exp $
 (C) Copyright 2003, Costa Tsaousis <costa@tsaousis.gr>
 FireHOL is distributed under GPL.
 Home Page: http://firehol.sourceforge.net
@@ -4167,7 +4179,7 @@ then
 	
 	${CAT_CMD} >&2 <<EOF
 
-$Id: firehol.sh,v 1.156 2003/10/05 22:58:57 ktsaou Exp $
+$Id: firehol.sh,v 1.157 2003/10/06 00:17:23 ktsaou Exp $
 (C) Copyright 2003, Costa Tsaousis <costa@tsaousis.gr>
 FireHOL is distributed under GPL.
 Home Page: http://firehol.sourceforge.net
@@ -4250,7 +4262,7 @@ EOF
 	echo "# "
 
 	${CAT_CMD} <<EOF
-# $Id: firehol.sh,v 1.156 2003/10/05 22:58:57 ktsaou Exp $
+# $Id: firehol.sh,v 1.157 2003/10/06 00:17:23 ktsaou Exp $
 # (C) Copyright 2003, Costa Tsaousis <costa@tsaousis.gr>
 # FireHOL is distributed under GPL.
 # Home Page: http://firehol.sourceforge.net
