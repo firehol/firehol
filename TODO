@@ -1,4 +1,4 @@
-$Id: TODO,v 1.18 2004/12/03 20:12:21 ktsaou Exp $
+$Id: TODO,v 1.19 2005/04/03 21:48:04 ktsaou Exp $
 
 The following is a list of features I plan to add to FireHOL,
 assuming that my time permits and there is demand for them.
@@ -160,4 +160,106 @@ interface ...
 26. Allow a firewall to be build in multiple runs of FireHOL, so
     that we can split the configuration in multiple files and
     process them individually.
+
+27. Support newer netfilter modules:
+
+NETMAP
+The CONFIG_IP_NF_TARGET_NETMAP provides a target for the nat table. It creates
+a static 1:1 mapping of the network address, while keeping host addresses
+intact. It can be applied to the PREROUTING chain to alter the destination of
+incoming connections, to the POSTROUTING chain to alter the source of outgoing
+connections, or both (with separate rules).
+
+Examples:
+iptables -t nat -A PREROUTING -d 1.2.3.0/24 -j NETMAP --to 5.6.7.0/24
+iptables -t nat -A POSTROUTING -s 5.6.7.0/24 -j NETMAP --to 1.2.3.0/24
+
+
+IPRANGE
+This patch makes possible to match source/destination IP
+addresses against inclusive IP address ranges.
+
+Examples:
+iptables -A FORWARD -m iprange --src-range 192.168.1.5-192.168.1.124 -j ACCEPT
+iptables -A FORWARD -m iprange --dst-range 10.0.0.0-10.255.255.255 -j ACCEPT
+
+
+SAME
+CONFIG_IP_NF_TARGET_SAME is similar to SNAT/DNAT depending on chain: it takes a
+range of addresses (`--to 1.2.3.4-1.2.3.7') and gives a client the same
+source-/destination-address for each connection.
+
+It has a --nodst option to make it not use the destination-ip in the
+calculations when selecting the new source-ip
+
+It has support for multiple ranges, including 1-address ranges.
+
+
+NOTRACK
+This option adds a new 'raw' table to iptables.  The raw table is the very
+first in netfilter (it even precedes the conntrack subsystem) and uses the
+PREROUTING and OUTPUT built-in chains.
+
+The NOTRACK target can be used to select which packets *not* 
+to enter the conntrack/NAT subsystems. Please keep in mind:
+if you mark a packet with NOTRACK, then
+
+- all the conntrack functionalities are lost for the packet
+  (ICMP error tracking, protocol helpers, etc)
+- all the NAT functionalities are also lost.
+
+Packets marked with NOTRACK can be matched by the 'UNTRACKED'
+state using the state or conntrack matches. Example
+
+# Very busy webserver
+iptables -t raw -A PREROUTING -d 1.2.3.4 -p tcp --dport 80 -j NOTRACK
+iptables -t raw -A PREROUTING -s 1.2.3.4 -p tcp --sport 80 -j NOTRACK
+...
+
+# filter rules
+iptables -A FORWARD -m state --state UNTRACKED -j ACCEPT
+
+
+SCTP
+This module helps to match SCTP packets based on the following criteria
+
+Destination Port: --dest-port 
+Source Port:      --source-port 
+Chunk Types:      --chunk-types (all|any|only) <chunk types:flags>
+		  The flag letter in upper case indicates that the flag is to match if set,
+		  in the lower case indicates to match if unset.
+
+iptables -A INPUT -p sctp --dest-port 80 -j DROP
+iptables -A INPUT -p sctp --chunk-types any DATA,INIT -j DROP
+iptables -A INPUT -p sctp --chunk-types any DATA:Be -j ACCEPT
+
+
+REALM
+realm match: uses realm key from routing as match criteria similiar to
+             one in packet classifier
+
+/** snip from packet classifier documentation */
+Routing tables based classifier
+CONFIG_NET_CLS_ROUTE4
+  If you say Y here, you will be able to classify outgoing packets
+  according to the route table entry they matched. If unsure, say Y.
+/** end snip **/
+
+
+# Example
+# add route
+/sbin/ip route add 194.29.194.0/24 via 194.29.192.1 realm 10
+
+# source realm is in realm with mask 0xFFFF0000,
+# destination is in realm with mask 0x0000FFFF
+
+# match destination realm
+/usr/local/sbin/iptables -A OUTPUT -m realm --realm 10 -j LOG
+
+# match realm of source, this is also determinated by routing,
+/usr/local/sbin/iptables -A INPUT -m realm --realm 655360 -j LOG
+
+THIS PATCH REQUIRES CONFIG_NET_CLS_ROUTE TO BE SET
+
+Note: With 2.6 CONFIG_NET_CLS_ROUTE is automatically selected.
 
