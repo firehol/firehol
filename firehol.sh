@@ -10,7 +10,7 @@
 #
 # config: /etc/firehol.conf
 #
-# $Id: firehol.sh,v 1.66 2003/01/06 16:13:34 ktsaou Exp $
+# $Id: firehol.sh,v 1.67 2003/01/07 01:51:47 ktsaou Exp $
 #
 
 
@@ -100,7 +100,6 @@ FIREHOL_TMP="${FIREHOL_DIR}/firehol-tmp.sh"
 # file commands and arguments change their meaning and usage, so that
 # the user will have to review it more precisely.
 FIREHOL_VERSION=5
-FIREHOL_VERSION_CHECKED=0
 
 
 # ----------------------------------------------------------------------
@@ -1037,8 +1036,6 @@ transparent_squid() {
 version() {
         work_realcmd=(${FUNCNAME} "$@")
 	
-	FIREHOL_VERSION_CHECKED=1
-	
 	if [ ${1} -gt ${FIREHOL_VERSION} ]
 	then
 		error "Wrong version. FireHOL is v${FIREHOL_VERSION}, your script requires v${1}."
@@ -1183,11 +1180,7 @@ masquerade() {
 	
 	set_work_function "Initializing masquerade on interface '${f}'"
 	
-	local x=
-	for x in ${f}
-	do
-		rule table nat chain POSTROUTING outface "${x}" action MASQUERADE "$@" || return 1
-	done
+	rule table nat chain POSTROUTING "$@" outface "${f}" action MASQUERADE || return 1
 	
 	FIREHOL_NAT=1
 	FIREHOL_ROUTING=1
@@ -2700,7 +2693,7 @@ case "${arg}" in
 		else
 		
 		cat <<"EOF"
-$Id: firehol.sh,v 1.66 2003/01/06 16:13:34 ktsaou Exp $
+$Id: firehol.sh,v 1.67 2003/01/07 01:51:47 ktsaou Exp $
 (C) Copyright 2002, Costa Tsaousis <costa@tsaousis.gr>
 FireHOL is distributed under GPL.
 
@@ -2868,7 +2861,7 @@ then
 	
 	cat <<"EOF"
 
-$Id: firehol.sh,v 1.66 2003/01/06 16:13:34 ktsaou Exp $
+$Id: firehol.sh,v 1.67 2003/01/07 01:51:47 ktsaou Exp $
 (C) Copyright 2002, Costa Tsaousis <costa@tsaousis.gr>
 FireHOL is distributed under GPL.
 Home Page: http://firehol.sourceforge.net
@@ -3125,17 +3118,6 @@ FIREHOL_LINEID="FIN"
 enable trap			# Enable the trap buildin shell command.
 enable exit			# Enable the exit buildin shell command.
 
-
-# ------------------------------------------------------------------------------
-# Make sure the script stated a version number.
-
-if [ ${FIREHOL_VERSION_CHECKED} -eq 0 ]
-then
-	error "The configuration file does not state a version number."
-	failure $"FireHOL: Processing file ${FIREHOL_CONFIG}:"
-	echo
-	exit 1
-fi
 
 close_cmd					|| ret=$[ret + 1]
 close_master					|| ret=$[ret + 1]
