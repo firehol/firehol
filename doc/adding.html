@@ -6,74 +6,117 @@
 
 <BODY bgcolor="#FFFFFF">
 
-<font color="gray">(note: this is part of the old site - more to come later...)</font>
-<p>
-
 It is very simple to extend FireHOL for simple single socket services.
 There are two different ways to do it.<p>
 
+<table border=0 cellpadding=10 cellspacing=0 width="100%">
+<tr><td bgcolor="#EEEEEE"><b>The service definition syntax</td></tr></table>
+<br>
 The first needs a small service definition
-somewhere at the beginning of the FireHOL configuration file. This syntax is called the 
-<b>service definition syntax</b>.<br>
-
+somewhere at the beginning of the FireHOL configuration file.
+<p>
 For example the following:
 
-<pre>
-server_myservice_ports=&quot;proto/XXX&quot;
-client_myservice_ports=&quot;default&quot;
-</pre>
+<center><table border=0 cellpadding=15 cellspacing=20 width="70%">
+<tr><td bgcolor="#F0F0F0">
+<b><pre>
+	server_myservice_ports=&quot;proto/XXX&quot;
+	client_myservice_ports=&quot;default&quot;
+</pre></b>
+</td></tr>
+</table>
+</center>
 
-Where:<br>
-<b>myservice</b> is the name of the service,<br>
-<b>proto</b> is either <b>tcp</b> or <b>udp</b> - or whatever else iptables accepts 
-as protocol,<br>
-<b>XXX</b> is the port (or port name) the server is listening at, and <br>
-<b>default</b> is a keyword that matches the default client ports.
-<br>
+Where:
+<ul>
+	<li><b>myservice</b> is the name of the service,</li>
+	<li><b>proto</b> is either <b>tcp</b> or <b>udp</b> - or whatever else iptables accepts 
+	as protocol,</li>
+	<li><b>XXX</b> is the port (or port name) the server is listening at, and</li>
+	<li><b>default</b> is a keyword that matches the default client ports.</li>
+</ul>
 Just the above two lines will allow you to use (for example):
 
-<pre>
-	server myservice accept
-	client myservice reject
-	route myservice drop
-</pre>
-later in the configuration file. As an example, assuming that the IMAP4 service was not defined in FireHOL you would have to write:
-
-<pre>
-server_imap_ports="tcp/143"
-client_imap_ports="default"
-
-interface eth0 lan0
-	server imap accept
-
-interface eth1 lan1
-	client imap reject
-</pre>
-
+<center><table border=0 cellpadding=15 cellspacing=20 width="70%">
+<tr><td bgcolor="#F0F0F0">
+<b><pre>
+	interface eth0 internet
+		server myservice accept
+		client myservice reject
+		route myservice drop
+</pre></b>
+</td></tr>
+</table>
+</center>
+later in the configuration file.
 <p>
+As an example, assuming that the IMAP4 service was not defined in FireHOL you would have to write:
+
+<center><table border=0 cellpadding=15 cellspacing=20 width="70%">
+<tr><td bgcolor="#F0F0F0">
+<b><pre>
+	version 5
+	
+	server_imap_ports="tcp/143"
+	client_imap_ports="default"
+	
+	interface eth0 lan0
+		server imap accept
+	
+	interface eth1 lan1
+		client imap reject
+	
+	router lan2lan inface eth0 outface eth1
+		route imap accept
+</pre></b>
+</td></tr>
+</table>
+</center>
+<p>
+<table border=0 cellpadding=10 cellspacing=0 width="100%">
+<tr><td bgcolor="#EEEEEE"><b>The inline service definition syntax</td></tr></table>
+<br>
 The second way is to use the <b>inline service definition syntax</b>:
 
-<pre>
-	server custom myservice proto/XXX default accept
-</pre>
+<center><table border=0 cellpadding=15 cellspacing=20 width="70%">
+<tr><td bgcolor="#F0F0F0">
+<b><pre>
+		server custom myservice proto/XXX default accept
+</pre></b>
+</td></tr>
+</table>
+</center>
 
-Where:<br>
-<b>custom</b> is a service name that states the inline service definition syntax.<br>
-<b>myservice</b> is the name of the service,<br>
-<b>proto</b> is either <b>tcp</b> or <b>udp</b> - or whatever else iptables accepts 
-as protocol,<br>
-<b>XXX</b> is the port (or port name) the server is listening at, and <br>
-<b>default</b> is a keyword that matches the default client ports.
+Where:
+<ul>
+	<li><b>custom</b> is a service name that states the inline service definition syntax.</li>
+	<li><b>myservice</b> is the name of the service,</li>
+	<li><b>proto</b> is either <b>tcp</b> or <b>udp</b> - or whatever else iptables accepts 
+	as protocol,</li>
+	<li><b>XXX</b> is the port (or port name) the server is listening at, and</li>
+	<li><b>default</b> is a keyword that matches the default client ports.</li>
+</ul>
 <p>
+
 The IMAP4 service example above, now becomes:
 
-<pre>
-interface eth0 lan0
-	server custom imap tcp/143 default accept
-
-interface eth1 lan1
-	client custom imap tcp/143 default reject
-</pre>
+<center><table border=0 cellpadding=15 cellspacing=20 width="70%">
+<tr><td bgcolor="#F0F0F0">
+<b><pre>
+	version 5
+	
+	interface eth0 lan0
+		server custom imap tcp/143 default accept
+	
+	interface eth1 lan1
+		client custom imap tcp/143 default reject
+	
+	router lan2lan inface eth0 outface eth1
+		route custom imap tcp/143 default accept
+</pre></b>
+</td></tr>
+</table>
+</center>
 
 So, if you are only going to need a service just once in your firewall, it might be convenient to use
 the inline syntax, while if you are going to need it many times, it would be easier to use the service
@@ -81,6 +124,106 @@ definition syntax.<br>
 Personally, I always prefer to use the service definition syntax and to avoid the inline one (I always forget
 that the inline one requires a service name too...).
 
+<p>
+<table border=0 cellpadding=10 cellspacing=0 width="100%">
+<tr><td bgcolor="#EEEEEE"><b>Multi-socket, but simple servers</td></tr></table>
+<br>
+Both expressions accept multiple arguments.
+<p>
+Fox example, assume there is a service named <b>serveme</b> that listens at two ports, port <b>1234 TCP</b> and <b>1234 UDP</b>.
+The expected client ports are the default random ports a system may choose, plus the same port numbers the server is listening at.
+<p>
+To define this service you will have to write:
+
+<center><table border=0 cellpadding=15 cellspacing=20 width="70%">
+<tr><td bgcolor="#F0F0F0">
+<b><pre>
+	version 5
+	
+	server_serveme_ports="tcp/1234 udp/1234"
+	client_serveme_ports="default 1234"
+		
+	interface eth0 lan0
+		server serveme accept
+	
+	interface eth1 lan1
+		client serveme reject
+	
+	router lan2lan inface eth0 outface eth1
+		route serveme accept
+</pre></b>
+</td></tr>
+</table>
+</center>
+In this situation, FireHOL simply does all the combinations between client and server ports and produces multiple iptables statements to accomplish them.
+<p>
+This is also the reason why the protocol cannot be defined in client ports.
+
+<p>
+<table border=0 cellpadding=10 cellspacing=0 width="100%">
+<tr><td bgcolor="#EEEEEE"><b>Requiring kernel modules</td></tr></table>
+<br>
+Each service can be configured to require two sets of kernel modules depending whether <a href="commands.html#FIREHOL_NAT">NAT is enabled or not</a>.
+This is done on a per service basis, so that if a service is not used in a configuration, FireHOL will not load the module.
+<p>
+The general format is:
+
+<center><table border=0 cellpadding=15 cellspacing=20 width="70%">
+<tr><td bgcolor="#F0F0F0">
+<b><pre>
+	require_service_modules="some_module"
+	require_service_nat_modules="some_module_for_nat"
+</pre></b>
+</td></tr>
+</table>
+</center>
+
+As an example you can see the complete IRC definition within FireHOL:
+
+<center><table border=0 cellpadding=15 cellspacing=20 width="70%">
+<tr><td bgcolor="#F0F0F0">
+<b><pre>
+	server_irc_ports="tcp/ircd"
+	client_irc_ports="default"
+	
+	require_irc_modules="ip_conntrack_irc"
+	require_irc_nat_modules="ip_nat_irc"
+	
+	ALL_SHOULD_ALSO_RUN="${ALL_SHOULD_ALSO_RUN} irc"
+</pre></b>
+</td></tr>
+</table>
+</center>
+
+The last statement in the above example says to FireHOL, that if the configuration is using the <a href="services.html#all">all</a> service,
+FireHOL should indirectly also setup the <a href="services.html#irc">irc</a> service with all the <a href="commands.html#parameters">optional rule parameters</a>
+of the <a href="services.html#all">all</a> service.
+
+<p>
+<table border=0 cellpadding=10 cellspacing=0 width="100%">
+<tr><td bgcolor="#EEEEEE"><b>Complex services</td></tr></table>
+<br>
+Complex services are those that use multiple sockets initiated on both directions (where the client becomes a server and vice versa) of the communication,
+and possibly involving protocols beyond TCP and UDP.
+<p>
+Currently you will have also to consider as complex all the services that you would prefer not to implement
+using the connection tracker of iptables (i.e. stateless). In the future, and if there is enough demand, I might expand simple services to handle stateless
+services too.
+<p>
+To write a complex service you will have to write a BASH function. It is not hard, but it is not two lines of code too, and most probably I am going to change
+the interface to those functions in the future, as FireHOL evolves. So, if you write one, please sumbit a patch so that I will be able to change your function
+if and when I change the interface to those functions.
+<p>
+Note however that there are a few types of currently complex services that I'll try to avoid. These are all those services that in order to be implemented in
+a stateful way there must exist a kernel module for them. If I support these services now, FireHOL will loose its beauty since it will have to have ranges of
+ports completely open to everyone just in case your service wants them.
+There are plenty of <a href="http://www.netfilter.org/documentation/HOWTO//netfilter-extensions-HOWTO.html">such kernel modules</a> in an experimental state, which you can use if you decide to patch and recompile
+your kernel. If you do this, I'll be glad to support your <b>stateful</b> rules about them. If you try to allow such services in a stateless maner by, for
+example, allowing uncodintionally all traffic at high numbered ports... you are on your own.
+<p>
+If you decide to write a complex service, open FireHOL in your favorite editor and find all the functions that start with <b>rules_</b>. All these functions define rules for
+the complex services currently supported. If you know the basics of BASH programming, the existing functions will give you a clear idea of what you have to do to write your
+own.
 
 <p>
 <hr noshade size=1>
@@ -88,7 +231,7 @@ that the inline one requires a service name too...).
 <tr><td align=center valign=middle>
 	<A href="http://sourceforge.net"><IMG src="http://sourceforge.net/sflogo.php?group_id=58425&amp;type=5" width="210" height="62" border="0" alt="SourceForge Logo"></A>
 </td><td align=center valign=middle>
-	<small>$Id: adding.html,v 1.3 2002/12/09 22:40:41 ktsaou Exp $</small>
+	<small>$Id: adding.html,v 1.4 2002/12/10 20:32:52 ktsaou Exp $</small>
 	<p>
 	<b>FireHOL</b>, a firewall for humans...<br>
 	&copy; Copyright 2002
