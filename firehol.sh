@@ -10,7 +10,7 @@
 #
 # config: /etc/firehol.conf
 #
-# $Id: firehol.sh,v 1.81 2003/01/25 00:37:37 ktsaou Exp $
+# $Id: firehol.sh,v 1.82 2003/01/25 01:46:11 ktsaou Exp $
 #
 
 
@@ -1162,7 +1162,10 @@ router() {
 }
 
 postprocess() {
-	unset tmp
+	local check_error=1
+	test "A${1}" = "A-ne" && shift && local check_error=0
+	
+	local tmp=
 	test ! ${FIREHOL_DEBUG} -eq 1 && local tmp=" >${FIREHOL_OUTPUT}.log 2>&1"
 	
 	printf "%q " "$@" >>${FIREHOL_OUTPUT}
@@ -1175,7 +1178,10 @@ postprocess() {
 		rm -f ${FIREHOL_OUTPUT}
 	fi
 	
-	if [ ${FIREHOL_DEBUG} -eq 0 -a ${FIREHOL_EXPLAIN} -eq 0 ]
+	test ${FIREHOL_DEBUG}   -eq 1 && local check_error=0
+	test ${FIREHOL_EXPLAIN} -eq 1 && local check_error=0
+	
+	if [ ${check_error} -eq 1 ]
 	then
 		printf "check_final_status \$? ${FIREHOL_LINEID} " >>${FIREHOL_OUTPUT}
 		printf "%q " "$@" >>${FIREHOL_OUTPUT}
@@ -1427,13 +1433,13 @@ firehol_exit() {
 	if [ -f "${FIREHOL_SAVED}" ]
 	then
 		echo
-		echo -n "FireHOL: Restoring old firewall:"
+		echo -n $"FireHOL: Restoring old firewall:"
 		iptables-restore <"${FIREHOL_SAVED}"
 		if [ $? -eq 0 ]
 		then
-			success "FireHOL: Restoring old firewall:"
+			success $"FireHOL: Restoring old firewall:"
 		else
-			failure "FireHOL: Restoring old firewall:"
+			failure $"FireHOL: Restoring old firewall:"
 		fi
 		echo
 	fi
@@ -3019,7 +3025,7 @@ case "${arg}" in
 		else
 		
 		cat <<"EOF"
-$Id: firehol.sh,v 1.81 2003/01/25 00:37:37 ktsaou Exp $
+$Id: firehol.sh,v 1.82 2003/01/25 01:46:11 ktsaou Exp $
 (C) Copyright 2002, Costa Tsaousis <costa@tsaousis.gr>
 FireHOL is distributed under GPL.
 
@@ -3187,7 +3193,7 @@ then
 	
 	cat <<"EOF"
 
-$Id: firehol.sh,v 1.81 2003/01/25 00:37:37 ktsaou Exp $
+$Id: firehol.sh,v 1.82 2003/01/25 01:46:11 ktsaou Exp $
 (C) Copyright 2002, Costa Tsaousis <costa@tsaousis.gr>
 FireHOL is distributed under GPL.
 Home Page: http://firehol.sourceforge.net
@@ -3457,7 +3463,7 @@ echo
 
 for m in ${FIREHOL_KERNEL_MODULES}
 do
-	postprocess /sbin/modprobe $m
+	postprocess -ne /sbin/modprobe $m
 done
 
 # XXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXX
