@@ -1,7 +1,7 @@
 
 RCS file: /cvsroot/firehol/firehol/firehol.sh,v
 Working file: firehol.sh
-head: 1.81
+head: 1.83
 branch:
 locks: strict
 access list:
@@ -9,8 +9,27 @@ symbolic names:
 	start: 1.1.1.1
 	vendor: 1.1.1
 keyword substitution: kv
-total revisions: 82;	selected revisions: 82
+total revisions: 84;	selected revisions: 84
 description:
+----------------------------
+revision 1.83
+date: 2003/01/25 02:33:59;  author: ktsaou;  state: Exp;  lines: +77 -36
+FireHOL now supports runtime ERRORs and WARNINGs.
+
+ERRORs are assumed to be situations where FireHOL cannot continue, and it
+will exit just after restoring the previous firewall.
+
+WARNINGs are situations where FireHOL cannot determine if the firewall
+will or won't work, and it will just present the warning and continue.
+----------------------------
+revision 1.82
+date: 2003/01/25 01:46:11;  author: ktsaou;  state: Exp;  lines: +15 -9
+Made FireHOL not stop processing if some required kernel module is not
+present. This behaviour is required when the required module is compiled
+in the kernel, instead of being a module.
+
+However, FireHOL still calls /sbin/modprobe which will print some error
+to the console (this will not make FireHOL stop functioning).
 ----------------------------
 revision 1.81
 date: 2003/01/25 00:37:37;  author: ktsaou;  state: Exp;  lines: +25 -9
