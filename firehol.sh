@@ -226,7 +226,7 @@ client_ssh_ports="default"
 server_telnet_ports="tcp/telnet"
 client_telnet_ports="default"
 
-server_tftp_ports="tcp/tftp"
+server_tftp_ports="udp/tftp"
 client_tftp_ports="default"
 
 server_dhcp_ports="udp/bootps"
