@@ -1,7 +1,7 @@
 
 RCS file: /cvsroot/firehol/firehol/firehol.sh,v
 Working file: firehol.sh
-head: 1.89
+head: 1.91
 branch:
 locks: strict
 access list:
@@ -9,8 +9,38 @@ symbolic names:
 	start: 1.1.1.1
 	vendor: 1.1.1
 keyword substitution: kv
-total revisions: 90;	selected revisions: 90
+total revisions: 92;	selected revisions: 92
 description:
+----------------------------
+revision 1.91
+date: 2003/02/18 20:42:20;  author: ktsaou;  state: Exp;  lines: +4 -4
+Updated RESERVED_IPS according to the latest IANA Reserved IPv4 address
+space.
+----------------------------
+revision 1.90
+date: 2003/02/11 22:20:07;  author: ktsaou;  state: Exp;  lines: +25 -9
+Added /sbin in front of two sysctl statements that were producing errors
+in a few systems.
+
+Added control option FIREHOL_LOG_LEVEL and the optional argument 'level'
+to the 'log' parameter in order to accept custom log levels per rule.
+
+Now, to have different log levels, one could write:
+
+	server dhcp accept log "my-dhcp" src 1.1.1.1
+
+to get the default controlled by FIREHOL_LOG_LEVEL, or
+
+	server dhcp accept log "my-dhcp" level critical src 1.1.1.1
+
+Note that the 'level' is NOT a FireHOL optional rule parameter. It is an
+optional argument to the 'log' parameter. This for example is invalid:
+
+	server dhcp accept level critical log "my-dhcp" src 1.1.1.1
+
+The new definition of the 'log' optional rule parameter is:
+
+                    log "some text" [level a_level]
 ----------------------------
 revision 1.89
 date: 2003/02/03 23:11:49;  author: ktsaou;  state: Exp;  lines: +52 -3
