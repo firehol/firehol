@@ -10,7 +10,7 @@
 #
 # config: /etc/firehol/firehol.conf
 #
-# $Id: firehol.sh,v 1.221 2004/12/29 22:34:45 ktsaou Exp $
+# $Id: firehol.sh,v 1.222 2005/01/21 19:58:09 ktsaou Exp $
 #
 
 # Remember who you are.
@@ -95,7 +95,7 @@ which_cmd -n WGET_CMD wget || which_cmd CURL_CMD curl
 # Find our minor version
 firehol_minor_version() {
 ${CAT_CMD} <<"EOF" | ${CUT_CMD} -d ' ' -f 3 | ${CUT_CMD} -d '.' -f 2
-$Id: firehol.sh,v 1.221 2004/12/29 22:34:45 ktsaou Exp $
+$Id: firehol.sh,v 1.222 2005/01/21 19:58:09 ktsaou Exp $
 EOF
 }
 
@@ -400,6 +400,9 @@ client_dns_ports="any"
 # towards the real DHCP Server); I'm not sure about this one...
 server_dhcprelay_ports="udp/67"
 client_dhcprelay_ports="67"
+
+server_dict_ports="tcp/2628"
+client_dict_ports="default"
 
 # DISTCC is the distributed gcc for Gentoo
 server_distcc_ports="tcp/3632"
@@ -5076,7 +5079,7 @@ case "${arg}" in
 		else
 		
 		${CAT_CMD} <<EOF
-$Id: firehol.sh,v 1.221 2004/12/29 22:34:45 ktsaou Exp $
+$Id: firehol.sh,v 1.222 2005/01/21 19:58:09 ktsaou Exp $
 (C) Copyright 2003, Costa Tsaousis <costa@tsaousis.gr>
 FireHOL is distributed under GPL.
 
@@ -5262,7 +5265,7 @@ then
 	
 	${CAT_CMD} <<EOF
 
-$Id: firehol.sh,v 1.221 2004/12/29 22:34:45 ktsaou Exp $
+$Id: firehol.sh,v 1.222 2005/01/21 19:58:09 ktsaou Exp $
 (C) Copyright 2003, Costa Tsaousis <costa@tsaousis.gr>
 FireHOL is distributed under GPL.
 Home Page: http://firehol.sourceforge.net
@@ -5556,7 +5559,7 @@ then
 	
 	${CAT_CMD} >&2 <<EOF
 
-$Id: firehol.sh,v 1.221 2004/12/29 22:34:45 ktsaou Exp $
+$Id: firehol.sh,v 1.222 2005/01/21 19:58:09 ktsaou Exp $
 (C) Copyright 2003, Costa Tsaousis <costa@tsaousis.gr>
 FireHOL is distributed under GPL.
 Home Page: http://firehol.sourceforge.net
@@ -5639,7 +5642,7 @@ EOF
 	echo "# "
 
 	${CAT_CMD} <<EOF
-# $Id: firehol.sh,v 1.221 2004/12/29 22:34:45 ktsaou Exp $
+# $Id: firehol.sh,v 1.222 2005/01/21 19:58:09 ktsaou Exp $
 # (C) Copyright 2003, Costa Tsaousis <costa@tsaousis.gr>
 # FireHOL is distributed under GPL.
 # Home Page: http://firehol.sourceforge.net
