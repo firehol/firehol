@@ -158,7 +158,8 @@ UNMATCHED_ROUTER_POLICY="DROP"
 # Options for iptables LOG action.
 # These options will be added to all LOG actions FireHOL will generate.
 # To change them, type such a line in the configuration file.
-FIREHOL_LOG_OPTIONS="--log-level warning --log-tcp-sequence --log-tcp-options --log-ip-options"
+# FIREHOL_LOG_OPTIONS="--log-level warning --log-tcp-sequence --log-tcp-options --log-ip-options"
+FIREHOL_LOG_OPTIONS="--log-level warning"
 
 # Complex services' rules may add themeselves to this variable so that
 # the service "all" will also call them.
@@ -218,6 +219,7 @@ FIREHOL_NAT=0
 
 work_cmd=
 work_name=
+work_iface=
 work_policy=${DEFAULT_INTERFACE_POLICY}
 work_error=0
 
@@ -284,8 +286,14 @@ client_telnet_ports="default"
 # TFTP is more complicated than this.
 # TFTP communicates through high ports. The problem is that there is
 # no relevant iptables module in most distributions.
-# server_tftp_ports="udp/tftp"
-# client_tftp_ports="default"
+server_tftp_ports="udp/tftp"
+client_tftp_ports="default"
+
+server_irc_ports="udp/ircd"
+client_irc_ports="default"
+require_irc_modules="ip_conntrack_irc"
+require_irc_nat_modules="ip_nat_irc"
+ALL_SHOULD_ALSO_RUN="${ALL_SHOULD_ALSO_RUN} irc"
 
 server_dhcp_ports="udp/bootps"
 client_dhcp_ports="bootpc"
@@ -752,12 +760,12 @@ require_kernel_module() {
 	local m=
 	for m in ${FIREHOL_KERNEL_MODULES}
 	do
-		test "${m}" = "${new}" && return 1
+		test "${m}" = "${new}" && return 0
 	done
 	
 	FIREHOL_KERNEL_MODULES="${FIREHOL_KERNEL_MODULES} ${new}"
 	
-	return 1
+	return 0
 }
 
 
@@ -873,6 +881,7 @@ close_cmd() {
 	# Reset the current status variables to empty/default
 	work_cmd=
 	work_name=
+	work_iface=
 	work_policy=${DEFAULT_INTERFACE_POLICY}
 	
 	return 0
@@ -882,6 +891,18 @@ policy() {
 	require_work set interface || return 1
 	
 	work_policy=${1}
+	
+	return 0
+}
+
+masquerade() {
+	require_work set interface || return 1
+	
+	test -z "${work_iface}" && return 1
+	
+	iptables -t nat -A POSTROUTING -o "${work_iface}" -j MASQUERADE || return 1
+	
+	FIREHOL_NAT=1
 	
 	return 0
 }
@@ -916,6 +937,7 @@ interface() {
 	
 	work_cmd="${FUNCNAME}"
 	work_name="${name}"
+	work_iface="${inface}"
 	
 	create_chain in_${work_name} INPUT inface ${inface} "$@"
 	create_chain out_${work_name} OUTPUT reverse inface ${inface} "$@"
@@ -1725,6 +1747,24 @@ simple_service() {
 	
 	test -z "${server_ports}" -o -z "${client_ports}" && return 1
 	
+	local x=
+	local varname="require_${server}_modules"
+	local value="`eval echo \\\$${varname}`"
+	for x in ${value}
+	do
+		require_kernel_module $x || return 1
+	done
+	
+	if [ ${FIREHOL_NAT} -eq 1 ]
+	then
+		local varname="require_${server}_nat_modules"
+		local value="`eval echo \\\$${varname}`"
+		for x in ${value}
+		do
+			require_kernel_module $x || return 1
+		done
+	fi
+	
 	rules_custom "${type}" "${server}" "${server_ports}" "${client_ports}" "$@"
 	return $?
 }
@@ -1950,6 +1990,27 @@ iptables -P FORWARD ACCEPT		|| ret=$[ret + 1]
 
 iptables -A INPUT -i lo -j ACCEPT	|| ret=$[ret + 1]
 iptables -A OUTPUT -o lo -j ACCEPT	|| ret=$[ret + 1]
+
+
+# ------------------------------------------------------------------------------
+# Accept all related sockets.
+# This is required in a stateful firewall in order to match all the packets
+# that although are not part of an existing connection, are somehow related to
+# this existing connection.
+
+iptables -A INPUT -m state --state RELATED -j ACCEPT	|| ret=$[ret + 1]
+iptables -A OUTPUT -m state --state RELATED -j ACCEPT	|| ret=$[ret + 1]
+iptables -A FORWARD -m state --state RELATED -j ACCEPT	|| ret=$[ret + 1]
+
+
+# ------------------------------------------------------------------------------
+# Drop all invalid packets.
+# Netfilter HOWTO suggests to DROP all INVALID packets.
+
+iptables -A INPUT -m state --state INVALID -j DROP	|| ret=$[ret + 1]
+iptables -A OUTPUT -m state --state INVALID -j DROP	|| ret=$[ret + 1]
+iptables -A FORWARD -m state --state INVALID -j DROP	|| ret=$[ret + 1]
+
 
 if [ $ret -eq 0 ]
 then
