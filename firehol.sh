@@ -10,7 +10,7 @@
 #
 # config: /etc/firehol/firehol.conf
 #
-# $Id: firehol.sh,v 1.190 2004/04/23 07:36:12 ktsaou Exp $
+# $Id: firehol.sh,v 1.191 2004/04/23 22:15:18 ktsaou Exp $
 #
 
 # Remember who you are.
@@ -1357,19 +1357,19 @@ transparent_squid() {
 }
 
 nat_count=0
-nat() {
-	work_realcmd_helper $FUNCNAME "$@"
+nat_helper() {
+#	work_realcmd_helper $FUNCNAME "$@"
 	
 	set_work_function -ne "Initializing $FUNCNAME"
 	
-	require_work clear || ( error "$FUNCNAME cannot be used in '${work_cmd}'. Put it before any '${work_cmd}' definition."; return 1 )
+	require_work clear || ( error "NAT cannot be used in '${work_cmd}'. Put all NAT related commands before any '${work_cmd}' definition."; return 1 )
 	
 	local type="${1}"; shift
 	local to="${1}";   shift
 	
 	nat_count=$[nat_count + 1]
 	
-	set_work_function "Setting up rules for NAT"
+	set_work_function -ne "Setting up rules for NAT type: '${type}'"
 	
 	case ${type} in
 		to-source)
@@ -1393,6 +1393,9 @@ nat() {
 			;;
 	esac
 	
+	
+	set_work_function "Taking the NAT action: '${action}'"
+	
 	# we now need to keep the protocol
 	rule table nat chain "nat.${nat_count}" noowner "$@" action "${action}" to "${to}" nosoftwarnings src any dst any inface any outface any sport any dport any || return 1
 	
@@ -1402,37 +1405,45 @@ nat() {
 	return 0
 }
 
+nat() {
+	work_realcmd_helper $FUNCNAME "$@"
+	
+	set_work_function -ne "Initializing $FUNCNAME"
+	
+	nat_helper "$@"
+}
+
 snat() {
-#	work_realcmd_helper $FUNCNAME "$@"
+	work_realcmd_helper $FUNCNAME "$@"
 	
 	set_work_function -ne "Initializing $FUNCNAME"
 	
 	local to="${1}"; shift
 	test "${to}" = "to" && local to="${1}" && shift
 	
-	nat "to-source" "${to}" "$@"
+	nat_helper "to-source" "${to}" "$@"
 }
 
 dnat() {
-#	work_realcmd_helper $FUNCNAME "$@"
+	work_realcmd_helper $FUNCNAME "$@"
 	
 	set_work_function -ne "Initializing $FUNCNAME"
 	
 	local to="${1}"; shift
 	test "${to}" = "to" && local to="${1}" && shift
 	
-	nat "to-destination" "${to}" "$@"
+	nat_helper "to-destination" "${to}" "$@"
 }
 
 redirect() {
-#	work_realcmd_helper $FUNCNAME "$@"
+	work_realcmd_helper $FUNCNAME "$@"
 	
 	set_work_function -ne "Initializing $FUNCNAME"
 	
 	local to="${1}"; shift
 	test "${to}" = "to" -o "${to}" = "to-port" && local to="${1}" && shift
 	
-	nat "redirect-to" "${to}" "$@"
+	nat_helper "redirect-to" "${to}" "$@"
 }
 
 wrongmac_chain=0
@@ -4101,7 +4112,7 @@ case "${arg}" in
 		else
 		
 		${CAT_CMD} <<EOF
-$Id: firehol.sh,v 1.190 2004/04/23 07:36:12 ktsaou Exp $
+$Id: firehol.sh,v 1.191 2004/04/23 22:15:18 ktsaou Exp $
 (C) Copyright 2003, Costa Tsaousis <costa@tsaousis.gr>
 FireHOL is distributed under GPL.
 
@@ -4287,7 +4298,7 @@ then
 	
 	${CAT_CMD} <<EOF
 
-$Id: firehol.sh,v 1.190 2004/04/23 07:36:12 ktsaou Exp $
+$Id: firehol.sh,v 1.191 2004/04/23 22:15:18 ktsaou Exp $
 (C) Copyright 2003, Costa Tsaousis <costa@tsaousis.gr>
 FireHOL is distributed under GPL.
 Home Page: http://firehol.sourceforge.net
@@ -4581,7 +4592,7 @@ then
 	
 	${CAT_CMD} >&2 <<EOF
 
-$Id: firehol.sh,v 1.190 2004/04/23 07:36:12 ktsaou Exp $
+$Id: firehol.sh,v 1.191 2004/04/23 22:15:18 ktsaou Exp $
 (C) Copyright 2003, Costa Tsaousis <costa@tsaousis.gr>
 FireHOL is distributed under GPL.
 Home Page: http://firehol.sourceforge.net
@@ -4664,7 +4675,7 @@ EOF
 	echo "# "
 
 	${CAT_CMD} <<EOF
-# $Id: firehol.sh,v 1.190 2004/04/23 07:36:12 ktsaou Exp $
+# $Id: firehol.sh,v 1.191 2004/04/23 22:15:18 ktsaou Exp $
 # (C) Copyright 2003, Costa Tsaousis <costa@tsaousis.gr>
 # FireHOL is distributed under GPL.
 # Home Page: http://firehol.sourceforge.net
