@@ -10,7 +10,7 @@
 #
 # config: /etc/firehol.conf
 #
-# $Id: firehol.sh,v 1.39 2002/12/10 23:31:32 ktsaou Exp $
+# $Id: firehol.sh,v 1.40 2002/12/11 20:51:38 ktsaou Exp $
 #
 
 # ------------------------------------------------------------------------------
@@ -121,7 +121,7 @@ case "${arg}" in
 		else
 		
 		cat <<"EOF"
-$Id: firehol.sh,v 1.39 2002/12/10 23:31:32 ktsaou Exp $
+$Id: firehol.sh,v 1.40 2002/12/11 20:51:38 ktsaou Exp $
 (C) Copyright 2002, Costa Tsaousis
 FireHOL is distributed under GPL.
 
@@ -517,8 +517,8 @@ client_snmptrap_ports="default"
 server_ssh_ports="tcp/ssh"
 client_ssh_ports="default"
 
-# SMTP over SSL/TLS
-server_submission_ports="tcp/submission"
+# SMTP over SSL/TLS submission
+server_submission_ports="tcp/587"
 client_submission_ports="default"
 
 # Sun RCP is an alias for service portmap
