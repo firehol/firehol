@@ -10,7 +10,7 @@
 #
 # config: /etc/firehol.conf
 #
-# $Id: firehol.sh,v 1.89 2003/02/03 23:11:49 ktsaou Exp $
+# $Id: firehol.sh,v 1.90 2003/02/11 22:20:07 ktsaou Exp $
 #
 
 
@@ -63,8 +63,9 @@ UNMATCHED_ROUTER_POLICY="DROP"
 # Options for iptables LOG action.
 # These options will be added to all LOG actions FireHOL will generate.
 # To change them, type such a line in the configuration file.
-# FIREHOL_LOG_OPTIONS="--log-level warning --log-tcp-sequence --log-tcp-options --log-ip-options"
-FIREHOL_LOG_OPTIONS="--log-level warning"
+# FIREHOL_LOG_OPTIONS="--log-tcp-sequence --log-tcp-options --log-ip-options"
+FIREHOL_LOG_OPTIONS=""
+FIREHOL_LOG_LEVEL="warning"
 FIREHOL_LOG_FREQUENCY="1/second"
 FIREHOL_LOG_BURST="5"
 
@@ -79,8 +80,8 @@ DEFAULT_CLIENT_PORTS="1000:65535"
 # Get the default client ports from the kernel configuration.
 # This is formed to a range of ports to be used for all "default"
 # client ports when the client specified is the localhost.
-LOCAL_CLIENT_PORTS_LOW=`sysctl net.ipv4.ip_local_port_range | cut -d '=' -f 2 | cut -f 1`
-LOCAL_CLIENT_PORTS_HIGH=`sysctl net.ipv4.ip_local_port_range | cut -d '=' -f 2 | cut -f 2`
+LOCAL_CLIENT_PORTS_LOW=`/sbin/sysctl net.ipv4.ip_local_port_range | cut -d '=' -f 2 | cut -f 1`
+LOCAL_CLIENT_PORTS_HIGH=`/sbin/sysctl net.ipv4.ip_local_port_range | cut -d '=' -f 2 | cut -f 2`
 LOCAL_CLIENT_PORTS="${LOCAL_CLIENT_PORTS_LOW}:${LOCAL_CLIENT_PORTS_HIGH}"
 
 
@@ -1757,6 +1758,7 @@ rule() {
 	
 	local log=
 	local logtxt=
+	local loglevel=
 	
 	local limit=
 	local burst=
@@ -2213,6 +2215,13 @@ rule() {
 					logtxt="${2}"
 				fi
 				shift 2
+				if [ "${1}" = "level" ]
+				then
+					loglevel="${2}"
+					shift 2
+				else
+					loglevel="${FIREHOL_LOG_LEVEL}"
+				fi
 				;;
 				
 			loglimit|LOGLIMIT)
@@ -2223,6 +2232,13 @@ rule() {
 					logtxt="${2}"
 				fi
 				shift 2
+				if [ "${1}" = "level" ]
+				then
+					loglevel="${2}"
+					shift 2
+				else
+					loglevel="${FIREHOL_LOG_LEVEL}"
+				fi
 				;;
 				
 			limit|LIMIT)
@@ -2709,11 +2725,11 @@ rule() {
 														;;
 													
 													limit)
-														iptables ${table} -A "${chain}" "${basecmd[@]}" ${custom} -m limit --limit "${FIREHOL_LOG_FREQUENCY}" --limit-burst "${FIREHOL_LOG_BURST}" -j LOG ${FIREHOL_LOG_OPTIONS} --log-prefix="${logtxt}:"
+														iptables ${table} -A "${chain}" "${basecmd[@]}" ${custom} -m limit --limit "${FIREHOL_LOG_FREQUENCY}" --limit-burst "${FIREHOL_LOG_BURST}" -j LOG ${FIREHOL_LOG_OPTIONS} --log-level "${loglevel}" --log-prefix="${logtxt}:"
 														;;
 														
 													normal)
-														iptables ${table} -A "${chain}" "${basecmd[@]}" ${custom} -j LOG ${FIREHOL_LOG_OPTIONS} --log-prefix="${logtxt}:"
+														iptables ${table} -A "${chain}" "${basecmd[@]}" ${custom} -j LOG ${FIREHOL_LOG_OPTIONS} --log-level "${loglevel}" --log-prefix="${logtxt}:"
 														;;
 														
 													*)
@@ -3165,7 +3181,7 @@ case "${arg}" in
 		else
 		
 		cat <<"EOF"
-$Id: firehol.sh,v 1.89 2003/02/03 23:11:49 ktsaou Exp $
+$Id: firehol.sh,v 1.90 2003/02/11 22:20:07 ktsaou Exp $
 (C) Copyright 2002, Costa Tsaousis <costa@tsaousis.gr>
 FireHOL is distributed under GPL.
 
@@ -3333,7 +3349,7 @@ then
 	
 	cat <<"EOF"
 
-$Id: firehol.sh,v 1.89 2003/02/03 23:11:49 ktsaou Exp $
+$Id: firehol.sh,v 1.90 2003/02/11 22:20:07 ktsaou Exp $
 (C) Copyright 2002, Costa Tsaousis <costa@tsaousis.gr>
 FireHOL is distributed under GPL.
 Home Page: http://firehol.sourceforge.net

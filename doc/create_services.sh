@@ -140,6 +140,8 @@ service_dhcprelay_notes="DHCP Relay.
 <p>
 For more information about DHCP Relay see section 9.1.2 of
 <a href=\"http://www.ietf.org/rfc/rfc1812.txt?number=1812\">RFC 1812</a>
+and section 4 of 
+<a href=\"http://www.ietf.org/rfc/rfc1542.txt?number=1542\">RFC 1542</a>
 "
 
 
@@ -495,7 +497,7 @@ cat <<"EOF"
 <tr><td align=center valign=middle>
 	<A href="http://sourceforge.net"><IMG src="http://sourceforge.net/sflogo.php?group_id=58425&amp;type=5" width="210" height="62" border="0" alt="SourceForge Logo"></A>
 </td><td align=center valign=middle>
-	<small>$Id: create_services.sh,v 1.22 2003/02/03 23:11:49 ktsaou Exp $</small>
+	<small>$Id: create_services.sh,v 1.23 2003/02/11 22:20:18 ktsaou Exp $</small>
 	<p>
 	<b>FireHOL</b>, a firewall for humans...<br>
 	&copy; Copyright 2002
