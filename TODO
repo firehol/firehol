@@ -1,1 +1,94 @@
+$Id: TODO,v 1.3 2002/12/07 18:14:01 ktsaou Exp $
+
+The following is a list of features I plan to add to FireHOL,
+assuming that my time permits and there is demand for them.
+
+The list appears in no particular order.
+
+* NAT support, including port redirections and load balancing
+  per firehol element. Today there is some limited support for
+  masquerading and of course you can embed normal iptables
+  NAT rules within firehol.conf. However, today these are just
+  work-arounds since there is no connection between a firehol
+  rule and the NAT system.
+
+* Bandwidth shaping support per firehol element.
+
+Ideally both the above should be "embedded" in firehol.conf rules
+with something like:
+
+interface eth0 internet maxbw 1Mbps queue-type htb
+	server smtp accept	\
+		maxbw 128kbps	\
+		priority low 	\
+		dnat mailhost.domain.com
+		
+	server http accept	\
+		maxbw all	\
+		priority med	\
+		dnat "1.1.1.1 2.2.2.2" # this is load balancing
+	
+	client ssh accept priority hi
+
+Nice, eh? I guess the only way to implement this is by making heavy use of the
+MANGLE table and MARKing uniquely each FireHOL rule. This will allow all
+iptables tables (mangle, nat, filter) and iproute to share the same traffic
+categorization (through the MARK id on each packet). Some research has to be
+done to find out if this is possible.
+
+(note for me: possibly a banch of MARK numbers should be allocated to each
+firehol rule so that individual iptables rules within one firehol rule can
+have different actions - accept, drop, reject, etc).
+
+
+* Bandwidth acounting support per firehol element, possibly with
+  graphs.
+  To implement this, a way must be found to uniquely identify each firehol
+  rule. Possibly the MARKing method above will solve this problem too.
+
+* Show the currently active connections from the connection tracker
+  (like a network top). There are a few other tools for this, but ideally, our
+  solution should show the active connections categorized according to firehol
+  rules, not iptables rules.
+
+* Documentation with the following sections:
+	- Quick Start
+	- Command Reference
+	- Service Reference
+	- Command Line Interface
+	- Example Configurations
+	- How to build your own firewall
+	- Troubleshooting FireHOL
+	- Control iptables Logging
+	- Verify your firewall
+		+ S/W tools
+		+ Online Tools
+	- a man page for firehol
+	- a man page for firehol.conf
+
+* A Web interface for configuring FireHOL.
+
+* A secure mechanism for centralized control of a large number
+  of Linux hosts and routers.
+
+* A method for dynamic configuration of firehol, so that little changes would
+  be applied without stopping and restarting the whole firewall.
+
+* Protections should be able to applied to each firehol element
+  individualy.
+
+* Protections on interfaces should operate only when the firewall is going to
+  allow the traffic.
+  Now, protections operate on a per network interface basis, before the
+  firewall rules, which means that an attacker could just produce a denial of
+  service attack on http by SYN-FLOODing port 32000.
+  Of course, the attacker can always SYN-FLOOD the http service to make the
+  firewall drop temporarily all connections anyway.
+  So, this ToDo item is more like a "should be the optimum way", without
+  meaning that it is not right now.
+
+* Support groups of services. Today, an interface or a router is much like
+  a group. Ideally, we should also support subgroups that will allow the
+  sharing of common protections and src/dst restriction and in the future
+  common NAT and bandwidth shapping values.
 
