@@ -86,7 +86,9 @@ In combination with the <a href=\"commands.html#parameters\">Optional Rule Param
 "
 service_any_example="server any <u>myname</u> accept proto 47"
 
+
 service_cups_notes="<a href=\"http://www.cups.org\">Common UNIX Printing System</a>"
+
 
 server_custom_ports="defined&nbsp;in&nbsp;the&nbsp;command"
 client_custom_ports="defined&nbsp;in&nbsp;the&nbsp;command"
@@ -97,6 +99,28 @@ To find more about this service please check the <a href=\"adding.html\">Adding 
 "
 service_custom_example="server custom <u>myimap</u> <u>tcp/143</u> <u>default</u> accept"
 
+
+service_dhcp_notes="
+Keep in mind that DHCP clients broadcast the network (src 0.0.0.0 dst 255.255.255.255) to find a DHCP server.
+This means that if your <b>server dhcp accept</b> command is placed within
+an interface that has <b>src</b> and / or <b>dst</b> parameters,
+DHCP broadcasts will not enter this interface.
+<p>
+You can overcome this problem by placing the DHCP service on a separate
+interface, without an <b>src</b> or <b>dst</b> but with a <b>policy return</b>.
+Place this interface before the one that defines the rest of the services.
+<p>
+For example:
+<table border=0 cellpadding=0 cellspacing=0>
+<tr><td><pre>
+<br>&nbsp;&nbsp;&nbsp;&nbsp;interface eth0 dhcp
+<br>&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;policy return
+<br>&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;server dhcp accept
+<br>
+<br>&nbsp;&nbsp;&nbsp;&nbsp;interface eth0 lan src \"\$mylan\" dst \"\$myip\"
+<br>&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;...
+</td></tr></table>
+"
 
 service_dhcprelay_notes="DHCP Relay.
 <p><small><b><font color=\"gray\">From RFC 1812 section 9.1.2</font></b></small><br>
@@ -127,23 +151,65 @@ service_ident_example="server ident reject with tcp-reset"
 service_isakmp_notes="IPSec key negotiation."
 
 
+service_microsoft_ds_notes="
+This is another NETBIOS Session Service with minor differences with <a href=\"#netbios_ssn\">netbios_ssn</a>.
+<p>
+Please refer to <a href=\"#netbios_ssn\">netbios_ssn</a>. for more information.
+"
+
+
 server_multicast_ports="N/A"
 client_multicast_ports="N/A"
 service_multicast_type="complex"
 service_multicast_notes="
-The multicast service matches all packets send to 224.0.0.0/8
+The multicast service matches all packets send to 224.0.0.0/8 using protocol No 2.
 "
 service_multicast_example="server multicast reject with proto-unreach"
 
 
 service_netbios_ns_notes="
+NETBIOS Name Service
+<p>
 See also the <a href=\"#samba\">samba</a> service.
 "
 service_netbios_dgm_notes="
+NETBIOS Datagram Service
+<p>
 See also the <a href=\"#samba\">samba</a> service.
+<p>
+Keep in mind that this service broadcasts (to the broadcast address of your LAN) UDP packets.
+If you place this service within an interface that has a <b>dst</b> parameter, remember to
+include (in the <b>dst</b> parameter) the broadcast address of your LAN too.
 "
 service_netbios_ssn_notes="
+NETBIOS Session Service
+<p>
 See also the <a href=\"#samba\">samba</a> service.
+<p>
+Newer NETBIOS clients prefer to use port 445 (<a href=\"#microsoft_ds\">microsoft_ds</a>) for the NETBIOS session service,
+and when this is not available they fall back to port 139 (netbios_ssn).
+<p>
+If your policy on an interface or router is <b>DROP</b>, clients trying to access port 445
+will have to timeout before falling back to port 139. This timeout can be up to several minutes.
+<p>
+To overcome this problem either explicitly <b>REJECT</b> the <a href=\"#microsoft_ds\">microsoft_ds</a> service
+with a tcp-reset message (<b>server microsoft_ds reject with tcp-reset</b>),
+or redirect port 445 to port 139 using the following rule (put it all-in-one-line at the top of your FireHOL config):
+<p>
+<b>
+iptables -t nat -A PREROUTING -i eth0 -p tcp -s 1.1.1.1/24 --dport 445 -d 2.2.2.2 -j REDIRECT --to-port 139
+</b><p>
+where:
+<ul>
+	<li><b>eth0</b> is the network interface your NETBIOS server uses
+	<br>&nbsp;
+	</li>
+	<li><b>1.1.1.1/24</b> is the subnet matching all the clients IP addresses
+	<br>&nbsp;
+	</li>
+	<li><b>2.2.2.2</b> is the IP of your linux server on eth0 (or whatever you set the first one above)
+	</li>
+</ul>
 "
 
 
@@ -184,7 +250,9 @@ server_samba_ports="many"
 client_samba_ports="default"
 service_samba_type="complex"
 service_samba_notes="
-The samba service automatically sets all the rules for <b>netbios-ns</b>, <b>netbios-dgm</b> and <b>netbios-ssn</b>.
+The samba service automatically sets all the rules for <a href=\"#netbios_ns\">netbios_ns</a>, <a href=\"#netbios_dgm\">netbios_dgm</a> and <a href=\"#netbios_ssn\">netbios_ssn</a>.
+<p>
+Please refer to the notes of the above services for more information.
 "
 
 
@@ -363,7 +431,7 @@ cat <<"EOF"
 <tr><td align=center valign=middle>
 	<A href="http://sourceforge.net"><IMG src="http://sourceforge.net/sflogo.php?group_id=58425&amp;type=5" width="210" height="62" border="0" alt="SourceForge Logo"></A>
 </td><td align=center valign=middle>
-	<small>$Id: create_services.sh,v 1.17 2002/12/31 11:57:40 ktsaou Exp $</small>
+	<small>$Id: create_services.sh,v 1.18 2003/01/01 04:33:55 ktsaou Exp $</small>
 	<p>
 	<b>FireHOL</b>, a firewall for humans...<br>
 	&copy; Copyright 2002
