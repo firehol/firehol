@@ -193,6 +193,21 @@ work_created_chains=
 # We define as "simple" the services that are implemented using a single socket,
 # initiated by the client and used by the server.
 
+server_echo_ports="tcp/echo"
+client_echo_ports="default"
+
+server_daytime_ports="tcp/daytime"
+client_daytime_ports="default"
+
+server_finger_ports="tcp/finger"
+client_finger_ports="default"
+
+server_rndc_ports="tcp/rndc"
+client_rndc_ports="default"
+
+server_nntp_ports="tcp/nntp"
+client_nntp_ports="default"
+
 server_smtp_ports="tcp/smtp"
 client_smtp_ports="default"
 
@@ -271,6 +286,9 @@ client_ntp_ports="ntp default"
 # Portmap clients appear to use ports bellow 1024
 server_portmap_ports="udp/sunrpc tcp/sunrpc"
 client_portmap_ports="500:65535"
+
+server_sunrpc_ports="${server_portmap_ports}"
+client_sunrpc_ports="${client_portmap_ports}"
 
 # We assume heartbeat uses ports in the range 690 to 699
 server_heartbeat_ports="udp/690:699"
