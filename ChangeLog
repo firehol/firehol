@@ -1,7 +1,7 @@
 
 RCS file: /cvsroot/firehol/firehol/firehol.sh,v
 Working file: firehol.sh
-head: 1.33
+head: 1.35
 branch:
 locks: strict
 access list:
@@ -9,8 +9,19 @@ symbolic names:
 	start: 1.1.1.1
 	vendor: 1.1.1
 keyword substitution: kv
-total revisions: 34;	selected revisions: 34
+total revisions: 36;	selected revisions: 36
 description:
+----------------------------
+revision 1.35
+date: 2002/12/08 22:05:40;  author: ktsaou;  state: Exp;  lines: +8 -2
+The command line argument stop was not working. Fixed.
+----------------------------
+revision 1.34
+date: 2002/12/07 18:12:43;  author: ktsaou;  state: Exp;  lines: +26 -13
+Now protections can be applied on both directions of a router.
+
+When running firehol with a configuration file as the first argument, now
+you can specify an action (start, debug, try, etc) as the second argument.
 ----------------------------
 revision 1.33
 date: 2002/12/07 00:47:30;  author: ktsaou;  state: Exp;  lines: +27 -174
