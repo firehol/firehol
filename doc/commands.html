@@ -48,16 +48,17 @@ automatically. FireHOL is extremely easy to understand, configure and audit.
 	</li>
 	<li><a href="#helpers">Helper commands</a>
 		<ul>
-			<li><a href="#version">version</a>, require a specific version of FireHOL
-			<li><a href="#iptables">iptables</a>, add some custom iptables commands to the firewall
-			<li><a href="#masquerade">masquerade</a>, setup masquerading (NAT) to the output of a network interface</li>
-			<li><a href="#transparent_squid">transparent_squid</a>, setup a transparent squid proxy running on the firewall host</li>
-			<li><a href="#nat">nat</a>, setup a NAT rule for routed traffic</li>
-			<li><a href="#dnat">dnat</a>, setup a Destination NAT rule for routed traffic</li>
-			<li><a href="#snat">snat</a>, setup a Source NAT rule for routed traffic</li>
-			<li><a href="#redirect">redirect</a>, setup a port redirection rule</li>
-			<li><a href="#mac">mac</a>, setup a source mac address with IP match</li>
 			<li><a href="#blacklist">blackilist</a>, setup a unidirectional or bidirectional blacklist</li>
+			<li><a href="#dnat">dnat</a>, setup a Destination NAT rule for routed traffic</li>
+			<li><a href="#iptables">iptables</a>, add some custom iptables commands to the firewall
+			<li><a href="#mac">mac</a>, setup a source mac address with IP match</li>
+			<li><a href="#mark">mark</a>, mark traffic for traffic shapping tools</li>
+			<li><a href="#masquerade">masquerade</a>, setup masquerading (NAT) to the output of a network interface</li>
+			<li><a href="#nat">nat</a>, setup a NAT rule for routed traffic</li>
+			<li><a href="#redirect">redirect</a>, setup a port redirection rule</li>
+			<li><a href="#snat">snat</a>, setup a Source NAT rule for routed traffic</li>
+			<li><a href="#transparent_squid">transparent_squid</a>, setup a transparent squid proxy running on the firewall host</li>
+			<li><a href="#version">version</a>, require a specific version of FireHOL
 		</ul>
 		&nbsp;
 	</li>
@@ -354,27 +355,43 @@ Subcommands must be given within <a href="#primary_commands">Primary commands</a
 <small>Helper commands provide shortcuts for common functions not handled by the core of FireHOL's logic.</small>
 <p>
 
-	<a name="version"><h3><b>version</b> <font color="red">&lt;number&gt;</font></h3></a>
-	<H4>Description</H4>
-	The <b>version</b> command states the FireHOL <u>release</u> the configuration file was
-	created for. In case the configuration file is newer than FireHOL, FireHOL will deny
-	to run it.
+	<a name="blacklist"><h3><b>blacklist</b> [option] <font color="red">&lt;IPs&gt;</font></h3></a>
+	The <b>blacklist</b> helper creates a blacklist for the <b>IP</b> addresses given. It supports two modes of operation
+	based on the option given (or the absence of it).
 	<p>
-	This command is here to allow you or anyone else design and distribute FireHOL configuration files, while
-	ensuring that the correct FireHOL version is going to run them.
+	The option can be:
+	<ul>
+		<li>one of the words <b>them, him, her, it, this, these, input</b> in which case it will generate a unidirectional
+		statefull blacklist, meaning that you will be able to ask (initiate connections) anything from them,
+		but they will not be able to ask (initiate connections) anything from you or the remote hosts you protect (routing).
+		<br>&nbsp;
+		</li>
+		<li>one of the words <b>all, full</b> or ommitted (no option given), in which case FireHOL will create bidirectional
+		stateless rules that will DROP all traffic comming in from these IPs and will REJECT all traffic going to them.
+		</li>
+		<p>
+	</ul>
+	The blacklist helper affects both interfaces and routers and can be used as many times as needed, but before the first interface statement.
+	The blacklist helper accepts multiple IPs both as one quoted and space separated list and as separate arguments.
 	<p>
-	Since FireHOL configurations are BASH script, it is relatively easy to use FireHOL configurations as small
-	scripts that dynamically process rules stored in a database, in a file system as separate files, or elsewhere.
-	This directive will help the developers of FireHOL configurations to control the required version of
-	FireHOL.
-	<p>
-	The FireHOL release is increased every time the format of the configuration file and the internals of FireHOL are changed.
-	<p>
-	Since FireHOL v1.67 <b>version</b> is not required to be present in every configuration file.
+	
+	Example 1: <b>blacklist this "195.97.5.202 10.1.1.1"</b> # please note the quotes<br>
+	Example 2: <b>blacklist full 195.97.5.202 10.1.1.1</b> # please note the absence of quotes<br>
 	<p>
 	
 <hr noshade size=1 width="100%">
-
+	
+	<a name="dnat"><h3><b>dnat</b> [to] <font color="red">&lt;target&gt;</font> [optional rule parameters]</h3></a>
+	The <b>dnat</b> helper sets up a Destination NAT rule for routed traffic, by calling<br>
+	<b>nat to-destination &lt;target&gt [optional rule parameters]</b>
+	<p>
+	See the <a href="#nat">nat</a> helper.
+	<p>
+	Example: <b>dnat to 1.1.1.1 inface eth0 src 2.2.2.2 dst 3.3.3.3</b>
+	<p>
+	
+<hr noshade size=1 width="100%">
+	
 	<a name="iptables"><h3><b>iptables</b> <font color="red">&lt;arguments&gt;</font></h3></a>
 	<H4>Description</H4>
 	The <b>iptables</b> command passes all its arguments to the real iptables command, during run-time.
@@ -385,6 +402,54 @@ Subcommands must be given within <a href="#primary_commands">Primary commands</a
 	activate the new firewall, any changes you will make, will be deleted too.
 	<p>
 	Always use the <b>iptables</b> directive to hook iptables commands in a FireHOL firewall. Nothing else.
+	<p>
+
+<hr noshade size=1 width="100%">
+	
+	<a name="mac"><h3><b>mac</b> <font color="red">&lt;IP&gt;</font> <font color="red">&lt;MAC&gt;</font></h3></a>
+	The <b>mac</b> helper verifies that all traffic <b>comming in</b> with source the <b>IP</b> address, comes from the
+	<b>MAC</b> address. The helper applies its rules to filter/INPUT and filter/FORWARD and checks the source IP address
+	in combination with the source MAC address.
+	<p>
+	The same MAC address is allowed to use other IPs; only the specific IP is required to be used with the specified MAC
+	address.
+	<p>
+	Packets with the given IP address but with wrong MAC address will be DROPped and a log (as in <A HREF="#loglimit">loglimit</a>)
+	with label "MAC MISSMATCH" will appear in the system logs.
+	<p>
+	This helper has to be used before all interface or router statements. Of course, you can use as many mac statements as you wish.
+	<p>
+	Example: <b>mac 195.97.5.202 00:02:8a:21:a9:d8</b>
+	<p>
+
+<hr noshade size=1 width="100%">
+	
+	<a name="mark"><h3><b>mark</b> <font color="red">&lt;NUMBER&gt;</font> <font color="red">&lt;WHERE&gt;</font> [optional rule parameters]</h3></a>
+	The <b>mark</b> helper marks the traffic with a specific mark NUMBER that can be matched by traffic shapping tools
+	for controlling the traffic.
+	
+	<H4>Parameters</H4>
+	<ul>
+		<li>	<b>NUMBER</b> is a number to mark the packets with.
+			<br>&nbsp;
+			</li>
+
+		<li>	<b>WHERE</b> tells FireHOL where to search for the specific traffic to be marked.
+			<br>Currently, WHERE can be one of the build-in iptables chains attached to table <b>mangle</b>.
+			(for example: INPUT, FORWARD, OUTPUT, PREROUTING, POSTROUTING - case does matter here).
+			<br>&nbsp;
+			</li>
+			
+		<li>	<b>optional rule parameters</b> is a set of rules that allow further restriction of the traffic that
+			gets matched by this rule. See <a href="#parameters">Optional Rules Parameters</a> for more information.
+			<br>&nbsp;
+			</li>
+		</ul>
+	<br>&nbsp;
+	<br>Example 1: <b>mark 1 OUTPUT</b>, will mark with 1 all packets send by the local machine.
+	<br>Example 2: <b>mark 2 FORWARD</b>, will mark with 2 all packets passing through the local machine.
+	<br>Example 3: <b>mark 3 FORWARD proto tcp dport 25 dst 1.1.1.1 src 2.2.2.2</b>, will match with 3
+	all packets sent by 2.2.2.2, passing through the local machine and targeting port TCP/25 of host 1.1.1.1.
 	<p>
 
 <hr noshade size=1 width="100%">
@@ -420,44 +485,6 @@ Subcommands must be given within <a href="#primary_commands">Primary commands</a
 	<br>Example 3: within a router: <b>masquerade reverse</b>, to masquerade on the output of the router's inface.
 	<p>
 	
-<hr noshade size=1 width="100%">
-	
-	<a name="transparent_squid"><h3><b>transparent_squid</b> <font color="red">&lt;port&gt; &lt;user&gt;</font> [optional rule parameters]</h3></a>
-	The <b>transparent_squid</b> helper sets up trasparent caching for HTTP traffic.
-	The squid proxy is assumed to be running on the firewall host at port <b>port</b> (normally port is <b>squid</b>), with the credentials of the local user <b>user</b> (normally user is <b>squid</b>).
-	<p>
-	The <b>transparent_squid</b> helper can be used for two kinds of traffic:
-	<ul>
-		<li>Incomming HTTP traffic, either targeted to the firewall host or passing through the firewall host.
-		<br>The optional rule parameters can be used to specify which kind of <b>incomming</b> traffic to be catched
-		(by using <a href="#inface">inface</a>, <a href="#src">src</a>, <a href="#dst">dst</a>, etc --
-		<a href="#outface">outface</a> should not be used here, because the rules generated are placed before
-		the routing decision and therefore the outgoing interface is not yet known).
-		<p>
-		If no optional rule parameters are given, then the transparent
-		cache will be setup on <b>all network interfaces for all HTTP traffic</b> (use this with care since you are
-		risking to serve requests from the internet using your squid).
-		<br>&nbsp;
-		</li>
-		<li>Locally generated outgoing HTTP traffic, except HTTP traffic generated by processes running as the <b>user</b> argument.
-		The optional rule parameters <a href="#inface">inface</a>, <a href="#outface">outface</a> and <a href="#src">src</a> are
-		ignored for this type of traffic.
-		<p>
-		This kind of matching makes it possible to support transparent caching for WEB browsers running on the firewall
-		host, as far as they do not run as the user excluded. More that one users can be specified by space-separating
-		and enclosing them in double quotes.
-		<p>
-		This rule can be disabled by specifing as user the empty string: <b>""</b>
-		<br>&nbsp;
-		</li>
-	</ul>
-	<p>
-	Of course, make sure that your firewall allows requests to reach your proxy server.
-	<p>     
-	Example 1: <b>transparent_squid 3128 squid inface eth0 src 10.0.0.0/8</b>
-	<br>Example 2: <b>transparent_squid 8080 "squid privoxy root bin" inface not "ppp+ ipsec+" dst not "a.not.proxied.server"</b>
-	<p>
-
 <hr noshade size=1 width="100%">
 	
 	<a name="nat"><h3><b>nat</b> <font color="red">&lt;type&gt; &lt;target&gt;</font> [optional rule parameters]</h3></a>
@@ -543,6 +570,18 @@ Subcommands must be given within <a href="#primary_commands">Primary commands</a
 	<br>Example 2: <b>nat to-destination 4.4.4.4 inface eth0 src 5.5.5.5 dst 6.6.6.6</b>
 	<br>Example 3: <b>nat redirect-to 8080 inface eth0 src 2.2.2.0/24 proto tcp dport 80</b>
 	<p>
+	
+<hr noshade size=1 width="100%">
+
+	<a name="redirect"><h3><b>redirect</b> [to] <font color="red">&lt;target&gt;</font> [optional rule parameters]</h3></a>
+	The <b>redirect</b> helper catches all incomming traffic matching the optional rule parameters given and
+	redirects it to ports on the local host, by calling<br>
+	<b>nat redirect-to &lt;target&gt [optional rule parameters]</b>
+	<p>
+	See the <a href="#nat">nat</a> helper.
+	<p>
+	Example: <b>redirect to 8080 inface eth0 src 2.2.2.0/24 proto tcp dport 80</b>
+	<p>
 
 <hr noshade size=1 width="100%">
 	
@@ -557,69 +596,61 @@ Subcommands must be given within <a href="#primary_commands">Primary commands</a
 	
 <hr noshade size=1 width="100%">
 	
-	<a name="dnat"><h3><b>dnat</b> [to] <font color="red">&lt;target&gt;</font> [optional rule parameters]</h3></a>
-	The <b>dnat</b> helper sets up a Destination NAT rule for routed traffic, by calling<br>
-	<b>nat to-destination &lt;target&gt [optional rule parameters]</b>
+	<a name="transparent_squid"><h3><b>transparent_squid</b> <font color="red">&lt;port&gt; &lt;user&gt;</font> [optional rule parameters]</h3></a>
+	The <b>transparent_squid</b> helper sets up trasparent caching for HTTP traffic.
+	The squid proxy is assumed to be running on the firewall host at port <b>port</b> (normally port is <b>squid</b>), with the credentials of the local user <b>user</b> (normally user is <b>squid</b>).
 	<p>
-	See the <a href="#nat">nat</a> helper.
+	The <b>transparent_squid</b> helper can be used for two kinds of traffic:
+	<ul>
+		<li>Incomming HTTP traffic, either targeted to the firewall host or passing through the firewall host.
+		<br>The optional rule parameters can be used to specify which kind of <b>incomming</b> traffic to be catched
+		(by using <a href="#inface">inface</a>, <a href="#src">src</a>, <a href="#dst">dst</a>, etc --
+		<a href="#outface">outface</a> should not be used here, because the rules generated are placed before
+		the routing decision and therefore the outgoing interface is not yet known).
+		<p>
+		If no optional rule parameters are given, then the transparent
+		cache will be setup on <b>all network interfaces for all HTTP traffic</b> (use this with care since you are
+		risking to serve requests from the internet using your squid).
+		<br>&nbsp;
+		</li>
+		<li>Locally generated outgoing HTTP traffic, except HTTP traffic generated by processes running as the <b>user</b> argument.
+		The optional rule parameters <a href="#inface">inface</a>, <a href="#outface">outface</a> and <a href="#src">src</a> are
+		ignored for this type of traffic.
+		<p>
+		This kind of matching makes it possible to support transparent caching for WEB browsers running on the firewall
+		host, as far as they do not run as the user excluded. More that one users can be specified by space-separating
+		and enclosing them in double quotes.
+		<p>
+		This rule can be disabled by specifing as user the empty string: <b>""</b>
+		<br>&nbsp;
+		</li>
+	</ul>
 	<p>
-	Example: <b>dnat to 1.1.1.1 inface eth0 src 2.2.2.2 dst 3.3.3.3</b>
-	<p>
-	
-<hr noshade size=1 width="100%">
-	
-	<a name="redirect"><h3><b>redirect</b> [to] <font color="red">&lt;target&gt;</font> [optional rule parameters]</h3></a>
-	The <b>redirect</b> helper catches all incomming traffic matching the optional rule parameters given and
-	redirects it to ports on the local host, by calling<br>
-	<b>nat redirect-to &lt;target&gt [optional rule parameters]</b>
-	<p>
-	See the <a href="#nat">nat</a> helper.
-	<p>
-	Example: <b>redirect to 8080 inface eth0 src 2.2.2.0/24 proto tcp dport 80</b>
-	<p>
-	
-<hr noshade size=1 width="100%">
-	
-	<a name="mac"><h3><b>mac</b> <font color="red">&lt;IP&gt;</font> <font color="red">&lt;MAC&gt;</font></h3></a>
-	The <b>mac</b> helper verifies that all traffic <b>comming in</b> with source the <b>IP</b> address, comes from the
-	<b>MAC</b> address. The helper applies its rules to filter/INPUT and filter/FORWARD and checks the source IP address
-	in combination with the source MAC address.
-	<p>
-	The same MAC address is allowed to use other IPs; only the specific IP is required to be used with the specified MAC
-	address.
-	<p>
-	Packets with the given IP address but with wrong MAC address will be DROPped and a log (as in <A HREF="#loglimit">loglimit</a>)
-	with label "MAC MISSMATCH" will appear in the system logs.
-	<p>
-	This helper has to be used before all interface or router statements. Of course, you can use as many mac statements as you wish.
-	<p>
-	Example: <b>mac 195.97.5.202 00:02:8a:21:a9:d8</b>
+	Of course, make sure that your firewall allows requests to reach your proxy server.
+	<p>     
+	Example 1: <b>transparent_squid 3128 squid inface eth0 src 10.0.0.0/8</b>
+	<br>Example 2: <b>transparent_squid 8080 "squid privoxy root bin" inface not "ppp+ ipsec+" dst not "a.not.proxied.server"</b>
 	<p>
 
 <hr noshade size=1 width="100%">
 	
-	<a name="blacklist"><h3><b>blacklist</b> [option] <font color="red">&lt;IPs&gt;</font></h3></a>
-	The <b>blacklist</b> helper creates a blacklist for the <b>IP</b> addresses given. It supports two modes of operation
-	based on the option given (or the absence of it).
+	<a name="version"><h3><b>version</b> <font color="red">&lt;number&gt;</font></h3></a>
+	<H4>Description</H4>
+	The <b>version</b> command states the FireHOL <u>release</u> the configuration file was
+	created for. In case the configuration file is newer than FireHOL, FireHOL will deny
+	to run it.
 	<p>
-	The option can be:
-	<ul>
-		<li>one of the words <b>them, him, her, it, this, these, input</b> in which case it will generate a unidirectional
-		statefull blacklist, meaning that you will be able to ask (initiate connections) anything from them,
-		but they will not be able to ask (initiate connections) anything from you or the remote hosts you protect (routing).
-		<br>&nbsp;
-		</li>
-		<li>one of the words <b>all, full</b> or ommitted (no option given), in which case FireHOL will create bidirectional
-		stateless rules that will DROP all traffic comming in from these IPs and will REJECT all traffic going to them.
-		</li>
-		<p>
-	</ul>
-	The blacklist helper affects both interfaces and routers and can be used as many times as needed, but before the first interface statement.
-	The blacklist helper accepts multiple IPs both as one quoted and space separated list and as separate arguments.
+	This command is here to allow you or anyone else design and distribute FireHOL configuration files, while
+	ensuring that the correct FireHOL version is going to run them.
 	<p>
-	
-	Example 1: <b>blacklist this "195.97.5.202 10.1.1.1"</b> # please note the quotes<br>
-	Example 2: <b>blacklist full 195.97.5.202 10.1.1.1</b> # please note the absence of quotes<br>
+	Since FireHOL configurations are BASH script, it is relatively easy to use FireHOL configurations as small
+	scripts that dynamically process rules stored in a database, in a file system as separate files, or elsewhere.
+	This directive will help the developers of FireHOL configurations to control the required version of
+	FireHOL.
+	<p>
+	The FireHOL release is increased every time the format of the configuration file and the internals of FireHOL are changed.
+	<p>
+	Since FireHOL v1.67 <b>version</b> is not required to be present in every configuration file.
 	<p>
 	
 <table border=0 cellpadding=10 cellspacing=0 width="100%"><tr bgcolor="#777777"><td align=center><font color="white"><b><big><a name="actions">Actions</a></td</tr></table>
@@ -1252,7 +1283,7 @@ about optional rule parameters that should not be used in certain commands.
 <tr><td align=center valign=middle>
 	<A href="http://sourceforge.net"><IMG src="http://sourceforge.net/sflogo.php?group_id=58425&amp;type=5" width="210" height="62" border="0" alt="SourceForge Logo"></A>
 </td><td align=center valign=middle>
-	<small>$Id: commands.html,v 1.38 2003/08/23 23:26:50 ktsaou Exp $</small>
+	<small>$Id: commands.html,v 1.39 2003/09/13 01:03:46 ktsaou Exp $</small>
 	<p>
 	<b>FireHOL</b>, a firewall for humans...<br>
 	&copy; Copyright 2003

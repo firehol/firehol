@@ -1,21 +1,12 @@
-$Id: TODO,v 1.4 2003/01/06 01:49:36 ktsaou Exp $
+$Id: TODO,v 1.5 2003/09/13 01:03:46 ktsaou Exp $
 
 The following is a list of features I plan to add to FireHOL,
 assuming that my time permits and there is demand for them.
 
 The list appears in no particular order.
 
-* NAT support, including port redirections and load balancing
-  per firehol element. Today there is some limited support for
-  masquerading and of course you can embed normal iptables
-  NAT rules within firehol.conf. However, today these are just
-  work-arounds since there is no connection between a firehol
-  rule and the NAT system.
-
-* Bandwidth shaping support per firehol element.
-
-Ideally both the above should be "embedded" in firehol.conf rules
-with something like:
+Ideally I would like to achieve a situation where FireHOL
+directives will be something like:
 
 interface eth0 internet maxbw 1Mbps queue-type htb
 	server smtp accept	\
@@ -30,7 +21,7 @@ interface eth0 internet maxbw 1Mbps queue-type htb
 	
 	client ssh accept priority hi
 
-Nice, eh? I guess the only way to implement this is by making heavy use of the
+I guess the only way to implement this is by making heavy use of the
 MANGLE table and MARKing uniquely each FireHOL rule. This will allow all
 iptables tables (mangle, nat, filter) and iproute to share the same traffic
 categorization (through the MARK id on each packet). Some research has to be
@@ -50,10 +41,6 @@ have different actions - accept, drop, reject, etc).
   (like a network top). There are a few other tools for this, but ideally, our
   solution should show the active connections categorized according to firehol
   rules, not iptables rules.
-
-* More documentation:
-	- a man page for firehol
-	- a man page for firehol.conf
 
 * A Web interface for configuring FireHOL.
 
