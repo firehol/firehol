@@ -1,7 +1,11 @@
-$Id: WhatIsNew,v 1.9 2005/01/24 22:25:38 ktsaou Exp $
+$Id: WhatIsNew,v 1.10 2005/01/30 03:02:01 ktsaou Exp $
 
 What Is New in public releases.
 -------------------------------
+
+R5 v1.226, Jan 30, 2005
+Still there were issues with the temporary files.
+Fixed all of them for good.
 
 R5 v1.224, Jan 25, 2005
 Added services ANYSTATELESS, TIMESTAMP, DICT. Added support for
