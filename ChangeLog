@@ -1,7 +1,7 @@
 
 RCS file: /cvsroot/firehol/firehol/firehol.sh,v
 Working file: firehol.sh
-head: 1.65
+head: 1.70
 branch:
 locks: strict
 access list:
@@ -9,8 +9,51 @@ symbolic names:
 	start: 1.1.1.1
 	vendor: 1.1.1
 keyword substitution: kv
-total revisions: 66;	selected revisions: 66
+total revisions: 71;	selected revisions: 71
 description:
+----------------------------
+revision 1.70
+date: 2003/01/08 23:33:25;  author: ktsaou;  state: Exp;  lines: +68 -6
+Added detection of overwritten optional rule parameters.
+----------------------------
+revision 1.69
+date: 2003/01/08 22:42:46;  author: ktsaou;  state: Exp;  lines: +9 -6
+changed helpers to overwrite illegal optional parameters in order to avoid
+building rules that match nothing.
+
+transparent_squid now passes some rule parameters to the rules matching
+the user ids. This makes it possible to use succesfully negative rules,
+such as:
+
+dst not "A B C"
+
+to make the transparent cache exclude these.
+----------------------------
+revision 1.68
+date: 2003/01/07 20:21:57;  author: ktsaou;  state: Exp;  lines: +39 -30
+Made transparent_squid accept multiple users
+----------------------------
+revision 1.67
+date: 2003/01/07 01:51:47;  author: ktsaou;  state: Exp;  lines: +4 -22
+Made internal parameters of masquerade to overwrite its optional ones.
+Made the version command optional.
+----------------------------
+revision 1.66
+date: 2003/01/06 16:13:34;  author: ktsaou;  state: Exp;  lines: +186 -93
+The previous implementation of the "with" parameter was conflicting with
+negative expressions. Fixed.
+
+Now each action (ACCEPT, REJECT, etc) can have each own optional rule
+parameters. Currently only REJECT (with) and REDIRECT (to-port) have
+such parameters.
+
+Implemented the REDIRECT action (usefull in NAT).
+
+Introduced a new concept in FireHOL: helpers
+
+Helpers are functions that do some job for you, like a shortcut.
+
+Implemented the transparent_squid helper.
 ----------------------------
 revision 1.65
 date: 2003/01/06 01:16:41;  author: ktsaou;  state: Exp;  lines: +19 -3
