@@ -10,7 +10,7 @@
 #
 # config: /etc/firehol/firehol.conf
 #
-# $Id: firehol.sh,v 1.199 2004/09/10 21:36:26 ktsaou Exp $
+# $Id: firehol.sh,v 1.200 2004/09/10 22:07:18 ktsaou Exp $
 #
 
 # Remember who you are.
@@ -4121,22 +4121,28 @@ shift
 
 case "${arg}" in
 	explain)
+		test ! -z "${1}" && softwarning "Arguments after parameter '${arg}' are ignored."
 		FIREHOL_EXPLAIN=1
 		;;
 	
 	helpme|wizard)
+		test ! -z "${1}" && softwarning "Arguments after parameter '${arg}' are ignored."
 		FIREHOL_WIZARD=1
 		;;
 	
 	try)
+		test ! -z "${1}" && softwarning "Arguments after parameter '${arg}' are ignored."
 		FIREHOL_TRY=1
 		;;
 	
 	start)
+		test ! -z "${1}" && softwarning "Arguments after parameter '${arg}' are ignored."
 		FIREHOL_TRY=0
 		;;
 	
 	stop)
+		test ! -z "${1}" && softwarning "Arguments after parameter '${arg}' are ignored."
+		
 		test -f /var/lock/subsys/firehol && ${RM_CMD} -f /var/lock/subsys/firehol
 		test -f /var/lock/subsys/iptables && ${RM_CMD} -f /var/lock/subsys/iptables
 		
@@ -4163,10 +4169,12 @@ case "${arg}" in
 		;;
 	
 	restart|force-reload)
+		test ! -z "${1}" && softwarning "Arguments after parameter '${arg}' are ignored."
 		FIREHOL_TRY=0
 		;;
 	
 	condrestart)
+		test ! -z "${1}" && softwarning "Arguments after parameter '${arg}' are ignored."
 		FIREHOL_TRY=0
 		if [ -f /var/lock/subsys/firehol ]
 		then
@@ -4175,6 +4183,7 @@ case "${arg}" in
 		;;
 	
 	status)
+		test ! -z "${1}" && softwarning "Arguments after parameter '${arg}' are ignored."
 		(
 			echo 
 			echo "--- MANGLE ---------------------------------------------------------------------"
@@ -4241,11 +4250,13 @@ case "${arg}" in
 		;;
 	
 	save)
+		test ! -z "${1}" && softwarning "Arguments after parameter '${arg}' are ignored."
 		FIREHOL_TRY=0
 		FIREHOL_SAVE=1
 		;;
 		
 	debug)
+		test ! -z "${1}" && softwarning "Arguments after parameter '${arg}' are ignored."
 		FIREHOL_TRY=0
 		FIREHOL_DEBUG=1
 		;;
@@ -4281,7 +4292,7 @@ case "${arg}" in
 		else
 		
 		${CAT_CMD} <<EOF
-$Id: firehol.sh,v 1.199 2004/09/10 21:36:26 ktsaou Exp $
+$Id: firehol.sh,v 1.200 2004/09/10 22:07:18 ktsaou Exp $
 (C) Copyright 2003, Costa Tsaousis <costa@tsaousis.gr>
 FireHOL is distributed under GPL.
 
@@ -4467,7 +4478,7 @@ then
 	
 	${CAT_CMD} <<EOF
 
-$Id: firehol.sh,v 1.199 2004/09/10 21:36:26 ktsaou Exp $
+$Id: firehol.sh,v 1.200 2004/09/10 22:07:18 ktsaou Exp $
 (C) Copyright 2003, Costa Tsaousis <costa@tsaousis.gr>
 FireHOL is distributed under GPL.
 Home Page: http://firehol.sourceforge.net
@@ -4761,7 +4772,7 @@ then
 	
 	${CAT_CMD} >&2 <<EOF
 
-$Id: firehol.sh,v 1.199 2004/09/10 21:36:26 ktsaou Exp $
+$Id: firehol.sh,v 1.200 2004/09/10 22:07:18 ktsaou Exp $
 (C) Copyright 2003, Costa Tsaousis <costa@tsaousis.gr>
 FireHOL is distributed under GPL.
 Home Page: http://firehol.sourceforge.net
@@ -4844,7 +4855,7 @@ EOF
 	echo "# "
 
 	${CAT_CMD} <<EOF
-# $Id: firehol.sh,v 1.199 2004/09/10 21:36:26 ktsaou Exp $
+# $Id: firehol.sh,v 1.200 2004/09/10 22:07:18 ktsaou Exp $
 # (C) Copyright 2003, Costa Tsaousis <costa@tsaousis.gr>
 # FireHOL is distributed under GPL.
 # Home Page: http://firehol.sourceforge.net
