@@ -1,7 +1,7 @@
 
 RCS file: /cvsroot/firehol/firehol/firehol.sh,v
 Working file: firehol.sh
-head: 1.61
+head: 1.65
 branch:
 locks: strict
 access list:
@@ -9,8 +9,48 @@ symbolic names:
 	start: 1.1.1.1
 	vendor: 1.1.1
 keyword substitution: kv
-total revisions: 62;	selected revisions: 62
+total revisions: 66;	selected revisions: 66
 description:
+----------------------------
+revision 1.65
+date: 2003/01/06 01:16:41;  author: ktsaou;  state: Exp;  lines: +19 -3
+I have added a not-to-be-documented command line argument:
+
+gimme-the-services-defs
+
+An application can choose to run FireHOL with this argument to have all
+the service definitions FireHOL knows in the environment variables.
+----------------------------
+revision 1.64
+date: 2003/01/06 00:41:10;  author: ktsaou;  state: Exp;  lines: +736 -671
+Changed the method with which the current command line was saved for the
+error handler. The new way saved a fork() and gave some speed improvements.
+
+Re-arranged the code so that the global variables and the services
+definitions will be at the top of the file firehol.sh
+
+Developed a work-around for a bug in iptables-save where:
+
+! --uid-owner A
+
+was saved as
+
+--uid-owner !A
+
+which was giving errors during restoration.
+Unfortunatelly this made firehol saving the running firewall without the
+use of /etc/init.d/iptables save.
+The "save" argument to firehol saves the firewall to:
+
+/etc/sysconfig/iptables
+----------------------------
+revision 1.63
+date: 2003/01/05 20:03:07;  author: ktsaou;  state: Exp;  lines: +29 -3
+Added service ping
+----------------------------
+revision 1.62
+date: 2003/01/03 23:34:37;  author: ktsaou;  state: Exp;  lines: +16 -4
+Added protocols as services: ICMP, AH, GRE, ESP
 ----------------------------
 revision 1.61
 date: 2003/01/01 04:32:48;  author: ktsaou;  state: Exp;  lines: +6 -3

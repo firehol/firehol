@@ -10,7 +10,7 @@
 #
 # config: /etc/firehol.conf
 #
-# $Id: firehol.sh,v 1.65 2003/01/06 01:16:41 ktsaou Exp $
+# $Id: firehol.sh,v 1.66 2003/01/06 16:13:34 ktsaou Exp $
 #
 
 
@@ -982,6 +982,44 @@ fi
 # XXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXX
 # ------------------------------------------------------------------------------
 #
+# HELPER FUNCTIONS BELLOW THIS POINT
+#
+# ------------------------------------------------------------------------------
+# XXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXX
+# ------------------------------------------------------------------------------
+
+# helper transparent_squid <squid_port> <squid_user>
+transparent_squid_count=0
+transparent_squid() {
+        work_realcmd=($FUNCNAME "$@")
+	
+	local redirect="${1}"; shift
+	local user="${1}"; shift
+	
+	test -z "${redirect}" && error "Squid port number is empty" && return 1
+	test -z "${user}"     && error "Squid user not specified" && return 1
+	
+	
+	transparent_squid_count=$[transparent_squid_count + 1]
+	
+	set_work_function "Setting up rules for catching routed web traffic"
+	
+	create_chain nat "in_trsquid.${transparent_squid_count}" PREROUTING "$@" proto tcp dport http || return 1
+	rule table nat chain "in_trsquid.${transparent_squid_count}" proto tcp dport http action REDIRECT to-port ${redirect} || return 1
+	
+	set_work_function "Setting up rules for catching outgoing web traffic"
+	create_chain nat "out_trsquid.${transparent_squid_count}" OUTPUT proto tcp dport http dst not "127.0.0.1" custom "-m owner ! --uid-owner ${user}" || return 1
+	rule table nat chain "out_trsquid.${transparent_squid_count}" proto tcp dport http action REDIRECT to-port ${redirect} || return 1
+	
+	FIREHOL_NAT=1
+	
+	return 0
+}
+
+# ------------------------------------------------------------------------------
+# XXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXX
+# ------------------------------------------------------------------------------
+#
 # INTERNAL FUNCTIONS BELLOW THIS POINT - Primary commands
 #
 # ------------------------------------------------------------------------------
@@ -1561,6 +1599,64 @@ close_master() {
 # wrapper for iptables, producing multiple iptables commands based on its
 # arguments. The rest of FireHOL is simply a "driver" for this function.
 
+
+# rule_action_param() is a function - part of rule() - to create the final iptables cmd
+# taking into account the "action_param" parameter of the action.
+
+# rule_action_param() should only be used within rule() - no other place
+
+rule_action_param() {
+	local action="${1}"; shift
+	local protocol="${1}"; shift
+	local -a action_param=
+	
+	local count=0
+	while [ ! -z "${1}" -a ! "A${1}" = "A--" ]
+	do
+		action_param[$count]="${1}"
+		shift
+		
+		count=$[count + 1]
+	done
+	
+	local sep="${1}"; shift
+	if [ ! "A${sep}" = "A--" ]
+	then
+		error "Internal Error, in parsing action_param parameters ($FUNCNAME '${action}' '${protocol}' '${action_param[@]}' ${sep} $@)."
+		return 1
+	fi
+	
+	# Do the rule
+	case "${action}" in
+		NONE)
+			return 0
+			;;
+			
+		REJECT)
+			if [ "${action_param[1]}" = "auto" ]
+			then
+				if [ "${protocol}" = "tcp" -o "${protocol}" = "TCP" ]
+				then
+					action_param=("--reject-with" "tcp-reset")
+				else
+					unset action_param
+				fi
+			fi
+			;;
+	esac
+	
+	if [ "${action_param[0]}" = "none" ]
+	then
+		unset action_param
+	fi
+	
+	iptables "$@" -j "${action}" "${action_param[@]}"
+	local ret=$?
+	test $ret -gt 0 && failed=$[failed + 1]
+	
+	return $ret
+}
+
 rule() {
 	local table="-t filter"
 	local chain=
@@ -1607,8 +1703,6 @@ rule() {
 	local swo=0
 	
 	local custom=
-	
-	local with=
 	
 	# If set to non-zero, this will enable the mechanism for
 	# handling ANDed negative expressions.
@@ -1857,13 +1951,57 @@ rule() {
 			action|ACTION)
 				action="${2}"
 				shift 2
+				
+				unset action_param
+				local action_is_chain=0
+				case "${action}" in
+					accept|ACCEPT)
+						action="ACCEPT"
+						;;
+						
+					deny|DENY|drop|DROP)
+						action="DROP"
+						;;
+						
+					reject|REJECT)
+						action="REJECT"
+						if [ "${1}" = "with" ]
+						then
+							local -a action_param=("--reject-with" "${2}")
+							shift 2
+						else
+							local -a action_param=("--reject-with" "auto")
+						fi
+						;;
+						
+					redirect|REDIRECT)
+						action="REDIRECT"
+						if [ "${1}" = "to-port" ]
+						then
+							local -a action_param=("--to-port" "${2}")
+							shift 2
+						fi
+						;;
+						
+					return|RETURN)
+						action="RETURN"
+						;;
+						
+					mirror|MIRROR)
+						action="MIRROR"
+						;;
+						
+					none|NONE)
+						action="NONE"
+						;;
+						
+					*)
+						chain_exists "${action}"
+						local action_is_chain=$?
+						;;
+				esac
 				;;
 			
-			with|WITH)
-				with="${2}"
-				shift 2
-				;;
-				
 			state|STATE)
 				shift
 				statenot=
@@ -1885,50 +2023,26 @@ rule() {
 		esac
 	done
 	
-	local action_is_chain=0
-	case "${action}" in
-		accept|ACCEPT)
-			action=ACCEPT
-			;;
-			
-		deny|DENY)
-			action=DROP
-			;;
-			
-		reject|REJECT)
-			action=REJECT
-			
-			# If the user did not specified a rejection message,
-			# we have to be smart and produce a tcp-reset if the protocol
-			# is TCP and an ICMP port unreachable in all other cases.
-			# The special case here is the protocol "any".
-			# To accomplish the differentiation based on protocol we have
-			# to change the protocol "any" to "tcp any"
-			
-			test -z "${with}" -a "${proto}" = "any" && proto="tcp any"
-			;;
-			
-		drop|DROP)
-			action=DROP
-			;;
-			
-		return|RETURN)
-			action=RETURN
-			;;
-			
-		mirror|MIRROR)
-			action=MIRROR
-			;;
-			
-		none|NONE)
-			action=NONE
-			;;
-			
-		*)
-			chain_exists "${action}"
-			local action_is_chain=$?
-			;;
-	esac
+	
+	# If the user did not specified a rejection message,
+	# we have to be smart and produce a tcp-reset if the protocol
+	# is TCP and an ICMP port unreachable in all other cases.
+	# The special case here is the protocol "any".
+	# To accomplish the differentiation based on protocol we have
+	# to change the protocol "any" to "tcp any"
+	
+	test "${action}" = "REJECT" -a "${action_param[1]}" = "auto" -a "${proto}" = "any" && proto="tcp any"
+	
+	
+	# we cannot accept empty strings to a few parameters, since this
+	# will prevent us from generating a rule (due to nested BASH loops).
+	test -z "${inface}"	&& error "Cannot accept an empty 'inface'."	&& return 1
+	test -z "${outface}"	&& error "Cannot accept an empty 'outface'."	&& return 1
+	test -z "${src}"	&& error "Cannot accept an empty 'src'."	&& return 1
+	test -z "${dst}"	&& error "Cannot accept an empty 'dst'."	&& return 1
+	test -z "${sport}"	&& error "Cannot accept an empty 'sport'."	&& return 1
+	test -z "${dport}"	&& error "Cannot accept an empty 'dport'."	&& return 1
+	test -z "${proto}"	&& error "Cannot accept an empty 'proto'."	&& return 1
 	
 	
 	# ----------------------------------------------------------------------------------
@@ -2049,24 +2163,29 @@ rule() {
 		# just make have the final action of the rule.
 		if [ ! -z "${negative_action}" ]
 		then
-			iptables ${table} -A "${negative_chain}" -j "${negative_action}"
+			local pr=
+			for pr in ${proto}
+			do
+				unset proto_arg
+				
+				case ${pr} in
+					any|ANY)
+						;;
+					
+					*)
+						local -a proto_arg=("-p" "${pr}")
+						;;
+				esac
+				
+				rule_action_param "${negative_action}" "${pr}" "${action_param[@]}" -- ${table} -A "${negative_chain}" "${proto_arg[@]}"
+				unset action_param
+			done
 		fi
 	fi
 	
 	
 	# ----------------------------------------------------------------------------------
 	# Process the positive rules
-	
-	# we cannot accept empty strings to a few parameters, since this
-	# will prevent us from generating a rule (due to nested BASH loops).
-	test -z "${inface}"	&& error "Cannot accept an empty 'inface'."	&& return 1
-	test -z "${outface}"	&& error "Cannot accept an empty 'outface'."	&& return 1
-	test -z "${src}"	&& error "Cannot accept an empty 'src'."	&& return 1
-	test -z "${dst}"	&& error "Cannot accept an empty 'dst'."	&& return 1
-	test -z "${sport}"	&& error "Cannot accept an empty 'sport'."	&& return 1
-	test -z "${dport}"	&& error "Cannot accept an empty 'dport'."	&& return 1
-	test -z "${proto}"	&& error "Cannot accept an empty 'proto'."	&& return 1
-	
 	
 	local pr=
 	for pr in ${proto}
@@ -2197,33 +2316,7 @@ rule() {
 										;;
 								esac
 								
-								# Do the rule
-								case "${action}" in
-									NONE)
-										;;
-									
-									REJECT)
-										local with_arg=
-										if [ ! -z "${with}" ]
-										then
-											with_arg="--reject-with ${with}"
-										else
-											if [ "${pr}" = "tcp" -o "${pr}" = "TCP" ]
-											then
-												with_arg="--reject-with tcp-reset"
-											fi
-										fi
-										
-										iptables ${table} -A "${chain}" "${basecmd[@]}" ${custom} -j "${action}" ${with_arg}
-										test $? -gt 0 && failed=$[failed + 1]
-										;;
-									
-									*)
-										test ! -z "${with}" && error "Parameter 'with' cannot be used on action '${action}'."
-										iptables ${table} -A "${chain}" "${basecmd[@]}" ${custom} -j "${action}"
-										test $? -gt 0 && failed=$[failed + 1]
-										;;
-								esac
+								rule_action_param "${action}" "${pr}" "${action_param[@]}" -- ${table} -A "${chain}" "${basecmd[@]}" ${custom}
 							done
 						done
 					done
@@ -2607,7 +2700,7 @@ case "${arg}" in
 		else
 		
 		cat <<"EOF"
-$Id: firehol.sh,v 1.65 2003/01/06 01:16:41 ktsaou Exp $
+$Id: firehol.sh,v 1.66 2003/01/06 16:13:34 ktsaou Exp $
 (C) Copyright 2002, Costa Tsaousis <costa@tsaousis.gr>
 FireHOL is distributed under GPL.
 
@@ -2775,7 +2868,7 @@ then
 	
 	cat <<"EOF"
 
-$Id: firehol.sh,v 1.65 2003/01/06 01:16:41 ktsaou Exp $
+$Id: firehol.sh,v 1.66 2003/01/06 16:13:34 ktsaou Exp $
 (C) Copyright 2002, Costa Tsaousis <costa@tsaousis.gr>
 FireHOL is distributed under GPL.
 Home Page: http://firehol.sourceforge.net
