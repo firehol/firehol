@@ -7,6 +7,13 @@ then
 	exit 1
 fi
 
+service_aptproxy_notes="Debian package proxy."
+
+
+service_apcupsd_notes="APC UPS server ports. This service must be defined as <b>server apcupsd accept</b> on all machines
+not directly connected to the UPS (i.e. slaves).
+"
+
 server_all_ports="all"
 client_all_ports="all"
 service_all_type="complex"
@@ -61,6 +68,9 @@ The FTP service matches both active and passive FTP connections by utilizing the
 
 
 service_icmp_type="complex"
+
+
+service_isakmp_notes="IPSec key negotiation."
 
 
 server_multicast_ports="N/A"
@@ -294,7 +304,7 @@ cat <<"EOF"
 <tr><td align=center valign=middle>
 	<A href="http://sourceforge.net"><IMG src="http://sourceforge.net/sflogo.php?group_id=58425&amp;type=5" width="210" height="62" border="0" alt="SourceForge Logo"></A>
 </td><td align=center valign=middle>
-	<small>$Id: create_services.sh,v 1.3 2002/12/11 21:04:20 ktsaou Exp $</small>
+	<small>$Id: create_services.sh,v 1.4 2002/12/12 20:10:32 ktsaou Exp $</small>
 	<p>
 	<b>FireHOL</b>, a firewall for humans...<br>
 	&copy; Copyright 2002
