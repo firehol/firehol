@@ -20,6 +20,25 @@ automatically. FireHOL is extremely easy to understand, configure and audit.
 
 <BODY bgcolor="#FFFFFF">
 
+<center>
+<script type="text/javascript"><!--
+google_ad_client = "pub-4254040714325099";
+google_ad_width = 728;
+google_ad_height = 90;
+google_ad_format = "728x90_as";
+google_ad_channel ="";
+google_page_url = document.location;
+google_color_border = "336699";
+google_color_bg = "FFFFFF";
+google_color_link = "0000FF";
+google_color_url = "008000";
+google_color_text = "000000";
+//--></script>
+<script type="text/javascript"
+  src="http://pagead2.googlesyndication.com/pagead/show_ads.js">
+</script>
+</center>
+
 <table border=0 cellpadding=10 cellspacing=0 width="100%">
 <tr>
 <td width="60%" valign=top>
@@ -29,17 +48,60 @@ automatically. FireHOL is extremely easy to understand, configure and audit.
 <table border=0 cellpadding=10 cellspacing=0 width="100%">
 <tr><td bgcolor="#EEEEEE"><b>Latest News</td></tr></table>
 <br>
-<b>May 3, 2004</b>, FireHOL R5 v1.191 released.<br>
+<b>Nov 1, 2004</b>, FireHOL R5 v1.213 released.<br>
 <font color="#555555">
-This release features more services, including ORACLE, GKRELLMD,
-DCC, WHOIS, fixed CUPS, enhanced SAMBA services, new optional
-rule parameters, including PHYSIN, PHYSOUT, updated MAC helper,
-better compatibility, better kernel module management, support
-for ULOG logging, better iptables statements generation, updated
-PRIVATE_IPS for IANA reservations, and various bug fixes.
-All users are advised to update to this version.
+This is a major release which includes several updates and fixes.
+<p>
+<b>All users are advised to update to this version.</b>
+<p>
+This release includes new service definitions:
+<a href="services.html#nis">NIS</a>,
+<a href="services.html#nut">NUT</a>,
+<a href="services.html#nntps">NNTPS</a>,
+<a href="services.html#asterisk">ASTERISK</a>,
+<a href="services.html#darkstat">DARKSTAT</a>,
+<a href="services.html#distcc">DISTCC</a>,
+<a href="services.html#eserver">ESERVER</a>,
+<a href="services.html#gift">GIFT</a>,
+<a href="services.html#giftui">GIFTUI</a>,
+<a href="services.html#h323">H323</a>,
+<a href="services.html#iax">IAX</a>,
+<a href="services.html#iax2">IAX2</a>,
+<a href="services.html#icp">ICP</a>,
+<a href="services.html#rtp">RTP</a>,
+<a href="services.html#sip">SIP</a>,
+<a href="services.html#stun">STUN</a>,
+<a href="services.html#upnp">UPNP</a>,
+<a href="services.html#rdp">RDP</a>,
+<a href="services.html#nxserver">NXSERVER</a>,
+<a href="services.html#radiusproxy">RADIUSPROXY</a>,
+<a href="services.html#radiusoldproxy">RADIUSOLDPROXY</a>.
+The following service definitions have been updated:
+<a href="services.html#dhcp">DHCP</a>,
+<a href="services.html#samba">SAMBA</a>,
+<a href="services.html#nfs">NFS</a>.
+The following helpers have been added:
+<a href="commands.html#tos">TOS</a>,
+<a href="commands.html#dscp">DSCP</a>,
+<a href="commands.html#tcpmss">TCPMSS</a>,
+<a href="commands.html#ecn_shame">ECN_SHAME</a>.
+The following optional rule parameters have been added:
+<a href="commands.html#tos_param">TOS</a>,
+<a href="commands.html#mark_param">MARK</a>,
+<a href="commands.html#dscp_param">DSCP</a>.
+Added support for automatic installation of
+service definitions with third party packages, in
+<a href="adding.html#distributed">/etc/firehol/services/</a>.
+Also, FireHOL now has improved interoperability with various
+Linux distributions, including BASH 3.x, updated <a href="commands.html#RESERVED_IPS">RESERVED_IPS</a>
+for current IANA IPv4 reservations, finer control on <a href="commands.html#accept">ACCEPT</a>ed
+services to allow controllable requests per second, the
+ability to <a href="commands.html#FIREHOL_TRUST_LOOPBACK">control loopback traffic</a> and support for service
+<a href="commands.html#group_cmd">groups</a>.
 </font>
 <p>
+
+<hr noshade>
 
 <b>2003-2004</b> FireHOL remains as one of the BEST RATED open source applications.<br>
 <font color="#555555">
@@ -53,6 +115,7 @@ Are you using FireHOL too? Tell us your opinion: rate it <a href="http://freshme
 </font>
 <p>
 
+<hr noshade>
 
 <b>May 3, 2004</b>, Latest CVS tarballs available.<br>
 <font color="#555555">
@@ -522,10 +585,10 @@ supports the following services:</p>
 <tr><td align=center valign=middle>
 	<A href="http://sourceforge.net"><IMG src="http://sourceforge.net/sflogo.php?group_id=58425&amp;type=5" width="210" height="62" border="0" alt="SourceForge Logo"></A>
 </td><td align=center valign=middle>
-	<small>$Id: overview.html,v 1.28 2004/10/28 22:02:50 ktsaou Exp $</small>
+	<small>$Id: overview.html,v 1.29 2004/10/31 23:40:50 ktsaou Exp $</small>
 	<p>
 	<b>FireHOL</b>, a firewall for humans...<br>
-	&copy; Copyright 2003
+	&copy; Copyright 2004
 	Costa Tsaousis <a href="mailto: costa@tsaousis.gr">&lt;costa@tsaousis.gr&gt</a>
 </body>
 </html>
