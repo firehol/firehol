@@ -1,9 +1,9 @@
-$Id: WhatIsNew,v 1.7 2005/01/24 22:19:40 ktsaou Exp $
+$Id: WhatIsNew,v 1.8 2005/01/24 22:24:47 ktsaou Exp $
 
 What Is New in public releases.
 -------------------------------
 
-R5 v1.223, Jan 24, 2005
+R5 v1.224, Jan 24, 2005
 Added services ANYSTATELESS, TIMESTAMP, DICT. Added support for
 knockd (http://www.zeroflux.org/knock/).
 Fixed various minor bugs and eliminated all vulnerabilities
