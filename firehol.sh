@@ -10,7 +10,7 @@
 #
 # config: /etc/firehol.conf
 #
-# $Id: firehol.sh,v 1.86 2003/01/29 23:19:20 ktsaou Exp $
+# $Id: firehol.sh,v 1.87 2003/01/30 21:36:07 ktsaou Exp $
 #
 
 
@@ -914,7 +914,7 @@ fi
 # ------------------------------------------------------------------------------
 
 masquerade() {
-        work_realcmd=(${FUNCNAME} "$@")
+	work_realcmd=(${FUNCNAME} "$@")
 	
 	set_work_function -ne "Initializing $FUNCNAME"
 	
@@ -938,7 +938,7 @@ masquerade() {
 # helper transparent_squid <squid_port> <squid_user>
 transparent_squid_count=0
 transparent_squid() {
-        work_realcmd=($FUNCNAME "$@")
+	work_realcmd=($FUNCNAME "$@")
 	
 	set_work_function -ne "Initializing $FUNCNAME"
 	
@@ -975,7 +975,7 @@ transparent_squid() {
 
 nat_count=0
 nat() {
-        work_realcmd=($FUNCNAME "$@")
+	work_realcmd=($FUNCNAME "$@")
 	
 	set_work_function -ne "Initializing $FUNCNAME"
 	
@@ -1020,37 +1020,38 @@ nat() {
 }
 
 snat() {
-        work_realcmd=($FUNCNAME "$@")
+	work_realcmd=($FUNCNAME "$@")
 	
 	set_work_function -ne "Initializing $FUNCNAME"
 	
 	local to="${1}"; shift
-	test "${to}" = "to" && local to="${1}"; shift
+	test "${to}" = "to" && (local to="${1}"; shift)
 	
 	nat "to-source" "${to}" "$@"
 }
 
 dnat() {
-        work_realcmd=($FUNCNAME "$@")
+	work_realcmd=($FUNCNAME "$@")
 	
 	set_work_function -ne "Initializing $FUNCNAME"
 	
 	local to="${1}"; shift
-	test "${to}" = "to" && local to="${1}"; shift
+	test "${to}" = "to" && (local to="${1}"; shift)
 	
 	nat "to-destination" "${to}" "$@"
 }
 
 redirect() {
-        work_realcmd=($FUNCNAME "$@")
+	work_realcmd=($FUNCNAME "$@")
 	
 	set_work_function -ne "Initializing $FUNCNAME"
 	
 	local to="${1}"; shift
-	test "${to}" = "to" -o "${to}" = "to-port" && local to="${1}"; shift
+	test "${to}" = "to" -o "${to}" = "to-port" && (local to="${1}"; shift)
 	
 	nat "redirect-to" "${to}" "$@"
 }
+
 
 # ------------------------------------------------------------------------------
 # XXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXX
@@ -1994,7 +1995,12 @@ rule() {
 							done
 							shift 2
 						else
-							error "SNAT requires a 'to' argument."
+							error "${action} requires a 'to' argument."
+							return 1
+						fi
+						if [ ! "A${table}" = "A-t nat" ]
+						then
+							error "${action} must on a the 'nat' table."
 							return 1
 						fi
 						;;
@@ -2011,7 +2017,12 @@ rule() {
 							done
 							shift 2
 						else
-							error "DNAT requires a 'to' argument"
+							error "${action} requires a 'to' argument"
+							return 1
+						fi
+						if [ ! "A${table}" = "A-t nat" ]
+						then
+							error "${action} must on a the 'nat' table."
 							return 1
 						fi
 						;;
@@ -2023,7 +2034,46 @@ rule() {
 							local -a action_param=("--to-ports" "${2}")
 							shift 2
 						else
-							error "REDIRECT requires a 'to-port' or 'to' argument."
+							error "${action} requires a 'to-port' or 'to' argument."
+							return 1
+						fi
+						if [ ! "A${table}" = "A-t nat" ]
+						then
+							error "${action} must on a the 'nat' table."
+							return 1
+						fi
+						;;
+						
+					tos|TOS)
+						action="TOS"
+						if [ "${1}" = "to" ]
+						then
+							local -a action_param=("--set-tos" "${2}")
+							shift 2
+						else
+							error "${action} requires a 'to' argument"
+							return 1
+						fi
+						if [ ! "A${table}" = "A-t mangle" ]
+						then
+							error "${action} must on a the 'mangle' table."
+							return 1
+						fi
+						;;
+						
+					mark|MARK)
+						action="MARK"
+						if [ "${1}" = "to" ]
+						then
+							local -a action_param=("--set-mark" "${2}")
+							shift 2
+						else
+							error "${action} requires a 'to' argument"
+							return 1
+						fi
+						if [ ! "A${table}" = "A-t mangle" ]
+						then
+							error "${action} must on a the 'mangle' table."
 							return 1
 						fi
 						;;
@@ -3066,7 +3116,7 @@ case "${arg}" in
 		else
 		
 		cat <<"EOF"
-$Id: firehol.sh,v 1.86 2003/01/29 23:19:20 ktsaou Exp $
+$Id: firehol.sh,v 1.87 2003/01/30 21:36:07 ktsaou Exp $
 (C) Copyright 2002, Costa Tsaousis <costa@tsaousis.gr>
 FireHOL is distributed under GPL.
 
@@ -3234,7 +3284,7 @@ then
 	
 	cat <<"EOF"
 
-$Id: firehol.sh,v 1.86 2003/01/29 23:19:20 ktsaou Exp $
+$Id: firehol.sh,v 1.87 2003/01/30 21:36:07 ktsaou Exp $
 (C) Copyright 2002, Costa Tsaousis <costa@tsaousis.gr>
 FireHOL is distributed under GPL.
 Home Page: http://firehol.sourceforge.net
