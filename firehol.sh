@@ -10,7 +10,7 @@
 #
 # config: /etc/firehol.conf
 #
-# $Id: firehol.sh,v 1.40 2002/12/11 20:51:38 ktsaou Exp $
+# $Id: firehol.sh,v 1.41 2002/12/12 20:07:47 ktsaou Exp $
 #
 
 # ------------------------------------------------------------------------------
@@ -121,7 +121,7 @@ case "${arg}" in
 		else
 		
 		cat <<"EOF"
-$Id: firehol.sh,v 1.40 2002/12/11 20:51:38 ktsaou Exp $
+$Id: firehol.sh,v 1.41 2002/12/12 20:07:47 ktsaou Exp $
 (C) Copyright 2002, Costa Tsaousis
 FireHOL is distributed under GPL.
 
@@ -406,11 +406,25 @@ work_created_chains=
 # initiated by the client and used by the server.
 # The following list is sorted by service name.
 
+# Debian package proxy
+server_aptproxy_ports="tcp/9999"
+client_aptproxy_ports="default"
+
+# APC UPS Server (these ports have to be accessible on all machines NOT
+# directly connected to the UPS (e.g. the slaves)
+server_apcupsd_ports="tcp/6544"
+client_apcupsd_ports="default"
+
 server_daytime_ports="tcp/daytime"
 client_daytime_ports="default"
 
 server_dhcp_ports="udp/bootps"
 client_dhcp_ports="bootpc"
+
+# DHCP Relaying (server is the relay server which behaves like a client
+# towards the real DHCP Server); I'm not sure about this one...
+#server_dhcprel_ports="udp/67"
+#client_dhcprel_ports="67"
 
 server_echo_ports="tcp/echo"
 client_echo_ports="default"
@@ -445,6 +459,10 @@ client_irc_ports="default"
 require_irc_modules="ip_conntrack_irc"
 require_irc_nat_modules="ip_nat_irc"
 ALL_SHOULD_ALSO_RUN="${ALL_SHOULD_ALSO_RUN} irc"
+
+# for IPSec Key negotiation
+server_isakmp_ports="udp/500"
+client_isakmp_ports="500"
 
 server_ldap_ports="tcp/ldap"
 client_ldap_ports="default"
@@ -537,8 +555,8 @@ client_telnet_ports="default"
 # TFTP is more complicated than this.
 # TFTP communicates through high ports. The problem is that there is
 # no relevant iptables module in most distributions.
-server_tftp_ports="udp/tftp"
-client_tftp_ports="default"
+#server_tftp_ports="udp/tftp"
+#client_tftp_ports="default"
 
 server_uucp_ports="tcp/uucp"
 client_uucp_ports="default"
