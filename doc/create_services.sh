@@ -380,11 +380,12 @@ NETBIOS Session Service
 <p>
 See also the <a href=\"#samba\">samba</a> service.
 <p>
-Newer NETBIOS clients prefer to use port 445 (<a href=\"#microsoft_ds\">microsoft_ds</a>) for the NETBIOS session service,
-and when this is not available they fall back to port 139 (netbios_ssn).
+Please keep in mind that newer NETBIOS clients prefer to use port 445 (<a href=\"#microsoft_ds\">microsoft_ds</a>)
+for the NETBIOS session service, and when this is not available they fall back to port 139 (netbios_ssn).
+Versions of samba above 3.x bind automatically to ports 139 and 445.
 <p>
-If your policy on an interface or router is <b>DROP</b>, clients trying to access port 445
-will have to timeout before falling back to port 139. This timeout can be up to several minutes.
+If you have an older samba version and your policy on an interface or router is <b>DROP</b>, clients trying to
+access port 445 will have to timeout before falling back to port 139. This timeout can be up to several minutes.
 <p>
 To overcome this problem either explicitly <b>REJECT</b> the <a href=\"#microsoft_ds\">microsoft_ds</a> service
 with a tcp-reset message (<b>server microsoft_ds reject with tcp-reset</b>),
@@ -513,9 +514,18 @@ server_samba_ports="many"
 client_samba_ports="default"
 service_samba_type="complex"
 service_samba_notes="
-The samba service automatically sets all the rules for <a href=\"#netbios_ns\">netbios_ns</a>, <a href=\"#netbios_dgm\">netbios_dgm</a> and <a href=\"#netbios_ssn\">netbios_ssn</a>.
+The samba service automatically sets all the rules for <a href=\"#netbios_ns\">netbios_ns</a>, <a href=\"#netbios_dgm\">netbios_dgm</a>, <a href=\"#netbios_ssn\">netbios_ssn</a> and <a href=\"#microsoft_ds\">microsoft_ds</a>.
 <p>
 Please refer to the notes of the above services for more information.
+<p>
+NETBIOS initiates based on the broadcast address of an interface (request goes to broadcast address) but the server responds from
+its own IP address. This makes the <b>server samba accept</b> statement drop the server reply, because of the way the iptables connection tracker works.
+<p>
+This service definition includes a hack, that allows a linux samba server to respond correctly in such situations, by allowing new outgoing connections
+from the well known <a href=\"#netbios_ns\">netbios_ns</a> port to the clients high ports.
+<p>
+<b>However, for clients and routers this hack is not applied because it would open all unpriviliged ports to the samba server.</b>
+The only solution to overcome the problem in such cases (routers or clients) is to build a trust relationship between the samba servers and clients.
 "
 
 service_sip_notes="
@@ -918,7 +928,7 @@ cat <<"EOF"
 <tr><td align=center valign=middle>
 	<A href="http://sourceforge.net"><IMG src="http://sourceforge.net/sflogo.php?group_id=58425&amp;type=5" width="210" height="62" border="0" alt="SourceForge Logo"></A>
 </td><td align=center valign=middle>
-	<small>$Id: create_services.sh,v 1.49 2004/10/30 21:13:26 ktsaou Exp $</small>
+	<small>$Id: create_services.sh,v 1.50 2004/10/30 22:41:22 ktsaou Exp $</small>
 	<p>
 	<b>FireHOL</b>, a firewall for humans...<br>
 	&copy; Copyright 2003

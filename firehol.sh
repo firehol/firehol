@@ -10,7 +10,7 @@
 #
 # config: /etc/firehol/firehol.conf
 #
-# $Id: firehol.sh,v 1.209 2004/10/30 21:27:00 ktsaou Exp $
+# $Id: firehol.sh,v 1.210 2004/10/30 22:41:21 ktsaou Exp $
 #
 
 # Remember who you are.
@@ -803,7 +803,7 @@ rules_samba() {
 	# ----------------------------------------------------------------------
 	
 	set_work_function "Setting up rules for SAMBA/NETBIOS-NS (${type})"
-	rule ${in}          action "$@" chain "${in}_${mychain}"  proto "udp" sport "netbios-ns ${client_ports}"  dport "netbios-ns" state NEW,ESTABLISHED || return 1
+	rule ${in}          action "$@" chain "${in}_${mychain}"  proto "udp" sport "137 ${client_ports}"  dport 137 state NEW,ESTABLISHED || return 1
 	
 	# NETBIOS initiates based on the broadcast address of an interface
 	# (request goes to broadcast address) but the server responds from
@@ -816,18 +816,22 @@ rules_samba() {
 	# would be a huge security hole.
 	if [ "${type}" = "server" -a "${work_cmd}" = "interface" ]
 	then
-		rule ${out} reverse action "$@" chain "${out}_${mychain}" proto "udp" sport "netbios-ns ${client_ports}"  dport "netbios-ns" state NEW,ESTABLISHED || return 1
+		rule ${out} reverse action "$@" chain "${out}_${mychain}" proto "udp" sport "137 ${client_ports}"  dport 137 state NEW,ESTABLISHED || return 1
 	else
-		rule ${out} reverse action "$@" chain "${out}_${mychain}" proto "udp" sport "netbios-ns ${client_ports}"  dport "netbios-ns" state ESTABLISHED     || return 1
+		rule ${out} reverse action "$@" chain "${out}_${mychain}" proto "udp" sport "137 ${client_ports}"  dport 137 state ESTABLISHED     || return 1
 	fi
 	
 	set_work_function "Setting up rules for SAMBA/NETBIOS-DGM (${type})"
-	rule ${in}          action "$@" chain "${in}_${mychain}"  proto "udp" sport "netbios-dgm ${client_ports}" dport "netbios-dgm" state NEW,ESTABLISHED || return 1
-	rule ${out} reverse action "$@" chain "${out}_${mychain}" proto "udp" sport "netbios-dgm ${client_ports}" dport "netbios-dgm" state ESTABLISHED     || return 1
+	rule ${in}          action "$@" chain "${in}_${mychain}"  proto "udp" sport "138 ${client_ports}" dport 138 state NEW,ESTABLISHED || return 1
+	rule ${out} reverse action "$@" chain "${out}_${mychain}" proto "udp" sport "138 ${client_ports}" dport 138 state ESTABLISHED     || return 1
 	
 	set_work_function "Setting up rules for SAMBA/NETBIOS-SSN (${type})"
-	rule ${in}          action "$@" chain "${in}_${mychain}"  proto "tcp" sport "${client_ports}" dport "netbios-ssn" state NEW,ESTABLISHED || return 1
-	rule ${out} reverse action "$@" chain "${out}_${mychain}" proto "tcp" sport "${client_ports}" dport "netbios-ssn" state ESTABLISHED     || return 1
+	rule ${in}          action "$@" chain "${in}_${mychain}"  proto "tcp" sport "${client_ports}" dport 139 state NEW,ESTABLISHED || return 1
+	rule ${out} reverse action "$@" chain "${out}_${mychain}" proto "tcp" sport "${client_ports}" dport 139 state ESTABLISHED     || return 1
+	
+	set_work_function "Setting up rules for SAMBA/MICROSOFT_DS (${type})"
+	rule ${in}          action "$@" chain "${in}_${mychain}"  proto "tcp" sport "${client_ports}" dport 445 state NEW,ESTABLISHED || return 1
+	rule ${out} reverse action "$@" chain "${out}_${mychain}" proto "tcp" sport "${client_ports}" dport 445 state ESTABLISHED     || return 1
 	
 	return 0
 }
@@ -4676,7 +4680,7 @@ case "${arg}" in
 		else
 		
 		${CAT_CMD} <<EOF
-$Id: firehol.sh,v 1.209 2004/10/30 21:27:00 ktsaou Exp $
+$Id: firehol.sh,v 1.210 2004/10/30 22:41:21 ktsaou Exp $
 (C) Copyright 2003, Costa Tsaousis <costa@tsaousis.gr>
 FireHOL is distributed under GPL.
 
@@ -4862,7 +4866,7 @@ then
 	
 	${CAT_CMD} <<EOF
 
-$Id: firehol.sh,v 1.209 2004/10/30 21:27:00 ktsaou Exp $
+$Id: firehol.sh,v 1.210 2004/10/30 22:41:21 ktsaou Exp $
 (C) Copyright 2003, Costa Tsaousis <costa@tsaousis.gr>
 FireHOL is distributed under GPL.
 Home Page: http://firehol.sourceforge.net
@@ -5156,7 +5160,7 @@ then
 	
 	${CAT_CMD} >&2 <<EOF
 
-$Id: firehol.sh,v 1.209 2004/10/30 21:27:00 ktsaou Exp $
+$Id: firehol.sh,v 1.210 2004/10/30 22:41:21 ktsaou Exp $
 (C) Copyright 2003, Costa Tsaousis <costa@tsaousis.gr>
 FireHOL is distributed under GPL.
 Home Page: http://firehol.sourceforge.net
@@ -5239,7 +5243,7 @@ EOF
 	echo "# "
 
 	${CAT_CMD} <<EOF
-# $Id: firehol.sh,v 1.209 2004/10/30 21:27:00 ktsaou Exp $
+# $Id: firehol.sh,v 1.210 2004/10/30 22:41:21 ktsaou Exp $
 # (C) Copyright 2003, Costa Tsaousis <costa@tsaousis.gr>
 # FireHOL is distributed under GPL.
 # Home Page: http://firehol.sourceforge.net
