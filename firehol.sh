@@ -10,7 +10,7 @@
 #
 # config: /etc/firehol.conf
 #
-# $Id: firehol.sh,v 1.110 2003/03/14 20:36:52 ktsaou Exp $
+# $Id: firehol.sh,v 1.111 2003/03/14 20:59:07 ktsaou Exp $
 #
 FIREHOL_FILE="${0}"
 
@@ -3148,8 +3148,27 @@ case "${arg}" in
 		;;
 	
 	panic)
-		/etc/init.d/iptables panic
-		exit $?
+		echo -n $"FireHOL: Blocking all communications:"
+		/sbin/modprobe ip_tables >/dev/null 2>&1
+		tables=`cat /proc/net/ip_tables_names`
+		for t in ${tables}
+		do
+			/sbin/iptables -t "${t}" -F
+			/sbin/iptables -t "${t}" -X
+			/sbin/iptables -t "${t}" -Z
+			
+			# Find all default chains in this table.
+			chains=`/sbin/iptables -t "${t}" -nL | grep "^Chain " | cut -d ' ' -f 2`
+			for c in ${chains}
+			do
+				/sbin/iptables -t "${t}" -P "${c}" ACCEPT
+				/sbin/iptables -t "${t}" -A "${c}" -j DROP
+			done
+		done
+		success $"FireHOL: Blocking all communications:"
+		echo
+		
+		exit 0
 		;;
 	
 	save)
@@ -3193,7 +3212,7 @@ case "${arg}" in
 		else
 		
 		cat <<"EOF"
-$Id: firehol.sh,v 1.110 2003/03/14 20:36:52 ktsaou Exp $
+$Id: firehol.sh,v 1.111 2003/03/14 20:59:07 ktsaou Exp $
 (C) Copyright 2002, Costa Tsaousis <costa@tsaousis.gr>
 FireHOL is distributed under GPL.
 
@@ -3376,7 +3395,7 @@ then
 	
 	cat <<"EOF"
 
-$Id: firehol.sh,v 1.110 2003/03/14 20:36:52 ktsaou Exp $
+$Id: firehol.sh,v 1.111 2003/03/14 20:59:07 ktsaou Exp $
 (C) Copyright 2002, Costa Tsaousis <costa@tsaousis.gr>
 FireHOL is distributed under GPL.
 Home Page: http://firehol.sourceforge.net
@@ -3584,7 +3603,7 @@ then
 	
 	cat >&2 <<"EOF"
 
-$Id: firehol.sh,v 1.110 2003/03/14 20:36:52 ktsaou Exp $
+$Id: firehol.sh,v 1.111 2003/03/14 20:59:07 ktsaou Exp $
 (C) Copyright 2002, Costa Tsaousis <costa@tsaousis.gr>
 FireHOL is distributed under GPL.
 Home Page: http://firehol.sourceforge.net
@@ -3677,7 +3696,7 @@ EOF
 	echo "# "
 
 	cat <<"EOF"
-# $Id: firehol.sh,v 1.110 2003/03/14 20:36:52 ktsaou Exp $
+# $Id: firehol.sh,v 1.111 2003/03/14 20:59:07 ktsaou Exp $
 # (C) Copyright 2002, Costa Tsaousis <costa@tsaousis.gr>
 # FireHOL is distributed under GPL.
 # Home Page: http://firehol.sourceforge.net
