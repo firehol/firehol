@@ -10,7 +10,7 @@
 #
 # config: /etc/firehol/firehol.conf
 #
-# $Id: firehol.sh,v 1.203 2004/09/14 21:15:44 ktsaou Exp $
+# $Id: firehol.sh,v 1.204 2004/09/26 00:52:55 ktsaou Exp $
 #
 
 # Remember who you are.
@@ -41,7 +41,7 @@ which_cmd() {
 	fi
 	
 	unalias $2 >/dev/null 2>&1
-	local cmd=`which $2 | head -n 1`
+	local cmd=`which $2 2>/dev/null | head -n 1`
 	if [ $? -gt 0 -o ! -x "${cmd}" ]
 	then
 		if [ ${block} -eq 1 ]
@@ -350,11 +350,17 @@ client_apcupsd_ports="default"
 server_apcupsdnis_ports="tcp/3551"
 client_apcupsdnis_ports="default"
 
+server_asterisk_ports="tcp/5038"
+client_asterisk_ports="default"
+
 server_cups_ports="tcp/631 udp/631"
 client_cups_ports="default 631"
 
 server_cvspserver_ports="tcp/2401"
 client_cvspserver_ports="default"
+
+server_darkstat_ports="tcp/666"
+client_darkstat_ports="default"
 
 server_daytime_ports="tcp/daytime"
 client_daytime_ports="default"
@@ -376,6 +382,13 @@ client_dhcp_ports="bootpc"
 server_dhcprelay_ports="udp/bootps"
 client_dhcprelay_ports="bootps"
 
+# DISTCC is the distributed gcc for Gentoo
+server_distcc_ports="tcp/3632"
+client_distcc_ports="default"
+
+server_eserver_ports="tcp/4661 udp/4661 udp/4665"
+client_eserver_ports="any"
+
 server_ESP_ports="50/any"
 client_ESP_ports="any"
 
@@ -385,12 +398,26 @@ client_echo_ports="default"
 server_finger_ports="tcp/finger"
 client_finger_ports="default"
 
+# giFT modules' ports
+# Gnutella  = tcp/4302
+# FastTrack = tcp/1214
+# OpenFT    = tcp/2182 tcp/2472
+server_gift_ports="tcp/4302 tcp/1214 tcp/2182 tcp/2472"
+client_gift_ports="any"
+
+# giFT User Interface connections
+server_giftui_ports="tcp/1213"
+client_giftui_ports="default"
+
 # gkrellmd (from gkrellm.net)
 server_gkrellmd_ports="tcp/19150"
 client_gkrellmd_ports="default"
 
 server_GRE_ports="47/any"
 client_GRE_ports="any"
+
+server_h323_ports="tcp/1720 tcp/1731"
+client_h323_ports="default"
 
 # We assume heartbeat uses ports in the range 690 to 699
 server_heartbeat_ports="udp/690:699"
@@ -402,12 +429,22 @@ client_http_ports="default"
 server_https_ports="tcp/https"
 client_https_ports="default"
 
+server_iax_ports="udp/5036"
+client_iax_ports="default"
+
+server_iax2_ports="udp/5469 udp/4569"
+client_iax2_ports="default"
+
 server_ICMP_ports="icmp/any"
 client_ICMP_ports="any"
 
 server_icmp_ports="icmp/any"
 client_icmp_ports="any"
 # ALL_SHOULD_ALSO_RUN="${ALL_SHOULD_ALSO_RUN} icmp"
+
+# Squid' ICP port
+server_icp_ports="udp/3130"
+client_icp_ports="3130"
 
 server_ident_ports="tcp/auth"
 client_ident_ports="default"
@@ -525,6 +562,12 @@ client_rndc_ports="default"
 server_rsync_ports="tcp/rsync udp/rsync"
 client_rsync_ports="default"
 
+server_rtp_ports="udp/10000:20000"
+client_rtp_ports="any"
+
+server_sip_ports="udp/5060"
+client_sip_ports="default"
+
 server_socks_ports="tcp/socks udp/socks"
 client_socks_ports="default"
 
@@ -546,6 +589,9 @@ client_snmptrap_ports="any"
 server_ssh_ports="tcp/ssh"
 client_ssh_ports="default"
 
+server_stun_ports="udp/3478 udp/3479"
+client_stun_ports="any"
+
 # SMTP over SSL/TLS submission
 server_submission_ports="tcp/587"
 client_submission_ports="default"
@@ -565,6 +611,9 @@ client_telnet_ports="default"
 
 server_time_ports="tcp/37 udp/37"
 client_time_ports="default"
+
+server_upnp_ports="udp/1900 tcp/2869"
+client_upnp_ports="default"
 
 server_uucp_ports="tcp/uucp"
 client_uucp_ports="default"
@@ -4411,7 +4460,7 @@ case "${arg}" in
 		else
 		
 		${CAT_CMD} <<EOF
-$Id: firehol.sh,v 1.203 2004/09/14 21:15:44 ktsaou Exp $
+$Id: firehol.sh,v 1.204 2004/09/26 00:52:55 ktsaou Exp $
 (C) Copyright 2003, Costa Tsaousis <costa@tsaousis.gr>
 FireHOL is distributed under GPL.
 
@@ -4597,7 +4646,7 @@ then
 	
 	${CAT_CMD} <<EOF
 
-$Id: firehol.sh,v 1.203 2004/09/14 21:15:44 ktsaou Exp $
+$Id: firehol.sh,v 1.204 2004/09/26 00:52:55 ktsaou Exp $
 (C) Copyright 2003, Costa Tsaousis <costa@tsaousis.gr>
 FireHOL is distributed under GPL.
 Home Page: http://firehol.sourceforge.net
@@ -4891,7 +4940,7 @@ then
 	
 	${CAT_CMD} >&2 <<EOF
 
-$Id: firehol.sh,v 1.203 2004/09/14 21:15:44 ktsaou Exp $
+$Id: firehol.sh,v 1.204 2004/09/26 00:52:55 ktsaou Exp $
 (C) Copyright 2003, Costa Tsaousis <costa@tsaousis.gr>
 FireHOL is distributed under GPL.
 Home Page: http://firehol.sourceforge.net
@@ -4974,7 +5023,7 @@ EOF
 	echo "# "
 
 	${CAT_CMD} <<EOF
-# $Id: firehol.sh,v 1.203 2004/09/14 21:15:44 ktsaou Exp $
+# $Id: firehol.sh,v 1.204 2004/09/26 00:52:55 ktsaou Exp $
 # (C) Copyright 2003, Costa Tsaousis <costa@tsaousis.gr>
 # FireHOL is distributed under GPL.
 # Home Page: http://firehol.sourceforge.net

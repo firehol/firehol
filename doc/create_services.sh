@@ -92,9 +92,15 @@ In combination with the <a href=\"commands.html#parameters\">Optional Rule Param
 "
 service_any_example="server any <u>myname</u> accept proto 47"
 
+service_asterisk_notes="
+<a href=\"http://www.asterisk.org\">Asterisk</a> is an open source PABX and the Swiss knife of VoIP.<p>
+This service refers only to the <b>manager</b> interface of asterisk.
+You should normally need to enable <a href=\"#sip\">sip</a>, <a href=\"#h323\">h323</a>,
+<a href=\"#rtp\">rtp</a>, etc at the firewall level, if you enable the relative channel drivers
+of asterisk."
+
 
 service_cups_notes="<a href=\"http://www.cups.org\">Common UNIX Printing System</a>"
-
 
 server_custom_ports="defined&nbsp;in&nbsp;the&nbsp;command"
 client_custom_ports="defined&nbsp;in&nbsp;the&nbsp;command"
@@ -105,6 +111,17 @@ To find more about this service please check the <a href=\"adding.html\">Adding 
 "
 service_custom_example="server custom <u>myimap</u> <u>tcp/143</u> <u>default</u> accept"
 
+service_distcc_notes="
+<a href=\"http://distcc.samba.org/\">distcc</a> is a program to distribute builds of C,
+C++, Objective C or Objective C++ code across several machines on a network.<p>
+For distcc security, please check the <a href=\"http://distcc.samba.org/security.html\">distcc security design</a>.
+"
+
+service_darkstat_notes="
+<a href=\"http://purl.org/net/darkstat\">Darkstat</a> is a network traffic analyzer.
+It's basically a packet sniffer which runs as a background process on a cable/DSL router
+and gathers all sorts of useless but interesting statistics.
+"
 
 service_dcc_notes="
 Distributed Checksum Clearinghouses. See <a href=\"http://spamassassin.taint.org/faq/index.cgi?req=show&file=faq02.007.htp\">http://spamassassin.taint.org/faq/index.cgi?req=show&file=faq02.007.htp</a> and
@@ -197,6 +214,10 @@ Use the FireHOL <a href=\"commands.html#client\">client</a> command to match the
 Please note that the <a href=\"http://www.emule-project.com\">eMule</a> client is an HTTP client also.
 "
 
+service_eserver_notes="
+<a href=\"http://lugdunum2k.free.fr/kiten.html\">eserver</a> is the emule/edonkey server.
+"
+
 service_finger_notes="See: <a href=\"http://www.busan.edu/~nic/networking/firewall/ch08_08.htm\">O'Reilly's Building Internet Firewalls book</a> about finger and firewalls."
 
 server_ftp_ports="many"
@@ -206,6 +227,29 @@ require_ftp_modules="ip_conntrack_ftp"
 require_ftp_nat_modules="ip_nat_ftp"
 service_ftp_notes="
 The FTP service matches both active and passive FTP connections by utilizing the FTP connection tracker kernel module.
+"
+
+service_gift_notes="
+<a href=\"http://gift.sourceforge.net\">GiFT</a> is a collection of various software components
+geared towards improving the overall usability of a multitude of peer-to-peer file-sharing networks.<p>
+
+The <b>gift</b> FireHOL service supports:<br>
+<ul>
+<li>Gnutella listening at tcp/4302</li>
+<li>FastTrack listening at tcp/1214</li>
+<li>OpenFT listening at tcp/2182 and tcp/2472</li>
+</ul>
+
+The above ports are the defaults given for the coresponding GiFT modules.<p>
+To allow access to the user interface ports of GiFT, use the <a href=\"#giftui\">giftui</a> FireHOL service.
+"
+
+service_giftui_notes="
+<a href=\"http://gift.sourceforge.net\">GiFT</a> is a collection of various software components
+geared towards improving the overall usability of a multitude of peer-to-peer file-sharing networks.<p>
+
+This service refers only to the user interface ports offered by GiFT.
+To allow gift accept P2P requests, use the <a href=\"#gift\">gift</a> FireHOL service.
 "
 
 server_tftp_ports="many"
@@ -222,6 +266,11 @@ service_GRE_notes="Generic Routing Encapsulation (protocol No 47).
 For more information see RFC <a href=\"http://www.ietf.org/rfc/rfc2784.txt?number=2784\">RFC 2784</a>.
 "
 
+service_h323_notes="
+<a href=\"http://www.voip-info.org/wiki-H.323\">H.323</a> is much more complicated than this firewall implementation.
+Check <a href=\"http://erris.med.virginia.edu/tech/FIREWALL.HTM\">this document</a> for an explanation.
+"
+
 service_heartbeat_notes="
 HeartBeat is the Linux clustering solution available <a href="http://www.linux-ha.org/">http://www.linux-ha.org/</a>.
 This FireHOL service has been designed such a way that it will allow multiple heartbeat clusters on the same LAN.
@@ -236,6 +285,20 @@ This complex service allows incomming requests to server port tcp/4559 and outgo
 <b>The correct operation of this service has not been verified.</b>
 <p>
 <b>USE THIS WITH CARE. A HYLAFAX CLIENT MAY OPEN ALL TCP UNPRIVILEGED PORTS TO ANYONE</b> (from port tcp/4558).
+"
+
+service_iax_ports="
+This service refers to IAX version 1. There is also the <a href=\"#iax2\">iax2</a> service.<p>
+IAX stands for Inter-Asterisk eXchange, a protocol developed by the open source <a href=\"http://www.asterisk.org\">Asterisk</a> PABX.
+"
+
+service_iax2_ports="
+This service refers to IAX version 2. There is also the <a href=\"#iax\">iax</a> service.<p>
+IAX stands for Inter-Asterisk eXchange, a protocol developed by the open source <a href=\"http://www.asterisk.org\">Asterisk</a> PABX.
+"
+
+service_icp_ports="
+ICP is the protocol used for the communication between <a href=\"www.squid-cache.org\">squid</a> web caches.
 "
 
 service_ident_example="server ident reject with tcp-reset"
@@ -405,6 +468,14 @@ service_rdp_notes="
 For more information see <a href=\"http://www.microsoft.com/windows2000/community/centers/terminal/terminal_faq.mspx\">this FAQ</a>.
 "
 
+service_rtp_notes="
+<a href=\"http://www.voip-info.org/wiki-RTP\">RTP</a> is the internet standard protocol for the transport of real-time data,
+including audio and video. RTP is used in virtually all voice-over-IP architectures,
+for videoconferencing, media-on-demand, and other applications.<p>
+
+RTP ports are generally all the UDP ports.
+"
+
 server_samba_ports="many"
 client_samba_ports="default"
 service_samba_type="complex"
@@ -412,6 +483,22 @@ service_samba_notes="
 The samba service automatically sets all the rules for <a href=\"#netbios_ns\">netbios_ns</a>, <a href=\"#netbios_dgm\">netbios_dgm</a> and <a href=\"#netbios_ssn\">netbios_ssn</a>.
 <p>
 Please refer to the notes of the above services for more information.
+"
+
+service_sip_notes="
+<a href=\"http://www.voip-info.org/wiki-SIP\">SIP</a> is the Session Initiation Protocol,
+an IETF standard protocol (RFC 2543) for initiating interactive user sessions involving
+multimedia elements such as video, voice, chat, gaming, etc.
+SIP works in the application layer of the OSI communications model.
+"
+
+service_stun_notes="
+<a href=\"http://www.voip-info.org/wiki-STUN\">STUN</a> is a protocol for assisting devices behind a NAT firewall or router with their packet routing.
+"
+
+service_upnp_notes="
+<a href=\"http://upnp.sourceforge.net/\">UPNP</a> is Univeral Plug and Play.<p>
+For a linux implementation check: <a href=\"http://linux-igd.sourceforge.net/\">Linux IGD</a>.
 "
 
 service_whois_notes="See: <a href=\"http://www.busan.edu/~nic/networking/firewall/ch08_08.htm\">O'Reilly's Building Internet Firewalls book</a> about whois and firewalls."
@@ -798,7 +885,7 @@ cat <<"EOF"
 <tr><td align=center valign=middle>
 	<A href="http://sourceforge.net"><IMG src="http://sourceforge.net/sflogo.php?group_id=58425&amp;type=5" width="210" height="62" border="0" alt="SourceForge Logo"></A>
 </td><td align=center valign=middle>
-	<small>$Id: create_services.sh,v 1.47 2004/09/12 07:24:58 ktsaou Exp $</small>
+	<small>$Id: create_services.sh,v 1.48 2004/09/26 00:52:56 ktsaou Exp $</small>
 	<p>
 	<b>FireHOL</b>, a firewall for humans...<br>
 	&copy; Copyright 2003
