@@ -52,6 +52,7 @@ on all interfaces.
 
 %install
 mkdir -p %{buildroot}/etc/firehol/examples
+mkdir -p %{buildroot}/etc/firehol/services
 test -f /etc/firehol.conf -a ! -f /etc/firehol/firehol.conf && mv -f /etc/firehol.conf /etc/firehol/firehol.conf
 mkdir -p %{buildroot}/etc/init.d
 install -m 750 firehol.sh %{buildroot}/etc/init.d/firehol
@@ -97,6 +98,7 @@ rm -rf ${RPM_BUILD_DIR}/%{name}-%{version}
 
 %dir /etc/firehol
 %dir /etc/firehol/examples
+%dir /etc/firehol/services
 
 /etc/init.d/firehol
 %{_mandir}/man1/firehol.1.gz
