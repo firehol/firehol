@@ -373,6 +373,16 @@ If you do this then you will have to define the the ports using the procedure de
 service_nfs_example="client nfs accept <u>dst</u> <u>1.2.3.4</u>"
 
 
+service_nxserver_notes="
+Default ports used by NX server for connections without encryption.<br>
+Note that nxserver also needs the <a href=\"#ssh\">ssh</a> service to be enabled.<p>
+This information has been extracted from <a href=\"http://www.nomachine.com/developers/archives/nxusers/0022.php\">this document</a>.
+As stated there, the TCP ports used by nxserver is 4000 + DISPLAY_BASE to 4000 + DISPLAY_BASE + DISPLAY_LIMIT.
+DISPLAY_BASE and DISPLAY_LIMIT are set in /usr/NX/etc/node.conf and the defaults are DISPLAY_BASE=1000
+and DISPLAY_LIMIT=200.<p>
+For encrypted nxserver sessions, only <a href=\"#ssh\">ssh</a> is needed.
+"
+
 server_ping_ports="N/A"
 client_ping_ports="N/A"
 service_ping_type="complex"
@@ -784,7 +794,7 @@ cat <<"EOF"
 <tr><td align=center valign=middle>
 	<A href="http://sourceforge.net"><IMG src="http://sourceforge.net/sflogo.php?group_id=58425&amp;type=5" width="210" height="62" border="0" alt="SourceForge Logo"></A>
 </td><td align=center valign=middle>
-	<small>$Id: create_services.sh,v 1.45 2004/09/10 21:36:27 ktsaou Exp $</small>
+	<small>$Id: create_services.sh,v 1.46 2004/09/12 06:57:49 ktsaou Exp $</small>
 	<p>
 	<b>FireHOL</b>, a firewall for humans...<br>
 	&copy; Copyright 2003
