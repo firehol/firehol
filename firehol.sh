@@ -10,7 +10,7 @@
 #
 # config: /etc/firehol/firehol.conf
 #
-# $Id: firehol.sh,v 1.170 2003/11/23 13:43:19 ktsaou Exp $
+# $Id: firehol.sh,v 1.171 2003/11/23 19:27:58 ktsaou Exp $
 #
 
 # Remember who you are.
@@ -34,7 +34,7 @@ PATH="${PATH}:/bin:/usr/bin:/sbin:/usr/sbin"
 
 which_cmd() {
 	unalias $1 >/dev/null 2>&1
-	local cmd=`which $1 | head -1`
+	local cmd=`which $1 | head -n 1`
 	if [ $? -gt 0 -o ! -x "${cmd}" ]
 	then
 		echo "ERROR: Command '$1' not found in system path."
@@ -3954,7 +3954,7 @@ case "${arg}" in
 		else
 		
 		${CAT_CMD} <<EOF
-$Id: firehol.sh,v 1.170 2003/11/23 13:43:19 ktsaou Exp $
+$Id: firehol.sh,v 1.171 2003/11/23 19:27:58 ktsaou Exp $
 (C) Copyright 2003, Costa Tsaousis <costa@tsaousis.gr>
 FireHOL is distributed under GPL.
 
@@ -4140,7 +4140,7 @@ then
 	
 	${CAT_CMD} <<EOF
 
-$Id: firehol.sh,v 1.170 2003/11/23 13:43:19 ktsaou Exp $
+$Id: firehol.sh,v 1.171 2003/11/23 19:27:58 ktsaou Exp $
 (C) Copyright 2003, Costa Tsaousis <costa@tsaousis.gr>
 FireHOL is distributed under GPL.
 Home Page: http://firehol.sourceforge.net
@@ -4435,7 +4435,7 @@ then
 	
 	${CAT_CMD} >&2 <<EOF
 
-$Id: firehol.sh,v 1.170 2003/11/23 13:43:19 ktsaou Exp $
+$Id: firehol.sh,v 1.171 2003/11/23 19:27:58 ktsaou Exp $
 (C) Copyright 2003, Costa Tsaousis <costa@tsaousis.gr>
 FireHOL is distributed under GPL.
 Home Page: http://firehol.sourceforge.net
@@ -4518,7 +4518,7 @@ EOF
 	echo "# "
 
 	${CAT_CMD} <<EOF
-# $Id: firehol.sh,v 1.170 2003/11/23 13:43:19 ktsaou Exp $
+# $Id: firehol.sh,v 1.171 2003/11/23 19:27:58 ktsaou Exp $
 # (C) Copyright 2003, Costa Tsaousis <costa@tsaousis.gr>
 # FireHOL is distributed under GPL.
 # Home Page: http://firehol.sourceforge.net
