@@ -9,6 +9,14 @@
 # by costa@tsaousis.gr
 #
 # config: /etc/firehol.conf
+#
+# $Id: firehol.sh,v 1.11 2002/10/27 12:47:48 ktsaou Exp $
+#
+# $Log: firehol.sh,v $
+# Revision 1.11  2002/10/27 12:47:48  ktsaou
+# Added CVS versioning to all files.
+#
+#
 
 # ------------------------------------------------------------------------------
 # Copied from /etc/init.d/iptables
