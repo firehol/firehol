@@ -10,7 +10,7 @@
 #
 # config: /etc/firehol.conf
 #
-# $Id: firehol.sh,v 1.52 2002/12/18 23:36:07 ktsaou Exp $
+# $Id: firehol.sh,v 1.53 2002/12/19 22:52:15 ktsaou Exp $
 #
 
 # ------------------------------------------------------------------------------
@@ -151,7 +151,7 @@ case "${arg}" in
 		else
 		
 		cat <<"EOF"
-$Id: firehol.sh,v 1.52 2002/12/18 23:36:07 ktsaou Exp $
+$Id: firehol.sh,v 1.53 2002/12/19 22:52:15 ktsaou Exp $
 (C) Copyright 2002, Costa Tsaousis <costa@tsaousis.gr>
 FireHOL is distributed under GPL.
 
@@ -854,6 +854,46 @@ rules_nfs() {
 #	
 #	return 0
 #}
+
+
+# --- AMANDA -------------------------------------------------------------------
+#
+rules_amanda() {
+        local mychain="${1}"; shift
+	local type="${1}"; shift
+	
+	local in=in
+	local out=out
+	if [ "${type}" = "client" ]
+	then
+		in=out
+		out=in
+	fi
+	
+	local client_ports="${DEFAULT_CLIENT_PORTS}"
+	if [ "${type}" = "client" -a "${work_cmd}" = "interface" ]
+	then
+		client_ports="${LOCAL_CLIENT_PORTS}"
+	fi
+	
+	# ----------------------------------------------------------------------
+	
+	set_work_function "*** AMANDA: See http://amanda.sourceforge.net/fom-serve/cache/139.html"
+	
+	
+	set_work_function "Setting up rules for initial amanda server-to-client connection"
+	
+	rule action "$@" chain "${out}_${mychain}" proto "udp" dport 10080 state NEW,ESTABLISHED || return 1
+	rule reverse action "$@" chain "${in}_${mychain}" proto "udp" dport 10080 state ESTABLISHED || return 1
+	
+	
+	set_work_function "Setting up rules for amanda data exchange client-to-server"
+	
+	rule action "$@" chain "${in}_${mychain}" proto "tcp udp" dport "850:859" state NEW,ESTABLISHED || return 1
+	rule reverse action "$@" chain "${out}_${mychain}" proto "tcp udp" dport "850:859" state ESTABLISHED || return 1
+	
+	return 0
+}
 
 # --- FTP ----------------------------------------------------------------------
 
@@ -2483,7 +2523,7 @@ then
 	
 	cat <<"EOF"
 
-$Id: firehol.sh,v 1.52 2002/12/18 23:36:07 ktsaou Exp $
+$Id: firehol.sh,v 1.53 2002/12/19 22:52:15 ktsaou Exp $
 (C) Copyright 2002, Costa Tsaousis <costa@tsaousis.gr>
 FireHOL is distributed under GPL.
 Home Page: http://firehol.sourceforge.net

@@ -12,6 +12,7 @@ service_aptproxy_notes="Debian package proxy."
 
 service_apcupsd_notes="APC UPS server ports. This service must be defined as <b>server apcupsd accept</b> on all machines
 not directly connected to the UPS (i.e. slaves).
+<p>For more information see <a href=\"http://www.apcupsd.com/\">http://www.apcupsd.com/</a>
 "
 
 server_all_ports="all"
@@ -21,6 +22,25 @@ service_all_notes="
 Matches all traffic (all protocols, ports, etc) while ensuring that required kernel modules are loaded.
 <br>This service may indirectly setup a set of other services, if they are required by the kernel modules to be loaded.
 Currently it activates also <a href=\"#ftp\">ftp</a>, <a href=\"#irc\">irc</a> and <a href=\"#icmp\">icmp</a>.
+"
+
+server_amanda_ports="many"
+client_amanda_ports="many"
+service_amanda_type="complex"
+service_amanda_notes="
+This implementation of <a href=\"http://amanda.sf.net\">AMANDA, the Advanced Maryland Automatic Network Disk Archiver</a>
+is based on the <a href=\"http://amanda.sourceforge.net/fom-serve/cache/139.html\">notes posted at Amanda's Faq-O-Matic</a>.
+<p>
+Based on this, FireHOL allows:<br>
+<ul>
+	<li>a connection from the server to the client at <b>udp 10080</b></li>
+	<li>connections from the client to the server at <b>tcp & udp 850:859</b></li>
+</ul>
+I <b>strongly suggest</b> to use this service in your firewall together with src/dst to prevent opening ports 850:859
+uncoditionally to everyone.
+<p>
+This complex service handles correctly the multi-socket bi-directional connections made.
+Use the FireHOL <b>server</b> directive on the Amanda server, and FireHOL's <b>client</b> on the Amanda client.
 "
 
 
@@ -293,7 +313,7 @@ cat <<"EOF"
 <tr><td align=center valign=middle>
 	<A href="http://sourceforge.net"><IMG src="http://sourceforge.net/sflogo.php?group_id=58425&amp;type=5" width="210" height="62" border="0" alt="SourceForge Logo"></A>
 </td><td align=center valign=middle>
-	<small>$Id: create_services.sh,v 1.7 2002/12/18 20:44:09 ktsaou Exp $</small>
+	<small>$Id: create_services.sh,v 1.8 2002/12/19 22:52:15 ktsaou Exp $</small>
 	<p>
 	<b>FireHOL</b>, a firewall for humans...<br>
 	&copy; Copyright 2002
