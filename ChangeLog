@@ -1,7 +1,7 @@
 
 RCS file: /cvsroot/firehol/firehol/firehol.sh,v
 Working file: firehol.sh
-head: 1.51
+head: 1.52
 branch:
 locks: strict
 access list:
@@ -9,8 +9,23 @@ symbolic names:
 	start: 1.1.1.1
 	vendor: 1.1.1
 keyword substitution: kv
-total revisions: 52;	selected revisions: 52
+total revisions: 53;	selected revisions: 53
 description:
+----------------------------
+revision 1.52
+date: 2002/12/18 23:36:07;  author: ktsaou;  state: Exp;  lines: +98 -42
+Fixed a bug in command line parsing when there was a configuration file
+specified in the command line together with a command.
+Now, when a filename is specified only three commands are valid:
+debug, try, start
+
+Fixed error handling to detect errors in a few functions that were
+ignored.
+
+Updated documentation to reflect the above changes.
+
+Updated interactive mode help and added directive 'in' as a shortcut to
+interface eth0 internet
 ----------------------------
 revision 1.51
 date: 2002/12/18 22:05:37;  author: ktsaou;  state: Exp;  lines: +20 -5
