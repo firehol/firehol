@@ -1,7 +1,7 @@
 
 RCS file: /cvsroot/firehol/firehol/firehol.sh,v
 Working file: firehol.sh
-head: 1.212
+head: 1.213
 branch:
 locks: strict
 access list:
@@ -9,8 +9,13 @@ symbolic names:
 	start: 1.1.1.1
 	vendor: 1.1.1
 keyword substitution: kv
-total revisions: 213;	selected revisions: 213
+total revisions: 214;	selected revisions: 214
 description:
+----------------------------
+revision 1.213
+date: 2004/10/31 03:17:00;  author: ktsaou;  state: Exp;  lines: +9 -6
+Fixed a type in DSCP optional rule parameter.
+Added line numbering to newly added helpers.
 ----------------------------
 revision 1.212
 date: 2004/10/31 02:21:02;  author: ktsaou;  state: Exp;  lines: +497 -256

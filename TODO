@@ -1,4 +1,4 @@
-$Id: TODO,v 1.16 2004/10/31 02:25:15 ktsaou Exp $
+$Id: TODO,v 1.17 2004/10/31 20:24:12 ktsaou Exp $
 
 The following is a list of features I plan to add to FireHOL,
 assuming that my time permits and there is demand for them.
@@ -150,4 +150,7 @@ Allow something like this:
 interface ...
    policy reject limit 10/s 10 then drop
 
+
+24. Add the ability to log only specific states, for example to
+    log only new requests.
 

@@ -1,4 +1,4 @@
-$Id: README,v 1.6 2003/10/07 23:42:17 ktsaou Exp $
+$Id: README,v 1.7 2004/10/31 20:28:02 ktsaou Exp $
 
 FireHOL, an iptables stateful packet filtering firewall for humans!
 Copyright (C) 2003 Costa Tsaousis <costa@tsaousis.gr>
@@ -98,6 +98,6 @@ just once per day and in some cases, once every a few days. If you
 want some faster response, you can always use the mailing lists
 and forums under this project at sourceforge.
 
-Kind Regard
+Kind Regards
 Costa Tsaousis
 
