@@ -10,7 +10,7 @@
 #
 # config: /etc/firehol/firehol.conf
 #
-# $Id: firehol.sh,v 1.194 2004/05/15 10:19:01 ktsaou Exp $
+# $Id: firehol.sh,v 1.195 2004/07/07 22:09:31 ktsaou Exp $
 #
 
 # Remember who you are.
@@ -314,6 +314,10 @@ work_final_status=0
 # the packets to traverse from chain to chain when matched, to reach
 # their final destination.
 FIREHOL_DYNAMIC_CHAIN_COUNTER=1
+
+# If set to 0, FireHOL will not trust interface lo for all traffic.
+# This means the admin could setup a firewall on lo.
+FIREHOL_TRUST_LOOPBACK=1
 
 
 # ------------------------------------------------------------------------------
@@ -4264,7 +4268,7 @@ case "${arg}" in
 		else
 		
 		${CAT_CMD} <<EOF
-$Id: firehol.sh,v 1.194 2004/05/15 10:19:01 ktsaou Exp $
+$Id: firehol.sh,v 1.195 2004/07/07 22:09:31 ktsaou Exp $
 (C) Copyright 2003, Costa Tsaousis <costa@tsaousis.gr>
 FireHOL is distributed under GPL.
 
@@ -4450,7 +4454,7 @@ then
 	
 	${CAT_CMD} <<EOF
 
-$Id: firehol.sh,v 1.194 2004/05/15 10:19:01 ktsaou Exp $
+$Id: firehol.sh,v 1.195 2004/07/07 22:09:31 ktsaou Exp $
 (C) Copyright 2003, Costa Tsaousis <costa@tsaousis.gr>
 FireHOL is distributed under GPL.
 Home Page: http://firehol.sourceforge.net
@@ -4744,7 +4748,7 @@ then
 	
 	${CAT_CMD} >&2 <<EOF
 
-$Id: firehol.sh,v 1.194 2004/05/15 10:19:01 ktsaou Exp $
+$Id: firehol.sh,v 1.195 2004/07/07 22:09:31 ktsaou Exp $
 (C) Copyright 2003, Costa Tsaousis <costa@tsaousis.gr>
 FireHOL is distributed under GPL.
 Home Page: http://firehol.sourceforge.net
@@ -4827,7 +4831,7 @@ EOF
 	echo "# "
 
 	${CAT_CMD} <<EOF
-# $Id: firehol.sh,v 1.194 2004/05/15 10:19:01 ktsaou Exp $
+# $Id: firehol.sh,v 1.195 2004/07/07 22:09:31 ktsaou Exp $
 # (C) Copyright 2003, Costa Tsaousis <costa@tsaousis.gr>
 # FireHOL is distributed under GPL.
 # Home Page: http://firehol.sourceforge.net
@@ -5312,8 +5316,11 @@ ${IPTABLES_CMD} -t filter -P FORWARD "\${FIREHOL_FORWARD_ACTIVATION_POLICY}" >${
 r=\$?; test ! \${r} -eq 0 && runtime_error error \${r} INIT ${IPTABLES_CMD} -t filter -P FORWARD "\${FIREHOL_FORWARD_ACTIVATION_POLICY}"
 
 # Accept everything in/out the loopback device.
-${IPTABLES_CMD} -A INPUT -i lo -j ACCEPT
-${IPTABLES_CMD} -A OUTPUT -o lo -j ACCEPT
+if [ "\${FIREHOL_TRUST_LOOPBACK}" = "1" ]
+then
+	${IPTABLES_CMD} -A INPUT -i lo -j ACCEPT
+	${IPTABLES_CMD} -A OUTPUT -o lo -j ACCEPT
+fi
 
 # Drop all invalid packets.
 # Netfilter HOWTO suggests to DROP all INVALID packets.

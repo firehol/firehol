@@ -1,7 +1,7 @@
 
 RCS file: /cvsroot/firehol/firehol/firehol.sh,v
 Working file: firehol.sh
-head: 1.191
+head: 1.194
 branch:
 locks: strict
 access list:
@@ -9,8 +9,42 @@ symbolic names:
 	start: 1.1.1.1
 	vendor: 1.1.1
 keyword substitution: kv
-total revisions: 192;	selected revisions: 192
+total revisions: 195;	selected revisions: 195
 description:
+----------------------------
+revision 1.194
+date: 2004/05/15 10:19:01;  author: ktsaou;  state: Exp;  lines: +9 -5
+Added an iptables -nxvL command at the top of firehol.sh to initialize
+iptables. Without it a few users have reported problems using firehol
+during boot.
+----------------------------
+revision 1.193
+date: 2004/05/05 23:41:19;  author: ktsaou;  state: Exp;  lines: +88 -11
+Added helper 'ecn_shame' that once called, it looks if ECN is enabled in
+the kernel, and if it is, it fetches:
+
+http://urchin.earth.li/cgi-bin/ecn.pl?output=ip
+
+and disables ECN for all communication with these hosts.
+----------------------------
+revision 1.192
+date: 2004/05/04 21:39:33;  author: ktsaou;  state: Exp;  lines: +76 -5
+Added grouping functionality. This is not yet finished. It has been added
+to allow other developers test the functionality before optimizing all the
+rules to use groups.
+To use grouping, within an interface or router write:
+
+group with [optional rule parameters]
+   server x accept
+   server y accept
+group end
+
+This will generate a much more optimized version of:
+
+server "x y" accept [optional rule parameters]
+
+by applying all the optional rule parameters once (instead of once per
+service).
 ----------------------------
 revision 1.191
 date: 2004/04/23 22:15:18;  author: ktsaou;  state: Exp;  lines: +26 -15
