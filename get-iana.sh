@@ -1,8 +1,13 @@
-#!/bin/sh
+#!/bin/bash
 
-# $Id: get-iana.sh,v 1.4 2002/10/27 12:44:42 ktsaou Exp $
+# $Id: get-iana.sh,v 1.5 2003/08/23 23:26:50 ktsaou Exp $
 #
 # $Log: get-iana.sh,v $
+# Revision 1.5  2003/08/23 23:26:50  ktsaou
+# Bug #793889:
+# Change #!/bin/sh to #!/bin/bash to allow FireHOL run on systems that
+# bash is not linked to /bin/sh.
+#
 # Revision 1.4  2002/10/27 12:44:42  ktsaou
 # CVS test
 #

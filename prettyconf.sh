@@ -1,4 +1,4 @@
-#!/bin/sh
+#!/bin/bash
 
 COMMS="http://firehol.sourceforge.net/commands.html"
 

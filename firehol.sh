@@ -1,4 +1,4 @@
-#!/bin/sh
+#!/bin/bash
 #
 # Startup script to implement /etc/firehol/firehol.conf pre-defined rules.
 #
@@ -10,7 +10,7 @@
 #
 # config: /etc/firehol/firehol.conf
 #
-# $Id: firehol.sh,v 1.151 2003/08/23 22:50:14 ktsaou Exp $
+# $Id: firehol.sh,v 1.152 2003/08/23 23:26:50 ktsaou Exp $
 #
 FIREHOL_FILE="${0}"
 
@@ -3607,7 +3607,7 @@ case "${arg}" in
 		else
 		
 		${CAT_CMD} <<EOF
-$Id: firehol.sh,v 1.151 2003/08/23 22:50:14 ktsaou Exp $
+$Id: firehol.sh,v 1.152 2003/08/23 23:26:50 ktsaou Exp $
 (C) Copyright 2003, Costa Tsaousis <costa@tsaousis.gr>
 FireHOL is distributed under GPL.
 
@@ -3793,7 +3793,7 @@ then
 	
 	${CAT_CMD} <<EOF
 
-$Id: firehol.sh,v 1.151 2003/08/23 22:50:14 ktsaou Exp $
+$Id: firehol.sh,v 1.152 2003/08/23 23:26:50 ktsaou Exp $
 (C) Copyright 2003, Costa Tsaousis <costa@tsaousis.gr>
 FireHOL is distributed under GPL.
 Home Page: http://firehol.sourceforge.net
@@ -4088,7 +4088,7 @@ then
 	
 	${CAT_CMD} >&2 <<EOF
 
-$Id: firehol.sh,v 1.151 2003/08/23 22:50:14 ktsaou Exp $
+$Id: firehol.sh,v 1.152 2003/08/23 23:26:50 ktsaou Exp $
 (C) Copyright 2003, Costa Tsaousis <costa@tsaousis.gr>
 FireHOL is distributed under GPL.
 Home Page: http://firehol.sourceforge.net
@@ -4181,7 +4181,7 @@ EOF
 	echo "# "
 
 	${CAT_CMD} <<EOF
-# $Id: firehol.sh,v 1.151 2003/08/23 22:50:14 ktsaou Exp $
+# $Id: firehol.sh,v 1.152 2003/08/23 23:26:50 ktsaou Exp $
 # (C) Copyright 2003, Costa Tsaousis <costa@tsaousis.gr>
 # FireHOL is distributed under GPL.
 # Home Page: http://firehol.sourceforge.net
