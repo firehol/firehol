@@ -64,6 +64,7 @@ install -m 644 examples/home-dialup.conf /etc/firehol/examples/home-dialup.conf
 install -m 644 examples/office.conf /etc/firehol/examples/office.conf
 install -m 644 examples/server-dmz.conf /etc/firehol/examples/server-dmz.conf
 install -m 644 examples/client-all.conf /etc/firehol/examples/client-all.conf
+install -m 644 examples/lan-gateway.conf /etc/firehol/examples/lan-gateway.conf
 
 %pre
 
@@ -107,6 +108,7 @@ rm -rf ${RPM_BUILD_DIR}/%{name}-%{version}
 /etc/firehol/examples/office.conf
 /etc/firehol/examples/server-dmz.conf
 /etc/firehol/examples/client-all.conf
+/etc/firehol/examples/lan-gateway.conf
 
 %doc adblock.sh get-iana.sh
 %doc doc/adding.html
