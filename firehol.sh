@@ -10,7 +10,7 @@
 #
 # config: /etc/firehol.conf
 #
-# $Id: firehol.sh,v 1.103 2003/03/05 22:06:51 ktsaou Exp $
+# $Id: firehol.sh,v 1.104 2003/03/06 08:18:49 ktsaou Exp $
 #
 FIREHOL_FILE="${0}"
 
@@ -3189,7 +3189,7 @@ case "${arg}" in
 		else
 		
 		cat <<"EOF"
-$Id: firehol.sh,v 1.103 2003/03/05 22:06:51 ktsaou Exp $
+$Id: firehol.sh,v 1.104 2003/03/06 08:18:49 ktsaou Exp $
 (C) Copyright 2002, Costa Tsaousis <costa@tsaousis.gr>
 FireHOL is distributed under GPL.
 
@@ -3372,7 +3372,7 @@ then
 	
 	cat <<"EOF"
 
-$Id: firehol.sh,v 1.103 2003/03/05 22:06:51 ktsaou Exp $
+$Id: firehol.sh,v 1.104 2003/03/06 08:18:49 ktsaou Exp $
 (C) Copyright 2002, Costa Tsaousis <costa@tsaousis.gr>
 FireHOL is distributed under GPL.
 Home Page: http://firehol.sourceforge.net
@@ -3580,7 +3580,7 @@ then
 	
 	cat >&2 <<"EOF"
 
-$Id: firehol.sh,v 1.103 2003/03/05 22:06:51 ktsaou Exp $
+$Id: firehol.sh,v 1.104 2003/03/06 08:18:49 ktsaou Exp $
 (C) Copyright 2002, Costa Tsaousis <costa@tsaousis.gr>
 FireHOL is distributed under GPL.
 Home Page: http://firehol.sourceforge.net
@@ -3673,7 +3673,7 @@ EOF
 	echo "# "
 
 	cat <<"EOF"
-# $Id: firehol.sh,v 1.103 2003/03/05 22:06:51 ktsaou Exp $
+# $Id: firehol.sh,v 1.104 2003/03/06 08:18:49 ktsaou Exp $
 # (C) Copyright 2002, Costa Tsaousis <costa@tsaousis.gr>
 # FireHOL is distributed under GPL.
 # Home Page: http://firehol.sourceforge.net
@@ -3706,12 +3706,21 @@ EOF
 		local ifnets="${1}"; shift
 		local ifreason="${1}"; shift
 		
+		# one argument left: ifnets_excluded
+		
 		if [ "${route}" = "route" ]
 		then
 			found_interfaces[$i]="${iface}"
 			found_ips[$i]="${ifip}"
 			found_nets[$i]="${ifnets}"
 			found_excludes[$i]="${1}"
+		fi
+		
+		if [ "${ifnets}" = "0.0.0.0/0" ]
+		then
+			ifnets="not \"\${UNROUTABLE_IPS} ${1}\""
+		else
+			ifnets="\"${ifnets}\""
 		fi
 		
 		# output the interface
@@ -3727,14 +3736,6 @@ EOF
 		echo "# TODO: Change \"interface${i}\" to something with meaning to you."
 		echo "# TODO: Check the optional rule parameters (src/dst)."
 		echo "# TODO: Remove 'dst ${ifip}' if this is dynamically assigned."
-		
-		if [ "${ifnets}" = "0.0.0.0/0" ]
-		then
-			ifnets="not \"\${UNROUTABLE_IPS} ${1}\""
-		else
-			ifnets="\"${ifnets}\""
-		fi
-		
 		echo "interface ${iface} interface${i} src ${ifnets} dst ${ifip}"
 		echo
 		echo "	# The default policy is DROP. You can be more polite with REJECT."
@@ -3812,6 +3813,7 @@ EOF
 			echo "### DEBUG: Processing IP ${ip} of interface '${iface}'"
 			
 			def=0
+			ifreason=""
 			
 			# find all the networks this IP can access directly
 			unset ifnets
@@ -3840,6 +3842,7 @@ EOF
 							echo "### DEBUG: '${iface}' found to be a default Point-To-Point gateway."
 							ifnets="0.0.0.0/0"
 							def=1
+							ifreason="from/to all networks behind P-t-P ${iface}"
 							break
 						fi
 					done
@@ -3876,7 +3879,7 @@ EOF
 			fi
 			
 			i=$[i + 1]
-			helpme_iface route $i "${iface}" "${ip}" "${ifnets[*]}" ""
+			helpme_iface route $i "${iface}" "${ip}" "${ifnets[*]}" "${ifreason}"
 			
 			# Is this interface the default gateway too?
 			if [ ${def} -eq 0 -a "${gw_if}" = "${iface}" ]
