@@ -1,9 +1,16 @@
-$Id: WhatIsNew,v 1.5 2004/10/31 21:14:42 ktsaou Exp $
+$Id: WhatIsNew,v 1.6 2005/01/24 21:55:31 ktsaou Exp $
 
 What Is New in public releases.
 -------------------------------
 
-R5 v1.213, Nov 1, 2004
+R5 v1.223, Jan 24, 2005
+Added services ANYSTATELESS, TIMESTAMP, DICT. Added support for
+knockd. Fixed various minor bugs and eliminated all vulnerabilities
+where malicious local system users could use FireHOL's temporary
+files to overwrite arbitrary files on the system
+(http://secunia.com/advisories/13970/).
+
+R5 v1.214, Nov 1, 2004
 This is a major release which includes several updates and fixes.
 All users are advised to update to this version. This release
 includes new service definitions: NIS, NUT, NNTPS, ASTERISK,
