@@ -133,7 +133,7 @@ All the services defined by name in FireHOL are known to resolve in <a href="htt
 	<tr><td align=left valign=top><font color="gray" size=+1><b>P</td></tr>
 	<tr><td align=left valign=top><small>
 
-<a href="#ping">ping</a>, <a href="#pop3">pop3</a>, <a href="#pop3s">pop3s</a>, <a href="#portmap">portmap</a>, <a href="#postgres">postgres</a>, <a href="#pptp">pptp</a>, <a href="#privoxy">privoxy</a></td></tr></table></td>
+<a href="#p2p">p2p</a>, <a href="#ping">ping</a>, <a href="#pop3">pop3</a>, <a href="#pop3s">pop3s</a>, <a href="#portmap">portmap</a>, <a href="#postgres">postgres</a>, <a href="#pptp">pptp</a>, <a href="#privoxy">privoxy</a></td></tr></table></td>
 
 <td width="25%" align=left valign=top>
 	<table border=0 cellpadding=2 cellspacing=2 width="100%">
@@ -176,7 +176,7 @@ All the services defined by name in FireHOL are known to resolve in <a href="htt
 	<tr><td align=left valign=top><font color="gray" size=+1><b>W</td></tr>
 	<tr><td align=left valign=top><small>
 
-<a href="#webcache">webcache</a>, <a href="#webmin">webmin</a></td></tr></table></td>
+<a href="#webcache">webcache</a>, <a href="#webmin">webmin</a>, <a href="#whois">whois</a></td></tr></table></td>
 </tr><tr>
 
 <td width="25%" align=left valign=top>
@@ -573,7 +573,7 @@ All the services defined by name in FireHOL are known to resolve in <a href="htt
 </td></tr><tr><td align=right valign=top nowrap><small><font color=gray>Netfilter NAT Modules</td><td>&nbsp;
 </td>
 	</tr>
-	<tr><td align=right valign=top nowrap><small><font color="gray">Notes</td><td><br>&nbsp;</td></tr>
+	<tr><td align=right valign=top nowrap><small><font color="gray">Notes</td><td>See: <a href="http://www.busan.edu/~nic/networking/firewall/ch08_08.htm">O'Reilly's Building Internet Firewalls book</a> about finger and firewalls.<br>&nbsp;</td></tr>
 	<tr><td align=right valign=top nowrap><small><font color="gray">Example</td><td><b>server finger accept</b></td></tr>
 	</table>
 	</td>
@@ -1223,6 +1223,23 @@ All the services defined by name in FireHOL are known to resolve in <a href="htt
 	</td>
 	</tr>
 <tr >
+	<td align="center" valign="top"><a name="p2p"><b>p2p</b></a></td>
+	<td align="center" valign="top">simple</td>
+	<td>
+		<table cellspacing=0 cellpadding=2 border=0>
+		<tr>
+<td align=right valign=top nowrap><small><font color=gray>Server Ports</td><td>&nbsp;
+</td></tr><tr><td align=right valign=top nowrap><small><font color=gray>Client Ports</td><td>&nbsp;
+</td></tr><tr><td align=right valign=top nowrap><small><font color=gray>Netfilter Modules</td><td>&nbsp;
+</td></tr><tr><td align=right valign=top nowrap><small><font color=gray>Netfilter NAT Modules</td><td>&nbsp;
+</td>
+	</tr>
+	<tr><td align=right valign=top nowrap><small><font color="gray">Notes</td><td><br>&nbsp;</td></tr>
+	<tr><td align=right valign=top nowrap><small><font color="gray">Example</td><td><b>server p2p accept</b></td></tr>
+	</table>
+	</td>
+	</tr>
+<tr  bgcolor="#F0F0F0">
 	<td align="center" valign="top"><a name="ping"><b>ping</b></a></td>
 	<td align="center" valign="top">complex</td>
 	<td>
@@ -1241,7 +1258,7 @@ All the services defined by name in FireHOL are known to resolve in <a href="htt
 	</table>
 	</td>
 	</tr>
-<tr  bgcolor="#F0F0F0">
+<tr >
 	<td align="center" valign="top"><a name="pop3"><b>pop3</b></a></td>
 	<td align="center" valign="top">simple</td>
 	<td>
@@ -1260,7 +1277,7 @@ All the services defined by name in FireHOL are known to resolve in <a href="htt
 	</table>
 	</td>
 	</tr>
-<tr >
+<tr  bgcolor="#F0F0F0">
 	<td align="center" valign="top"><a name="pop3s"><b>pop3s</b></a></td>
 	<td align="center" valign="top">simple</td>
 	<td>
@@ -1279,7 +1296,7 @@ All the services defined by name in FireHOL are known to resolve in <a href="htt
 	</table>
 	</td>
 	</tr>
-<tr  bgcolor="#F0F0F0">
+<tr >
 	<td align="center" valign="top"><a name="portmap"><b>portmap</b></a></td>
 	<td align="center" valign="top">simple</td>
 	<td>
@@ -1300,7 +1317,7 @@ All the services defined by name in FireHOL are known to resolve in <a href="htt
 	</table>
 	</td>
 	</tr>
-<tr >
+<tr  bgcolor="#F0F0F0">
 	<td align="center" valign="top"><a name="postgres"><b>postgres</b></a></td>
 	<td align="center" valign="top">simple</td>
 	<td>
@@ -1319,7 +1336,7 @@ All the services defined by name in FireHOL are known to resolve in <a href="htt
 	</table>
 	</td>
 	</tr>
-<tr  bgcolor="#F0F0F0">
+<tr >
 	<td align="center" valign="top"><a name="pptp"><b>pptp</b></a></td>
 	<td align="center" valign="top">complex</td>
 	<td>
@@ -1338,7 +1355,7 @@ All the services defined by name in FireHOL are known to resolve in <a href="htt
 	</table>
 	</td>
 	</tr>
-<tr >
+<tr  bgcolor="#F0F0F0">
 	<td align="center" valign="top"><a name="privoxy"><b>privoxy</b></a></td>
 	<td align="center" valign="top">simple</td>
 	<td>
@@ -1357,7 +1374,7 @@ All the services defined by name in FireHOL are known to resolve in <a href="htt
 	</table>
 	</td>
 	</tr>
-<tr  bgcolor="#F0F0F0">
+<tr >
 	<td align="center" valign="top"><a name="radius"><b>radius</b></a></td>
 	<td align="center" valign="top">simple</td>
 	<td>
@@ -1378,7 +1395,7 @@ All the services defined by name in FireHOL are known to resolve in <a href="htt
 	</table>
 	</td>
 	</tr>
-<tr >
+<tr  bgcolor="#F0F0F0">
 	<td align="center" valign="top"><a name="radiusold"><b>radiusold</b></a></td>
 	<td align="center" valign="top">simple</td>
 	<td>
@@ -1399,7 +1416,7 @@ All the services defined by name in FireHOL are known to resolve in <a href="htt
 	</table>
 	</td>
 	</tr>
-<tr  bgcolor="#F0F0F0">
+<tr >
 	<td align="center" valign="top"><a name="rndc"><b>rndc</b></a></td>
 	<td align="center" valign="top">simple</td>
 	<td>
@@ -1418,7 +1435,7 @@ All the services defined by name in FireHOL are known to resolve in <a href="htt
 	</table>
 	</td>
 	</tr>
-<tr >
+<tr  bgcolor="#F0F0F0">
 	<td align="center" valign="top"><a name="rsync"><b>rsync</b></a></td>
 	<td align="center" valign="top">simple</td>
 	<td>
@@ -1439,7 +1456,7 @@ All the services defined by name in FireHOL are known to resolve in <a href="htt
 	</table>
 	</td>
 	</tr>
-<tr  bgcolor="#F0F0F0">
+<tr >
 	<td align="center" valign="top"><a name="samba"><b>samba</b></a></td>
 	<td align="center" valign="top">complex</td>
 	<td>
@@ -1458,7 +1475,7 @@ All the services defined by name in FireHOL are known to resolve in <a href="htt
 	</table>
 	</td>
 	</tr>
-<tr >
+<tr  bgcolor="#F0F0F0">
 	<td align="center" valign="top"><a name="smtp"><b>smtp</b></a></td>
 	<td align="center" valign="top">simple</td>
 	<td>
@@ -1477,7 +1494,7 @@ All the services defined by name in FireHOL are known to resolve in <a href="htt
 	</table>
 	</td>
 	</tr>
-<tr  bgcolor="#F0F0F0">
+<tr >
 	<td align="center" valign="top"><a name="smtps"><b>smtps</b></a></td>
 	<td align="center" valign="top">simple</td>
 	<td>
@@ -1496,7 +1513,7 @@ All the services defined by name in FireHOL are known to resolve in <a href="htt
 	</table>
 	</td>
 	</tr>
-<tr >
+<tr  bgcolor="#F0F0F0">
 	<td align="center" valign="top"><a name="snmp"><b>snmp</b></a></td>
 	<td align="center" valign="top">simple</td>
 	<td>
@@ -1515,7 +1532,7 @@ All the services defined by name in FireHOL are known to resolve in <a href="htt
 	</table>
 	</td>
 	</tr>
-<tr  bgcolor="#F0F0F0">
+<tr >
 	<td align="center" valign="top"><a name="snmptrap"><b>snmptrap</b></a></td>
 	<td align="center" valign="top">simple</td>
 	<td>
@@ -1534,7 +1551,7 @@ All the services defined by name in FireHOL are known to resolve in <a href="htt
 	</table>
 	</td>
 	</tr>
-<tr >
+<tr  bgcolor="#F0F0F0">
 	<td align="center" valign="top"><a name="socks"><b>socks</b></a></td>
 	<td align="center" valign="top">simple</td>
 	<td>
@@ -1555,7 +1572,7 @@ All the services defined by name in FireHOL are known to resolve in <a href="htt
 	</table>
 	</td>
 	</tr>
-<tr  bgcolor="#F0F0F0">
+<tr >
 	<td align="center" valign="top"><a name="squid"><b>squid</b></a></td>
 	<td align="center" valign="top">simple</td>
 	<td>
@@ -1574,7 +1591,7 @@ All the services defined by name in FireHOL are known to resolve in <a href="htt
 	</table>
 	</td>
 	</tr>
-<tr >
+<tr  bgcolor="#F0F0F0">
 	<td align="center" valign="top"><a name="ssh"><b>ssh</b></a></td>
 	<td align="center" valign="top">simple</td>
 	<td>
@@ -1593,7 +1610,7 @@ All the services defined by name in FireHOL are known to resolve in <a href="htt
 	</table>
 	</td>
 	</tr>
-<tr  bgcolor="#F0F0F0">
+<tr >
 	<td align="center" valign="top"><a name="submission"><b>submission</b></a></td>
 	<td align="center" valign="top">simple</td>
 	<td>
@@ -1612,7 +1629,7 @@ All the services defined by name in FireHOL are known to resolve in <a href="htt
 	</table>
 	</td>
 	</tr>
-<tr >
+<tr  bgcolor="#F0F0F0">
 	<td align="center" valign="top"><a name="sunrpc"><b>sunrpc</b></a></td>
 	<td align="center" valign="top">simple</td>
 	<td>
@@ -1633,7 +1650,7 @@ All the services defined by name in FireHOL are known to resolve in <a href="htt
 	</table>
 	</td>
 	</tr>
-<tr  bgcolor="#F0F0F0">
+<tr >
 	<td align="center" valign="top"><a name="swat"><b>swat</b></a></td>
 	<td align="center" valign="top">simple</td>
 	<td>
@@ -1652,7 +1669,7 @@ All the services defined by name in FireHOL are known to resolve in <a href="htt
 	</table>
 	</td>
 	</tr>
-<tr >
+<tr  bgcolor="#F0F0F0">
 	<td align="center" valign="top"><a name="syslog"><b>syslog</b></a></td>
 	<td align="center" valign="top">simple</td>
 	<td>
@@ -1673,7 +1690,7 @@ All the services defined by name in FireHOL are known to resolve in <a href="htt
 	</table>
 	</td>
 	</tr>
-<tr  bgcolor="#F0F0F0">
+<tr >
 	<td align="center" valign="top"><a name="telnet"><b>telnet</b></a></td>
 	<td align="center" valign="top">simple</td>
 	<td>
@@ -1692,7 +1709,7 @@ All the services defined by name in FireHOL are known to resolve in <a href="htt
 	</table>
 	</td>
 	</tr>
-<tr >
+<tr  bgcolor="#F0F0F0">
 	<td align="center" valign="top"><a name="tftp"><b>tftp</b></a></td>
 	<td align="center" valign="top">complex</td>
 	<td>
@@ -1713,7 +1730,7 @@ All the services defined by name in FireHOL are known to resolve in <a href="htt
 	</table>
 	</td>
 	</tr>
-<tr  bgcolor="#F0F0F0">
+<tr >
 	<td align="center" valign="top"><a name="time"><b>time</b></a></td>
 	<td align="center" valign="top">simple</td>
 	<td>
@@ -1734,7 +1751,7 @@ All the services defined by name in FireHOL are known to resolve in <a href="htt
 	</table>
 	</td>
 	</tr>
-<tr >
+<tr  bgcolor="#F0F0F0">
 	<td align="center" valign="top"><a name="uucp"><b>uucp</b></a></td>
 	<td align="center" valign="top">simple</td>
 	<td>
@@ -1753,7 +1770,7 @@ All the services defined by name in FireHOL are known to resolve in <a href="htt
 	</table>
 	</td>
 	</tr>
-<tr  bgcolor="#F0F0F0">
+<tr >
 	<td align="center" valign="top"><a name="vmware"><b>vmware</b></a></td>
 	<td align="center" valign="top">simple</td>
 	<td>
@@ -1772,7 +1789,7 @@ All the services defined by name in FireHOL are known to resolve in <a href="htt
 	</table>
 	</td>
 	</tr>
-<tr >
+<tr  bgcolor="#F0F0F0">
 	<td align="center" valign="top"><a name="vmwareauth"><b>vmwareauth</b></a></td>
 	<td align="center" valign="top">simple</td>
 	<td>
@@ -1791,7 +1808,7 @@ All the services defined by name in FireHOL are known to resolve in <a href="htt
 	</table>
 	</td>
 	</tr>
-<tr  bgcolor="#F0F0F0">
+<tr >
 	<td align="center" valign="top"><a name="vmwareweb"><b>vmwareweb</b></a></td>
 	<td align="center" valign="top">simple</td>
 	<td>
@@ -1810,7 +1827,7 @@ All the services defined by name in FireHOL are known to resolve in <a href="htt
 	</table>
 	</td>
 	</tr>
-<tr >
+<tr  bgcolor="#F0F0F0">
 	<td align="center" valign="top"><a name="vnc"><b>vnc</b></a></td>
 	<td align="center" valign="top">simple</td>
 	<td>
@@ -1829,7 +1846,7 @@ All the services defined by name in FireHOL are known to resolve in <a href="htt
 	</table>
 	</td>
 	</tr>
-<tr  bgcolor="#F0F0F0">
+<tr >
 	<td align="center" valign="top"><a name="webcache"><b>webcache</b></a></td>
 	<td align="center" valign="top">simple</td>
 	<td>
@@ -1848,7 +1865,7 @@ All the services defined by name in FireHOL are known to resolve in <a href="htt
 	</table>
 	</td>
 	</tr>
-<tr >
+<tr  bgcolor="#F0F0F0">
 	<td align="center" valign="top"><a name="webmin"><b>webmin</b></a></td>
 	<td align="center" valign="top">simple</td>
 	<td>
@@ -1864,6 +1881,25 @@ All the services defined by name in FireHOL are known to resolve in <a href="htt
 	</tr>
 	<tr><td align=right valign=top nowrap><small><font color="gray">Notes</td><td><a href="http://www.webmin.com">Webmin</a> is a web-based interface for system administration for Unix.<br>&nbsp;</td></tr>
 	<tr><td align=right valign=top nowrap><small><font color="gray">Example</td><td><b>server webmin accept</b></td></tr>
+	</table>
+	</td>
+	</tr>
+<tr >
+	<td align="center" valign="top"><a name="whois"><b>whois</b></a></td>
+	<td align="center" valign="top">simple</td>
+	<td>
+		<table cellspacing=0 cellpadding=2 border=0>
+		<tr>
+<td align=right valign=top nowrap><small><font color=gray>Server Ports</td><td>&nbsp;
+<b>tcp/43</b>
+</td></tr><tr><td align=right valign=top nowrap><small><font color=gray>Client Ports</td><td>&nbsp;
+<b>default</b>
+</td></tr><tr><td align=right valign=top nowrap><small><font color=gray>Netfilter Modules</td><td>&nbsp;
+</td></tr><tr><td align=right valign=top nowrap><small><font color=gray>Netfilter NAT Modules</td><td>&nbsp;
+</td>
+	</tr>
+	<tr><td align=right valign=top nowrap><small><font color="gray">Notes</td><td>See: <a href="http://www.busan.edu/~nic/networking/firewall/ch08_08.htm">O'Reilly's Building Internet Firewalls book</a> about whois and firewalls.<br>&nbsp;</td></tr>
+	<tr><td align=right valign=top nowrap><small><font color="gray">Example</td><td><b>server whois accept</b></td></tr>
 	</table>
 	</td>
 	</tr>
@@ -1894,7 +1930,7 @@ All the services defined by name in FireHOL are known to resolve in <a href="htt
 <tr><td align=center valign=middle>
 	<A href="http://sourceforge.net"><IMG src="http://sourceforge.net/sflogo.php?group_id=58425&amp;type=5" width="210" height="62" border="0" alt="SourceForge Logo"></A>
 </td><td align=center valign=middle>
-	<small>$Id: services.html,v 1.49 2003/12/03 22:25:30 ktsaou Exp $</small>
+	<small>$Id: services.html,v 1.50 2004/04/21 22:23:18 ktsaou Exp $</small>
 	<p>
 	<b>FireHOL</b>, a firewall for humans...<br>
 	&copy; Copyright 2003

@@ -10,7 +10,7 @@
 #
 # config: /etc/firehol/firehol.conf
 #
-# $Id: firehol.sh,v 1.185 2004/04/21 21:48:32 ktsaou Exp $
+# $Id: firehol.sh,v 1.186 2004/04/21 22:23:10 ktsaou Exp $
 #
 
 # Remember who you are.
@@ -526,6 +526,9 @@ client_time_ports="default"
 
 server_uucp_ports="tcp/uucp"
 client_uucp_ports="default"
+
+server_whois_ports="tcp/43"
+client_whois_ports="default"
 
 server_vmware_ports="tcp/902"
 client_vmware_ports="default"
@@ -4098,7 +4101,7 @@ case "${arg}" in
 		else
 		
 		${CAT_CMD} <<EOF
-$Id: firehol.sh,v 1.185 2004/04/21 21:48:32 ktsaou Exp $
+$Id: firehol.sh,v 1.186 2004/04/21 22:23:10 ktsaou Exp $
 (C) Copyright 2003, Costa Tsaousis <costa@tsaousis.gr>
 FireHOL is distributed under GPL.
 
@@ -4284,7 +4287,7 @@ then
 	
 	${CAT_CMD} <<EOF
 
-$Id: firehol.sh,v 1.185 2004/04/21 21:48:32 ktsaou Exp $
+$Id: firehol.sh,v 1.186 2004/04/21 22:23:10 ktsaou Exp $
 (C) Copyright 2003, Costa Tsaousis <costa@tsaousis.gr>
 FireHOL is distributed under GPL.
 Home Page: http://firehol.sourceforge.net
@@ -4578,7 +4581,7 @@ then
 	
 	${CAT_CMD} >&2 <<EOF
 
-$Id: firehol.sh,v 1.185 2004/04/21 21:48:32 ktsaou Exp $
+$Id: firehol.sh,v 1.186 2004/04/21 22:23:10 ktsaou Exp $
 (C) Copyright 2003, Costa Tsaousis <costa@tsaousis.gr>
 FireHOL is distributed under GPL.
 Home Page: http://firehol.sourceforge.net
@@ -4661,7 +4664,7 @@ EOF
 	echo "# "
 
 	${CAT_CMD} <<EOF
-# $Id: firehol.sh,v 1.185 2004/04/21 21:48:32 ktsaou Exp $
+# $Id: firehol.sh,v 1.186 2004/04/21 22:23:10 ktsaou Exp $
 # (C) Copyright 2003, Costa Tsaousis <costa@tsaousis.gr>
 # FireHOL is distributed under GPL.
 # Home Page: http://firehol.sourceforge.net

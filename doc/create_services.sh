@@ -185,6 +185,7 @@ Use the FireHOL <a href=\"commands.html#client\">client</a> command to match the
 Please note that the <a href=\"http://www.emule-project.com\">eMule</a> client is an HTTP client also.
 "
 
+service_finger_notes="See: <a href=\"http://www.busan.edu/~nic/networking/firewall/ch08_08.htm\">O'Reilly's Building Internet Firewalls book</a> about finger and firewalls."
 
 server_ftp_ports="many"
 client_ftp_ports="many"
@@ -387,6 +388,7 @@ The samba service automatically sets all the rules for <a href=\"#netbios_ns\">n
 Please refer to the notes of the above services for more information.
 "
 
+service_whois_notes="See: <a href=\"http://www.busan.edu/~nic/networking/firewall/ch08_08.htm\">O'Reilly's Building Internet Firewalls book</a> about whois and firewalls."
 
 service_webmin_notes="<a href=\"http://www.webmin.com\">Webmin</a> is a web-based interface for system administration for Unix."
 
@@ -770,7 +772,7 @@ cat <<"EOF"
 <tr><td align=center valign=middle>
 	<A href="http://sourceforge.net"><IMG src="http://sourceforge.net/sflogo.php?group_id=58425&amp;type=5" width="210" height="62" border="0" alt="SourceForge Logo"></A>
 </td><td align=center valign=middle>
-	<small>$Id: create_services.sh,v 1.42 2003/12/03 22:25:30 ktsaou Exp $</small>
+	<small>$Id: create_services.sh,v 1.43 2004/04/21 22:23:18 ktsaou Exp $</small>
 	<p>
 	<b>FireHOL</b>, a firewall for humans...<br>
 	&copy; Copyright 2003
