@@ -109,6 +109,10 @@ Since NFS queries the remote RPC server, it is required to also be allowed to do
 <a href=\"#portmap\">portmap</a> service too. Take care, that this is allowed by the <b>running firewall</b>
 when FireHOL tries to query the RPC server. So you might have to setup NFS in two steps: First add the portmap
 service and activate the firewall, then add the NFS service and restart the firewall.
+<p>
+To avoid this you can setup your NFS server to listen on pre-defined ports, as it is well documented in
+<a href=\"http://nfs.sourceforge.net/nfs-howto/security.html#FIREWALLS\">http://nfs.sourceforge.net/nfs-howto/security.html#FIREWALLS</a>.
+If you do this then you will have to define the the ports using the procedure described in <a href=\"adding.html\">Adding Services</a>.
 "
 service_nfs_example="client nfs accept <u>dst</u> <u>1.2.3.4</u>"
 
@@ -304,7 +308,7 @@ cat <<"EOF"
 <tr><td align=center valign=middle>
 	<A href="http://sourceforge.net"><IMG src="http://sourceforge.net/sflogo.php?group_id=58425&amp;type=5" width="210" height="62" border="0" alt="SourceForge Logo"></A>
 </td><td align=center valign=middle>
-	<small>$Id: create_services.sh,v 1.4 2002/12/12 20:10:32 ktsaou Exp $</small>
+	<small>$Id: create_services.sh,v 1.5 2002/12/13 08:36:23 ktsaou Exp $</small>
 	<p>
 	<b>FireHOL</b>, a firewall for humans...<br>
 	&copy; Copyright 2002
