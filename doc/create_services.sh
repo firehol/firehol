@@ -44,21 +44,6 @@ To find more about this service please check the <a href=\"adding.html\">Adding 
 service_custom_example="server custom <u>myimap</u> <u>tcp/143</u> <u>default</u> accept"
 
 
-server_dns_ports="udp/domain tcp/domain"
-client_dns_ports="all"
-service_dns_type="complex"
-service_dns_notes="
-The DNS service has been made a complex service (although is was not required) to achieve stateless operation on UDP
-and stateful on TCP. This differentiation has been made because in some production environments with heavily loaded
-DNS servers
-we observed many drops on UDP port 53. The DNS server was not responding in time
-and the iptables connection tracker drops all new connections that have not been assured in 19 (if I remember correct) seconds.
-<br>
-Although the mentioned drops were not a real problem, since the client had already timed out, we prefered to
-operate DNS without state.
-"
-
-
 service_dhcprelay_notes="DHCP Relay."
 
 
@@ -68,9 +53,6 @@ service_ftp_type="complex"
 service_ftp_notes="
 The FTP service matches both active and passive FTP connections by utilizing the FTP connection tracker kernel module.
 "
-
-
-service_icmp_type="complex"
 
 
 service_isakmp_notes="IPSec key negotiation."
@@ -311,7 +293,7 @@ cat <<"EOF"
 <tr><td align=center valign=middle>
 	<A href="http://sourceforge.net"><IMG src="http://sourceforge.net/sflogo.php?group_id=58425&amp;type=5" width="210" height="62" border="0" alt="SourceForge Logo"></A>
 </td><td align=center valign=middle>
-	<small>$Id: create_services.sh,v 1.6 2002/12/16 20:44:36 ktsaou Exp $</small>
+	<small>$Id: create_services.sh,v 1.7 2002/12/18 20:44:09 ktsaou Exp $</small>
 	<p>
 	<b>FireHOL</b>, a firewall for humans...<br>
 	&copy; Copyright 2002

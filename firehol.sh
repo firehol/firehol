@@ -10,7 +10,7 @@
 #
 # config: /etc/firehol.conf
 #
-# $Id: firehol.sh,v 1.49 2002/12/18 20:18:53 ktsaou Exp $
+# $Id: firehol.sh,v 1.50 2002/12/18 20:44:08 ktsaou Exp $
 #
 
 # ------------------------------------------------------------------------------
@@ -133,7 +133,7 @@ case "${arg}" in
 		else
 		
 		cat <<"EOF"
-$Id: firehol.sh,v 1.49 2002/12/18 20:18:53 ktsaou Exp $
+$Id: firehol.sh,v 1.50 2002/12/18 20:44:08 ktsaou Exp $
 (C) Copyright 2002, Costa Tsaousis
 FireHOL is distributed under GPL.
 
@@ -444,6 +444,9 @@ client_apcupsd_ports="default"
 server_daytime_ports="tcp/daytime"
 client_daytime_ports="default"
 
+server_dns_ports="udp/domain tcp/domain"
+client_dns_ports="any"
+
 server_dhcp_ports="udp/bootps"
 client_dhcp_ports="bootpc"
 
@@ -467,6 +470,10 @@ client_http_ports="default"
 
 server_https_ports="tcp/https"
 client_https_ports="default"
+
+server_icmp_ports="icmp/any"
+client_icmp_ports="any"
+ALL_SHOULD_ALSO_RUN="${ALL_SHOULD_ALSO_RUN} icmp"
 
 server_ident_ports="tcp/auth"
 client_ident_ports="default"
@@ -792,41 +799,41 @@ rules_nfs() {
 
 
 # --- DNS ----------------------------------------------------------------------
-
-rules_dns() {
-        local mychain="${1}"; shift
-	local type="${1}"; shift
-	
-	local in=in
-	local out=out
-	if [ "${type}" = "client" ]
-	then
-		in=out
-		out=in
-	fi
-	
-	local client_ports="${DEFAULT_CLIENT_PORTS}"
-	if [ "${type}" = "client" -a "${work_cmd}" = "interface" ]
-	then
-		client_ports="${LOCAL_CLIENT_PORTS}"
-	fi
-	
-	# ----------------------------------------------------------------------
-	
-	# UDP: allow all incoming DNS packets
-	rule action "$@" chain "${in}_${mychain}" proto udp dport domain || return 1
-	
-	# UDP: allow all outgoing DNS packets
-	rule reverse action "$@" chain "${out}_${mychain}" proto udp dport domain || return 1
-	
-	# TCP: allow new and established incoming packets
-	rule action "$@" chain "${in}_${mychain}" proto tcp dport domain state NEW,ESTABLISHED || return 1
-	
-	# TCP: allow outgoing established packets
-	rule reverse action "$@" chain "${out}_${mychain}" proto tcp dport domain state ESTABLISHED || return 1
-	
-	return 0
-}
+#
+#rules_dns() {
+#        local mychain="${1}"; shift
+#	local type="${1}"; shift
+#	
+#	local in=in
+#	local out=out
+#	if [ "${type}" = "client" ]
+#	then
+#		in=out
+#		out=in
+#	fi
+#	
+#	local client_ports="${DEFAULT_CLIENT_PORTS}"
+#	if [ "${type}" = "client" -a "${work_cmd}" = "interface" ]
+#	then
+#		client_ports="${LOCAL_CLIENT_PORTS}"
+#	fi
+#	
+#	# ----------------------------------------------------------------------
+#	
+#	# UDP: allow all incoming DNS packets
+#	rule action "$@" chain "${in}_${mychain}" proto udp dport domain state NEW,ESTABLISHED || return 1
+#	
+#	# UDP: allow all outgoing DNS packets
+#	rule reverse action "$@" chain "${out}_${mychain}" proto udp dport domain state ESTABLISHED || return 1
+#	
+#	# TCP: allow new and established incoming packets
+#	rule action "$@" chain "${in}_${mychain}" proto tcp dport domain state NEW,ESTABLISHED || return 1
+#	
+#	# TCP: allow outgoing established packets
+#	rule reverse action "$@" chain "${out}_${mychain}" proto tcp dport domain state ESTABLISHED || return 1
+#	
+#	return 0
+#}
 
 # --- FTP ----------------------------------------------------------------------
 
@@ -897,39 +904,39 @@ rules_ftp() {
 
 
 # --- ICMP ---------------------------------------------------------------------
-
-ALL_SHOULD_ALSO_RUN="${ALL_SHOULD_ALSO_RUN} icmp"
-
-rules_icmp() {
-        local mychain="${1}"; shift
-	local type="${1}"; shift
-	
-	local in=in
-	local out=out
-	if [ "${type}" = "client" ]
-	then
-		in=out
-		out=in
-	fi
-	
-	local client_ports="${DEFAULT_CLIENT_PORTS}"
-	if [ "${type}" = "client" -a "${work_cmd}" = "interface" ]
-	then
-		client_ports="${LOCAL_CLIENT_PORTS}"
-	fi
-	
-	# ----------------------------------------------------------------------
-	
-	# check out http://www.cs.princeton.edu/~jns/security/iptables/iptables_conntrack.html#ICMP
-	
-	# allow new and established incoming packets
-	rule action "$@" chain "${in}_${mychain}" proto icmp state NEW,ESTABLISHED,RELATED || return 1
-	
-	# allow outgoing established packets
-	rule reverse action "$@" chain "${out}_${mychain}" proto icmp state ESTABLISHED,RELATED || return 1
-	
-	return 0
-}
+#
+#ALL_SHOULD_ALSO_RUN="${ALL_SHOULD_ALSO_RUN} icmp"
+#
+#rules_icmp() {
+#        local mychain="${1}"; shift
+#	local type="${1}"; shift
+#	
+#	local in=in
+#	local out=out
+#	if [ "${type}" = "client" ]
+#	then
+#		in=out
+#		out=in
+#	fi
+#	
+#	local client_ports="${DEFAULT_CLIENT_PORTS}"
+#	if [ "${type}" = "client" -a "${work_cmd}" = "interface" ]
+#	then
+#		client_ports="${LOCAL_CLIENT_PORTS}"
+#	fi
+#	
+#	# ----------------------------------------------------------------------
+#	
+#	# check out http://www.cs.princeton.edu/~jns/security/iptables/iptables_conntrack.html#ICMP
+#	
+#	# allow new and established incoming packets
+#	rule action "$@" chain "${in}_${mychain}" proto icmp state NEW,ESTABLISHED,RELATED || return 1
+#	
+#	# allow outgoing established packets
+#	rule reverse action "$@" chain "${out}_${mychain}" proto icmp state ESTABLISHED,RELATED || return 1
+#	
+#	return 0
+#}
 
 
 # --- ALL ----------------------------------------------------------------------
@@ -2438,7 +2445,7 @@ then
 	version ${FIREHOL_VERSION}
 	
 	cat <<"EOF"
-$Id: firehol.sh,v 1.49 2002/12/18 20:18:53 ktsaou Exp $
+$Id: firehol.sh,v 1.50 2002/12/18 20:44:08 ktsaou Exp $
 (C) Copyright 2002, Costa Tsaousis
 FireHOL is distributed under GPL.
 Home Page: http://firehol.sourceforge.net
