@@ -10,7 +10,7 @@
 #
 # config: /etc/firehol.conf
 #
-# $Id: firehol.sh,v 1.72 2003/01/14 21:49:23 ktsaou Exp $
+# $Id: firehol.sh,v 1.73 2003/01/16 00:33:26 ktsaou Exp $
 #
 
 
@@ -970,6 +970,58 @@ transparent_squid() {
 	return 0
 }
 
+snat_count=0
+snat() {
+        work_realcmd=($FUNCNAME "$@")
+	
+	set_work_function -ne "Initializing $FUNCNAME"
+	
+	require_work clear || ( error "$FUNCNAME cannot be used in '${work_cmd}'. Put it before any '${work_cmd}' definition."; return 1 )
+	
+	local to="${1}"
+	shift
+	
+	snat_count=$[snat_count + 1]
+	
+	set_work_function "Setting up rules for SNAT"
+	
+	create_chain nat "snat.${snat_count}" POSTROUTING noowner "$@" nosoftwarnings inface any || return 1
+	
+	# we now need to keep the protocol
+	rule table nat chain "snat.${snat_count}" noowner "$@" action snat to "${to}" nosoftwarnings src any dst any inface any outface any sport any dport any || return 1
+	
+	FIREHOL_NAT=1
+	FIREHOL_ROUTING=1
+	
+	return 0
+}
+
+dnat_count=0
+dnat() {
+        work_realcmd=($FUNCNAME "$@")
+	
+	set_work_function -ne "Initializing $FUNCNAME"
+	
+	require_work clear || ( error "$FUNCNAME cannot be used in '${work_cmd}'. Put it before any '${work_cmd}' definition."; return 1 )
+	
+	local to="${1}"
+	shift
+	
+	dnat_count=$[dnat_count + 1]
+	
+	set_work_function "Setting up rules for SNAT"
+	
+	create_chain nat "dnat.${dnat_count}" PREROUTING noowner "$@" nosoftwarnings inface any || return 1
+	
+	# we now need to keep the protocol
+	rule table nat chain "dnat.${dnat_count}" noowner "$@" action dnat to "${to}" nosoftwarnings src any dst any inface any outface any sport any dport any || return 1
+	
+	FIREHOL_NAT=1
+	FIREHOL_ROUTING=1
+	
+	return 0
+}
+
 # ------------------------------------------------------------------------------
 # XXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXX
 # ------------------------------------------------------------------------------
@@ -1552,6 +1604,11 @@ rule_action_param() {
 		return 1
 	fi
 	
+	if [ "${action_param[0]}" = "none" ]
+	then
+		unset action_param
+	fi
+	
 	# Do the rule
 	case "${action}" in
 		NONE)
@@ -1571,13 +1628,9 @@ rule_action_param() {
 			;;
 	esac
 	
-	if [ "${action_param[0]}" = "none" ]
-	then
-		unset action_param
-	fi
-	
 	iptables "$@" -j "${action}" "${action_param[@]}"
 	local ret=$?
+	
 	test $ret -gt 0 && failed=$[failed + 1]
 	
 	return $ret
@@ -1650,10 +1703,6 @@ rule() {
 	local softwarnings=1
 	
 	
-	# If set to non-zero, this will enable the mechanism for
-	# handling ANDed negative expressions.
-	local have_a_not=0
-	
 	while [ ! -z "${1}" ]
 	do
 		case "${1}" in
@@ -1683,7 +1732,6 @@ rule() {
 					then
 						shift
 						infacenot="!"
-						have_a_not=1
 					else
 						if [ $swi -eq 1 ]
 						then
@@ -1698,7 +1746,6 @@ rule() {
 					then
 						shift
 						outfacenot="!"
-						have_a_not=1
 					else
 						if [ ${swo} -eq 1 ]
 						then
@@ -1720,7 +1767,6 @@ rule() {
 					then
 						shift
 						outfacenot="!"
-						have_a_not=1
 					else
 						if [ ${swo} -eq 1 ]
 						then
@@ -1735,7 +1781,6 @@ rule() {
 					then
 						shift
 						infacenot="!"
-						have_a_not=1
 					else
 						if [ ${swi} -eq 1 ]
 						then
@@ -1757,7 +1802,6 @@ rule() {
 					then
 						shift
 						srcnot="!"
-						have_a_not=1
 					fi
 					test ${softwarnings} -eq 1 -a ! "${src}" = "any" && softwarning "Overwritting param: src '${src}' becomes '${1}'"
 					src="${1}"
@@ -1767,7 +1811,6 @@ rule() {
 					then
 						shift
 						dstnot="!"
-						have_a_not=1
 					fi
 					test ${softwarnings} -eq 1 -a ! "${dst}" = "any" && softwarning "Overwritting param: dst '${dst}' becomes '${1}'"
 					dst="${1}"
@@ -1784,7 +1827,6 @@ rule() {
 					then
 						shift
 						dstnot="!"
-						have_a_not=1
 					fi
 					test ${softwarnings} -eq 1 -a ! "${dst}" = "any" && softwarning "Overwritting param: dst '${dst}' becomes '${1}'"
 					dst="${1}"
@@ -1794,7 +1836,6 @@ rule() {
 					then
 						shift
 						srcnot="!"
-						have_a_not=1
 					fi
 					test ${softwarnings} -eq 1 -a ! "${src}" = "any" && softwarning "Overwritting param: src '${src}' becomes '${1}'"
 					src="${1}"
@@ -1811,7 +1852,6 @@ rule() {
 					then
 						shift
 						sportnot="!"
-						have_a_not=1
 					fi
 					test ${softwarnings} -eq 1 -a ! "${sport}" = "any" && softwarning "Overwritting param: sport '${sport}' becomes '${1}'"
 					sport="${1}"
@@ -1821,7 +1861,6 @@ rule() {
 					then
 						shift
 						dportnot="!"
-						have_a_not=1
 					fi
 					test ${softwarnings} -eq 1 -a ! "${dport}" = "any" && softwarning "Overwritting param: dport '${dport}' becomes '${1}'"
 					dport="${1}"
@@ -1838,7 +1877,6 @@ rule() {
 					then
 						shift
 						dportnot="!"
-						have_a_not=1
 					fi
 					test ${softwarnings} -eq 1 -a ! "${dport}" = "any" && softwarning "Overwritting param: dport '${dport}' becomes '${1}'"
 					dport="${1}"
@@ -1848,7 +1886,6 @@ rule() {
 					then
 						shift
 						sportnot="!"
-						have_a_not=1
 					fi
 					test ${softwarnings} -eq 1 -a ! "${sport}" = "any" && softwarning "Overwritting param: sport '${sport}' becomes '${1}'"
 					sport="${1}"
@@ -1863,7 +1900,6 @@ rule() {
 				then
 					shift
 					protonot="!"
-					have_a_not=1
 				fi
 				test ${softwarnings} -eq 1 -a ! "${proto}" = "any" && softwarning "Overwritting param: proto '${proto}' becomes '${1}'"
 				proto="${1}"
@@ -1897,15 +1933,6 @@ rule() {
 						fi
 						;;
 						
-					redirect|REDIRECT)
-						action="REDIRECT"
-						if [ "${1}" = "to-port" ]
-						then
-							local -a action_param=("--to-port" "${2}")
-							shift 2
-						fi
-						;;
-						
 					return|RETURN)
 						action="RETURN"
 						;;
@@ -1916,6 +1943,42 @@ rule() {
 						
 					none|NONE)
 						action="NONE"
+						;;
+						
+					snat|SNAT)
+						action="SNAT"
+						if [ "${1}" = "to" ]
+						then
+							local -a action_param=("--to-source" "${2}")
+							shift 2
+						else
+							error "SNAT requires a 'to' argument."
+							return 1
+						fi
+						;;
+						
+					dnat|DNAT)
+						action="DNAT"
+						if [ "${1}" = "to" ]
+						then
+							local -a action_param=("--to-destination" "${2}")
+							shift 2
+						else
+							error "DNAT requires a 'to' argument"
+							return 1
+						fi
+						;;
+						
+					redirect|REDIRECT)
+						action="REDIRECT"
+						if [ "${1}" = "to-port" ]
+						then
+							local -a action_param=("--to-port" "${2}")
+							shift 2
+						else
+							error "REDIRECT requires a 'to-port' argument."
+							return 1
+						fi
 						;;
 						
 					*)
@@ -1932,8 +1995,6 @@ rule() {
 				then
 					shift
 					statenot="!"
-					# have_a_not=1 # we really do not need this here!
-					# because we negate this on the positive statements.
 				fi
 				test ${softwarnings} -eq 1 -a ! -z "${state}" && softwarning "Overwritting param: state '${state}' becomes '${1}'"
 				state="${1}"
@@ -1946,8 +2007,7 @@ rule() {
 				if [ "${1}" = "not" -o "${1}" = "NOT" ]
 				then
 					shift
-					uidnot="!"
-					test ${noowner} -eq 0 && have_a_not=1
+					test ${noowner} -eq 0 && uidnot="!"
 				fi
 				test ${softwarnings} -eq 1 -a ! "${uid}" = "any" && softwarning "Overwritting param: uid '${uid}' becomes '${1}'"
 				test ${noowner} -eq 0 && uid="${1}"
@@ -1960,8 +2020,7 @@ rule() {
 				if [ "${1}" = "not" -o "${1}" = "NOT" ]
 				then
 					shift
-					gidnot="!"
-					test ${noowner} -eq 0 && have_a_not=1
+					test ${noowner} -eq 0 && gidnot="!"
 				fi
 				test ${softwarnings} -eq 1 -a ! "${gid}" = "any" && softwarning "Overwritting param: gid '${gid}' becomes '${1}'"
 				test ${noowner} -eq 0 && gid="${1}"
@@ -1974,8 +2033,7 @@ rule() {
 				if [ "${1}" = "not" -o "${1}" = "NOT" ]
 				then
 					shift
-					pidnot="!"
-					test ${noowner} -eq 0 && have_a_not=1
+					test ${noowner} -eq 0 && pidnot="!"
 				fi
 				test ${softwarnings} -eq 1 -a ! "${pid}" = "any" && softwarning "Overwritting param: pid '${pid}' becomes '${1}'"
 				test ${noowner} -eq 0 && pid="${1}"
@@ -1988,8 +2046,7 @@ rule() {
 				if [ "${1}" = "not" -o "${1}" = "NOT" ]
 				then
 					shift
-					sidnot="!"
-					test ${noowner} -eq 0 && have_a_not=1
+					test ${noowner} -eq 0 && sidnot="!"
 				fi
 				test ${softwarnings} -eq 1 -a ! "${sid}" = "any" && softwarning "Overwritting param: sid '${sid}' becomes '${1}'"
 				test ${noowner} -eq 0 && sid="${1}"
@@ -2101,13 +2158,26 @@ rule() {
 	
 	# ----------------------------------------------------------------------------------
 	# Do we have negative contitions?
-	# If yes, we have to make a linked list of chains to the final one.
+	# If yes, we have to:
+	#
+	# case 1: If the action is a chain.
+	#         Add to this chain positive RETURN statements matching all the negatives.
+	#         The positive rules will be added bellow to the same chain and will be
+	#         matched only if all RETURNs have not been matched.
+	#
+	# case 2: If the action is not a chain.
+	#         Create a temporary chain, then add to this chain positive RETURN rules
+	#         matching the negatives, and append at its end the final action (which is
+	#         not a chain), then change the action of the positive rules to jump to
+	#         this temporary chain.
 	
-	if [ ${have_a_not} -eq 1 ]
+	
+	# ignore 'statenot' since it is negated in the positive rules
+	if [ ! -z "${infacenot}${outfacenot}${srcnot}${dstnot}${sportnot}${dportnot}${protonot}${uidnot}${gidnot}${pidnot}${sidnot}" ]
 	then
 		if [ ${action_is_chain} -eq 1 ]
 		then
-			# if the action is a chain name, then just the negative
+			# if the action is a chain name, then just add the negative
 			# expressions to this chain. Nothing more.
 			
 			local negative_chain="${action}"
@@ -2129,7 +2199,7 @@ rule() {
 		fi
 		
 		
-		if [ ! "${infacenot}" = "" ]
+		if [ ! -z "${infacenot}" ]
 		then
 			local inf=
 			for inf in ${inface}
@@ -2140,7 +2210,7 @@ rule() {
 			inface=any
 		fi
 	
-		if [ ! "${outfacenot}" = "" ]
+		if [ ! -z "${outfacenot}" ]
 		then
 			local outf=
 			for outf in ${outface}
@@ -2151,7 +2221,7 @@ rule() {
 			outface=any
 		fi
 		
-		if [ ! "${srcnot}" = "" ]
+		if [ ! -z "${srcnot}" ]
 		then
 			local s=
 			for s in ${src}
@@ -2162,7 +2232,7 @@ rule() {
 			src=any
 		fi
 		
-		if [ ! "${dstnot}" = "" ]
+		if [ ! -z "${dstnot}" ]
 		then
 			local d=
 			for d in ${dst}
@@ -2173,30 +2243,14 @@ rule() {
 			dst=any
 		fi
 		
-		if [ ! "${sportnot}" = "" ]
+		if [ ! -z "${protonot}" ]
 		then
-			local sp=
-			for sp in ${sport}
-			do
-				iptables ${table} -A "${negative_chain}" --sport "${sp}" -j RETURN
-			done
-			sportnot=
-			sport=any
-		fi
-		
-		if [ ! "${dportnot}" = "" ]
-		then
-			local dp=
-			for dp in ${dport}
-			do
-				iptables ${table} -A "${negative_chain}" --dport "${dp}" -j RETURN
-			done
-			dportnot=
-			dport=any
-		fi
-		
-		if [ ! "${protonot}" = "" ]
-		then
+			if [ ! -z "${sportnot}" -o ! -z "${dportnot}" ]
+			then
+				error "Cannot have negative protocol(s) and source/destination port(s)."
+				return 1
+			fi
+			
 			local pr=
 			for pr in ${proto}
 			do
@@ -2206,7 +2260,49 @@ rule() {
 			proto=any
 		fi
 		
-		if [ ! "${uidnot}" = "" ]
+		if [ ! -z "${sportnot}" ]
+		then
+			if [ "${proto}" = "any" ]
+			then
+				error "Cannot have negative source port specification without protocol."
+				return 1
+			fi
+			
+			local sp=
+			for sp in ${sport}
+			do
+				local pr=
+				for pr in ${proto}
+				do
+					iptables ${table} -A "${negative_chain}" -p "${pr}" --sport "${sp}" -j RETURN
+				done
+			done
+			sportnot=
+			sport=any
+		fi
+		
+		if [ ! -z "${dportnot}" ]
+		then
+			if [ "${proto}" = "any" ]
+			then
+				error "Cannot have negative destination port specification without protocol."
+				return 1
+			fi
+			
+			local dp=
+			for dp in ${dport}
+			do
+				local pr=
+				for pr in ${proto}
+				do
+					iptables ${table} -A "${negative_chain}" -p "${pr}" --dport "${dp}" -j RETURN
+				done
+			done
+			dportnot=
+			dport=any
+		fi
+		
+		if [ ! -z "${uidnot}" ]
 		then
 			local tuid=
 			for tuid in ${uid}
@@ -2217,7 +2313,7 @@ rule() {
 			uid=any
 		fi
 		
-		if [ ! "${gidnot}" = "" ]
+		if [ ! -z "${gidnot}" ]
 		then
 			local tgid=
 			for tgid in ${gid}
@@ -2228,7 +2324,7 @@ rule() {
 			gid=any
 		fi
 		
-		if [ ! "${pidnot}" = "" ]
+		if [ ! -z "${pidnot}" ]
 		then
 			local tpid=
 			for tpid in ${pid}
@@ -2239,7 +2335,7 @@ rule() {
 			pid=any
 		fi
 		
-		if [ ! "${sidnot}" = "" ]
+		if [ ! -z "${sidnot}" ]
 		then
 			local tsid=
 			for tsid in ${sid}
@@ -2886,7 +2982,7 @@ case "${arg}" in
 		else
 		
 		cat <<"EOF"
-$Id: firehol.sh,v 1.72 2003/01/14 21:49:23 ktsaou Exp $
+$Id: firehol.sh,v 1.73 2003/01/16 00:33:26 ktsaou Exp $
 (C) Copyright 2002, Costa Tsaousis <costa@tsaousis.gr>
 FireHOL is distributed under GPL.
 
@@ -3054,7 +3150,7 @@ then
 	
 	cat <<"EOF"
 
-$Id: firehol.sh,v 1.72 2003/01/14 21:49:23 ktsaou Exp $
+$Id: firehol.sh,v 1.73 2003/01/16 00:33:26 ktsaou Exp $
 (C) Copyright 2002, Costa Tsaousis <costa@tsaousis.gr>
 FireHOL is distributed under GPL.
 Home Page: http://firehol.sourceforge.net
