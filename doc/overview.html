@@ -115,17 +115,19 @@ has, if any).
 PREROUTING and MANGLING are not supported either. QoS, although not 
 iptables stuff, is missing too. You are welcome to extend FireHOL and 
 send me your patches to integrate within FireHOL.</p>
+
 <p>Note however that you can embed normal iptables commands in a FireHOL 
 configuration script for NATing, REDIRECTing ports, etc.</p>
-<p>Since FireHOL produces stateful commands, for every supported service 
+
+<p>
+Since FireHOL produces stateful commands, for every supported service 
 it needs to know the flow of requests and replies. Today FireHOL 
 supports the following services:</p>
 <ul>
-  <li>All single socket protocols, such as HTTP, NNTP, SMTP, POP3, 
+  <li>Many single socket protocols, such as HTTP, NNTP, SMTP, POP3, 
   IMAP4, RADIUS, SSH, LDAP, MySQL, Telnet, NTP, DNS, etc.
-  There are a few dozens of such services defined in FireHOL.
-  Even if something is missing, you can define it (in the configuration
-  file or FireHOL itself - see bellow).<br>
+  There are a few dozens of such services defined in FireHOL. Check <a href="services.html">this list.</a>
+  Even if something is missing, you can <a href="adding.html">define it</a>.<br>
 </ul>
 <ul>
   <li>Many complex protocols, such as FTP, NFS, SAMBA, DHCP, PPTP, etc. 
@@ -133,7 +135,7 @@ supports the following services:</p>
   to program it (in simple BASH scripting - there are many commented 
   examples on how this is done). Again, you will just create one BASH 
   function with the rules of the protocol, and FireHOL will turn it to
-  <i>client</i>, <i>server</i> and <i>route</i> commands.</li>
+  a client, a server or a router.</li>
 </ul>
 
 
@@ -143,7 +145,7 @@ supports the following services:</p>
 <tr><td align=center valign=middle>
 	<A href="http://sourceforge.net"><IMG src="http://sourceforge.net/sflogo.php?group_id=58425&amp;type=5" width="210" height="62" border="0" alt="SourceForge Logo"></A>
 </td><td align=center valign=middle>
-	<small>$Id: overview.html,v 1.5 2002/12/10 15:27:12 ktsaou Exp $</small>
+	<small>$Id: overview.html,v 1.6 2002/12/10 19:26:14 ktsaou Exp $</small>
 	<p>
 	<b>FireHOL</b>, a firewall for humans...<br>
 	&copy; Copyright 2002
