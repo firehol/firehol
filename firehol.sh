@@ -10,7 +10,7 @@
 #
 # config: /etc/firehol.conf
 #
-# $Id: firehol.sh,v 1.71 2003/01/13 23:31:03 ktsaou Exp $
+# $Id: firehol.sh,v 1.72 2003/01/14 21:49:23 ktsaou Exp $
 #
 
 
@@ -1080,8 +1080,8 @@ router() {
 }
 
 postprocess() {
-	local tmp=" >${FIREHOL_OUTPUT}.log 2>&1"
-	test ${FIREHOL_DEBUG} -eq 1 && local tmp=
+	unset tmp
+	test ! ${FIREHOL_DEBUG} -eq 1 && local tmp=" >${FIREHOL_OUTPUT}.log 2>&1"
 	
 	printf "%q " "$@" >>${FIREHOL_OUTPUT}
 	test ${FIREHOL_EXPLAIN} -eq 0 && echo " $tmp # L:${FIREHOL_LINEID}" >>${FIREHOL_OUTPUT}
@@ -2886,7 +2886,7 @@ case "${arg}" in
 		else
 		
 		cat <<"EOF"
-$Id: firehol.sh,v 1.71 2003/01/13 23:31:03 ktsaou Exp $
+$Id: firehol.sh,v 1.72 2003/01/14 21:49:23 ktsaou Exp $
 (C) Copyright 2002, Costa Tsaousis <costa@tsaousis.gr>
 FireHOL is distributed under GPL.
 
@@ -3054,7 +3054,7 @@ then
 	
 	cat <<"EOF"
 
-$Id: firehol.sh,v 1.71 2003/01/13 23:31:03 ktsaou Exp $
+$Id: firehol.sh,v 1.72 2003/01/14 21:49:23 ktsaou Exp $
 (C) Copyright 2002, Costa Tsaousis <costa@tsaousis.gr>
 FireHOL is distributed under GPL.
 Home Page: http://firehol.sourceforge.net
