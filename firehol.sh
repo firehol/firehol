@@ -10,7 +10,7 @@
 #
 # config: /etc/firehol.conf
 #
-# $Id: firehol.sh,v 1.122 2003/04/18 20:52:44 ktsaou Exp $
+# $Id: firehol.sh,v 1.123 2003/04/20 10:18:10 ktsaou Exp $
 #
 FIREHOL_FILE="${0}"
 
@@ -3191,7 +3191,27 @@ case "${arg}" in
 	
 	stop)
 		test -f /var/lock/subsys/firehol && ${RM_CMD} -f /var/lock/subsys/firehol
-		/etc/init.d/iptables stop
+		test -f /var/lock/subsys/iptables && ${RM_CMD} -f /var/lock/subsys/iptables
+		
+		echo -n $"FireHOL: Clearing Firewall:"
+		load_kernel_module ip_tables
+		tables=`${CAT_CMD} /proc/net/ip_tables_names`
+		for t in ${tables}
+		do
+			${IPTABLES_CMD} -t "${t}" -F
+			${IPTABLES_CMD} -t "${t}" -X
+			${IPTABLES_CMD} -t "${t}" -Z
+			
+			# Find all default chains in this table.
+			chains=`${IPTABLES_CMD} -t "${t}" -nL | ${GREP_CMD} "^Chain " | ${CUT_CMD} -d ' ' -f 2`
+			for c in ${chains}
+			do
+				${IPTABLES_CMD} -t "${t}" -P "${c}" ACCEPT
+			done
+		done
+		success $"FireHOL: Clearing Firewall:"
+		echo
+		
 		exit 0
 		;;
 	
@@ -3201,7 +3221,7 @@ case "${arg}" in
 	
 	condrestart)
 		FIREHOL_TRY=0
-		if [ ! -e /var/lock/subsys/firehol ]
+		if [ -f /var/lock/subsys/firehol ]
 		then
 			exit 0
 		fi
@@ -3314,7 +3334,7 @@ case "${arg}" in
 		else
 		
 		${CAT_CMD} <<"EOF"
-$Id: firehol.sh,v 1.122 2003/04/18 20:52:44 ktsaou Exp $
+$Id: firehol.sh,v 1.123 2003/04/20 10:18:10 ktsaou Exp $
 (C) Copyright 2003, Costa Tsaousis <costa@tsaousis.gr>
 FireHOL is distributed under GPL.
 
@@ -3500,7 +3520,7 @@ then
 	
 	${CAT_CMD} <<"EOF"
 
-$Id: firehol.sh,v 1.122 2003/04/18 20:52:44 ktsaou Exp $
+$Id: firehol.sh,v 1.123 2003/04/20 10:18:10 ktsaou Exp $
 (C) Copyright 2003, Costa Tsaousis <costa@tsaousis.gr>
 FireHOL is distributed under GPL.
 Home Page: http://firehol.sourceforge.net
@@ -3794,7 +3814,7 @@ then
 	
 	${CAT_CMD} >&2 <<"EOF"
 
-$Id: firehol.sh,v 1.122 2003/04/18 20:52:44 ktsaou Exp $
+$Id: firehol.sh,v 1.123 2003/04/20 10:18:10 ktsaou Exp $
 (C) Copyright 2003, Costa Tsaousis <costa@tsaousis.gr>
 FireHOL is distributed under GPL.
 Home Page: http://firehol.sourceforge.net
@@ -3887,7 +3907,7 @@ EOF
 	echo "# "
 
 	${CAT_CMD} <<"EOF"
-# $Id: firehol.sh,v 1.122 2003/04/18 20:52:44 ktsaou Exp $
+# $Id: firehol.sh,v 1.123 2003/04/20 10:18:10 ktsaou Exp $
 # (C) Copyright 2003, Costa Tsaousis <costa@tsaousis.gr>
 # FireHOL is distributed under GPL.
 # Home Page: http://firehol.sourceforge.net
