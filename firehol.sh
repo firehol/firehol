@@ -10,9 +10,16 @@
 #
 # config: /etc/firehol.conf
 #
-# $Id: firehol.sh,v 1.23 2002/12/02 17:48:41 ktsaou Exp $
+# $Id: firehol.sh,v 1.24 2002/12/03 22:03:00 ktsaou Exp $
 #
 # $Log: firehol.sh,v $
+# Revision 1.24  2002/12/03 22:03:00  ktsaou
+# Another work around to fix the problem of LINENO not working in debian
+# systems.
+#
+# Added command line argument "services" which shows all the service
+# definitions firehol knows about.
+#
 # Revision 1.23  2002/12/02 17:48:41  ktsaou
 # Fixed a bug where some versions of BASH do not handle correctly cat >>"EOF".
 # They treat it as cat >>EOF and thus they do variable substitution on the
@@ -162,6 +169,7 @@ FIREHOL_SAVE=0
 # If set to 1, the firewall will be restored if you don't commit it.
 FIREHOL_TRY=1
 
+me="${0}"
 arg="${1}"
 shift
 
@@ -208,6 +216,73 @@ case "${arg}" in
 	debug)
 		FIREHOL_TRY=0
 		FIREHOL_DEBUG=1
+		;;
+	
+	services)
+		cat <<"EOF"
+$Id: firehol.sh,v 1.24 2002/12/03 22:03:00 ktsaou Exp $
+(C) Copyright 2002, Costa Tsaousis
+
+FireHOL supports the following services (sorted by name):
+EOF
+
+		(
+			# The simple services
+			cat "${me}"				|\
+				grep -e "^server_.*_ports="	|\
+				cut -d '=' -f 1			|\
+				sed "s/^server_//"		|\
+				sed "s/_ports\$//"
+			
+			# The complex services
+			cat "${me}"				|\
+				grep -e "^rules_.*()"		|\
+				cut -d '(' -f 1			|\
+				sed "s/^rules_//"
+		) | sort | uniq |\
+		(
+			x=0
+			while read
+			do
+				x=$[x + 1]
+				if [ $x -gt 4 ]
+				then
+					printf "\n"
+					x=1
+				fi
+				printf "% 17s" "$REPLY"
+			done
+			printf "\n\n"
+		)
+		cat <<EOF
+Please note that the service:
+	
+	all	matches all packets, all protocols, all of everything,
+		while ensuring that required kernel modules are loaded.
+	
+	any	allows the matching of packets with unusual rules, like
+		only protocol but no ports. If service any is used
+		without other parameters, it does what service all does
+		but it does not handle kernel modules.
+		For example, to match GRE traffic use:
+		
+		server any mygre accept proto 47
+		
+		Service any does not handle kernel modules.
+		
+	custom	allows the definition of a custom service.
+		The template is:
+		
+		server custom name protocol/sport cport accept
+		
+		where name is just a name, protocol is the protocol the
+		service uses (tcp, udp, etc), sport is server port,
+		cport is the client port. For example, IMAP4 is:
+		
+		server custom imap tcp/143 default accept
+	
+EOF
+		exit 0
 		;;
 	
 	*)
@@ -2348,12 +2423,15 @@ ret=0
 # These line numbers will be used for debugging the configuration script.
 
 cat >"${FIREHOL_TMP}.awk" <<EOF
-/^[[:space:]]*interface[[:space:]]/ { printf "FIREHOL_LINEID=\${LINENO} " }
-/^[[:space:]]*router[[:space:]]/ { printf "FIREHOL_LINEID=\${LINENO} " }
-/^[[:space:]]*route[[:space:]]/ { printf "FIREHOL_LINEID=\${LINENO} " }
-/^[[:space:]]*client[[:space:]]/ { printf "FIREHOL_LINEID=\${LINENO} " }
-/^[[:space:]]*server[[:space:]]/ { printf "FIREHOL_LINEID=\${LINENO} " }
-/^[[:space:]]*iptables[[:space:]]/ { printf "FIREHOL_LINEID=\${LINENO} " }
+/^[[:space:]]*interface[[:space:]]/ { printf "FIREHOL_LINEID=\\\${LINENO} " }
+/^[[:space:]]*router[[:space:]]/ { printf "FIREHOL_LINEID=\\\${LINENO} " }
+/^[[:space:]]*route[[:space:]]/ { printf "FIREHOL_LINEID=\\\${LINENO} " }
+/^[[:space:]]*client[[:space:]]/ { printf "FIREHOL_LINEID=\\\${LINENO} " }
+/^[[:space:]]*server[[:space:]]/ { printf "FIREHOL_LINEID=\\\${LINENO} " }
+/^[[:space:]]*iptables[[:space:]]/ { printf "FIREHOL_LINEID=\\\${LINENO} " }
+/^[[:space:]]*protection[[:space:]]/ { printf "FIREHOL_LINEID=\\\${LINENO} " }
+/^[[:space:]]*policy[[:space:]]/ { printf "FIREHOL_LINEID=\\\${LINENO} " }
+/^[[:space:]]*masquerade[[:space:]]/ { printf "FIREHOL_LINEID=\\\${LINENO} " }
 { print }
 EOF
 
