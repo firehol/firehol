@@ -10,7 +10,7 @@
 #
 # config: /etc/firehol/firehol.conf
 #
-# $Id: firehol.sh,v 1.142 2003/07/20 21:50:29 ktsaou Exp $
+# $Id: firehol.sh,v 1.143 2003/07/20 21:52:41 ktsaou Exp $
 #
 FIREHOL_FILE="${0}"
 
@@ -413,6 +413,9 @@ client_pop3s_ports="default"
 # Portmap clients appear to use ports bellow 1024
 server_portmap_ports="udp/sunrpc tcp/sunrpc"
 client_portmap_ports="500:65535"
+
+server_postgres_ports="tcp/5432"
+client_postgres_ports="default"
 
 # Privacy Proxy
 server_privoxy_ports="tcp/8118"
@@ -3497,7 +3500,7 @@ case "${arg}" in
 		else
 		
 		${CAT_CMD} <<"EOF"
-$Id: firehol.sh,v 1.142 2003/07/20 21:50:29 ktsaou Exp $
+$Id: firehol.sh,v 1.143 2003/07/20 21:52:41 ktsaou Exp $
 (C) Copyright 2003, Costa Tsaousis <costa@tsaousis.gr>
 FireHOL is distributed under GPL.
 
@@ -3683,7 +3686,7 @@ then
 	
 	${CAT_CMD} <<"EOF"
 
-$Id: firehol.sh,v 1.142 2003/07/20 21:50:29 ktsaou Exp $
+$Id: firehol.sh,v 1.143 2003/07/20 21:52:41 ktsaou Exp $
 (C) Copyright 2003, Costa Tsaousis <costa@tsaousis.gr>
 FireHOL is distributed under GPL.
 Home Page: http://firehol.sourceforge.net
@@ -3978,7 +3981,7 @@ then
 	
 	${CAT_CMD} >&2 <<"EOF"
 
-$Id: firehol.sh,v 1.142 2003/07/20 21:50:29 ktsaou Exp $
+$Id: firehol.sh,v 1.143 2003/07/20 21:52:41 ktsaou Exp $
 (C) Copyright 2003, Costa Tsaousis <costa@tsaousis.gr>
 FireHOL is distributed under GPL.
 Home Page: http://firehol.sourceforge.net
@@ -4071,7 +4074,7 @@ EOF
 	echo "# "
 
 	${CAT_CMD} <<"EOF"
-# $Id: firehol.sh,v 1.142 2003/07/20 21:50:29 ktsaou Exp $
+# $Id: firehol.sh,v 1.143 2003/07/20 21:52:41 ktsaou Exp $
 # (C) Copyright 2003, Costa Tsaousis <costa@tsaousis.gr>
 # FireHOL is distributed under GPL.
 # Home Page: http://firehol.sourceforge.net
