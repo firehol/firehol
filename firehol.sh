@@ -10,7 +10,7 @@
 #
 # config: /etc/firehol.conf
 #
-# $Id: firehol.sh,v 1.80 2003/01/22 21:14:21 ktsaou Exp $
+# $Id: firehol.sh,v 1.81 2003/01/25 00:37:37 ktsaou Exp $
 #
 
 
@@ -995,12 +995,17 @@ nat() {
 			;;
 		
 		to-destination)
-			create_chain nat "nat.${nat_count}" PREROUTING "$@" outface any || return 1
+			create_chain nat "nat.${nat_count}" PREROUTING noowner "$@" outface any || return 1
 			local action=dnat
 			;;
-		
+			
+		redirect-to)
+			create_chain nat "nat.${nat_count}" PREROUTING noowner "$@" outface any || return 1
+			local action=redirect
+			;;
+			
 		*)
-			error "$FUNCNAME requires a 'to-source' or 'to-destination' as its first argument. '${type}' is not understood."
+			error "$FUNCNAME requires a type (i.e. to-source, to-destination, redirect-to, etc) as its first argument. '${type}' is not understood."
 			return 1
 			;;
 	esac
@@ -1034,6 +1039,17 @@ dnat() {
 	test "${to}" = "to" && local to="${1}"; shift
 	
 	nat "to-destination" "${to}" "$@"
+}
+
+redirect() {
+        work_realcmd=($FUNCNAME "$@")
+	
+	set_work_function -ne "Initializing $FUNCNAME"
+	
+	local to="${1}"; shift
+	test "${to}" = "to" -o "${to}" = "to-port" && local to="${1}"; shift
+	
+	nat "redirect-to" "${to}" "$@"
 }
 
 # ------------------------------------------------------------------------------
@@ -1992,12 +2008,12 @@ rule() {
 						
 					redirect|REDIRECT)
 						action="REDIRECT"
-						if [ "${1}" = "to-port" ]
+						if [ "${1}" = "to-port" -o "${1}" = "to" ]
 						then
-							local -a action_param=("--to-port" "${2}")
+							local -a action_param=("--to-ports" "${2}")
 							shift 2
 						else
-							error "REDIRECT requires a 'to-port' argument."
+							error "REDIRECT requires a 'to-port' or 'to' argument."
 							return 1
 						fi
 						;;
@@ -3003,7 +3019,7 @@ case "${arg}" in
 		else
 		
 		cat <<"EOF"
-$Id: firehol.sh,v 1.80 2003/01/22 21:14:21 ktsaou Exp $
+$Id: firehol.sh,v 1.81 2003/01/25 00:37:37 ktsaou Exp $
 (C) Copyright 2002, Costa Tsaousis <costa@tsaousis.gr>
 FireHOL is distributed under GPL.
 
@@ -3171,7 +3187,7 @@ then
 	
 	cat <<"EOF"
 
-$Id: firehol.sh,v 1.80 2003/01/22 21:14:21 ktsaou Exp $
+$Id: firehol.sh,v 1.81 2003/01/25 00:37:37 ktsaou Exp $
 (C) Copyright 2002, Costa Tsaousis <costa@tsaousis.gr>
 FireHOL is distributed under GPL.
 Home Page: http://firehol.sourceforge.net
