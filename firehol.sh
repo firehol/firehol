@@ -10,7 +10,7 @@
 #
 # config: /etc/firehol.conf
 #
-# $Id: firehol.sh,v 1.95 2003/02/22 03:50:55 ktsaou Exp $
+# $Id: firehol.sh,v 1.96 2003/02/24 23:30:21 ktsaou Exp $
 #
 
 
@@ -3189,7 +3189,7 @@ case "${arg}" in
 		else
 		
 		cat <<"EOF"
-$Id: firehol.sh,v 1.95 2003/02/22 03:50:55 ktsaou Exp $
+$Id: firehol.sh,v 1.96 2003/02/24 23:30:21 ktsaou Exp $
 (C) Copyright 2002, Costa Tsaousis <costa@tsaousis.gr>
 FireHOL is distributed under GPL.
 
@@ -3360,7 +3360,7 @@ then
 	
 	cat <<"EOF"
 
-$Id: firehol.sh,v 1.95 2003/02/22 03:50:55 ktsaou Exp $
+$Id: firehol.sh,v 1.96 2003/02/24 23:30:21 ktsaou Exp $
 (C) Copyright 2002, Costa Tsaousis <costa@tsaousis.gr>
 FireHOL is distributed under GPL.
 Home Page: http://firehol.sourceforge.net
@@ -3580,7 +3580,7 @@ then
 	
 	cat >&2 <<"EOF"
 
-$Id: firehol.sh,v 1.95 2003/02/22 03:50:55 ktsaou Exp $
+$Id: firehol.sh,v 1.96 2003/02/24 23:30:21 ktsaou Exp $
 (C) Copyright 2002, Costa Tsaousis <costa@tsaousis.gr>
 FireHOL is distributed under GPL.
 Home Page: http://firehol.sourceforge.net
@@ -3621,13 +3621,13 @@ EOF
 	echo "# The TODOs bellow, are YOUR to-dos !!!"
 	echo
 	
-	interfaces=`/sbin/ifconfig | egrep "^[a-zA-Z]+[0-9]+" | cut -d ' ' -f 1`
+	interfaces=`/sbin/ip link show | egrep "^[0-9A-Za-z]+:" | cut -d ':' -f 2 | sed "s/^ //" | grep -v "^lo$"`
 	gateway=`/sbin/ip route | grep "^default" | sed "s/dev /dev:/g" | tr " " "\n" | grep "^dev:" | cut -d ':' -f 2`
 	
 	for iface in ${interfaces}
 	do
-		ip=`/sbin/ifconfig | grep -A 1 "^${iface}" | grep "inet addr:" | tr " " "\n" | grep "^addr:" | cut -d ':' -f 2`
-		mask=`/sbin/ifconfig | grep -A 1 "^${iface}" | grep "inet addr:" | tr " " "\n" | grep "^Mask:" | cut -d ':' -f 2`
+		ips=`/sbin/ip addr show dev ${iface} | sed "s/  / /g" | sed "s/  / /g" | sed "s/  / /g" | grep "^ inet " | cut -d ' ' -f 3 | cut -d '/' -f 1 | tr "\n" " "`
+		nets=`/sbin/ip route show | grep " dev ${iface} " | egrep "^[0-9\./]+ " | cut -d ' ' -f 1 | tr "\n" " "`
 		
 		internet=no
 		test "${iface}" = "${gateway}" && internet=yes
@@ -3635,39 +3635,23 @@ EOF
 		iface_src=
 		if [ $internet = yes ]
 		then
-			iface_src="src not \"\${UNROUTABLE_IPS}\""
-		elif [ ! "${mask}" = "255.255.255.255" ]
-		then
-			nip() {
-				local i=${1}
-				local m=${2}
-				
-				eval local df=$[256 - m]
-				eval local dv=$[i / df]
-				echo $[dv * df]
-			}
-			
-			ip1=`echo ${ip} | cut -d '.' -f 1`
-			ip2=`echo ${ip} | cut -d '.' -f 2`
-			ip3=`echo ${ip} | cut -d '.' -f 3`
-			ip4=`echo ${ip} | cut -d '.' -f 4`
-			m1=`echo ${mask} | cut -d '.' -f 1`
-			m2=`echo ${mask} | cut -d '.' -f 2`
-			m3=`echo ${mask} | cut -d '.' -f 3`
-			m4=`echo ${mask} | cut -d '.' -f 4`
-			
-			nip1=`nip ${ip1} ${m1}`
-			nip2=`nip ${ip2} ${m2}`
-			nip3=`nip ${ip3} ${m3}`
-			nip4=`nip ${ip4} ${m4}`
-			
-			iface_src="src \"${nip1}.${nip2}.${nip3}.${nip4}/${mask}\""
+			iface_src="not \"\${UNROUTABLE_IPS}\""
+		else
+			iface_src="\"${nets}\""
 		fi
 		
+		iface_dst="\"${ips}\""
+		
+		# prepare the routers variables
+		eval "interface_${iface}_ips='${iface_dst}'"
+		eval "interface_${iface}_nets='${iface_src}'"
+		
+		# output the interface
 		echo
 		echo "# TODO: Change \"${iface}_name\" to something with meaning to you."
-		echo "# TODO: Check or add optional rule parameters (src/dst)"
-		echo "interface ${iface} \"${iface}_name\" ${iface_src}"
+		echo "# TODO: Check the optional rule parameters (src/dst)."
+		echo "# TODO: Remove 'dst ${iface_dst}' if the IP(s) is dynamically assigned."
+		echo "interface ${iface} \"${iface}_name\" src ${iface_src} dst ${iface_dst}"
 		echo
 		echo "	# The default policy is DROP. You can be more polite with REJECT."
 		echo "	# Prefer to be polite on your own clients to prevent timeouts."
@@ -3681,27 +3665,30 @@ EOF
 		
 		(
 			ports=
-			for x in `netstat -an | egrep "^tcp" | grep "0.0.0.0:*" | egrep " (${ip}|0.0.0.0):[0-9]+" | cut -d ':' -f 2 | cut -d ' ' -f 1 | sort -n | uniq`
+			for ip in ${ips}
 			do
-				if [ -f "tcp/${x}" ]
-				then
-					echo "	`cat tcp/${x}` accept"
-				else
-					ports="${ports} tcp/${x}"
-				fi
+				for x in `netstat -an | egrep "^tcp" | grep "0.0.0.0:*" | egrep " (${ip}|0.0.0.0):[0-9]+" | cut -d ':' -f 2 | cut -d ' ' -f 1 | sort -n | uniq`
+				do
+					if [ -f "tcp/${x}" ]
+					then
+						echo "	`cat tcp/${x}` accept"
+					else
+						ports="${ports} tcp/${x}"
+					fi
+				done
+				
+				for x in `netstat -an | egrep "^udp" | grep "0.0.0.0:*" | egrep " (${ip}|0.0.0.0):[0-9]+" | cut -d ':' -f 2 | cut -d ' ' -f 1 | sort -n | uniq`
+				do
+					if [ -f "udp/${x}" ]
+					then
+						echo "	`cat udp/${x}` accept"
+					else
+						ports="${ports} udp/${x}"
+					fi
+				done
 			done
 			
-			for x in `netstat -an | egrep "^udp" | grep "0.0.0.0:*" | egrep " (${ip}|0.0.0.0):[0-9]+" | cut -d ':' -f 2 | cut -d ' ' -f 1 | sort -n | uniq`
-			do
-				if [ -f "udp/${x}" ]
-				then
-					echo "	`cat udp/${x}` accept"
-				else
-					ports="${ports} udp/${x}"
-				fi
-			done
-			
-			echo "${ports}" >unknown.ports
+			echo "${ports}" | tr " " "\n" | sort -n | uniq | tr "\n" " " >unknown.ports
 		) | sort | uniq
 		
 		echo
@@ -3723,19 +3710,22 @@ EOF
 		x=0
 		for inface in ${interfaces}
 		do
+			eval src="\${interface_${inface}_nets}"
+			
 			for outface in ${interfaces}	
 			do
 				test "${inface}" = "${outface}" && continue
 				
 				x=$[x + 1]
 				
-				echo
+				eval dst="\${interface_${outface}_nets}"
+				
 				echo
 				echo "# Router No ${x}."
 				echo "# Clients on ${inface} accessing servers on ${outface}."
-				echo "# TODO: Change router${x} to something with meaning to you."
-				echo "# TODO: Add src/dst to further narrow the traffic routed."
-				echo "router router${x} inface ${inface} outface ${outface}"
+				echo "# TODO: Change \"router${x}\" to something with meaning to you."
+				echo "# TODO: Check the optional rule parameters (src/dst)."
+				echo "router router${x} inface ${inface} outface ${outface} src ${src} dst ${dst}"
 				echo 
 				echo "	# If you don't trust the clients on ${inface}, or"
 				echo "	# if you want to protect the servers on ${outface}, add this."
