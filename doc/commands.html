@@ -677,15 +677,26 @@ multiple iptables statements to achieve both the logging and the action.
 </small>
 <p>
 
-	<a name="accept"><h3><b>accept</b></h3></a>
+	<a name="accept"><h3><b>accept</b> [with limit &lt;frequency&gt; &lt;burst&gt; [overflow &lt;action&gt;]]</h3></a>
 	<b>accept</b> allows the traffic matching the rules to reach its destination.
 	<p>
-	Example: <b>server smtp accept</b>, to allow SMTP requests and their replies to flow.
+	The optional parameter <b>with limit</b> offers control over the allowed frequency of NEW connections. <b>frequency</b> and <b>burst</b> have the same syntax of the <a href="#limit">limit</a>
+	optional rule parameter.
+	<p>
+	The overflow <b>action</b> offers control over the overflowed NEW connections. The default is to REJECT overflowed connections (not DROP them, since DROP produces timeouts
+	on the otherwise valid service clients). Also, the REJECT overflow action, will reject TCP connections with <b>tcp-reset</b> and all others with <b>icmp-host-unreachable</b>.
+	<p>
+	The overflowed NEW connection attempts will be logged with a <b>OVERFLOW</b> message, with the options the <a href="#loglimit">loglimit</a> parameter works.
+	<p>
+	Example 1: <b>server smtp accept</b>, to allow SMTP requests and their replies to flow.<br>
+	Example 2: <b>server smtp accept with limit 10/s 100</b>, to allow SMTP requests to come at 10/second max, with a burst of 100, and their replies to flow back.<br>
+	Example 3: <b>server smtp accept with limit 10/s 100 overflow drop</b>, to allow SMTP requests to come at 10/second max, with a burst of 100, and their replies to flow back. The overflow requests will be dropped.<br>
+	Example 4: <b>server smtp accept with limit 10/s 100 src "1.2.3.4 5.6.7.8"</b>, same as example 2, but the only valid clients are given as argument to <b>src</b>
 	<p>
 
 <hr noshade size=1 width="100%">
 
-	<a name="reject"><h3><b>reject</b> [with message]</h3></a>
+	<a name="reject"><h3><b>reject</b> [with &lt;message&gt;]</h3></a>
 	<b>reject</b> discards the matching traffic but sends a rejecting message back to the sender.
 	<p>
 	<b>with</b> is used to offer control on the message to be returned to the sender.
@@ -1400,7 +1411,7 @@ about optional rule parameters that should not be used in certain commands.
 <tr><td align=center valign=middle>
 	<A href="http://sourceforge.net"><IMG src="http://sourceforge.net/sflogo.php?group_id=58425&amp;type=5" width="210" height="62" border="0" alt="SourceForge Logo"></A>
 </td><td align=center valign=middle>
-	<small>$Id: commands.html,v 1.50 2004/07/29 22:31:15 ktsaou Exp $</small>
+	<small>$Id: commands.html,v 1.51 2004/09/14 21:36:31 ktsaou Exp $</small>
 	<p>
 	<b>FireHOL</b>, a firewall for humans...<br>
 	&copy; Copyright 2003
