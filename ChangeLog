@@ -1,7 +1,7 @@
 
 RCS file: /cvsroot/firehol/firehol/firehol.sh,v
 Working file: firehol.sh
-head: 1.91
+head: 1.112
 branch:
 locks: strict
 access list:
@@ -9,8 +9,127 @@ symbolic names:
 	start: 1.1.1.1
 	vendor: 1.1.1
 keyword substitution: kv
-total revisions: 92;	selected revisions: 92
+total revisions: 113;	selected revisions: 113
 description:
+----------------------------
+revision 1.112
+date: 2003/03/14 21:22:37;  author: ktsaou;  state: Exp;  lines: +6 -6
+The squid service has been defined with numeric port numbers because
+Debian systems have not this service defined.
+----------------------------
+revision 1.111
+date: 2003/03/14 20:59:07;  author: ktsaou;  state: Exp;  lines: +26 -7
+Command line argument 'panic' does not call the system's iptables script
+but blocks all traffic by itself, since many systems do not have the
+'panic' argument.
+----------------------------
+revision 1.110
+date: 2003/03/14 20:36:52;  author: ktsaou;  state: Exp;  lines: +30 -10
+Added FIREHOL_AUTOSAVE variable that controls the file that is saved with
+the 'save' argument of FireHOL. By default this variable is empty in which
+case FireHOL detects RedHat and Debian systems and saves it to the right
+place.
+----------------------------
+revision 1.109
+date: 2003/03/07 23:34:29;  author: ktsaou;  state: Exp;  lines: +7 -5
+'helpme' now allows ICMP traffic by default.
+----------------------------
+revision 1.108
+date: 2003/03/07 23:17:38;  author: ktsaou;  state: Exp;  lines: +15 -15
+Fixed double quoting in router statements produced by 'helpme'.
+----------------------------
+revision 1.107
+date: 2003/03/07 23:12:15;  author: ktsaou;  state: Exp;  lines: +15 -7
+'helpme' handles multiple networks in router statements.
+----------------------------
+revision 1.106
+date: 2003/03/07 23:01:31;  author: ktsaou;  state: Exp;  lines: +6 -6
+'helpme' mode does not require a configuration file present.
+----------------------------
+revision 1.105
+date: 2003/03/07 09:19:19;  author: ktsaou;  state: Exp;  lines: +6 -6
+Made it not ignore the default route in 'helpme' routers.
+----------------------------
+revision 1.104
+date: 2003/03/06 08:18:49;  author: ktsaou;  state: Exp;  lines: +17 -14
+Minor changes in 'helpme' generation.
+----------------------------
+revision 1.103
+date: 2003/03/05 22:06:51;  author: ktsaou;  state: Exp;  lines: +23 -14
+Made it ignore a default gateway when there was a P-t-P default gateways
+found.
+----------------------------
+revision 1.102
+date: 2003/03/05 18:23:57;  author: ktsaou;  state: Exp;  lines: +106 -72
+Made the 'helpme' feature append another interface for the default gateway.
+----------------------------
+revision 1.101
+date: 2003/03/05 00:33:56;  author: ktsaou;  state: Exp;  lines: +23 -10
+Minor changes in the default help page presented by FireHOL.
+----------------------------
+revision 1.100
+date: 2003/03/05 00:11:56;  author: ktsaou;  state: Exp;  lines: +232 -154
+Re-wrote 'helpme' to detect multiple IPs and networks per interfaces,
+and to produce multiple interfaces for each IP. This means that FireHOL
+is somewhat smart to match IPs with networks and interfaces, to detect
+networks behind gateways, default gateways on point-to-point interfaces,
+and to produce router statements matching the interfaces detected above.
+----------------------------
+revision 1.99
+date: 2003/03/03 21:51:04;  author: ktsaou;  state: Exp;  lines: +22 -10
+Made 'helpme' ignore interfaces that do not have an IP or no traffic is
+routed to them (no route).
+----------------------------
+revision 1.98
+date: 2003/02/26 22:26:16;  author: ktsaou;  state: Exp;  lines: +6 -6
+Minor changes in 'helpme' and changes in documentation to reflect the
+'helpme' feature addition.
+----------------------------
+revision 1.97
+date: 2003/02/25 21:35:06;  author: ktsaou;  state: Exp;  lines: +151 -61
+'helpme' now produces router statements for each network each interface
+is attached to. This produces templates to be used in cases where one
+interface is used for routing traffic between multiple networks.
+
+Additionally, 'helpme' produces example SNAT statements to be used instead
+of masquerade when the IPs of the interfaces are statically assigned.
+----------------------------
+revision 1.96
+date: 2003/02/24 23:30:21;  author: ktsaou;  state: Exp;  lines: +48 -58
+The helpme wizard now detects interfaces using:
+
+ip link show
+
+detects interface IPs using:
+
+ip addr show
+
+and detects interface networks using:
+
+ip route show
+
+This makes the 'helpme' wizard support any kind of interfaces,
+configurations and interfaces aliases.
+----------------------------
+revision 1.95
+date: 2003/02/22 03:50:55;  author: ktsaou;  state: Exp;  lines: +15 -7
+Minor changes to helpme output.
+----------------------------
+revision 1.94
+date: 2003/02/22 03:41:16;  author: ktsaou;  state: Exp;  lines: +203 -33
+The helpme command line argument is now somewhat useful.
+It produces a FireHOL configuration file in standard output.
+----------------------------
+revision 1.93
+date: 2003/02/21 23:47:22;  author: ktsaou;  state: Exp;  lines: +6 -5
+Added a modprobe ip_tables before iptables-save to make sure that the
+later will not fail during boot.
+----------------------------
+revision 1.92
+date: 2003/02/20 22:32:56;  author: ktsaou;  state: Exp;  lines: +126 -5
+Fixed snmptrap and syslog.
+
+Added the still 'under construction' wizard mode.
 ----------------------------
 revision 1.91
 date: 2003/02/18 20:42:20;  author: ktsaou;  state: Exp;  lines: +4 -4
