@@ -488,13 +488,14 @@ With our current firewall, such servers will have to timeout before accepting ou
 		policy reject
 		server "dns ftp samba squid dhcp http ssh icmp"	accept
 		client "samba icmp"				accept
-		
-		<font color="red">server ident reject</font>
 	
 	
 	interface ppp+ internet src not "${home_ips} ${UNROUTABLE_IPS}"
 		protection strong 10/sec 10
 		server "smtp http ftp"	accept
+		
+		<font color="red">server ident reject</font>
+		
 		client all		accept
 	
 	
@@ -526,14 +527,14 @@ The whole routing schema could be rewritten as:
 		server "dns ftp samba squid dhcp http ssh icmp"	accept
 		client "samba icmp"				accept
 		
-		server ident reject
-	
 	
 	interface ppp+ internet src not "${home_ips} ${UNROUTABLE_IPS}"
 		protection strong 10/sec 10
 		server "smtp http ftp"	accept
+		
+		server ident reject
+		
 		client all		accept
-	
 	
 	<font color="red">
 	router internet2home inface ppp+ outface eth0
@@ -545,8 +546,10 @@ The whole routing schema could be rewritten as:
 </td></tr>
 </table>
 </center>
-Now we have elimited the first router, but we defined everything in the second. We could use the first one to do everything, but
-then the client and server commands would be reversed (server all, client ident) which would be confusing.
+Now we have elimited the first router, but we defined everything in the second. We have used the <b>reverse</b> keyword in
+<a href="commands.html#masqurade">masqurade</a> to make it set up in <b>inface</b> this time.<p>
+We could use the first router (home2internet) to do everything, but then the client and server commands would need be reversed
+(server all, client ident) which would be confusing.
 
 <p>
 <hr noshade size=1>
@@ -554,7 +557,7 @@ then the client and server commands would be reversed (server all, client ident)
 <tr><td align=center valign=middle>
 	<A href="http://sourceforge.net"><IMG src="http://sourceforge.net/sflogo.php?group_id=58425&amp;type=5" width="210" height="62" border="0" alt="SourceForge Logo"></A>
 </td><td align=center valign=middle>
-	<small>$Id: tutorial.html,v 1.6 2002/12/16 18:00:34 ktsaou Exp $</small>
+	<small>$Id: tutorial.html,v 1.7 2002/12/21 20:10:44 ktsaou Exp $</small>
 	<p>
 	<b>FireHOL</b>, a firewall for humans...<br>
 	&copy; Copyright 2002
