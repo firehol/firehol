@@ -4,172 +4,16 @@
 #
 # chkconfig: 2345 99 92
 #
-# description: Automates a packet filtering firewall with iptables.
+# description: creates stateful iptables packet filtering firewalls.
 #
-# by costa@tsaousis.gr
+# by Costa Tsaousis <costa@tsaousis.gr>
 #
 # config: /etc/firehol.conf
 #
-# $Id: firehol.sh,v 1.32 2002/12/05 09:23:36 ktsaou Exp $
-#
-# $Log: firehol.sh,v $
-# Revision 1.32  2002/12/05 09:23:36  ktsaou
-# Added many new services.
-#
-# Revision 1.31  2002/12/05 09:03:37  ktsaou
-# The problem with line numbers on debian systems found to be an awk
-# alternative those systems use. Now FireHOL uses gawk instead of awk.
-#
-# Added service SUBMISSION (SMTP or SSL/TLS).
-#
-# Revision 1.30  2002/12/04 23:12:10  ktsaou
-# Fixed a problem where empty parameters to src, dst, etc where not giving
-# an error and where not producing any iptables statements.
-# This was happening because FireHOL relies on nested BASH loops, and bash
-# does not loop with empty iterations...
-#
-# Revision 1.29  2002/12/04 22:41:13  ktsaou
-# Re-wrote the negative expressions handling to archieve near hand-made
-# (i.e. optimum) quality of iptables firewall.
-# Now, instead of the linked-list that was created for negative expressions,
-# we match all positive expressions before the negatives and all the
-# negatives are together in one chain.
-# This also fixed possible performance problems due to the large number
-# of chains and rules that the packets had to traverse in order to get
-# matched (or not matched).
-#
-# The fact that now positive rules are matched before negatives has also the
-# benefit that not all traffic has to be matched against the negatives. Now,
-# first we select what might be good for a rule, and then we check if this
-# breaks the negative expressions.
-#
-# Last, this made the iptables firewall much more clear and human readable.
-#
-# Revision 1.28  2002/12/04 21:32:26  ktsaou
-# Fixed a bug that FireHOL was incorrectly choosing LOCAL_CLIENT_PORTS on
-# router configurations. This bug appeared when the router configurations
-# were made to accept normal server/client statements.
-#
-# Revision 1.27  2002/12/04 07:20:19  ktsaou
-# Error handler now works on protections too.
-#
-# Revision 1.26  2002/12/03 22:49:16  ktsaou
-# Changed the banner to be much more descriptive. It now also shows the
-# services FireHOL supports (removed the services parameter).
-#
-# Revision 1.25  2002/12/03 22:07:09  ktsaou
-# Fixed the usage banner to show the "services" parameter.
-#
-# Revision 1.24  2002/12/03 22:03:00  ktsaou
-# Another work around to fix the problem of LINENO not working in debian
-# systems.
-#
-# Added command line argument "services" which shows all the service
-# definitions firehol knows about.
-#
-# Revision 1.23  2002/12/02 17:48:41  ktsaou
-# Fixed a bug where some versions of BASH do not handle correctly cat >>"EOF".
-# They treat it as cat >>EOF and thus they do variable substitution on the
-# text.
-# Now, FireHOL uses cat >>EOF but the text has been escaped in order to avoid
-# variable substitution.
-#
-# The problem has been reported by Florian Thiel <thiel@ksan.de>.
-#
-# Revision 1.22  2002/12/02 00:01:24  ktsaou
-# Fixed parameter 'custom' processing. It is not an array now, but it is
-# treated specially to support BASH special characters such as !
-# Quoting things in parameters 'custom' needs tweaking still.
-#
-# Revision 1.21  2002/12/01 04:34:00  ktsaou
-# More quoting issues fixed. Changed the core to work with BASH arrays in
-# order to handle quoted arguments accurately.
-#
-# Fixed a bug in postprocessing error handler that did not present the
-# command line that produced the error.
-#
-# Revision 1.20  2002/11/30 22:53:55  ktsaou
-# Fixed various problems related to quoted arguments.
-# Fixed iptables generation to support quoted arguments.
-# Made chain names shorter.
-#
-# Every single element in the firehol config now gets its own chain.
-# Previously, the same services (e.g. smtp servers) were implemented using
-# only one pair of chains.
-#
-# Enhanced the error handler of logical and syntactical error. Now it says
-# were and why an error has occured.
-#
-# Revision 1.19  2002/11/30 14:33:33  ktsaou
-# As suggested by Florian Thiel <thiel@ksan.de>:
-# a. Fixed service IRC to work on TCP instead of UDP.
-# b. Added services: UUCP, VNC, WEBCACHE, IMAPS, IKE.
-#
-# Also fixed the home-router.conf example (it was outdated).
-#
-# Revision 1.18  2002/11/03 13:17:39  ktsaou
-# Minor aesthetic changes.
-#
-# Revision 1.17  2002/11/01 19:37:20  ktsaou
-# Added service: any
-# Any allows the administrator to define any stateful rule to match services
-# that cannot have source and destination ports, such as unusual protocols,
-# etc.
-#
-# Syntax: type any name action [optional rule parameters]
-#
-# type: server/client/route
-# name: the name for the service (used for the chain)
-# action: accept, reject, etc.
-#
-#
-# Added service: multicast
-# Multicast allows the administrator to match packets with destination
-# 224.0.0.0/8 in both directions (input/output).
-#
-# Revision 1.16  2002/10/31 15:31:52  ktsaou
-# Added command line parameter 'try' (in addition to 'start', 'stop', etc)
-# that when used it activates the firewall and waits 30 seconds for the
-# administrator to type 'commit' in order to keep the firewall active.
-# If the administrator does not write 'commit' or the timeout passes, FireHOL
-# restores the previous firewall.
-#
-# Also, if you break (Ctrl-C) FireHOL while activating the new firewall,
-# FireHOL will restore the old firewall.
-#
-# Revision 1.15  2002/10/30 23:25:07  ktsaou
-# Rearranged default RELATED rules to match after normal processing and
-# protections.
-# Made the core of FireHOL operate on multiple tables (not assuming the
-# rules refer to the 'filter' table). This will allow FireHOL to support
-# all kinds of NAT chains in the future.
-#
-# Revision 1.14  2002/10/29 22:20:41  ktsaou
-# Client and server keywords now work on routers too.
-# (The old 'route' subcommand is an alias for the 'server' subcommand -
-# within a router).
-# Protection can be reversed on routers to match outface instead of inface.
-# Masquerade can be used in interfaces, routers (matches outface - but can
-# be reverse(ed) to match inface) or as a primary command with all the
-# interfaces to be masqueraded in an argument.
-#
-# Revision 1.13  2002/10/28 19:47:02  ktsaou
-# Protection has been extented to work on routers too.
-# Made a few minor aesthetic changes on the generated code. Now in/out chains
-# on routers match the inface/outface correctly.
-#
-# Revision 1.12  2002/10/28 18:45:54  ktsaou
-# Added support for ICMP floods protection and from BAD TCP flags protection.
-# This was suggested by: Fco.Felix Belmonte (ffelix@gescosoft.com).
-#
-# Revision 1.11  2002/10/27 12:47:48  ktsaou
-# Added CVS versioning to all files.
-#
+# $Id: firehol.sh,v 1.33 2002/12/07 00:47:30 ktsaou Exp $
 #
 
 # ------------------------------------------------------------------------------
-# Copied from /etc/init.d/iptables
-
 # On non RedHat machines we need success() and failure()
 success() {
 	echo " OK"
@@ -177,6 +21,9 @@ success() {
 failure() {
 	echo " FAILED"
 }
+
+# ------------------------------------------------------------------------------
+# A small part bellow is copied from /etc/init.d/iptables
 
 # On RedHat systems this will define success() and failure()
 test -f /etc/init.d/functions && . /etc/init.d/functions
@@ -194,7 +41,6 @@ fi
 if [ "$KERNELMAJ" -eq 2 -a "$KERNELMIN" -lt 3 ] ; then
 	exit 0
 fi
-
 
 if  /sbin/lsmod 2>/dev/null | grep -q ipchains ; then
 	# Don't do both
@@ -220,20 +66,6 @@ me="${0}"
 arg="${1}"
 shift
 
-if [ ! -z "${arg}" -a -f "${arg}" ]
-then
-	FIREHOL_CONFIG="${arg}"
-	arg="try"
-fi
-
-if [ ! -f "${FIREHOL_CONFIG}" ]
-then
-	echo -n $"FireHOL config ${FIREHOL_CONFIG} not found:"
-	failure $"FireHOL config ${FIREHOL_CONFIG} not found:"
-	echo
-	exit 1
-fi
-
 case "${arg}" in
 	try)
 		FIREHOL_TRY=1
@@ -249,7 +81,7 @@ case "${arg}" in
 	
 	condrestart)
 		FIREHOL_TRY=0
-		if [ ! -e /var/lock/subsys/iptables ]
+		if [ ! -e /var/lock/subsys/firehol ]
 		then
 			exit 0
 		fi
@@ -275,9 +107,14 @@ case "${arg}" in
 		FIREHOL_DEBUG=1
 		;;
 	
-	*)
+	*)	if [ ! -z "${arg}" -a -f "${arg}" ]
+		then
+			FIREHOL_CONFIG="${arg}"
+			arg="try"
+		else
+		
 		cat <<"EOF"
-$Id: firehol.sh,v 1.32 2002/12/05 09:23:36 ktsaou Exp $
+$Id: firehol.sh,v 1.33 2002/12/07 00:47:30 ktsaou Exp $
 (C) Copyright 2002, Costa Tsaousis
 FireHOL is distributed under GPL.
 
@@ -396,8 +233,20 @@ Please subscribe (at the same page) to get notified of new releases.
 
 EOF
 		exit 1
+		
+		fi
 		;;
 esac
+
+
+if [ ! -f "${FIREHOL_CONFIG}" ]
+then
+	echo -n $"FireHOL config ${FIREHOL_CONFIG} not found:"
+	failure $"FireHOL config ${FIREHOL_CONFIG} not found:"
+	echo
+	exit 1
+fi
+
 
 
 # ------------------------------------------------------------------------------
@@ -2756,6 +2605,7 @@ fi
 rm -f "${FIREHOL_SAVED}"
 
 touch /var/lock/subsys/iptables
+touch /var/lock/subsys/firehol
 
 # XXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXX
 
