@@ -10,9 +10,14 @@
 #
 # config: /etc/firehol.conf
 #
-# $Id: firehol.sh,v 1.21 2002/12/01 04:34:00 ktsaou Exp $
+# $Id: firehol.sh,v 1.22 2002/12/02 00:01:24 ktsaou Exp $
 #
 # $Log: firehol.sh,v $
+# Revision 1.22  2002/12/02 00:01:24  ktsaou
+# Fixed parameter 'custom' processing. It is not an array now, but it is
+# treated specially to support BASH special characters such as !
+# Quoting things in parameters 'custom' needs tweaking still.
+#
 # Revision 1.21  2002/12/01 04:34:00  ktsaou
 # More quoting issues fixed. Changed the core to work with BASH arrays in
 # order to handle quoted arguments accurately.
@@ -1300,7 +1305,7 @@ rule() {
 	local swi=0
 	local swo=0
 	
-	unset custom
+	local custom=
 	
 	while [ ! -z "${1}" ]
 	do
@@ -1501,7 +1506,7 @@ rule() {
 				;;
 				
 			custom|CUSTOM)
-				local -a custom=(${2})
+				custom="${2}"
 				shift 2
 				;;
 				
@@ -1814,18 +1819,18 @@ rule() {
 									local -a iplimit_arg=("-m" "iplimit" "--iplimit-above" "${iplimit}" "--iplimit-mask" "${iplimit_mask}")
 								fi
 								
-								declare -a basecmd=("${table}" "-A" "${chain}" "${inf_arg[@]}" "${outf_arg[@]}" "${limit_arg[@]}" "${iplimit_arg[@]}" "${proto_arg[@]}" "${s_arg[@]}" "${sp_arg[@]}" "${d_arg[@]}" "${dp_arg[@]}" "${custom[@]}" "${state_arg[@]}")
+								declare -a basecmd=("${table}" "-A" "${chain}" "${inf_arg[@]}" "${outf_arg[@]}" "${limit_arg[@]}" "${iplimit_arg[@]}" "${proto_arg[@]}" "${s_arg[@]}" "${sp_arg[@]}" "${d_arg[@]}" "${dp_arg[@]}" "${state_arg[@]}")
 								
 								case "${log}" in
 									'')
 										;;
 									
 									limit)
-										iptables "${basecmd[@]}" -m limit --limit 1/second -j LOG ${FIREHOL_LOG_OPTIONS} --log-prefix="${logtxt}:"
+										iptables "${basecmd[@]}" ${custom} -m limit --limit 1/second -j LOG ${FIREHOL_LOG_OPTIONS} --log-prefix="${logtxt}:"
 										;;
 										
 									normal)
-										iptables "${basecmd[@]}" -j LOG ${FIREHOL_LOG_OPTIONS} --log-prefix="${logtxt}:"
+										iptables "${basecmd[@]}" ${custom} -j LOG ${FIREHOL_LOG_OPTIONS} --log-prefix="${logtxt}:"
 										;;
 										
 									*)
@@ -1835,7 +1840,7 @@ rule() {
 								
 								if [ ! "${action}" = NONE ]
 								then
-									iptables "${basecmd[@]}" -j "${action}"
+									iptables "${basecmd[@]}" ${custom} -j "${action}"
 									test $? -gt 0 && failed=$[failed + 1]
 								fi
 							done
