@@ -10,7 +10,7 @@
 #
 # config: /etc/firehol.conf
 #
-# $Id: firehol.sh,v 1.42 2002/12/13 19:56:11 ktsaou Exp $
+# $Id: firehol.sh,v 1.43 2002/12/13 21:52:19 ktsaou Exp $
 #
 
 # ------------------------------------------------------------------------------
@@ -121,7 +121,7 @@ case "${arg}" in
 		else
 		
 		cat <<"EOF"
-$Id: firehol.sh,v 1.42 2002/12/13 19:56:11 ktsaou Exp $
+$Id: firehol.sh,v 1.43 2002/12/13 21:52:19 ktsaou Exp $
 (C) Copyright 2002, Costa Tsaousis
 FireHOL is distributed under GPL.
 
@@ -419,8 +419,8 @@ client_dhcp_ports="bootpc"
 
 # DHCP Relaying (server is the relay server which behaves like a client
 # towards the real DHCP Server); I'm not sure about this one...
-#server_dhcprel_ports="udp/67"
-#client_dhcprel_ports="67"
+#server_dhcprelay_ports="udp/bootps"
+#client_dhcprelay_ports="bootps"
 
 server_echo_ports="tcp/echo"
 client_echo_ports="default"
@@ -440,9 +440,6 @@ client_https_ports="default"
 
 server_ident_ports="tcp/auth"
 client_ident_ports="default"
-
-server_ike_ports="udp/500"
-client_ike_ports="default"
 
 server_imap_ports="tcp/imap"
 client_imap_ports="default"
@@ -1968,20 +1965,14 @@ postprocess() {
 	local tmp=" >${FIREHOL_OUTPUT}.log 2>&1"
 	test ${FIREHOL_DEBUG} -eq 1 && local tmp=
 	
-#	echo "$@" " $tmp # L:${FIREHOL_LINEID}" >>${FIREHOL_OUTPUT}
-	
-#	local cmd="``"
-#	while [ ! -z "${1}" ]; do cmd="${cmd} '${1}'"; shift; done
-#	printf "%s" "${cmd}" >>${FIREHOL_OUTPUT}
-	
 	printf "%q " "$@" >>${FIREHOL_OUTPUT}
 	echo " $tmp # L:${FIREHOL_LINEID}" >>${FIREHOL_OUTPUT}
 	
 	if [ ${FIREHOL_DEBUG} -eq 0 ]
 	then
-		printf "check_final_status \$? '" >>${FIREHOL_OUTPUT}
+		printf "check_final_status \$? ${FIREHOL_LINEID} " >>${FIREHOL_OUTPUT}
 		printf "%q " "$@" >>${FIREHOL_OUTPUT}
-		echo "' ${FIREHOL_LINEID}" >>${FIREHOL_OUTPUT}
+		printf "\n" >>${FIREHOL_OUTPUT}
 	fi
 	
 	return 0
@@ -1996,13 +1987,18 @@ iptables() {
 check_final_status() {
 	if [ ${1} -gt 0 ]
 	then
+		shift
+		local line="${1}"; shift
+		
 		work_final_status=$[work_final_status + 1]
 		echo >&2
 		echo >&2 "--------------------------------------------------------------------------------"
 		echo >&2 "ERROR #: ${work_final_status}."
 		echo >&2 "WHAT   : A runtime command failed to execute."
-		echo >&2 "SOURCE : line ${3} of ${FIREHOL_CONFIG}"
-		echo >&2 "COMMAND: ${2}"
+		echo >&2 "SOURCE : line ${line} of ${FIREHOL_CONFIG}"
+		printf >&2 "COMMAND: "
+		printf >&2 "%q " "$@"
+		printf >&2 "\n"
 		echo >&2 "OUTPUT : (of the failed command)"
 		cat ${FIREHOL_OUTPUT}.log
 		echo >&2
