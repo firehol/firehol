@@ -189,6 +189,8 @@ Please note that the <a href=\"http://www.emule-project.com\">eMule</a> client i
 server_ftp_ports="many"
 client_ftp_ports="many"
 service_ftp_type="complex"
+require_ftp_modules="ip_conntrack_ftp"
+require_ftp_nat_modules="ip_nat_ftp"
 service_ftp_notes="
 The FTP service matches both active and passive FTP connections by utilizing the FTP connection tracker kernel module.
 "
@@ -196,6 +198,8 @@ The FTP service matches both active and passive FTP connections by utilizing the
 server_tftp_ports="many"
 client_tftp_ports="many"
 service_tftp_type="complex"
+require_tftp_modules="ip_conntrack_tftp"
+require_tftp_nat_modules="ip_nat_tftp"
 service_tftp_notes="
 The TFTP service matches UDP TFTP connections by utilizing the TFTP connection tracker kernel module.
 "
@@ -410,6 +414,8 @@ print_service() {
 	type="${1}";	shift
 	sports="${1}";	shift
 	dports="${1}";	shift
+	mods="${1}";	shift
+	nmods="${1}";	shift
 	example="${1}";	shift
 	notes="${*}"
 	
@@ -422,7 +428,7 @@ cat <<EOF
 		<table cellspacing=0 cellpadding=2 border=0>
 		<tr>
 EOF
-	echo "<td align=right valign=top nowrap><small><font color="gray">Server Ports</td><td>"
+	echo "<td align=right valign=top nowrap><small><font color="gray">Server Ports</td><td>&nbsp;"
 	c=0
 	for x in ${sports}
 	do
@@ -435,7 +441,7 @@ EOF
 		c=$[c + 1]
 	done
 	
-	echo "</td></tr><tr><td align=right valign=top nowrap><small><font color="gray">Client Ports</td><td>"
+	echo "</td></tr><tr><td align=right valign=top nowrap><small><font color="gray">Client Ports</td><td>&nbsp;"
 	c=0
 	for x in ${dports}
 	do
@@ -445,6 +451,32 @@ EOF
 		fi
 		
 		echo "<b>${x}</b>"
+		c=$[c + 1]
+	done
+	
+	echo "</td></tr><tr><td align=right valign=top nowrap><small><font color="gray">Netfilter Modules</td><td>&nbsp;"
+	c=0
+	for x in ${mods}
+	do
+		if [ $c -ne 0 ]
+		then
+			echo ", "
+		fi
+		
+		echo "<font color=red><b>${x}</b></font> (CONFIG_IP_NF_`echo ${x} | cut -d '_' -f 3- | tr [a-z] [A-Z]`)"
+		c=$[c + 1]
+	done
+	
+	echo "</td></tr><tr><td align=right valign=top nowrap><small><font color="gray">Netfilter NAT Modules</td><td>&nbsp;"
+	c=0
+	for x in ${nmods}
+	do
+		if [ $c -ne 0 ]
+		then
+			echo ", "
+		fi
+		
+		echo "<font color=red><b>${x}</b></font> (CONFIG_IP_NF_NAT_`echo ${x} | cut -d '_' -f 3- | tr [a-z] [A-Z]`)"
 		c=$[c + 1]
 	done
 	
@@ -469,6 +501,12 @@ smart_print_service() {
 	local client_varname="client_${server}_ports"
 	local client_ports="`eval echo \\\$${client_varname}`"
 	
+	local mods_varname="require_${server}_modules"
+	local require_modules="`eval echo \\\$${mods_varname}`"
+	
+	local mods_nat_varname="require_${server}_nat_modules"
+	local require_nat_modules="`eval echo \\\$${mods_nat_varname}`"
+	
 	local notes_varname="service_${server}_notes"
 	local notes="`eval echo \\\$${notes_varname}`"
 	
@@ -488,7 +526,7 @@ smart_print_service() {
 		local example="server ${server} accept"
 	fi
 	
-	print_service "${server}" "${type}" "${server_ports}" "${client_ports}" "${example}" "${notes}"
+	print_service "${server}" "${type}" "${server_ports}" "${client_ports}" "${require_modules}" "${require_nat_modules}" "${example}" "${notes}"
 }
 
 
@@ -504,6 +542,9 @@ cat "../firehol.sh"			|\
 
 cat "../firehol.sh"			|\
 	grep -e "^service_.*_notes=" >>"${tmp}"
+
+cat "../firehol.sh"			|\
+	grep -e "^require_.*_modules=" >>"${tmp}"
 
 . "${tmp}"
 rm -f "${tmp}"
@@ -729,7 +770,7 @@ cat <<"EOF"
 <tr><td align=center valign=middle>
 	<A href="http://sourceforge.net"><IMG src="http://sourceforge.net/sflogo.php?group_id=58425&amp;type=5" width="210" height="62" border="0" alt="SourceForge Logo"></A>
 </td><td align=center valign=middle>
-	<small>$Id: create_services.sh,v 1.41 2003/10/18 09:40:45 ktsaou Exp $</small>
+	<small>$Id: create_services.sh,v 1.42 2003/12/03 22:25:30 ktsaou Exp $</small>
 	<p>
 	<b>FireHOL</b>, a firewall for humans...<br>
 	&copy; Copyright 2003
