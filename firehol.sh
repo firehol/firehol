@@ -10,7 +10,7 @@
 #
 # config: /etc/firehol/firehol.conf
 #
-# $Id: firehol.sh,v 1.217 2004/12/03 21:29:41 ktsaou Exp $
+# $Id: firehol.sh,v 1.218 2004/12/21 21:49:11 ktsaou Exp $
 #
 
 # Remember who you are.
@@ -1764,42 +1764,48 @@ masquerade() {
 	return 0
 }
 
-# helper transparent_squid <squid_port> <squid_user>
-transparent_squid_count=0
-transparent_squid() {
+transparent_proxy_count=0
+transparent_proxy() {
 	work_realcmd_helper $FUNCNAME "$@"
 	
 	set_work_function -ne "Initializing $FUNCNAME"
 	
 	require_work clear || ( error "$FUNCNAME cannot be used in '${work_cmd}'. Put it before any '${work_cmd}' definition."; return 1 )
 	
+	local ports="${1}"; shift
 	local redirect="${1}"; shift
 	local user="${1}"; shift
 	
-	test -z "${redirect}" && error "Squid port number is empty" && return 1
+	test -z "${redirect}" && error "Proxy listening port is empty" && return 1
 	
-	transparent_squid_count=$[transparent_squid_count + 1]
+	transparent_proxy_count=$[transparent_proxy_count + 1]
 	
-	set_work_function "Setting up rules for catching routed web traffic"
+	set_work_function "Setting up rules for catching routed tcp/${ports} traffic"
 	
-	create_chain nat "in_trsquid.${transparent_squid_count}" PREROUTING noowner "$@" outface any proto tcp sport "${DEFAULT_CLIENT_PORTS}" dport http || return 1
-	rule table nat chain "in_trsquid.${transparent_squid_count}" proto tcp dport http action REDIRECT to-port ${redirect} || return 1
+	create_chain nat "in_trproxy.${transparent_proxy_count}" PREROUTING noowner "$@" outface any proto tcp sport "${DEFAULT_CLIENT_PORTS}" dport "${ports}" || return 1
+#	rule table nat chain "in_trproxy.${transparent_proxy_count}" proto tcp dport "${ports}" action REDIRECT to-port ${redirect} || return 1
+	rule table nat chain "in_trproxy.${transparent_proxy_count}" proto tcp action REDIRECT to-port ${redirect} || return 1
 	
 	if [ ! -z "${user}" ]
 	then
-		set_work_function "Setting up rules for catching outgoing web traffic"
-		create_chain nat "out_trsquid.${transparent_squid_count}" OUTPUT "$@" uid not "${user}" nosoftwarnings inface any outface any src any proto tcp sport "${LOCAL_CLIENT_PORTS}" dport http || return 1
+		set_work_function "Setting up rules for catching outgoing tcp/${ports} traffic"
+		create_chain nat "out_trproxy.${transparent_proxy_count}" OUTPUT "$@" uid not "${user}" nosoftwarnings inface any outface any src any proto tcp sport "${LOCAL_CLIENT_PORTS}" dport "${ports}" || return 1
 		
-		# do not cache traffic for localhost web servers
-		rule table nat chain "out_trsquid.${transparent_squid_count}" dst "127.0.0.1" action RETURN || return 1
+		# do not catch traffic for localhost servers
+		rule table nat chain "out_trproxy.${transparent_proxy_count}" dst "127.0.0.1" action RETURN || return 1
 		
-		rule table nat chain "out_trsquid.${transparent_squid_count}" proto tcp dport http action REDIRECT to-port ${redirect} || return 1
+#		rule table nat chain "out_trproxy.${transparent_proxy_count}" proto tcp dport "${ports}" action REDIRECT to-port ${redirect} || return 1
+		rule table nat chain "out_trproxy.${transparent_proxy_count}" proto tcp action REDIRECT to-port ${redirect} || return 1
 	fi
 	
 	FIREHOL_NAT=1
 	FIREHOL_ROUTING=1
 	
 	return 0
+}
+
+transparent_squid() {
+	transparent_proxy 80 "$@"
 }
 
 nat_count=0
@@ -5032,7 +5038,7 @@ case "${arg}" in
 		else
 		
 		${CAT_CMD} <<EOF
-$Id: firehol.sh,v 1.217 2004/12/03 21:29:41 ktsaou Exp $
+$Id: firehol.sh,v 1.218 2004/12/21 21:49:11 ktsaou Exp $
 (C) Copyright 2003, Costa Tsaousis <costa@tsaousis.gr>
 FireHOL is distributed under GPL.
 
@@ -5218,7 +5224,7 @@ then
 	
 	${CAT_CMD} <<EOF
 
-$Id: firehol.sh,v 1.217 2004/12/03 21:29:41 ktsaou Exp $
+$Id: firehol.sh,v 1.218 2004/12/21 21:49:11 ktsaou Exp $
 (C) Copyright 2003, Costa Tsaousis <costa@tsaousis.gr>
 FireHOL is distributed under GPL.
 Home Page: http://firehol.sourceforge.net
@@ -5512,7 +5518,7 @@ then
 	
 	${CAT_CMD} >&2 <<EOF
 
-$Id: firehol.sh,v 1.217 2004/12/03 21:29:41 ktsaou Exp $
+$Id: firehol.sh,v 1.218 2004/12/21 21:49:11 ktsaou Exp $
 (C) Copyright 2003, Costa Tsaousis <costa@tsaousis.gr>
 FireHOL is distributed under GPL.
 Home Page: http://firehol.sourceforge.net
@@ -5595,7 +5601,7 @@ EOF
 	echo "# "
 
 	${CAT_CMD} <<EOF
-# $Id: firehol.sh,v 1.217 2004/12/03 21:29:41 ktsaou Exp $
+# $Id: firehol.sh,v 1.218 2004/12/21 21:49:11 ktsaou Exp $
 # (C) Copyright 2003, Costa Tsaousis <costa@tsaousis.gr>
 # FireHOL is distributed under GPL.
 # Home Page: http://firehol.sourceforge.net
