@@ -10,7 +10,7 @@
 #
 # config: /etc/firehol/firehol.conf
 #
-# $Id: firehol.sh,v 1.212 2004/10/31 02:21:02 ktsaou Exp $
+# $Id: firehol.sh,v 1.213 2004/10/31 03:17:00 ktsaou Exp $
 #
 
 # Remember who you are.
@@ -3353,7 +3353,7 @@ rule() {
 				
 				if [ "${dscp}" = "class" ]
 				then
-					dscpclass="-class"
+					dscptype="-class"
 					dscp="${1}"
 					shift
 				fi
@@ -4948,7 +4948,7 @@ case "${arg}" in
 		else
 		
 		${CAT_CMD} <<EOF
-$Id: firehol.sh,v 1.212 2004/10/31 02:21:02 ktsaou Exp $
+$Id: firehol.sh,v 1.213 2004/10/31 03:17:00 ktsaou Exp $
 (C) Copyright 2003, Costa Tsaousis <costa@tsaousis.gr>
 FireHOL is distributed under GPL.
 
@@ -5134,7 +5134,7 @@ then
 	
 	${CAT_CMD} <<EOF
 
-$Id: firehol.sh,v 1.212 2004/10/31 02:21:02 ktsaou Exp $
+$Id: firehol.sh,v 1.213 2004/10/31 03:17:00 ktsaou Exp $
 (C) Copyright 2003, Costa Tsaousis <costa@tsaousis.gr>
 FireHOL is distributed under GPL.
 Home Page: http://firehol.sourceforge.net
@@ -5428,7 +5428,7 @@ then
 	
 	${CAT_CMD} >&2 <<EOF
 
-$Id: firehol.sh,v 1.212 2004/10/31 02:21:02 ktsaou Exp $
+$Id: firehol.sh,v 1.213 2004/10/31 03:17:00 ktsaou Exp $
 (C) Copyright 2003, Costa Tsaousis <costa@tsaousis.gr>
 FireHOL is distributed under GPL.
 Home Page: http://firehol.sourceforge.net
@@ -5511,7 +5511,7 @@ EOF
 	echo "# "
 
 	${CAT_CMD} <<EOF
-# $Id: firehol.sh,v 1.212 2004/10/31 02:21:02 ktsaou Exp $
+# $Id: firehol.sh,v 1.213 2004/10/31 03:17:00 ktsaou Exp $
 # (C) Copyright 2003, Costa Tsaousis <costa@tsaousis.gr>
 # FireHOL is distributed under GPL.
 # Home Page: http://firehol.sourceforge.net
@@ -6025,6 +6025,7 @@ ${CAT_CMD} >"${FIREHOL_TMP}.awk" <<"EOF"
 /^[[:space:]]*blacklist[[:space:]]/ { printf "FIREHOL_LINEID=${LINENO} " }
 /^[[:space:]]*client[[:space:]]/ { printf "FIREHOL_LINEID=${LINENO} " }
 /^[[:space:]]*dnat[[:space:]]/ { printf "FIREHOL_LINEID=${LINENO} " }
+/^[[:space:]]*dscp[[:space:]]/ { printf "FIREHOL_LINEID=${LINENO} " }
 /^[[:space:]]*interface[[:space:]]/ { printf "FIREHOL_LINEID=${LINENO} " }
 /^[[:space:]]*iptables[[:space:]]/ { printf "FIREHOL_LINEID=${LINENO} " }
 /^[[:space:]]*mac[[:space:]]/ { printf "FIREHOL_LINEID=${LINENO} " }
@@ -6039,6 +6040,8 @@ ${CAT_CMD} >"${FIREHOL_TMP}.awk" <<"EOF"
 /^[[:space:]]*route[[:space:]]/ { printf "FIREHOL_LINEID=${LINENO} " }
 /^[[:space:]]*server[[:space:]]/ { printf "FIREHOL_LINEID=${LINENO} " }
 /^[[:space:]]*snat[[:space:]]/ { printf "FIREHOL_LINEID=${LINENO} " }
+/^[[:space:]]*tcpmss[[:space:]]/ { printf "FIREHOL_LINEID=${LINENO} " }
+/^[[:space:]]*tos[[:space:]]/ { printf "FIREHOL_LINEID=${LINENO} " }
 /^[[:space:]]*transparent_squid[[:space:]]/ { printf "FIREHOL_LINEID=${LINENO} " }
 { print }
 EOF
