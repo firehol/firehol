@@ -10,9 +10,13 @@
 #
 # config: /etc/firehol.conf
 #
-# $Id: firehol.sh,v 1.25 2002/12/03 22:07:09 ktsaou Exp $
+# $Id: firehol.sh,v 1.26 2002/12/03 22:49:16 ktsaou Exp $
 #
 # $Log: firehol.sh,v $
+# Revision 1.26  2002/12/03 22:49:16  ktsaou
+# Changed the banner to be much more descriptive. It now also shows the
+# services FireHOL supports (removed the services parameter).
+#
 # Revision 1.25  2002/12/03 22:07:09  ktsaou
 # Fixed the usage banner to show the "services" parameter.
 #
@@ -211,6 +215,16 @@ case "${arg}" in
 		fi
 		;;
 	
+	status)
+		/sbin/iptables -nxvL | less
+		exit $?
+		;;
+	
+	panic)
+		/etc/init.d/iptables panic
+		exit $?
+		;;
+	
 	save)
 		FIREHOL_TRY=0
 		FIREHOL_SAVE=1
@@ -221,13 +235,57 @@ case "${arg}" in
 		FIREHOL_DEBUG=1
 		;;
 	
-	services)
+	*)
 		cat <<"EOF"
-$Id: firehol.sh,v 1.25 2002/12/03 22:07:09 ktsaou Exp $
+$Id: firehol.sh,v 1.26 2002/12/03 22:49:16 ktsaou Exp $
 (C) Copyright 2002, Costa Tsaousis
+FireHOL is distributed under GPL.
+
+FireHOL supports the following command line arguments (only one of them):
+
+	start		to activate the firewall configuration.
+			The configuration is expected to be found in
+			/etc/firehol.conf
+			
+	try		to activate the firewall, but wait until
+			the user types the word "commit". If this word
+			is not typed within 30 seconds, the previous
+			firewall is restored.
+			
+	stop		to stop a running iptables firewall.
+			This will allow all traffic to pass unchecked.
+		
+	restart		this is an alias for start and is given for
+			compatibility with /etc/init.d/iptables.
+			
+	condrestart	will start the firewall only if it is not
+			already active. It does not detect a modified
+			configuration file.
+	
+	status		will show the running firewall, as in:
+			/sbin/iptables -nxvL | less
+			
+	panic		will execute "/etc/init.d/iptables panic"
+	
+	save		to start the firewall and then save it using:
+			/etc/init.d/iptables save
+			
+			Note that not all firewalls will work if
+			restored with:
+			/etc/init.d/iptables start
+			
+	debug		to parse the configuration file but instead of
+			activating it, to show the generated iptables
+			statements.
+			
+	<a filename>	to "try" a different configuration file.
+
+
+-------------------------------------------------------------------------
 
 FireHOL supports the following services (sorted by name):
 EOF
+
 
 		(
 			# The simple services
@@ -241,7 +299,7 @@ EOF
 			cat "${me}"				|\
 				grep -e "^rules_.*()"		|\
 				cut -d '(' -f 1			|\
-				sed "s/^rules_//"
+				sed "s/^rules_/(*) /"
 		) | sort | uniq |\
 		(
 			x=0
@@ -253,11 +311,16 @@ EOF
 					printf "\n"
 					x=1
 				fi
-				printf "% 17s" "$REPLY"
+				printf "% 16s |" "$REPLY"
 			done
 			printf "\n\n"
 		)
+		
 		cat <<EOF
+
+Services marked with (*) are "smart" or complex services.
+All the others are simple single socket services.
+
 Please note that the service:
 	
 	all	matches all packets, all protocols, all of everything,
@@ -283,22 +346,15 @@ Please note that the service:
 		cport is the client port. For example, IMAP4 is:
 		
 		server custom imap tcp/143 default accept
-	
+
+
+For more information about FireHOL, please refer to:
+
+		http://firehol.sourceforge.net
+
+
 EOF
-		exit 0
-		;;
-	
-	*)
-		echo >&2 "FireHOL: Calling the iptables service..."
-		/etc/init.d/iptables "${arg}"
-		ret=$?
-		if [ $ret -gt 0 ]
-		then
-			echo >&2 "FireHOL: use also 'debug' to see the generated iptables statements."
-			echo >&2 "FireHOL: use also 'try' to test the configuration before using it."
-			echo >&2 "FireHOL: use also 'services' to see a list of supported services."
-		fi
-		exit $ret
+		exit 1
 		;;
 esac
 
