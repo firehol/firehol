@@ -1,7 +1,7 @@
 
 RCS file: /cvsroot/firehol/firehol/firehol.sh,v
 Working file: firehol.sh
-head: 1.223
+head: 1.226
 branch:
 locks: strict
 access list:
@@ -9,8 +9,22 @@ symbolic names:
 	start: 1.1.1.1
 	vendor: 1.1.1
 keyword substitution: kv
-total revisions: 224;	selected revisions: 224
+total revisions: 227;	selected revisions: 227
 description:
+----------------------------
+revision 1.226
+date: 2005/01/25 21:28:19;  author: ktsaou;  state: Exp;  lines: +10 -10
+Remove -p from mkdir commands, in order for them to fail if the directory
+to be created already exists.
+----------------------------
+revision 1.225
+date: 2005/01/25 21:07:01;  author: ktsaou;  state: Exp;  lines: +12 -12
+Made sure that no files are created anywhere except the firehol temp dir.
+Made the firehol temp dir use the $RANDOM variable to randomize its name.
+----------------------------
+revision 1.224
+date: 2005/01/24 22:24:48;  author: ktsaou;  state: Exp;  lines: +8 -8
+Fixed service pptp to control GRE traffic in a stateless way.
 ----------------------------
 revision 1.223
 date: 2005/01/24 21:23:38;  author: ktsaou;  state: Exp;  lines: +145 -103
