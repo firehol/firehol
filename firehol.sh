@@ -10,7 +10,7 @@
 #
 # config: /etc/firehol/firehol.conf
 #
-# $Id: firehol.sh,v 1.229 2005/02/17 23:45:02 ktsaou Exp $
+# $Id: firehol.sh,v 1.230 2005/03/01 19:52:56 ktsaou Exp $
 #
 
 # Make sure only root can run us.
@@ -171,7 +171,7 @@ ${RENICE_CMD} 10 $$ >/dev/null 2>/dev/null
 # Find our minor version
 firehol_minor_version() {
 ${CAT_CMD} <<"EOF" | ${CUT_CMD} -d ' ' -f 3 | ${CUT_CMD} -d '.' -f 2
-$Id: firehol.sh,v 1.229 2005/02/17 23:45:02 ktsaou Exp $
+$Id: firehol.sh,v 1.230 2005/03/01 19:52:56 ktsaou Exp $
 EOF
 }
 
@@ -246,6 +246,7 @@ firehol_exit() {
 
 # Run our exit even if we don't call exit.
 trap firehol_exit EXIT
+trap firehol_exit SIGHUP
 
 
 # ------------------------------------------------------------------------------
@@ -5192,7 +5193,7 @@ case "${arg}" in
 		else
 		
 		${CAT_CMD} <<EOF
-$Id: firehol.sh,v 1.229 2005/02/17 23:45:02 ktsaou Exp $
+$Id: firehol.sh,v 1.230 2005/03/01 19:52:56 ktsaou Exp $
 (C) Copyright 2003, Costa Tsaousis <costa@tsaousis.gr>
 FireHOL is distributed under GPL.
 
@@ -5378,7 +5379,7 @@ then
 	
 	${CAT_CMD} <<EOF
 
-$Id: firehol.sh,v 1.229 2005/02/17 23:45:02 ktsaou Exp $
+$Id: firehol.sh,v 1.230 2005/03/01 19:52:56 ktsaou Exp $
 (C) Copyright 2003, Costa Tsaousis <costa@tsaousis.gr>
 FireHOL is distributed under GPL.
 Home Page: http://firehol.sourceforge.net
@@ -5679,7 +5680,7 @@ then
 	
 	"${CAT_CMD}" >&2 <<EOF
 
-$Id: firehol.sh,v 1.229 2005/02/17 23:45:02 ktsaou Exp $
+$Id: firehol.sh,v 1.230 2005/03/01 19:52:56 ktsaou Exp $
 (C) Copyright 2003, Costa Tsaousis <costa@tsaousis.gr>
 FireHOL is distributed under GPL.
 Home Page: http://firehol.sourceforge.net
@@ -5762,7 +5763,7 @@ EOF
 	echo "# "
 
 	${CAT_CMD} <<EOF
-# $Id: firehol.sh,v 1.229 2005/02/17 23:45:02 ktsaou Exp $
+# $Id: firehol.sh,v 1.230 2005/03/01 19:52:56 ktsaou Exp $
 # (C) Copyright 2003, Costa Tsaousis <costa@tsaousis.gr>
 # FireHOL is distributed under GPL.
 # Home Page: http://firehol.sourceforge.net
