@@ -9,6 +9,32 @@
 <table border=0 cellpadding=10 cellspacing=0 width="100%">
 <tr><td bgcolor="#EEEEEE"><b>What is FireHOL?</td></tr></table>
 <br>
+FireHOL is... firewalling made easy:
+<br>
+<center><table border=0 cellpadding=15 cellspacing=20 width="70%">
+<tr><td bgcolor="#F0F0F0">
+<b><pre>
+	<a href="commands.html#transparent_squid">transparent_squid</a> 8080 "squid root" <a href="commands.html#inface">inface</a> eth0
+	
+	<a href="commands.html#interface">interface</a> eth0 mylan
+		<a href="commands.html#policy">policy</a> accept
+	
+	<a href="commands.html#interface">interface</a> ppp+ internet
+		<a href="commands.html#server">server</a> <a href="services.html#smtp">smtp</a> accept
+		<a href="commands.html#server">server</a> <a href="services.html#http">http</a> accept
+		<a href="commands.html#server">server</a> <a href="services.html#ftp">ftp</a>  accept
+		<a href="commands.html#server">server</a> <a href="services.html#ssh">ssh</a>  accept <a href="commands.html#src">src</a> trusted.example.com
+		
+		<a href="commands.html#client">client</a> <a href="services.html#all">all</a>  accept
+		
+	<a href="commands.html#router">router</a> mylan2internet <a href="commands.html#inface">inface</a> eth0 <a href="commands.html#outface">outface</a> ppp+
+		<a href="commands.html#masquerade">masquerade</a>
+		<a href="commands.html#route">route</a> <a href="services.html#all">all</a>  accept
+</pre></b>
+</td></tr>
+</table>
+</center>
+
 FireHOL is an iptables firewall generator producing stateful iptables packet filtering firewalls, on Linux hosts and routers
 with any number of network interfaces, any number of routes, any number of services served, any number of complexity
 between variations of the services (including positive and negative expressions).
@@ -358,7 +384,7 @@ supports the following services:</p>
 <tr><td align=center valign=middle>
 	<A href="http://sourceforge.net"><IMG src="http://sourceforge.net/sflogo.php?group_id=58425&amp;type=5" width="210" height="62" border="0" alt="SourceForge Logo"></A>
 </td><td align=center valign=middle>
-	<small>$Id: overview.html,v 1.15 2003/01/02 00:27:59 ktsaou Exp $</small>
+	<small>$Id: overview.html,v 1.16 2003/01/27 23:34:24 ktsaou Exp $</small>
 	<p>
 	<b>FireHOL</b>, a firewall for humans...<br>
 	&copy; Copyright 2002
