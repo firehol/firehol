@@ -10,12 +10,20 @@
 #
 # config: /etc/firehol/firehol.conf
 #
-# $Id: firehol.sh,v 1.213 2004/10/31 03:17:00 ktsaou Exp $
+# $Id: firehol.sh,v 1.214 2004/11/01 00:13:00 ktsaou Exp $
 #
 
 # Remember who you are.
 FIREHOL_FILE="${0}"
 FIREHOL_DEFAULT_WORKING_DIRECTORY="${PWD}"
+
+# Find our minor version
+FIREHOL_MINOR_VERSION="`cat "${FIREHOL_FILE}" | grep "^# \\\$Id:" | head -n 1 | cut -d ' ' -f 4 | cut -d '.' -f 2`"
+expr ${FIREHOL_MINOR_VERSION} + 0 >/dev/null 2>&1
+if [ $? -ne 0 ]
+then
+	FIREHOL_MINOR_VERSION=214
+fi
 
 
 # ------------------------------------------------------------------------------
@@ -1578,12 +1586,24 @@ do
 	then
 		echo >&2 " >>> Ignoring service '${FIREHOL_CONFIG_DIR}/services/${f}' due to incompatible API version."
 	else
-		source ${f}
-		ret=$?
-		if [ ${ret} -ne 0 ]
+		n=`"${HEAD_CMD}" -n 1 "${f}" | "${CUT_CMD}" -d ':' -f 3`
+		"${EXPR_CMD}" ${n} + 0 >/dev/null 2>&1
+		if [ $? -ne 0 ]
 		then
-			echo >&2 " >>> Service in '${FIREHOL_CONFIG_DIR}/services/${f}' returned code ${ret}."
-			continue
+			echo >&2 " >>> Ignoring service in '${FIREHOL_CONFIG_DIR}/services/${f}' due to malformed API minor number."
+		else
+			if [ ${n} -gt ${FIREHOL_MINOR_VERSION} ]
+			then
+				echo >&2 " >>> Ignoring service in '${FIREHOL_CONFIG_DIR}/services/${f}' because the required MINOR version (${n}) is higher than the one provided by FireHOL (${FIREHOL_MINOR_VERSION})."
+			else
+				source ${f}
+				ret=$?
+				if [ ${ret} -ne 0 ]
+				then
+					echo >&2 " >>> Service in '${FIREHOL_CONFIG_DIR}/services/${f}' returned code ${ret}."
+					continue
+				fi
+			fi
 		fi
 	fi
 done
@@ -4948,7 +4968,7 @@ case "${arg}" in
 		else
 		
 		${CAT_CMD} <<EOF
-$Id: firehol.sh,v 1.213 2004/10/31 03:17:00 ktsaou Exp $
+$Id: firehol.sh,v 1.214 2004/11/01 00:13:00 ktsaou Exp $
 (C) Copyright 2003, Costa Tsaousis <costa@tsaousis.gr>
 FireHOL is distributed under GPL.
 
@@ -5134,7 +5154,7 @@ then
 	
 	${CAT_CMD} <<EOF
 
-$Id: firehol.sh,v 1.213 2004/10/31 03:17:00 ktsaou Exp $
+$Id: firehol.sh,v 1.214 2004/11/01 00:13:00 ktsaou Exp $
 (C) Copyright 2003, Costa Tsaousis <costa@tsaousis.gr>
 FireHOL is distributed under GPL.
 Home Page: http://firehol.sourceforge.net
@@ -5428,7 +5448,7 @@ then
 	
 	${CAT_CMD} >&2 <<EOF
 
-$Id: firehol.sh,v 1.213 2004/10/31 03:17:00 ktsaou Exp $
+$Id: firehol.sh,v 1.214 2004/11/01 00:13:00 ktsaou Exp $
 (C) Copyright 2003, Costa Tsaousis <costa@tsaousis.gr>
 FireHOL is distributed under GPL.
 Home Page: http://firehol.sourceforge.net
@@ -5511,7 +5531,7 @@ EOF
 	echo "# "
 
 	${CAT_CMD} <<EOF
-# $Id: firehol.sh,v 1.213 2004/10/31 03:17:00 ktsaou Exp $
+# $Id: firehol.sh,v 1.214 2004/11/01 00:13:00 ktsaou Exp $
 # (C) Copyright 2003, Costa Tsaousis <costa@tsaousis.gr>
 # FireHOL is distributed under GPL.
 # Home Page: http://firehol.sourceforge.net
