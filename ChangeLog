@@ -1,7 +1,7 @@
 
 RCS file: /cvsroot/firehol/firehol/firehol.sh,v
 Working file: firehol.sh
-head: 1.120
+head: 1.137
 branch:
 locks: strict
 access list:
@@ -9,8 +9,120 @@ symbolic names:
 	start: 1.1.1.1
 	vendor: 1.1.1
 keyword substitution: kv
-total revisions: 121;	selected revisions: 121
+total revisions: 138;	selected revisions: 138
 description:
+----------------------------
+revision 1.137
+date: 2003/06/28 23:22:49;  author: ktsaou;  state: Exp;  lines: +9 -7
+Aesthetic changes in mac helper.
+----------------------------
+revision 1.136
+date: 2003/06/28 21:26:20;  author: ktsaou;  state: Exp;  lines: +6 -6
+Updated service LPD according to RFCs, and now it accepts only ports
+721 to 731 inclusive, plus the default client ports.
+----------------------------
+revision 1.135
+date: 2003/06/28 20:52:09;  author: ktsaou;  state: Exp;  lines: +7 -7
+Reverted DEFAULT_CLIENT_PORTS to 1024+ (was 1000+)
+
+Made LPD client ports "any".
+----------------------------
+revision 1.134
+date: 2003/06/18 22:56:24;  author: ktsaou;  state: Exp;  lines: +120 -52
+Added the "mac" optional rule parameter, that matches the source mac
+address of packets.
+
+Added the "mac" helper that verifies that packets comming in from a
+specific source IP address, always come from a specific MAC address.
+This applies to the whole firewall (INPUT and FORWARD).
+----------------------------
+revision 1.133
+date: 2003/06/18 21:44:52;  author: ktsaou;  state: Exp;  lines: +19 -5
+Added FIREHOL_INPUT_ACTIVATION_POLICY, FIREHOL_OUTPUT_ACTIVATION_POLICY,
+and FIREHOL_FORWARD_ACTIVATION_POLICY to control the firewall default
+policy during firewall activation.
+----------------------------
+revision 1.132
+date: 2003/06/11 07:00:24;  author: ktsaou;  state: Exp;  lines: +7 -7
+Optimized RESERVED_IPS as suggested by Marc 'HE' Brockschmidt
+<marc@marcbrockschmidt.de>.
+----------------------------
+revision 1.131
+date: 2003/06/10 21:27:46;  author: ktsaou;  state: Exp;  lines: +11 -5
+Added MSN and DCPP services.
+----------------------------
+revision 1.130
+date: 2003/06/10 20:44:27;  author: ktsaou;  state: Exp;  lines: +7 -8
+Added man page for firehol.conf, contributed by
+"Marc 'HE' Brockschmidt" <marc@marcbrockschmidt.de>
+
+Thanks Marc.
+----------------------------
+revision 1.129
+date: 2003/05/22 19:39:53;  author: ktsaou;  state: Exp;  lines: +56 -29
+Made FireHOL mv /etc/firehol.conf to /etc/firehol/firehol.conf, if
+/etc/firehol (directory) does not exist.
+
+Also, made _CMD variables better detect wrong situations, such as
+multiple instanses of the same command, command not found, etc.
+----------------------------
+revision 1.128
+date: 2003/05/01 01:30:24;  author: ktsaou;  state: Exp;  lines: +9 -9
+Made default config in /etc/firehol/firehol.conf to comform with various
+distributions that prefer it this way (Gentoo).
+
+This will also allow to have services.d within this directory.
+----------------------------
+revision 1.127
+date: 2003/04/30 23:29:47;  author: ktsaou;  state: Exp;  lines: +9 -9
+
+"Marc 'HE' Brockschmidt" <marc@marcbrockschmidt.de> wrote:
+
+Today, I've tried to debianize firehol, but noticed a few problems
+(eg. the need for a force-reload-option for every init-script [you could
+realize it as an alias for restart]).
+I've corrected a few " !!!" (As a reader of Terry Pratchett, I had to
+kill them ;-)
+I'm attaching a patch for these issues.
+
+I've also created a manpage for FireHOL, and I'm working on the manpage
+for firehole.conf.
+
+---
+Thank you Marc.
+----------------------------
+revision 1.126
+date: 2003/04/24 08:15:08;  author: ktsaou;  state: Exp;  lines: +6 -6
+Fixed a 'touch' cmd to use the external command system.
+----------------------------
+revision 1.125
+date: 2003/04/24 08:12:51;  author: ktsaou;  state: Exp;  lines: +12 -5
+Made HELPME detect duplicate routers and prevent multiple definitions
+of them.
+----------------------------
+revision 1.124
+date: 2003/04/23 20:42:26;  author: ktsaou;  state: Exp;  lines: +18 -7
+Eliminated duplicate router definitions in HELPME, when an interface
+has multiple IPs on the same subnet.
+----------------------------
+revision 1.123
+date: 2003/04/20 10:18:10;  author: ktsaou;  state: Exp;  lines: +27 -7
+FireHOL now stops the firewall with its own logic (without calling
+/etc/init.d/iptables) since some distribution do not have this.
+----------------------------
+revision 1.122
+date: 2003/04/18 20:52:44;  author: ktsaou;  state: Exp;  lines: +48 -13
+Module management can now be controlled with FIREHOL_LOAD_KERNEL_MODULES.
+Default value is 1, it can be set to 0 to disable module management.
+
+Also, now FireHOL automatically detects if ip_tables and ip_conntrack
+are build into the kernel, by looking for relative files in /proc/net.
+----------------------------
+revision 1.121
+date: 2003/04/08 00:12:02;  author: ktsaou;  state: Exp;  lines: +184 -150
+Removed all hard-coded references to external commands and made a dynamic
+list at the top of FireHOL. Now FireHOL will refuse to run if some command
+is missing.
 ----------------------------
 revision 1.120
 date: 2003/03/19 21:51:56;  author: ktsaou;  state: Exp;  lines: +16 -6
