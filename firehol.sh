@@ -10,7 +10,7 @@
 #
 # config: /etc/firehol/firehol.conf
 #
-# $Id: firehol.sh,v 1.157 2003/10/06 00:17:23 ktsaou Exp $
+# $Id: firehol.sh,v 1.158 2003/10/07 22:31:06 ktsaou Exp $
 #
 FIREHOL_FILE="${0}"
 
@@ -752,10 +752,12 @@ rules_nfs() {
 			return 1
 		fi
 		
-		local server_mountd_ports="`${CAT_CMD} "${tmp}" | ${GREP_CMD} " mountd$" | ( while read a b proto port s; do echo "$proto/$port"; done ) | ${SORT_CMD} | ${UNIQ_CMD}`"
-		local server_nfsd_ports="`${CAT_CMD} "${tmp}" | ${GREP_CMD} " nfs$" | ( while read a b proto port s; do echo "$proto/$port"; done ) | ${SORT_CMD} | ${UNIQ_CMD}`"
+		local server_mountd_ports="`${CAT_CMD} "${tmp}" | ${GREP_CMD} " mountd$"  | ( while read a b proto port s; do echo "$proto/$port"; done ) | ${SORT_CMD} | ${UNIQ_CMD}`"
+		local server_lockd_ports="`${CAT_CMD} "${tmp}" | ${GREP_CMD} " nlockmgr$" | ( while read a b proto port s; do echo "$proto/$port"; done ) | ${SORT_CMD} | ${UNIQ_CMD}`"
+		local server_nfsd_ports="`${CAT_CMD} "${tmp}" | ${GREP_CMD} " nfs$"       | ( while read a b proto port s; do echo "$proto/$port"; done ) | ${SORT_CMD} | ${UNIQ_CMD}`"
 		
 		test -z "${server_mountd_ports}" && error "Cannot find mountd ports for nfs server '${x}'" && return 1
+		test -z "${server_lockd_ports}"  && error "Cannot find lockd ports for nfs server '${x}'" && return 1
 		test -z "${server_nfsd_ports}"   && error "Cannot find nfsd ports for nfs server '${x}'" && return 1
 		
 		local dst=
@@ -766,6 +768,9 @@ rules_nfs() {
 		
 		set_work_function "Processing mountd rules for server '${x}'"
 		rules_custom "${mychain}" "${type}" nfs-mountd "${server_mountd_ports}" "500:65535" "${action}" $dst "$@"
+		
+		set_work_function "Processing lockd rules for server '${x}'"
+		rules_custom "${mychain}" "${type}" nfs-lockd "${server_lockd_ports}" "500:65535" "${action}" $dst "$@"
 		
 		set_work_function "Processing nfsd rules for server '${x}'"
 		rules_custom "${mychain}" "${type}" nfs-nfsd   "${server_nfsd_ports}"   "500:65535" "${action}" $dst "$@"
@@ -3698,7 +3703,7 @@ case "${arg}" in
 		else
 		
 		${CAT_CMD} <<EOF
-$Id: firehol.sh,v 1.157 2003/10/06 00:17:23 ktsaou Exp $
+$Id: firehol.sh,v 1.158 2003/10/07 22:31:06 ktsaou Exp $
 (C) Copyright 2003, Costa Tsaousis <costa@tsaousis.gr>
 FireHOL is distributed under GPL.
 
@@ -3884,7 +3889,7 @@ then
 	
 	${CAT_CMD} <<EOF
 
-$Id: firehol.sh,v 1.157 2003/10/06 00:17:23 ktsaou Exp $
+$Id: firehol.sh,v 1.158 2003/10/07 22:31:06 ktsaou Exp $
 (C) Copyright 2003, Costa Tsaousis <costa@tsaousis.gr>
 FireHOL is distributed under GPL.
 Home Page: http://firehol.sourceforge.net
@@ -4179,7 +4184,7 @@ then
 	
 	${CAT_CMD} >&2 <<EOF
 
-$Id: firehol.sh,v 1.157 2003/10/06 00:17:23 ktsaou Exp $
+$Id: firehol.sh,v 1.158 2003/10/07 22:31:06 ktsaou Exp $
 (C) Copyright 2003, Costa Tsaousis <costa@tsaousis.gr>
 FireHOL is distributed under GPL.
 Home Page: http://firehol.sourceforge.net
@@ -4262,7 +4267,7 @@ EOF
 	echo "# "
 
 	${CAT_CMD} <<EOF
-# $Id: firehol.sh,v 1.157 2003/10/06 00:17:23 ktsaou Exp $
+# $Id: firehol.sh,v 1.158 2003/10/07 22:31:06 ktsaou Exp $
 # (C) Copyright 2003, Costa Tsaousis <costa@tsaousis.gr>
 # FireHOL is distributed under GPL.
 # Home Page: http://firehol.sourceforge.net
