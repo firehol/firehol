@@ -10,7 +10,7 @@
 #
 # config: /etc/firehol.conf
 #
-# $Id: firehol.sh,v 1.115 2003/03/16 22:13:30 ktsaou Exp $
+# $Id: firehol.sh,v 1.116 2003/03/17 22:42:18 ktsaou Exp $
 #
 FIREHOL_FILE="${0}"
 
@@ -3235,7 +3235,7 @@ case "${arg}" in
 		else
 		
 		cat <<"EOF"
-$Id: firehol.sh,v 1.115 2003/03/16 22:13:30 ktsaou Exp $
+$Id: firehol.sh,v 1.116 2003/03/17 22:42:18 ktsaou Exp $
 (C) Copyright 2002, Costa Tsaousis <costa@tsaousis.gr>
 FireHOL is distributed under GPL.
 
@@ -3418,7 +3418,7 @@ then
 	
 	cat <<"EOF"
 
-$Id: firehol.sh,v 1.115 2003/03/16 22:13:30 ktsaou Exp $
+$Id: firehol.sh,v 1.116 2003/03/17 22:42:18 ktsaou Exp $
 (C) Copyright 2002, Costa Tsaousis <costa@tsaousis.gr>
 FireHOL is distributed under GPL.
 Home Page: http://firehol.sourceforge.net
@@ -3712,7 +3712,7 @@ then
 	
 	cat >&2 <<"EOF"
 
-$Id: firehol.sh,v 1.115 2003/03/16 22:13:30 ktsaou Exp $
+$Id: firehol.sh,v 1.116 2003/03/17 22:42:18 ktsaou Exp $
 (C) Copyright 2002, Costa Tsaousis <costa@tsaousis.gr>
 FireHOL is distributed under GPL.
 Home Page: http://firehol.sourceforge.net
@@ -3805,7 +3805,7 @@ EOF
 	echo "# "
 
 	cat <<"EOF"
-# $Id: firehol.sh,v 1.115 2003/03/16 22:13:30 ktsaou Exp $
+# $Id: firehol.sh,v 1.116 2003/03/17 22:42:18 ktsaou Exp $
 # (C) Copyright 2002, Costa Tsaousis <costa@tsaousis.gr>
 # FireHOL is distributed under GPL.
 # Home Page: http://firehol.sourceforge.net
@@ -3973,8 +3973,26 @@ EOF
 				
 				if [ ${found} -eq 0 ]
 				then
-					netcount=$[netcount + 1]
-					ifnets=(${net} ${ifnets[@]})
+					f=0; ff=0
+					while [ $f -lt $netcount ]
+					do
+						if ip_in_net ${net} ${ifnets[$f]}
+						then
+							ff=1
+						elif ip_in_net ${ifnets[$f]} ${net}
+						then
+							ff=1
+							ifnets[$f]=${net}
+						fi
+						
+						f=$[f + 1]
+					done
+					
+					if [ $ff -eq 0 ]
+					then
+						netcount=$[netcount + 1]
+						ifnets=(${net} ${ifnets[@]})
+					fi
 				else
 					ofnets=(${net} ${ofnets[@]})
 				fi
@@ -3997,8 +4015,27 @@ EOF
 						if ip_in_net ${gw} ${nn}
 						then
 							echo "### DEBUG: Route ${net} is accessed through ${gw}"
-							netcount=$[netcount + 1]
-							ifnets=(${net} ${ifnets[@]})
+							
+							f=0; ff=0
+							while [ $f -lt $netcount ]
+							do
+								if ip_in_net ${net} ${ifnets[$f]}
+								then
+									ff=1
+								elif ip_in_net ${ifnets[$f]} ${net}
+								then
+									ff=1
+									ifnets[$f]=${net}
+								fi
+								
+								f=$[f + 1]
+							done
+							
+							if [ $ff -eq 0 ]
+							then
+								netcount=$[netcount + 1]
+								ifnets=(${net} ${ifnets[@]})
+							fi
 							break
 						fi
 					done
