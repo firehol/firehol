@@ -10,7 +10,7 @@
 #
 # config: /etc/firehol.conf
 #
-# $Id: firehol.sh,v 1.47 2002/12/18 00:30:28 ktsaou Exp $
+# $Id: firehol.sh,v 1.48 2002/12/18 00:35:42 ktsaou Exp $
 #
 
 # ------------------------------------------------------------------------------
@@ -133,7 +133,7 @@ case "${arg}" in
 		else
 		
 		cat <<"EOF"
-$Id: firehol.sh,v 1.47 2002/12/18 00:30:28 ktsaou Exp $
+$Id: firehol.sh,v 1.48 2002/12/18 00:35:42 ktsaou Exp $
 (C) Copyright 2002, Costa Tsaousis
 FireHOL is distributed under GPL.
 
@@ -173,6 +173,10 @@ FireHOL supports the following command line arguments (only one of them):
 	debug		to parse the configuration file but instead of
 			activating it, to show the generated iptables
 			statements.
+	
+	explain		to enter interactive mode and accept configuration
+			directives. It also gives the iptables commands
+			for each directive together with reasoning.
 			
 	<a filename>	a different configuration file.
 			If not other argument is given, the configuration
@@ -2426,7 +2430,7 @@ then
 	version ${FIREHOL_VERSION}
 	
 	cat <<"EOF"
-$Id: firehol.sh,v 1.47 2002/12/18 00:30:28 ktsaou Exp $
+$Id: firehol.sh,v 1.48 2002/12/18 00:35:42 ktsaou Exp $
 (C) Copyright 2002, Costa Tsaousis
 FireHOL is distributed under GPL.
 Home Page: http://firehol.sourceforge.net
