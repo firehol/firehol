@@ -10,7 +10,7 @@
 #
 # config: /etc/firehol.conf
 #
-# $Id: firehol.sh,v 1.44 2002/12/16 18:57:30 ktsaou Exp $
+# $Id: firehol.sh,v 1.45 2002/12/16 20:41:39 ktsaou Exp $
 #
 
 # ------------------------------------------------------------------------------
@@ -116,12 +116,17 @@ case "${arg}" in
 	*)	if [ ! -z "${arg}" -a -f "${arg}" ]
 		then
 			FIREHOL_CONFIG="${arg}"
-			arg="${1}"
-			test -z "${arg}" && arg="try"
+			if [ ! -z "${1}" -a ! "${1}" = "--" ]
+			then
+				arg="${1}"
+				shift
+			else
+				arg="try"
+			fi
 		else
 		
 		cat <<"EOF"
-$Id: firehol.sh,v 1.44 2002/12/16 18:57:30 ktsaou Exp $
+$Id: firehol.sh,v 1.45 2002/12/16 20:41:39 ktsaou Exp $
 (C) Copyright 2002, Costa Tsaousis
 FireHOL is distributed under GPL.
 
@@ -249,6 +254,8 @@ EOF
 		;;
 esac
 
+# Remove the next arg if it is --
+test "${1}" = "--" && shift
 
 if [ ! -f "${FIREHOL_CONFIG}" ]
 then
@@ -352,10 +359,10 @@ FIREHOL_LINEID="INIT"
 
 # Variable kernel module requirements.
 # Suggested by Fco.Felix Belmonte <ffelix@gescosoft.com>
-# Bellow are the minimum ones. Note that each of the complex services
+# Note that each of the complex services
 # may add to this variable the kernel modules it requires.
 # See rules_ftp() bellow for an example.
-FIREHOL_KERNEL_MODULES="ip_tables ip_conntrack"
+FIREHOL_KERNEL_MODULES=""
 #
 # In the configuration file you can write:
 #
@@ -367,6 +374,9 @@ FIREHOL_KERNEL_MODULES="ip_tables ip_conntrack"
 # services' rules load NAT kernel modules too.
 FIREHOL_NAT=0
 
+# Set this to 1 in the configuration file if routing should be enabled
+# in the kernel.
+FIREHOL_ROUTING=0
 
 # ------------------------------------------------------------------------------
 # Keep information about the current primary command
@@ -419,8 +429,8 @@ client_dhcp_ports="bootpc"
 
 # DHCP Relaying (server is the relay server which behaves like a client
 # towards the real DHCP Server); I'm not sure about this one...
-#server_dhcprelay_ports="udp/bootps"
-#client_dhcprelay_ports="bootps"
+server_dhcprelay_ports="udp/bootps"
+client_dhcprelay_ports="bootps"
 
 server_echo_ports="tcp/echo"
 client_echo_ports="default"
@@ -1150,11 +1160,11 @@ masquerade() {
 	local x=
 	for x in ${f}
 	do
-#		iptables -t nat -A POSTROUTING -o "${x}" -j MASQUERADE || return 1
 		rule table nat chain POSTROUTING outface "${x}" action MASQUERADE "$@" || return 1
 	done
 	
 	FIREHOL_NAT=1
+	FIREHOL_ROUTING=1
 	
 	return 0
 }
@@ -1261,6 +1271,8 @@ router() {
 	
 	create_chain filter "in_${work_name}" FORWARD set_work_inface set_work_outface "$@"
 	create_chain filter "out_${work_name}" FORWARD reverse "$@"
+	
+	FIREHOL_ROUTING=1
 	
 	return 0
 }
@@ -2346,30 +2358,6 @@ protection() {
 	return 0
 }
 
-# --- set_proc_value -----------------------------------------------------------
-
-set_proc_value() {
-	local file="${1}"
-	local value="${2}"
-	local why="${3}"
-	
-	if [ ! -f "${file}" ]
-	then
-		echo >&2 "WARNING: File '${file}' does not exist."
-		return 1
-	fi
-	
-	local t="`cat ${1}`"
-	if [ ! "$t" = "${value}" ]
-	then
-		local name=`echo ${file} | tr '/' '.' | cut -d '.' -f 4-`
-		echo >&2 "WARNING: To ${why}, you should run:"
-		echo >&2 "         \"sysctl -w ${name}=${value}\""
-		echo >&2
-#		postprocess "echo 1 >'${file}'"
-	fi
-}
-
 
 # ------------------------------------------------------------------------------
 # XXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXX
@@ -2386,35 +2374,21 @@ ret=0
 
 # --- Initialization -----------------------------------------------------------
 
-# Ignore all pings
-###set_proc_value /proc/sys/net/ipv4/icmp_echo_ignore_all 1 "ignore all pings"
+# Make sure we can load the ip_tables and ip_conntrack kernel modules.
+# If we cannot load these, then iptables cannot be used at this time
+# either because iptables is not supported by the running kernel, or
+# because some other firewalling solution (ipchains) is currently running.
 
-# Ignore all icmp broadcasts - protects from smurfing
-###set_proc_value /proc/sys/net/ipv4/icmp_echo_ignore_broadcasts 1 "be protected from smurfing"
+/sbin/modprobe ip_tables	|| ret=$[ret + 1]
+/sbin/modprobe ip_conntrack	|| ret=$[ret + 1]
 
-# Ignore source routing
-###set_proc_value /proc/sys/net/ipv4/conf/all/accept_source_route 0 "ignore source routing"
 
-# Ignore routing redirects
-###set_proc_value /proc/sys/net/ipv4/conf/all/accept_redirects 0 "ignore redirects"
+# Place all the statements bellow to the beginning of the final firewall script.
+echo "#!/bin/sh" >"${FIREHOL_OUTPUT}"
 
-# Enable bad error message protection.
-###set_proc_value /proc/sys/net/ipv4/icmp_ignore_bogus_error_responses 1 "be protected from bad error messages"
-
-# Turn on reverse path filtering. This helps make sure that packets use
-# legitimate source addresses, by automatically rejecting incoming packets
-# if the routing table entry for their source address doesn't match the network
-# interface they're arriving on. This has security advantages because it prevents
-# so-called IP spoofing, however it can pose problems if you use asymmetric routing
-# (packets from you to a host take a different path than packets from that host to you)
-# or if you operate a non-routing host which has several IP addresses on different
-# interfaces. (Note - If you turn on IP forwarding, you will also get this).
-###set_proc_value /proc/sys/net/ipv4/conf/all/rp_filter 1 "match routing table with source interfaces"
-
-# Log spoofed packets, source routed packets, redirect packets.
-###set_proc_value /proc/sys/net/ipv4/conf/all/log_martians 1 "log spoofing, source routing, redirects"
-
-# ------------------------------------------------------------------------------
+# in case you want to run the generated script at a later time, this is needed.
+postprocess /sbin/modprobe ip_tables
+postprocess /sbin/modprobe ip_conntrack
 
 iptables -F				|| ret=$[ret + 1]
 iptables -X				|| ret=$[ret + 1]
@@ -2465,6 +2439,22 @@ fi
 
 # XXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXX
 
+echo -n $"FireHOL: Saving your old firewall to a temporary file:"
+iptables-save >${FIREHOL_SAVED}
+if [ $? -eq 0 ]
+then
+	success $"FireHOL: Saving your old firewall to a temporary file:"
+	echo
+else
+	test -f "${FIREHOL_SAVED}" && rm -f "${FIREHOL_SAVED}"
+	failure $"FireHOL: Saving your old firewall to a temporary file:"
+	echo
+	exit 1
+fi
+
+
+# XXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXX
+
 echo -n $"FireHOL: Processing file ${FIREHOL_CONFIG}:"
 ret=0
 
@@ -2483,6 +2473,7 @@ cat >"${FIREHOL_TMP}.awk" <<"EOF"
 /^[[:space:]]*protection[[:space:]]/ { printf "FIREHOL_LINEID=${LINENO} " }
 /^[[:space:]]*policy[[:space:]]/ { printf "FIREHOL_LINEID=${LINENO} " }
 /^[[:space:]]*masquerade[[:space:]]/ { printf "FIREHOL_LINEID=${LINENO} " }
+/^[[:space:]]*postprocess[[:space:]]/ { printf "FIREHOL_LINEID=${LINENO} " }
 { print }
 EOF
 
@@ -2541,44 +2532,23 @@ echo
 
 # XXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXX
 
+for m in ${FIREHOL_KERNEL_MODULES}
+do
+	postprocess /sbin/modprobe $m
+done
+
+# XXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXX
+
+if [ $FIREHOL_ROUTING -eq 1 ]
+then
+	postprocess /sbin/sysctl -w "net.ipv4.ip_forward=1"
+fi
+
+# XXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXX
+
 if [ ${FIREHOL_DEBUG} -eq 1 ]
 then
 	cat ${FIREHOL_OUTPUT}
-	exit 1
-fi
-
-
-# XXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXX
-
-echo -n $"FireHOL: Loading required kernel modules:"
-ret=0
-for m in ${FIREHOL_KERNEL_MODULES}
-do
-	modprobe $m || ret=$[ret + 1]
-done
-
-if [ $ret -gt 0 ]
-then
-	failure $"FireHOL: Loading required kernel modules:"
-	echo
-	exit 1
-fi
-success $"FireHOL: Loading required kernel modules:"
-echo
-
-
-# XXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXX
-
-echo -n $"FireHOL: Saving your old firewall to a temporary file:"
-iptables-save >${FIREHOL_SAVED}
-if [ $? -eq 0 ]
-then
-	success $"FireHOL: Saving your old firewall to a temporary file:"
-	echo
-else
-	test -f "${FIREHOL_SAVED}" && rm -f "${FIREHOL_SAVED}"
-	failure $"FireHOL: Saving your old firewall to a temporary file:"
-	echo
 	exit 1
 fi
 
