@@ -10,7 +10,7 @@
 #
 # config: /etc/firehol.conf
 #
-# $Id: firehol.sh,v 1.116 2003/03/17 22:42:18 ktsaou Exp $
+# $Id: firehol.sh,v 1.117 2003/03/17 22:57:26 ktsaou Exp $
 #
 FIREHOL_FILE="${0}"
 
@@ -3235,7 +3235,7 @@ case "${arg}" in
 		else
 		
 		cat <<"EOF"
-$Id: firehol.sh,v 1.116 2003/03/17 22:42:18 ktsaou Exp $
+$Id: firehol.sh,v 1.117 2003/03/17 22:57:26 ktsaou Exp $
 (C) Copyright 2002, Costa Tsaousis <costa@tsaousis.gr>
 FireHOL is distributed under GPL.
 
@@ -3418,7 +3418,7 @@ then
 	
 	cat <<"EOF"
 
-$Id: firehol.sh,v 1.116 2003/03/17 22:42:18 ktsaou Exp $
+$Id: firehol.sh,v 1.117 2003/03/17 22:57:26 ktsaou Exp $
 (C) Copyright 2002, Costa Tsaousis <costa@tsaousis.gr>
 FireHOL is distributed under GPL.
 Home Page: http://firehol.sourceforge.net
@@ -3712,7 +3712,7 @@ then
 	
 	cat >&2 <<"EOF"
 
-$Id: firehol.sh,v 1.116 2003/03/17 22:42:18 ktsaou Exp $
+$Id: firehol.sh,v 1.117 2003/03/17 22:57:26 ktsaou Exp $
 (C) Copyright 2002, Costa Tsaousis <costa@tsaousis.gr>
 FireHOL is distributed under GPL.
 Home Page: http://firehol.sourceforge.net
@@ -3805,7 +3805,7 @@ EOF
 	echo "# "
 
 	cat <<"EOF"
-# $Id: firehol.sh,v 1.116 2003/03/17 22:42:18 ktsaou Exp $
+# $Id: firehol.sh,v 1.117 2003/03/17 22:57:26 ktsaou Exp $
 # (C) Copyright 2002, Costa Tsaousis <costa@tsaousis.gr>
 # FireHOL is distributed under GPL.
 # Home Page: http://firehol.sourceforge.net
@@ -4005,7 +4005,8 @@ EOF
 				do
 					test "${net}" = "default" && continue
 					
-					gw=`/sbin/ip route show ${net} dev ${iface} | egrep "^${net}[[:space:]]+via[[:space:]][0-9\.]+" | cut -d ' ' -f 3 | ips2net -`
+					nn=`echo "${net}" | cut -d "/" -f 1`
+					gw=`/sbin/ip route show ${nn} dev ${iface} | egrep "^${nn}[[:space:]]+via[[:space:]][0-9\.]+" | cut -d ' ' -f 3 | ips2net -`
 					test -z "${gw}" && continue
 					
 					for nn in ${ifnets[@]}
