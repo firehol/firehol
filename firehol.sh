@@ -922,6 +922,14 @@ close_master() {
 	return 0
 }
 
+# This variable is used for generating dynamic chains when needed for
+# combined negative statements (AND) implied by the "not" parameter
+# to many FireHOL directives.
+# What FireHOL is doing to accomplish this, is to produce dynamically
+# a linked list of iptables chains with just one condition each, making
+# the packets to traverse from chain to chain when matched, to reach
+# their final destination.
+FIREHOL_DYNAMIC_CHAIN_COUNTER=1
 
 rule() {
 	local chain=
@@ -1209,6 +1217,128 @@ rule() {
 			;;
 	esac
 	
+	
+	# ----------------------------------------------------------------------------------
+	# Do we have negative contitions?
+	# If yes, we have to make a linked list of chains to the final one.
+	local chain_orig="${chain}"
+	
+	if [ ! "${infacenot}" = "" ]
+	then
+		local inf=
+		for inf in ${inface}
+		do
+			chain2="${chain_orig}.${FIREHOL_DYNAMIC_CHAIN_COUNTER}"
+			FIREHOL_DYNAMIC_CHAIN_COUNTER="$[FIREHOL_DYNAMIC_CHAIN_COUNTER + 1]"
+			
+			iptables -N "${chain2}"
+			iptables -A "${chain}" -i ! "${inf}" -j "${chain2}"
+			chain="${chain2}"
+		done
+		infacenot=
+		inface=any
+	fi
+	
+	if [ ! "${outfacenot}" = "" ]
+	then
+		local outf=
+		for outf in ${outface}
+		do
+			chain2="${chain_orig}.${FIREHOL_DYNAMIC_CHAIN_COUNTER}"
+			FIREHOL_DYNAMIC_CHAIN_COUNTER="$[FIREHOL_DYNAMIC_CHAIN_COUNTER + 1]"
+			
+			iptables -N "${chain2}"
+			iptables -A "${chain}" -o ! "${outf}" -j "${chain2}"
+			chain="${chain2}"
+		done
+		outfacenot=
+		outface=any
+	fi
+	
+	if [ ! "${srcnot}" = "" ]
+	then
+		local s=
+		for s in ${src}
+		do
+			chain2="${chain_orig}.${FIREHOL_DYNAMIC_CHAIN_COUNTER}"
+			FIREHOL_DYNAMIC_CHAIN_COUNTER="$[FIREHOL_DYNAMIC_CHAIN_COUNTER + 1]"
+			
+			iptables -N "${chain2}"
+			iptables -A "${chain}" -s ! "${s}" -j "${chain2}"
+			chain="${chain2}"
+		done
+		srcnot=
+		src=any
+	fi
+	
+	if [ ! "${dstnot}" = "" ]
+	then
+		local d=
+		for d in ${dst}
+		do
+			chain2="${chain_orig}.${FIREHOL_DYNAMIC_CHAIN_COUNTER}"
+			FIREHOL_DYNAMIC_CHAIN_COUNTER="$[FIREHOL_DYNAMIC_CHAIN_COUNTER + 1]"
+			
+			iptables -N "${chain2}"
+			iptables -A "${chain}" -d ! "${d}" -j "${chain2}"
+			chain="${chain2}"
+		done
+		dstnot=
+		dst=any
+	fi
+	
+	if [ ! "${sportnot}" = "" ]
+	then
+		local sp=
+		for sp in ${sport}
+		do
+			chain2="${chain_orig}.${FIREHOL_DYNAMIC_CHAIN_COUNTER}"
+			FIREHOL_DYNAMIC_CHAIN_COUNTER="$[FIREHOL_DYNAMIC_CHAIN_COUNTER + 1]"
+			
+			iptables -N "${chain2}"
+			iptables -A "${chain}" --sport ! "${sp}" -j "${chain2}"
+			chain="${chain2}"
+		done
+		sportnot=
+		sport=any
+	fi
+	
+	if [ ! "${dportnot}" = "" ]
+	then
+		local dp=
+		for dp in ${dport}
+		do
+			chain2="${chain_orig}.${FIREHOL_DYNAMIC_CHAIN_COUNTER}"
+			FIREHOL_DYNAMIC_CHAIN_COUNTER="$[FIREHOL_DYNAMIC_CHAIN_COUNTER + 1]"
+			
+			iptables -N "${chain2}"
+			iptables -A "${chain}" --dport ! "${dp}" -j "${chain2}"
+			chain="${chain2}"
+		done
+		dportnot=
+		dport=any
+	fi
+	
+	if [ ! "${protonot}" = "" ]
+	then
+		local pr=
+		for pr in ${proto}
+		do
+			chain2="${chain_orig}.${FIREHOL_DYNAMIC_CHAIN_COUNTER}"
+			FIREHOL_DYNAMIC_CHAIN_COUNTER="$[FIREHOL_DYNAMIC_CHAIN_COUNTER + 1]"
+			
+			iptables -N "${chain2}"
+			iptables -A "${chain}" --p ! "${pr}" -j "${chain2}"
+			chain="${chain2}"
+		done
+		protonot=
+		proto=any
+	fi
+	
+	
+	# ----------------------------------------------------------------------------------
+	# Process the positive rules
+	
 	local inf=
 	for inf in ${inface}
 	do
@@ -1220,7 +1350,7 @@ rule() {
 				;;
 			
 			*)
-				inf_arg="-i ${infacenot} ${inf}"
+				inf_arg="-i ${inf}"
 				register_iface ${inf}
 				;;
 		esac
@@ -1236,7 +1366,7 @@ rule() {
 					;;
 				
 				*)
-					outf_arg="-o ${outfacenot} ${outf}"
+					outf_arg="-o ${outf}"
 					register_iface ${outf}
 					;;
 			esac
@@ -1252,7 +1382,7 @@ rule() {
 						;;
 					
 					*)
-						s_arg="-s ${srcnot} ${s}"
+						s_arg="-s ${s}"
 						;;
 				esac
 				
@@ -1267,7 +1397,7 @@ rule() {
 							;;
 						
 						*)
-							d_arg="-d ${dstnot} ${d}"
+							d_arg="-d ${d}"
 							;;
 					esac
 					
@@ -1282,7 +1412,7 @@ rule() {
 								;;
 							
 							*)
-								sp_arg="--sport ${sportnot} ${sp}"
+								sp_arg="--sport ${sp}"
 								;;
 						esac
 						
@@ -1297,7 +1427,7 @@ rule() {
 									;;
 								
 								*)
-									dp_arg="--dport ${dportnot} ${dp}"
+									dp_arg="--dport ${dp}"
 									;;
 							esac
 							
@@ -1312,7 +1442,7 @@ rule() {
 										;;
 									
 									*)
-										proto_arg="-p ${protonot} ${proto}"
+										proto_arg="-p ${proto}"
 										;;
 								esac
 								
