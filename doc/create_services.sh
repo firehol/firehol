@@ -12,7 +12,21 @@ service_aptproxy_notes="Debian package proxy."
 
 service_apcupsd_notes="APC UPS server ports. This service must be defined as <b>server apcupsd accept</b> on all machines
 not directly connected to the UPS (i.e. slaves).
-<p>For more information see <a href=\"http://www.apcupsd.com/\">http://www.apcupsd.com/</a>
+<p>
+For more information see <a href=\"http://www.apcupsd.com/\">http://www.apcupsd.com/</a>
+<p>
+Note that the port defined here is not the default port (6666) used if you download and compile
+APCUPSD, since the default is conflicting with IRC and many distributions (like Debian) have
+changed this to 6544.
+<p>
+You can define port 6544 in APCUPSD, by changing the value of NETPORT in its configuration file,
+or overwrite this FireHOL service definition using the procedures described in
+<a href=\"adding.html\">Adding Services</a>.
+<p>
+Please note that APCUPSD uses also port 3551 (NISPORT) for its Network Information Server (NIS)
+that is used from the WEB interface it has.
+FireHOL has not defined this. If you run APCUPSD and its WEB interface on the same machine,
+these two will still be able to communicate with each other using the <b>lo</b> device.
 "
 
 server_all_ports="all"
@@ -46,7 +60,7 @@ Based on this, FireHOL allows:<br>
 	building with this).
 	</li>
 </ul>
-I <b>strongly suggest</b> to use this service in your firewall together with something like
+I <b>strongly suggest</b> to use this service in your firewall like:
 <p>
 <b><a href=\"commands.html#server\">server</a> amanda accept <a href=\"commands.html#src\">src</a> 1.2.3.4</b>, or <br>
 <b><a href=\"commands.html#client\">client</a> amanda accept <a href=\"commands.html#dst\">dst</a> 5.6.7.8</b>
@@ -334,7 +348,7 @@ cat <<"EOF"
 <tr><td align=center valign=middle>
 	<A href="http://sourceforge.net"><IMG src="http://sourceforge.net/sflogo.php?group_id=58425&amp;type=5" width="210" height="62" border="0" alt="SourceForge Logo"></A>
 </td><td align=center valign=middle>
-	<small>$Id: create_services.sh,v 1.13 2002/12/20 20:31:11 ktsaou Exp $</small>
+	<small>$Id: create_services.sh,v 1.14 2002/12/20 21:11:53 ktsaou Exp $</small>
 	<p>
 	<b>FireHOL</b>, a firewall for humans...<br>
 	&copy; Copyright 2002
