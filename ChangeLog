@@ -1,7 +1,7 @@
 
 RCS file: /cvsroot/firehol/firehol/firehol.sh,v
 Working file: firehol.sh
-head: 1.202
+head: 1.203
 branch:
 locks: strict
 access list:
@@ -9,8 +9,39 @@ symbolic names:
 	start: 1.1.1.1
 	vendor: 1.1.1
 keyword substitution: kv
-total revisions: 203;	selected revisions: 203
+total revisions: 204;	selected revisions: 204
 description:
+----------------------------
+revision 1.203
+date: 2004/09/14 21:15:44;  author: ktsaou;  state: Exp;  lines: +119 -7
+Added support for options to the ACCEPT action in order to allow
+a certain frequency of NEW connections per service.
+
+Now the template for the ACCEPT action is this:
+
+ACCEPT [with limit frequency burst [overflow action]]
+
+for example:
+
+server smtp accept with limit 10/s 100 overflow drop
+
+which means there is now control for the frequency at which NEW incoming
+connections are accepted and control is also provided for the overflow
+NEW ones.
+
+The default overflow action is REJECT which rejects TCP connections with
+TCP-RESET and all others with ICMP-PORT-UNREACHABLE.
+
+To add other optional rule parameters to the server/client/route command
+just add them after the ACCEPT expression. For example:
+
+server smtp accept with limit 10/s 1000 src 1.2.3.4
+
+If there are overflow NEW connections, the firewall will log "OVERFLOW"
+with the packets and the frequency of loglimit (controled via global
+variables).
+
+The overflow action cannot accept parameters.
 ----------------------------
 revision 1.202
 date: 2004/09/12 07:24:58;  author: ktsaou;  state: Exp;  lines: +8 -5
