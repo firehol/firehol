@@ -20,8 +20,8 @@ For example the following:
 <center><table border=0 cellpadding=15 cellspacing=20 width="70%">
 <tr><td bgcolor="#F0F0F0">
 <b><pre>
-	server_myservice_ports=&quot;proto/XXX&quot;
-	client_myservice_ports=&quot;default&quot;
+	server_myservice_ports=&quot;proto/sports&quot;
+	client_myservice_ports=&quot;cports&quot;
 </pre></b>
 </td></tr>
 </table>
@@ -29,11 +29,37 @@ For example the following:
 
 Where:
 <ul>
-	<li><b>myservice</b> is the name of the service,</li>
+	<li><b>myservice</b> is the name of the service,<br>&nbsp;</li>
 	<li><b>proto</b> is either <b>tcp</b> or <b>udp</b> - or whatever else iptables accepts 
-	as protocol,</li>
-	<li><b>XXX</b> is the port (or port name) the server is listening at, and</li>
-	<li><b>default</b> is a keyword that matches the default client ports.</li>
+	as protocol,<br>&nbsp;</li>
+	<li><b>sports</b> is the port (or port name or port range) the server is listening at.
+	To specify port ranges use the iptables syntax: i.e. 1000:1010 will match all ports from
+	1000 to 1010 inclusive.<br>&nbsp;</li>
+	<li><b>cports</b> is the port (or port name or port range) the server is listening at.
+	There are two keywords that can be used for <b>cports</b>:
+	<br>&nbsp;
+	<ul>
+		<li><b>any</b> is a keyword that matches any client port.
+		<br>&nbsp;
+		</li>
+		<li><b>default</b> is a keyword that matches the default client ports and it resolves to:
+		<br>&nbsp;
+		<ul>
+			<li>if it used for a localhost client (<a href="commands.html#client">client</a>
+			within an <a href="commands.html#interface">interface</a>), a list of ports as set
+			by the Linux kernel and controlled by the <b>sysctl</b> variable <b>net.ipv4.ip_local_port_range</b>
+			(or <b>/proc/sys/net/ipv4/ip_local_port_range</b>), or
+			<br>&nbsp;
+			</li>
+			<li>if it used for a remote host client (<a href="commands.html#server">server</a>
+			within an <a href="commands.html#interface">interface</a> or any subcommand within
+			a <a href="commands.html#router">router</a>), to the contents of the FireHOL variable
+			<a href="commands.html#DEFAULT_CLIENT_PORTS">DEFAULT_CLIENT_PORTS</a>.
+			<br>&nbsp;
+			</li>
+		</ul>
+		</li>
+	</ul>
 </ul>
 Just the above two lines will allow you to use (for example):
 
@@ -43,6 +69,8 @@ Just the above two lines will allow you to use (for example):
 	interface eth0 internet
 		server myservice accept
 		client myservice reject
+	
+	router myrouter
 		route myservice drop
 </pre></b>
 </td></tr>
@@ -81,21 +109,13 @@ The second way is to use the <b>inline service definition syntax</b>:
 <center><table border=0 cellpadding=15 cellspacing=20 width="70%">
 <tr><td bgcolor="#F0F0F0">
 <b><pre>
-		server custom myservice proto/XXX default accept
+		server custom myservice proto/sports cports accept
 </pre></b>
 </td></tr>
 </table>
 </center>
 
-Where:
-<ul>
-	<li><b>custom</b> is a service name that states the inline service definition syntax.</li>
-	<li><b>myservice</b> is the name of the service,</li>
-	<li><b>proto</b> is either <b>tcp</b> or <b>udp</b> - or whatever else iptables accepts 
-	as protocol,</li>
-	<li><b>XXX</b> is the port (or port name) the server is listening at, and</li>
-	<li><b>default</b> is a keyword that matches the default client ports.</li>
-</ul>
+All the parameters are the same with the one presented above, in the previous section.
 <p>
 
 The IMAP4 service example above, now becomes:
@@ -231,7 +251,7 @@ own.
 <tr><td align=center valign=middle>
 	<A href="http://sourceforge.net"><IMG src="http://sourceforge.net/sflogo.php?group_id=58425&amp;type=5" width="210" height="62" border="0" alt="SourceForge Logo"></A>
 </td><td align=center valign=middle>
-	<small>$Id: adding.html,v 1.4 2002/12/10 20:32:52 ktsaou Exp $</small>
+	<small>$Id: adding.html,v 1.5 2002/12/13 09:04:44 ktsaou Exp $</small>
 	<p>
 	<b>FireHOL</b>, a firewall for humans...<br>
 	&copy; Copyright 2002
