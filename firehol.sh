@@ -10,7 +10,7 @@
 #
 # config: /etc/firehol.conf
 #
-# $Id: firehol.sh,v 1.84 2003/01/28 19:42:09 ktsaou Exp $
+# $Id: firehol.sh,v 1.85 2003/01/28 19:47:31 ktsaou Exp $
 #
 
 
@@ -921,7 +921,7 @@ masquerade() {
 	local f="${work_outface}"
 	test "${1}" = "reverse" && f="${work_inface}" && shift
 	
-	test -z "${f}" && local f="${1}"
+	test -z "${f}" && local f="${1}" && shift
 	
 	test -z "${f}" && error "masquerade requires an interface set or as argument" && return 1
 	
@@ -3052,7 +3052,7 @@ case "${arg}" in
 		else
 		
 		cat <<"EOF"
-$Id: firehol.sh,v 1.84 2003/01/28 19:42:09 ktsaou Exp $
+$Id: firehol.sh,v 1.85 2003/01/28 19:47:31 ktsaou Exp $
 (C) Copyright 2002, Costa Tsaousis <costa@tsaousis.gr>
 FireHOL is distributed under GPL.
 
@@ -3220,7 +3220,7 @@ then
 	
 	cat <<"EOF"
 
-$Id: firehol.sh,v 1.84 2003/01/28 19:42:09 ktsaou Exp $
+$Id: firehol.sh,v 1.85 2003/01/28 19:47:31 ktsaou Exp $
 (C) Copyright 2002, Costa Tsaousis <costa@tsaousis.gr>
 FireHOL is distributed under GPL.
 Home Page: http://firehol.sourceforge.net
