@@ -10,9 +10,60 @@
 #
 # config: /etc/firehol/firehol.conf
 #
-# $Id: firehol.sh,v 1.164 2003/10/22 06:58:27 ktsaou Exp $
+# $Id: firehol.sh,v 1.165 2003/10/26 21:27:31 ktsaou Exp $
 #
+
+# Remember who you are.
 FIREHOL_FILE="${0}"
+
+
+# ------------------------------------------------------------------------------
+# XXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXX
+# ------------------------------------------------------------------------------
+#
+# KERNEL MODULE MANAGEMENT
+#
+# ------------------------------------------------------------------------------
+# XXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXX
+# ------------------------------------------------------------------------------
+
+KERNEL_CONFIG=
+if [ -f "/proc/config" ]
+then
+	KERNEL_CONFIG="/proc/config"
+	cat /proc/config >/tmp/kcfg.$$
+	. /tmp/kcfg.$$
+	rm -f /tmp/kcfg.$$
+	
+elif [ -f "/usr/src/linux/.config" ]
+then
+	KERNEL_CONFIG="/usr/src/linux/.config"
+	. "${KERNEL_CONFIG}"
+else
+	echo >&2 " "
+	echo >&2 " IMPORTANT WARNING:"
+	echo >&2 " ------------------"
+	echo >&2 " FireHOL cannot find your current kernel configuration."
+	echo >&2 " Please, either compile your kernel with /proc/config,"
+	echo >&2 " or make sure there is a valid kernel config in:"
+	echo >&2 " /usr/src/linux/.config"
+	echo >&2 " "
+	echo >&2 " Because of this, FireHOL will simply attempt to load"
+	echo >&2 " all kernel modules for the services used, without"
+	echo >&2 " being able to detect failures."
+	echo >&2 " "
+fi
+
+
+# ------------------------------------------------------------------------------
+# XXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXX
+# ------------------------------------------------------------------------------
+#
+# EXTERNAL/SYSTEM COMMANDS MANAGEMENT
+#
+# ------------------------------------------------------------------------------
+# XXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXX
+# ------------------------------------------------------------------------------
 
 PATH="${PATH}:/bin:/usr/bin:/sbin:/usr/sbin"
 
@@ -389,6 +440,14 @@ client_lpd_ports="721:731 default"
 
 server_microsoft_ds_ports="tcp/microsoft-ds"
 client_microsoft_ds_ports="default"
+
+server_mms_ports="tcp/1755 udp/1755"
+client_mms_ports="default"
+require_mms_modules="ip_conntrack_mms"
+require_mms_nat_modules="ip_nat_mms"
+# this will produce warnings on most distribution
+# because the mms module is not there:
+# ALL_SHOULD_ALSO_RUN="${ALL_SHOULD_ALSO_RUN} mms"
 
 server_msn_ports="tcp/6891"
 client_msn_ports="default"
@@ -1797,22 +1856,57 @@ set_work_function() {
 # new firewall has been activated. Here we just keep a list of the required
 # kernel modules.
 
+check_kernel_config() {
+	eval local kcfg="\$${1}"
+	
+	case ${kcfg} in
+		y)	return 0
+			;;
+		
+		m)	return 1
+			;;
+		
+		*)	return 2
+			;;
+	esac
+	
+	return 2
+}
+
 check_kernel_module() {
 	local mod="${1}"
 	
 	case ${mod} in
 		ip_tables)
 			test -f /proc/net/ip_tables_names && return 0
-			return 1
+			check_kernel_config CONFIG_IP_NF_IPTABLES
+			return $?
 			;;
 		
 		ip_conntrack)
 			test -f /proc/net/ip_conntrack && return 0
-			return 1
+			check_kernel_config CONFIG_IP_NF_CONNTRACK
+			return $?
+			;;
+			
+		ip_conntrack_*)
+			local mnam="CONFIG_IP_NF_`echo ${mod} | ${CUT_CMD} -d '_' -f 3- | ${TR_CMD} [a-z] [A-Z]`"
+			check_kernel_config ${mnam}
+			return $?
+			;;
+			
+		ip_nat_*)
+			local mnam="CONFIG_IP_NF_NAT_`echo ${mod} | ${CUT_CMD} -d '_' -f 3- | ${TR_CMD} [a-z] [A-Z]`"
+			check_kernel_config ${mnam}
+			return $?
+			;;
+			
+		*)
+			return 2
 			;;
 	esac
 	
-	return 1
+	return 2
 }
 
 load_kernel_module() {
@@ -3828,7 +3922,7 @@ case "${arg}" in
 		else
 		
 		${CAT_CMD} <<EOF
-$Id: firehol.sh,v 1.164 2003/10/22 06:58:27 ktsaou Exp $
+$Id: firehol.sh,v 1.165 2003/10/26 21:27:31 ktsaou Exp $
 (C) Copyright 2003, Costa Tsaousis <costa@tsaousis.gr>
 FireHOL is distributed under GPL.
 
@@ -4014,7 +4108,7 @@ then
 	
 	${CAT_CMD} <<EOF
 
-$Id: firehol.sh,v 1.164 2003/10/22 06:58:27 ktsaou Exp $
+$Id: firehol.sh,v 1.165 2003/10/26 21:27:31 ktsaou Exp $
 (C) Copyright 2003, Costa Tsaousis <costa@tsaousis.gr>
 FireHOL is distributed under GPL.
 Home Page: http://firehol.sourceforge.net
@@ -4309,7 +4403,7 @@ then
 	
 	${CAT_CMD} >&2 <<EOF
 
-$Id: firehol.sh,v 1.164 2003/10/22 06:58:27 ktsaou Exp $
+$Id: firehol.sh,v 1.165 2003/10/26 21:27:31 ktsaou Exp $
 (C) Copyright 2003, Costa Tsaousis <costa@tsaousis.gr>
 FireHOL is distributed under GPL.
 Home Page: http://firehol.sourceforge.net
@@ -4392,7 +4486,7 @@ EOF
 	echo "# "
 
 	${CAT_CMD} <<EOF
-# $Id: firehol.sh,v 1.164 2003/10/22 06:58:27 ktsaou Exp $
+# $Id: firehol.sh,v 1.165 2003/10/26 21:27:31 ktsaou Exp $
 # (C) Copyright 2003, Costa Tsaousis <costa@tsaousis.gr>
 # FireHOL is distributed under GPL.
 # Home Page: http://firehol.sourceforge.net
