@@ -111,6 +111,14 @@ The optional rule parameters given to the primary commands are <b>indirectly</b>
 	<br>The default interface policy is <b>drop</b>, so that if no subcommands are given, the
 	firewall will just drop all incoming <b>and outgoing</b> traffic using this interface.
 	<p>
+	INPORTANT<br>
+	Note that unlike ipchains, in <b>iptables</b> traffic passing through the firewall
+	host (FORWARDed traffic) does not pass through the INPUT/OUTPUT chains of the firewall and
+	therefore the <b>interface</b> rules in FireHOL never match it.
+	To match the traffic passing through (even if DNATed) you have to place
+	the filtering rules in <b>router</b> statements. <b>Interface</b>
+	statements filter traffic <b>only from/to the firewall host</b>. Nothing else.
+	<p>
 	<H4>Parameters</H4>
 	<ul>
 		<li>	<b>real interface</b> is the interface name as shown by <b>ip link show</b>.
@@ -147,6 +155,16 @@ The optional rule parameters given to the primary commands are <b>indirectly</b>
 	The only acceptable policy on all <b>router</b> commands is <b>return</b> and therefore the policy subcommand
 	cannot be used on routers. This means that no packets are dropped in a router. Packets not matched by any
 	<b>router</b> command will be dropped at the end of the firewall.
+	<p>
+	INPORTANT<br>
+	Note that unlike ipchains, in <b>iptables</b> traffic passing through the firewall
+	host (FORWARDed traffic) does not pass through the INPUT/OUTPUT chains of the firewall and
+	therefore the <b>interface</b> rules in FireHOL never match it.
+	To match the traffic passing through (even if DNATed) you have to place
+	the filtering rules in <b>router</b> statements. <b>Interface</b>
+	statements filter traffic <b>only from/to the firewall host</b>.
+	<b>Router</b> statements filter traffic <b>that passes through the
+	firewall host.</b>
 	<p>
 	<H4>Parameters</H4>
 	<ul>
@@ -1207,7 +1225,7 @@ about optional rule parameters that should not be used in certain commands.
 <tr><td align=center valign=middle>
 	<A href="http://sourceforge.net"><IMG src="http://sourceforge.net/sflogo.php?group_id=58425&amp;type=5" width="210" height="62" border="0" alt="SourceForge Logo"></A>
 </td><td align=center valign=middle>
-	<small>$Id: commands.html,v 1.34 2003/07/20 22:19:46 ktsaou Exp $</small>
+	<small>$Id: commands.html,v 1.35 2003/08/19 22:49:50 ktsaou Exp $</small>
 	<p>
 	<b>FireHOL</b>, a firewall for humans...<br>
 	&copy; Copyright 2003

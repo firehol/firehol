@@ -1,7 +1,7 @@
 
 RCS file: /cvsroot/firehol/firehol/firehol.sh,v
 Working file: firehol.sh
-head: 1.145
+head: 1.148
 branch:
 locks: strict
 access list:
@@ -9,8 +9,23 @@ symbolic names:
 	start: 1.1.1.1
 	vendor: 1.1.1
 keyword substitution: kv
-total revisions: 146;	selected revisions: 146
+total revisions: 149;	selected revisions: 149
 description:
+----------------------------
+revision 1.148
+date: 2003/08/19 22:21:32;  author: ktsaou;  state: Exp;  lines: +6 -6
+Fixed a minor bug in kernel module handling that made it not detect that
+ip_tables is already compiled (or loaded) in the kernel.
+----------------------------
+revision 1.147
+date: 2003/07/31 20:44:45;  author: ktsaou;  state: Exp;  lines: +7 -7
+More Gentoo compatibility (mainly change of port names to port numbers in
+services).
+----------------------------
+revision 1.146
+date: 2003/07/27 22:58:59;  author: ktsaou;  state: Exp;  lines: +21 -8
+Minor changes for gentoo compatibility (SAVE feature)
+.
 ----------------------------
 revision 1.145
 date: 2003/07/20 22:45:50;  author: ktsaou;  state: Exp;  lines: +43 -7
