@@ -24,9 +24,10 @@ Matches all traffic (all protocols, ports, etc) while ensuring that required ker
 Currently it activates also <a href=\"#ftp\">ftp</a>, <a href=\"#irc\">irc</a> and <a href=\"#icmp\">icmp</a>.
 "
 
-server_amanda_ports="many"
-client_amanda_ports="many"
+server_amanda_ports="see&nbsp;notes"
+client_amanda_ports="see&nbsp;notes"
 service_amanda_type="complex"
+service_amanda_example="server amanda accept <u>src</u> <u>1.2.3.4</u>"
 service_amanda_notes="
 This implementation of <a href=\"http://amanda.sf.net\">AMANDA, the Advanced Maryland Automatic Network Disk Archiver</a>
 is based on the <a href=\"http://amanda.sourceforge.net/cgi-bin/fom?_highlightWords=firewall&file=139\">notes posted at Amanda's Faq-O-Matic</a>.
@@ -34,16 +35,32 @@ is based on the <a href=\"http://amanda.sourceforge.net/cgi-bin/fom?_highlightWo
 Based on this, FireHOL allows:<br>
 <ul>
 	<li>a connection from the server to the client at <b>udp 10080</b></li>
-	<li>connections from the client to the server at <b>tcp & udp 850:859</b></li>
+	<li>connections from the client to the server at <b>tcp & udp</b> ports
+	controlled by the variable <b>FIREHOL_AMANDA_PORTS</b>.
+	<p>
+	Default: <b>FIREHOL_AMANDA_PORTS=\"850:859\"</b>
+	<p>It has been written in amanda mailing lists that by default amanda
+	chooses ports in the range of 600 to 950. If you don't compile amanda
+	yourself you may have to change the variable FIREHOL_AMANDA_PORTS to
+	accept a wider match (but consider the trust relathionship you are
+	building with this).
+	</li>
 </ul>
-I <b>strongly suggest</b> to use this service in your firewall together with src/dst to prevent opening ports 850:859
-uncoditionally to everyone.
+I <b>strongly suggest</b> to use this service in your firewall together with something like
 <p>
-This complex service handles correctly the multi-socket bi-directional connections made.
+<b><a href=\"commands.html#server\">server</a> amanda accept <a href=\"commands.html#src\">src</a> 1.2.3.4</b>, or <br>
+<b><a href=\"commands.html#client\">client</a> amanda accept <a href=\"commands.html#dst\">dst</a> 5.6.7.8</b>
+<p>
+in order to limit the hosts
+that have access to the ports controlled by the variable <b>FIREHOL_AMANDA_PORTS</b>.
+<p>
+This complex service handles correctly the multi-socket bi-directional environment required.
 Use the FireHOL <b>server</b> directive on the Amanda server, and FireHOL's <b>client</b> on the Amanda client.
 <p>
 The <b>amanda</b> service will break if it is NATed (to work it would require a bi-directional NAT and
 a modification in the amanda code to allow connections from/to high ports).
+<p>
+<b>USE THIS WITH CARE. MISUSE OF THIS SERVICE MAY LEAD TO OPENING PRIVILEGED PORTS TO ANYONE.</b>
 "
 
 
@@ -56,6 +73,7 @@ In combination with the <a href=\"commands.html#parameters\">Optional Rule Param
 "
 service_any_example="server any <u>myname</u> accept proto 47"
 
+service_cups_notes="<a href=\"http://www.cups.org\">Common UNIX Printing System</a>"
 
 server_custom_ports="defined&nbsp;in&nbsp;the&nbsp;command"
 client_custom_ports="defined&nbsp;in&nbsp;the&nbsp;command"
@@ -316,7 +334,7 @@ cat <<"EOF"
 <tr><td align=center valign=middle>
 	<A href="http://sourceforge.net"><IMG src="http://sourceforge.net/sflogo.php?group_id=58425&amp;type=5" width="210" height="62" border="0" alt="SourceForge Logo"></A>
 </td><td align=center valign=middle>
-	<small>$Id: create_services.sh,v 1.12 2002/12/19 23:35:43 ktsaou Exp $</small>
+	<small>$Id: create_services.sh,v 1.13 2002/12/20 20:31:11 ktsaou Exp $</small>
 	<p>
 	<b>FireHOL</b>, a firewall for humans...<br>
 	&copy; Copyright 2002

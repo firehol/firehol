@@ -10,7 +10,7 @@
 #
 # config: /etc/firehol.conf
 #
-# $Id: firehol.sh,v 1.53 2002/12/19 22:52:15 ktsaou Exp $
+# $Id: firehol.sh,v 1.54 2002/12/20 20:31:11 ktsaou Exp $
 #
 
 # ------------------------------------------------------------------------------
@@ -151,7 +151,7 @@ case "${arg}" in
 		else
 		
 		cat <<"EOF"
-$Id: firehol.sh,v 1.53 2002/12/19 22:52:15 ktsaou Exp $
+$Id: firehol.sh,v 1.54 2002/12/20 20:31:11 ktsaou Exp $
 (C) Copyright 2002, Costa Tsaousis <costa@tsaousis.gr>
 FireHOL is distributed under GPL.
 
@@ -460,6 +460,9 @@ client_aptproxy_ports="default"
 # directly connected to the UPS (e.g. the slaves)
 server_apcupsd_ports="tcp/6544"
 client_apcupsd_ports="default"
+
+server_cups_ports="tcp/ipp"
+client_cups_ports="default"
 
 server_daytime_ports="tcp/daytime"
 client_daytime_ports="default"
@@ -857,7 +860,8 @@ rules_nfs() {
 
 
 # --- AMANDA -------------------------------------------------------------------
-#
+FIREHOL_AMANDA_PORTS="850:859"
+
 rules_amanda() {
         local mychain="${1}"; shift
 	local type="${1}"; shift
@@ -889,8 +893,8 @@ rules_amanda() {
 	
 	set_work_function "Setting up rules for amanda data exchange client-to-server"
 	
-	rule action "$@" chain "${in}_${mychain}" proto "tcp udp" dport "850:859" state NEW,ESTABLISHED || return 1
-	rule reverse action "$@" chain "${out}_${mychain}" proto "tcp udp" dport "850:859" state ESTABLISHED || return 1
+	rule action "$@" chain "${in}_${mychain}" proto "tcp udp" dport "${FIREHOL_AMANDA_PORTS}" state NEW,ESTABLISHED || return 1
+	rule reverse action "$@" chain "${out}_${mychain}" proto "tcp udp" dport "${FIREHOL_AMANDA_PORTS}" state ESTABLISHED || return 1
 	
 	return 0
 }
@@ -2523,7 +2527,7 @@ then
 	
 	cat <<"EOF"
 
-$Id: firehol.sh,v 1.53 2002/12/19 22:52:15 ktsaou Exp $
+$Id: firehol.sh,v 1.54 2002/12/20 20:31:11 ktsaou Exp $
 (C) Copyright 2002, Costa Tsaousis <costa@tsaousis.gr>
 FireHOL is distributed under GPL.
 Home Page: http://firehol.sourceforge.net
