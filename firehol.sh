@@ -10,7 +10,7 @@
 #
 # config: /etc/firehol.conf
 #
-# $Id: firehol.sh,v 1.45 2002/12/16 20:41:39 ktsaou Exp $
+# $Id: firehol.sh,v 1.46 2002/12/17 20:47:34 ktsaou Exp $
 #
 
 # ------------------------------------------------------------------------------
@@ -62,11 +62,18 @@ FIREHOL_SAVE=0
 # If set to 1, the firewall will be restored if you don't commit it.
 FIREHOL_TRY=1
 
+# If set to 1, FireHOL enters interactive mode to answer questions.
+FIREHOL_EXPLAIN=0
+
 me="${0}"
 arg="${1}"
 shift
 
 case "${arg}" in
+	explain)
+		FIREHOL_EXPLAIN=1
+		;;
+	
 	try)
 		FIREHOL_TRY=1
 		;;
@@ -126,7 +133,7 @@ case "${arg}" in
 		else
 		
 		cat <<"EOF"
-$Id: firehol.sh,v 1.45 2002/12/16 20:41:39 ktsaou Exp $
+$Id: firehol.sh,v 1.46 2002/12/17 20:47:34 ktsaou Exp $
 (C) Copyright 2002, Costa Tsaousis
 FireHOL is distributed under GPL.
 
@@ -257,7 +264,7 @@ esac
 # Remove the next arg if it is --
 test "${1}" = "--" && shift
 
-if [ ! -f "${FIREHOL_CONFIG}" ]
+if [ ${FIREHOL_EXPLAIN} -eq 0 -a ! -f "${FIREHOL_CONFIG}" ]
 then
 	echo -n $"FireHOL config ${FIREHOL_CONFIG} not found:"
 	failure $"FireHOL config ${FIREHOL_CONFIG} not found:"
@@ -390,6 +397,15 @@ work_outface=
 work_policy=${DEFAULT_INTERFACE_POLICY}
 work_error=0
 work_function="Initializing"
+
+set_work_function() {
+	local show_explain=1
+	test "$1" = "-ne" && shift && local show_explain=0
+	
+	work_function="$*"
+	
+	test ${FIREHOL_EXPLAIN} -eq 1 -a ${show_explain} -eq 1 && printf "\n# %s\n" "$*"
+}
 
 # ------------------------------------------------------------------------------
 # Keep status information
@@ -712,7 +728,7 @@ rules_nfs() {
 		case "${1}" in
 			dst|DST|destination|DESTINATION)
 				shift
-				servers="${1}"
+				local servers="${1}"
 				shift
 				;;
 				
@@ -728,6 +744,8 @@ rules_nfs() {
 	do
 		local tmp="/tmp/firehol.rpcinfo.$$"
 		
+		set_work_function "Getting RPC information from server '${x}'"
+		
 		rpcinfo -p ${x} >"${tmp}"
 		if [ $? -gt 0 -o ! -s "${tmp}" ]
 		then
@@ -739,14 +757,23 @@ rules_nfs() {
 		local server_mountd_ports="`cat "${tmp}" | grep " mountd$" | ( while read a b proto port s; do echo "$proto/$port"; done ) | sort | uniq`"
 		local server_nfsd_ports="`cat "${tmp}" | grep " nfs$" | ( while read a b proto port s; do echo "$proto/$port"; done ) | sort | uniq`"
 		
+		test -z "${server_mountd_ports}" && error "Cannot find mountd ports for nfs server '${x}'" && return 1
+		test -z "${server_nfsd_ports}"   && error "Cannot find nfsd ports for nfs server '${x}'" && return 1
+		
 		local dst=
 		if [ ! "${x}" = "localhost" ]
 		then
 			dst="dst ${x}"
 		fi
 		
-		"${type}" custom nfs "${server_mountd_ports}" "500:65535" "${action}" $dst "$@"
-		"${type}" custom nfs "${server_nfsd_ports}"   "500:65535" "${action}" $dst "$@"
+		set_work_function "Processing mountd rules for server '${x}'"
+		rules_custom "${mychain}" "${type}" nfs-mountd "${server_mountd_ports}" "500:65535" "${action}" $dst "$@"
+		
+		set_work_function "Processing nfsd rules for server '${x}'"
+		rules_custom "${mychain}" "${type}" nfs-nfsd   "${server_nfsd_ports}"   "500:65535" "${action}" $dst "$@"
+		
+#		"${type}" custom nfs "${server_mountd_ports}" "500:65535" "${action}" $dst "$@"
+#		"${type}" custom nfs "${server_nfsd_ports}"   "500:65535" "${action}" $dst "$@"
 		
 		rm -f "${tmp}"
 		
@@ -1109,7 +1136,7 @@ require_work() {
 # when the script finishes.
 
 close_cmd() {
-	work_function="Closing last open primary command (${work_cmd}/${work_name})"
+	set_work_function -ne "Closing last open primary command (${work_cmd}/${work_name})"
 	
 	case "${work_cmd}" in
 		interface)
@@ -1143,19 +1170,23 @@ close_cmd() {
 policy() {
 	require_work set interface || return 1
 	
+	set_work_function "Setting interface '${work_interface}' (${work_name}) policy to ${1}"
 	work_policy="${1}"
 	
 	return 0
 }
 
 masquerade() {
-	local f="${1}"
-	test -z "${f}" && f="${work_outface}"
-	test "${f}" = "reverse" && f="${work_inface}"
+	set_work_function -ne "Initializing masquerade"
 	
-	work_function="Initializing masquerade"
+	local f="${work_outface}"
+	test "${1}" = "reverse" && f="${work_inface}"
+	
+	test -z "${f}" && local f="${1}"
 	
 	test -z "${f}" && error "masquerade requires an interface set or as argument" && return 1
+	
+	set_work_function "Initializing masquerade on interface '${f}'"
 	
 	local x=
 	for x in ${f}
@@ -1182,7 +1213,7 @@ interface() {
 	# --- test prerequisites ---
 	
 	require_work clear || return 1
-	work_function="Initializing interface"
+	set_work_function -ne "Initializing interface"
 	
 	
 	# --- get paramaters and validate them ---
@@ -1201,7 +1232,7 @@ interface() {
 	work_cmd="${FUNCNAME}"
 	work_name="${name}"
 	
-	work_function="Initializing interface '${work_name}'"
+	set_work_function -ne "Initializing interface '${work_name}'"
 	
 	create_chain filter "in_${work_name}" INPUT set_work_inface inface "${inface}" "$@"
 	create_chain filter "out_${work_name}" OUTPUT set_work_outface reverse inface "${inface}" "$@"
@@ -1216,7 +1247,7 @@ interface() {
 close_interface() {
 	require_work set interface || return 1
 	
-	work_function="Finilizing interface '${work_name}'"
+	set_work_function "Finilizing interface '${work_name}'"
 	
 	case "${work_policy}" in
 		return|RETURN)
@@ -1252,7 +1283,7 @@ router() {
 	# --- test prerequisites ---
 	
 	require_work clear || return 1
-	work_function="Initializing router"
+	set_work_function -ne "Initializing router"
 	
 	
 	# --- get paramaters and validate them ---
@@ -1267,7 +1298,7 @@ router() {
 	work_cmd="${FUNCNAME}"
 	work_name="${name}"
 	
-	work_function="Initializing router '${work_name}'"
+	set_work_function -ne "Initializing router '${work_name}'"
 	
 	create_chain filter "in_${work_name}" FORWARD set_work_inface set_work_outface "$@"
 	create_chain filter "out_${work_name}" FORWARD reverse "$@"
@@ -1280,7 +1311,7 @@ router() {
 close_router() {	
 	require_work set router || return 1
 	
-	work_function="Finilizing router '${work_name}'"
+	set_work_function "Finilizing router '${work_name}'"
 	
 	# Accept all related traffic to the established connections
 	rule chain "in_${work_name}" state RELATED action ACCEPT
@@ -1312,7 +1343,7 @@ close_router() {
 }
 
 close_master() {
-	work_function="Finilizing firewall policies"
+	set_work_function "Finilizing firewall policies"
 	
 	# Accept all related traffic to the established connections
 	rule chain INPUT state RELATED action ACCEPT
@@ -1978,9 +2009,16 @@ postprocess() {
 	test ${FIREHOL_DEBUG} -eq 1 && local tmp=
 	
 	printf "%q " "$@" >>${FIREHOL_OUTPUT}
-	echo " $tmp # L:${FIREHOL_LINEID}" >>${FIREHOL_OUTPUT}
+	test ${FIREHOL_EXPLAIN} -eq 0 && echo " $tmp # L:${FIREHOL_LINEID}" >>${FIREHOL_OUTPUT}
 	
-	if [ ${FIREHOL_DEBUG} -eq 0 ]
+	if [ ${FIREHOL_EXPLAIN} -eq 1 ]
+	then
+		cat ${FIREHOL_OUTPUT}
+		echo
+		rm -f ${FIREHOL_OUTPUT}
+	fi
+	
+	if [ ${FIREHOL_DEBUG} -eq 0 -a ${FIREHOL_EXPLAIN} -eq 0 ]
 	then
 		printf "check_final_status \$? ${FIREHOL_LINEID} " >>${FIREHOL_OUTPUT}
 		printf "%q " "$@" >>${FIREHOL_OUTPUT}
@@ -2032,7 +2070,7 @@ create_chain() {
 	local oldchain="${3}"
 	shift 3
 	
-	work_function="Creating chain '${newchain}' under '${oldchain}' in table '${table}'"
+	set_work_function "Creating chain '${newchain}' under '${oldchain}' in table '${table}'"
 	
 	chain_exists "${newchain}"
 	test $? -eq 1 && error "Chain '${newchain}' already exists." && return 1
@@ -2070,7 +2108,10 @@ smart_function() {
 	local service=
 	for service in $services
 	do
-		work_function="Looking up service '${service}' (${type})"
+		local servname="${service}"
+		test "${service}" = "custom" && local servname="${1}"
+		
+		set_work_function "Preparing for service '${service}' of type '${type}' under interface '${work_name}'"
 		
 		# Increase the command counter, to make all chains within a primary
 		# command, unique.
@@ -2095,7 +2136,7 @@ smart_function() {
 				;;
 		esac
 		
-		local mychain="${work_name}_${service}_${suffix}"
+		local mychain="${work_name}_${servname}_${suffix}"
 		
 		create_chain filter "in_${mychain}" "in_${work_name}"
 		create_chain filter "out_${mychain}" "out_${work_name}"
@@ -2117,6 +2158,9 @@ smart_function() {
 		
 		# Try the custom services
 		local fn="rules_${service}"
+		
+		set_work_function "Running complex rules function ${fn}() for service '${service}'/${type}"
+		
 		"${fn}" "${mychain}" "${type}" "$@"
 		local ret=$?
 		test $ret -eq 0 && continue
@@ -2181,6 +2225,8 @@ simple_service() {
 			require_kernel_module $x || return 1
 		done
 	fi
+	
+	set_work_function "Running simple rules for service '${service}'/${type}"
 	
 	rules_custom "${mychain}" "${type}" "${server}" "${server_ports}" "${client_ports}" "$@"
 	return $?
@@ -2279,7 +2325,7 @@ protection() {
 	test -z "${rate}"  && rate="100/s"
 	test -z "${burst}" && burst="50"
 	
-	work_function="Generating protections on '${prface}' for ${work_cmd} '${work_name}'"
+	set_work_function "Generating protections on '${prface}' for ${work_cmd} '${work_name}'"
 	
 	local x=
 	for x in ${type}
@@ -2368,6 +2414,36 @@ protection() {
 # ------------------------------------------------------------------------------
 # XXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXX
 # ------------------------------------------------------------------------------
+
+if [ ${FIREHOL_EXPLAIN} -eq 1 ]
+then
+	FIREHOL_CONFIG="Interactive User Input"
+	FIREHOL_LINEID="0"
+	
+	while [ 1 = 1 ]
+	do
+		echo
+		read -p "Enter command to explain > " -e -r
+		test -z "${REPLY}" && continue
+		
+		FIREHOL_LINEID=$[FIREHOL_LINEID + 1]
+		
+		set -- $REPLY
+		
+		set_work_function -ne "Executing user input"
+		cat <<EOF
+
+
+# \/\/\/\/\/\/\/\/\/\/\/\/\/\/\/\/\/\/\/\/\/\/\/\/\/\/\/\/\/\/\/\/\/\/\/\/\/\/\/
+# Cmd Line : ${FIREHOL_LINEID}
+# Command  : ${REPLY}
+EOF
+		"$@"
+		test $? -gt 0 && error "Command failed"
+	done
+	
+	exit 0
+fi
 
 echo -n $"FireHOL: Setting firewall defaults:"
 ret=0
