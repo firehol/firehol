@@ -6,7 +6,80 @@
 
 <BODY bgcolor="#FFFFFF" leftmargin="0" topmargin="0" marginwidth="3" marginheight="1">
 
+<font color="gray">(note: this is part of the old site - more to come later...)</font>
+<p>
 
+It is very simple to extend FireHOL for simple single socket services.
+There are two different ways to do it.<p>
+
+The first needs a small service definition
+somewhere at the beginning of the FireHOL configuration file. This syntax is called the 
+<b>service definition syntax</b>.<br>
+
+For example the following:
+
+<pre>
+server_myservice_ports=&quot;proto/XXX&quot;
+client_myservice_ports=&quot;default&quot;
+</pre>
+
+Where:<br>
+<b>myservice</b> is the name of the service,<br>
+<b>proto</b> is either <b>tcp</b> or <b>udp</b> - or whatever else iptables accepts 
+as protocol,<br>
+<b>XXX</b> is the port (or port name) the server is listening at, and <br>
+<b>default</b> is a keyword that matches the default client ports.
+<br>
+Just the above two lines will allow you to use (for example):
+
+<pre>
+	server myservice accept
+	client myservice reject
+	route myservice drop
+</pre>
+later in the configuration file. As an example, assuming that the IMAP4 service was not defined in FireHOL you would have to write:
+
+<pre>
+server_imap_ports="tcp/143"
+client_imap_ports="default"
+
+interface eth0 lan0
+	server imap accept
+
+interface eth1 lan1
+	client imap reject
+</pre>
+
+<p>
+The second way is to use the <b>inline service definition syntax</b>:
+
+<pre>
+	server custom myservice proto/XXX default accept
+</pre>
+
+Where:<br>
+<b>custom</b> is a service name that states the inline service definition syntax.<br>
+<b>myservice</b> is the name of the service,<br>
+<b>proto</b> is either <b>tcp</b> or <b>udp</b> - or whatever else iptables accepts 
+as protocol,<br>
+<b>XXX</b> is the port (or port name) the server is listening at, and <br>
+<b>default</b> is a keyword that matches the default client ports.
+<p>
+The IMAP4 service example above, now becomes:
+
+<pre>
+interface eth0 lan0
+	server custom imap tcp/143 default accept
+
+interface eth1 lan1
+	client custom imap tcp/143 default reject
+</pre>
+
+So, if you are only going to need a service just once in your firewall, it might be convenient to use
+the inline syntax, while if you are going to need it many times, it would be easier to use the service
+definition syntax.<br>
+Personally, I always prefer to use the service definition syntax and to avoid the inline one (I always forget
+that the inline one requires a service name too...).
 
 
 <p>
@@ -15,7 +88,7 @@
 <tr><td align=center valign=middle>
 	<A href="http://sourceforge.net"><IMG src="http://sourceforge.net/sflogo.php?group_id=58425&amp;type=5" width="210" height="62" border="0" alt="SourceForge Logo"></A>
 </td><td align=center valign=middle>
-	<small>$Id: adding.html,v 1.1 2002/12/08 22:06:36 ktsaou Exp $</small>
+	<small>$Id: adding.html,v 1.2 2002/12/09 21:14:49 ktsaou Exp $</small>
 	<p>
 	<b>FireHOL</b>, a firewall for humans...<br>
 	&copy; Copyright 2002

@@ -1,14 +1,75 @@
 <HTML>
 <HEAD>
 <link rel="stylesheet" type="text/css" href="css.css">
-<TITLE>FireHOL, a firewall for humans...</TITLE>
+<TITLE>FireHOL, supported services</TITLE>
 </HEAD>
 
-<BODY bgcolor="#FFFFFF" leftmargin="0" topmargin="0" marginwidth="0" marginheight="0">
+<BODY bgcolor="#FFFFFF" leftmargin="0" topmargin="0" marginwidth="10" marginheight="1">
 
-    <table border=0 cellSpacing="5" cellPadding="10" border="0">
-    <tr>
-<td border=0 vAlign="top" width="60%">
+<font color="gray">(note: the new site is far from complete, but I hope you will find it more useful than the old one - I'll do my best to complete it as soon as possible.)</font>
+<p>
+FireHOL has been designed to be:
+<ul>
+	<li>first of all, <b>secure</b> (as this is the most important factor for a firewall)</li>
+	<li>completely <b>dynamic</b> (to allow you do whatever you like)</li>
+	<li>extremely <b>simple</b> to configure, understand, audit, use and alter.</li>
+</ul>
+<p>
+FireHOL has been designed to be a firewall for... <b>humans</b>!
+
+<h3>Example Configuration</h3>
+<b>Rules for a simple SMTP relay server</b>, with two ethernet interfaces, where SMTP traffic is
+received from clients via eth0 and send to other SMTP servers via eth1:
+
+<pre>
+	version 5
+	
+	interface eth0 mailin
+		server smtp accept
+		client dns accept
+	  
+	interface eth1 mailout
+		client smtp accept
+	
+</pre>
+The above will only allow:
+	<ul>
+	<li>eth0: SMTP requests to be received</li>
+	<li>eth0: SMTP replies (matching the requests) to be send</li>
+	<li>eth0: DNS requests to be send</li>
+	<li>eth0: DNS replies (matching the requests) to be received</li>
+	<li>eth1: SMTP requests to be send</li>
+	<li>eth1: SMTP replies (matching the requests) to be received</li>
+	</ul>
+<p>
+<b>Nothing else will be allowed!</b> The server will be unpingable, you will not be able to login via SSH,
+and even from its console you will not be able to request anything except DNS via eth0 and SMTP via eth1!
+
+<p>
+<b>Rules for a simple router</b> for a home LAN:
+
+<pre>
+	version 5
+	
+	interface eth0 home
+		policy accept
+	
+	interface ppp+ internet
+		client all accept
+	
+	router myclients inface eth0 outface ppp+
+		masquerade
+		route all accept
+
+</pre>
+The above will only allow:
+	<ul>
+	<li>eth0: anything to be received and send</li>
+	<li>ppp+: Any kind of requests to be send and their replies to be received</li>
+	<li>routing client requests coming in from eth0 and going out to ppp+ and their matching replies in the opposite direction, using masquerading.</li>
+	</ul>
+
+
 <h3>Why?</h3>
 <p>As an IT executive, responsible for many dozens of Linux systems, I 
 needed a firewalling solution that would allow me and my team to have a 
@@ -23,6 +84,7 @@ else, to view, verify and audit the firewall of any linux server or
 linux router <b>in seconds</b>. FireHOL's configuration is extremely 
 simple... you don't have to be an expert to design a complicated but 
 secure firewall.</p>
+
 <h3>Is it secure enough?</h3>
 <p>FireHOL has been designed with the &quot;right firewalling concept&quot;: <b>
 deny everything, then allow only what is needed</b>. This means that an 
@@ -39,12 +101,14 @@ iptables commands for each service (smtp, ssh, etc) until <b>you</b>
 believe the rules I have placed there are secure enough for you. For 
 sure, I admit that this is not a mature product (yet) and I may have 
 made mistakes...</p>
+
 <h3>What type of firewall it produces?</h3>
 <p>FireHOL produces stateful packet-filtering rules for iptables, even 
 on UDP and ICMP. This means that all traffic is allowed only if it 
 matches <i>server</i> or <i>client</i> requests defined in the 
 configuration file, and of course their matching replies or related 
 sockets.</p>
+
 <h3>What features does it have?</h3>
 <p>FireHOL handles firewalls protecting one host on all its interfaces 
 and any combination of stateful firewalls routing traffic from one 
@@ -56,7 +120,7 @@ PREROUTING and MANGLING are not supported either. QoS, although not
 iptables stuff, is missing too. You are welcome to extend FireHOL and 
 send me your patches to integrate within FireHOL.</p>
 <p>Note however that you can embed normal iptables commands in a FireHOL 
-configuration script for NATing, MASQUERADing, REDIRECTing ports, etc.</p>
+configuration script for NATing, REDIRECTing ports, etc.</p>
 <p>Since FireHOL produces stateful commands, for every supported service 
 it needs to know the flow of requests and replies. Today FireHOL 
 supports the following services:</p>
@@ -76,544 +140,17 @@ supports the following services:</p>
   <i>client</i>, <i>server</i> and <i>route</i> commands.</li>
 </ul>
 
-<h3>How it works?</h3>
-<p>FireHOL uses its configuration file as a BASH script. To do this, It 
-first defines a set of functions and variables and then it &quot;sources&quot; 
-(runs inline) its configuration file to be executed by BASH.</p>
-<p>The keywords <i>interface</i>, <i>client</i>, <i>server</i>, <i>
-router</i>, etc are all BASH functions that are executed by BASH when 
-and if they appear in the configuration file. Using shared variables 
-these functions share some state information that allows them to know, 
-for example, that a <i>client</i> command appears within an <i>interface</i> 
-and not within a <i>router</i> and that the name given to an <i>
-interface</i> has not been used before.</p>
-<p>Instead of running iptables commands directly, each of these 
-functions (i.e. FireHOL) just writes the generated iptables commands to 
-a temporary file. This is done to prevent altering a running firewall 
-before ensuring that the syntax of the configuration file is correct. 
-So, a complete run of the configuration file actually produces all the 
-iptables commands for your firewall, written to a temporary file 
-(script).&nbsp; Even the <i>iptables</i> commands given within the 
-configuration file use the same concept (they just generate iptables 
-commands in this script).</p>
-<p>Finally, this script (the generated iptables commands) has to be run, 
-but before doing so, FireHOL saves your old firewall to another 
-temporary file. The saved firewall will be automatically restored if 
-some of the generated iptables commands produces an error. Such an error 
-is possible when for example, you specify an invalid IP address or 
-hostname, or an invalid arguments to some&nbsp; parameter that gets passed to 
-iptables as-is.</p>
-<p>It is important to understand that <b>during the run of the generated 
-iptables script (including the possible restoration of the old 
-firewall), FireHOL allows all traffic to reach its destination</b>. This 
-has been done to prevent a possible lock-out situation where you are 
-SSHing to the server to alter its firewall, and suddenly you loose the 
-connection (although this can still happen if your new firewall doesn't 
-allow the connection).</p>
-<p>If no error has been seen, FireHOL deletes all temporary files 
-generated and exits.</p>
-<p>In case there was an error, FireHOL will make the most to restore 
-your previous firewall and will present you details about the error and 
-its line number in the original configuration file.</p>
 
-<h3>Quick Start</h3>
 <p>
-By default FireHOL logs all packets it drops to the syslog with a limit of
-one log per second. This log is the best source for debugging your firewall.
-<p>
-You can also use "debug" as the command line argument to FireHOL to see the
-produced iptables rules, without activating them.
-<p>
-The FireHOL configuration file is: <b>/etc/firehol.conf</b>
-<p>
-<h4>Primary commands</h4>
-<p>
-
-<b>interface</b> <font color="red">&lt;real interface&gt;</font> <font color="red">&lt;name&gt;</font> [optional rule parameters]
-<br>
-The <i>interface</i> command creates an INPUT/OUTPUT firewall on the given interface.
-By default the policy is DROP, so that if no subcommands are given, the
-firewall will just DROP all incoming and outgoing packets using this
-interface.
-<br>
-As <font color="red">&lt;real interface&gt;</font> you can use anything
-iptables accepts including the pattern character + (the plus sign).
-The plus sign after some text will match all interfaces that start with this text.
-<br>
-As <font color="red">&lt;name&gt;</font> you can use anything you like to name
-this interface. This <font color="red">&lt;name&gt;</font> will be used to create
-respective <b>in_<font color="red">&lt;name&gt;</font></b> and <b>out_<font color="red">&lt;name&gt;</font></b> iptables chains.
-If <font color="red">&lt;name&gt;</font> is used more than once in a firewall, FireHOL will complain.
-<p>
-
-<b>router</b> <font color="red">&lt;name&gt;</font> [optional rule parameters]
-<br>
-The <i>router</i> command creates a FORWARD firewall.
-The only acceptable policy on all <i>router</i> commands is RETURN and therefore
-the policy subcommand cannot be used on routers.
-This means that no packets are dropped in a router. Packets not matched by any
-<i>router</i> command will be dropped at the end of the FORWARD chain of the firewall.
-<br>
-Router statements produce similar iptables commands the interface statements produce.
-For each router statement an <b>in_<font color="red">&lt;name&gt;</font></b> and an
-<b>out_<font color="red">&lt;name&gt;</font></b> chain are produced to match the traffic
-in both directions of the router.
-<br>
-Routers do not accept <i>client</i> or <i>server</i> subcommands. The only subcommand allowed is <i>route</i>.
-To match some client or server traffic the administrator has to specify the input/output interface or the source/destination
-of the request. All inface/outface, src/dst rule paramaters can be given either on the <i>router</i> statement in which case
-will be applied to all <i>route</i> subcommands for this <i>router</i>, or on each of the <i>route</i> subcommands within a <i>router</i>.
-Both are valid.
-<br>
-For example:
-<pre>
-router myclients inface eth0 outface ppp+
-	route http accept
-	route smtp accept
-</pre>
-The above says: Define a router that matches all <u>requests</u> that originate from eth0 and go out to some PPP interface.
-The clients (senders of the requests) on eth0 can only access HTTP and SMTP traffic. Of course the replies of the requests will
-also be allowed to come in from the PPP interface to eth0.
-<p>
-While:
-<pre>
-router myclients
-	route http accept inface eth0 outface ppp+
-	route smtp accept inface ppp+ outface eth0
-</pre>
-The above says: Define a router that matches any kind of forwarded traffic.
-For HTTP traffic the clients are on eth0 and the servers on a PPP interface.
-For SMTP traffic the clients are on a PPP interface and the servers on eth0.
-<p>
-The administrator can define any number of <i>router</i> statements. Since the policy is RETURN on all of them, any traffic
-not matched by a <i>router</i> will continue to be checked against the second.
-<p>
-
-<b>version</b> <font color="red">&lt;number&gt;</font>
-<br>
-The <i>version</i> command states the FireHOL version the configuration file was
-created for. In case the configuration file is newer than FireHOL, FireHOL will deny
-to run it.
-<p>
-
-<b>iptables</b> <font color="red">&lt;arguments&gt;</font>
-<br>
-The <i>iptables</i> command passes all its arguments to the real iptables command, during run-time.
-<p>
-
-<h4>Sub-Commands</h4>
-<p>
-
-<b>policy</b> <font color="red">&lt;action&gt;</font>
-<br>
-The <i>policy</i> sub-command defines the default policy for an <i>interface</i>.
-This directive accepts all the actions iptables accepts, i.e. DROP, REJECT, ACCEPT,
-RETURN, etc.
-Note that there is no meaning to use the LOG action, since FireHOL accepts it as an
-optional rule parameter (see bellow).
-<p>
-
-<b>protection</b> <font color="red">&lt;type&gt;</font> [requests/sec] [burst]
-<br>
-The <i>protection</i> sub-command sets a number of protection rules on an <i>interface</i>.
-<b>type</b> can be: <br>
-	<ul><b>strong</b>, or <b>full</b>, or <b>all</b>
-	<br>turns on all the possible protections.
-	</ul>
-	<ul><b>fragments</b>
-	<br>Drops all packet fragments.
-	</ul>
-	<ul><b>new-tcp-w/o-syn</b>
-	<br>Drops all TCP packets that initiate a socket but have no the SYN bit set.
-	</ul>
-	<ul><b>syn-floods</b>
-	<br>Allows only a certain amount of new TCP connections per second. The optional two arguments [requests/sec] and [burst]
-	are used by this rule in order to provide control on the number of connections to be allowed.
-	The default is 100 connections per second that can be bursted by 4.
-	</ul>
-	<ul><b>malformed-xmas</b>
-	<br>Drops all TCP packets that have all the TCP flags set.
-	</ul>
-	<ul><b>malformed-null</b>
-	<br>Drops all TCP packets that have all the TCP flags unset.
-	</ul>
-<p>
-
-<b>server</b> "<font color="red">&lt;one or more services&gt;</font>" <font color="red">&lt;action&gt;</font> [optional rule parameters]
-<br>
-The <i>server</i> sub-command defines a server within an <i>interface</i>. For FireHOL a server is the destination of a request,
-and even if this is more complex for multi-socket services, <b>for FireHOL a server always accepts requests</b>.
-<p>
-
-<b>client</b> "<font color="red">&lt;one or more services&gt;</font>" <font color="red">&lt;action&gt;</font> [optional rule parameters]
-<br>
-The <i>client</i> sub-command defines a client within an <i>interface</i>. For FireHOL a client is the source of a request.
-FireHOL follows this simple rule even on multi-socket complex protocols, so that <b>for FireHOL a client always sends requests</b>.
-<p>
-
-<b>route</b> "<font color="red">&lt;one or more services&gt;</font>" <font color="red">&lt;action&gt;</font> [optional rule parameters]
-<br>
-The <i>route</i> sub-command defines a service within a <i>router</i>.
-<p>
-
-<h4>Optional Rule Parameters</h4>
-<p>
-
-<b>src</b> [not] <font color="red">"&lt;one or more IPs, subnets, hostnames&gt;"</font>
-<br>
-<i>src</i> defines the source of the <b>REQUEST</b>. If <i>src</i> is defined on a <i>server</i> statement it matches the
-source of the request which is the remote host, while if it is defined on a <i>client</i> statement it matches <b>again</b>
-the source of the request, but this time it is the local host. <b>Focus on the SOURCE of the REQUEST !!!</b> Forget the reply.
-<p>
-
-<b>dst</b> [not] <font color="red">"&lt;one or more IPs, subnets, hostnames&gt;"</font>
-<br>
-<i>dst</i> defines the destination of the <b>REQUEST</b>. If <i>dst</i> is defined on a <i>server</i> statement it matches the
-destination of the request which is the local host, while if it is defined on a <i>client</i> statement it matches <b>again</b>
-the destination of the request, but this time it is the remote host. <b>Focus on the DESTINATION of the REQUEST !!!</b> Forget the reply.
-<p>
-
-<b>inface</b> <font color="red">"&lt;one or more interface names&gt;"</font>
-<br>
-<i>inface</i> defines the interface the <b>REQUEST</b> is received via.
-<i>inface</i> cannot be used in <i>interface</i> commands.
-<p>
-
-<b>outface</b> <font color="red">"&lt;one or more interface names&gt;"</font>
-<br>
-<i>outface</i> defines the interface the <b>REQUEST</b> is send via.
-<i>outface</i> cannot be used in <i>interface</i> commands.
-<p>
-
-<b>custom</b> <font color="red">"&lt;arguments&gt;"</font>
-<br>
-<i>custom</i> passes its arguments to the generated iptables commands.
-<p>
-
-<b>log</b> <font color="red">"&lt;some text&gt;"</font>
-<br>
-<i>log</i> will also log the matching packets to syslog. Note that this is not a policy. FireHOL will actually produce multiple iptables commands to accomplish both the action for the rule and the logging.
-<p>
-
-<b>loglimit</b> <font color="red">"&lt;some text&gt;"</font>
-<br>
-<i>loglimit</i> is the same with <i>log</i> but limits logging of packets to 1/sec.
-<p>
-
-<b>limit</b> <font color="red">&lt;frequency&gt;</font> <font color="red">&lt;burst&gt;</font>
-<br>
-<i>limit</i> will limit the <i>action</i> of the rule to the specified frequency.
-<p>
-
-
-</td>
-
-
-<td vAlign="top" width="56%">
-<h3>Example Configuration</h3>
-<ul>
-<li>
-<b>Rules for a simple SMTP relay server</b>, with two ethernet interfaces, where SMTP traffic is
-received from clients via eth0 and send to other SMTP servers via eth1:
-
-<pre>
-version 5
-
-interface eth0 mailin
-	server smtp accept
-	client dns accept
-  
-interface eth1 mailout
-	client smtp accept
-
-</pre>
-The above will only allow:
-	<ul>
-	<li>eth0: SMTP requests to be received</li>
-	<li>eth0: SMTP replies (matching the requests) to be send</li>
-	<li>eth0: DNS requests to be send</li>
-	<li>eth0: DNS replies (matching the requests) to be received</li>
-	<li>eth1: SMTP requests to be send</li>
-	<li>eth1: SMTP replies (matching the requests) to be received</li>
-	</ul>
-<p>
-<b>Nothing else will be allowed!</b> The server will be unpingable, you will not be able to login via SSH,
-and even from its console you will not be able to request anything except DNS via eth0 and SMTP via eth1!
-<br><hr noshade size=1>
-</li>
-
-<li>
-<b>Rules for a simple workstation</b>:
-
-<pre>
-version 5
-
-interface eth0 mypc
-	client all accept
-
-</pre>
-The above will allow all kind of requests to be send and their replies to be received (via eth0).
-You will be able, for example, to ping any other host, but no other host will be able to ping you...
-<br><hr noshade size=1>
-</li>
-
-<li>
-<b>Rules for a simple home router</b> for a LAN with real IP addresses:
-
-<pre>
-version 5
-
-interface eth0 home
-	policy accept
-
-interface ppp+ internet
-	client all accept
-
-router myclients inface eth0 outface ppp+
-	route all accept
-
-</pre>
-The above will only allow:
-	<ul>
-	<li>eth0: anything to be received and send</li>
-	<li>ppp+: Any kind of requests to be send and their replies to be received</li>
-	<li>routing client requests coming in from eth0 and going out to ppp+ and their matching replies in the opposite direction.</li>
-	</ul>
 <hr noshade size=1>
-</li>
-
-<li>
-My own home router configuration (I have a /28 subnet with real IP 
-addresses - these IP addresses have been altered in this copy of the 
-configuration file):<br>
-<pre>
-version 5
-
-<font color="gray"># Something unusual: A transparent cache. </font>
-<font color="gray"># Define it with a normal iptables command.</font>
-iptables -t nat -A PREROUTING -i eth0 -p tcp \
-	--dport 80 ! -d 1.1.1.2 -j REDIRECT --to-port 3128
-
-<font color="gray"># This is my LAN</font>
-tsaousis=&quot;1.1.1.1/28&quot;
-
-<font color="gray"># This is my PC at my office</font>
-office=&quot;2.2.2.2/32&quot;
-
-interface ppp+ internet src not $tsaousis<br>
-	<font color="gray"># Protect me from SYN attacks</font>
-	<font color="gray"># Limit reqs to 1/sec</font>
-	protection strong 1/sec 1
-	
-	<font color="gray"># I run a mailer</font>
-	server smtp accept
-	
-	<font color="gray"># Speed up idents</font>
-	server ident reject
-
-	<font color="gray"># Connect from office</font>
-	server ssh accept src $office
-
-	<font color="gray"># I use this PC as a workstation</font>
-	client all accept
-
-<font color="gray"># trust the LAN</font>
-interface eth0 home
-	policy accept
-
-<font color="gray"># The LAN has clients</font>
-router myclients inface eth0 outface ppp+ src $tsaousis
-	route all accept
-
-</pre>
-<p align="left"><font size="2">The key rule here is:
-<font color="#ff0000">SRC, INFACE, etc match the source of the 
-REQUEST, while DST, OUTFACE, etc match the destination of the REQUEST</font>!<br>
-<br>
-Focus on the REQUEST - forget the reply!<br>
-<br>
-Also, as far as FireHOL configuration is concerned, a server <b>always</b> 
-receives requests, while a client <b>always</b> sends requests - 
-forget the complexity of multi-socket protocols.<br>
-<br>
-This means that SRC on <i>server</i> is the remote host, while on a <i>
-client</i> is the local host. Similarly, DST on <i>server</i> is the 
-local host, while DST on <i>client</i> is the remote host.<br>
-<br>
-INFACE and OUTFACE are implied on all <i>interface</i> statements, 
-while they must be specifically defined in <i>router</i> statements.
-&nbsp;</font></li>
-
-<br><hr noshade size=1>
-<li>My own office PC configuration (I have only one ethernet, but this 
-PC is statically NATed by another router and gets a real IP):
-
-<pre>
-version 5
-
-<font color="gray"># My home IPs</font>
-home=&quot;1.1.1.1/28&quot;
-
-<font color="gray"># What can I do from my home?</font>
-home_servers=&quot;ssh http imap icmp pptp&quot;
-
-<font color="gray"># The company's intranet</font>
-intranet=&quot;10.0.0.0/16&quot;
-
-<font color="gray"># My department PCs</font>
-itnet=&quot;10.0.70.0/24&quot;
-
-<font color="gray"># my own PCs</font>
-personal=&quot;10.0.70.65 10.0.70.66 10.0.70.67&quot;
-
-interface eth0 ethernet
-	<font color="gray"># Don't drop packets.</font>
-	<font color="gray"># Just continue...</font>
-	policy return
-
-	protection strong
-	
-	server ident reject
-	server smtp accept
-
-<font color="gray"># note that all packets from eth0 not
-# matched by the above, just continue
-# to get matched bellow.</font>
-
-interface eth0 intranet src $intranet
-	policy reject <font color="gray"># be friendly</font>
-	
-	<font color="gray"># Services we provide to the intranet.</font>
-	server icmp   accept
-	server http   accept
-	server samba  accept
-	
-	<font color="gray"># For my team only.</font>
-	<font color="gray"># This is a BASH script...</font>
-	for x in pop3 imap ssh lpd portmap nfs
-	do
-		server $x accept src $itnet
-	done
-	
-	<font color="gray"># For me only!</font>
-	server mysql accept src &quot;$personal&quot;
-	
-	<font color="gray"># This is a workstation too</font>
-	client all accept
-
-<font color="gray"># The rest of the traffic on eth0 is
-# INTERNET traffic</font>
-interface eth0 internet src not $intranet
-	policy drop <font color="gray"># also the default</font>
-	
-	<font color="gray"># A server outside the intranet</font>
-	<font color="gray"># prints through us.</font>
-	server lpd accept src &quot;1.2.3.4/32&quot;
-	
-	<font color="gray"># Services for my home</font>
-	<font color="gray"># Remember, this is a BASH script</font>
-	for x in ${home_servers}
-	do
-		server $x accept src $home
-	done
-	
-	<font color="gray"># This is a workstation for the</font>
-	<font color="gray"># internet</font>
-	client all accept
-
-<font color="gray"># I also run PPTP to establish a VPN
-# from my home.</font>
-interface ppp+ home
-	<font color="gray"># Same loop as above</font>
-	for x in ${home_servers}
-	do
-		server $x accept
-	done
-
-<font color="gray"># My VPN needs to be routed.
-# Only clients at my home through this VPN.</font>
-router homerouter inface ppp+ outface eth0
-	route all accept
-<pre>
-</li>
-</ul>
-<br><hr noshade size=1>
-<h3>Extending FireHOL with more services</h3>
-<p>
-It is very simple to extend FireHOL for simple single socket services.
-There are two different ways to do it.<p>
-
-The first needs a small service definition
-somewhere at the beginning of the FireHOL configuration file. This syntax is called the 
-<b>service definition syntax</b>.<br>
-
-For example the following:
-
-<pre>
-server_myservice_ports=&quot;proto/XXX&quot;
-client_myservice_ports=&quot;default&quot;
-</pre>
-
-Where:<br>
-<b>myservice</b> is the name of the service,<br>
-<b>proto</b> is either <b>tcp</b> or <b>udp</b> - or whatever else iptables accepts 
-as protocol,<br>
-<b>XXX</b> is the port (or port name) the server is listening at, and <br>
-<b>default</b> is a keyword that matches the default client ports.
-<br>
-Just the above two lines will allow you to use (for example):
-
-<pre>
-	server myservice accept
-	client myservice reject
-	route myservice drop
-</pre>
-later in the configuration file. As an example, assuming that the IMAP4 service was not defined in FireHOL you would have to write:
-
-<pre>
-server_imap_ports="tcp/143"
-client_imap_ports="default"
-
-interface eth0 lan0
-	server imap accept
-
-interface eth1 lan1
-	client imap reject
-</pre>
-
-<p>
-The second way is to use the <b>inline service definition syntax</b>:
-
-<pre>
-	server custom myservice proto/XXX default accept
-</pre>
-
-Where:<br>
-<b>custom</b> is a service name that states the inline service definition syntax.<br>
-<b>myservice</b> is the name of the service,<br>
-<b>proto</b> is either <b>tcp</b> or <b>udp</b> - or whatever else iptables accepts 
-as protocol,<br>
-<b>XXX</b> is the port (or port name) the server is listening at, and <br>
-<b>default</b> is a keyword that matches the default client ports.
-<p>
-The IMAP4 service example above, now becomes:
-
-<pre>
-interface eth0 lan0
-	server custom imap tcp/143 default accept
-
-interface eth1 lan1
-	client custom imap tcp/143 default reject
-</pre>
-
-So, if you are only going to need a service just once in your firewall, it might be convenient to use
-the inline syntax, while if you are going to need it many times, it would be easier to use the service
-definition syntax.<br>
-Personally, I always prefer to use the service definition syntax and to avoid the inline one (I always forget
-that the inline one requires a service name too...).
-</td>
-</tr>
-</table>
-
+<table border=0 width="100%">
+<tr><td align=center valign=middle>
+	<A href="http://sourceforge.net"><IMG src="http://sourceforge.net/sflogo.php?group_id=58425&amp;type=5" width="210" height="62" border="0" alt="SourceForge Logo"></A>
+</td><td align=center valign=middle>
+	<small>$Id: overview.html,v 1.2 2002/12/09 21:14:49 ktsaou Exp $</small>
+	<p>
+	<b>FireHOL</b>, a firewall for humans...<br>
+	&copy; Copyright 2002
+	Costa Tsaousis <a href="mailto: costa@tsaousis.gr">&lt;costa@tsaousis.gr&gt</a>
 </body>
 </html>
