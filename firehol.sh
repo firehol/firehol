@@ -10,7 +10,7 @@
 #
 # config: /etc/firehol/firehol.conf
 #
-# $Id: firehol.sh,v 1.150 2003/08/23 22:27:34 ktsaou Exp $
+# $Id: firehol.sh,v 1.151 2003/08/23 22:50:14 ktsaou Exp $
 #
 FIREHOL_FILE="${0}"
 
@@ -1715,9 +1715,9 @@ load_kernel_module() {
 		check_kernel_module ${mod}
 		if [ $? -gt 0 ]
 		then
-			${MODPROBE_CMD} ${mod} >${FIREHOL_OUTPUT}.log 2>&1
+			${MODPROBE_CMD} ${mod} -q >${FIREHOL_OUTPUT}.log 2>&1
 			local r=$?
-			test ! ${r} -eq 0 && runtime_error warn ${r} ${FIREHOL_LINEID} ${MODPROBE_CMD} ${mod}
+			test ! ${r} -eq 0 && runtime_error warn ${r} ${FIREHOL_LINEID} ${MODPROBE_CMD} ${mod} -q
 		fi
 	fi
 	return 0
@@ -3607,7 +3607,7 @@ case "${arg}" in
 		else
 		
 		${CAT_CMD} <<EOF
-$Id: firehol.sh,v 1.150 2003/08/23 22:27:34 ktsaou Exp $
+$Id: firehol.sh,v 1.151 2003/08/23 22:50:14 ktsaou Exp $
 (C) Copyright 2003, Costa Tsaousis <costa@tsaousis.gr>
 FireHOL is distributed under GPL.
 
@@ -3793,7 +3793,7 @@ then
 	
 	${CAT_CMD} <<EOF
 
-$Id: firehol.sh,v 1.150 2003/08/23 22:27:34 ktsaou Exp $
+$Id: firehol.sh,v 1.151 2003/08/23 22:50:14 ktsaou Exp $
 (C) Copyright 2003, Costa Tsaousis <costa@tsaousis.gr>
 FireHOL is distributed under GPL.
 Home Page: http://firehol.sourceforge.net
@@ -4088,7 +4088,7 @@ then
 	
 	${CAT_CMD} >&2 <<EOF
 
-$Id: firehol.sh,v 1.150 2003/08/23 22:27:34 ktsaou Exp $
+$Id: firehol.sh,v 1.151 2003/08/23 22:50:14 ktsaou Exp $
 (C) Copyright 2003, Costa Tsaousis <costa@tsaousis.gr>
 FireHOL is distributed under GPL.
 Home Page: http://firehol.sourceforge.net
@@ -4181,7 +4181,7 @@ EOF
 	echo "# "
 
 	${CAT_CMD} <<EOF
-# $Id: firehol.sh,v 1.150 2003/08/23 22:27:34 ktsaou Exp $
+# $Id: firehol.sh,v 1.151 2003/08/23 22:50:14 ktsaou Exp $
 # (C) Copyright 2003, Costa Tsaousis <costa@tsaousis.gr>
 # FireHOL is distributed under GPL.
 # Home Page: http://firehol.sourceforge.net

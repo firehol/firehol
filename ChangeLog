@@ -1,7 +1,7 @@
 
 RCS file: /cvsroot/firehol/firehol/firehol.sh,v
 Working file: firehol.sh
-head: 1.148
+head: 1.150
 branch:
 locks: strict
 access list:
@@ -9,8 +9,45 @@ symbolic names:
 	start: 1.1.1.1
 	vendor: 1.1.1
 keyword substitution: kv
-total revisions: 149;	selected revisions: 149
+total revisions: 151;	selected revisions: 151
 description:
+----------------------------
+revision 1.150
+date: 2003/08/23 22:27:34;  author: ktsaou;  state: Exp;  lines: +35 -11
+Made the blacklist helper produce only one set of chains for all its runs.
+This will keep the produced rules clearer and the firewall smaller.
+----------------------------
+revision 1.149
+date: 2003/08/23 21:42:35;  author: ktsaou;  state: Exp;  lines: +54 -5
+Added "blacklist" helper to create blacklists.
+
+Abstract from the documentation:
+
+blacklist [option] <IP>
+The blacklist helper creates a blacklist for the IP addresses given.
+It supports two modes of operation based on the option given (or the
+absence of it).
+
+The option can be:
+
+    * one of the words them, him, her, it, this, these, input in which
+      case it will generate a unidirectional statefull blacklist,
+      meaning that you will be able to ask (initiate connections)
+      anything from them, but they will not be able to ask (initiate
+      connections) anything from you or the remote hosts you protect
+      (routing).
+
+    * one of the words all, full or ommitted (no option given), in
+      which case FireHOL will create bidirectional stateless rules
+      that will DROP all traffic comming in from these IPs and will
+      REJECT all traffic going to them.
+
+The blacklist helper affects both interfaces and routers.
+
+Example 1: blacklist this 195.97.5.202
+Example 2: blacklist full 195.97.5.202
+
+Suggested by: Mikkel Schubert
 ----------------------------
 revision 1.148
 date: 2003/08/19 22:21:32;  author: ktsaou;  state: Exp;  lines: +6 -6
