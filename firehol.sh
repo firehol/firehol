@@ -10,7 +10,7 @@
 #
 # config: /etc/firehol/firehol.conf
 #
-# $Id: firehol.sh,v 1.167 2003/11/03 20:43:09 ktsaou Exp $
+# $Id: firehol.sh,v 1.168 2003/11/04 21:43:02 ktsaou Exp $
 #
 
 # Remember who you are.
@@ -681,7 +681,22 @@ rules_samba() {
 	
 	set_work_function "Setting up rules for SAMBA/NETBIOS-NS (${type})"
 	rule ${in}          action "$@" chain "${in}_${mychain}"  proto "udp" sport "netbios-ns ${client_ports}"  dport "netbios-ns" state NEW,ESTABLISHED || return 1
-	rule ${out} reverse action "$@" chain "${out}_${mychain}" proto "udp" sport "netbios-ns ${client_ports}"  dport "netbios-ns" state ESTABLISHED     || return 1
+	
+	# NETBIOS initiates based on the broadcast address of an interface
+	# (request goes to broadcast address) but the server responds from
+	# its own IP address. This makes the server samba accept statement
+	# drop the server reply.
+	# Bellow is a hack, that allows a linux samba server to respond
+	# correctly, as it allows new outgoing connections from the well
+	# known netbios-ns port to the clients high ports.
+	# For clients and routers this hack is not applied because it
+	# would be a huge security hole.
+	if [ "${type}" = "server" -a "${work_cmd}" = "interface" ]
+	then
+		rule ${out} reverse action "$@" chain "${out}_${mychain}" proto "udp" sport "netbios-ns ${client_ports}"  dport "netbios-ns" state NEW,ESTABLISHED || return 1
+	else
+		rule ${out} reverse action "$@" chain "${out}_${mychain}" proto "udp" sport "netbios-ns ${client_ports}"  dport "netbios-ns" state ESTABLISHED     || return 1
+	fi
 	
 	set_work_function "Setting up rules for SAMBA/NETBIOS-DGM (${type})"
 	rule ${in}          action "$@" chain "${in}_${mychain}"  proto "udp" sport "netbios-dgm ${client_ports}" dport "netbios-dgm" state NEW,ESTABLISHED || return 1
@@ -3933,7 +3948,7 @@ case "${arg}" in
 		else
 		
 		${CAT_CMD} <<EOF
-$Id: firehol.sh,v 1.167 2003/11/03 20:43:09 ktsaou Exp $
+$Id: firehol.sh,v 1.168 2003/11/04 21:43:02 ktsaou Exp $
 (C) Copyright 2003, Costa Tsaousis <costa@tsaousis.gr>
 FireHOL is distributed under GPL.
 
@@ -4119,7 +4134,7 @@ then
 	
 	${CAT_CMD} <<EOF
 
-$Id: firehol.sh,v 1.167 2003/11/03 20:43:09 ktsaou Exp $
+$Id: firehol.sh,v 1.168 2003/11/04 21:43:02 ktsaou Exp $
 (C) Copyright 2003, Costa Tsaousis <costa@tsaousis.gr>
 FireHOL is distributed under GPL.
 Home Page: http://firehol.sourceforge.net
@@ -4414,7 +4429,7 @@ then
 	
 	${CAT_CMD} >&2 <<EOF
 
-$Id: firehol.sh,v 1.167 2003/11/03 20:43:09 ktsaou Exp $
+$Id: firehol.sh,v 1.168 2003/11/04 21:43:02 ktsaou Exp $
 (C) Copyright 2003, Costa Tsaousis <costa@tsaousis.gr>
 FireHOL is distributed under GPL.
 Home Page: http://firehol.sourceforge.net
@@ -4497,7 +4512,7 @@ EOF
 	echo "# "
 
 	${CAT_CMD} <<EOF
-# $Id: firehol.sh,v 1.167 2003/11/03 20:43:09 ktsaou Exp $
+# $Id: firehol.sh,v 1.168 2003/11/04 21:43:02 ktsaou Exp $
 # (C) Copyright 2003, Costa Tsaousis <costa@tsaousis.gr>
 # FireHOL is distributed under GPL.
 # Home Page: http://firehol.sourceforge.net
