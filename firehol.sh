@@ -10,7 +10,7 @@
 #
 # config: /etc/firehol.conf
 #
-# $Id: firehol.sh,v 1.112 2003/03/14 21:22:37 ktsaou Exp $
+# $Id: firehol.sh,v 1.113 2003/03/15 00:59:27 ktsaou Exp $
 #
 FIREHOL_FILE="${0}"
 
@@ -3148,6 +3148,20 @@ case "${arg}" in
 		;;
 	
 	panic)
+		ssh_src=
+		ssh_sport="0:65535"
+		ssh_dport="0:65535"
+		if [ ! -z "${SSH_CLIENT}" ]
+		then
+			set -- ${SSH_CLIENT}
+			ssh_src="${1}"
+			ssh_sport="${2}"
+			ssh_dport="${3}"
+		elif [ ! -z "${1}" ]
+		then
+			ssh_src="${1}"
+		fi
+		
 		echo -n $"FireHOL: Blocking all communications:"
 		/sbin/modprobe ip_tables >/dev/null 2>&1
 		tables=`cat /proc/net/ip_tables_names`
@@ -3162,6 +3176,12 @@ case "${arg}" in
 			for c in ${chains}
 			do
 				/sbin/iptables -t "${t}" -P "${c}" ACCEPT
+				
+				if [ ! -z "${ssh_src}" ]
+				then
+					/sbin/iptables -t "${t}" -A "${c}" -p tcp -s "${ssh_src}" --sport "${ssh_sport}" --dport "${ssh_dport}" -m state --state ESTABLISHED -j ACCEPT
+					/sbin/iptables -t "${t}" -A "${c}" -p tcp -d "${ssh_src}" --dport "${ssh_sport}" --sport "${ssh_dport}" -m state --state ESTABLISHED -j ACCEPT
+				fi
 				/sbin/iptables -t "${t}" -A "${c}" -j DROP
 			done
 		done
@@ -3212,7 +3232,7 @@ case "${arg}" in
 		else
 		
 		cat <<"EOF"
-$Id: firehol.sh,v 1.112 2003/03/14 21:22:37 ktsaou Exp $
+$Id: firehol.sh,v 1.113 2003/03/15 00:59:27 ktsaou Exp $
 (C) Copyright 2002, Costa Tsaousis <costa@tsaousis.gr>
 FireHOL is distributed under GPL.
 
@@ -3395,7 +3415,7 @@ then
 	
 	cat <<"EOF"
 
-$Id: firehol.sh,v 1.112 2003/03/14 21:22:37 ktsaou Exp $
+$Id: firehol.sh,v 1.113 2003/03/15 00:59:27 ktsaou Exp $
 (C) Copyright 2002, Costa Tsaousis <costa@tsaousis.gr>
 FireHOL is distributed under GPL.
 Home Page: http://firehol.sourceforge.net
@@ -3603,7 +3623,7 @@ then
 	
 	cat >&2 <<"EOF"
 
-$Id: firehol.sh,v 1.112 2003/03/14 21:22:37 ktsaou Exp $
+$Id: firehol.sh,v 1.113 2003/03/15 00:59:27 ktsaou Exp $
 (C) Copyright 2002, Costa Tsaousis <costa@tsaousis.gr>
 FireHOL is distributed under GPL.
 Home Page: http://firehol.sourceforge.net
@@ -3696,7 +3716,7 @@ EOF
 	echo "# "
 
 	cat <<"EOF"
-# $Id: firehol.sh,v 1.112 2003/03/14 21:22:37 ktsaou Exp $
+# $Id: firehol.sh,v 1.113 2003/03/15 00:59:27 ktsaou Exp $
 # (C) Copyright 2002, Costa Tsaousis <costa@tsaousis.gr>
 # FireHOL is distributed under GPL.
 # Home Page: http://firehol.sourceforge.net

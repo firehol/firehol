@@ -54,6 +54,16 @@ FireHOL has been designed to be a startup service. As such, FireHOL accepts all 
 	by adding just one rule per table/chain to drop all traffic, because the default
 	iptables scripts supplied by many systems (including RedHat 8) do not reset
 	all the chains to ACCEPT when starting (FireHOL resets them correctly).
+	<p>
+	When activating panic mode, FireHOL checks for the existance of the SSH_CLIENT shell
+	environment variable. If it find this, then panic mode will allow the established
+	SSH connection specified in this variables to operate. Notice that in order for this
+	to work, you should have <b>su</b> without the minus (-) sign, since <b>su -</b>
+	overwrites the shell variables and therefore the SSH_CLIENT variable is lost.
+	<p>
+	Alternativelly, after the <b>panic</b> argument you can specify an IP address
+	in which case all <u>established</u> connections between this IP address and the host
+	in panic will be allowed.
 	</td>
 	</tr>
 <tr>	<td bgcolor="#EEEEEE"><b>save</td>
@@ -189,7 +199,7 @@ its line number in the original configuration file.
 <tr><td align=center valign=middle>
 	<A href="http://sourceforge.net"><IMG src="http://sourceforge.net/sflogo.php?group_id=58425&amp;type=5" width="210" height="62" border="0" alt="SourceForge Logo"></A>
 </td><td align=center valign=middle>
-	<small>$Id: invoking.html,v 1.9 2003/03/14 20:59:09 ktsaou Exp $</small>
+	<small>$Id: invoking.html,v 1.10 2003/03/15 00:59:28 ktsaou Exp $</small>
 	<p>
 	<b>FireHOL</b>, a firewall for humans...<br>
 	&copy; Copyright 2002
