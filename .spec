@@ -98,11 +98,11 @@ rm -rf ${RPM_BUILD_DIR}/%{name}-%{version}
 
 %config(noreplace) /etc/firehol/firehol.conf
 
-%config /etc/firehol/examples/home-adsl.conf
-%config /etc/firehol/examples/home-dialup.conf
-%config /etc/firehol/examples/office.conf
-%config /etc/firehol/examples/server-dmz.conf
-%config /etc/firehol/examples/client-all.conf
+/etc/firehol/examples/home-adsl.conf
+/etc/firehol/examples/home-dialup.conf
+/etc/firehol/examples/office.conf
+/etc/firehol/examples/server-dmz.conf
+/etc/firehol/examples/client-all.conf
 
 %doc doc/adding.html
 %doc doc/css.css
