@@ -10,7 +10,7 @@
 #
 # config: /etc/firehol.conf
 #
-# $Id: firehol.sh,v 1.37 2002/12/10 18:10:38 ktsaou Exp $
+# $Id: firehol.sh,v 1.38 2002/12/10 23:08:07 ktsaou Exp $
 #
 
 # ------------------------------------------------------------------------------
@@ -121,7 +121,7 @@ case "${arg}" in
 		else
 		
 		cat <<"EOF"
-$Id: firehol.sh,v 1.37 2002/12/10 18:10:38 ktsaou Exp $
+$Id: firehol.sh,v 1.38 2002/12/10 23:08:07 ktsaou Exp $
 (C) Copyright 2002, Costa Tsaousis
 FireHOL is distributed under GPL.
 
@@ -311,6 +311,8 @@ UNMATCHED_ROUTER_POLICY="DROP"
 # To change them, type such a line in the configuration file.
 # FIREHOL_LOG_OPTIONS="--log-level warning --log-tcp-sequence --log-tcp-options --log-ip-options"
 FIREHOL_LOG_OPTIONS="--log-level warning"
+FIREHOL_LOG_FREQUENCY="1/second"
+FIREHOL_LOG_BURST="5"
 
 # Complex services' rules may add themeselves to this variable so that
 # the service "all" will also call them.
@@ -1941,7 +1943,7 @@ rule() {
 										;;
 									
 									limit)
-										iptables "${basecmd[@]}" ${custom} -m limit --limit 1/second -j LOG ${FIREHOL_LOG_OPTIONS} --log-prefix="${logtxt}:"
+										iptables "${basecmd[@]}" ${custom} -m limit --limit "${FIREHOL_LOG_FREQUENCY}" --limit-burst "${FIREHOL_LOG_BURST}" -j LOG ${FIREHOL_LOG_OPTIONS} --log-prefix="${logtxt}:"
 										;;
 										
 									normal)
