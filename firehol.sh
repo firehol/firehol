@@ -10,7 +10,7 @@
 #
 # config: /etc/firehol.conf
 #
-# $Id: firehol.sh,v 1.55 2002/12/22 14:02:54 ktsaou Exp $
+# $Id: firehol.sh,v 1.56 2002/12/23 13:49:09 ktsaou Exp $
 #
 
 # ------------------------------------------------------------------------------
@@ -151,7 +151,7 @@ case "${arg}" in
 		else
 		
 		cat <<"EOF"
-$Id: firehol.sh,v 1.55 2002/12/22 14:02:54 ktsaou Exp $
+$Id: firehol.sh,v 1.56 2002/12/23 13:49:09 ktsaou Exp $
 (C) Copyright 2002, Costa Tsaousis <costa@tsaousis.gr>
 FireHOL is distributed under GPL.
 
@@ -415,6 +415,7 @@ FIREHOL_ROUTING=0
 
 work_counter=0
 work_cmd=
+work_realcmd=
 work_name=
 work_inface=
 work_outface=
@@ -1140,6 +1141,8 @@ require_kernel_module() {
 # Check our version
 
 version() {
+	work_realcmd="`printf "%q " version "$@"`"
+	
 	FIREHOL_VERSION_CHECKED=1
 	
 	if [ ${1} -gt ${FIREHOL_VERSION} ]
@@ -1245,6 +1248,7 @@ close_cmd() {
 	# Reset the current status variables to empty/default
 	work_counter=0
 	work_cmd=
+	work_realcmd=
 	work_name=
 	work_inface=
 	work_outface=
@@ -1254,6 +1258,8 @@ close_cmd() {
 }
 
 policy() {
+	work_realcmd="`printf "%q " policy "$@"`"
+	
 	require_work set interface || return 1
 	
 	set_work_function "Setting interface '${work_interface}' (${work_name}) policy to ${1}"
@@ -1263,6 +1269,8 @@ policy() {
 }
 
 masquerade() {
+	work_realcmd="`printf "%q " masquerade "$@"`"
+	
 	set_work_function -ne "Initializing masquerade"
 	
 	local f="${work_outface}"
@@ -1291,6 +1299,8 @@ masquerade() {
 # Setup rules specific to an interface (physical or logical)
 
 interface() {
+	work_realcmd="`printf "%q " interface "$@"`"
+	
 	# --- close any open command ---
 	
 	close_cmd || return 1
@@ -1317,6 +1327,7 @@ interface() {
 	
 	work_cmd="${FUNCNAME}"
 	work_name="${name}"
+	work_realcmd=
 	
 	set_work_function -ne "Initializing interface '${work_name}'"
 	
@@ -1361,6 +1372,8 @@ close_interface() {
 
 
 router() {
+	work_realcmd="`printf "%q " router "$@"`"
+	
 	# --- close any open command ---
 	
 	close_cmd || return 1
@@ -1383,6 +1396,7 @@ router() {
 	
 	work_cmd="${FUNCNAME}"
 	work_name="${name}"
+	work_realcmd=
 	
 	set_work_function -ne "Initializing router '${work_name}'"
 	
@@ -2174,9 +2188,10 @@ error() {
 	echo >&2
 	echo >&2 "--------------------------------------------------------------------------------"
 	echo >&2 "ERROR #: ${work_error}"
+	echo >&2 "COMMAND: ${work_realcmd}"
+	echo >&2 "SOURCE : line ${FIREHOL_LINEID} of ${FIREHOL_CONFIG}"
 	echo >&2 "WHAT   : ${work_function}"
 	echo >&2 "WHY    :" "$@"
-	echo >&2 "SOURCE : line ${FIREHOL_LINEID} of ${FIREHOL_CONFIG}"
 	echo >&2
 	
 	return 0
@@ -2264,18 +2279,24 @@ smart_function() {
 }
 
 server() {
+	work_realcmd="`printf "%q " server "$@"`"
+	
 	require_work set any || return 1
 	smart_function server "$@"
 	return $?
 }
 
 client() {
+	work_realcmd="`printf "%q " client "$@"`"
+	
 	require_work set any || return 1
 	smart_function client "$@"
 	return $?
 }
 
 route() {
+	work_realcmd="`printf "%q " route "$@"`"
+	
 	require_work set router || return 1
 	smart_function server "$@"
 	return $?
@@ -2384,6 +2405,8 @@ EOF
 # --- protection ---------------------------------------------------------------
 
 protection() {
+	work_realcmd="`printf "%q " protection "$@"`"
+	
 	require_work set any || return 1
 	
 	local in="in"
@@ -2530,7 +2553,7 @@ then
 	
 	cat <<"EOF"
 
-$Id: firehol.sh,v 1.55 2002/12/22 14:02:54 ktsaou Exp $
+$Id: firehol.sh,v 1.56 2002/12/23 13:49:09 ktsaou Exp $
 (C) Copyright 2002, Costa Tsaousis <costa@tsaousis.gr>
 FireHOL is distributed under GPL.
 Home Page: http://firehol.sourceforge.net

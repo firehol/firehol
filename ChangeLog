@@ -1,7 +1,7 @@
 
 RCS file: /cvsroot/firehol/firehol/firehol.sh,v
 Working file: firehol.sh
-head: 1.52
+head: 1.55
 branch:
 locks: strict
 access list:
@@ -9,8 +9,23 @@ symbolic names:
 	start: 1.1.1.1
 	vendor: 1.1.1
 keyword substitution: kv
-total revisions: 53;	selected revisions: 53
+total revisions: 56;	selected revisions: 56
 description:
+----------------------------
+revision 1.55
+date: 2002/12/22 14:02:54;  author: ktsaou;  state: Exp;  lines: +6 -3
+Added service APCUPSDNIS.
+----------------------------
+revision 1.54
+date: 2002/12/20 20:31:11;  author: ktsaou;  state: Exp;  lines: +10 -6
+Added variable FIREHOL_AMANDA_PORTS to control which ports amanda has been
+compiled with.
+
+Added service CUPS.
+----------------------------
+revision 1.53
+date: 2002/12/19 22:52:15;  author: ktsaou;  state: Exp;  lines: +43 -3
+Added service AMANDA.
 ----------------------------
 revision 1.52
 date: 2002/12/18 23:36:07;  author: ktsaou;  state: Exp;  lines: +98 -42
