@@ -57,6 +57,7 @@ automatically. FireHOL is extremely easy to understand, configure and audit.
 			<li><a href="#nat">nat</a>, setup a NAT rule for routed traffic</li>
 			<li><a href="#redirect">redirect</a>, setup a port redirection rule</li>
 			<li><a href="#snat">snat</a>, setup a Source NAT rule for routed traffic</li>
+			<li><a href="#tcpmss">tcpmss</a>, set the MSS of TCP SYN packets for routers</li>
 			<li><a href="#transparent_squid">transparent_squid</a>, setup a transparent squid proxy running on the firewall host</li>
 			<li><a href="#version">version</a>, require a specific version of FireHOL
 		</ul>
@@ -608,6 +609,31 @@ Subcommands must be given within <a href="#primary_commands">Primary commands</a
 	Example: <b>snat to 1.1.1.1 outface eth0 src 2.2.2.2 dst 3.3.3.3</b>
 	<p>
 	
+<hr noshade size=1 width="100%">
+	
+	<a name="tcpmss"><h3><b>tcpmss</b> <font color="red">&lt;what&gt;</font></h3></a>
+	The <b>tcpmss</b> helper sets the MSS (Maximum Segment Size) of TCP SYN packets routed through the firewall.
+	Its purpose is to overcome situations where Path MTU Discovery is not working and packet
+	fragmentation is not possible.
+	<p>
+	Within FireHOL, it can be defined either before any primary command, in which case it is applied to all
+	traffic passing through the firewall, or to any <b>router</b>, in which case it is applied to traffic
+	matched by the router. In both cases, TCP SYN packets in both directions (in/out) are altered.
+	<p>
+	The argument can either be the word <b>auto</b> or a number:
+	<ul>
+		<li>	The word <b>auto</b> will make the TCP connections have MSS equal to the MTU of the
+			outgoing intefrace minus 40 (clamp-mss-to-pmtu).</li>
+		<li>	A numeric argument will make the TCP connections have MSS equal to the number given.</li>
+	</ul>
+	<p>
+	See also <a href="http://lartc.org/howto/lartc.cookbook.mtu-mss.html">Circumventing Path MTU Discovery issues with MSS Clamping (for ADSL, cable, PPPoE & PPtP users)</a>
+	in the <a href="http://lartc.org/howto/">Linux Advanced Routing & Traffic Control HOWTO</a>.
+	<p>
+	Example 1: <b>tcpmss auto</b>
+	<br>Example 2: <b>tcpmss 500</b>
+	<p>
+
 <hr noshade size=1 width="100%">
 	
 	<a name="transparent_squid"><h3><b>transparent_squid</b> <font color="red">&lt;port&gt; &lt;user&gt;</font> [optional rule parameters]</h3></a>
@@ -1411,7 +1437,7 @@ about optional rule parameters that should not be used in certain commands.
 <tr><td align=center valign=middle>
 	<A href="http://sourceforge.net"><IMG src="http://sourceforge.net/sflogo.php?group_id=58425&amp;type=5" width="210" height="62" border="0" alt="SourceForge Logo"></A>
 </td><td align=center valign=middle>
-	<small>$Id: commands.html,v 1.51 2004/09/14 21:36:31 ktsaou Exp $</small>
+	<small>$Id: commands.html,v 1.52 2004/10/08 22:30:55 ktsaou Exp $</small>
 	<p>
 	<b>FireHOL</b>, a firewall for humans...<br>
 	&copy; Copyright 2003

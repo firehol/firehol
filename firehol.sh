@@ -10,7 +10,7 @@
 #
 # config: /etc/firehol/firehol.conf
 #
-# $Id: firehol.sh,v 1.204 2004/09/26 00:52:55 ktsaou Exp $
+# $Id: firehol.sh,v 1.205 2004/10/08 22:30:52 ktsaou Exp $
 #
 
 # Remember who you are.
@@ -362,7 +362,7 @@ client_cvspserver_ports="default"
 server_darkstat_ports="tcp/666"
 client_darkstat_ports="default"
 
-server_daytime_ports="tcp/daytime"
+server_daytime_ports="tcp/13"
 client_daytime_ports="default"
 
 server_dcc_ports="udp/6277"
@@ -371,16 +371,16 @@ client_dcc_ports="default"
 server_dcpp_ports="tcp/1412 udp/1412"
 client_dcpp_ports="default"
 
-server_dns_ports="udp/domain tcp/domain"
+server_dns_ports="udp/53 tcp/53"
 client_dns_ports="any"
 
-server_dhcp_ports="udp/bootps"
-client_dhcp_ports="bootpc"
+server_dhcp_ports="udp/67"
+client_dhcp_ports="68"
 
 # DHCP Relaying (server is the relay server which behaves like a client
 # towards the real DHCP Server); I'm not sure about this one...
-server_dhcprelay_ports="udp/bootps"
-client_dhcprelay_ports="bootps"
+server_dhcprelay_ports="udp/67"
+client_dhcprelay_ports="67"
 
 # DISTCC is the distributed gcc for Gentoo
 server_distcc_ports="tcp/3632"
@@ -392,10 +392,10 @@ client_eserver_ports="any"
 server_ESP_ports="50/any"
 client_ESP_ports="any"
 
-server_echo_ports="tcp/echo"
+server_echo_ports="tcp/7"
 client_echo_ports="default"
 
-server_finger_ports="tcp/finger"
+server_finger_ports="tcp/79"
 client_finger_ports="default"
 
 # giFT modules' ports
@@ -423,10 +423,10 @@ client_h323_ports="default"
 server_heartbeat_ports="udp/690:699"
 client_heartbeat_ports="default"
 
-server_http_ports="tcp/http"
+server_http_ports="tcp/80"
 client_http_ports="default"
 
-server_https_ports="tcp/https"
+server_https_ports="tcp/443"
 client_https_ports="default"
 
 server_iax_ports="udp/5036"
@@ -446,16 +446,16 @@ client_icmp_ports="any"
 server_icp_ports="udp/3130"
 client_icp_ports="3130"
 
-server_ident_ports="tcp/auth"
+server_ident_ports="tcp/113"
 client_ident_ports="default"
 
 server_imap_ports="tcp/143"
 client_imap_ports="default"
 
-server_imaps_ports="tcp/imaps"
+server_imaps_ports="tcp/993"
 client_imaps_ports="default"
 
-server_irc_ports="tcp/ircd"
+server_irc_ports="tcp/6667"
 client_irc_ports="default"
 require_irc_modules="ip_conntrack_irc"
 require_irc_nat_modules="ip_nat_irc"
@@ -471,16 +471,16 @@ client_jabber_ports="default"
 server_jabberd_ports="tcp/5222 tcp/5223 tcp/5269"
 client_jabberd_ports="default"
 
-server_ldap_ports="tcp/ldap"
+server_ldap_ports="tcp/389"
 client_ldap_ports="default"
 
-server_ldaps_ports="tcp/ldaps"
+server_ldaps_ports="tcp/636"
 client_ldaps_ports="default"
 
-server_lpd_ports="tcp/printer"
+server_lpd_ports="tcp/515"
 client_lpd_ports="721:731 default"
 
-server_microsoft_ds_ports="tcp/microsoft-ds"
+server_microsoft_ds_ports="tcp/445"
 client_microsoft_ds_ports="default"
 
 server_mms_ports="tcp/1755 udp/1755"
@@ -494,27 +494,30 @@ require_mms_nat_modules="ip_nat_mms"
 server_msn_ports="tcp/6891"
 client_msn_ports="default"
 
-server_mysql_ports="tcp/mysql"
+server_mysql_ports="tcp/3306"
 client_mysql_ports="default"
 
 # Veritas NetBackup
 server_netbackup_ports="tcp/13701 tcp/13711 tcp/13720 tcp/13721 tcp/13724 tcp/13782 tcp/13783"
 client_netbackup_ports="any"
 
-server_netbios_ns_ports="udp/netbios-ns"
-client_netbios_ns_ports="default netbios-ns"
+server_netbios_ns_ports="udp/137"
+client_netbios_ns_ports="default 137"
 
-server_netbios_dgm_ports="udp/netbios-dgm"
-client_netbios_dgm_ports="default netbios-dgm"
+server_netbios_dgm_ports="udp/138"
+client_netbios_dgm_ports="default 138"
 
-server_netbios_ssn_ports="tcp/netbios-ssn"
+server_netbios_ssn_ports="tcp/139"
 client_netbios_ssn_ports="default"
 
-server_nntp_ports="tcp/nntp"
+server_nntp_ports="tcp/119"
 client_nntp_ports="default"
 
-server_ntp_ports="udp/ntp tcp/ntp"
-client_ntp_ports="ntp default"
+server_nntps_ports="tcp/563"
+client_nntps_ports="default"
+
+server_ntp_ports="udp/123 tcp/123"
+client_ntp_ports="123 default"
 
 # NoMachine's NX server
 server_nxserver_ports="tcp/5000:5200"
@@ -527,11 +530,11 @@ client_oracle_ports="default"
 server_pop3_ports="tcp/110"
 client_pop3_ports="default"
 
-server_pop3s_ports="tcp/pop3s"
+server_pop3s_ports="tcp/995"
 client_pop3s_ports="default"
 
 # Portmap clients appear to use ports bellow 1024
-server_portmap_ports="udp/sunrpc tcp/sunrpc"
+server_portmap_ports="udp/111 tcp/111"
 client_portmap_ports="500:65535"
 
 server_postgres_ports="tcp/5432"
@@ -556,10 +559,10 @@ client_radiusoldproxy_ports="default"
 server_rdp_ports="tcp/3389"
 client_rdp_ports="default"
 
-server_rndc_ports="tcp/rndc"
+server_rndc_ports="tcp/953"
 client_rndc_ports="default"
 
-server_rsync_ports="tcp/rsync udp/rsync"
+server_rsync_ports="tcp/873 udp/873"
 client_rsync_ports="default"
 
 server_rtp_ports="udp/10000:20000"
@@ -568,25 +571,25 @@ client_rtp_ports="any"
 server_sip_ports="udp/5060"
 client_sip_ports="default"
 
-server_socks_ports="tcp/socks udp/socks"
+server_socks_ports="tcp/1080 udp/1080"
 client_socks_ports="default"
 
 server_squid_ports="tcp/3128"
 client_squid_ports="default"
 
-server_smtp_ports="tcp/smtp"
+server_smtp_ports="tcp/25"
 client_smtp_ports="default"
 
-server_smtps_ports="tcp/smtps"
+server_smtps_ports="tcp/465"
 client_smtps_ports="default"
 
-server_snmp_ports="udp/snmp"
+server_snmp_ports="udp/161"
 client_snmp_ports="default"
 
-server_snmptrap_ports="udp/snmptrap"
+server_snmptrap_ports="udp/162"
 client_snmptrap_ports="any"
 
-server_ssh_ports="tcp/ssh"
+server_ssh_ports="tcp/22"
 client_ssh_ports="default"
 
 server_stun_ports="udp/3478 udp/3479"
@@ -600,13 +603,13 @@ client_submission_ports="default"
 server_sunrpc_ports="${server_portmap_ports}"
 client_sunrpc_ports="${client_portmap_ports}"
 
-server_swat_ports="tcp/swat"
+server_swat_ports="tcp/901"
 client_swat_ports="default"
 
-server_syslog_ports="udp/syslog"
+server_syslog_ports="udp/514"
 client_syslog_ports="syslog default"
 
-server_telnet_ports="tcp/telnet"
+server_telnet_ports="tcp/23"
 client_telnet_ports="default"
 
 server_time_ports="tcp/37 udp/37"
@@ -615,7 +618,7 @@ client_time_ports="default"
 server_upnp_ports="udp/1900 tcp/2869"
 client_upnp_ports="default"
 
-server_uucp_ports="tcp/uucp"
+server_uucp_ports="tcp/540"
 client_uucp_ports="default"
 
 server_whois_ports="tcp/43"
@@ -633,7 +636,7 @@ client_vmwareweb_ports="default"
 server_vnc_ports="tcp/5900:5903"
 client_vnc_ports="default"
 
-server_webcache_ports="tcp/webcache"
+server_webcache_ports="tcp/8080"
 client_webcache_ports="default"
 
 server_webmin_ports="tcp/10000"
@@ -1418,6 +1421,8 @@ ecn_shame() {
 	
 	set_work_function -ne "Initializing $FUNCNAME"
 	
+	require_work clear || ( error "$FUNCNAME cannot be used in '${work_cmd}'. Put it before any '${work_cmd}' definition."; return 1 )
+	
 	if [ `${CAT_CMD} /proc/sys/net/ipv4/tcp_ecn` -eq 1 ]
 	then
 		set_work_function "Fetching '${FIREHOL_ECN_SHAME_URL}'."
@@ -1713,6 +1718,45 @@ mark() {
 	
 	create_chain mangle "mark.${mark_count}" "${where}" "$@" || return 1
 	iptables -t mangle -A "mark.${mark_count}" -j MARK --set-mark ${num}
+	
+	return 0
+}
+
+
+tcpmss() {
+	work_realcmd_helper $FUNCNAME "$@"
+	
+	set_work_function -ne "Initializing $FUNCNAME"
+	
+	# work only if this helper is called before any primary command
+	# or within routers.
+	if [ -z "${work_cmd}" -o "${work_cmd}" = "router" ]
+	then
+		local chains="FORWARD"
+		
+		test ! -z "${work_cmd}" && chains="in_${work_name} out_${work_name}"
+		
+		for tcmpmss_chain in ${chains}
+		do
+			case $1 in
+				auto)
+					iptables -A "${tcmpmss_chain}" -p tcp --tcp-flags SYN,RST SYN -j TCPMSS --clamp-mss-to-pmtu
+					;;
+					
+				[0-9]*)
+					iptables -A "${tcmpmss_chain}" -p tcp --tcp-flags SYN,RST SYN -j TCPMSS --set-mss $1
+					;;
+				
+				*)
+					error "$FUNCNAME requires either the word 'auto' or a numeric argument."
+					return 1
+					;;
+			esac
+		done
+	else
+		error "$FUNCNAME cannot be used in '${work_cmd}'. Put it before any '${work_cmd}' definition or in 'router' definitions."
+		return 1
+	fi
 	
 	return 0
 }
@@ -4460,7 +4504,7 @@ case "${arg}" in
 		else
 		
 		${CAT_CMD} <<EOF
-$Id: firehol.sh,v 1.204 2004/09/26 00:52:55 ktsaou Exp $
+$Id: firehol.sh,v 1.205 2004/10/08 22:30:52 ktsaou Exp $
 (C) Copyright 2003, Costa Tsaousis <costa@tsaousis.gr>
 FireHOL is distributed under GPL.
 
@@ -4646,7 +4690,7 @@ then
 	
 	${CAT_CMD} <<EOF
 
-$Id: firehol.sh,v 1.204 2004/09/26 00:52:55 ktsaou Exp $
+$Id: firehol.sh,v 1.205 2004/10/08 22:30:52 ktsaou Exp $
 (C) Copyright 2003, Costa Tsaousis <costa@tsaousis.gr>
 FireHOL is distributed under GPL.
 Home Page: http://firehol.sourceforge.net
@@ -4940,7 +4984,7 @@ then
 	
 	${CAT_CMD} >&2 <<EOF
 
-$Id: firehol.sh,v 1.204 2004/09/26 00:52:55 ktsaou Exp $
+$Id: firehol.sh,v 1.205 2004/10/08 22:30:52 ktsaou Exp $
 (C) Copyright 2003, Costa Tsaousis <costa@tsaousis.gr>
 FireHOL is distributed under GPL.
 Home Page: http://firehol.sourceforge.net
@@ -5023,7 +5067,7 @@ EOF
 	echo "# "
 
 	${CAT_CMD} <<EOF
-# $Id: firehol.sh,v 1.204 2004/09/26 00:52:55 ktsaou Exp $
+# $Id: firehol.sh,v 1.205 2004/10/08 22:30:52 ktsaou Exp $
 # (C) Copyright 2003, Costa Tsaousis <costa@tsaousis.gr>
 # FireHOL is distributed under GPL.
 # Home Page: http://firehol.sourceforge.net
