@@ -161,7 +161,7 @@ In case you have problems with some service because it is defined by its port na
 required port numbers at <a href="http://www.graffiti.com/services">http://www.graffiti.com/services</a>.
 <p>
 Please report problems related to port names usage. I will replace the faulty names with the relative numbers to eliminate this problem.
-All the services defined by name in FireHOL are known to resolve in <a href="www.redhat.com">RedHat</a> systems 7.x and 8.
+All the services defined by name in FireHOL are known to resolve in <a href="http://www.redhat.com">RedHat</a> systems 7.x and 8.
 
 
 <center>
@@ -313,7 +313,7 @@ cat <<"EOF"
 <tr><td align=center valign=middle>
 	<A href="http://sourceforge.net"><IMG src="http://sourceforge.net/sflogo.php?group_id=58425&amp;type=5" width="210" height="62" border="0" alt="SourceForge Logo"></A>
 </td><td align=center valign=middle>
-	<small>$Id: create_services.sh,v 1.9 2002/12/19 23:15:43 ktsaou Exp $</small>
+	<small>$Id: create_services.sh,v 1.10 2002/12/19 23:22:35 ktsaou Exp $</small>
 	<p>
 	<b>FireHOL</b>, a firewall for humans...<br>
 	&copy; Copyright 2002
