@@ -10,49 +10,11 @@
 #
 # config: /etc/firehol/firehol.conf
 #
-# $Id: firehol.sh,v 1.165 2003/10/26 21:27:31 ktsaou Exp $
+# $Id: firehol.sh,v 1.166 2003/10/26 21:40:30 ktsaou Exp $
 #
 
 # Remember who you are.
 FIREHOL_FILE="${0}"
-
-
-# ------------------------------------------------------------------------------
-# XXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXX
-# ------------------------------------------------------------------------------
-#
-# KERNEL MODULE MANAGEMENT
-#
-# ------------------------------------------------------------------------------
-# XXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXX
-# ------------------------------------------------------------------------------
-
-KERNEL_CONFIG=
-if [ -f "/proc/config" ]
-then
-	KERNEL_CONFIG="/proc/config"
-	cat /proc/config >/tmp/kcfg.$$
-	. /tmp/kcfg.$$
-	rm -f /tmp/kcfg.$$
-	
-elif [ -f "/usr/src/linux/.config" ]
-then
-	KERNEL_CONFIG="/usr/src/linux/.config"
-	. "${KERNEL_CONFIG}"
-else
-	echo >&2 " "
-	echo >&2 " IMPORTANT WARNING:"
-	echo >&2 " ------------------"
-	echo >&2 " FireHOL cannot find your current kernel configuration."
-	echo >&2 " Please, either compile your kernel with /proc/config,"
-	echo >&2 " or make sure there is a valid kernel config in:"
-	echo >&2 " /usr/src/linux/.config"
-	echo >&2 " "
-	echo >&2 " Because of this, FireHOL will simply attempt to load"
-	echo >&2 " all kernel modules for the services used, without"
-	echo >&2 " being able to detect failures."
-	echo >&2 " "
-fi
 
 
 # ------------------------------------------------------------------------------
@@ -134,7 +96,7 @@ RESERVED_IPS="0.0.0.0/7 2.0.0.0/8 5.0.0.0/8 7.0.0.0/8 23.0.0.0/8 27.0.0.0/8 31.0
 # 192.0.2.0/24     => Test Net
 # 192.88.99.0/24   => RFC 3068: 6to4 anycast & RFC 2544: Benchmarking addresses
 # 192.168.0.0/16   => RFC 1918: Private use
-PRIVATE_IPS="10.0.0.0/8 169.254.0.0/16 172.16.0.0/12 169.254.0.0/16 192.88.99.0/24 192.168.0.0/16"
+PRIVATE_IPS="10.0.0.0/8 169.254.0.0/16 192.0.2.0/24 192.88.99.0/24 192.168.0.0/16"
 
 # The multicast address space
 MULTICAST_IPS="224.0.0.0/8"
@@ -1832,22 +1794,11 @@ protection() {
 # XXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXX
 # ------------------------------------------------------------------------------
 #
-# INTERNAL FUNCTIONS BELLOW THIS POINT - FireHOL internals
+# KERNEL MODULE MANAGEMENT
 #
 # ------------------------------------------------------------------------------
 # XXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXX
 # ------------------------------------------------------------------------------
-
-
-set_work_function() {
-	local show_explain=1
-	test "$1" = "-ne" && shift && local show_explain=0
-	
-	work_function="$*"
-	
-	test ${FIREHOL_EXPLAIN} -eq 1 -a ${show_explain} -eq 1 && printf "\n# %s\n" "$*"
-}
-
 
 # ------------------------------------------------------------------------------
 # Manage kernel modules
@@ -1856,6 +1807,38 @@ set_work_function() {
 # new firewall has been activated. Here we just keep a list of the required
 # kernel modules.
 
+KERNEL_CONFIG=
+if [ -f "/proc/config" ]
+then
+	KERNEL_CONFIG="/proc/config"
+	${CAT_CMD} /proc/config >/tmp/kcfg.$$
+	source /tmp/kcfg.$$
+	${RM_CMD} -f /tmp/kcfg.$$
+	
+elif [ -f "/usr/src/linux/.config" ]
+then
+	KERNEL_CONFIG="/usr/src/linux/.config"
+	. "${KERNEL_CONFIG}"
+else
+	echo >&2 " "
+	echo >&2 " IMPORTANT WARNING:"
+	echo >&2 " ------------------"
+	echo >&2 " FireHOL cannot find your current kernel configuration."
+	echo >&2 " Please, either compile your kernel with /proc/config,"
+	echo >&2 " or make sure there is a valid kernel config in:"
+	echo >&2 " /usr/src/linux/.config"
+	echo >&2 " "
+	echo >&2 " Because of this, FireHOL will simply attempt to load"
+	echo >&2 " all kernel modules for the services used, without"
+	echo >&2 " being able to detect failures."
+	echo >&2 " "
+fi
+
+# activation-phase command to check for the existance of
+# a kernel configuration directive. It returns:
+# 0 = module is already in the kernel
+# 1 = module can be loaded with modprobe
+# 2 = no info about this module in the kernel
 check_kernel_config() {
 	eval local kcfg="\$${1}"
 	
@@ -1873,6 +1856,11 @@ check_kernel_config() {
 	return 2
 }
 
+# activation-phase command to check for the existance of
+# a kernel module. It returns:
+# 0 = module is already in the kernel
+# 1 = module can be loaded with modprobe
+# 2 = no info about this module in the kernel
 check_kernel_module() {
 	local mod="${1}"
 	
@@ -1909,6 +1897,7 @@ check_kernel_module() {
 	return 2
 }
 
+# activation-phase command to load a kernel module.
 load_kernel_module() {
 	local mod="${1}"
 	
@@ -1925,6 +1914,8 @@ load_kernel_module() {
 	return 0
 }
 
+# Processing-phase command to tell FireHOL to find one or more
+# kernel modules to load, during activation-phase.
 require_kernel_module() {
 	local new="${1}"
 	
@@ -1939,6 +1930,26 @@ require_kernel_module() {
 	return 0
 }
 
+
+# ------------------------------------------------------------------------------
+# XXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXX
+# ------------------------------------------------------------------------------
+#
+# INTERNAL FUNCTIONS BELLOW THIS POINT - FireHOL internals
+#
+# ------------------------------------------------------------------------------
+# XXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXX
+# ------------------------------------------------------------------------------
+
+
+set_work_function() {
+	local show_explain=1
+	test "$1" = "-ne" && shift && local show_explain=0
+	
+	work_function="$*"
+	
+	test ${FIREHOL_EXPLAIN} -eq 1 -a ${show_explain} -eq 1 && printf "\n# %s\n" "$*"
+}
 
 # ------------------------------------------------------------------------------
 # Make sure we automatically cleanup when we exit.
@@ -3922,7 +3933,7 @@ case "${arg}" in
 		else
 		
 		${CAT_CMD} <<EOF
-$Id: firehol.sh,v 1.165 2003/10/26 21:27:31 ktsaou Exp $
+$Id: firehol.sh,v 1.166 2003/10/26 21:40:30 ktsaou Exp $
 (C) Copyright 2003, Costa Tsaousis <costa@tsaousis.gr>
 FireHOL is distributed under GPL.
 
@@ -4108,7 +4119,7 @@ then
 	
 	${CAT_CMD} <<EOF
 
-$Id: firehol.sh,v 1.165 2003/10/26 21:27:31 ktsaou Exp $
+$Id: firehol.sh,v 1.166 2003/10/26 21:40:30 ktsaou Exp $
 (C) Copyright 2003, Costa Tsaousis <costa@tsaousis.gr>
 FireHOL is distributed under GPL.
 Home Page: http://firehol.sourceforge.net
@@ -4403,7 +4414,7 @@ then
 	
 	${CAT_CMD} >&2 <<EOF
 
-$Id: firehol.sh,v 1.165 2003/10/26 21:27:31 ktsaou Exp $
+$Id: firehol.sh,v 1.166 2003/10/26 21:40:30 ktsaou Exp $
 (C) Copyright 2003, Costa Tsaousis <costa@tsaousis.gr>
 FireHOL is distributed under GPL.
 Home Page: http://firehol.sourceforge.net
@@ -4486,7 +4497,7 @@ EOF
 	echo "# "
 
 	${CAT_CMD} <<EOF
-# $Id: firehol.sh,v 1.165 2003/10/26 21:27:31 ktsaou Exp $
+# $Id: firehol.sh,v 1.166 2003/10/26 21:40:30 ktsaou Exp $
 # (C) Copyright 2003, Costa Tsaousis <costa@tsaousis.gr>
 # FireHOL is distributed under GPL.
 # Home Page: http://firehol.sourceforge.net
