@@ -10,7 +10,7 @@
 #
 # config: /etc/firehol/firehol.conf
 #
-# $Id: firehol.sh,v 1.173 2003/12/29 22:40:11 ktsaou Exp $
+# $Id: firehol.sh,v 1.174 2003/12/29 22:46:00 ktsaou Exp $
 #
 
 # Remember who you are.
@@ -4022,7 +4022,7 @@ case "${arg}" in
 		else
 		
 		${CAT_CMD} <<EOF
-$Id: firehol.sh,v 1.173 2003/12/29 22:40:11 ktsaou Exp $
+$Id: firehol.sh,v 1.174 2003/12/29 22:46:00 ktsaou Exp $
 (C) Copyright 2003, Costa Tsaousis <costa@tsaousis.gr>
 FireHOL is distributed under GPL.
 
@@ -4208,7 +4208,7 @@ then
 	
 	${CAT_CMD} <<EOF
 
-$Id: firehol.sh,v 1.173 2003/12/29 22:40:11 ktsaou Exp $
+$Id: firehol.sh,v 1.174 2003/12/29 22:46:00 ktsaou Exp $
 (C) Copyright 2003, Costa Tsaousis <costa@tsaousis.gr>
 FireHOL is distributed under GPL.
 Home Page: http://firehol.sourceforge.net
@@ -4503,7 +4503,7 @@ then
 	
 	${CAT_CMD} >&2 <<EOF
 
-$Id: firehol.sh,v 1.173 2003/12/29 22:40:11 ktsaou Exp $
+$Id: firehol.sh,v 1.174 2003/12/29 22:46:00 ktsaou Exp $
 (C) Copyright 2003, Costa Tsaousis <costa@tsaousis.gr>
 FireHOL is distributed under GPL.
 Home Page: http://firehol.sourceforge.net
@@ -4586,7 +4586,7 @@ EOF
 	echo "# "
 
 	${CAT_CMD} <<EOF
-# $Id: firehol.sh,v 1.173 2003/12/29 22:40:11 ktsaou Exp $
+# $Id: firehol.sh,v 1.174 2003/12/29 22:46:00 ktsaou Exp $
 # (C) Copyright 2003, Costa Tsaousis <costa@tsaousis.gr>
 # FireHOL is distributed under GPL.
 # Home Page: http://firehol.sourceforge.net
@@ -5179,7 +5179,7 @@ fi
 
 # XXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXX
 
-echo -n $"FireHOL: Activating new firewall (${FIREHOL_COMMAND_COUNTER} cmds):"
+echo -n $"FireHOL: Activating new firewall (${FIREHOL_COMMAND_COUNTER} rules):"
 
 source ${FIREHOL_OUTPUT} "$@"
 
@@ -5192,7 +5192,7 @@ then
 	
 	exit 1
 fi
-success $"FireHOL: Activating new firewall (${FIREHOL_COMMAND_COUNTER} cmds):"
+success $"FireHOL: Activating new firewall (${FIREHOL_COMMAND_COUNTER} rules):"
 echo
 
 if [ ${FIREHOL_TRY} -eq 1 ]
