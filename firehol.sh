@@ -10,7 +10,7 @@
 #
 # config: /etc/firehol/firehol.conf
 #
-# $Id: firehol.sh,v 1.166 2003/10/26 21:40:30 ktsaou Exp $
+# $Id: firehol.sh,v 1.167 2003/11/03 20:43:09 ktsaou Exp $
 #
 
 # Remember who you are.
@@ -96,7 +96,7 @@ RESERVED_IPS="0.0.0.0/7 2.0.0.0/8 5.0.0.0/8 7.0.0.0/8 23.0.0.0/8 27.0.0.0/8 31.0
 # 192.0.2.0/24     => Test Net
 # 192.88.99.0/24   => RFC 3068: 6to4 anycast & RFC 2544: Benchmarking addresses
 # 192.168.0.0/16   => RFC 1918: Private use
-PRIVATE_IPS="10.0.0.0/8 169.254.0.0/16 192.0.2.0/24 192.88.99.0/24 192.168.0.0/16"
+PRIVATE_IPS="10.0.0.0/8 169.254.0.0/16 172.16.0.0/12 192.0.2.0/24 192.88.99.0/24 192.168.0.0/16"
 
 # The multicast address space
 MULTICAST_IPS="224.0.0.0/8"
@@ -3933,7 +3933,7 @@ case "${arg}" in
 		else
 		
 		${CAT_CMD} <<EOF
-$Id: firehol.sh,v 1.166 2003/10/26 21:40:30 ktsaou Exp $
+$Id: firehol.sh,v 1.167 2003/11/03 20:43:09 ktsaou Exp $
 (C) Copyright 2003, Costa Tsaousis <costa@tsaousis.gr>
 FireHOL is distributed under GPL.
 
@@ -4119,7 +4119,7 @@ then
 	
 	${CAT_CMD} <<EOF
 
-$Id: firehol.sh,v 1.166 2003/10/26 21:40:30 ktsaou Exp $
+$Id: firehol.sh,v 1.167 2003/11/03 20:43:09 ktsaou Exp $
 (C) Copyright 2003, Costa Tsaousis <costa@tsaousis.gr>
 FireHOL is distributed under GPL.
 Home Page: http://firehol.sourceforge.net
@@ -4414,7 +4414,7 @@ then
 	
 	${CAT_CMD} >&2 <<EOF
 
-$Id: firehol.sh,v 1.166 2003/10/26 21:40:30 ktsaou Exp $
+$Id: firehol.sh,v 1.167 2003/11/03 20:43:09 ktsaou Exp $
 (C) Copyright 2003, Costa Tsaousis <costa@tsaousis.gr>
 FireHOL is distributed under GPL.
 Home Page: http://firehol.sourceforge.net
@@ -4497,7 +4497,7 @@ EOF
 	echo "# "
 
 	${CAT_CMD} <<EOF
-# $Id: firehol.sh,v 1.166 2003/10/26 21:40:30 ktsaou Exp $
+# $Id: firehol.sh,v 1.167 2003/11/03 20:43:09 ktsaou Exp $
 # (C) Copyright 2003, Costa Tsaousis <costa@tsaousis.gr>
 # FireHOL is distributed under GPL.
 # Home Page: http://firehol.sourceforge.net

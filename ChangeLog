@@ -1,7 +1,7 @@
 
 RCS file: /cvsroot/firehol/firehol/firehol.sh,v
 Working file: firehol.sh
-head: 1.159
+head: 1.166
 branch:
 locks: strict
 access list:
@@ -9,8 +9,55 @@ symbolic names:
 	start: 1.1.1.1
 	vendor: 1.1.1
 keyword substitution: kv
-total revisions: 160;	selected revisions: 160
+total revisions: 167;	selected revisions: 167
 description:
+----------------------------
+revision 1.166
+date: 2003/10/26 21:40:30;  author: ktsaou;  state: Exp;  lines: +67 -56
+Fixed PRIVATE_IPS (there was an duplicate entry and a wrong entry).
+----------------------------
+revision 1.165
+date: 2003/10/26 21:27:31;  author: ktsaou;  state: Exp;  lines: +102 -8
+Changed kernel module management to read kernel configuration and detect
+if a module is compiled in the kernel or needs to be loaded separately.
+
+(note: this is not finished yet)
+----------------------------
+revision 1.164
+date: 2003/10/22 06:58:27;  author: ktsaou;  state: Exp;  lines: +6 -6
+Changed TIME service ports to numeric since a few versions of bash get
+confused by the use of the reserved keywork "time".
+----------------------------
+revision 1.163
+date: 2003/10/20 17:49:56;  author: ktsaou;  state: Exp;  lines: +7 -7
+Fixed service CUPS according to the following:
+
+> The firehol system defines the 'cups' protocol as:
+>
+> server_cups_ports="tcp/631"
+> client_cups_ports="default"
+>
+> This isn't a complete definition - CUPS also has an internal printer
+> browsing protocol that operates over UDP, on port 631.
+>
+> The following definition is more correct:
+>
+> server_cups_ports="tcp/631 udp/631"
+> client_cups_ports="default 631"
+----------------------------
+revision 1.162
+date: 2003/10/18 09:40:45;  author: ktsaou;  state: Exp;  lines: +8 -5
+Added Distributed Checksum Clearinghouses (DCC) service.
+----------------------------
+revision 1.161
+date: 2003/10/16 22:05:22;  author: ktsaou;  state: Exp;  lines: +194 -84
+Added the PHYSIN and PHYSOUT optional rule parameters to match the
+physical network interface in cases where iptables defines as inface
+and outface a virtual interface such as a bridge.
+----------------------------
+revision 1.160
+date: 2003/10/13 18:50:30;  author: ktsaou;  state: Exp;  lines: +13 -5
+Added services ORACLE and GKRELLMD.
 ----------------------------
 revision 1.159
 date: 2003/10/09 10:01:26;  author: ktsaou;  state: Exp;  lines: +9 -5
