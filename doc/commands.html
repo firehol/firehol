@@ -265,11 +265,19 @@ Subcommands must be given within <a href="#primary_commands">Primary commands</a
 	The <b>protection</b> subcommand sets a number of protection rules on an <b>interface</b>.
 	<p>
 	In router configurations, <b>protections</b> are setup on <b>inface</b>. The <b>reverse</b> keyword will make the
-	protections setup on <b>outface</b>.
+	protections setup on <b>outface</b>. Please note that the <b>reverse</b> keyword must be the first given.
+	Otherwise it will not work.
 	<p>
 	<b>type</b> can be: <br>
 	<ul><b>strong</b>, or <b>full</b>, or <b>all</b>
 	<br>turns on all the possible protections.
+	</ul>
+	<ul><b>invalid</b>
+	<br>Drops all incoming INVALID packets. Invalid packets are those that are matched by "-m state --state INVALID", so they are all those
+	packets that the iptables connection tracker believes are INVALID.
+	<br>
+	There is also the <a href="#FIREHOL_DROP_INVALID">FIREHOL_DROP_INVALID</a> variable which controls the same function globally, for the
+	whole firewall.
 	</ul>
 	<ul><b>fragments</b>
 	<br>Drops all packet fragments. Please note that most probably this rule will never match anything since
@@ -1258,6 +1266,21 @@ about optional rule parameters that should not be used in certain commands.
 	
 <hr noshade size=1 width="100%">
 
+	<a name="FIREHOL_DROP_INVALID"><h3><b>FIREHOL_DROP_INVALID</b></h3></a>
+	<H4>Description</H4>
+	If FIREHOL_DROP_INVALID is set to 1, FireHOL will drop all packets that are matched by the INVALID state of the
+	iptables connection tracker. The default in versions prior to v1.183 was to drop all those packers. The new default
+	is not to drop those packets globally, but only as part of the <a href="#protection">protection</a> statement.
+	<p>
+	See also <a href="https://sourceforge.net/tracker/index.php?func=detail&aid=927509&group_id=58425&atid=487692">Bug 927509</a> that discusses the effects of globally dropping invalid packets.
+	<p>
+	Default: <b>FIREHOL_DROP_INVALID="0"</b>
+	<br>
+	Example: <b>FIREHOL_DROP_INVALID="1"</b>
+	<p>
+
+<hr noshade size=1 width="100%">
+
 	<a name="DEFAULT_CLIENT_PORTS"><h3><b>DEFAULT_CLIENT_PORTS</b></h3></a>
 	<H4>Description</H4>
 	DEFAULT_CLIENT_PORTS controls the port range to be used when a remote client is specified.
@@ -1355,7 +1378,7 @@ about optional rule parameters that should not be used in certain commands.
 <tr><td align=center valign=middle>
 	<A href="http://sourceforge.net"><IMG src="http://sourceforge.net/sflogo.php?group_id=58425&amp;type=5" width="210" height="62" border="0" alt="SourceForge Logo"></A>
 </td><td align=center valign=middle>
-	<small>$Id: commands.html,v 1.46 2004/04/01 21:45:48 ktsaou Exp $</small>
+	<small>$Id: commands.html,v 1.47 2004/04/01 23:30:28 ktsaou Exp $</small>
 	<p>
 	<b>FireHOL</b>, a firewall for humans...<br>
 	&copy; Copyright 2003

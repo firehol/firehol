@@ -10,7 +10,7 @@
 #
 # config: /etc/firehol/firehol.conf
 #
-# $Id: firehol.sh,v 1.182 2004/03/04 22:05:53 ktsaou Exp $
+# $Id: firehol.sh,v 1.183 2004/04/01 23:30:28 ktsaou Exp $
 #
 
 # Remember who you are.
@@ -122,6 +122,9 @@ DEFAULT_INTERFACE_POLICY="DROP"
 FIREHOL_INPUT_ACTIVATION_POLICY="ACCEPT"
 FIREHOL_OUTPUT_ACTIVATION_POLICY="ACCEPT"
 FIREHOL_FORWARD_ACTIVATION_POLICY="ACCEPT"
+
+# Should we drop all INVALID packets always?
+FIREHOL_DROP_INVALID=0
 
 # What to do with unmatched packets?
 # To change these, simply define them the configuration file.
@@ -1789,8 +1792,12 @@ protection() {
 				;;
 			
 			strong|STRONG|full|FULL|all|ALL)
-				protection ${reverse} "fragments new-tcp-w/o-syn icmp-floods syn-floods malformed-xmas malformed-null malformed-bad" "${rate}" "${burst}"
+				protection ${reverse} "invalid fragments new-tcp-w/o-syn icmp-floods syn-floods malformed-xmas malformed-null malformed-bad" "${rate}" "${burst}"
 				return $?
+				;;
+				
+			invalid|INVALID)
+				iptables -A "${in}_${work_name}" -m state --state INVALID -j DROP				|| return 1
 				;;
 				
 			fragments|FRAGMENTS)
@@ -4030,7 +4037,7 @@ case "${arg}" in
 		else
 		
 		${CAT_CMD} <<EOF
-$Id: firehol.sh,v 1.182 2004/03/04 22:05:53 ktsaou Exp $
+$Id: firehol.sh,v 1.183 2004/04/01 23:30:28 ktsaou Exp $
 (C) Copyright 2003, Costa Tsaousis <costa@tsaousis.gr>
 FireHOL is distributed under GPL.
 
@@ -4216,7 +4223,7 @@ then
 	
 	${CAT_CMD} <<EOF
 
-$Id: firehol.sh,v 1.182 2004/03/04 22:05:53 ktsaou Exp $
+$Id: firehol.sh,v 1.183 2004/04/01 23:30:28 ktsaou Exp $
 (C) Copyright 2003, Costa Tsaousis <costa@tsaousis.gr>
 FireHOL is distributed under GPL.
 Home Page: http://firehol.sourceforge.net
@@ -4511,7 +4518,7 @@ then
 	
 	${CAT_CMD} >&2 <<EOF
 
-$Id: firehol.sh,v 1.182 2004/03/04 22:05:53 ktsaou Exp $
+$Id: firehol.sh,v 1.183 2004/04/01 23:30:28 ktsaou Exp $
 (C) Copyright 2003, Costa Tsaousis <costa@tsaousis.gr>
 FireHOL is distributed under GPL.
 Home Page: http://firehol.sourceforge.net
@@ -4594,7 +4601,7 @@ EOF
 	echo "# "
 
 	${CAT_CMD} <<EOF
-# $Id: firehol.sh,v 1.182 2004/03/04 22:05:53 ktsaou Exp $
+# $Id: firehol.sh,v 1.183 2004/04/01 23:30:28 ktsaou Exp $
 # (C) Copyright 2003, Costa Tsaousis <costa@tsaousis.gr>
 # FireHOL is distributed under GPL.
 # Home Page: http://firehol.sourceforge.net
@@ -5084,9 +5091,12 @@ ${IPTABLES_CMD} -A OUTPUT -o lo -j ACCEPT
 
 # Drop all invalid packets.
 # Netfilter HOWTO suggests to DROP all INVALID packets.
-${IPTABLES_CMD} -A INPUT -m state --state INVALID -j DROP
-${IPTABLES_CMD} -A OUTPUT -m state --state INVALID -j DROP
-${IPTABLES_CMD} -A FORWARD -m state --state INVALID -j DROP
+if [ "\${FIREHOL_DROP_INVALID}" = "1" ]
+then
+	${IPTABLES_CMD} -A INPUT -m state --state INVALID -j DROP
+	${IPTABLES_CMD} -A OUTPUT -m state --state INVALID -j DROP
+	${IPTABLES_CMD} -A FORWARD -m state --state INVALID -j DROP
+fi
 
 EOF
 
