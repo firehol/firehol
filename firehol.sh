@@ -10,7 +10,7 @@
 #
 # config: /etc/firehol.conf
 #
-# $Id: firehol.sh,v 1.96 2003/02/24 23:30:21 ktsaou Exp $
+# $Id: firehol.sh,v 1.97 2003/02/25 21:35:06 ktsaou Exp $
 #
 
 
@@ -3189,7 +3189,7 @@ case "${arg}" in
 		else
 		
 		cat <<"EOF"
-$Id: firehol.sh,v 1.96 2003/02/24 23:30:21 ktsaou Exp $
+$Id: firehol.sh,v 1.97 2003/02/25 21:35:06 ktsaou Exp $
 (C) Copyright 2002, Costa Tsaousis <costa@tsaousis.gr>
 FireHOL is distributed under GPL.
 
@@ -3360,7 +3360,7 @@ then
 	
 	cat <<"EOF"
 
-$Id: firehol.sh,v 1.96 2003/02/24 23:30:21 ktsaou Exp $
+$Id: firehol.sh,v 1.97 2003/02/25 21:35:06 ktsaou Exp $
 (C) Copyright 2002, Costa Tsaousis <costa@tsaousis.gr>
 FireHOL is distributed under GPL.
 Home Page: http://firehol.sourceforge.net
@@ -3521,6 +3521,30 @@ then
 	mkdir tcp
 	mkdir udp
 	
+	cat >&2 <<"EOF"
+
+$Id: firehol.sh,v 1.97 2003/02/25 21:35:06 ktsaou Exp $
+(C) Copyright 2002, Costa Tsaousis <costa@tsaousis.gr>
+FireHOL is distributed under GPL.
+Home Page: http://firehol.sourceforge.net
+
+--------------------------------------------------------------------------------
+FireHOL controls your firewall. You should want to get updates quickly.
+Subscribe (at the home page) to get notified of new releases.
+--------------------------------------------------------------------------------
+
+FireHOL will now try to figure out its configuration file on this system.
+Please have all the services and network interfaces on this system running.
+
+Your running firewall will not be stopped or altered.
+
+You can re-run the same command with output redirection to get the config
+to a file. Example:
+
+/etc/init.d/firehol helpme >/tmp/firehol.conf
+
+EOF
+	
 	echo >&2 
 	echo >&2 "Building list of known services."
 	echo >&2 "Please wait..."
@@ -3578,30 +3602,6 @@ then
 	echo "server samba" >tcp/139
 	
 	
-	cat >&2 <<"EOF"
-
-$Id: firehol.sh,v 1.96 2003/02/24 23:30:21 ktsaou Exp $
-(C) Copyright 2002, Costa Tsaousis <costa@tsaousis.gr>
-FireHOL is distributed under GPL.
-Home Page: http://firehol.sourceforge.net
-
---------------------------------------------------------------------------------
-FireHOL controls your firewall. You should want to get updates quickly.
-Subscribe (at the home page) to get notified of new releases.
---------------------------------------------------------------------------------
-
-FireHOL will now try to figure out its configuration file on this system.
-Please have all the services and network interfaces on this system running.
-
-Your running firewall will not be stopped or altered.
-
-You can re-run the same command with output redirection to get the config
-to a file. Example:
-
-/etc/init.d/firehol helpme >/tmp/firehol.conf
-
-EOF
-	
 	wizard_ask "Press RETURN to start." "continue" "continue"
 	
 	echo >&2 
@@ -3613,6 +3613,19 @@ EOF
 	echo "# This feature is under construction -- use it with care."
 	echo "#             *** NEVER USE THIS CONFIG AS-IS ***"
 	echo "# "
+
+	cat <<"EOF"
+# $Id: firehol.sh,v 1.97 2003/02/25 21:35:06 ktsaou Exp $
+# (C) Copyright 2002, Costa Tsaousis <costa@tsaousis.gr>
+# FireHOL is distributed under GPL.
+# Home Page: http://firehol.sourceforge.net
+# 
+# ------------------------------------------------------------------------------
+# FireHOL controls your firewall. You should want to get updates quickly.
+# Subscribe (at the home page) to get notified of new releases.
+# ------------------------------------------------------------------------------
+#
+EOF
 	echo "# This config will have the same effect as NO PROTECTION !!!"
 	echo "# Everything that found to be running, is allowed."
 	echo "# "
@@ -3621,13 +3634,16 @@ EOF
 	echo "# The TODOs bellow, are YOUR to-dos !!!"
 	echo
 	
-	interfaces=`/sbin/ip link show | egrep "^[0-9A-Za-z]+:" | cut -d ':' -f 2 | sed "s/^ //" | grep -v "^lo$"`
+	interfaces=`/sbin/ip link show | egrep "^[0-9A-Za-z]+:" | cut -d ':' -f 2 | sed "s/^ //" | grep -v "^lo$" | sort | uniq | tr "\n" " "`
 	gateway=`/sbin/ip route | grep "^default" | sed "s/dev /dev:/g" | tr " " "\n" | grep "^dev:" | cut -d ':' -f 2`
 	
+	i=0
 	for iface in ${interfaces}
 	do
-		ips=`/sbin/ip addr show dev ${iface} | sed "s/  / /g" | sed "s/  / /g" | sed "s/  / /g" | grep "^ inet " | cut -d ' ' -f 3 | cut -d '/' -f 1 | tr "\n" " "`
-		nets=`/sbin/ip route show | grep " dev ${iface} " | egrep "^[0-9\./]+ " | cut -d ' ' -f 1 | tr "\n" " "`
+		i=$[i + 1]
+		
+		ips=`/sbin/ip addr show dev ${iface} | sed "s/  / /g" | sed "s/  / /g" | sed "s/  / /g" | grep "^ inet " | cut -d ' ' -f 3 | cut -d '/' -f 1 | sort | uniq | tr "\n" " "`
+		nets=`/sbin/ip route show | grep " dev ${iface} " | egrep "^[0-9\./]+ " | cut -d ' ' -f 1 | sort | uniq | tr "\n" " "`
 		
 		internet=no
 		test "${iface}" = "${gateway}" && internet=yes
@@ -3635,22 +3651,35 @@ EOF
 		iface_src=
 		if [ $internet = yes ]
 		then
-			iface_src="not \"\${UNROUTABLE_IPS}\""
+			iface_src="not_routable"
 		else
-			iface_src="\"${nets}\""
+			iface_src="${nets}"
 		fi
 		
 		iface_dst="\"${ips}\""
 		
 		# prepare the routers variables
-		eval "interface_${iface}_ips='${iface_dst}'"
+		eval "interface_${iface}_ips=${iface_dst}"
 		eval "interface_${iface}_nets='${iface_src}'"
+		
+		case "${iface_src}" in
+			not_routable)
+				iface_src="not \"\${UNROUTABLE_IPS}\""
+				;;
+				
+			*)
+				iface_src="\"${iface_src}\""
+				;;
+		esac
+		
 		
 		# output the interface
 		echo
+		echo "# Interface No $i."
+		echo "# Protecting this host on its ${iface} interface."
 		echo "# TODO: Change \"${iface}_name\" to something with meaning to you."
 		echo "# TODO: Check the optional rule parameters (src/dst)."
-		echo "# TODO: Remove 'dst ${iface_dst}' if the IP(s) is dynamically assigned."
+		echo "# TODO: Remove 'dst ${iface_dst}' if this is dynamically assigned."
 		echo "interface ${iface} \"${iface}_name\" src ${iface_src} dst ${iface_dst}"
 		echo
 		echo "	# The default policy is DROP. You can be more polite with REJECT."
@@ -3658,7 +3687,7 @@ EOF
 		echo "	policy drop"
 		echo
 		echo "	# If you don't trust the clients behind ${iface}, add something like this."
-		echo "	# protection strong"
+		echo "	# > protection strong"
 		echo
 		echo "	# Here are the services listening on ${iface}."
 		echo "	# TODO: Normally, you will have to remove those not needed."
@@ -3705,41 +3734,102 @@ EOF
 		echo
 	done
 	
+	echo
+	echo "# The above $i interfaces ( ${interfaces}) were found active at this moment."
+	echo "# Add more interfaces that can potentially be activated in the future."
+	echo "# FireHOL will not complain if you setup a firewall on an interface that is"
+	echo "# not active when you activate the firewall."
+	echo "# If you don't setup an interface, FireHOL will drop all traffic from or to"
+	echo "# this interface, if and when it becomes available."
+	echo "# Also, if an interface name dynamically changes (i.e. ppp0 may become ppp1)"
+	echo "# you can use the plus (+) character to match all of them (i.e. ppp+)."
+	echo
+	
 	if [ "1" = "`cat /proc/sys/net/ipv4/ip_forward`" ]
 	then
 		x=0
 		for inface in ${interfaces}
 		do
-			eval src="\${interface_${inface}_nets}"
+			eval srcs="\${interface_${inface}_nets}"
+			eval srcs_ips="\${interface_${inface}_ips}"
 			
-			for outface in ${interfaces}	
+			for s in ${srcs}
 			do
-				test "${inface}" = "${outface}" && continue
-				
-				x=$[x + 1]
-				
-				eval dst="\${interface_${outface}_nets}"
-				
-				echo
-				echo "# Router No ${x}."
-				echo "# Clients on ${inface} accessing servers on ${outface}."
-				echo "# TODO: Change \"router${x}\" to something with meaning to you."
-				echo "# TODO: Check the optional rule parameters (src/dst)."
-				echo "router router${x} inface ${inface} outface ${outface} src ${src} dst ${dst}"
-				echo 
-				echo "	# If you don't trust the clients on ${inface}, or"
-				echo "	# if you want to protect the servers on ${outface}, add this."
-				echo "	# protection strong"
-				echo
-				echo "	# To NAT client requests on the output of ${outface}, add this."
-				echo "	# masquerade"
-				echo
-				echo "	# TODO: This will allow all traffic to pass."
-				echo "	# If you remove it, no REQUEST will pass from ${inface} to ${outface}."
-				echo "	route all accept"
-				echo
+				for outface in ${interfaces}	
+				do
+					eval dsts="\${interface_${outface}_nets}"
+					eval dsts_ips="\${interface_${outface}_ips}"
+					
+					for d in ${dsts}
+					do
+						test "${s}" = "${d}" && continue
+						
+						x=$[x + 1]
+						
+						case ${s} in
+							not_routable)
+								src="not \"\${UNROUTABLE_IPS}\""
+								;;
+								
+							*)
+								src=${s}
+								;;
+						esac
+						
+						case ${d} in
+							not_routable)
+								dst="not \"\${UNROUTABLE_IPS}\""
+								;;
+								
+							*)
+								dst=${d}
+								;;
+						esac
+						
+						echo
+						echo "# Router No ${x}."
+						echo "# Clients on ${inface} (from ${src}) accessing servers on ${outface} (to ${dst})."
+						echo "# TODO: Change \"router${x}\" to something with meaning to you."
+						echo "# TODO: Check the optional rule parameters (src/dst)."
+						echo "router router${x} inface ${inface} outface ${outface} src ${src} dst ${dst}"
+						echo 
+						echo "	# If you don't trust the clients on ${inface}, or"
+						echo "	# if you want to protect the servers on ${outface}, add this."
+						echo "	# > protection strong"
+						echo
+						echo "	# To NAT client requests on the output of ${outface}, add this."
+						echo "	# > masquerade"
+						
+						echo "	# Alternatively, you can SNAT them by placing this at the top of this config:"
+						i=0
+						for ip in ${dsts_ips}
+						do
+							i=$[i + 1]
+							echo "	# > snat to ${ip} outface ${outface} src ${src} dst ${dst}"
+						done
+						if [ $i -gt 1 ]
+						then
+							echo "	# From the above $i lines, you should choose the one that the 'to' parameter is one"
+							echo "	# of the IPs of the 'dst' network. If you fail to choose the right, it will not work."
+						fi
+						
+						echo "	# SNAT commands can be enhanced using 'proto', 'sport', 'dport', etc in order to"
+						echo "	# NAT only some specific traffic."
+						echo
+						echo "	# TODO: This will allow all traffic to pass."
+						echo "	# If you remove it, no REQUEST will pass matching this traffic."
+						echo "	route all accept"
+						echo
+					done
+				done
 			done
 		done
+	else
+		echo
+		echo
+		echo "#	No router statements have been produced, because your server"
+		echo "# is not configured for forwarding traffic."
+		echo
 	fi
 	
 	exit 0
