@@ -10,7 +10,7 @@
 #
 # config: /etc/firehol.conf
 #
-# $Id: firehol.sh,v 1.124 2003/04/23 20:42:26 ktsaou Exp $
+# $Id: firehol.sh,v 1.125 2003/04/24 08:12:51 ktsaou Exp $
 #
 FIREHOL_FILE="${0}"
 
@@ -3334,7 +3334,7 @@ case "${arg}" in
 		else
 		
 		${CAT_CMD} <<"EOF"
-$Id: firehol.sh,v 1.124 2003/04/23 20:42:26 ktsaou Exp $
+$Id: firehol.sh,v 1.125 2003/04/24 08:12:51 ktsaou Exp $
 (C) Copyright 2003, Costa Tsaousis <costa@tsaousis.gr>
 FireHOL is distributed under GPL.
 
@@ -3520,7 +3520,7 @@ then
 	
 	${CAT_CMD} <<"EOF"
 
-$Id: firehol.sh,v 1.124 2003/04/23 20:42:26 ktsaou Exp $
+$Id: firehol.sh,v 1.125 2003/04/24 08:12:51 ktsaou Exp $
 (C) Copyright 2003, Costa Tsaousis <costa@tsaousis.gr>
 FireHOL is distributed under GPL.
 Home Page: http://firehol.sourceforge.net
@@ -3808,13 +3808,14 @@ then
 	
 	cd "${FIREHOL_DIR}"
 	${MKDIR_CMD} ports
+	${MKDIR_CMD} keys
 	cd ports
 	${MKDIR_CMD} tcp
 	${MKDIR_CMD} udp
 	
 	${CAT_CMD} >&2 <<"EOF"
 
-$Id: firehol.sh,v 1.124 2003/04/23 20:42:26 ktsaou Exp $
+$Id: firehol.sh,v 1.125 2003/04/24 08:12:51 ktsaou Exp $
 (C) Copyright 2003, Costa Tsaousis <costa@tsaousis.gr>
 FireHOL is distributed under GPL.
 Home Page: http://firehol.sourceforge.net
@@ -3907,7 +3908,7 @@ EOF
 	echo "# "
 
 	${CAT_CMD} <<"EOF"
-# $Id: firehol.sh,v 1.124 2003/04/23 20:42:26 ktsaou Exp $
+# $Id: firehol.sh,v 1.125 2003/04/24 08:12:51 ktsaou Exp $
 # (C) Copyright 2003, Costa Tsaousis <costa@tsaousis.gr>
 # FireHOL is distributed under GPL.
 # Home Page: http://firehol.sourceforge.net
@@ -4236,7 +4237,13 @@ EOF
 						;;
 				esac
 				
+				# Make sure we are not routing to the same subnet
 				test "${inface}" = "${outface}" -a "${src}" = "${dst}" && continue
+				
+				# Make sure this is not a duplicate router
+				key="`echo ${inface}/${src}-${outface}/${dst} | ${TR_CMD} "/ \\\$\\\"{}" "______"`"
+				test -f "${FIREHOL_DIR}/keys/${key}" && continue
+				touch "${FIREHOL_DIR}/keys/${key}"
 				
 				x=$[x + 1]
 				
