@@ -10,7 +10,7 @@
 #
 # config: /etc/firehol/firehol.conf
 #
-# $Id: firehol.sh,v 1.143 2003/07/20 21:52:41 ktsaou Exp $
+# $Id: firehol.sh,v 1.144 2003/07/20 22:14:28 ktsaou Exp $
 #
 FIREHOL_FILE="${0}"
 
@@ -3499,8 +3499,8 @@ case "${arg}" in
 			esac
 		else
 		
-		${CAT_CMD} <<"EOF"
-$Id: firehol.sh,v 1.143 2003/07/20 21:52:41 ktsaou Exp $
+		${CAT_CMD} <<EOF
+$Id: firehol.sh,v 1.144 2003/07/20 22:14:28 ktsaou Exp $
 (C) Copyright 2003, Costa Tsaousis <costa@tsaousis.gr>
 FireHOL is distributed under GPL.
 
@@ -3533,8 +3533,8 @@ FireHOL supports the following command line arguments (only one of them):
 			
 	panic		will block all IP communication.
 	
-	save		to start the firewall and then save it using
-			${IPTABLES_SAVE_CMD} to /etc/sysconfig/iptables
+	save		to start the firewall and then save it to the
+			place where /etc/init.d/iptables looks for it.
 			
 			Note that not all firewalls will work if
 			restored with:
@@ -3684,9 +3684,9 @@ then
 	echo "version ${FIREHOL_VERSION}" >"${FIREHOL_TEMP_CONFIG}"
 	version ${FIREHOL_VERSION}
 	
-	${CAT_CMD} <<"EOF"
+	${CAT_CMD} <<EOF
 
-$Id: firehol.sh,v 1.143 2003/07/20 21:52:41 ktsaou Exp $
+$Id: firehol.sh,v 1.144 2003/07/20 22:14:28 ktsaou Exp $
 (C) Copyright 2003, Costa Tsaousis <costa@tsaousis.gr>
 FireHOL is distributed under GPL.
 Home Page: http://firehol.sourceforge.net
@@ -3715,7 +3715,7 @@ EOF
 		
 		case "${1}" in
 			help)
-				${CAT_CMD} <<"EOF"
+				${CAT_CMD} <<EOF
 You can use anything a FireHOL configuration file accepts, including variables,
 loops, etc. Take only care to write loops in one row.
 
@@ -3979,9 +3979,9 @@ then
 	${MKDIR_CMD} tcp
 	${MKDIR_CMD} udp
 	
-	${CAT_CMD} >&2 <<"EOF"
+	${CAT_CMD} >&2 <<EOF
 
-$Id: firehol.sh,v 1.143 2003/07/20 21:52:41 ktsaou Exp $
+$Id: firehol.sh,v 1.144 2003/07/20 22:14:28 ktsaou Exp $
 (C) Copyright 2003, Costa Tsaousis <costa@tsaousis.gr>
 FireHOL is distributed under GPL.
 Home Page: http://firehol.sourceforge.net
@@ -4073,8 +4073,8 @@ EOF
 	echo "#             *** NEVER USE THIS CONFIG AS-IS ***"
 	echo "# "
 
-	${CAT_CMD} <<"EOF"
-# $Id: firehol.sh,v 1.143 2003/07/20 21:52:41 ktsaou Exp $
+	${CAT_CMD} <<EOF
+# $Id: firehol.sh,v 1.144 2003/07/20 22:14:28 ktsaou Exp $
 # (C) Copyright 2003, Costa Tsaousis <costa@tsaousis.gr>
 # FireHOL is distributed under GPL.
 # Home Page: http://firehol.sourceforge.net
@@ -4514,49 +4514,49 @@ fi
 # XXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXX
 
 # Place all the statements bellow to the beginning of the final firewall script.
-${CAT_CMD} >"${FIREHOL_OUTPUT}" <<"EOF"
+${CAT_CMD} >"${FIREHOL_OUTPUT}" <<EOF
 #!/bin/sh
 
 load_kernel_module ip_tables
 load_kernel_module ip_conntrack
 
 # Find all tables supported
-tables=`${CAT_CMD} /proc/net/ip_tables_names`
-for t in ${tables}
+tables=\`${CAT_CMD} /proc/net/ip_tables_names\`
+for t in \${tables}
 do
 	# Reset/empty this table.
-	${IPTABLES_CMD} -t "${t}" -F >${FIREHOL_OUTPUT}.log 2>&1
-	r=$?; test ! ${r} -eq 0 && runtime_error error ${r} INIT ${IPTABLES_CMD} -t "${t}" -F
+	${IPTABLES_CMD} -t "\${t}" -F >${FIREHOL_OUTPUT}.log 2>&1
+	r=\$?; test ! \${r} -eq 0 && runtime_error error \${r} INIT ${IPTABLES_CMD} -t "\${t}" -F
 	
-	${IPTABLES_CMD} -t "${t}" -X >${FIREHOL_OUTPUT}.log 2>&1
-	r=$?; test ! ${r} -eq 0 && runtime_error error ${r} INIT ${IPTABLES_CMD} -t "${t}" -X
+	${IPTABLES_CMD} -t "\${t}" -X >${FIREHOL_OUTPUT}.log 2>&1
+	r=\$?; test ! \${r} -eq 0 && runtime_error error \${r} INIT ${IPTABLES_CMD} -t "\${t}" -X
 	
-	${IPTABLES_CMD} -t "${t}" -Z >${FIREHOL_OUTPUT}.log 2>&1
-	r=$?; test ! ${r} -eq 0 && runtime_error error ${r} INIT ${IPTABLES_CMD} -t "${t}" -Z
-		
+	${IPTABLES_CMD} -t "\${t}" -Z >${FIREHOL_OUTPUT}.log 2>&1
+	r=\$?; test ! \${r} -eq 0 && runtime_error error \${r} INIT ${IPTABLES_CMD} -t "\${t}" -Z
+	
 	# Find all default chains in this table.
-	chains=`${IPTABLES_CMD} -t "${t}" -nL | ${GREP_CMD} "^Chain " | ${CUT_CMD} -d ' ' -f 2`
+	chains=\`${IPTABLES_CMD} -t "\${t}" -nL | ${GREP_CMD} "^Chain " | ${CUT_CMD} -d ' ' -f 2\`
 	
 	# If this is the 'filter' table, remember the default chains.
 	# This will be used at the end to make it DROP all packets.
-	test "${t}" = "filter" && firehol_filter_chains="${chains}"
+	test "\${t}" = "filter" && firehol_filter_chains="\${chains}"
 	
 	# Set the policy to ACCEPT on all default chains.
-	for c in ${chains}
+	for c in \${chains}
 	do
-		${IPTABLES_CMD} -t "${t}" -P "${c}" ACCEPT >${FIREHOL_OUTPUT}.log 2>&1
-		r=$?; test ! ${r} -eq 0 && runtime_error error ${r} INIT ${IPTABLES_CMD} -t "${t}" -P "${c}" ACCEPT
+		${IPTABLES_CMD} -t "\${t}" -P "\${c}" ACCEPT >${FIREHOL_OUTPUT}.log 2>&1
+		r=\$?; test ! \${r} -eq 0 && runtime_error error \${r} INIT ${IPTABLES_CMD} -t "\${t}" -P "\${c}" ACCEPT
 	done
 done
 
-${IPTABLES_CMD} -t filter -P INPUT "${FIREHOL_INPUT_ACTIVATION_POLICY}" >${FIREHOL_OUTPUT}.log 2>&1
-r=$?; test ! ${r} -eq 0 && runtime_error error ${r} INIT ${IPTABLES_CMD} -t filter -P INPUT "${FIREHOL_INPUT_ACTIVATION_POLICY}"
+${IPTABLES_CMD} -t filter -P INPUT "\${FIREHOL_INPUT_ACTIVATION_POLICY}" >${FIREHOL_OUTPUT}.log 2>&1
+r=\$?; test ! \${r} -eq 0 && runtime_error error \${r} INIT ${IPTABLES_CMD} -t filter -P INPUT "\${FIREHOL_INPUT_ACTIVATION_POLICY}"
 
-${IPTABLES_CMD} -t filter -P INPUT "${FIREHOL_OUTPUT_ACTIVATION_POLICY}" >${FIREHOL_OUTPUT}.log 2>&1
-r=$?; test ! ${r} -eq 0 && runtime_error error ${r} INIT ${IPTABLES_CMD} -t filter -P INPUT "${FIREHOL_OUTPUT_ACTIVATION_POLICY}"
+${IPTABLES_CMD} -t filter -P INPUT "\${FIREHOL_OUTPUT_ACTIVATION_POLICY}" >${FIREHOL_OUTPUT}.log 2>&1
+r=\$?; test ! \${r} -eq 0 && runtime_error error \${r} INIT ${IPTABLES_CMD} -t filter -P INPUT "\${FIREHOL_OUTPUT_ACTIVATION_POLICY}"
 
-${IPTABLES_CMD} -t filter -P FORWARD "${FIREHOL_FORWARD_ACTIVATION_POLICY}" >${FIREHOL_OUTPUT}.log 2>&1
-r=$?; test ! ${r} -eq 0 && runtime_error error ${r} INIT ${IPTABLES_CMD} -t filter -P FORWARD "${FIREHOL_FORWARD_ACTIVATION_POLICY}"
+${IPTABLES_CMD} -t filter -P FORWARD "\${FIREHOL_FORWARD_ACTIVATION_POLICY}" >${FIREHOL_OUTPUT}.log 2>&1
+r=\$?; test ! \${r} -eq 0 && runtime_error error \${r} INIT ${IPTABLES_CMD} -t filter -P FORWARD "\${FIREHOL_FORWARD_ACTIVATION_POLICY}"
 
 # Accept everything in/out the loopback device.
 ${IPTABLES_CMD} -A INPUT -i lo -j ACCEPT
@@ -4616,13 +4616,13 @@ enable exit			# Enable the exit buildin shell command.
 close_cmd					|| ret=$[ret + 1]
 close_master					|| ret=$[ret + 1]
 
-${CAT_CMD} >>"${FIREHOL_OUTPUT}" <<"EOF"
+${CAT_CMD} >>"${FIREHOL_OUTPUT}" <<EOF
 
 # Make it drop everything on table 'filter'.
-for c in ${firehol_filter_chains}
+for c in \${firehol_filter_chains}
 do
-	${IPTABLES_CMD} -t filter -P "${c}" DROP >${FIREHOL_OUTPUT}.log 2>&1
-	r=$?; test ! ${r} -eq 0 && runtime_error error ${r} INIT ${IPTABLES_CMD} -t filter -P "${c}" DROP
+	${IPTABLES_CMD} -t filter -P "\${c}" DROP >${FIREHOL_OUTPUT}.log 2>&1
+	r=\$?; test ! \${r} -eq 0 && runtime_error error \${r} INIT ${IPTABLES_CMD} -t filter -P "\${c}" DROP
 done
 
 EOF
