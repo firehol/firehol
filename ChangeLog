@@ -1,7 +1,7 @@
 
 RCS file: /cvsroot/firehol/firehol/firehol.sh,v
 Working file: firehol.sh
-head: 1.83
+head: 1.85
 branch:
 locks: strict
 access list:
@@ -9,8 +9,16 @@ symbolic names:
 	start: 1.1.1.1
 	vendor: 1.1.1
 keyword substitution: kv
-total revisions: 84;	selected revisions: 84
+total revisions: 86;	selected revisions: 86
 description:
+----------------------------
+revision 1.85
+date: 2003/01/28 19:47:31;  author: ktsaou;  state: Exp;  lines: +4 -4
+Made masquerade handle correctly interfaces given directly to it.
+----------------------------
+revision 1.84
+date: 2003/01/28 19:42:09;  author: ktsaou;  state: Exp;  lines: +4 -4
+Made it handle the 'reverse' keyword of masquerade correctly.
 ----------------------------
 revision 1.83
 date: 2003/01/25 02:33:59;  author: ktsaou;  state: Exp;  lines: +77 -36
