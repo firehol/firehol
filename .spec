@@ -65,4 +65,17 @@ rm -rf ${RPM_BUILD_DIR}/%{name}-%{version}
 %doc examples/office-private-lan.conf
 %doc examples/ppp-client.conf
 
+%doc doc/adding.html
+%doc doc/css.css
+%doc doc/fwtest.html
+%doc doc/index.html
+%doc doc/language.html
+%doc doc/services.html
+%doc doc/tutorial.html
+%doc doc/commands.html
+%doc doc/header.html
+%doc doc/invoking.html
+%doc doc/overview.html
+%doc doc/trouble.html
+
 %changelog
