@@ -10,7 +10,7 @@
 #
 # config: /etc/firehol.conf
 #
-# $Id: firehol.sh,v 1.102 2003/03/05 18:23:57 ktsaou Exp $
+# $Id: firehol.sh,v 1.103 2003/03/05 22:06:51 ktsaou Exp $
 #
 FIREHOL_FILE="${0}"
 
@@ -3189,7 +3189,7 @@ case "${arg}" in
 		else
 		
 		cat <<"EOF"
-$Id: firehol.sh,v 1.102 2003/03/05 18:23:57 ktsaou Exp $
+$Id: firehol.sh,v 1.103 2003/03/05 22:06:51 ktsaou Exp $
 (C) Copyright 2002, Costa Tsaousis <costa@tsaousis.gr>
 FireHOL is distributed under GPL.
 
@@ -3372,7 +3372,7 @@ then
 	
 	cat <<"EOF"
 
-$Id: firehol.sh,v 1.102 2003/03/05 18:23:57 ktsaou Exp $
+$Id: firehol.sh,v 1.103 2003/03/05 22:06:51 ktsaou Exp $
 (C) Copyright 2002, Costa Tsaousis <costa@tsaousis.gr>
 FireHOL is distributed under GPL.
 Home Page: http://firehol.sourceforge.net
@@ -3580,7 +3580,7 @@ then
 	
 	cat >&2 <<"EOF"
 
-$Id: firehol.sh,v 1.102 2003/03/05 18:23:57 ktsaou Exp $
+$Id: firehol.sh,v 1.103 2003/03/05 22:06:51 ktsaou Exp $
 (C) Copyright 2002, Costa Tsaousis <costa@tsaousis.gr>
 FireHOL is distributed under GPL.
 Home Page: http://firehol.sourceforge.net
@@ -3673,7 +3673,7 @@ EOF
 	echo "# "
 
 	cat <<"EOF"
-# $Id: firehol.sh,v 1.102 2003/03/05 18:23:57 ktsaou Exp $
+# $Id: firehol.sh,v 1.103 2003/03/05 22:06:51 ktsaou Exp $
 # (C) Copyright 2002, Costa Tsaousis <costa@tsaousis.gr>
 # FireHOL is distributed under GPL.
 # Home Page: http://firehol.sourceforge.net
@@ -3696,17 +3696,23 @@ EOF
 	set -a found_interfaces=
 	set -a found_ips=
 	set -a found_nets=
+	set -a found_excludes=
 	
 	helpme_iface() {
+		local route="${1}"; shift
 		local i="${1}"; shift
 		local iface="${1}"; shift
 		local ifip="${1}"; shift
 		local ifnets="${1}"; shift
 		local ifreason="${1}"; shift
 		
-		found_interfaces[$i]=${iface}
-		found_ips[$i]=${ifip}
-		found_nets[$i]=${ifnets}
+		if [ "${route}" = "route" ]
+		then
+			found_interfaces[$i]="${iface}"
+			found_ips[$i]="${ifip}"
+			found_nets[$i]="${ifnets}"
+			found_excludes[$i]="${1}"
+		fi
 		
 		# output the interface
 		echo
@@ -3805,6 +3811,8 @@ EOF
 		do
 			echo "### DEBUG: Processing IP ${ip} of interface '${iface}'"
 			
+			def=0
+			
 			# find all the networks this IP can access directly
 			unset ifnets
 			unset ofnets
@@ -3831,6 +3839,7 @@ EOF
 						then
 							echo "### DEBUG: '${iface}' found to be a default Point-To-Point gateway."
 							ifnets="0.0.0.0/0"
+							def=1
 							break
 						fi
 					done
@@ -3867,10 +3876,10 @@ EOF
 			fi
 			
 			i=$[i + 1]
-			helpme_iface $i "${iface}" "${ip}" "${ifnets[*]}" ""
+			helpme_iface route $i "${iface}" "${ip}" "${ifnets[*]}" ""
 			
 			# Is this interface the default gateway too?
-			if [ "${gw_if}" = "${iface}" ]
+			if [ ${def} -eq 0 -a "${gw_if}" = "${iface}" ]
 			then
 				for nn in ${ifnets[@]}
 				do
@@ -3879,7 +3888,7 @@ EOF
 						echo "### DEBUG: Default gateway ${gw_ip} is part of network ${nn}"
 						
 						i=$[i + 1]
-						helpme_iface $i "${iface}" "${ip}" "0.0.0.0/0" "from/to unknown networks behind the default gateway ${gw_ip}" "${ifnets[*]}"
+						helpme_iface ignore $i "${iface}" "${ip}" "0.0.0.0/0" "from/to unknown networks behind the default gateway ${gw_ip}" "${ifnets[*]}"
 						
 						break
 					fi
@@ -3889,7 +3898,7 @@ EOF
 	done
 		
 	echo
-	echo "# The above $i interfaces (${found_interfaces[*]}) were found active at this moment."
+	echo "# The above $i interfaces were found active at this moment."
 	echo "# Add more interfaces that can potentially be activated in the future."
 	echo "# FireHOL will not complain if you setup a firewall on an interface that is"
 	echo "# not active when you activate the firewall."
@@ -3925,13 +3934,13 @@ EOF
 				
 				case ${src} in
 					"0.0.0.0/0")
-						src="not \"\${UNROUTABLE_IPS}\""
+						src="not \"\${UNROUTABLE_IPS} ${found_excludes[$i]}\""
 						;;
 				esac
 				
 				case ${dst} in
 					"0.0.0.0/0")
-						dst="not \"\${UNROUTABLE_IPS}\""
+						dst="not \"\${UNROUTABLE_IPS} ${found_excludes[$j]}\""
 						;;
 				esac
 				
