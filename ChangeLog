@@ -1,7 +1,7 @@
 
 RCS file: /cvsroot/firehol/firehol/firehol.sh,v
 Working file: firehol.sh
-head: 1.40
+head: 1.43
 branch:
 locks: strict
 access list:
@@ -9,8 +9,21 @@ symbolic names:
 	start: 1.1.1.1
 	vendor: 1.1.1
 keyword substitution: kv
-total revisions: 41;	selected revisions: 41
+total revisions: 44;	selected revisions: 44
 description:
+----------------------------
+revision 1.43
+date: 2002/12/13 21:52:19;  author: ktsaou;  state: Exp;  lines: +13 -17
+Further optimizations in the error handler.
+----------------------------
+revision 1.42
+date: 2002/12/13 19:56:11;  author: ktsaou;  state: Exp;  lines: +93 -113
+Made tons of optimizations for better FireHOL speed.
+----------------------------
+revision 1.41
+date: 2002/12/12 20:07:47;  author: ktsaou;  state: Exp;  lines: +22 -4
+Added services: APTPROXY, APCUPSD, ISAKMP
+Removed Service: TFTP
 ----------------------------
 revision 1.40
 date: 2002/12/11 20:51:38;  author: ktsaou;  state: Exp;  lines: +4 -4
