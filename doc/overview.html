@@ -20,8 +20,146 @@ FireHOL has been designed to be a firewall for... <b>humans</b>!
 </table>
 </center>
 
-FireHOL is extremely simple. Take a look at this configuration:
+FireHOL has been designed to allow you configure your firewall the same way you think of it.
+Consider this example:<p>
 
+<center><table border=0 cellpadding=10 cellspacing=5 width="80%">
+<tr bgcolor="black"><th width="60%"><b><font color="white">Your thoughts...</th><th width="40%"><b><font color="white">In FireHOL</th></tr>
+<tr><td>	I have a Linux host with two network interfaces.<p>
+		<ul>
+			<li>The first is <b>eth0</b> that connects to my <b>LAN</b>
+			<br>&nbsp;
+			</li>
+			<li>
+			The other is a <b>PPP</b> device that connects to the <b>internet</b>
+			<br>&nbsp;
+			</li>
+		</ul>
+		</td>
+		<td>
+		<b><pre><font color="red">
+interface eth0 lan
+		
+interface ppp+ internet
+		</pre>
+		</td>
+		</tr>
+<tr bgcolor="#F0F0F0">
+	<td>	To the <b>internet</b> my Linux provides:
+		<ul>
+			<li>a MAIL server
+			<br>&nbsp;
+			</li>
+			<li>a WEB server
+			<br>&nbsp;
+			</li>
+			<li>a FTP server
+			<br>&nbsp;
+			</li>
+			<li>a SSH server, but only for my office computer
+			<br>&nbsp;
+			</li>
+		</ul>
+		My Linux is also a workstation, I want to run any client I wish.
+		</td>
+		<td>
+		<b><font color="grey"><pre>
+<font color="red">office="my-office-pc.example.com"</font>
+
+interface eth0 lan
+
+interface ppp+ internet<font color="red">
+	server smtp accept
+	server http accept
+	server ftp  accept
+	server ssh  accept src $office
+	
+	client all  accept
+		</pre>
+		</td>
+		</tr>
+<tr>
+	<td>	My <b>LAN</b> is trusted.<p>
+		If a server is running on my Linux I want my LAN PCs to use it.
+		</td>
+		<td>
+		<b><font color="grey"><pre>
+office="my-office-pc.example.com"
+
+interface eth0 lan<font color="red">
+	policy accept</font>
+	
+interface ppp+ internet
+	server smtp accept
+	server http accept
+	server ftp  accept
+	server ssh  accept src $office
+	
+	client all  accept
+		</pre>
+		</td>
+		</tr>
+<tr bgcolor="#F0F0F0">
+	<td>	I would like my <b>LAN</b> PCs to use this Linux as a gateway
+		for connecting, as clients, to the <b>internet</b> for all the services
+		they wish.
+		</td>
+		<td>
+		<b><font color="grey"><pre>
+office="my-office-pc.example.com"
+
+interface eth0 lan
+	policy accept
+	
+interface ppp+ internet
+	server smtp accept
+	server http accept
+	server ftp  accept
+	server ssh  accept src $office
+	
+	client all  accept
+	<font color="red">
+router lan2internet inface eth0 outface ppp+
+	route all  accept
+		</pre>
+		</td>
+		</tr>
+<tr>
+	<td>	My LAN PCs have private IPs, unroutable to internet.<p>
+		I need to masquerade somehow their IP addresses for internet access.
+		</td>
+		<td>
+		<b><font color="grey"><pre>
+office="my-office-pc.example.com"
+
+interface eth0 lan
+	policy accept
+	
+interface ppp+ internet
+	server smtp accept
+	server http accept
+	server ftp  accept
+	server ssh  accept src $office
+	
+	client all  accept
+	
+router lan2internet inface eth0 outface ppp+
+	<font color="red">masquerade</font>
+	route all  accept
+		</pre>
+		</td>
+		</tr>
+</table>
+</center>
+<p>
+<b><u>This is it!</u></b> The firewall is ready. I hope you have noticed that all the rules given match just one direction of the traffic: <b>the request</b>.
+They don't say anything about replies (see for example the <b>src</b>, <b>inface</b> or <b>outface</b> parameters). This is because FireHOL handles the replies
+automatically. You don't have to do anything about them: If a request is allowed, then the corresponding reply is also allowed.
+This also means that FireHOL produces the iptables statements to exactly match what is allowed and nothing more. If for example we remove the <b>client all accept</b>
+from the <b>internet</b> interface, our Linux will not be able to do anything with its PPP device execpt to send replies matching the <b>server</b> statements within this interface;
+no pings, no DNS, no nothing!
+<p>
+Here is another simple example:
 
 <center><table border=0 cellpadding=15 cellspacing=20 width="70%">
 <tr><td bgcolor="#F0F0F0">
@@ -54,34 +192,6 @@ able to do anything to anyone, but as far as the rest of world is concerned, <b>
 <p>
 FireHOL is completely <b>dynamic</b>, since with its <a href="language.html">language</a> you can describe any firewall
 configuration you wish using simple <a href="commands.html">commands</a>.
-<p>
-This example is a router for a home lan:
-
-<center><table border=0 cellpadding=15 cellspacing=20 width="70%">
-<tr><td bgcolor="#F0F0F0">
-<b><pre>
-	version 5
-	
-	interface eth0 home
-		policy accept
-	
-	interface ppp+ internet
-		client all accept
-	
-	router myclients inface eth0 outface ppp+
-		masquerade
-		route all accept
-</pre></b>
-</td></tr>
-</table>
-</center>
-
-The above will only allow:
-	<ul>
-	<li>eth0: anything to be received and send</li>
-	<li>ppp+: Any kind of requests to be send and their replies to be received</li>
-	<li>routing client requests coming in from eth0 and going out to ppp+ and their matching replies in the opposite direction, using masquerading.</li>
-	</ul>
 <p>
 <table border=0 cellpadding=10 cellspacing=0 width="100%">
 <tr><td bgcolor="#EEEEEE"><b>Why?</td></tr></table>
@@ -143,7 +253,7 @@ supports the following services:</p>
 <tr><td align=center valign=middle>
 	<A href="http://sourceforge.net"><IMG src="http://sourceforge.net/sflogo.php?group_id=58425&amp;type=5" width="210" height="62" border="0" alt="SourceForge Logo"></A>
 </td><td align=center valign=middle>
-	<small>$Id: overview.html,v 1.10 2002/12/15 20:55:35 ktsaou Exp $</small>
+	<small>$Id: overview.html,v 1.11 2002/12/23 18:34:54 ktsaou Exp $</small>
 	<p>
 	<b>FireHOL</b>, a firewall for humans...<br>
 	&copy; Copyright 2002
