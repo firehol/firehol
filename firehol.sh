@@ -10,7 +10,7 @@
 #
 # config: /etc/firehol.conf
 #
-# $Id: firehol.sh,v 1.46 2002/12/17 20:47:34 ktsaou Exp $
+# $Id: firehol.sh,v 1.47 2002/12/18 00:30:28 ktsaou Exp $
 #
 
 # ------------------------------------------------------------------------------
@@ -133,7 +133,7 @@ case "${arg}" in
 		else
 		
 		cat <<"EOF"
-$Id: firehol.sh,v 1.46 2002/12/17 20:47:34 ktsaou Exp $
+$Id: firehol.sh,v 1.47 2002/12/18 00:30:28 ktsaou Exp $
 (C) Copyright 2002, Costa Tsaousis
 FireHOL is distributed under GPL.
 
@@ -2159,7 +2159,7 @@ smart_function() {
 		# Try the custom services
 		local fn="rules_${service}"
 		
-		set_work_function "Running complex rules function ${fn}() for service '${service}'/${type}"
+		set_work_function "Running complex rules function ${fn}() for ${type} '${service}'"
 		
 		"${fn}" "${mychain}" "${type}" "$@"
 		local ret=$?
@@ -2226,7 +2226,7 @@ simple_service() {
 		done
 	fi
 	
-	set_work_function "Running simple rules for service '${service}'/${type}"
+	set_work_function "Running simple rules for  ${type} '${service}'"
 	
 	rules_custom "${mychain}" "${type}" "${server}" "${server_ports}" "${client_ports}" "$@"
 	return $?
@@ -2418,28 +2418,82 @@ protection() {
 if [ ${FIREHOL_EXPLAIN} -eq 1 ]
 then
 	FIREHOL_CONFIG="Interactive User Input"
-	FIREHOL_LINEID="0"
+	FIREHOL_LINEID="1"
+	
+	FIREHOL_TEMP_CONFIG="${FIREHOL_DIR}/firehol.conf"
+	
+	echo "version ${FIREHOL_VERSION}" >"${FIREHOL_TEMP_CONFIG}"
+	version ${FIREHOL_VERSION}
+	
+	cat <<"EOF"
+$Id: firehol.sh,v 1.47 2002/12/18 00:30:28 ktsaou Exp $
+(C) Copyright 2002, Costa Tsaousis
+FireHOL is distributed under GPL.
+Home Page: http://firehol.sourceforge.net
+
+EOF
 	
 	while [ 1 = 1 ]
 	do
-		echo
-		read -p "Enter command to explain > " -e -r
+		read -p "# FireHOL [${work_cmd}:${work_name}] > " -e -r
 		test -z "${REPLY}" && continue
 		
-		FIREHOL_LINEID=$[FIREHOL_LINEID + 1]
-		
-		set -- $REPLY
-		
 		set_work_function -ne "Executing user input"
-		cat <<EOF
+		
+		set -- ${REPLY}
+		
+		case "${1}" in
+			help)
+				cat <<"EOF"
+You can use anything a FireHOL configuration file accepts, including variables,
+loops, etc. Take only care to write loops in one row.
 
+Additionaly, you can use the 'help', 'show' and 'quit' commands.
+EOF
+				continue
+				;;
+				
+			show)
+				echo
+				cat "${FIREHOL_TEMP_CONFIG}"
+				echo
+				continue
+				;;
+				
+			quit)
+				echo
+				cat "${FIREHOL_TEMP_CONFIG}"
+				echo
+				exit 1
+				;;
+				
+			*)
+				cat <<EOF
 
 # \/\/\/\/\/\/\/\/\/\/\/\/\/\/\/\/\/\/\/\/\/\/\/\/\/\/\/\/\/\/\/\/\/\/\/\/\/\/\/
 # Cmd Line : ${FIREHOL_LINEID}
 # Command  : ${REPLY}
 EOF
-		"$@"
-		test $? -gt 0 && error "Command failed"
+				eval "$@"
+				if [ $? -gt 0 ]
+				then
+					printf "\n# > FAILED <\n"
+				else
+					if [ "${1}" = "interface" -o "${1}" = "router" ]
+					then
+						echo >>"${FIREHOL_TEMP_CONFIG}"
+					else
+						printf "	" >>"${FIREHOL_TEMP_CONFIG}"
+					fi
+					
+					printf "%s\n" "${REPLY}" >>"${FIREHOL_TEMP_CONFIG}"
+					
+					FIREHOL_LINEID=$[FIREHOL_LINEID + 1]
+					
+					printf "\n# > OK <\n"
+				fi
+				;;
+		esac
 	done
 	
 	exit 0
