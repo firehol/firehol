@@ -1,6 +1,6 @@
 #!/bin/sh
 #
-# Startup script to implement /etc/firehol.conf pre-defined rules.
+# Startup script to implement /etc/firehol/firehol.conf pre-defined rules.
 #
 # chkconfig: 2345 99 92
 #
@@ -8,9 +8,9 @@
 #
 # by Costa Tsaousis <costa@tsaousis.gr>
 #
-# config: /etc/firehol.conf
+# config: /etc/firehol/firehol.conf
 #
-# $Id: firehol.sh,v 1.127 2003/04/30 23:29:47 ktsaou Exp $
+# $Id: firehol.sh,v 1.128 2003/05/01 01:30:24 ktsaou Exp $
 #
 FIREHOL_FILE="${0}"
 
@@ -174,7 +174,7 @@ ALL_SHOULD_ALSO_RUN=
 
 # The default configuration file
 # It can be changed on the command line
-FIREHOL_CONFIG="/etc/firehol.conf"
+FIREHOL_CONFIG="/etc/firehol/firehol.conf"
 
 # If set to 1, we are just going to present the resulting firewall instead of
 # installing it.
@@ -3334,7 +3334,7 @@ case "${arg}" in
 		else
 		
 		${CAT_CMD} <<"EOF"
-$Id: firehol.sh,v 1.127 2003/04/30 23:29:47 ktsaou Exp $
+$Id: firehol.sh,v 1.128 2003/05/01 01:30:24 ktsaou Exp $
 (C) Copyright 2003, Costa Tsaousis <costa@tsaousis.gr>
 FireHOL is distributed under GPL.
 
@@ -3345,7 +3345,7 @@ FireHOL supports the following command line arguments (only one of them):
 
 	start		to activate the firewall configuration.
 			The configuration is expected to be found in
-			/etc/firehol.conf
+			/etc/firehol/firehol.conf
 			
 	try		to activate the firewall, but wait until
 			the user types the word "commit". If this word
@@ -3520,7 +3520,7 @@ then
 	
 	${CAT_CMD} <<"EOF"
 
-$Id: firehol.sh,v 1.127 2003/04/30 23:29:47 ktsaou Exp $
+$Id: firehol.sh,v 1.128 2003/05/01 01:30:24 ktsaou Exp $
 (C) Copyright 2003, Costa Tsaousis <costa@tsaousis.gr>
 FireHOL is distributed under GPL.
 Home Page: http://firehol.sourceforge.net
@@ -3815,7 +3815,7 @@ then
 	
 	${CAT_CMD} >&2 <<"EOF"
 
-$Id: firehol.sh,v 1.127 2003/04/30 23:29:47 ktsaou Exp $
+$Id: firehol.sh,v 1.128 2003/05/01 01:30:24 ktsaou Exp $
 (C) Copyright 2003, Costa Tsaousis <costa@tsaousis.gr>
 FireHOL is distributed under GPL.
 Home Page: http://firehol.sourceforge.net
@@ -3908,7 +3908,7 @@ EOF
 	echo "# "
 
 	${CAT_CMD} <<"EOF"
-# $Id: firehol.sh,v 1.127 2003/04/30 23:29:47 ktsaou Exp $
+# $Id: firehol.sh,v 1.128 2003/05/01 01:30:24 ktsaou Exp $
 # (C) Copyright 2003, Costa Tsaousis <costa@tsaousis.gr>
 # FireHOL is distributed under GPL.
 # Home Page: http://firehol.sourceforge.net

@@ -1,4 +1,4 @@
-$Id: README,v 1.4 2002/12/22 20:46:19 ktsaou Exp $
+$Id: README,v 1.5 2003/05/01 01:30:24 ktsaou Exp $
 
 FireHOL, an iptables stateful packet filtering firewall for humans!
 Copyright (C) 2002 Costa Tsaousis <costa@tsaousis.gr>
@@ -40,7 +40,7 @@ RPM
 ~~~
 RPM distributions automatically install the program. After a RPM
 installation, FireHOL should be available at /etc/init.d/firehol
-and its default configuration at /etc/firehol.conf.
+and its default configuration at /etc/firehol/firehol.conf.
 Please use the chkconfig system utility to enable/disable
 firehol's activity at boot time.
 
@@ -60,7 +60,8 @@ Three things are needed to start FireHOL properly:
 
          /path/to/startup/scripts/firehol start
 
-3. Make sure there is a valid configuration file in /etc/firehol.conf
+3. Make sure there is a valid configuration file in
+   /etc/firehol/firehol.conf
 
 This is it.
 
