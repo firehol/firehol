@@ -1,0 +1,340 @@
+
+RCS file: /cvsroot/firehol/firehol/firehol.sh,v
+Working file: firehol.sh
+head: 1.33
+branch:
+locks: strict
+access list:
+symbolic names:
+	start: 1.1.1.1
+	vendor: 1.1.1
+keyword substitution: kv
+total revisions: 34;	selected revisions: 34
+description:
+----------------------------
+revision 1.33
+date: 2002/12/07 00:47:30;  author: ktsaou;  state: Exp;  lines: +27 -174
+Re-organized parameters parsing to prevent processing a possible file
+in the current directory with filename the name of the FireHOL command.
+
+Now FireHOL locks the subsys firehol, in addition to iptables.
+----------------------------
+revision 1.32
+date: 2002/12/05 09:23:36;  author: ktsaou;  state: Exp;  lines: +31 -2
+Added many new services.
+----------------------------
+revision 1.31
+date: 2002/12/05 09:03:37;  author: ktsaou;  state: Exp;  lines: +13 -3
+The problem with line numbers on debian systems found to be an awk
+alternative those systems use. Now FireHOL uses gawk instead of awk.
+
+Added service SUBMISSION (SMTP or SSL/TLS).
+----------------------------
+revision 1.30
+date: 2002/12/04 23:12:10;  author: ktsaou;  state: Exp;  lines: +35 -2
+Fixed a problem where empty parameters to src, dst, etc where not giving
+an error and where not producing any iptables statements.
+This was happening because FireHOL relies on nested BASH loops, and bash
+does not loop with empty iterations...
+----------------------------
+revision 1.29
+date: 2002/12/04 22:41:13;  author: ktsaou;  state: Exp;  lines: +155 -114
+Re-wrote the negative expressions handling to archieve near hand-made
+(i.e. optimum) quality of iptables firewall.
+Now, instead of the linked-list that was created for negative expressions,
+we match all positive expressions before the negatives and all the
+negatives are together in one chain.
+This also fixed possible performance problems due to the large number
+of chains and rules that the packets had to traverse in order to get
+matched (or not matched).
+
+The fact that now positive rules are matched before negatives has also the
+benefit that not all traffic has to be matched against the negatives. Now,
+first we select what might be good for a rule, and then we check if this
+breaks the negative expressions.
+
+Last, this made the iptables firewall much more clear and human readable.
+----------------------------
+revision 1.28
+date: 2002/12/04 21:32:26;  author: ktsaou;  state: Exp;  lines: +17 -14
+Fixed a bug that FireHOL was incorrectly choosing LOCAL_CLIENT_PORTS on
+router configurations. This bug appeared when the router configurations
+were made to accept normal server/client statements.
+----------------------------
+revision 1.27
+date: 2002/12/04 07:20:19;  author: ktsaou;  state: Exp;  lines: +13 -2
+Error handler now works on protections too.
+----------------------------
+revision 1.26
+date: 2002/12/03 22:49:16;  author: ktsaou;  state: Exp;  lines: +75 -20
+Changed the banner to be much more descriptive. It now also shows the
+services FireHOL supports (removed the services parameter).
+----------------------------
+revision 1.25
+date: 2002/12/03 22:07:09;  author: ktsaou;  state: Exp;  lines: +12 -3
+Fixed the usage banner to show the "services" parameter.
+----------------------------
+revision 1.24
+date: 2002/12/03 22:03:00;  author: ktsaou;  state: Exp;  lines: +87 -7
+Another work around to fix the problem of LINENO not working in debian
+systems.
+
+Added command line argument "services" which shows all the service
+definitions firehol knows about.
+----------------------------
+revision 1.23
+date: 2002/12/02 17:48:41;  author: ktsaou;  state: Exp;  lines: +13 -8
+Fixed a bug where some versions of BASH do not handle correctly cat >>"EOF".
+They treat it as cat >>EOF and thus they do variable substitution on the
+text.
+Now, FireHOL uses cat >>EOF but the text has been escaped in order to avoid
+variable substitution.
+
+The problem has been reported by Florian Thiel <thiel@ksan.de>.
+----------------------------
+revision 1.22
+date: 2002/12/02 00:01:24;  author: ktsaou;  state: Exp;  lines: +14 -7
+Fixed parameter 'custom' processing. It is not an array now, but it is
+treated specially to support BASH special characters such as !
+Quoting things in parameters 'custom' needs tweaking still.
+----------------------------
+revision 1.21
+date: 2002/12/01 04:34:00;  author: ktsaou;  state: Exp;  lines: +48 -61
+More quoting issues fixed. Changed the core to work with BASH arrays in
+order to handle quoted arguments accurately.
+
+Fixed a bug in postprocessing error handler that did not present the
+command line that produced the error.
+----------------------------
+revision 1.20
+date: 2002/11/30 22:53:55;  author: ktsaou;  state: Exp;  lines: +235 -186
+Fixed various problems related to quoted arguments.
+Fixed iptables generation to support quoted arguments.
+Made chain names shorter.
+
+Every single element in the firehol config now gets its own chain.
+Previously, the same services (e.g. smtp servers) were implemented using
+only one pair of chains.
+
+Enhanced the error handler of logical and syntactical error. Now it says
+were and why an error has occured.
+----------------------------
+revision 1.19
+date: 2002/11/30 14:33:33;  author: ktsaou;  state: Exp;  lines: +77 -57
+As suggested by Florian Thiel <thiel@ksan.de>:
+a. Fixed service IRC to work on TCP instead of UDP.
+b. Added services: UUCP, VNC, WEBCACHE, IMAPS, IKE.
+
+Also fixed the home-router.conf example (it was outdated).
+----------------------------
+revision 1.18
+date: 2002/11/03 13:17:39;  author: ktsaou;  state: Exp;  lines: +30 -10
+Minor aesthetic changes.
+----------------------------
+revision 1.17
+date: 2002/11/01 19:37:20;  author: ktsaou;  state: Exp;  lines: +82 -1
+Added service: any
+Any allows the administrator to define any stateful rule to match services
+that cannot have source and destination ports, such as unusual protocols,
+etc.
+
+Syntax: type any name action [optional rule parameters]
+
+type: server/client/route
+name: the name for the service (used for the chain)
+action: accept, reject, etc.
+
+
+Added service: multicast
+Multicast allows the administrator to match packets with destination
+224.0.0.0/8 in both directions (input/output).
+----------------------------
+revision 1.16
+date: 2002/10/31 15:31:52;  author: ktsaou;  state: Exp;  lines: +61 -13
+Added command line parameter 'try' (in addition to 'start', 'stop', etc)
+that when used it activates the firewall and waits 30 seconds for the
+administrator to type 'commit' in order to keep the firewall active.
+If the administrator does not write 'commit' or the timeout passes, FireHOL
+restores the previous firewall.
+
+Also, if you break (Ctrl-C) FireHOL while activating the new firewall,
+FireHOL will restore the old firewall.
+----------------------------
+revision 1.15
+date: 2002/10/30 23:25:07;  author: ktsaou;  state: Exp;  lines: +80 -61
+Rearranged default RELATED rules to match after normal processing and
+protections.
+Made the core of FireHOL operate on multiple tables (not assuming the
+rules refer to the 'filter' table). This will allow FireHOL to support
+all kinds of NAT chains in the future.
+----------------------------
+revision 1.14
+date: 2002/10/29 22:20:41;  author: ktsaou;  state: Exp;  lines: +79 -27
+Client and server keywords now work on routers too.
+(The old 'route' subcommand is an alias for the 'server' subcommand -
+within a router).
+Protection can be reversed on routers to match outface instead of inface.
+Masquerade can be used in interfaces, routers (matches outface - but can
+be reverse(ed) to match inface) or as a primary command with all the
+interfaces to be masqueraded in an argument.
+----------------------------
+revision 1.13
+date: 2002/10/28 19:47:02;  author: ktsaou;  state: Exp;  lines: +31 -27
+Protection has been extented to work on routers too.
+Made a few minor aesthetic changes on the generated code. Now in/out chains
+on routers match the inface/outface correctly.
+----------------------------
+revision 1.12
+date: 2002/10/28 18:45:54;  author: ktsaou;  state: Exp;  lines: +35 -14
+Added support for ICMP floods protection and from BAD TCP flags protection.
+This was suggested by: Fco.Felix Belmonte (ffelix@gescosoft.com).
+----------------------------
+revision 1.11
+date: 2002/10/27 12:47:48;  author: ktsaou;  state: Exp;  lines: +5 -0
+Added CVS versioning to all files.
+----------------------------
+revision 1.10
+date: 2002/10/27 02:49:34;  author: ktsaou;  state: Exp;  lines: +66 -5
+Added service IRC.
+Extended kernel modules handling to simple services too.
+Simple services can now have:
+
+require_myservice_modules="module"
+require_myservice_nat_modules="module"
+
+in order to have these modules installed if and when "myservice" is
+used.
+
+Added the "masquerade" interfaces subcommand, that gives a shortcut to
+masquerade on the output of an interface.
+
+FireHOL, now have a separate rule to match all RELATED sockets on all
+chains. This is always added at the top of the firewall.
+
+FireHOL, now DROPs all INVALID packets, as suggested by the iptables
+HOW-TO.
+
+Various other minor enhancements.
+----------------------------
+revision 1.9
+date: 2002/10/26 15:14:52;  author: ktsaou;  state: Exp;  lines: +40 -26
+Added logging options support as suggested by:
+Fco.Felix Belmonte <ffelix@gescosoft.com>
+----------------------------
+revision 1.8
+date: 2002/10/24 21:10:01;  author: ktsaou;  state: Exp;  lines: +86 -9
+Removed service TFTP since this requires a kernel module for stateful
+operation.
+
+After suggestions by Fco.Felix Belmonte (ffelix@gescosoft.com),
+I have added:
+
+a) RESERVED_IPS, PRIVATE_IPS, MULTICAST_IPS and UNROUTABLE_IPS
+You can use the above in SRC (not) parameters to match them.
+The use of UNROUTABLE_IPS is suggested for cases where an interface is
+exclusivelly public.
+
+b) kernel module requirements per complex service and for the
+configuration file as a whole.
+Now you can use:
+
+# one line for each module, somewhere in your config file
+require_kernel_module <kernel_module>
+
+to have FireHOL require some kernel module to succesfully complete
+the firewall configuration.
+
+As an option for those running NAT, you can use:
+
+FIREHOL_NAT=1 # put this at the top of your config file
+
+to make the complex services require also the NAT modules for the
+services they implement.
+
+Finally, I have added a get-iana.sh script that produces one BASH
+statement for RESERVED_IPS.
+----------------------------
+revision 1.7
+date: 2002/10/20 19:09:18;  author: ktsaou;  state: Exp;  lines: +1 -1
+Changed TFTP from TCP to UDP.
+----------------------------
+revision 1.6
+date: 2002/10/11 21:09:11;  author: ktsaou;  state: Exp;  lines: +18 -0
+Added services RNDC, FINGER, ECHO, DAYTIME, NNTP
+----------------------------
+revision 1.5
+date: 2002/10/04 17:35:49;  author: ktsaou;  state: Exp;  lines: +137 -7
+Fixed negative expressions in FireHOL statements.
+By default, when multiple instances of interfaces/ports/addresses exist
+FireHOL produces one rule for each instance. However when negative
+expressions were defined the previous approach was producing ORed iptables
+statements instead of ANDed statements.
+The new code, now produces linked lists of iptables chains for all negative
+expressions so that only if ALL the negative are matched, one rule for each
+positive expression will be produced.
+
+Example: interface eth0 myname src "1.1.1.1 2.2.2.2"
+
+This will correctly produce two indepedent rules, one for each IP address.
+But:
+
+interface eth0 myname src NOT "1.1.1.1 2.2.2.2"
+
+was incorrectly producing two indepedent rules. Now the later statement
+produces a linked list that first matches that the source of the packets
+is not 1.1.1.1, in which case it forwards the packets to the second chain
+in the lists that confirms that the packets are not comming from 2.2.2.2,
+which finally sends the packets to their destination to be checked if they
+are comming from eth0.
+
+Note: I don't know the overhead of this linked list thing. I hope iptables
+is fast enough...
+----------------------------
+revision 1.4
+date: 2002/10/03 23:53:09;  author: ktsaou;  state: Exp;  lines: +68 -58
+Added control for unmatched packets using:
+UNMATCHED_INPUT_POLICY=
+UNMATCHED_OUTPUT_POLICY=
+UNMATCHED_ROUTER_POLICY=
+and removed DEFAULT_ROUTER_POLICY since iptables accepts only DROP and ACCEPT.
+
+To control what will happen to unmatched packets just set the above variables
+in /etc/firehol.conf
+
+Note that in any case (e.g. UMATCHED_ROUTER_POLICY=ACCEPT) the packets will
+still be logged to syslog.
+
+Made also various aesthetic changes in the code.
+
+Rules programmers can now include their service names in the
+ALL_SHOULD_ALSO_RUN variable and the "all" service will run them
+automatically.
+----------------------------
+revision 1.3
+date: 2002/10/03 16:28:16;  author: ktsaou;  state: Exp;  lines: +60 -7
+Service ntp is now both TCP and UDP and accepts clients from default ports.
+DNS over TCP is stateful but over UDP is now not stateful. This will not bother your syslog if your DNS server fails to reply within the stateful UDP timeout of iptables.
+Added service rsync.
+Added service vmwareauth.
+Added service vmwareweb.
+Added DEFAULT_ROUTER_POLICY to control how firehol handles its routing.
+Fixed a bug where firehol script arguments were not passed to /etc/init.d/iptables.
+Increased version number to 5.
+----------------------------
+revision 1.2
+date: 2002/09/08 12:05:10;  author: ktsaou;  state: Exp;  lines: +28 -18
+Release 4.
+Made it work on non RedHat systems.
+client/server/route now accept many services on the same line.
+Other minor fixes and enhancements.
+Verified NFS operation.
+----------------------------
+revision 1.1
+date: 2002/09/05 20:57:59;  author: ktsaou;  state: Exp;
+branches:  1.1.1;
+Initial revision
+----------------------------
+revision 1.1.1.1
+date: 2002/09/05 20:57:59;  author: ktsaou;  state: Exp;  lines: +0 -0
+First Public Release
+=============================================================================
