@@ -10,7 +10,7 @@
 #
 # config: /etc/firehol/firehol.conf
 #
-# $Id: firehol.sh,v 1.132 2003/06/11 07:00:24 ktsaou Exp $
+# $Id: firehol.sh,v 1.133 2003/06/18 21:44:52 ktsaou Exp $
 #
 FIREHOL_FILE="${0}"
 
@@ -98,6 +98,11 @@ UNROUTABLE_IPS="${RESERVED_IPS} ${PRIVATE_IPS}"
 # This can be controlled on a per interface basis using the
 # policy interface subscommand. 
 DEFAULT_INTERFACE_POLICY="DROP"
+
+# Which is the filter table chains policy during firewall activation?
+FIREHOL_INPUT_ACTIVATION_POLICY="ACCEPT"
+FIREHOL_OUTPUT_ACTIVATION_POLICY="ACCEPT"
+FIREHOL_FORWARD_ACTIVATION_POLICY="ACCEPT"
 
 # What to do with unmatched packets?
 # To change these, simply define them the configuration file.
@@ -3366,7 +3371,7 @@ case "${arg}" in
 		else
 		
 		${CAT_CMD} <<"EOF"
-$Id: firehol.sh,v 1.132 2003/06/11 07:00:24 ktsaou Exp $
+$Id: firehol.sh,v 1.133 2003/06/18 21:44:52 ktsaou Exp $
 (C) Copyright 2003, Costa Tsaousis <costa@tsaousis.gr>
 FireHOL is distributed under GPL.
 
@@ -3552,7 +3557,7 @@ then
 	
 	${CAT_CMD} <<"EOF"
 
-$Id: firehol.sh,v 1.132 2003/06/11 07:00:24 ktsaou Exp $
+$Id: firehol.sh,v 1.133 2003/06/18 21:44:52 ktsaou Exp $
 (C) Copyright 2003, Costa Tsaousis <costa@tsaousis.gr>
 FireHOL is distributed under GPL.
 Home Page: http://firehol.sourceforge.net
@@ -3847,7 +3852,7 @@ then
 	
 	${CAT_CMD} >&2 <<"EOF"
 
-$Id: firehol.sh,v 1.132 2003/06/11 07:00:24 ktsaou Exp $
+$Id: firehol.sh,v 1.133 2003/06/18 21:44:52 ktsaou Exp $
 (C) Copyright 2003, Costa Tsaousis <costa@tsaousis.gr>
 FireHOL is distributed under GPL.
 Home Page: http://firehol.sourceforge.net
@@ -3940,7 +3945,7 @@ EOF
 	echo "# "
 
 	${CAT_CMD} <<"EOF"
-# $Id: firehol.sh,v 1.132 2003/06/11 07:00:24 ktsaou Exp $
+# $Id: firehol.sh,v 1.133 2003/06/18 21:44:52 ktsaou Exp $
 # (C) Copyright 2003, Costa Tsaousis <costa@tsaousis.gr>
 # FireHOL is distributed under GPL.
 # Home Page: http://firehol.sourceforge.net
@@ -4413,6 +4418,15 @@ do
 		r=$?; test ! ${r} -eq 0 && runtime_error error ${r} INIT ${IPTABLES_CMD} -t "${t}" -P "${c}" ACCEPT
 	done
 done
+
+${IPTABLES_CMD} -t filter -P INPUT "${FIREHOL_INPUT_ACTIVATION_POLICY}" >${FIREHOL_OUTPUT}.log 2>&1
+r=$?; test ! ${r} -eq 0 && runtime_error error ${r} INIT ${IPTABLES_CMD} -t filter -P INPUT "${FIREHOL_INPUT_ACTIVATION_POLICY}"
+
+${IPTABLES_CMD} -t filter -P INPUT "${FIREHOL_OUTPUT_ACTIVATION_POLICY}" >${FIREHOL_OUTPUT}.log 2>&1
+r=$?; test ! ${r} -eq 0 && runtime_error error ${r} INIT ${IPTABLES_CMD} -t filter -P INPUT "${FIREHOL_OUTPUT_ACTIVATION_POLICY}"
+
+${IPTABLES_CMD} -t filter -P FORWARD "${FIREHOL_FORWARD_ACTIVATION_POLICY}" >${FIREHOL_OUTPUT}.log 2>&1
+r=$?; test ! ${r} -eq 0 && runtime_error error ${r} INIT ${IPTABLES_CMD} -t filter -P FORWARD "${FIREHOL_FORWARD_ACTIVATION_POLICY}"
 
 # Accept everything in/out the loopback device.
 ${IPTABLES_CMD} -A INPUT -i lo -j ACCEPT
