@@ -203,8 +203,11 @@ server_hylafax_ports="many"
 client_hylafax_ports="many"
 service_hylafax_type="complex"
 service_hylafax_notes="
-This complex service allows incomming requests to server port tcp/4559 and outgoing <b>from</b> server port tcp/4558.<br>
-The correct operation of this service has not been verified.
+This complex service allows incomming requests to server port tcp/4559 and outgoing <b>from</b> server port tcp/4558.
+<p>
+<b>The correct operation of this service has not been verified.</b>
+<p>
+<b>USE THIS WITH CARE. A HYLAFAX CLIENT MAY OPEN ALL TCP UNPRIVILEGED PORTS TO ANYONE</b> (from port tcp/4558).
 "
 
 service_ident_example="server ident reject with tcp-reset"
@@ -704,7 +707,7 @@ cat <<"EOF"
 <tr><td align=center valign=middle>
 	<A href="http://sourceforge.net"><IMG src="http://sourceforge.net/sflogo.php?group_id=58425&amp;type=5" width="210" height="62" border="0" alt="SourceForge Logo"></A>
 </td><td align=center valign=middle>
-	<small>$Id: create_services.sh,v 1.35 2003/07/20 23:01:38 ktsaou Exp $</small>
+	<small>$Id: create_services.sh,v 1.36 2003/07/20 23:09:02 ktsaou Exp $</small>
 	<p>
 	<b>FireHOL</b>, a firewall for humans...<br>
 	&copy; Copyright 2003
