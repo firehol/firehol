@@ -1,9 +1,9 @@
-$Id: TODO,v 1.6 2003/10/07 23:42:17 ktsaou Exp $
+$Id: TODO,v 1.7 2003/12/04 23:39:27 ktsaou Exp $
 
 The following is a list of features I plan to add to FireHOL,
 assuming that my time permits and there is demand for them.
 
-The list appears in the order I'll use:
+The list appears in no particular order.
 
 1.The ability to have multiple versions of the firewall in memory and "activate"
   them on demand. This can be done if each "start" of FireHOL produces all the
@@ -68,4 +68,53 @@ The list appears in the order I'll use:
 
 10. A secure mechanism for centralized control of a large number
     of Linux hosts and routers.
+
+11. There should be a simple way to produce service variations.
+    For example, "I need an http server running on port 81".
+    
+    Possibly with:
+    
+    server http/80=81 accept
+
+12. FireHOL services should be left to an external directory
+    when installation programs could just drop in files for
+    adding services to FireHOL.
+    
+    Ideally, this should also allow a "service documentation
+    navigrator", something like a dynamic services.html (from
+    the web site) based on the services installed on the
+    machine.
+
+13. FireHOL's speed on processing configuration directives
+    could be significantly improved if the rule() function
+    is written in C.
+    
+    This will improve processing of FireHOL directives and
+    will allow the rest of FireHOL to be compatible with
+    faster sh versions (like ash).
+    
+    However, the absolute speed improvement will be
+    accomplished only if the rule() is written in C and
+    instead of producing iptables statements, it talks to
+    the kernel to activate them at once (thus eliminating
+    iptables user-land programs altogether...)
+
+14. Split FireHOL into multiple programs each providing
+    some of the functions already supported. The idea
+    is that there should be a "library" of shell functions
+    and then a few drivers that provide the functions
+    of the current command line arguments to FireHOL.
+
+15. Isolation of parts of the firewall and separate
+    management for each.
+    
+    For example, the master configuration should state
+    about interfaces and routers that all come from
+    different files, and each of those could be started
+    stopped and altered indepedently of the other.
+    
+    This will be very usefull for providing delegated
+    administration to dedicated server hosting
+    environments where each customer can control his own
+    part of the firewall through a simple web interface.
 
