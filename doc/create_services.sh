@@ -7,6 +7,12 @@ then
 	exit 1
 fi
 
+service_AH_notes="IPSec Authentication Header (AH).
+<p>
+For more information see the <a href=\"http://www.freeswan.org/freeswan_trees/freeswan-1.99/doc/ipsec.html#AH.ipsec\">FreeS/WAN documentation</a>
+and RFC <a href=\"http://www.ietf.org/rfc/rfc2402.txt?number=2402\">RFC 2402</a>.
+"
+
 service_aptproxy_notes="Debian package proxy."
 
 
@@ -137,6 +143,13 @@ For more information about DHCP Relay see section 9.1.2 of
 "
 
 
+service_ESP_notes="IPSec Encapsulated Security Payload (ESP).
+<p>
+For more information see the <a href=\"http://www.freeswan.org/freeswan_trees/freeswan-1.99/doc/ipsec.html#ESP.ipsec\">FreeS/WAN documentation</a>
+and RFC <a href=\"http://www.ietf.org/rfc/rfc2406.txt?number=2406\">RFC 2406</a>.
+"
+
+
 server_ftp_ports="many"
 client_ftp_ports="many"
 service_ftp_type="complex"
@@ -145,10 +158,19 @@ The FTP service matches both active and passive FTP connections by utilizing the
 "
 
 
+service_GRE_notes="Generic Routing Encapsulation (protocol No 47).
+<p>
+For more information see RFC <a href=\"http://www.ietf.org/rfc/rfc2784.txt?number=2784\">RFC 2784</a>.
+"
+
+
 service_ident_example="server ident reject with tcp-reset"
 
 
-service_isakmp_notes="IPSec key negotiation."
+service_isakmp_notes="IPSec key negotiation (IKE on UDP port 500).
+<p>
+For more information see the <a href=\"http://www.freeswan.org/freeswan_trees/freeswan-1.99/doc/quickstart-firewall.html#quick_firewall\">FreeS/WAN documentation</a>.
+"
 
 
 service_microsoft_ds_notes="
@@ -205,6 +227,10 @@ or redirect port 445 to port 139 using the following rule (put it all-in-one-lin
 <p>
 <b>
 iptables -t nat -A PREROUTING -i eth0 -p tcp -s 1.1.1.1/24 --dport 445 -d 2.2.2.2 -j REDIRECT --to-port 139
+<p>
+</b>or<b>
+<p>
+redirect to 139 inface eth0 src 1.1.1.1/24 proto tcp dst 2.2.2.2 dport 445
 </b><p>
 where:
 <ul>
@@ -449,7 +475,7 @@ cat <<"EOF"
 <tr><td align=center valign=middle>
 	<A href="http://sourceforge.net"><IMG src="http://sourceforge.net/sflogo.php?group_id=58425&amp;type=5" width="210" height="62" border="0" alt="SourceForge Logo"></A>
 </td><td align=center valign=middle>
-	<small>$Id: create_services.sh,v 1.20 2003/01/05 20:18:08 ktsaou Exp $</small>
+	<small>$Id: create_services.sh,v 1.21 2003/01/25 01:22:51 ktsaou Exp $</small>
 	<p>
 	<b>FireHOL</b>, a firewall for humans...<br>
 	&copy; Copyright 2002
