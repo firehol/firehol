@@ -1,3 +1,9 @@
+$Id: WhatIsNew,v 1.2 2003/10/07 23:42:17 ktsaou Exp $
+
+What Is New in public releases.
+-------------------------------
+
+
 R5 v1.120, Apr 6, 2003
 The main new feature of this release is the HELPME function that
 detects and produces the FireHOL configuration for the host run.

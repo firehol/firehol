@@ -1,7 +1,7 @@
 
 RCS file: /cvsroot/firehol/firehol/firehol.sh,v
 Working file: firehol.sh
-head: 1.150
+head: 1.158
 branch:
 locks: strict
 access list:
@@ -9,8 +9,85 @@ symbolic names:
 	start: 1.1.1.1
 	vendor: 1.1.1
 keyword substitution: kv
-total revisions: 151;	selected revisions: 151
+total revisions: 159;	selected revisions: 159
 description:
+----------------------------
+revision 1.158
+date: 2003/10/07 22:31:06;  author: ktsaou;  state: Exp;  lines: +12 -7
+Added lockd support in service NFS, as suggested by
+"Daniel Pittman" <daniel@rimspace.net>
+----------------------------
+revision 1.157
+date: 2003/10/06 00:17:23;  author: ktsaou;  state: Exp;  lines: +18 -6
+Fixed TFTP service according to Goetz Bock <bock@blacknet.de> suggestions.
+----------------------------
+revision 1.156
+date: 2003/10/05 22:58:57;  author: ktsaou;  state: Exp;  lines: +110 -68
+Cleaned up all complex services.
+Added complex service TFTP.
+----------------------------
+revision 1.155
+date: 2003/09/18 20:54:25;  author: ktsaou;  state: Exp;  lines: +8 -5
+When I first started FireHOL (about a year before) I started with the
+header part of /etc/init.d/iptables (of redhat 7.2). This header
+just checked the kernel version and made a check on whether ipchains
+was running. If any of the above was faulty (kernel version less than
+2.3 or ipchains loaded into the kernel) it was exiting silently.
+
+Although I still keep this logic, now FireHOL will print a warning
+instead of just exiting silently.
+----------------------------
+revision 1.154
+date: 2003/09/13 01:03:46;  author: ktsaou;  state: Exp;  lines: +26 -5
+Added helper 'mark'
+
+Abstract from the documentation:
+
+mark <NUMBER> <WHERE> [optional rule parameters]
+
+The mark helper marks the traffic with a specific mark NUMBER
+that can be matched by traffic shapping tools for controlling the
+traffic.
+
+Parameters
+
+    * NUMBER is a number to mark the packets with.
+
+    * WHERE tells FireHOL where to search for the specific traffic
+      to be marked.
+      Currently, WHERE can be one of the build-in iptables chains
+      attached to table mangle. (for example: INPUT, FORWARD, OUTPUT,
+      PREROUTING, POSTROUTING - case does matter here).
+
+    * optional rule parameters is a set of rules that allow further
+      restriction of the traffic that gets matched by this rule.
+      See Optional Rules Parameters for more information.
+
+Example 1: mark 1 OUTPUT
+   will mark with 1 all packets send by the local machine.
+
+Example 2: mark 2 FORWARD
+   will mark with 2 all packets passing through the local machine.
+
+Example 3: mark 3 FORWARD proto tcp dport 25 dst 1.1.1.1 src 2.2.2.2
+   will match with 3 all packets sent by 2.2.2.2, passing through the
+   local machine and targeting port TCP/25 of host 1.1.1.1.
+----------------------------
+revision 1.153
+date: 2003/08/31 22:21:49;  author: ktsaou;  state: Exp;  lines: +8 -5
+Added service XDMCP.
+----------------------------
+revision 1.152
+date: 2003/08/23 23:26:50;  author: ktsaou;  state: Exp;  lines: +6 -6
+Bug #793889:
+Change #!/bin/sh to #!/bin/bash to allow FireHOL run on systems that
+bash is not linked to /bin/sh.
+----------------------------
+revision 1.151
+date: 2003/08/23 22:50:14;  author: ktsaou;  state: Exp;  lines: +7 -7
+Bug #893887:
+Added -q to modprobe in order not to complain about modules already
+loaded in kernel 2.6.x with module-init-tools
 ----------------------------
 revision 1.150
 date: 2003/08/23 22:27:34;  author: ktsaou;  state: Exp;  lines: +35 -11

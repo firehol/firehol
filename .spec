@@ -52,7 +52,7 @@ on all interfaces.
 %install
 test ! -d /etc/firehol && mkdir /etc/firehol
 test ! -d /etc/firehol/examples && mkdir /etc/firehol/examples
-test -f /etc/firehol.conf && mv -f /etc/firehol.conf /etc/firehol/firehol.conf
+test -f /etc/firehol.conf -a ! -f /etc/firehol/firehol.conf && mv -f /etc/firehol.conf /etc/firehol/firehol.conf
 install -m 750 firehol.sh /etc/init.d/firehol
 install -m 640 examples/client-all.conf /etc/firehol/firehol.conf
 gzip -9 man/firehol.1
@@ -68,7 +68,7 @@ install -m 644 examples/client-all.conf /etc/firehol/examples/client-all.conf
 %pre
 
 %post
-if [ -f /etc/firehol.conf ]
+if [ -f /etc/firehol.conf -a ! -f /etc/firehol/firehol.conf ]
 then
 	mv -f /etc/firehol.conf /etc/firehol/firehol.conf
 	echo
@@ -78,6 +78,7 @@ then
 	echo
 fi
 /sbin/chkconfig --del firehol
+sleep 1
 /sbin/chkconfig --add firehol
 
 %preun
@@ -90,7 +91,7 @@ rm -rf ${RPM_BUILD_DIR}/%{name}-%{version}
 
 %files
 %defattr(-,root,root)
-%doc README TODO COPYING ChangeLog
+%doc README TODO COPYING ChangeLog WhatIsNew
 
 %dir /etc/firehol
 %dir /etc/firehol/examples
@@ -107,6 +108,7 @@ rm -rf ${RPM_BUILD_DIR}/%{name}-%{version}
 /etc/firehol/examples/server-dmz.conf
 /etc/firehol/examples/client-all.conf
 
+%doc adblock.sh get-iana.sh
 %doc doc/adding.html
 %doc doc/css.css
 %doc doc/fwtest.html

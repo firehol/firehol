@@ -1,4 +1,8 @@
 #!/bin/bash
+# $Id: buildrpm.sh,v 1.6 2003/10/07 23:42:17 ktsaou Exp $
+# 
+# This script build a FireHOL RPM.
+#
 
 here=`pwd`
 
@@ -49,24 +53,51 @@ test -f /etc/firehol/firehol.conf && mv -f /etc/firehol/firehol.conf "${backupco
 test -d "/tmp/$myname" && rm -rf "/tmp/${myname}"
 mkdir -p "/tmp/${myname}"
 
-# copy all needed files
-find . -type f			|\
-	grep -v "\.bck"		|\
-	grep -v "CVS"		|\
-	grep -v "buildrpm.sh"	|\
-	grep -v "\~"		|\
-	sed "s/^.\///"		|\
-	(
-		while read
-		do
-#			echo $REPLY
-			install -D -m 644 $REPLY "/tmp/$myname/$REPLY"
-		done
-		chmod 755 /tmp/$myname/*.sh
-	)
+files="
+README
+TODO
+COPYING
+ChangeLog
+WhatIsNew
+firehol.sh
+adblock.sh
+buildrpm.sh
+get-iana.sh
+man/firehol.1
+man/firehol.conf.5
+examples/client-all.conf
+examples/home-adsl.conf
+examples/home-dialup.conf
+examples/office.conf
+examples/server-dmz.conf
+doc/adding.html
+doc/commands.html
+doc/css.css
+doc/faq.html
+doc/fwtest.html
+doc/header.html
+doc/index.html
+doc/invoking.html
+doc/language.html
+doc/overview.html
+doc/services.html
+doc/support.html
+doc/trouble.html
+doc/tutorial.html
+"
+for x in $files
+do
+	if [ ! -f "$x" ]
+	then
+		echo "Cannot find file: $x"
+		exit 1
+	fi
+	install -D -m 644 $x "/tmp/$myname/$x"
+done
+chmod 755 /tmp/$myname/*.sh
 
 # fix the rpm spec file
-cat .spec					|\
+cat .spec						|\
 	sed "s/^Version: MYVERSION/Version: $1/"	|\
 	sed "s/^Release: MYRELEASE/Release: $2/" >"/tmp/$myname/.spec"
 

@@ -1,7 +1,7 @@
-$Id: README,v 1.5 2003/05/01 01:30:24 ktsaou Exp $
+$Id: README,v 1.6 2003/10/07 23:42:17 ktsaou Exp $
 
 FireHOL, an iptables stateful packet filtering firewall for humans!
-Copyright (C) 2002 Costa Tsaousis <costa@tsaousis.gr>
+Copyright (C) 2003 Costa Tsaousis <costa@tsaousis.gr>
 
 
 LICENSE
@@ -64,6 +64,13 @@ Three things are needed to start FireHOL properly:
    /etc/firehol/firehol.conf
 
 This is it.
+
+Note, that the .tar.bz2 releases can also be used to build an .rpm
+using:
+
+rpmbuild -tb firehol-XX-YY.tar.bz2
+
+However, CVS versions - firehol.tar.gz - should not be used this way.
 
 
 IMPORTANT NOTES
