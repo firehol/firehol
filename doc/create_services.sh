@@ -188,6 +188,12 @@ service_ftp_notes="
 The FTP service matches both active and passive FTP connections by utilizing the FTP connection tracker kernel module.
 "
 
+server_tftp_ports="many"
+client_tftp_ports="many"
+service_tftp_type="complex"
+service_tftp_notes="
+The TFTP service matches UDP TFTP connections by utilizing the TFTP connection tracker kernel module.
+"
 
 service_GRE_notes="Generic Routing Encapsulation (protocol No 47).
 <p>
@@ -714,7 +720,7 @@ cat <<"EOF"
 <tr><td align=center valign=middle>
 	<A href="http://sourceforge.net"><IMG src="http://sourceforge.net/sflogo.php?group_id=58425&amp;type=5" width="210" height="62" border="0" alt="SourceForge Logo"></A>
 </td><td align=center valign=middle>
-	<small>$Id: create_services.sh,v 1.38 2003/08/31 22:21:49 ktsaou Exp $</small>
+	<small>$Id: create_services.sh,v 1.39 2003/10/05 23:01:02 ktsaou Exp $</small>
 	<p>
 	<b>FireHOL</b>, a firewall for humans...<br>
 	&copy; Copyright 2003
