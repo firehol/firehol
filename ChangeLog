@@ -1,7 +1,7 @@
 
 RCS file: /cvsroot/firehol/firehol/firehol.sh,v
 Working file: firehol.sh
-head: 1.35
+head: 1.36
 branch:
 locks: strict
 access list:
@@ -9,8 +9,13 @@ symbolic names:
 	start: 1.1.1.1
 	vendor: 1.1.1
 keyword substitution: kv
-total revisions: 36;	selected revisions: 36
+total revisions: 37;	selected revisions: 37
 description:
+----------------------------
+revision 1.36
+date: 2002/12/09 21:13:35;  author: ktsaou;  state: Exp;  lines: +9 -9
+Fixed a typo in protections, that made them unusable in the previous
+version.
 ----------------------------
 revision 1.35
 date: 2002/12/08 22:05:40;  author: ktsaou;  state: Exp;  lines: +8 -2
