@@ -35,7 +35,7 @@ Where:
 	<li><b>sports</b> is the port number (or port name or port range) the server is listening at.
 	To specify port ranges use the iptables syntax: i.e. 1000:1010 will match all ports from
 	1000 to 1010 inclusive.<br>The special keyword <b>any</b> will match any server port.<br>&nbsp;</li>
-	<li><b>cports</b> is the port (or port name or port range) the server is listening at.
+	<li><b>cports</b> is the port (or port name or port range or space separated list of ports) clients might use to connect to the server.
 	There are two keywords that can be used for <b>cports</b>:
 	<br>&nbsp;
 	<ul>
@@ -45,15 +45,15 @@ Where:
 		<li><b>default</b> is a keyword that matches the default client ports and it resolves to:
 		<br>&nbsp;
 		<ul>
-			<li>if it used for a localhost client (<a href="commands.html#client">client</a>
-			within an <a href="commands.html#interface">interface</a>), a list of ports as set
+			<li>if it is used for a localhost client (i.e. <a href="commands.html#client">client</a>
+			within an <a href="commands.html#interface">interface</a>), it resolves to a list of ports as set
 			by the Linux kernel and controlled by the <b>sysctl</b> variable <b>net.ipv4.ip_local_port_range</b>
-			(or <b>/proc/sys/net/ipv4/ip_local_port_range</b>), or
+			(or <b>/proc/sys/net/ipv4/ip_local_port_range</b>),
 			<br>&nbsp;
 			</li>
-			<li>if it used for a remote host client (<a href="commands.html#server">server</a>
-			within an <a href="commands.html#interface">interface</a> or any subcommand within
-			a <a href="commands.html#router">router</a>), to the contents of the FireHOL variable
+			<li>if it is used for a client running at remote host (i.e. <a href="commands.html#server">server</a>
+			within an <a href="commands.html#interface">interface</a> or any kind within
+			a <a href="commands.html#router">router</a>), it resolves to the contents of the FireHOL variable
 			<a href="commands.html#DEFAULT_CLIENT_PORTS">DEFAULT_CLIENT_PORTS</a>.
 			<br>&nbsp;
 			</li>
@@ -148,7 +148,7 @@ that the inline one requires a service name too...).
 <table border=0 cellpadding=10 cellspacing=0 width="100%">
 <tr><td bgcolor="#EEEEEE"><b>Multi-socket, but simple servers</td></tr></table>
 <br>
-Both expressions accept multiple arguments.
+Both of the expressions, given above for defining more services, accept multiple arguments.
 <p>
 Fox example, assume there is a service named <b>serveme</b> that listens at two ports, port <b>1234 TCP</b> and <b>1234 UDP</b>.
 The expected client ports are the default random ports a system may choose, plus the same port numbers the server is listening at.
@@ -175,7 +175,8 @@ To define this service you will have to write:
 </td></tr>
 </table>
 </center>
-In this situation, FireHOL simply does all the combinations between client and server ports and produces multiple iptables statements to accomplish them.
+In this situation, FireHOL simply produces all the combinations between client and server ports and generates
+multiple iptables statements to accomplish them.
 <p>
 This is also the reason why the protocol cannot be defined in client ports.
 
@@ -251,7 +252,7 @@ own.
 <tr><td align=center valign=middle>
 	<A href="http://sourceforge.net"><IMG src="http://sourceforge.net/sflogo.php?group_id=58425&amp;type=5" width="210" height="62" border="0" alt="SourceForge Logo"></A>
 </td><td align=center valign=middle>
-	<small>$Id: adding.html,v 1.6 2002/12/18 00:50:00 ktsaou Exp $</small>
+	<small>$Id: adding.html,v 1.7 2002/12/29 20:50:20 ktsaou Exp $</small>
 	<p>
 	<b>FireHOL</b>, a firewall for humans...<br>
 	&copy; Copyright 2002
