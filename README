@@ -1,4 +1,4 @@
-$Id: README,v 1.3 2002/12/22 20:37:57 ktsaou Exp $
+$Id: README,v 1.4 2002/12/22 20:46:19 ktsaou Exp $
 
 FireHOL, an iptables stateful packet filtering firewall for humans!
 Copyright (C) 2002 Costa Tsaousis <costa@tsaousis.gr>
@@ -74,5 +74,22 @@ of bugs or other kind of problems as soon as they appear.
 
 I suggest to subscribe to the notification engine of freshmeat.net
 under this project or to monitor FireHOL's file releases at
-sourceforge.net. Both of these service will keep you anonymous
+sourceforge.net. Both of these services will keep you anonymous
 (to me) but will update you if and when new releases become available.
+
+
+CONTRIBUTING
+------------
+I'll be glad to receive your ideas, patches, case studies, service
+definitions, etc.
+
+Here is my e-mail: costa@tsaousis.gr
+
+Please note however that this is my personal e-mail that I read
+just once per day and in some cases, once every a few days. If you
+want some faster response, you can always use the mailing lists
+and forums under this project at sourceforge.
+
+Kind Regard
+Costa Tsaousis
+
