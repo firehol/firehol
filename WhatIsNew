@@ -1,0 +1,49 @@
+R5 v1.120, Apr 6, 2003
+The main new feature of this release is the HELPME function that
+detects and produces the FireHOL configuration for the host run.
+Additionally, this release introduces a new PANIC mode which is now
+handled entirely by FireHOL, has better handling of the MIRROR target,
+has wider support for SNMPTRAP and SYSLOG, a definition for the
+SOCKS service, and better interoperability with various Linux
+distributions (i.e. Debian).
+
+R5, v1.91, Feb 18, 2003
+This release adds support for controlling log levels on a per rule basis,
+updated RESERVED_IPS variable according to the latest releases of IANA,
+and a few minor fixes to increase compatibility on various Linux
+distributions. 
+
+R5, v1.89, Feb 3, 2003
+This release adds the service eMule (for clients, servers, and routers),
+supporting the bi-directional socket environment required by the popular
+eDonkey network client. 
+
+R5, v1.88, Jan 30, 2003
+This release fixes all reported problems related to NAT. FireHOL now
+fully supports DNAT, SNAT, REDIRECT, and MASQUERADE implemented as
+helper commands, and also the TRANSPARENT_SQUID helper for setting up
+transparent HTTP caches running on the firewall host (supporting
+transparent caching for traffic targeting, passing through, and
+originated from the firewall host). 
+
+R5, v1.85, Jan 28, 2003
+The masquerade helper has been fixed to handle the 'reverse' keyword
+correctly and accept the network interface as expected. 
+
+R5, v1.83, Jan 27, 2003
+This release adds support for NAT (SNAT, DNAT, and REDIRECT), support
+for the OWNER iptables module (user, group, session, and process),
+various error handler enhancements, support for runtime warnings (for
+missing kernel modules; it now runs on kernels compiled without
+modules), and a few workarounds for bugs in iptables-save (regarding
+the owner module). 
+
+R5, v1.70, Jan 8, 2003
+In this release the services ping, AH (IPSEC), ESP (IPSEC), GRE, and
+microsoft_ds have been added, the action REJECT has been changed to be
+"smart" and send TCP RST on TCP and ICMP port unreachable on all other
+protocols, various speed optimizations have been applied, and a
+"transparent_squid" helper has been added to take care of port
+forwarding for setting up a transparent cache. 
+
+For files released before 2003, please check the ChangeLog file. 

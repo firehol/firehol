@@ -1,7 +1,7 @@
 
 RCS file: /cvsroot/firehol/firehol/firehol.sh,v
 Working file: firehol.sh
-head: 1.112
+head: 1.120
 branch:
 locks: strict
 access list:
@@ -9,8 +9,48 @@ symbolic names:
 	start: 1.1.1.1
 	vendor: 1.1.1
 keyword substitution: kv
-total revisions: 113;	selected revisions: 113
+total revisions: 121;	selected revisions: 121
 description:
+----------------------------
+revision 1.120
+date: 2003/03/19 21:51:56;  author: ktsaou;  state: Exp;  lines: +16 -6
+Fixed MIRROR statements to produce REJECT on the OUTPUT of the host.
+----------------------------
+revision 1.119
+date: 2003/03/18 21:27:35;  author: ktsaou;  state: Exp;  lines: +9 -9
+Copyright notices now print year 2003.
+----------------------------
+revision 1.118
+date: 2003/03/17 23:03:00;  author: ktsaou;  state: Exp;  lines: +13 -6
+Cosmetic changes in 'helpme'
+----------------------------
+revision 1.117
+date: 2003/03/17 22:57:26;  author: ktsaou;  state: Exp;  lines: +7 -6
+Fixed broken 'helpme' detection of networks behind gateways. Now it works.
+----------------------------
+revision 1.116
+date: 2003/03/17 22:42:18;  author: ktsaou;  state: Exp;  lines: +46 -9
+'helpme' now detects multiple overlapping networks defined for the same
+interface. In such cases it only defines the wider network.
+----------------------------
+revision 1.115
+date: 2003/03/16 22:13:30;  author: ktsaou;  state: Exp;  lines: +138 -50
+Made 'helpme' detect point-to-point routes better.
+----------------------------
+revision 1.114
+date: 2003/03/15 01:24:19;  author: ktsaou;  state: Exp;  lines: +8 -5
+Added service 'socks'.
+----------------------------
+revision 1.113
+date: 2003/03/15 00:59:27;  author: ktsaou;  state: Exp;  lines: +25 -5
+'panic' now prevent you from loosing the SSH you are issuing this command
+by allowing the established connection specified in the environment
+variable SSH_CLIENT (only if it exists: it is lost if you su -, you should
+su without the minus).
+
+Also, the panic argument takes one optional argument. This can be an IP
+address in which case all established connections between the host and this
+IP will be allowed.
 ----------------------------
 revision 1.112
 date: 2003/03/14 21:22:37;  author: ktsaou;  state: Exp;  lines: +6 -6
