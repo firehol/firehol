@@ -43,6 +43,7 @@
 			<li><a href="#dst">dst</a>, set the destination of traffic</li>
 			<li><a href="#inface">inface</a>, set the network interface traffic is received via</li>
 			<li><a href="#outface">outface</a>, set the network interface traffic is send via</li>
+			<li><a href="#proto">proto</a>, match a specific protocol</li>
 			<li><a href="#custom">custom</a>, pass a few custom parameters to the generated iptables
 			statements</li>
 			<li><a href="#log">log</a>, write something to the syslog when traffic is matched</li>
@@ -398,6 +399,14 @@
 
 <hr noshade size=1 width="70%">
 
+	<a name="proto"><h3><b>proto</b> [not] <font color="red">&lt;protocol&gt;</font></h3></a>
+	<H4>Description</H4>
+	<b>proto</b> sets the required protocol for the traffic. This command accepts anything iptables accepts as
+	protocols.
+	<p>
+
+<hr noshade size=1 width="70%">
+
 	<a name="custom"><h3><b>custom</b> "<font color="red">parameters</font>"</h3></a>
 	<H4>Description</H4>
 	<b>custom</b> passes its arguments to the generated iptables commands.
@@ -530,7 +539,7 @@
 <tr><td align=center valign=middle>
 	<A href="http://sourceforge.net"><IMG src="http://sourceforge.net/sflogo.php?group_id=58425&amp;type=5" width="210" height="62" border="0" alt="SourceForge Logo"></A>
 </td><td align=center valign=middle>
-	<small>$Id: commands.html,v 1.4 2002/12/10 15:27:12 ktsaou Exp $</small>
+	<small>$Id: commands.html,v 1.5 2002/12/10 18:11:07 ktsaou Exp $</small>
 	<p>
 	<b>FireHOL</b>, a firewall for humans...<br>
 	&copy; Copyright 2002

@@ -6,21 +6,948 @@
 
 <BODY bgcolor="#FFFFFF">
 
-This section will eventually have a description of all services FireHOL supports.
-<p>
-For the moment I can give you one hint: <b>run FireHOL without arguments - it will show you all the services it supports</b>.
-<p>
-More later...
-
-
-
+<center>
+<table border=0 cellspacing=5 cellpadding=10 width="80%">
+<tr bgcolor="#EEEEEE"><th>Service</th><th>Type</th><th>Description</th></tr>
+<tr >
+	<td align="center"><a name="all"><b>all</a></td>
+	<td align="center">complex</td>
+	<td>
+		<table cellspacing=0 cellpadding=2 border=0>
+		<tr>
+<td align=right valign=top nowrap><small><font color=gray>Server Ports</td><td>
+<b>all</b>
+</td></tr><tr><td align=right valign=top nowrap><small><font color=gray>Client Ports</td><td>
+<b>all</b>
+</td>
+	</tr>
+	<tr><td align=right valign=top nowrap><small><font color="gray">Notes</td><td>Matches all traffic (all protocols, ports, etc) while ensuring that required kernel modules are loaded. <br>This service may indirectly setup a set of other services, if they are required by the kernel modules to be loaded. Currently it activates also <a href="#ftp">ftp</a>, <a href="#irc">irc</a> and <a href="#icmp">icmp</a>.<br>&nbsp;</td></tr>
+	<tr><td align=right valign=top nowrap><small><font color="gray">Example</td><td><b>server all accept</b></td></tr>
+	</table>
+	</td></tr>
+<tr  bgcolor="#F0F0F0">
+	<td align="center"><a name="any"><b>any</a></td>
+	<td align="center">complex</td>
+	<td>
+		<table cellspacing=0 cellpadding=2 border=0>
+		<tr>
+<td align=right valign=top nowrap><small><font color=gray>Server Ports</td><td>
+<b>all</b>
+</td></tr><tr><td align=right valign=top nowrap><small><font color=gray>Client Ports</td><td>
+<b>all</b>
+</td>
+	</tr>
+	<tr><td align=right valign=top nowrap><small><font color="gray">Notes</td><td>Matches all traffic (all protocols, ports, etc), but does not care about kernel modules and does not activate any other service indirectly. In combination with the <a href="commands.html#parameters">Optional Rule Parameters</a> this service can match unusual traffic (e.g. GRE - protocol 47).<br>&nbsp;</td></tr>
+	<tr><td align=right valign=top nowrap><small><font color="gray">Example</td><td><b>server any <u>myname</u> accept proto 47</b></td></tr>
+	</table>
+	</td></tr>
+<tr >
+	<td align="center"><a name="custom"><b>custom</a></td>
+	<td align="center">complex</td>
+	<td>
+		<table cellspacing=0 cellpadding=2 border=0>
+		<tr>
+<td align=right valign=top nowrap><small><font color=gray>Server Ports</td><td>
+<b>defined&nbsp;in&nbsp;the&nbsp;command</b>
+</td></tr><tr><td align=right valign=top nowrap><small><font color=gray>Client Ports</td><td>
+<b>defined&nbsp;in&nbsp;the&nbsp;command</b>
+</td>
+	</tr>
+	<tr><td align=right valign=top nowrap><small><font color="gray">Notes</td><td>This service is used by FireHOL to allow you define services it currently does not support.<br> To find more about this service please check the <a href="adding.html">Adding Services</a> section.<br>&nbsp;</td></tr>
+	<tr><td align=right valign=top nowrap><small><font color="gray">Example</td><td><b>server custom <u>myimap</u> <u>tcp/143</u> <u>default</u> accept</b></td></tr>
+	</table>
+	</td></tr>
+<tr  bgcolor="#F0F0F0">
+	<td align="center"><a name="daytime"><b>daytime</a></td>
+	<td align="center">simple</td>
+	<td>
+		<table cellspacing=0 cellpadding=2 border=0>
+		<tr>
+<td align=right valign=top nowrap><small><font color=gray>Server Ports</td><td>
+<b>tcp/daytime</b>
+</td></tr><tr><td align=right valign=top nowrap><small><font color=gray>Client Ports</td><td>
+<b>default</b>
+</td>
+	</tr>
+	<tr><td align=right valign=top nowrap><small><font color="gray">Notes</td><td><br>&nbsp;</td></tr>
+	<tr><td align=right valign=top nowrap><small><font color="gray">Example</td><td><b>server daytime accept</b></td></tr>
+	</table>
+	</td></tr>
+<tr >
+	<td align="center"><a name="dhcp"><b>dhcp</a></td>
+	<td align="center">simple</td>
+	<td>
+		<table cellspacing=0 cellpadding=2 border=0>
+		<tr>
+<td align=right valign=top nowrap><small><font color=gray>Server Ports</td><td>
+<b>udp/bootps</b>
+</td></tr><tr><td align=right valign=top nowrap><small><font color=gray>Client Ports</td><td>
+<b>bootpc</b>
+</td>
+	</tr>
+	<tr><td align=right valign=top nowrap><small><font color="gray">Notes</td><td><br>&nbsp;</td></tr>
+	<tr><td align=right valign=top nowrap><small><font color="gray">Example</td><td><b>server dhcp accept</b></td></tr>
+	</table>
+	</td></tr>
+<tr  bgcolor="#F0F0F0">
+	<td align="center"><a name="dns"><b>dns</a></td>
+	<td align="center">complex</td>
+	<td>
+		<table cellspacing=0 cellpadding=2 border=0>
+		<tr>
+<td align=right valign=top nowrap><small><font color=gray>Server Ports</td><td>
+<b>udp/domain</b>
+, 
+<b>tcp/domain</b>
+</td></tr><tr><td align=right valign=top nowrap><small><font color=gray>Client Ports</td><td>
+<b>all</b>
+</td>
+	</tr>
+	<tr><td align=right valign=top nowrap><small><font color="gray">Notes</td><td>The DNS service has been made a complex service (although is was not required) to achieve stateless operation on UDP and stateful on TCP. This differentiation has been made because in some production environments with heavily loaded DNS servers we observed many drops on UDP port 53. The DNS server was not responding in time and the iptables connection tracker drops all new connections that have not been assured in 19 (if I remember correct) seconds. <br> Although the mentioned drops were not a real problem, since the client had already timed out, we prefered to operate DNS without state.<br>&nbsp;</td></tr>
+	<tr><td align=right valign=top nowrap><small><font color="gray">Example</td><td><b>server dns accept</b></td></tr>
+	</table>
+	</td></tr>
+<tr >
+	<td align="center"><a name="echo"><b>echo</a></td>
+	<td align="center">simple</td>
+	<td>
+		<table cellspacing=0 cellpadding=2 border=0>
+		<tr>
+<td align=right valign=top nowrap><small><font color=gray>Server Ports</td><td>
+<b>tcp/echo</b>
+</td></tr><tr><td align=right valign=top nowrap><small><font color=gray>Client Ports</td><td>
+<b>default</b>
+</td>
+	</tr>
+	<tr><td align=right valign=top nowrap><small><font color="gray">Notes</td><td><br>&nbsp;</td></tr>
+	<tr><td align=right valign=top nowrap><small><font color="gray">Example</td><td><b>server echo accept</b></td></tr>
+	</table>
+	</td></tr>
+<tr  bgcolor="#F0F0F0">
+	<td align="center"><a name="finger"><b>finger</a></td>
+	<td align="center">simple</td>
+	<td>
+		<table cellspacing=0 cellpadding=2 border=0>
+		<tr>
+<td align=right valign=top nowrap><small><font color=gray>Server Ports</td><td>
+<b>tcp/finger</b>
+</td></tr><tr><td align=right valign=top nowrap><small><font color=gray>Client Ports</td><td>
+<b>default</b>
+</td>
+	</tr>
+	<tr><td align=right valign=top nowrap><small><font color="gray">Notes</td><td><br>&nbsp;</td></tr>
+	<tr><td align=right valign=top nowrap><small><font color="gray">Example</td><td><b>server finger accept</b></td></tr>
+	</table>
+	</td></tr>
+<tr >
+	<td align="center"><a name="ftp"><b>ftp</a></td>
+	<td align="center">complex</td>
+	<td>
+		<table cellspacing=0 cellpadding=2 border=0>
+		<tr>
+<td align=right valign=top nowrap><small><font color=gray>Server Ports</td><td>
+<b>many</b>
+</td></tr><tr><td align=right valign=top nowrap><small><font color=gray>Client Ports</td><td>
+<b>many</b>
+</td>
+	</tr>
+	<tr><td align=right valign=top nowrap><small><font color="gray">Notes</td><td>The FTP service matches both active and passive FTP connections by utilizing the FTP connection tracker kernel module.<br>&nbsp;</td></tr>
+	<tr><td align=right valign=top nowrap><small><font color="gray">Example</td><td><b>server ftp accept</b></td></tr>
+	</table>
+	</td></tr>
+<tr  bgcolor="#F0F0F0">
+	<td align="center"><a name="heartbeat"><b>heartbeat</a></td>
+	<td align="center">simple</td>
+	<td>
+		<table cellspacing=0 cellpadding=2 border=0>
+		<tr>
+<td align=right valign=top nowrap><small><font color=gray>Server Ports</td><td>
+<b>udp/690:699</b>
+</td></tr><tr><td align=right valign=top nowrap><small><font color=gray>Client Ports</td><td>
+<b>default</b>
+</td>
+	</tr>
+	<tr><td align=right valign=top nowrap><small><font color="gray">Notes</td><td>HeartBeat is the Linux clustering solution available <a href=http://www.linux-ha.org/>http://www.linux-ha.org/</a>. This FireHOL service has been designed such a way that it will allow multiple heartbeat clusters on the same LAN.<br>&nbsp;</td></tr>
+	<tr><td align=right valign=top nowrap><small><font color="gray">Example</td><td><b>server heartbeat accept</b></td></tr>
+	</table>
+	</td></tr>
+<tr >
+	<td align="center"><a name="http"><b>http</a></td>
+	<td align="center">simple</td>
+	<td>
+		<table cellspacing=0 cellpadding=2 border=0>
+		<tr>
+<td align=right valign=top nowrap><small><font color=gray>Server Ports</td><td>
+<b>tcp/http</b>
+</td></tr><tr><td align=right valign=top nowrap><small><font color=gray>Client Ports</td><td>
+<b>default</b>
+</td>
+	</tr>
+	<tr><td align=right valign=top nowrap><small><font color="gray">Notes</td><td><br>&nbsp;</td></tr>
+	<tr><td align=right valign=top nowrap><small><font color="gray">Example</td><td><b>server http accept</b></td></tr>
+	</table>
+	</td></tr>
+<tr  bgcolor="#F0F0F0">
+	<td align="center"><a name="https"><b>https</a></td>
+	<td align="center">simple</td>
+	<td>
+		<table cellspacing=0 cellpadding=2 border=0>
+		<tr>
+<td align=right valign=top nowrap><small><font color=gray>Server Ports</td><td>
+<b>tcp/https</b>
+</td></tr><tr><td align=right valign=top nowrap><small><font color=gray>Client Ports</td><td>
+<b>default</b>
+</td>
+	</tr>
+	<tr><td align=right valign=top nowrap><small><font color="gray">Notes</td><td><br>&nbsp;</td></tr>
+	<tr><td align=right valign=top nowrap><small><font color="gray">Example</td><td><b>server https accept</b></td></tr>
+	</table>
+	</td></tr>
+<tr >
+	<td align="center"><a name="icmp"><b>icmp</a></td>
+	<td align="center">complex</td>
+	<td>
+		<table cellspacing=0 cellpadding=2 border=0>
+		<tr>
+<td align=right valign=top nowrap><small><font color=gray>Server Ports</td><td>
+</td></tr><tr><td align=right valign=top nowrap><small><font color=gray>Client Ports</td><td>
+</td>
+	</tr>
+	<tr><td align=right valign=top nowrap><small><font color="gray">Notes</td><td><br>&nbsp;</td></tr>
+	<tr><td align=right valign=top nowrap><small><font color="gray">Example</td><td><b>server icmp accept</b></td></tr>
+	</table>
+	</td></tr>
+<tr  bgcolor="#F0F0F0">
+	<td align="center"><a name="ident"><b>ident</a></td>
+	<td align="center">simple</td>
+	<td>
+		<table cellspacing=0 cellpadding=2 border=0>
+		<tr>
+<td align=right valign=top nowrap><small><font color=gray>Server Ports</td><td>
+<b>tcp/auth</b>
+</td></tr><tr><td align=right valign=top nowrap><small><font color=gray>Client Ports</td><td>
+<b>default</b>
+</td>
+	</tr>
+	<tr><td align=right valign=top nowrap><small><font color="gray">Notes</td><td><br>&nbsp;</td></tr>
+	<tr><td align=right valign=top nowrap><small><font color="gray">Example</td><td><b>server ident accept</b></td></tr>
+	</table>
+	</td></tr>
+<tr >
+	<td align="center"><a name="ike"><b>ike</a></td>
+	<td align="center">simple</td>
+	<td>
+		<table cellspacing=0 cellpadding=2 border=0>
+		<tr>
+<td align=right valign=top nowrap><small><font color=gray>Server Ports</td><td>
+<b>udp/500</b>
+</td></tr><tr><td align=right valign=top nowrap><small><font color=gray>Client Ports</td><td>
+<b>default</b>
+</td>
+	</tr>
+	<tr><td align=right valign=top nowrap><small><font color="gray">Notes</td><td><br>&nbsp;</td></tr>
+	<tr><td align=right valign=top nowrap><small><font color="gray">Example</td><td><b>server ike accept</b></td></tr>
+	</table>
+	</td></tr>
+<tr  bgcolor="#F0F0F0">
+	<td align="center"><a name="imap"><b>imap</a></td>
+	<td align="center">simple</td>
+	<td>
+		<table cellspacing=0 cellpadding=2 border=0>
+		<tr>
+<td align=right valign=top nowrap><small><font color=gray>Server Ports</td><td>
+<b>tcp/imap</b>
+</td></tr><tr><td align=right valign=top nowrap><small><font color=gray>Client Ports</td><td>
+<b>default</b>
+</td>
+	</tr>
+	<tr><td align=right valign=top nowrap><small><font color="gray">Notes</td><td><br>&nbsp;</td></tr>
+	<tr><td align=right valign=top nowrap><small><font color="gray">Example</td><td><b>server imap accept</b></td></tr>
+	</table>
+	</td></tr>
+<tr >
+	<td align="center"><a name="imaps"><b>imaps</a></td>
+	<td align="center">simple</td>
+	<td>
+		<table cellspacing=0 cellpadding=2 border=0>
+		<tr>
+<td align=right valign=top nowrap><small><font color=gray>Server Ports</td><td>
+<b>tcp/imaps</b>
+</td></tr><tr><td align=right valign=top nowrap><small><font color=gray>Client Ports</td><td>
+<b>default</b>
+</td>
+	</tr>
+	<tr><td align=right valign=top nowrap><small><font color="gray">Notes</td><td><br>&nbsp;</td></tr>
+	<tr><td align=right valign=top nowrap><small><font color="gray">Example</td><td><b>server imaps accept</b></td></tr>
+	</table>
+	</td></tr>
+<tr  bgcolor="#F0F0F0">
+	<td align="center"><a name="irc"><b>irc</a></td>
+	<td align="center">simple</td>
+	<td>
+		<table cellspacing=0 cellpadding=2 border=0>
+		<tr>
+<td align=right valign=top nowrap><small><font color=gray>Server Ports</td><td>
+<b>tcp/ircd</b>
+</td></tr><tr><td align=right valign=top nowrap><small><font color=gray>Client Ports</td><td>
+<b>default</b>
+</td>
+	</tr>
+	<tr><td align=right valign=top nowrap><small><font color="gray">Notes</td><td><br>&nbsp;</td></tr>
+	<tr><td align=right valign=top nowrap><small><font color="gray">Example</td><td><b>server irc accept</b></td></tr>
+	</table>
+	</td></tr>
+<tr >
+	<td align="center"><a name="ldap"><b>ldap</a></td>
+	<td align="center">simple</td>
+	<td>
+		<table cellspacing=0 cellpadding=2 border=0>
+		<tr>
+<td align=right valign=top nowrap><small><font color=gray>Server Ports</td><td>
+<b>tcp/ldap</b>
+</td></tr><tr><td align=right valign=top nowrap><small><font color=gray>Client Ports</td><td>
+<b>default</b>
+</td>
+	</tr>
+	<tr><td align=right valign=top nowrap><small><font color="gray">Notes</td><td><br>&nbsp;</td></tr>
+	<tr><td align=right valign=top nowrap><small><font color="gray">Example</td><td><b>server ldap accept</b></td></tr>
+	</table>
+	</td></tr>
+<tr  bgcolor="#F0F0F0">
+	<td align="center"><a name="ldaps"><b>ldaps</a></td>
+	<td align="center">simple</td>
+	<td>
+		<table cellspacing=0 cellpadding=2 border=0>
+		<tr>
+<td align=right valign=top nowrap><small><font color=gray>Server Ports</td><td>
+<b>tcp/ldaps</b>
+</td></tr><tr><td align=right valign=top nowrap><small><font color=gray>Client Ports</td><td>
+<b>default</b>
+</td>
+	</tr>
+	<tr><td align=right valign=top nowrap><small><font color="gray">Notes</td><td><br>&nbsp;</td></tr>
+	<tr><td align=right valign=top nowrap><small><font color="gray">Example</td><td><b>server ldaps accept</b></td></tr>
+	</table>
+	</td></tr>
+<tr >
+	<td align="center"><a name="lpd"><b>lpd</a></td>
+	<td align="center">simple</td>
+	<td>
+		<table cellspacing=0 cellpadding=2 border=0>
+		<tr>
+<td align=right valign=top nowrap><small><font color=gray>Server Ports</td><td>
+<b>tcp/printer</b>
+</td></tr><tr><td align=right valign=top nowrap><small><font color=gray>Client Ports</td><td>
+<b>default</b>
+</td>
+	</tr>
+	<tr><td align=right valign=top nowrap><small><font color="gray">Notes</td><td><br>&nbsp;</td></tr>
+	<tr><td align=right valign=top nowrap><small><font color="gray">Example</td><td><b>server lpd accept</b></td></tr>
+	</table>
+	</td></tr>
+<tr  bgcolor="#F0F0F0">
+	<td align="center"><a name="multicast"><b>multicast</a></td>
+	<td align="center">complex</td>
+	<td>
+		<table cellspacing=0 cellpadding=2 border=0>
+		<tr>
+<td align=right valign=top nowrap><small><font color=gray>Server Ports</td><td>
+<b>N/A</b>
+</td></tr><tr><td align=right valign=top nowrap><small><font color=gray>Client Ports</td><td>
+<b>N/A</b>
+</td>
+	</tr>
+	<tr><td align=right valign=top nowrap><small><font color="gray">Notes</td><td>The multicast service matches all packets send to 224.0.0.0/8<br>&nbsp;</td></tr>
+	<tr><td align=right valign=top nowrap><small><font color="gray">Example</td><td><b>server multicast accept</b></td></tr>
+	</table>
+	</td></tr>
+<tr >
+	<td align="center"><a name="mysql"><b>mysql</a></td>
+	<td align="center">simple</td>
+	<td>
+		<table cellspacing=0 cellpadding=2 border=0>
+		<tr>
+<td align=right valign=top nowrap><small><font color=gray>Server Ports</td><td>
+<b>tcp/mysql</b>
+</td></tr><tr><td align=right valign=top nowrap><small><font color=gray>Client Ports</td><td>
+<b>default</b>
+</td>
+	</tr>
+	<tr><td align=right valign=top nowrap><small><font color="gray">Notes</td><td><br>&nbsp;</td></tr>
+	<tr><td align=right valign=top nowrap><small><font color="gray">Example</td><td><b>server mysql accept</b></td></tr>
+	</table>
+	</td></tr>
+<tr  bgcolor="#F0F0F0">
+	<td align="center"><a name="netbios_dgm"><b>netbios_dgm</a></td>
+	<td align="center">simple</td>
+	<td>
+		<table cellspacing=0 cellpadding=2 border=0>
+		<tr>
+<td align=right valign=top nowrap><small><font color=gray>Server Ports</td><td>
+<b>udp/netbios-dgm</b>
+</td></tr><tr><td align=right valign=top nowrap><small><font color=gray>Client Ports</td><td>
+<b>default</b>
+, 
+<b>netbios-dgm</b>
+</td>
+	</tr>
+	<tr><td align=right valign=top nowrap><small><font color="gray">Notes</td><td>See also the <a href="#samba">samba</a> service.<br>&nbsp;</td></tr>
+	<tr><td align=right valign=top nowrap><small><font color="gray">Example</td><td><b>server netbios_dgm accept</b></td></tr>
+	</table>
+	</td></tr>
+<tr >
+	<td align="center"><a name="netbios_ns"><b>netbios_ns</a></td>
+	<td align="center">simple</td>
+	<td>
+		<table cellspacing=0 cellpadding=2 border=0>
+		<tr>
+<td align=right valign=top nowrap><small><font color=gray>Server Ports</td><td>
+<b>udp/netbios-ns</b>
+</td></tr><tr><td align=right valign=top nowrap><small><font color=gray>Client Ports</td><td>
+<b>default</b>
+, 
+<b>netbios-ns</b>
+</td>
+	</tr>
+	<tr><td align=right valign=top nowrap><small><font color="gray">Notes</td><td>See also the <a href="#samba">samba</a> service.<br>&nbsp;</td></tr>
+	<tr><td align=right valign=top nowrap><small><font color="gray">Example</td><td><b>server netbios_ns accept</b></td></tr>
+	</table>
+	</td></tr>
+<tr  bgcolor="#F0F0F0">
+	<td align="center"><a name="netbios_ssn"><b>netbios_ssn</a></td>
+	<td align="center">simple</td>
+	<td>
+		<table cellspacing=0 cellpadding=2 border=0>
+		<tr>
+<td align=right valign=top nowrap><small><font color=gray>Server Ports</td><td>
+<b>tcp/netbios-ssn</b>
+</td></tr><tr><td align=right valign=top nowrap><small><font color=gray>Client Ports</td><td>
+<b>default</b>
+</td>
+	</tr>
+	<tr><td align=right valign=top nowrap><small><font color="gray">Notes</td><td>See also the <a href="#samba">samba</a> service.<br>&nbsp;</td></tr>
+	<tr><td align=right valign=top nowrap><small><font color="gray">Example</td><td><b>server netbios_ssn accept</b></td></tr>
+	</table>
+	</td></tr>
+<tr >
+	<td align="center"><a name="nfs"><b>nfs</a></td>
+	<td align="center">complex</td>
+	<td>
+		<table cellspacing=0 cellpadding=2 border=0>
+		<tr>
+<td align=right valign=top nowrap><small><font color=gray>Server Ports</td><td>
+<b>many</b>
+</td></tr><tr><td align=right valign=top nowrap><small><font color=gray>Client Ports</td><td>
+<b>500:65535</b>
+</td>
+	</tr>
+	<tr><td align=right valign=top nowrap><small><font color="gray">Notes</td><td>The NFS service queries the RPC service on the NFS server host to find out the ports <b>nfsd</b> and <b>mountd</b> are listening. Then, according to these ports it sets up rules on all the supported protocols (as reported by RPC) in order the clients to be able to reach the server. <p> For this reason, the NFS service requires that: <ul> <li>the firewall is restarted if the NFS server is restarted</li> <li>the NFS server must be specified on all nfs statements (only if it is not the localhost)</li> </ul><br>&nbsp;</td></tr>
+	<tr><td align=right valign=top nowrap><small><font color="gray">Example</td><td><b>client nfs accept <u>dst</u> <u>1.2.3.4</u></b></td></tr>
+	</table>
+	</td></tr>
+<tr  bgcolor="#F0F0F0">
+	<td align="center"><a name="nntp"><b>nntp</a></td>
+	<td align="center">simple</td>
+	<td>
+		<table cellspacing=0 cellpadding=2 border=0>
+		<tr>
+<td align=right valign=top nowrap><small><font color=gray>Server Ports</td><td>
+<b>tcp/nntp</b>
+</td></tr><tr><td align=right valign=top nowrap><small><font color=gray>Client Ports</td><td>
+<b>default</b>
+</td>
+	</tr>
+	<tr><td align=right valign=top nowrap><small><font color="gray">Notes</td><td><br>&nbsp;</td></tr>
+	<tr><td align=right valign=top nowrap><small><font color="gray">Example</td><td><b>server nntp accept</b></td></tr>
+	</table>
+	</td></tr>
+<tr >
+	<td align="center"><a name="ntp"><b>ntp</a></td>
+	<td align="center">simple</td>
+	<td>
+		<table cellspacing=0 cellpadding=2 border=0>
+		<tr>
+<td align=right valign=top nowrap><small><font color=gray>Server Ports</td><td>
+<b>udp/ntp</b>
+, 
+<b>tcp/ntp</b>
+</td></tr><tr><td align=right valign=top nowrap><small><font color=gray>Client Ports</td><td>
+<b>ntp</b>
+, 
+<b>default</b>
+</td>
+	</tr>
+	<tr><td align=right valign=top nowrap><small><font color="gray">Notes</td><td><br>&nbsp;</td></tr>
+	<tr><td align=right valign=top nowrap><small><font color="gray">Example</td><td><b>server ntp accept</b></td></tr>
+	</table>
+	</td></tr>
+<tr  bgcolor="#F0F0F0">
+	<td align="center"><a name="pop3"><b>pop3</a></td>
+	<td align="center">simple</td>
+	<td>
+		<table cellspacing=0 cellpadding=2 border=0>
+		<tr>
+<td align=right valign=top nowrap><small><font color=gray>Server Ports</td><td>
+<b>tcp/pop3</b>
+</td></tr><tr><td align=right valign=top nowrap><small><font color=gray>Client Ports</td><td>
+<b>default</b>
+</td>
+	</tr>
+	<tr><td align=right valign=top nowrap><small><font color="gray">Notes</td><td><br>&nbsp;</td></tr>
+	<tr><td align=right valign=top nowrap><small><font color="gray">Example</td><td><b>server pop3 accept</b></td></tr>
+	</table>
+	</td></tr>
+<tr >
+	<td align="center"><a name="pop3s"><b>pop3s</a></td>
+	<td align="center">simple</td>
+	<td>
+		<table cellspacing=0 cellpadding=2 border=0>
+		<tr>
+<td align=right valign=top nowrap><small><font color=gray>Server Ports</td><td>
+<b>tcp/pop3s</b>
+</td></tr><tr><td align=right valign=top nowrap><small><font color=gray>Client Ports</td><td>
+<b>default</b>
+</td>
+	</tr>
+	<tr><td align=right valign=top nowrap><small><font color="gray">Notes</td><td><br>&nbsp;</td></tr>
+	<tr><td align=right valign=top nowrap><small><font color="gray">Example</td><td><b>server pop3s accept</b></td></tr>
+	</table>
+	</td></tr>
+<tr  bgcolor="#F0F0F0">
+	<td align="center"><a name="portmap"><b>portmap</a></td>
+	<td align="center">simple</td>
+	<td>
+		<table cellspacing=0 cellpadding=2 border=0>
+		<tr>
+<td align=right valign=top nowrap><small><font color=gray>Server Ports</td><td>
+<b>udp/sunrpc</b>
+, 
+<b>tcp/sunrpc</b>
+</td></tr><tr><td align=right valign=top nowrap><small><font color=gray>Client Ports</td><td>
+<b>500:65535</b>
+</td>
+	</tr>
+	<tr><td align=right valign=top nowrap><small><font color="gray">Notes</td><td><br>&nbsp;</td></tr>
+	<tr><td align=right valign=top nowrap><small><font color="gray">Example</td><td><b>server portmap accept</b></td></tr>
+	</table>
+	</td></tr>
+<tr >
+	<td align="center"><a name="pptp"><b>pptp</a></td>
+	<td align="center">complex</td>
+	<td>
+		<table cellspacing=0 cellpadding=2 border=0>
+		<tr>
+<td align=right valign=top nowrap><small><font color=gray>Server Ports</td><td>
+<b>tcp/1723</b>
+</td></tr><tr><td align=right valign=top nowrap><small><font color=gray>Client Ports</td><td>
+<b>default</b>
+</td>
+	</tr>
+	<tr><td align=right valign=top nowrap><small><font color="gray">Notes</td><td>Additionally to the above the PPTP service allows stateful GRE traffic (protocol 47) to flow between the PPTP server and the client.<br>&nbsp;</td></tr>
+	<tr><td align=right valign=top nowrap><small><font color="gray">Example</td><td><b>server pptp accept</b></td></tr>
+	</table>
+	</td></tr>
+<tr  bgcolor="#F0F0F0">
+	<td align="center"><a name="privoxy"><b>privoxy</a></td>
+	<td align="center">simple</td>
+	<td>
+		<table cellspacing=0 cellpadding=2 border=0>
+		<tr>
+<td align=right valign=top nowrap><small><font color=gray>Server Ports</td><td>
+<b>tcp/8118</b>
+</td></tr><tr><td align=right valign=top nowrap><small><font color=gray>Client Ports</td><td>
+<b>default</b>
+</td>
+	</tr>
+	<tr><td align=right valign=top nowrap><small><font color="gray">Notes</td><td><br>&nbsp;</td></tr>
+	<tr><td align=right valign=top nowrap><small><font color="gray">Example</td><td><b>server privoxy accept</b></td></tr>
+	</table>
+	</td></tr>
+<tr >
+	<td align="center"><a name="radius"><b>radius</a></td>
+	<td align="center">simple</td>
+	<td>
+		<table cellspacing=0 cellpadding=2 border=0>
+		<tr>
+<td align=right valign=top nowrap><small><font color=gray>Server Ports</td><td>
+<b>udp/radius</b>
+, 
+<b>udp/radius-acct</b>
+</td></tr><tr><td align=right valign=top nowrap><small><font color=gray>Client Ports</td><td>
+<b>default</b>
+</td>
+	</tr>
+	<tr><td align=right valign=top nowrap><small><font color="gray">Notes</td><td><br>&nbsp;</td></tr>
+	<tr><td align=right valign=top nowrap><small><font color="gray">Example</td><td><b>server radius accept</b></td></tr>
+	</table>
+	</td></tr>
+<tr  bgcolor="#F0F0F0">
+	<td align="center"><a name="radiusold"><b>radiusold</a></td>
+	<td align="center">simple</td>
+	<td>
+		<table cellspacing=0 cellpadding=2 border=0>
+		<tr>
+<td align=right valign=top nowrap><small><font color=gray>Server Ports</td><td>
+<b>udp/1645</b>
+, 
+<b>udp/1646</b>
+</td></tr><tr><td align=right valign=top nowrap><small><font color=gray>Client Ports</td><td>
+<b>default</b>
+</td>
+	</tr>
+	<tr><td align=right valign=top nowrap><small><font color="gray">Notes</td><td><br>&nbsp;</td></tr>
+	<tr><td align=right valign=top nowrap><small><font color="gray">Example</td><td><b>server radiusold accept</b></td></tr>
+	</table>
+	</td></tr>
+<tr >
+	<td align="center"><a name="rndc"><b>rndc</a></td>
+	<td align="center">simple</td>
+	<td>
+		<table cellspacing=0 cellpadding=2 border=0>
+		<tr>
+<td align=right valign=top nowrap><small><font color=gray>Server Ports</td><td>
+<b>tcp/rndc</b>
+</td></tr><tr><td align=right valign=top nowrap><small><font color=gray>Client Ports</td><td>
+<b>default</b>
+</td>
+	</tr>
+	<tr><td align=right valign=top nowrap><small><font color="gray">Notes</td><td><br>&nbsp;</td></tr>
+	<tr><td align=right valign=top nowrap><small><font color="gray">Example</td><td><b>server rndc accept</b></td></tr>
+	</table>
+	</td></tr>
+<tr  bgcolor="#F0F0F0">
+	<td align="center"><a name="rsync"><b>rsync</a></td>
+	<td align="center">simple</td>
+	<td>
+		<table cellspacing=0 cellpadding=2 border=0>
+		<tr>
+<td align=right valign=top nowrap><small><font color=gray>Server Ports</td><td>
+<b>tcp/rsync</b>
+, 
+<b>udp/rsync</b>
+</td></tr><tr><td align=right valign=top nowrap><small><font color=gray>Client Ports</td><td>
+<b>default</b>
+</td>
+	</tr>
+	<tr><td align=right valign=top nowrap><small><font color="gray">Notes</td><td><br>&nbsp;</td></tr>
+	<tr><td align=right valign=top nowrap><small><font color="gray">Example</td><td><b>server rsync accept</b></td></tr>
+	</table>
+	</td></tr>
+<tr >
+	<td align="center"><a name="samba"><b>samba</a></td>
+	<td align="center">complex</td>
+	<td>
+		<table cellspacing=0 cellpadding=2 border=0>
+		<tr>
+<td align=right valign=top nowrap><small><font color=gray>Server Ports</td><td>
+<b>many</b>
+</td></tr><tr><td align=right valign=top nowrap><small><font color=gray>Client Ports</td><td>
+<b>default</b>
+</td>
+	</tr>
+	<tr><td align=right valign=top nowrap><small><font color="gray">Notes</td><td>The samba service automatically sets all the rules for <b>netbios-ns</b>, <b>netbios-dgm</b> and <b>netbios-ssn</b>.<br>&nbsp;</td></tr>
+	<tr><td align=right valign=top nowrap><small><font color="gray">Example</td><td><b>server samba accept</b></td></tr>
+	</table>
+	</td></tr>
+<tr  bgcolor="#F0F0F0">
+	<td align="center"><a name="smtp"><b>smtp</a></td>
+	<td align="center">simple</td>
+	<td>
+		<table cellspacing=0 cellpadding=2 border=0>
+		<tr>
+<td align=right valign=top nowrap><small><font color=gray>Server Ports</td><td>
+<b>tcp/smtp</b>
+</td></tr><tr><td align=right valign=top nowrap><small><font color=gray>Client Ports</td><td>
+<b>default</b>
+</td>
+	</tr>
+	<tr><td align=right valign=top nowrap><small><font color="gray">Notes</td><td><br>&nbsp;</td></tr>
+	<tr><td align=right valign=top nowrap><small><font color="gray">Example</td><td><b>server smtp accept</b></td></tr>
+	</table>
+	</td></tr>
+<tr >
+	<td align="center"><a name="smtps"><b>smtps</a></td>
+	<td align="center">simple</td>
+	<td>
+		<table cellspacing=0 cellpadding=2 border=0>
+		<tr>
+<td align=right valign=top nowrap><small><font color=gray>Server Ports</td><td>
+<b>tcp/smtps</b>
+</td></tr><tr><td align=right valign=top nowrap><small><font color=gray>Client Ports</td><td>
+<b>default</b>
+</td>
+	</tr>
+	<tr><td align=right valign=top nowrap><small><font color="gray">Notes</td><td><br>&nbsp;</td></tr>
+	<tr><td align=right valign=top nowrap><small><font color="gray">Example</td><td><b>server smtps accept</b></td></tr>
+	</table>
+	</td></tr>
+<tr  bgcolor="#F0F0F0">
+	<td align="center"><a name="snmp"><b>snmp</a></td>
+	<td align="center">simple</td>
+	<td>
+		<table cellspacing=0 cellpadding=2 border=0>
+		<tr>
+<td align=right valign=top nowrap><small><font color=gray>Server Ports</td><td>
+<b>udp/snmp</b>
+</td></tr><tr><td align=right valign=top nowrap><small><font color=gray>Client Ports</td><td>
+<b>default</b>
+</td>
+	</tr>
+	<tr><td align=right valign=top nowrap><small><font color="gray">Notes</td><td><br>&nbsp;</td></tr>
+	<tr><td align=right valign=top nowrap><small><font color="gray">Example</td><td><b>server snmp accept</b></td></tr>
+	</table>
+	</td></tr>
+<tr >
+	<td align="center"><a name="snmptrap"><b>snmptrap</a></td>
+	<td align="center">simple</td>
+	<td>
+		<table cellspacing=0 cellpadding=2 border=0>
+		<tr>
+<td align=right valign=top nowrap><small><font color=gray>Server Ports</td><td>
+<b>udp/snmptrap</b>
+</td></tr><tr><td align=right valign=top nowrap><small><font color=gray>Client Ports</td><td>
+<b>default</b>
+</td>
+	</tr>
+	<tr><td align=right valign=top nowrap><small><font color="gray">Notes</td><td><br>&nbsp;</td></tr>
+	<tr><td align=right valign=top nowrap><small><font color="gray">Example</td><td><b>server snmptrap accept</b></td></tr>
+	</table>
+	</td></tr>
+<tr  bgcolor="#F0F0F0">
+	<td align="center"><a name="squid"><b>squid</a></td>
+	<td align="center">simple</td>
+	<td>
+		<table cellspacing=0 cellpadding=2 border=0>
+		<tr>
+<td align=right valign=top nowrap><small><font color=gray>Server Ports</td><td>
+<b>tcp/squid</b>
+</td></tr><tr><td align=right valign=top nowrap><small><font color=gray>Client Ports</td><td>
+<b>default</b>
+</td>
+	</tr>
+	<tr><td align=right valign=top nowrap><small><font color="gray">Notes</td><td><br>&nbsp;</td></tr>
+	<tr><td align=right valign=top nowrap><small><font color="gray">Example</td><td><b>server squid accept</b></td></tr>
+	</table>
+	</td></tr>
+<tr >
+	<td align="center"><a name="ssh"><b>ssh</a></td>
+	<td align="center">simple</td>
+	<td>
+		<table cellspacing=0 cellpadding=2 border=0>
+		<tr>
+<td align=right valign=top nowrap><small><font color=gray>Server Ports</td><td>
+<b>tcp/ssh</b>
+</td></tr><tr><td align=right valign=top nowrap><small><font color=gray>Client Ports</td><td>
+<b>default</b>
+</td>
+	</tr>
+	<tr><td align=right valign=top nowrap><small><font color="gray">Notes</td><td><br>&nbsp;</td></tr>
+	<tr><td align=right valign=top nowrap><small><font color="gray">Example</td><td><b>server ssh accept</b></td></tr>
+	</table>
+	</td></tr>
+<tr  bgcolor="#F0F0F0">
+	<td align="center"><a name="submission"><b>submission</a></td>
+	<td align="center">simple</td>
+	<td>
+		<table cellspacing=0 cellpadding=2 border=0>
+		<tr>
+<td align=right valign=top nowrap><small><font color=gray>Server Ports</td><td>
+<b>tcp/submission</b>
+</td></tr><tr><td align=right valign=top nowrap><small><font color=gray>Client Ports</td><td>
+<b>default</b>
+</td>
+	</tr>
+	<tr><td align=right valign=top nowrap><small><font color="gray">Notes</td><td><br>&nbsp;</td></tr>
+	<tr><td align=right valign=top nowrap><small><font color="gray">Example</td><td><b>server submission accept</b></td></tr>
+	</table>
+	</td></tr>
+<tr >
+	<td align="center"><a name="sunrpc"><b>sunrpc</a></td>
+	<td align="center">simple</td>
+	<td>
+		<table cellspacing=0 cellpadding=2 border=0>
+		<tr>
+<td align=right valign=top nowrap><small><font color=gray>Server Ports</td><td>
+<b>udp/sunrpc</b>
+, 
+<b>tcp/sunrpc</b>
+</td></tr><tr><td align=right valign=top nowrap><small><font color=gray>Client Ports</td><td>
+<b>500:65535</b>
+</td>
+	</tr>
+	<tr><td align=right valign=top nowrap><small><font color="gray">Notes</td><td><br>&nbsp;</td></tr>
+	<tr><td align=right valign=top nowrap><small><font color="gray">Example</td><td><b>server sunrpc accept</b></td></tr>
+	</table>
+	</td></tr>
+<tr  bgcolor="#F0F0F0">
+	<td align="center"><a name="swat"><b>swat</a></td>
+	<td align="center">simple</td>
+	<td>
+		<table cellspacing=0 cellpadding=2 border=0>
+		<tr>
+<td align=right valign=top nowrap><small><font color=gray>Server Ports</td><td>
+<b>tcp/swat</b>
+</td></tr><tr><td align=right valign=top nowrap><small><font color=gray>Client Ports</td><td>
+<b>default</b>
+</td>
+	</tr>
+	<tr><td align=right valign=top nowrap><small><font color="gray">Notes</td><td><br>&nbsp;</td></tr>
+	<tr><td align=right valign=top nowrap><small><font color="gray">Example</td><td><b>server swat accept</b></td></tr>
+	</table>
+	</td></tr>
+<tr >
+	<td align="center"><a name="syslog"><b>syslog</a></td>
+	<td align="center">simple</td>
+	<td>
+		<table cellspacing=0 cellpadding=2 border=0>
+		<tr>
+<td align=right valign=top nowrap><small><font color=gray>Server Ports</td><td>
+<b>udp/syslog</b>
+</td></tr><tr><td align=right valign=top nowrap><small><font color=gray>Client Ports</td><td>
+<b>syslog</b>
+</td>
+	</tr>
+	<tr><td align=right valign=top nowrap><small><font color="gray">Notes</td><td><br>&nbsp;</td></tr>
+	<tr><td align=right valign=top nowrap><small><font color="gray">Example</td><td><b>server syslog accept</b></td></tr>
+	</table>
+	</td></tr>
+<tr  bgcolor="#F0F0F0">
+	<td align="center"><a name="telnet"><b>telnet</a></td>
+	<td align="center">simple</td>
+	<td>
+		<table cellspacing=0 cellpadding=2 border=0>
+		<tr>
+<td align=right valign=top nowrap><small><font color=gray>Server Ports</td><td>
+<b>tcp/telnet</b>
+</td></tr><tr><td align=right valign=top nowrap><small><font color=gray>Client Ports</td><td>
+<b>default</b>
+</td>
+	</tr>
+	<tr><td align=right valign=top nowrap><small><font color="gray">Notes</td><td><br>&nbsp;</td></tr>
+	<tr><td align=right valign=top nowrap><small><font color="gray">Example</td><td><b>server telnet accept</b></td></tr>
+	</table>
+	</td></tr>
+<tr >
+	<td align="center"><a name="tftp"><b>tftp</a></td>
+	<td align="center">simple</td>
+	<td>
+		<table cellspacing=0 cellpadding=2 border=0>
+		<tr>
+<td align=right valign=top nowrap><small><font color=gray>Server Ports</td><td>
+<b>udp/tftp</b>
+</td></tr><tr><td align=right valign=top nowrap><small><font color=gray>Client Ports</td><td>
+<b>default</b>
+</td>
+	</tr>
+	<tr><td align=right valign=top nowrap><small><font color="gray">Notes</td><td><br>&nbsp;</td></tr>
+	<tr><td align=right valign=top nowrap><small><font color="gray">Example</td><td><b>server tftp accept</b></td></tr>
+	</table>
+	</td></tr>
+<tr  bgcolor="#F0F0F0">
+	<td align="center"><a name="uucp"><b>uucp</a></td>
+	<td align="center">simple</td>
+	<td>
+		<table cellspacing=0 cellpadding=2 border=0>
+		<tr>
+<td align=right valign=top nowrap><small><font color=gray>Server Ports</td><td>
+<b>tcp/uucp</b>
+</td></tr><tr><td align=right valign=top nowrap><small><font color=gray>Client Ports</td><td>
+<b>default</b>
+</td>
+	</tr>
+	<tr><td align=right valign=top nowrap><small><font color="gray">Notes</td><td><br>&nbsp;</td></tr>
+	<tr><td align=right valign=top nowrap><small><font color="gray">Example</td><td><b>server uucp accept</b></td></tr>
+	</table>
+	</td></tr>
+<tr >
+	<td align="center"><a name="vmware"><b>vmware</a></td>
+	<td align="center">simple</td>
+	<td>
+		<table cellspacing=0 cellpadding=2 border=0>
+		<tr>
+<td align=right valign=top nowrap><small><font color=gray>Server Ports</td><td>
+<b>tcp/902</b>
+</td></tr><tr><td align=right valign=top nowrap><small><font color=gray>Client Ports</td><td>
+<b>default</b>
+</td>
+	</tr>
+	<tr><td align=right valign=top nowrap><small><font color="gray">Notes</td><td><br>&nbsp;</td></tr>
+	<tr><td align=right valign=top nowrap><small><font color="gray">Example</td><td><b>server vmware accept</b></td></tr>
+	</table>
+	</td></tr>
+<tr  bgcolor="#F0F0F0">
+	<td align="center"><a name="vmwareauth"><b>vmwareauth</a></td>
+	<td align="center">simple</td>
+	<td>
+		<table cellspacing=0 cellpadding=2 border=0>
+		<tr>
+<td align=right valign=top nowrap><small><font color=gray>Server Ports</td><td>
+<b>tcp/903</b>
+</td></tr><tr><td align=right valign=top nowrap><small><font color=gray>Client Ports</td><td>
+<b>default</b>
+</td>
+	</tr>
+	<tr><td align=right valign=top nowrap><small><font color="gray">Notes</td><td><br>&nbsp;</td></tr>
+	<tr><td align=right valign=top nowrap><small><font color="gray">Example</td><td><b>server vmwareauth accept</b></td></tr>
+	</table>
+	</td></tr>
+<tr >
+	<td align="center"><a name="vmwareweb"><b>vmwareweb</a></td>
+	<td align="center">simple</td>
+	<td>
+		<table cellspacing=0 cellpadding=2 border=0>
+		<tr>
+<td align=right valign=top nowrap><small><font color=gray>Server Ports</td><td>
+<b>tcp/8222</b>
+</td></tr><tr><td align=right valign=top nowrap><small><font color=gray>Client Ports</td><td>
+<b>default</b>
+</td>
+	</tr>
+	<tr><td align=right valign=top nowrap><small><font color="gray">Notes</td><td><br>&nbsp;</td></tr>
+	<tr><td align=right valign=top nowrap><small><font color="gray">Example</td><td><b>server vmwareweb accept</b></td></tr>
+	</table>
+	</td></tr>
+<tr  bgcolor="#F0F0F0">
+	<td align="center"><a name="vnc"><b>vnc</a></td>
+	<td align="center">simple</td>
+	<td>
+		<table cellspacing=0 cellpadding=2 border=0>
+		<tr>
+<td align=right valign=top nowrap><small><font color=gray>Server Ports</td><td>
+<b>tcp/5900:5903</b>
+</td></tr><tr><td align=right valign=top nowrap><small><font color=gray>Client Ports</td><td>
+<b>default</b>
+</td>
+	</tr>
+	<tr><td align=right valign=top nowrap><small><font color="gray">Notes</td><td><br>&nbsp;</td></tr>
+	<tr><td align=right valign=top nowrap><small><font color="gray">Example</td><td><b>server vnc accept</b></td></tr>
+	</table>
+	</td></tr>
+<tr >
+	<td align="center"><a name="webcache"><b>webcache</a></td>
+	<td align="center">simple</td>
+	<td>
+		<table cellspacing=0 cellpadding=2 border=0>
+		<tr>
+<td align=right valign=top nowrap><small><font color=gray>Server Ports</td><td>
+<b>tcp/webcache</b>
+</td></tr><tr><td align=right valign=top nowrap><small><font color=gray>Client Ports</td><td>
+<b>default</b>
+</td>
+	</tr>
+	<tr><td align=right valign=top nowrap><small><font color="gray">Notes</td><td><br>&nbsp;</td></tr>
+	<tr><td align=right valign=top nowrap><small><font color="gray">Example</td><td><b>server webcache accept</b></td></tr>
+	</table>
+	</td></tr>
+</table>
+</center>
 <p>
 <hr noshade size=1>
 <table border=0 width="100%">
 <tr><td align=center valign=middle>
 	<A href="http://sourceforge.net"><IMG src="http://sourceforge.net/sflogo.php?group_id=58425&amp;type=5" width="210" height="62" border="0" alt="SourceForge Logo"></A>
 </td><td align=center valign=middle>
-	<small>$Id: services.html,v 1.3 2002/12/09 22:40:41 ktsaou Exp $</small>
+	<small>$Id: services.html,v 1.4 2002/12/10 18:11:07 ktsaou Exp $</small>
 	<p>
 	<b>FireHOL</b>, a firewall for humans...<br>
 	&copy; Copyright 2002
