@@ -1,4 +1,4 @@
-$Id: TODO,v 1.10 2004/01/02 22:32:28 ktsaou Exp $
+$Id: TODO,v 1.11 2004/01/12 23:23:21 ktsaou Exp $
 
 The following is a list of features I plan to add to FireHOL,
 assuming that my time permits and there is demand for them.
@@ -132,3 +132,5 @@ The list appears in no particular order.
     generated.
 
 18. Support for TCPMSS action.
+
+19. Support for ULOG as rule parameter.

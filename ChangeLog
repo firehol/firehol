@@ -1,7 +1,7 @@
 
 RCS file: /cvsroot/firehol/firehol/firehol.sh,v
 Working file: firehol.sh
-head: 1.169
+head: 1.176
 branch:
 locks: strict
 access list:
@@ -9,8 +9,47 @@ symbolic names:
 	start: 1.1.1.1
 	vendor: 1.1.1
 keyword substitution: kv
-total revisions: 170;	selected revisions: 170
+total revisions: 177;	selected revisions: 177
 description:
+----------------------------
+revision 1.176
+date: 2004/01/10 18:44:39;  author: ktsaou;  state: Exp;  lines: +8 -6
+Further optimized and reduced PRIVATE_IPS using:
+http://www.vergenet.net/linux/aggregate/
+
+The supplied get-iana.sh uses 'aggregate-flim' if it finds it in the path.
+(aggregate-flim is the name of this program when installed on Gentoo)
+----------------------------
+revision 1.175
+date: 2004/01/02 22:32:28;  author: ktsaou;  state: Exp;  lines: +6 -6
+Fixed a warning generated incorrectly by the mark helper.
+----------------------------
+revision 1.174
+date: 2003/12/29 22:46:00;  author: ktsaou;  state: Exp;  lines: +7 -7
+Aesthetic changes.
+----------------------------
+revision 1.173
+date: 2003/12/29 22:40:11;  author: ktsaou;  state: Exp;  lines: +70 -11
+Added count of iptables commands generated.
+----------------------------
+revision 1.172
+date: 2003/12/01 05:03:11;  author: ktsaou;  state: Exp;  lines: +17 -8
+Added FIREHOL_LOG_MODE which can either be LOG or ULOG to select the
+logging mode for iptables. All FireHOL optional rule parameters use this.
+
+Updated documentation to reflect the change.
+----------------------------
+revision 1.171
+date: 2003/11/23 19:27:58;  author: ktsaou;  state: Exp;  lines: +6 -6
+Changed a "head -1" to "head -n 1" because head does not support the first
+syntax anymore. Thanks to Maik Schreiber <blizzy@blizzy.de> for reporting
+this.
+----------------------------
+revision 1.170
+date: 2003/11/23 13:43:19;  author: ktsaou;  state: Exp;  lines: +11 -5
+Added support for kernel config in /lib/modules/`uname -r`/build/.config
+
+Updated documentation.
 ----------------------------
 revision 1.169
 date: 2003/11/18 23:00:48;  author: ktsaou;  state: Exp;  lines: +6 -6
