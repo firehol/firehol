@@ -315,7 +315,7 @@ cat "../firehol.sh"			|\
 	grep -e "^service_.*_notes=" >>"${tmp}"
 
 . "${tmp}"
-
+rm -f "${tmp}"
 
 (
 	cat "../firehol.sh"			|\
@@ -347,7 +347,7 @@ cat <<"EOF"
 <tr><td align=center valign=middle>
 	<A href="http://sourceforge.net"><IMG src="http://sourceforge.net/sflogo.php?group_id=58425&amp;type=5" width="210" height="62" border="0" alt="SourceForge Logo"></A>
 </td><td align=center valign=middle>
-	<small>$Id: create_services.sh,v 1.15 2002/12/22 14:02:54 ktsaou Exp $</small>
+	<small>$Id: create_services.sh,v 1.16 2002/12/24 02:36:34 ktsaou Exp $</small>
 	<p>
 	<b>FireHOL</b>, a firewall for humans...<br>
 	&copy; Copyright 2002
