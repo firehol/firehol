@@ -1,7 +1,7 @@
 
 RCS file: /cvsroot/firehol/firehol/firehol.sh,v
 Working file: firehol.sh
-head: 1.137
+head: 1.144
 branch:
 locks: strict
 access list:
@@ -9,8 +9,37 @@ symbolic names:
 	start: 1.1.1.1
 	vendor: 1.1.1
 keyword substitution: kv
-total revisions: 138;	selected revisions: 138
+total revisions: 145;	selected revisions: 145
 description:
+----------------------------
+revision 1.144
+date: 2003/07/20 22:14:28;  author: ktsaou;  state: Exp;  lines: +37 -37
+As suggested by "Francisco Javier Félix Belmonte" <ffelix@gescosoft.com>
+fixed all EOF statements in order to produce cleaner iptables run script.
+----------------------------
+revision 1.143
+date: 2003/07/20 21:52:41;  author: ktsaou;  state: Exp;  lines: +8 -5
+Added service POSTGRES.
+----------------------------
+revision 1.142
+date: 2003/07/20 21:50:29;  author: ktsaou;  state: Exp;  lines: +8 -5
+Added TIME service.
+----------------------------
+revision 1.141
+date: 2003/07/20 21:48:01;  author: ktsaou;  state: Exp;  lines: +6 -6
+Changed service CUPS ports to numeric. Gentoo does not have this defined.
+----------------------------
+revision 1.140
+date: 2003/07/20 21:46:41;  author: ktsaou;  state: Exp;  lines: +131 -86
+Added --cmd-owner support.
+----------------------------
+revision 1.139
+date: 2003/06/30 22:18:46;  author: ktsaou;  state: Exp;  lines: +8 -5
+Added service webmin.
+----------------------------
+revision 1.138
+date: 2003/06/30 22:07:01;  author: ktsaou;  state: Exp;  lines: +11 -5
+Added jabber and jabberd services.
 ----------------------------
 revision 1.137
 date: 2003/06/28 23:22:49;  author: ktsaou;  state: Exp;  lines: +9 -7

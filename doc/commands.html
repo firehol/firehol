@@ -90,6 +90,7 @@ automatically. FireHOL is extremely easy to understand, configure and audit.
 			<li><a href="#gid">gid, group</a>, set the user groups sending this traffic</li>
 			<li><a href="#pid">pid, process</a>, set the process IDs sending this traffic</li>
 			<li><a href="#sid">sid, session</a>, set the process session IDs sending this traffic</li>
+			<li><a href="#cmd">cmd, command</a>, set the command name sending this traffic</li>
 		</ul>
 		&nbsp;
 	</li>
@@ -1010,6 +1011,18 @@ about optional rule parameters that should not be used in certain commands.
 	It is not possible, and FireHOL will simply ignore this parameter, on traffic coming in or passign through the firewall host.
 	<p>
 
+<hr noshade size=1 width="100%">
+
+	<a name="cmd"><h3><b>cmd</b> <font color="red">&lt;name&gt;</font></h3></a>
+	<a name="command"><h3><b>command</b> <font color="red">&lt;name&gt;</font></h3></a>
+	<H4>Description</H4>
+	<b>cmd</b> or <b>command</b> define the operating system command name of the process sending this traffic.
+	The parameter can be a list of such command names, seperated by spaces and quoted as a single argument.<p>
+	This parameter can be used only in services (<a href="#client">client</a> and <a href="#server">server</a> commands) defined within <a href="#interface">interfaces</a>, not <a href="#router">routers</a>.
+	FireHOL is "smart" enough to apply this parameter only to traffic send by the localhost, i.e. the replies of <a href="#server">servers</a> and requests of <a href="#clients">clients</a>.
+	It is not possible, and FireHOL will simply ignore this parameter, on traffic coming in or passign through the firewall host.
+	<p>
+
 <table border=0 cellpadding=10 cellspacing=0 width="100%"><tr bgcolor="#777777"><td align=center><font color="white"><b><big><a name="control_variables">Variables that control FireHOL</a></td</tr></table>
 <p>
 	<a name="DEFAULT_INTERFACE_POLICY"><h3><b>DEFAULT_INTERFACE_POLICY</b></h3></a>
@@ -1194,7 +1207,7 @@ about optional rule parameters that should not be used in certain commands.
 <tr><td align=center valign=middle>
 	<A href="http://sourceforge.net"><IMG src="http://sourceforge.net/sflogo.php?group_id=58425&amp;type=5" width="210" height="62" border="0" alt="SourceForge Logo"></A>
 </td><td align=center valign=middle>
-	<small>$Id: commands.html,v 1.33 2003/06/30 21:36:58 ktsaou Exp $</small>
+	<small>$Id: commands.html,v 1.34 2003/07/20 22:19:46 ktsaou Exp $</small>
 	<p>
 	<b>FireHOL</b>, a firewall for humans...<br>
 	&copy; Copyright 2003
