@@ -10,7 +10,7 @@
 #
 # config: /etc/firehol/firehol.conf
 #
-# $Id: firehol.sh,v 1.208 2004/10/30 21:13:26 ktsaou Exp $
+# $Id: firehol.sh,v 1.209 2004/10/30 21:27:00 ktsaou Exp $
 #
 
 # Remember who you are.
@@ -1517,16 +1517,26 @@ fi
 if [ ! -d "${FIREHOL_CONFIG_DIR}/services" ]
 then
 	"${MKDIR_CMD}" -p "${FIREHOL_CONFIG_DIR}/services"
+	if [ $? -ne 0 ]
+	then
+		echo >&2
+		echo >&2
+		echo >&2 "FireHOL needs to create the directory '${FIREHOL_CONFIG_DIR}/services', but it cannot."
+		echo >&2 "Possibly you have a file with this name, or something else is happening."
+		echo >&2 "Please solve this issue and retry".
+		echo >&2
+		exit 1
+	fi
 	"${CHOWN_CMD}" root:root "${FIREHOL_CONFIG_DIR}/services"
 	"${CHMOD_CMD}" 700 "${FIREHOL_CONFIG_DIR}/services"
 fi
 
 # Load all the services.
 # All these files should start with: #FHVER: 1
-cd "${FIREHOL_CONFIG_DIR}/services"
+cd "${FIREHOL_CONFIG_DIR}/services" || exit 1
 for f in `ls *.conf 2>/dev/null`
 do
-	cd "${FIREHOL_CONFIG_DIR}/services"
+	cd "${FIREHOL_CONFIG_DIR}/services" || exit 1
 	
 	n=`"${HEAD_CMD}" -n 1 "${f}" | "${CUT_CMD}" -d ':' -f 2`
 	"${EXPR_CMD}" ${n} + 0 >/dev/null 2>&1
@@ -1546,7 +1556,7 @@ do
 		fi
 	fi
 done
-cd "${FIREHOL_DEFAULT_WORKING_DIRECTORY}"
+cd "${FIREHOL_DEFAULT_WORKING_DIRECTORY}" || exit 1
 
 
 # ------------------------------------------------------------------------------
@@ -4666,7 +4676,7 @@ case "${arg}" in
 		else
 		
 		${CAT_CMD} <<EOF
-$Id: firehol.sh,v 1.208 2004/10/30 21:13:26 ktsaou Exp $
+$Id: firehol.sh,v 1.209 2004/10/30 21:27:00 ktsaou Exp $
 (C) Copyright 2003, Costa Tsaousis <costa@tsaousis.gr>
 FireHOL is distributed under GPL.
 
@@ -4852,7 +4862,7 @@ then
 	
 	${CAT_CMD} <<EOF
 
-$Id: firehol.sh,v 1.208 2004/10/30 21:13:26 ktsaou Exp $
+$Id: firehol.sh,v 1.209 2004/10/30 21:27:00 ktsaou Exp $
 (C) Copyright 2003, Costa Tsaousis <costa@tsaousis.gr>
 FireHOL is distributed under GPL.
 Home Page: http://firehol.sourceforge.net
@@ -5146,7 +5156,7 @@ then
 	
 	${CAT_CMD} >&2 <<EOF
 
-$Id: firehol.sh,v 1.208 2004/10/30 21:13:26 ktsaou Exp $
+$Id: firehol.sh,v 1.209 2004/10/30 21:27:00 ktsaou Exp $
 (C) Copyright 2003, Costa Tsaousis <costa@tsaousis.gr>
 FireHOL is distributed under GPL.
 Home Page: http://firehol.sourceforge.net
@@ -5229,7 +5239,7 @@ EOF
 	echo "# "
 
 	${CAT_CMD} <<EOF
-# $Id: firehol.sh,v 1.208 2004/10/30 21:13:26 ktsaou Exp $
+# $Id: firehol.sh,v 1.209 2004/10/30 21:27:00 ktsaou Exp $
 # (C) Copyright 2003, Costa Tsaousis <costa@tsaousis.gr>
 # FireHOL is distributed under GPL.
 # Home Page: http://firehol.sourceforge.net
