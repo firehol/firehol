@@ -36,7 +36,7 @@ on PPP and ethernet interfaces.
 
 %install
 install -c -m 750 firehol.sh /etc/init.d/firehol
-install -c -m 640 examples/ppp-client.conf /etc/firehol.conf
+install -c -m 640 examples/client-all.conf /etc/firehol.conf
 
 %pre
 
@@ -63,7 +63,7 @@ rm -rf ${RPM_BUILD_DIR}/%{name}-%{version}
 %doc examples/home-router.conf
 %doc examples/office.conf
 %doc examples/office-private-lan.conf
-%doc examples/ppp-client.conf
+%doc examples/client-all.conf
 
 %doc doc/adding.html
 %doc doc/css.css
