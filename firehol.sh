@@ -10,9 +10,18 @@
 #
 # config: /etc/firehol.conf
 #
-# $Id: firehol.sh,v 1.22 2002/12/02 00:01:24 ktsaou Exp $
+# $Id: firehol.sh,v 1.23 2002/12/02 17:48:41 ktsaou Exp $
 #
 # $Log: firehol.sh,v $
+# Revision 1.23  2002/12/02 17:48:41  ktsaou
+# Fixed a bug where some versions of BASH do not handle correctly cat >>"EOF".
+# They treat it as cat >>EOF and thus they do variable substitution on the
+# text.
+# Now, FireHOL uses cat >>EOF but the text has been escaped in order to avoid
+# variable substitution.
+#
+# The problem has been reported by Florian Thiel <thiel@ksan.de>.
+#
 # Revision 1.22  2002/12/02 00:01:24  ktsaou
 # Fixed parameter 'custom' processing. It is not an array now, but it is
 # treated specially to support BASH special characters such as !
@@ -2338,13 +2347,13 @@ ret=0
 # just before each known directive.
 # These line numbers will be used for debugging the configuration script.
 
-cat >"${FIREHOL_TMP}.awk" <<"EOF"
-/^[[:space:]]*interface[[:space:]]/ { printf "FIREHOL_LINEID=${LINENO} " }
-/^[[:space:]]*router[[:space:]]/ { printf "FIREHOL_LINEID=${LINENO} " }
-/^[[:space:]]*route[[:space:]]/ { printf "FIREHOL_LINEID=${LINENO} " }
-/^[[:space:]]*client[[:space:]]/ { printf "FIREHOL_LINEID=${LINENO} " }
-/^[[:space:]]*server[[:space:]]/ { printf "FIREHOL_LINEID=${LINENO} " }
-/^[[:space:]]*iptables[[:space:]]/ { printf "FIREHOL_LINEID=${LINENO} " }
+cat >"${FIREHOL_TMP}.awk" <<EOF
+/^[[:space:]]*interface[[:space:]]/ { printf "FIREHOL_LINEID=\${LINENO} " }
+/^[[:space:]]*router[[:space:]]/ { printf "FIREHOL_LINEID=\${LINENO} " }
+/^[[:space:]]*route[[:space:]]/ { printf "FIREHOL_LINEID=\${LINENO} " }
+/^[[:space:]]*client[[:space:]]/ { printf "FIREHOL_LINEID=\${LINENO} " }
+/^[[:space:]]*server[[:space:]]/ { printf "FIREHOL_LINEID=\${LINENO} " }
+/^[[:space:]]*iptables[[:space:]]/ { printf "FIREHOL_LINEID=\${LINENO} " }
 { print }
 EOF
 
