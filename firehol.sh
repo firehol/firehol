@@ -10,7 +10,7 @@
 #
 # config: /etc/firehol/firehol.conf
 #
-# $Id: firehol.sh,v 1.160 2003/10/13 18:50:30 ktsaou Exp $
+# $Id: firehol.sh,v 1.161 2003/10/16 22:05:22 ktsaou Exp $
 #
 FIREHOL_FILE="${0}"
 
@@ -2098,6 +2098,12 @@ rule() {
 	local outface=any
 	local outfacenot=
 	
+	local physin=any
+	local physinnot=
+	
+	local physout=any
+	local physoutnot=
+	
 	local mac=any
 	local macnot=
 	
@@ -2256,6 +2262,56 @@ rule() {
 					fi
 					test ${softwarnings} -eq 1 -a ! "${inface}" = "any" && softwarning "Overwritting param: inface '${inface}' becomes '${1}'"
 					inface="${1}"
+				fi
+				shift
+				;;
+				
+			physin|PHYSIN)
+				shift
+				if [ ${reverse} -eq 0 ]
+				then
+					physinnot=
+					if [ "${1}" = "not" -o "${1}" = "NOT" ]
+					then
+						shift
+						physinnot="!"
+					fi
+					test ${softwarnings} -eq 1 -a ! "${physin}" = "any" && softwarning "Overwritting param: physin '${physin}' becomes '${1}'"
+					physin="${1}"
+				else
+					physoutnot=
+					if [ "${1}" = "not" -o "${1}" = "NOT" ]
+					then
+						shift
+						physoutnot="!"
+					fi
+					test ${softwarnings} -eq 1 -a ! "${physout}" = "any" && softwarning "Overwritting param: physout '${physout}' becomes '${1}'"
+					physout="${1}"
+				fi
+				shift
+				;;
+				
+			physout|PHYSOUT)
+				shift
+				if [ ${reverse} -eq 0 ]
+				then
+					physoutnot=
+					if [ "${1}" = "not" -o "${1}" = "NOT" ]
+					then
+						shift
+						physoutnot="!"
+					fi
+					test ${softwarnings} -eq 1 -a ! "${physout}" = "any" && softwarning "Overwritting param: physout '${physout}' becomes '${1}'"
+					physout="${1}"
+				else
+					physinnot=
+					if [ "${1}" = "not" -o "${1}" = "NOT" ]
+					then
+						shift
+						physinnot="!"
+					fi
+					test ${softwarnings} -eq 1 -a ! "${physin}" = "any" && softwarning "Overwritting param: physin '${physin}' becomes '${1}'"
+					physin="${1}"
 				fi
 				shift
 				;;
@@ -2732,6 +2788,8 @@ rule() {
 	# will prevent us from generating a rule (due to nested BASH loops).
 	test -z "${inface}"	&& error "Cannot accept an empty 'inface'."	&& return 1
 	test -z "${outface}"	&& error "Cannot accept an empty 'outface'."	&& return 1
+	test -z "${physin}"	&& error "Cannot accept an empty 'physin'."	&& return 1
+	test -z "${physout}"	&& error "Cannot accept an empty 'physout'."	&& return 1
 	test -z "${mac}"	&& error "Cannot accept an empty 'mac'."	&& return 1
 	test -z "${src}"	&& error "Cannot accept an empty 'src'."	&& return 1
 	test -z "${dst}"	&& error "Cannot accept an empty 'dst'."	&& return 1
@@ -2762,7 +2820,7 @@ rule() {
 	
 	
 	# ignore 'statenot' since it is negated in the positive rules
-	if [ ! -z "${infacenot}${outfacenot}${macnot}${srcnot}${dstnot}${sportnot}${dportnot}${protonot}${uidnot}${gidnot}${pidnot}${sidnot}${cmdnot}" ]
+	if [ ! -z "${infacenot}${outfacenot}${physinnot}${physoutnot}${macnot}${srcnot}${dstnot}${sportnot}${dportnot}${protonot}${uidnot}${gidnot}${pidnot}${sidnot}${cmdnot}" ]
 	then
 		if [ ${action_is_chain} -eq 1 ]
 		then
@@ -2808,6 +2866,28 @@ rule() {
 			done
 			outfacenot=
 			outface=any
+		fi
+		
+		if [ ! -z "${physinnot}" ]
+		then
+			local inph=
+			for inph in ${physin}
+			do
+				iptables ${table} -A "${negative_chain}" -m physdev --physdev-in "${inph}" -j RETURN
+			done
+			physinnot=
+			physin=any
+		fi
+	
+		if [ ! -z "${physoutnot}" ]
+		then
+			local outph=
+			for outph in ${physout}
+			do
+				iptables ${table} -A "${negative_chain}" -m physdev --physdev-out "${outph}" -j RETURN
+			done
+			physoutnot=
+			physout=any
 		fi
 		
 		if [ ! -z "${macnot}" ]
@@ -3101,122 +3181,152 @@ rule() {
 											;;
 									esac
 									
-									local sp=
-									for sp in ${sport}
+									local inph=
+									for inph in ${physin}
 									do
-										unset sp_arg
-										case ${sp} in
+										unset inph_arg
+										case ${inph} in
 											any|ANY)
-											;;
+												;;
 											
 											*)
-											local -a sp_arg=("--sport" "${sp}")
-											;;
+												local -a physdev_arg=("-m" "physdev")
+												local -a inph_arg=("--physdev-in" "${inph}")
+												;;
 										esac
 										
-										local dp=
-										for dp in ${dport}
+										local outph=
+										for outph in ${physout}
 										do
-											unset dp_arg
-											case ${dp} in
+											unset outph_arg
+											case ${outph} in
 												any|ANY)
 													;;
 												
 												*)
-													local -a dp_arg=("--dport" "${dp}")
+													local -a physdev_arg=("-m" "physdev")
+													local -a outph_arg=("--physdev-out" "${outph}")
 													;;
 											esac
-											
-											local mc=
-											for mc in ${mac}
+									
+											local sp=
+											for sp in ${sport}
 											do
-												unset mc_arg
-												case ${mc} in
+												unset sp_arg
+												case ${sp} in
 													any|ANY)
-														;;
+													;;
 													
 													*)
-														local -a mc_arg=("-m" "mac" "--mac-source" "${mc}")
-														;;
+													local -a sp_arg=("--sport" "${sp}")
+													;;
 												esac
 												
-												local s=
-												for s in ${src}
+												local dp=
+												for dp in ${dport}
 												do
-													unset s_arg
-													case ${s} in
+													unset dp_arg
+													case ${dp} in
 														any|ANY)
 															;;
 														
 														*)
-															local -a s_arg=("-s" "${s}")
+															local -a dp_arg=("--dport" "${dp}")
 															;;
 													esac
 													
-													local d=
-													for d in ${dst}
+													local mc=
+													for mc in ${mac}
 													do
-														unset d_arg
-														case ${d} in
+														unset mc_arg
+														case ${mc} in
 															any|ANY)
 																;;
 															
 															*)
-																local -a d_arg=("-d" "${d}")
+																local -a mc_arg=("-m" "mac" "--mac-source" "${mc}")
 																;;
 														esac
 														
-														unset state_arg
-														if [ ! -z "${state}" ]
-														then
-															local -a state_arg=("-m" "state" "${statenot}" "--state" "${state}")
-														fi
-														
-														unset limit_arg
-														if [ ! -z "${limit}" ]
-														then
-															local -a limit_arg=("-m" "limit" "--limit" "${limit}" "--limit-burst" "${burst}")
-														fi
-														
-														unset iplimit_arg
-														if [ ! -z "${iplimit}" ]
-														then
-															local -a iplimit_arg=("-m" "iplimit" "--iplimit-above" "${iplimit}" "--iplimit-mask" "${iplimit_mask}")
-														fi
-														
-														declare -a basecmd=("${inf_arg[@]}" "${outf_arg[@]}" "${limit_arg[@]}" "${iplimit_arg[@]}" "${proto_arg[@]}" "${s_arg[@]}" "${sp_arg[@]}" "${d_arg[@]}" "${dp_arg[@]}" "${owner_arg[@]}" "${uid_arg[@]}" "${gid_arg[@]}" "${pid_arg[@]}" "${sid_arg[@]}" "${cmd_arg[@]}" "${state_arg[@]}" "${mc_arg[@]}")
-														
-														case "${log}" in
-															'')
-																;;
+														local s=
+														for s in ${src}
+														do
+															unset s_arg
+															case ${s} in
+																any|ANY)
+																	;;
+																
+																*)
+															local -a s_arg=("-s" "${s}")
+															;;
+															esac
 															
-															limit)
-																iptables ${table} -A "${chain}" "${basecmd[@]}" ${custom} -m limit --limit "${FIREHOL_LOG_FREQUENCY}" --limit-burst "${FIREHOL_LOG_BURST}" -j LOG ${FIREHOL_LOG_OPTIONS} --log-level "${loglevel}" --log-prefix="${logtxt}:"
-																;;
+															local d=
+															for d in ${dst}
+															do
+																unset d_arg
+																case ${d} in
+																	any|ANY)
+																		;;
+																	
+																	*)
+																		local -a d_arg=("-d" "${d}")
+																		;;
+																esac
 																
-															normal)
-																iptables ${table} -A "${chain}" "${basecmd[@]}" ${custom} -j LOG ${FIREHOL_LOG_OPTIONS} --log-level "${loglevel}" --log-prefix="${logtxt}:"
-																;;
+																unset state_arg
+																if [ ! -z "${state}" ]
+																then
+																	local -a state_arg=("-m" "state" "${statenot}" "--state" "${state}")
+																fi
 																
-															*)
-																error "Unknown log value '${log}'."
-																;;
-														esac
-													
-														rule_action_param "${action}" "${pr}" "${action_param[@]}" -- ${table} -A "${chain}" "${basecmd[@]}" ${custom}
-													done
-												done
-											done
-										done
-									done
-								done
-							done
-						done
-					done
-				done
-			done
-		done
-	done
+																unset limit_arg
+																if [ ! -z "${limit}" ]
+																then
+																	local -a limit_arg=("-m" "limit" "--limit" "${limit}" "--limit-burst" "${burst}")
+																fi
+																
+																unset iplimit_arg
+																if [ ! -z "${iplimit}" ]
+																then
+																	local -a iplimit_arg=("-m" "iplimit" "--iplimit-above" "${iplimit}" "--iplimit-mask" "${iplimit_mask}")
+																fi
+																
+																declare -a basecmd=("${inf_arg[@]}" "${outf_arg[@]}" "${physdev_arg[@]}" "${inph_arg[@]}" "${outph_arg[@]}" "${limit_arg[@]}" "${iplimit_arg[@]}" "${proto_arg[@]}" "${s_arg[@]}" "${sp_arg[@]}" "${d_arg[@]}" "${dp_arg[@]}" "${owner_arg[@]}" "${uid_arg[@]}" "${gid_arg[@]}" "${pid_arg[@]}" "${sid_arg[@]}" "${cmd_arg[@]}" "${state_arg[@]}" "${mc_arg[@]}")
+																
+																case "${log}" in
+																	'')
+																		;;
+																	
+																	limit)
+																		iptables ${table} -A "${chain}" "${basecmd[@]}" ${custom} -m limit --limit "${FIREHOL_LOG_FREQUENCY}" --limit-burst "${FIREHOL_LOG_BURST}" -j LOG ${FIREHOL_LOG_OPTIONS} --log-level "${loglevel}" --log-prefix="${logtxt}:"
+																		;;
+																		
+																	normal)
+																		iptables ${table} -A "${chain}" "${basecmd[@]}" ${custom} -j LOG ${FIREHOL_LOG_OPTIONS} --log-level "${loglevel}" --log-prefix="${logtxt}:"
+																		;;
+																		
+																	*)
+																		error "Unknown log value '${log}'."
+																		;;
+																esac
+															
+																rule_action_param "${action}" "${pr}" "${action_param[@]}" -- ${table} -A "${chain}" "${basecmd[@]}" ${custom}
+															done # dst
+														done # src
+													done # mac
+												done # dport
+											done # sport
+										done # physout
+									done # physin
+								done # outface
+							done # inface
+						done # proto
+					done # cmd
+				done # sid
+			done # pid
+		done # gid
+	done # uid
 	
 	test ${failed} -gt 0 && error "There are ${failed} failed commands." && return 1
 	return 0
@@ -3715,7 +3825,7 @@ case "${arg}" in
 		else
 		
 		${CAT_CMD} <<EOF
-$Id: firehol.sh,v 1.160 2003/10/13 18:50:30 ktsaou Exp $
+$Id: firehol.sh,v 1.161 2003/10/16 22:05:22 ktsaou Exp $
 (C) Copyright 2003, Costa Tsaousis <costa@tsaousis.gr>
 FireHOL is distributed under GPL.
 
@@ -3901,7 +4011,7 @@ then
 	
 	${CAT_CMD} <<EOF
 
-$Id: firehol.sh,v 1.160 2003/10/13 18:50:30 ktsaou Exp $
+$Id: firehol.sh,v 1.161 2003/10/16 22:05:22 ktsaou Exp $
 (C) Copyright 2003, Costa Tsaousis <costa@tsaousis.gr>
 FireHOL is distributed under GPL.
 Home Page: http://firehol.sourceforge.net
@@ -4196,7 +4306,7 @@ then
 	
 	${CAT_CMD} >&2 <<EOF
 
-$Id: firehol.sh,v 1.160 2003/10/13 18:50:30 ktsaou Exp $
+$Id: firehol.sh,v 1.161 2003/10/16 22:05:22 ktsaou Exp $
 (C) Copyright 2003, Costa Tsaousis <costa@tsaousis.gr>
 FireHOL is distributed under GPL.
 Home Page: http://firehol.sourceforge.net
@@ -4279,7 +4389,7 @@ EOF
 	echo "# "
 
 	${CAT_CMD} <<EOF
-# $Id: firehol.sh,v 1.160 2003/10/13 18:50:30 ktsaou Exp $
+# $Id: firehol.sh,v 1.161 2003/10/16 22:05:22 ktsaou Exp $
 # (C) Copyright 2003, Costa Tsaousis <costa@tsaousis.gr>
 # FireHOL is distributed under GPL.
 # Home Page: http://firehol.sourceforge.net
