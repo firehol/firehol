@@ -1,4 +1,4 @@
-$Id: TODO,v 1.17 2004/10/31 20:24:12 ktsaou Exp $
+$Id: TODO,v 1.18 2004/12/03 20:12:21 ktsaou Exp $
 
 The following is a list of features I plan to add to FireHOL,
 assuming that my time permits and there is demand for them.
@@ -153,4 +153,11 @@ interface ...
 
 24. Add the ability to log only specific states, for example to
     log only new requests.
+
+25. Remove the need to have all the helpers at the top, and then
+    the interface/router blocks.
+
+26. Allow a firewall to be build in multiple runs of FireHOL, so
+    that we can split the configuration in multiple files and
+    process them individually.
 
