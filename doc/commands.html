@@ -50,6 +50,7 @@ automatically. FireHOL is extremely easy to understand, configure and audit.
 		<ul>
 			<li><a href="#blacklist">blacklist</a>, setup a unidirectional or bidirectional blacklist</li>
 			<li><a href="#dnat">dnat</a>, setup a Destination NAT rule for routed traffic</li>
+			<li><a href="#dscp">dscp</a>, set the DSCP field in the packet header, to a raw value or a DiffServ class</li>
 			<li><a href="#iptables">iptables</a>, add some custom iptables commands to the firewall
 			<li><a href="#mac">mac</a>, setup a source mac address with IP match</li>
 			<li><a href="#mark">mark</a>, mark traffic for traffic shapping tools</li>
@@ -58,6 +59,7 @@ automatically. FireHOL is extremely easy to understand, configure and audit.
 			<li><a href="#redirect">redirect</a>, setup a port redirection rule</li>
 			<li><a href="#snat">snat</a>, setup a Source NAT rule for routed traffic</li>
 			<li><a href="#tcpmss">tcpmss</a>, set the MSS of TCP SYN packets for routers</li>
+			<li><a href="#tos">tos</a>, set the Type of Service (TOS) field in the packet header</li>
 			<li><a href="#transparent_squid">transparent_squid</a>, setup a transparent squid proxy running on the firewall host</li>
 			<li><a href="#version">version</a>, require a specific version of FireHOL
 		</ul>
@@ -77,26 +79,29 @@ automatically. FireHOL is extremely easy to understand, configure and audit.
 	</li>
 	<li><a href="#parameters">Optional Rule Parameters</a>
 		<ul>
-			<li><a href="#src">src</a>, set the source of traffic</li>
-			<li><a href="#dst">dst</a>, set the destination of traffic</li>
-			<li><a href="#inface">inface</a>, set the network interface traffic is received via</li>
-			<li><a href="#outface">outface</a>, set the network interface traffic is send via</li>
-			<li><a href="#physin">physin</a>, set the physical network interface (for bridges) traffic is received via</li>
-			<li><a href="#physout">physout</a>, set the physical network interface (for bridges) traffic is send via</li>
-			<li><a href="#custom">custom</a>, pass a few custom parameters to the generated iptables
-			statements</li>
+			<li><a href="#src">src</a>, match the source of traffic</li>
+			<li><a href="#dst">dst</a>, match the destination of traffic</li>
+			<li><a href="#inface">inface</a>, match the network interface traffic is received via</li>
+			<li><a href="#outface">outface</a>, match the network interface traffic is send via</li>
+			<li><a href="#physin">physin</a>, match the physical network interface (for bridges) traffic is received via</li>
+			<li><a href="#physout">physout</a>, match the physical network interface (for bridges) traffic is send via</li>
+			<li><a href="#custom">custom</a>, pass a few custom parameters to the generated iptables statements</li>
 			<li><a href="#log">log</a>, write something to the syslog when traffic is matched</li>
 			<li><a href="#loglimit">loglimit</a>, write (limited) something to the syslog when traffic is matched</li>
 			<li><a href="#proto">proto</a>, match a specific protocol</li>
 			<li><a href="#limit">limit</a>, limit the frequency traffic is matched</li>
-			<li><a href="#sport">sport</a>, set the source ports</li>
-			<li><a href="#dport">dport</a>, set the destination ports</li>
-			<li><a href="#uid">uid, user</a>, set the users sending this traffic</li>
-			<li><a href="#gid">gid, group</a>, set the user groups sending this traffic</li>
-			<li><a href="#pid">pid, process</a>, set the process IDs sending this traffic</li>
-			<li><a href="#sid">sid, session</a>, set the process session IDs sending this traffic</li>
-			<li><a href="#cmd">cmd, command</a>, set the command name sending this traffic</li>
+			<li><a href="#sport">sport</a>, match the source ports</li>
+			<li><a href="#dport">dport</a>, match the destination ports</li>
+			<li><a href="#uid">uid, user</a>, match the users sending this traffic</li>
+			<li><a href="#gid">gid, group</a>, match the user groups sending this traffic</li>
+			<li><a href="#pid">pid, process</a>, match the process IDs sending this traffic</li>
+			<li><a href="#sid">sid, session</a>, match the process session IDs sending this traffic</li>
+			<li><a href="#cmd">cmd, command</a>, match the command name sending this traffic</li>
 			<li><a href="#mac_param">mac</a>, match the source MAC address of packets.</li>
+			<li><a href="#mark_param">mark</a>, match the MARK ID of packets.</li>
+			<li><a href="#tos_param">tos</a>, match the Type of Service (TOS) of packets.</li>
+			<li><a href="#dscp_param">dscp</a>, match the DSCP raw value or DiffServ class value of packets.</li>
+			
 		</ul>
 		&nbsp;
 	</li>
@@ -409,6 +414,39 @@ Subcommands must be given within <a href="#primary_commands">Primary commands</a
 	
 <hr noshade size=1 width="100%">
 	
+	<a name="dscp"><h3><b>dscp</b> <font color="red">&lt;NUMBER&gt;</font> <font color="red">&lt;WHERE&gt;</font> [optional rule parameters]</h3>
+	<br><h3><b>dscp</b> class <font color="red">&lt;CLASSID&gt;</font> <font color="red">&lt;WHERE&gt;</font> [optional rule parameters]</h3></a>
+	The <b>dscp</b> helper sets the DSCP field in the header of the packets matching the optional rule parameters.
+	
+	<H4>Parameters</H4>
+	<ul>
+		<li>	<b>NUMBER</b> is a decimal or hex (0xNN) number to set the DSCP field to.
+			<br>&nbsp;
+			</li>
+
+		<li>	<b>CLASSID</b> is any of the iptables supported DiffServ class values (EF, BE, CSxx, AFxx - check <b>iptables -j DSCP --help</b> for more information).
+			<br>&nbsp;
+			</li>
+
+		<li>	<b>WHERE</b> tells FireHOL where to search for the specific traffic to be marked.
+			<br>Currently, WHERE can be one of the build-in iptables chains attached to table <b>mangle</b>.
+			(for example: INPUT, FORWARD, OUTPUT, PREROUTING, POSTROUTING - case does matter here).
+			<br>&nbsp;
+			</li>
+			
+		<li>	<b>optional rule parameters</b> is a set of rules that allow further restriction of the traffic that
+			gets matched by this rule. See <a href="#parameters">Optional Rules Parameters</a> for more information.
+			<br>&nbsp;
+			</li>
+		</ul>
+	<br>Example 1: <b>dscp 32 OUTPUT</b>, will set the DSCP field to 32 of all packets sent by the local machine.
+	<br>Example 2: <b>dscp 0x20 FORWARD</b>, will set DCSP to 0x20 (32) of all packets passing through the local machine.
+	<br>Example 3: <b>dscp class EF FORWARD proto tcp dport 25 dst 1.1.1.1 src 2.2.2.2</b>, will set DSCP to DeffServ class EF
+	for all packets sent by 2.2.2.2, passing through the local machine and targeting port TCP/25 of host 1.1.1.1.
+	<p>
+
+<hr noshade size=1 width="100%">
+	
 	<a name="iptables"><h3><b>iptables</b> <font color="red">&lt;arguments&gt;</font></h3></a>
 	<H4>Description</H4>
 	The <b>iptables</b> command passes all its arguments to the real iptables command, during run-time.
@@ -632,6 +670,35 @@ Subcommands must be given within <a href="#primary_commands">Primary commands</a
 	<p>
 	Example 1: <b>tcpmss auto</b>
 	<br>Example 2: <b>tcpmss 500</b>
+	<p>
+
+<hr noshade size=1 width="100%">
+	
+	<a name="tos"><h3><b>tos</b> <font color="red">&lt;NUMBER&gt;</font> <font color="red">&lt;WHERE&gt;</font> [optional rule parameters]</h3></a>
+	The <b>tos</b> helper sets the Type of Service (TOS) in packets.
+	
+	<H4>Parameters</H4>
+	<ul>
+		<li>	<b>NUMBER</b> is a number to set TOS to. FireHOL supports decimal numbers, hex numbers and the
+			descriptive values iptables supports. For more information see <b>iptables -j TOS --help</b>.
+			<br>&nbsp;
+			</li>
+
+		<li>	<b>WHERE</b> tells FireHOL where to search for the specific traffic to be marked.
+			<br>Currently, WHERE can be one of the build-in iptables chains attached to table <b>mangle</b>.
+			(for example: INPUT, FORWARD, OUTPUT, PREROUTING, POSTROUTING - case does matter here).
+			<br>&nbsp;
+			</li>
+			
+		<li>	<b>optional rule parameters</b> is a set of rules that allow further restriction of the traffic that
+			gets matched by this rule. See <a href="#parameters">Optional Rules Parameters</a> for more information.
+			<br>&nbsp;
+			</li>
+		</ul>
+	<br>Example 1: <b>tos 16 OUTPUT</b>, will set TOS to 16 for all packets sent by the local machine.
+	<br>Example 2: <b>tos 0x10 FORWARD</b>, will set TOS to 0x10 (16) for all packets passing through the local machine.
+	<br>Example 3: <b>tos Maximize-Throughput FORWARD proto tcp dport 25 dst 1.1.1.1 src 2.2.2.2</b>, will set TOS to Maximize-Throughput (8)
+	for all packets sent by 2.2.2.2, passing through the local machine and targeting port TCP/25 of host 1.1.1.1.
 	<p>
 
 <hr noshade size=1 width="100%">
@@ -1199,6 +1266,34 @@ about optional rule parameters that should not be used in certain commands.
 	(either address should be matched), while negative expressions are ANDed (none of the addresses should be matched).
 	<p>
 
+<hr noshade size=1 width="100%">
+
+	<a name="mark_param"><h3><b>mark</b> [not] <font color="red">&lt;ID&gt;</font></h3></a>
+	<H4>Description</H4>
+	<b>mark</b> matches the traffic against the given IDs. This command accepts anything iptables accepts as MARKs (see <b>iptables -m mark --help</b>).
+	<p>
+	More than one MARK IDs can be given if separated by spaces and enclosed in quotes as a single argument to the mark parameter.
+	<p>
+
+<hr noshade size=1 width="100%">
+
+	<a name="tos_param"><h3><b>tos</b> [not] <font color="red">&lt;ID&gt;</font></h3></a>
+	<H4>Description</H4>
+	<b>tos</b> matches the traffic against the given IDs. This command accepts anything iptables accepts as TOS (see <b>iptables -m tos --help</b>).
+	<p>
+	More than one IDs can be given if separated by spaces and enclosed in quotes as a single argument to the tos parameter.
+	<p>
+
+<hr noshade size=1 width="100%">
+
+	<a name="dscp_param"><h3><b>dscp</b> [not] <font color="red">&lt;ID&gt;</font></h3>
+	<br><h3><b>dscp</b> [not] class <font color="red">&lt;ID&gt;</font></h3></a>
+	<H4>Description</H4>
+	<b>dscp</b> matches the traffic against the given DSCP IDs. This command accepts anything iptables accepts as DSCP (see <b>iptables -m dscp --help</b>).
+	<p>
+	More than one IDs can be given if separated by spaces and enclosed in quotes as a single argument.
+	<p>
+
 <table border=0 cellpadding=10 cellspacing=0 width="100%"><tr bgcolor="#777777"><td align=center><font color="white"><b><big><a name="control_variables">Variables that control FireHOL</a></td</tr></table>
 <p>
 	<a name="DEFAULT_INTERFACE_POLICY"><h3><b>DEFAULT_INTERFACE_POLICY</b></h3></a>
@@ -1437,7 +1532,7 @@ about optional rule parameters that should not be used in certain commands.
 <tr><td align=center valign=middle>
 	<A href="http://sourceforge.net"><IMG src="http://sourceforge.net/sflogo.php?group_id=58425&amp;type=5" width="210" height="62" border="0" alt="SourceForge Logo"></A>
 </td><td align=center valign=middle>
-	<small>$Id: commands.html,v 1.53 2004/10/30 22:04:17 ktsaou Exp $</small>
+	<small>$Id: commands.html,v 1.54 2004/10/31 02:21:02 ktsaou Exp $</small>
 	<p>
 	<b>FireHOL</b>, a firewall for humans...<br>
 	&copy; Copyright 2003

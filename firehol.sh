@@ -10,7 +10,7 @@
 #
 # config: /etc/firehol/firehol.conf
 #
-# $Id: firehol.sh,v 1.211 2004/10/30 23:03:57 ktsaou Exp $
+# $Id: firehol.sh,v 1.212 2004/10/31 02:21:02 ktsaou Exp $
 #
 
 # Remember who you are.
@@ -1925,6 +1925,63 @@ mark() {
 	return 0
 }
 
+tos_count=0
+tos() {
+	work_realcmd_helper $FUNCNAME "$@"
+	
+	set_work_function -ne "Initializing $FUNCNAME"
+	
+	require_work clear || ( error "$FUNCNAME cannot be used in '${work_cmd}'. Put it before any '${work_cmd}' definition."; return 1 )
+	
+	local num="${1}"; shift
+	local where="${1}"; shift
+	test -z "${where}" && where=OUTPUT
+	
+	tos_count=$[tos_count + 1]
+	
+	set_work_function "Setting up rules for TOS"
+	
+	create_chain mangle "tos.${tos_count}" "${where}" "$@" || return 1
+	iptables -t mangle -A "tos.${tos_count}" -j TOS --set-tos ${num}
+	
+	return 0
+}
+
+dscp_count=0
+dscp() {
+	work_realcmd=($FUNCNAME "$@")
+	
+	set_work_function -ne "Initializing $FUNCNAME"
+	
+	require_work clear || ( error "$FUNCNAME cannot be used in '${work_cmd}'. Put it before any '${work_cmd}' definition."; return 1 )
+	
+	local value="${1}"; shift
+	local class=""
+	
+	if [ "${value}" = "class" ]
+	then
+		local value=""
+		local class="${1}"; shift
+	fi
+	
+	local where="${1}"; shift
+	test -z "${where}" && where=OUTPUT
+	
+	dscp_count=$[dscp_count + 1]
+	
+	set_work_function "Setting up rules for setting DSCP"
+	
+	create_chain mangle "dscp.${dscp_count}" "${where}" "$@" || return 1
+	
+	if [ ! -z "${class}" ]
+	then
+		iptables -t mangle -A "dscp.${dscp_count}" -j DSCP --set-dscp-class ${class}
+	else
+		iptables -t mangle -A "dscp.${dscp_count}" -j DSCP --set-dscp ${value}
+	fi
+	
+	return 0
+}
 
 tcpmss() {
 	work_realcmd_helper $FUNCNAME "$@"
@@ -2938,6 +2995,16 @@ rule() {
 	local cmd=any
 	local cmdnot=
 	
+	local mark=any
+	local marknot=
+	
+	local dscp=any
+	local dscptype=
+	local despnot=
+	
+	local tos=any
+	local tosnot=
+	
 	local log=
 	local logtxt=
 	local loglevel=
@@ -3246,6 +3313,52 @@ rule() {
 				shift
 				;;
 				
+			mark|MARK)
+				shift
+				marknot=
+				if [ "${1}" = "not" -o "${1}" = "NOT" ]
+				then
+					shift
+					marknot="!"
+				fi
+				test ${softwarnings} -eq 1 -a ! "${mark}" = "any" && softwarning "Overwritting param: mark '${mark}' becomes '${1}'"
+				mark="${1}"
+				shift
+				;;
+				
+			tos|TOS)
+				shift
+				tosnot=
+				if [ "${1}" = "not" -o "${1}" = "NOT" ]
+				then
+					shift
+					tosnot="!"
+				fi
+				test ${softwarnings} -eq 1 -a ! "${tos}" = "any" && softwarning "Overwritting param: tos '${tos}' becomes '${1}'"
+				tos="${1}"
+				shift
+				;;
+				
+			dscp|DSCP)
+				shift
+				dscpnot=
+				if [ "${1}" = "not" -o "${1}" = "NOT" ]
+				then
+					shift
+					dscpnot="!"
+				fi
+				test ${softwarnings} -eq 1 -a ! "${dscp}" = "any" && softwarning "Overwritting param: dscp '${dscp}' becomes '${1}'"
+				dscp="${1}"
+				shift
+				
+				if [ "${dscp}" = "class" ]
+				then
+					dscpclass="-class"
+					dscp="${1}"
+					shift
+				fi
+				;;
+				
 			action|ACTION)
 				test ${softwarnings} -eq 1 -a ! -z "${action}" && softwarning "Overwritting param: action '${action}' becomes '${2}'"
 				action="${2}"
@@ -3393,6 +3506,29 @@ rule() {
 						if [ "${1}" = "to" ]
 						then
 							local -a action_param=("--set-mark" "${2}")
+							shift 2
+						else
+							error "${action} requires a 'to' argument"
+							return 1
+						fi
+						if [ ! "A${table}" = "A-t mangle" ]
+						then
+							error "${action} must on a the 'mangle' table."
+							return 1
+						fi
+						;;
+						
+					dscp|DSCP)
+						action="DSCP"
+						if [ "${1}" = "to" ]
+						then
+							if [ "${2}" = "class" ]
+							then
+								local -a action_param=("--set-dscp-class" "${2}")
+								shift
+							else
+								local -a action_param=("--set-dscp" "${2}")
+							fi
 							shift 2
 						else
 							error "${action} requires a 'to' argument"
@@ -3647,7 +3783,7 @@ rule() {
 	
 	
 	# ignore 'statenot' since it is negated in the positive rules
-	if [ ! -z "${infacenot}${outfacenot}${physinnot}${physoutnot}${macnot}${srcnot}${dstnot}${sportnot}${dportnot}${protonot}${uidnot}${gidnot}${pidnot}${sidnot}${cmdnot}" ]
+	if [ ! -z "${infacenot}${outfacenot}${physinnot}${physoutnot}${macnot}${srcnot}${dstnot}${sportnot}${dportnot}${protonot}${uidnot}${gidnot}${pidnot}${sidnot}${cmdnot}${marknot}${tosnot}${dscpnot}" ]
 	then
 		if [ ${action_is_chain} -eq 1 ]
 		then
@@ -3864,6 +4000,40 @@ rule() {
 			cmd=any
 		fi
 		
+		if [ ! -z "${marknot}" ]
+		then
+			local tmark=
+			for tmark in ${mark}
+			do
+				iptables ${table} -A "${negative_chain}" -m mark --mark "${tmark}" -j RETURN
+			done
+			marknot=
+			mark=any
+		fi
+		
+		if [ ! -z "${tosnot}" ]
+		then
+			local ttos=
+			for ttos in ${tos}
+			do
+				iptables ${table} -A "${negative_chain}" -m tos --tos "${ttos}" -j RETURN
+			done
+			tosnot=
+			tos=any
+		fi
+		
+		if [ ! -z "${dscpnot}" ]
+		then
+			local tdscp=
+			for tdscp in ${dscp}
+			do
+				iptables ${table} -A "${negative_chain}" -m dscp --dscp${dscptype} "${tdscp}" -j RETURN
+			done
+			dscp=any
+			dscpnot=
+		fi
+		
+		
 		# in case this is temporary chain we created for the negative expression,
 		# just make it have the final action of the rule.
 		if [ ! -z "${negative_action}" ]
@@ -3892,6 +4062,7 @@ rule() {
 	# ----------------------------------------------------------------------------------
 	# Process the positive rules
 	
+	# uid
 	local tuid=
 	for tuid in ${uid}
 	do
@@ -3908,259 +4079,329 @@ rule() {
 				;;
 		esac
 	
-		local tgid=
-		for tgid in ${gid}
-		do
-			local -a gid_arg=()
-			
-			case ${tgid} in
-				any|ANY)
-					;;
-				
-				*)
-					local -a owner_arg=("-m" "owner")
-					local -a gid_arg=("--gid-owner" "${tgid}")
-					;;
-			esac
+	# gid
+	local tgid=
+	for tgid in ${gid}
+	do
+		local -a gid_arg=()
 		
-			local tpid=
-			for tpid in ${pid}
-			do
-				local -a pid_arg=()
-				
-				case ${tpid} in
-					any|ANY)
-						;;
-					
-					*)
-						local -a owner_arg=("-m" "owner")
-						local -a pid_arg=("--pid-owner" "${tpid}")
-						;;
-				esac
+		case ${tgid} in
+			any|ANY)
+				;;
 			
-				local tsid=
-				for tsid in ${sid}
-				do
-					local -a sid_arg=()
-					
-					case ${tsid} in
-						any|ANY)
-							;;
-						
-						*)
-							local -a owner_arg=("-m" "owner")
-							local -a sid_arg=("--sid-owner" "${tsid}")
-							;;
-					esac
-					
-					local tcmd=
-					for tcmd in ${cmd}
-					do
-						local -a cmd_arg=()
-						
-						case ${tcmd} in
-							any|ANY)
-								;;
-							
-							*)
-								local -a owner_arg=("-m" "owner")
-								local -a cmd_arg=("--cmd-owner" "${tcmd}")
-								;;
-						esac
-					
-						local pr=
-						for pr in ${proto}
-						do
-							local -a proto_arg=()
-							
-							case ${pr} in
-								any|ANY)
-									;;
-								
-								*)
-									local -a proto_arg=("-p" "${pr}")
-									;;
-							esac
-								
-							local inf=
-							for inf in ${inface}
-							do
-								local -a inf_arg=()
-								case ${inf} in
-									any|ANY)
-										;;
-									
-									*)
-										local -a inf_arg=("-i" "${inf}")
-										;;
-								esac
-								
-								local outf=
-								for outf in ${outface}
-								do
-									local -a outf_arg=()
-									case ${outf} in
-										any|ANY)
-											;;
-										
-										*)
-											local -a outf_arg=("-o" "${outf}")
-											;;
-									esac
-									
-									local inph=
-									for inph in ${physin}
-									do
-										local -a inph_arg=()
-										case ${inph} in
-											any|ANY)
-												;;
-											
-											*)
-												local -a physdev_arg=("-m" "physdev")
-												local -a inph_arg=("--physdev-in" "${inph}")
-												;;
-										esac
-										
-										local outph=
-										for outph in ${physout}
-										do
-											local -a outph_arg=()
-											case ${outph} in
-												any|ANY)
-													;;
-												
-												*)
-													local -a physdev_arg=("-m" "physdev")
-													local -a outph_arg=("--physdev-out" "${outph}")
-													;;
-											esac
-									
-											local sp=
-											for sp in ${sport}
-											do
-												local -a sp_arg=()
-												case ${sp} in
-													any|ANY)
-													;;
-													
-													*)
-													local -a sp_arg=("--sport" "${sp}")
-													;;
-												esac
-												
-												local dp=
-												for dp in ${dport}
-												do
-													local -a dp_arg=()
-													case ${dp} in
-														any|ANY)
-															;;
-														
-														*)
-															local -a dp_arg=("--dport" "${dp}")
-															;;
-													esac
-													
-													local mc=
-													for mc in ${mac}
-													do
-														local -a mc_arg=()
-														case ${mc} in
-															any|ANY)
-																;;
-															
-															*)
-																local -a mc_arg=("-m" "mac" "--mac-source" "${mc}")
-																;;
-														esac
-														
-														local s=
-														for s in ${src}
-														do
-															local -a s_arg=()
-															case ${s} in
-																any|ANY)
-																	;;
-																
-																*)
-															local -a s_arg=("-s" "${s}")
-															;;
-															esac
-															
-															local d=
-															for d in ${dst}
-															do
-																local -a d_arg=()
-																case ${d} in
-																	any|ANY)
-																		;;
-																	
-																	*)
-																		local -a d_arg=("-d" "${d}")
-																		;;
-																esac
-																
-																local -a state_arg=()
-																if [ ! -z "${state}" ]
-																then
-																	local -a state_arg=("-m" "state" "${statenot}" "--state" "${state}")
-																fi
-																
-																local -a limit_arg=()
-																if [ ! -z "${limit}" ]
-																then
-																	local -a limit_arg=("-m" "limit" "--limit" "${limit}" "--limit-burst" "${burst}")
-																fi
-																
-																local -a iplimit_arg=()
-																if [ ! -z "${iplimit}" ]
-																then
-																	local -a iplimit_arg=("-m" "iplimit" "--iplimit-above" "${iplimit}" "--iplimit-mask" "${iplimit_mask}")
-																fi
-																
-																declare -a basecmd=("${inf_arg[@]}" "${outf_arg[@]}" "${physdev_arg[@]}" "${inph_arg[@]}" "${outph_arg[@]}" "${limit_arg[@]}" "${iplimit_arg[@]}" "${proto_arg[@]}" "${s_arg[@]}" "${sp_arg[@]}" "${d_arg[@]}" "${dp_arg[@]}" "${owner_arg[@]}" "${uid_arg[@]}" "${gid_arg[@]}" "${pid_arg[@]}" "${sid_arg[@]}" "${cmd_arg[@]}" "${state_arg[@]}" "${mc_arg[@]}")
-																
-																local -a logopts_arg=()
-																if [ "${FIREHOL_LOG_MODE}" = "ULOG" ]
-																then
-																	local -a logopts_arg=("--ulog-prefix='${logtxt}:'")
-																else
-																	local -a logopts_arg=("--log-level" "${loglevel}" "--log-prefix='${logtxt}:'")
-																fi
-																
-																case "${log}" in
-																	'')
-																		;;
-																	
-																	limit)
-																		iptables ${table} -A "${chain}" "${basecmd[@]}" ${custom} -m limit --limit "${FIREHOL_LOG_FREQUENCY}" --limit-burst "${FIREHOL_LOG_BURST}" -j ${FIREHOL_LOG_MODE} ${FIREHOL_LOG_OPTIONS} "${logopts_arg[@]}"
-																		;;
-																		
-																	normal)
-																		iptables ${table} -A "${chain}" "${basecmd[@]}" ${custom}  -j ${FIREHOL_LOG_MODE} ${FIREHOL_LOG_OPTIONS} "${logopts_arg[@]}"
-																		;;
-																		
-																	*)
-																		error "Unknown log value '${log}'."
-																		;;
-																esac
-																
-																rule_action_param "${action}" "${pr}" "${statenot}" "${state}" "${table}" "${action_param[@]}" -- ${table} -A "${chain}" "${basecmd[@]}" ${custom}
-															done # dst
-														done # src
-													done # mac
-												done # dport
-											done # sport
-										done # physout
-									done # physin
-								done # outface
-							done # inface
-						done # proto
-					done # cmd
-				done # sid
-			done # pid
-		done # gid
+			*)
+				local -a owner_arg=("-m" "owner")
+				local -a gid_arg=("--gid-owner" "${tgid}")
+				;;
+		esac
+	
+	# pid
+	local tpid=
+	for tpid in ${pid}
+	do
+		local -a pid_arg=()
+		
+		case ${tpid} in
+			any|ANY)
+				;;
+			
+			*)
+				local -a owner_arg=("-m" "owner")
+				local -a pid_arg=("--pid-owner" "${tpid}")
+				;;
+		esac
+	
+	# sid
+	local tsid=
+	for tsid in ${sid}
+	do
+		local -a sid_arg=()
+		
+		case ${tsid} in
+			any|ANY)
+				;;
+			
+			*)
+				local -a owner_arg=("-m" "owner")
+				local -a sid_arg=("--sid-owner" "${tsid}")
+				;;
+		esac
+	
+	# cmd
+	local tcmd=
+	for tcmd in ${cmd}
+	do
+		local -a cmd_arg=()
+		
+		case ${tcmd} in
+			any|ANY)
+				;;
+			
+			*)
+				local -a owner_arg=("-m" "owner")
+				local -a cmd_arg=("--cmd-owner" "${tcmd}")
+				;;
+		esac
+	
+	# mark
+	local tmark=
+	for tmark in ${mark}
+	do
+		local -a mark_arg=()
+		
+		case ${tmark} in
+			any|ANY)
+				;;
+			
+			*)
+				local -a mark_arg=("-m" "mark" "--mark" "${tmark}")
+				;;
+		esac
+	
+	# tos
+	local ttos=
+	for ttos in ${tos}
+	do
+		local -a tos_arg=()
+		
+		case ${ttos} in
+			any|ANY)
+				;;
+			
+			*)
+				local -a tos_arg=("-m" "tos" "--tos" "${ttos}")
+				;;
+		esac
+	
+	# dscp
+	local tdscp=
+	for tdscp in ${dscp}
+	do
+		local -a dscp_arg=()
+		
+		case ${tdscp} in
+			any|ANY)
+				;;
+			
+			*)
+				local -a dscp_arg=("-m" "dscp" "--dscp${dscptype}" "${tdscp}")
+				;;
+		esac
+	
+	# proto
+	local pr=
+	for pr in ${proto}
+	do
+		local -a proto_arg=()
+		
+		case ${pr} in
+			any|ANY)
+				;;
+			
+			*)
+				local -a proto_arg=("-p" "${pr}")
+				;;
+		esac
+	
+	# inface
+	local inf=
+	for inf in ${inface}
+	do
+		local -a inf_arg=()
+		case ${inf} in
+			any|ANY)
+				;;
+			
+			*)
+				local -a inf_arg=("-i" "${inf}")
+				;;
+		esac
+	
+	# outface
+	local outf=
+	for outf in ${outface}
+	do
+		local -a outf_arg=()
+		case ${outf} in
+			any|ANY)
+				;;
+			
+			*)
+				local -a outf_arg=("-o" "${outf}")
+				;;
+		esac
+	
+	# physin
+	local inph=
+	for inph in ${physin}
+	do
+		local -a inph_arg=()
+		case ${inph} in
+			any|ANY)
+				;;
+			
+			*)
+				local -a physdev_arg=("-m" "physdev")
+				local -a inph_arg=("--physdev-in" "${inph}")
+				;;
+		esac
+	
+	# physout
+	local outph=
+	for outph in ${physout}
+	do
+		local -a outph_arg=()
+		case ${outph} in
+			any|ANY)
+				;;
+			
+			*)
+				local -a physdev_arg=("-m" "physdev")
+				local -a outph_arg=("--physdev-out" "${outph}")
+				;;
+		esac
+	
+	# sport
+	local sp=
+	for sp in ${sport}
+	do
+		local -a sp_arg=()
+		case ${sp} in
+			any|ANY)
+				;;
+			
+			*)
+				local -a sp_arg=("--sport" "${sp}")
+				;;
+		esac
+	
+	# dport
+	local dp=
+	for dp in ${dport}
+	do
+		local -a dp_arg=()
+		case ${dp} in
+			any|ANY)
+				;;
+			
+			*)
+				local -a dp_arg=("--dport" "${dp}")
+				;;
+		esac
+	
+	# mac
+	local mc=
+	for mc in ${mac}
+	do
+		local -a mc_arg=()
+		case ${mc} in
+			any|ANY)
+				;;
+			
+			*)
+				local -a mc_arg=("-m" "mac" "--mac-source" "${mc}")
+				;;
+		esac
+	
+	# src
+	local s=
+	for s in ${src}
+	do
+		local -a s_arg=()
+		case ${s} in
+			any|ANY)
+				;;
+			
+			*)
+				local -a s_arg=("-s" "${s}")
+				;;
+		esac
+	
+	# dst
+	local d=
+	for d in ${dst}
+	do
+		local -a d_arg=()
+		case ${d} in
+			any|ANY)
+				;;
+			
+			*)
+				local -a d_arg=("-d" "${d}")
+				;;
+		esac
+	
+	# state
+	local -a state_arg=()
+	if [ ! -z "${state}" ]
+	then
+		local -a state_arg=("-m" "state" "${statenot}" "--state" "${state}")
+	fi
+	
+	# limit
+	local -a limit_arg=()
+	if [ ! -z "${limit}" ]
+	then
+		local -a limit_arg=("-m" "limit" "--limit" "${limit}" "--limit-burst" "${burst}")
+	fi
+	
+	# iplimit
+	local -a iplimit_arg=()
+	if [ ! -z "${iplimit}" ]
+	then
+		local -a iplimit_arg=("-m" "iplimit" "--iplimit-above" "${iplimit}" "--iplimit-mask" "${iplimit_mask}")
+	fi
+	
+	# build the command
+	declare -a basecmd=("${inf_arg[@]}" "${outf_arg[@]}" "${physdev_arg[@]}" "${inph_arg[@]}" "${outph_arg[@]}" "${limit_arg[@]}" "${iplimit_arg[@]}" "${proto_arg[@]}" "${s_arg[@]}" "${sp_arg[@]}" "${d_arg[@]}" "${dp_arg[@]}" "${owner_arg[@]}" "${uid_arg[@]}" "${gid_arg[@]}" "${pid_arg[@]}" "${sid_arg[@]}" "${cmd_arg[@]}" "${state_arg[@]}" "${mc_arg[@]}" "${mark_arg[@]}" "${tos_arg[@]}" "${dscp_arg[@]}")
+	
+	# log mode selection
+	local -a logopts_arg=()
+	if [ "${FIREHOL_LOG_MODE}" = "ULOG" ]
+	then
+		local -a logopts_arg=("--ulog-prefix='${logtxt}:'")
+	else
+		local -a logopts_arg=("--log-level" "${loglevel}" "--log-prefix='${logtxt}:'")
+	fi
+	
+	# log / loglimit
+	case "${log}" in
+		'')
+			;;
+		
+		limit)
+			iptables ${table} -A "${chain}" "${basecmd[@]}" ${custom} -m limit --limit "${FIREHOL_LOG_FREQUENCY}" --limit-burst "${FIREHOL_LOG_BURST}" -j ${FIREHOL_LOG_MODE} ${FIREHOL_LOG_OPTIONS} "${logopts_arg[@]}"
+			;;
+			
+		normal)
+			iptables ${table} -A "${chain}" "${basecmd[@]}" ${custom}  -j ${FIREHOL_LOG_MODE} ${FIREHOL_LOG_OPTIONS} "${logopts_arg[@]}"
+			;;
+			
+		*)
+			error "Unknown log value '${log}'."
+			;;
+	esac
+	
+	# do it!
+	rule_action_param "${action}" "${pr}" "${statenot}" "${state}" "${table}" "${action_param[@]}" -- ${table} -A "${chain}" "${basecmd[@]}" ${custom}
+	
+	done # dst
+	done # src
+	done # mac
+	done # dport
+	done # sport
+	done # physout
+	done # physin
+	done # outface
+	done # inface
+	done # proto
+	done # dscp
+	done # tos
+	done # mark
+	done # cmd
+	done # sid
+	done # pid
+	done # gid
 	done # uid
 	
 	test ${failed} -gt 0 && error "There are ${failed} failed commands." && return 1
@@ -4707,7 +4948,7 @@ case "${arg}" in
 		else
 		
 		${CAT_CMD} <<EOF
-$Id: firehol.sh,v 1.211 2004/10/30 23:03:57 ktsaou Exp $
+$Id: firehol.sh,v 1.212 2004/10/31 02:21:02 ktsaou Exp $
 (C) Copyright 2003, Costa Tsaousis <costa@tsaousis.gr>
 FireHOL is distributed under GPL.
 
@@ -4893,7 +5134,7 @@ then
 	
 	${CAT_CMD} <<EOF
 
-$Id: firehol.sh,v 1.211 2004/10/30 23:03:57 ktsaou Exp $
+$Id: firehol.sh,v 1.212 2004/10/31 02:21:02 ktsaou Exp $
 (C) Copyright 2003, Costa Tsaousis <costa@tsaousis.gr>
 FireHOL is distributed under GPL.
 Home Page: http://firehol.sourceforge.net
@@ -5187,7 +5428,7 @@ then
 	
 	${CAT_CMD} >&2 <<EOF
 
-$Id: firehol.sh,v 1.211 2004/10/30 23:03:57 ktsaou Exp $
+$Id: firehol.sh,v 1.212 2004/10/31 02:21:02 ktsaou Exp $
 (C) Copyright 2003, Costa Tsaousis <costa@tsaousis.gr>
 FireHOL is distributed under GPL.
 Home Page: http://firehol.sourceforge.net
@@ -5270,7 +5511,7 @@ EOF
 	echo "# "
 
 	${CAT_CMD} <<EOF
-# $Id: firehol.sh,v 1.211 2004/10/30 23:03:57 ktsaou Exp $
+# $Id: firehol.sh,v 1.212 2004/10/31 02:21:02 ktsaou Exp $
 # (C) Copyright 2003, Costa Tsaousis <costa@tsaousis.gr>
 # FireHOL is distributed under GPL.
 # Home Page: http://firehol.sourceforge.net
