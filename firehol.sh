@@ -10,7 +10,7 @@
 #
 # config: /etc/firehol/firehol.conf
 #
-# $Id: firehol.sh,v 1.184 2004/04/21 21:35:29 ktsaou Exp $
+# $Id: firehol.sh,v 1.185 2004/04/21 21:48:32 ktsaou Exp $
 #
 
 # Remember who you are.
@@ -1922,6 +1922,11 @@ then
 elif [ -f "/lib/modules/`${UNAME_CMD} -r`/build/.config" ]
 then
 	KERNEL_CONFIG="/lib/modules/`${UNAME_CMD} -r`/build/.config"
+	. "${KERNEL_CONFIG}"
+	
+elif [ -f "/boot/config-`${UNAME_CMD} -r`" ]
+then
+	KERNEL_CONFIG="/boot/config-`${UNAME_CMD} -r`"
 	. "${KERNEL_CONFIG}"
 	
 elif [ -f "/usr/src/linux/.config" ]
@@ -4093,7 +4098,7 @@ case "${arg}" in
 		else
 		
 		${CAT_CMD} <<EOF
-$Id: firehol.sh,v 1.184 2004/04/21 21:35:29 ktsaou Exp $
+$Id: firehol.sh,v 1.185 2004/04/21 21:48:32 ktsaou Exp $
 (C) Copyright 2003, Costa Tsaousis <costa@tsaousis.gr>
 FireHOL is distributed under GPL.
 
@@ -4279,7 +4284,7 @@ then
 	
 	${CAT_CMD} <<EOF
 
-$Id: firehol.sh,v 1.184 2004/04/21 21:35:29 ktsaou Exp $
+$Id: firehol.sh,v 1.185 2004/04/21 21:48:32 ktsaou Exp $
 (C) Copyright 2003, Costa Tsaousis <costa@tsaousis.gr>
 FireHOL is distributed under GPL.
 Home Page: http://firehol.sourceforge.net
@@ -4573,7 +4578,7 @@ then
 	
 	${CAT_CMD} >&2 <<EOF
 
-$Id: firehol.sh,v 1.184 2004/04/21 21:35:29 ktsaou Exp $
+$Id: firehol.sh,v 1.185 2004/04/21 21:48:32 ktsaou Exp $
 (C) Copyright 2003, Costa Tsaousis <costa@tsaousis.gr>
 FireHOL is distributed under GPL.
 Home Page: http://firehol.sourceforge.net
@@ -4656,7 +4661,7 @@ EOF
 	echo "# "
 
 	${CAT_CMD} <<EOF
-# $Id: firehol.sh,v 1.184 2004/04/21 21:35:29 ktsaou Exp $
+# $Id: firehol.sh,v 1.185 2004/04/21 21:48:32 ktsaou Exp $
 # (C) Copyright 2003, Costa Tsaousis <costa@tsaousis.gr>
 # FireHOL is distributed under GPL.
 # Home Page: http://firehol.sourceforge.net

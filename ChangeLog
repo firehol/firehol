@@ -1,7 +1,7 @@
 
 RCS file: /cvsroot/firehol/firehol/firehol.sh,v
 Working file: firehol.sh
-head: 1.181
+head: 1.184
 branch:
 locks: strict
 access list:
@@ -9,8 +9,38 @@ symbolic names:
 	start: 1.1.1.1
 	vendor: 1.1.1
 keyword substitution: kv
-total revisions: 182;	selected revisions: 182
+total revisions: 185;	selected revisions: 185
 description:
+----------------------------
+revision 1.184
+date: 2004/04/21 21:35:29;  author: ktsaou;  state: Exp;  lines: +108 -49
+IMPORTANT: My second kid was born a week ago!
+
+Added a lot of information to the generated iptables command line to
+debug both the commands generated and what FireHOL did.
+
+Fixed a bug in kernel module management: check_kernel_module() was supposed
+to be a runtime function, but accidentaly I had it generating commands
+to be run later - which of course were not run.
+----------------------------
+revision 1.183
+date: 2004/04/01 23:30:28;  author: ktsaou;  state: Exp;  lines: +19 -9
+Added finer control to control INVALID packets.
+The default is now not to drop invalid packets globaly, but to drop them
+as part of the protection statement (i.e. protection invalid). The default
+full/strong/all protections include the invalid match.
+
+To enable invalid packets dropping globaly (the previous behaviour) one
+can give:
+
+FIREHOL_DROP_INVALID=1
+
+at the top of the configuration file.
+----------------------------
+revision 1.182
+date: 2004/03/04 22:05:53;  author: ktsaou;  state: Exp;  lines: +5 -6
+Removed a tcp-flags match from protection because it was a subset of
+another one already defined.
 ----------------------------
 revision 1.181
 date: 2004/03/03 23:18:43;  author: ktsaou;  state: Exp;  lines: +40 -36
