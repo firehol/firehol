@@ -250,6 +250,11 @@ Subcommands must be given within <a href="#primary_commands">Primary commands</a
 	<p>
 	This directive accepts all the actions specified in <a href="#actions">Actions</a>.
 	<p>
+	<b>Please note that FireHOL is only useful for "DROP/REJECT EVERYTHING, ALLOW EXPLICITLY" type of firewalls.
+	By changing the policy to accept, you <u>CANNOT</u> create valid "ACCEPT EVERYTHING, DROP EXPLICITLY" firewalls.</b><br>
+	The policy should be set to accept only if you <u>really trust</u> the hosts that can reach the machine via this interface.
+	For information about this, see: <a href="https://sourceforge.net/tracker/?func=detail&atid=487694&aid=927532&group_id=58425">this bug report</a>.
+	<p>
 	The policy of routers cannot be changed and is always RETURN.
 	<p>
 
@@ -1350,7 +1355,7 @@ about optional rule parameters that should not be used in certain commands.
 <tr><td align=center valign=middle>
 	<A href="http://sourceforge.net"><IMG src="http://sourceforge.net/sflogo.php?group_id=58425&amp;type=5" width="210" height="62" border="0" alt="SourceForge Logo"></A>
 </td><td align=center valign=middle>
-	<small>$Id: commands.html,v 1.44 2004/03/03 21:52:42 ktsaou Exp $</small>
+	<small>$Id: commands.html,v 1.45 2004/04/01 21:22:07 ktsaou Exp $</small>
 	<p>
 	<b>FireHOL</b>, a firewall for humans...<br>
 	&copy; Copyright 2003
