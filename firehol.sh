@@ -10,7 +10,7 @@
 #
 # config: /etc/firehol.conf
 #
-# $Id: firehol.sh,v 1.93 2003/02/21 23:47:22 ktsaou Exp $
+# $Id: firehol.sh,v 1.94 2003/02/22 03:41:16 ktsaou Exp $
 #
 
 
@@ -3189,7 +3189,7 @@ case "${arg}" in
 		else
 		
 		cat <<"EOF"
-$Id: firehol.sh,v 1.93 2003/02/21 23:47:22 ktsaou Exp $
+$Id: firehol.sh,v 1.94 2003/02/22 03:41:16 ktsaou Exp $
 (C) Copyright 2002, Costa Tsaousis <costa@tsaousis.gr>
 FireHOL is distributed under GPL.
 
@@ -3360,7 +3360,7 @@ then
 	
 	cat <<"EOF"
 
-$Id: firehol.sh,v 1.93 2003/02/21 23:47:22 ktsaou Exp $
+$Id: firehol.sh,v 1.94 2003/02/22 03:41:16 ktsaou Exp $
 (C) Copyright 2002, Costa Tsaousis <costa@tsaousis.gr>
 FireHOL is distributed under GPL.
 Home Page: http://firehol.sourceforge.net
@@ -3488,7 +3488,7 @@ then
 		
 		while [ 1 = 1 ]
 		do
-			printf "%s [%s] > " "${prompt}" "${def}"
+			printf >&2 "%s [%s] > " "${prompt}" "${def}"
 			read
 			
 			local ans="${REPLY}"
@@ -3506,18 +3506,81 @@ then
 			
 			test $c -le $# && return $c
 			
-			printf "*** '${ans}' is not a valid answer. Pick one of "
-			printf "%s " "$@"
-			echo
-			echo
+			printf >&2 "*** '${ans}' is not a valid answer. Pick one of "
+			printf >&2 "%s " "$@"
+			echo >&2 
+			echo >&2 
 		done
 		
 		return 0
 	}
 	
-	cat <<"EOF"
+	cd "${FIREHOL_DIR}"
+	mkdir ports
+	cd ports
+	mkdir tcp
+	mkdir udp
+	
+	echo >&2 
+	echo >&2 "Building list of known services."
+	echo >&2 "Please wait..."
+	
+	cat /etc/services	|\
+		tr '\t' ' '	|\
+		sed "s/     / /g" |\
+		sed "s/     / /g" |\
+		sed "s/    / /g" |\
+		sed "s/    / /g" |\
+		sed "s/   / /g"	|\
+		sed "s/   / /g"	|\
+		sed "s/  / /g"	|\
+		sed "s/  / /g"	|\
+		sed "s/  / /g"	|\
+		sed "s/  / /g"	|\
+		sed "s/  / /g"	>services
+	
+	for c in `echo ${!server_*} | tr ' ' '\n' | grep "_ports$"`
+	do
+		serv=`echo $c | sed "s/server_//" | sed "s/_ports//"`
+		
+		eval "ret=\${$c}"
+		for x in ${ret}
+		do
+			proto=`echo $x | cut -d '/' -f 1`
+			port=`echo $x | cut -d '/' -f 2`
+			
+			test ! -d "${proto}" && continue
+			
+			nport=`egrep "^${port}[[:space:]][0-9]+/${proto}" services | cut -d ' ' -f 2 | cut -d '/' -f 1`
+			test -z "${nport}" && nport="${port}"
+			
+			echo "server ${serv}" >"${proto}/${nport}"
+		done
+	done
+	
+	echo "server ftp" >tcp/21
+	echo "server nfs" >udp/2049
+	
+	echo "client amanda" >udp/10080
+	
+	echo "server dhcp" >udp/67
+	echo "server dhcp" >tcp/67
+	
+	echo "client dhcp" >udp/68
+	echo "client dhcp" >tcp/68
+	
+	echo "server emule" >tcp/4662
+	
+	echo "server pptp" >tcp/1723
+	
+	echo "server samba" >udp/137
+	echo "server samba" >udp/138
+	echo "server samba" >tcp/139
+	
+	
+	cat >&2 <<"EOF"
 
-$Id: firehol.sh,v 1.93 2003/02/21 23:47:22 ktsaou Exp $
+$Id: firehol.sh,v 1.94 2003/02/22 03:41:16 ktsaou Exp $
 (C) Copyright 2002, Costa Tsaousis <costa@tsaousis.gr>
 FireHOL is distributed under GPL.
 Home Page: http://firehol.sourceforge.net
@@ -3534,6 +3597,23 @@ EOF
 	
 	wizard_ask "Press RETURN to start." "continue" "continue"
 	
+	echo >&2 
+	echo >&2 "--- snip --- snip --- snip --- snip ---"
+	echo >&2 
+	
+	echo "#!/etc/init.d/firehol"
+	echo "# ------------------------------------------------------------------------------"
+	echo "# This feature is under construction -- use it with care."
+	echo "#             *** NEVER USE THIS CONFIG AS-IS ***"
+	echo "# "
+	echo "# This config will have the same effect as NO PROTECTION !!!"
+	echo "# Everything that found to be running, is allowed."
+	echo "# "
+	echo "# Date: `date` on host `hostname`"
+	echo "# "
+	echo "# The TODOs bellow, are YOUR to-dos !!!"
+	echo
+	
 	interfaces=`/sbin/ifconfig | egrep "^[a-zA-Z]+[0-9]+" | cut -d ' ' -f 1`
 	gateway=`/sbin/ip route | grep "^default" | sed "s/dev /dev:/g" | tr " " "\n" | grep "^dev:" | cut -d ':' -f 2`
 	
@@ -3545,35 +3625,125 @@ EOF
 		internet=no
 		test "${iface}" = "${gateway}" && internet=yes
 		
-		clear
-		echo "--------------------------------------------------------------------------------"
-		echo "Working on interface '${iface}' ${ip}/${mask}, default gateway=${internet}"
-		
-		cat <<EOF
-
-We need to know if the traffic coming to ${iface} comes only from specific hosts
-and networks you already know, or from unknown hosts and networks you could not
-possibly define.
-EOF
-		wizard_ask "Does '${iface}' accepts traffic from unknown hosts?" "${internet}" "yes" "no"
-		ret=$?
-		
-		case ${ret} in
-			1)	internet="yes"
-				;;
+		iface_src=
+		if [ $internet = yes ]
+		then
+			iface_src="src not \"\${UNROUTABLE_IPS}\""
+		elif [ ! "${mask}" = "255.255.255.255" ]
+		then
+			nip() {
+				local i=${1}
+				local m=${2}
 				
-			2)	internet="no"
-				;;
-				
-			*)	echo "Internal Error"
-				exit 1
-				;;
-		esac
+				eval local df=$[256 - m]
+				eval local dv=$[i / df]
+				echo $[dv * df]
+			}
+			
+			ip1=`echo ${ip} | cut -d '.' -f 1`
+			ip2=`echo ${ip} | cut -d '.' -f 2`
+			ip3=`echo ${ip} | cut -d '.' -f 3`
+			ip4=`echo ${ip} | cut -d '.' -f 4`
+			m1=`echo ${mask} | cut -d '.' -f 1`
+			m2=`echo ${mask} | cut -d '.' -f 2`
+			m3=`echo ${mask} | cut -d '.' -f 3`
+			m4=`echo ${mask} | cut -d '.' -f 4`
+			
+			nip1=`nip ${ip1} ${m1}`
+			nip2=`nip ${ip2} ${m2}`
+			nip3=`nip ${ip3} ${m3}`
+			nip4=`nip ${ip4} ${m4}`
+			
+			iface_src="src \"${nip1}.${nip2}.${nip3}.${nip4}/${mask}\""
+		fi
 		
+		echo
+		echo "# TODO: Change \"${iface}_name\" to something with meaning to you."
+		echo "# TODO: Check or add optional rule parameters (src/dst)"
+		echo "interface ${iface} \"${iface}_name\" ${iface_src}"
+		echo
+		echo "	# The default policy is DROP. You can be more polite with REJECT."
+		echo "	# Prefer to be polite on your own clients to prevent timeouts."
+		echo "	policy drop"
+		echo
+		echo "	# If you don't trust the clients behind ${iface}, add something like this."
+		echo "	# protection strong"
+		echo
+		echo "	# Here are the services listening on ${iface}."
+		echo "	# TODO: Normally, you will have to remove those not needed."
 		
+		(
+			ports=
+			for x in `netstat -an | egrep "^tcp" | grep "0.0.0.0:*" | egrep " (${ip}|0.0.0.0):[0-9]+" | cut -d ':' -f 2 | cut -d ' ' -f 1 | sort -n | uniq`
+			do
+				if [ -f "tcp/${x}" ]
+				then
+					echo "	`cat tcp/${x}` accept"
+				else
+					ports="${ports} tcp/${x}"
+				fi
+			done
+			
+			for x in `netstat -an | egrep "^udp" | grep "0.0.0.0:*" | egrep " (${ip}|0.0.0.0):[0-9]+" | cut -d ':' -f 2 | cut -d ' ' -f 1 | sort -n | uniq`
+			do
+				if [ -f "udp/${x}" ]
+				then
+					echo "	`cat udp/${x}` accept"
+				else
+					ports="${ports} udp/${x}"
+				fi
+			done
+			
+			echo "${ports}" >unknown.ports
+		) | sort | uniq
+		
+		echo
+		echo "	# The following server ports are not known by FireHOL:"
+		echo "	# `cat unknown.ports`"
+		echo "	# TODO: If you need any of them, you should define new services."
+		echo "	#       (see Adding Services at the web site - http://firehol.sf.net)."
+		echo
+		
+		echo "	# The following means that this machine can ask anything."
+		echo "	# TODO: On production servers, avoid this and allow only the"
+		echo "	#       client services you really need."
+		echo "	client all accept"
+		echo
 	done
 	
-	echo "UNDER CONSTRUCTION"
+	if [ "1" = "`cat /proc/sys/net/ipv4/ip_forward`" ]
+	then
+		x=0
+		for inface in ${interfaces}
+		do
+			for outface in ${interfaces}	
+			do
+				test "${inface}" = "${outface}" && continue
+				
+				x=$[x + 1]
+				
+				echo
+				echo
+				echo "# Router No ${x}."
+				echo "# Clients on ${inface} accessing servers on ${outface}."
+				echo "# TODO: Change router${x} to something with meaning to you."
+				echo "# TODO: Add src/dst to further narrow the traffic routed."
+				echo "router router${x} inface ${inface} outface ${outface}"
+				echo 
+				echo "	# If you don't trust the clients on ${inface}, add this."
+				echo "	# protection strong"
+				echo
+				echo "	# To NAT client requests on the output of ${outface}, add this."
+				echo "	# masquerade"
+				echo
+				echo "	# TODO: This will allow all traffic to pass."
+				echo "	# If you remove it, no REQUEST will pass from ${inface} to ${outface}."
+				echo "	route all accept"
+				echo
+			done
+		done
+	fi
+	
 	exit 0
 fi
 
