@@ -10,7 +10,7 @@
 #
 # config: /etc/firehol.conf
 #
-# $Id: firehol.sh,v 1.60 2003/01/01 03:12:17 ktsaou Exp $
+# $Id: firehol.sh,v 1.61 2003/01/01 04:32:48 ktsaou Exp $
 #
 
 # ------------------------------------------------------------------------------
@@ -155,7 +155,7 @@ case "${arg}" in
 		else
 		
 		cat <<"EOF"
-$Id: firehol.sh,v 1.60 2003/01/01 03:12:17 ktsaou Exp $
+$Id: firehol.sh,v 1.61 2003/01/01 04:32:48 ktsaou Exp $
 (C) Copyright 2002, Costa Tsaousis <costa@tsaousis.gr>
 FireHOL is distributed under GPL.
 
@@ -533,6 +533,9 @@ client_ldaps_ports="default"
 
 server_lpd_ports="tcp/printer"
 client_lpd_ports="default"
+
+server_microsoft_ds_ports="tcp/microsoft-ds"
+client_microsoft_ds_ports="default"
 
 server_mysql_ports="tcp/mysql"
 client_mysql_ports="default"
@@ -2684,7 +2687,7 @@ then
 	
 	cat <<"EOF"
 
-$Id: firehol.sh,v 1.60 2003/01/01 03:12:17 ktsaou Exp $
+$Id: firehol.sh,v 1.61 2003/01/01 04:32:48 ktsaou Exp $
 (C) Copyright 2002, Costa Tsaousis <costa@tsaousis.gr>
 FireHOL is distributed under GPL.
 Home Page: http://firehol.sourceforge.net
