@@ -10,7 +10,7 @@
 #
 # config: /etc/firehol.conf
 #
-# $Id: firehol.sh,v 1.114 2003/03/15 01:24:19 ktsaou Exp $
+# $Id: firehol.sh,v 1.115 2003/03/16 22:13:30 ktsaou Exp $
 #
 FIREHOL_FILE="${0}"
 
@@ -3235,7 +3235,7 @@ case "${arg}" in
 		else
 		
 		cat <<"EOF"
-$Id: firehol.sh,v 1.114 2003/03/15 01:24:19 ktsaou Exp $
+$Id: firehol.sh,v 1.115 2003/03/16 22:13:30 ktsaou Exp $
 (C) Copyright 2002, Costa Tsaousis <costa@tsaousis.gr>
 FireHOL is distributed under GPL.
 
@@ -3418,7 +3418,7 @@ then
 	
 	cat <<"EOF"
 
-$Id: firehol.sh,v 1.114 2003/03/15 01:24:19 ktsaou Exp $
+$Id: firehol.sh,v 1.115 2003/03/16 22:13:30 ktsaou Exp $
 (C) Copyright 2002, Costa Tsaousis <costa@tsaousis.gr>
 FireHOL is distributed under GPL.
 Home Page: http://firehol.sourceforge.net
@@ -3577,7 +3577,14 @@ then
 		local ip="${1}"; shift
 		local net="${1}"; shift
 		
-		set -- `echo ${ip} | tr '.' ' '`
+		if [ -z "${ip}" -o -z "${net}" ]
+		then
+			return 1
+		fi
+		
+		test "${net}" = "default" && net="0.0.0.0/0"
+		
+		set -- `echo ${ip} | tr './' '  '`
 		local i1=${1}
 		local i2=${2}
 		local i3=${3}
@@ -3593,8 +3600,8 @@ then
 		local i=$[i1*256*256*256 + i2*256*256 + i3*256 + i4]
 		local n=$[n1*256*256*256 + n2*256*256 + n3*256 + n4]
 		
-		# echo "IP : '${i1}' . '${i2}' . '${i3}' . '${i4}'"
-		# echo "NET: '${n1}' . '${n2}' . '${n3}' . '${n4}' / '${n5}'"
+#		echo "IP : '${i1}' . '${i2}' . '${i3}' . '${i4}'"
+#		echo "NET: '${n1}' . '${n2}' . '${n3}' . '${n4}' / '${n5}'"
 		
 		local d=1
 		local c=${n5}
@@ -3608,7 +3615,7 @@ then
 		
 		printf "### DEBUG: Is ${ip} part of network ${net}? "
 		
-		if [ ${i} -ge ${n} -a ${i} -lt ${nm} ]
+		if [ ${i} -ge ${n} -a ${i} -le ${nm} ]
 		then
 			echo "yes"
 			return 0
@@ -3616,6 +3623,85 @@ then
 			echo "no"
 			return 1
 		fi
+	}
+	
+	ip_is_net() {
+		local ip="${1}"; shift
+		local net="${1}"; shift
+		
+		if [ -z "${ip}" -o -z "${net}" ]
+		then
+			return 1
+		fi
+		
+		test "${net}" = "default" && net="0.0.0.0/0"
+		
+		set -- `echo ${ip} | tr './' '  '`
+		local i1=${1}
+		local i2=${2}
+		local i3=${3}
+		local i4=${4}
+		local i5=${5:-32}
+		
+		set -- `echo ${net} | tr './' '  '`
+		local n1=${1}
+		local n2=${2}
+		local n3=${3}
+		local n4=${4}
+		local n5=${5:-32}
+		
+		local i=$[i1*256*256*256 + i2*256*256 + i3*256 + i4]
+		local n=$[n1*256*256*256 + n2*256*256 + n3*256 + n4]
+		
+		if [ ${i} -eq ${n} -a ${i5} -eq ${n5} ]
+		then
+			return 0
+		else
+			return 1
+		fi
+	}
+	
+	ip2net() {
+		local ip="${1}"; shift
+		
+		if [ -z "${ip}" ]
+		then
+			return 0
+		fi
+		
+		if [ "${ip}" = "default" ]
+		then
+			echo "default"
+			return 0
+		fi
+		
+		set -- `echo ${ip} | tr './' '  '`
+		local i1=${1}
+		local i2=${2}
+		local i3=${3}
+		local i4=${4}
+		local i5=${5:-32}
+		
+		echo ${i1}.${i2}.${i3}.${i4}/${i5}
+	}
+	
+	ips2net() {
+		
+		(
+			if [ "A${1}" = "A-" ]
+			then
+				while read ip
+				do
+					ip2net ${ip}
+				done
+			else
+				while [ ! -z "${1}" ]
+				do
+					ip2net ${1}
+					shift 
+				done
+			fi
+		) | sort | uniq | tr "\n" " "
 	}
 	
 	cd "${FIREHOL_DIR}"
@@ -3626,7 +3712,7 @@ then
 	
 	cat >&2 <<"EOF"
 
-$Id: firehol.sh,v 1.114 2003/03/15 01:24:19 ktsaou Exp $
+$Id: firehol.sh,v 1.115 2003/03/16 22:13:30 ktsaou Exp $
 (C) Copyright 2002, Costa Tsaousis <costa@tsaousis.gr>
 FireHOL is distributed under GPL.
 Home Page: http://firehol.sourceforge.net
@@ -3719,7 +3805,7 @@ EOF
 	echo "# "
 
 	cat <<"EOF"
-# $Id: firehol.sh,v 1.114 2003/03/15 01:24:19 ktsaou Exp $
+# $Id: firehol.sh,v 1.115 2003/03/16 22:13:30 ktsaou Exp $
 # (C) Copyright 2002, Costa Tsaousis <costa@tsaousis.gr>
 # FireHOL is distributed under GPL.
 # Home Page: http://firehol.sourceforge.net
@@ -3762,7 +3848,7 @@ EOF
 			found_excludes[$i]="${1}"
 		fi
 		
-		if [ "${ifnets}" = "0.0.0.0/0" ]
+		if [ "${ifnets}" = "default" ]
 		then
 			ifnets="not \"\${UNROUTABLE_IPS} ${1}\""
 		else
@@ -3839,14 +3925,16 @@ EOF
 	
 	interfaces=`/sbin/ip link show | egrep "^[0-9A-Za-z]+:" | cut -d ':' -f 2 | sed "s/^ //" | grep -v "^lo$" | sort | uniq | tr "\n" " "`
 	gw_if=`/sbin/ip route show | grep "^default" | sed "s/dev /dev:/g" | tr " " "\n" | grep "^dev:" | cut -d ':' -f 2`
-	gw_ip=`/sbin/ip route show | grep "^default" | sed "s/via /via:/g" | tr " " "\n" | grep "^via:" | cut -d ':' -f 2`
+	gw_ip=`/sbin/ip route show | grep "^default" | sed "s/via /via:/g" | tr " " "\n" | grep "^via:" | cut -d ':' -f 2 | ips2net -`
 	
 	i=0
 	for iface in ${interfaces}
 	do
 		echo "### DEBUG: Processing interface '${iface}'"
-		ips=`/sbin/ip addr show dev ${iface} | sed "s/  / /g" | sed "s/  / /g" | sed "s/  / /g" | grep "^ inet " | cut -d ' ' -f 3 | cut -d '/' -f 1 | sort | uniq | tr "\n" " "`
-		nets=`/sbin/ip route show dev ${iface} | egrep "^[0-9\./]+ " | cut -d ' ' -f 1 | sort | uniq | tr "\n" " "`
+		ips=`/sbin/ip addr show dev ${iface} | sed "s/  / /g" | sed "s/  / /g" | sed "s/  / /g" | grep "^ inet " | cut -d ' ' -f 3 | cut -d '/' -f 1 | ips2net -`
+		peer=`/sbin/ip addr show dev ${iface} | sed "s/  / /g" | sed "s/  / /g" | sed "s/  / /g" | sed "s/peer /peer:/g" | tr " " "\n" | grep "^peer:" | cut -d ':' -f 2 | ips2net -`
+#		nets=`/sbin/ip route show dev ${iface} | egrep "^[0-9\./]+ " | cut -d ' ' -f 1 | sort | uniq | tr "\n" " "`
+		nets=`/sbin/ip route show dev ${iface} | cut -d ' ' -f 1 | ips2net -`
 		
 		if [ -z "${ips}" -o -z "${nets}" ]
 		then
@@ -3860,65 +3948,56 @@ EOF
 		do
 			echo "### DEBUG: Processing IP ${ip} of interface '${iface}'"
 			
-			def=0
 			ifreason=""
 			
 			# find all the networks this IP can access directly
+			# or through its peer
+			netcount=0
 			unset ifnets
 			unset ofnets
 			set -a ifnets=
 			set -a ofnets=
 			for net in ${nets}
 			do
-				if ip_in_net ${ip} ${net}
+				test "${net}" = "default" && continue
+				
+				found=1
+				ip_in_net ${ip} ${net}
+				found=$?
+				
+				if [ ${found} -gt 0 -a ! -z "${peer}" ]
 				then
+					ip_in_net ${peer} ${net}
+					found=$?
+				fi
+				
+				if [ ${found} -eq 0 ]
+				then
+					netcount=$[netcount + 1]
 					ifnets=(${net} ${ifnets[@]})
 				else
 					ofnets=(${net} ${ofnets[@]})
 				fi
 			done
 			
-			if [ -z "${ifnets[*]}" ]
-			then
-				# This might be a point-to-point with default route.
-				if [ "${iface}" = "${gw_if}" ]
-				then
-					for net in ${nets}
-					do
-						if [ "${net}" = "${gw_ip}" ]
-						then
-							echo "### DEBUG: '${iface}' found to be a default Point-To-Point gateway."
-							ifnets="0.0.0.0/0"
-							def=1
-							ifreason="from/to all networks behind P-t-P ${iface}"
-							break
-						fi
-					done
-				fi
-				
-				if [ -z "${ifnets}" ]
-				then
-					echo
-					echo "# Ignoring interface's '${iface}' IP ${ip} because does not have a valid route."
-					echo
-					continue
-				fi
-			fi
-			
-			
 			# find all the networks this IP can access through gateways
 			if [ ! -z "${ofnets[*]}" ]
 			then
 				for net in ${ofnets[@]}
 				do
-					gw=`/sbin/ip route show ${net} dev ${iface} | egrep "^${net}[[:space:]]+via[[:space:]][0-9\.]+" | cut -d ' ' -f 3`
+					test "${net}" = "default" && continue
+					
+					gw=`/sbin/ip route show ${net} dev ${iface} | egrep "^${net}[[:space:]]+via[[:space:]][0-9\.]+" | cut -d ' ' -f 3 | ips2net -`
 					test -z "${gw}" && continue
 					
 					for nn in ${ifnets[@]}
 					do
+						test "${nn}" = "default" && continue
+						
 						if ip_in_net ${gw} ${nn}
 						then
 							echo "### DEBUG: Route ${net} is accessed through ${gw}"
+							netcount=$[netcount + 1]
 							ifnets=(${net} ${ifnets[@]})
 							break
 						fi
@@ -3926,11 +4005,20 @@ EOF
 				done
 			fi
 			
-			i=$[i + 1]
-			helpme_iface route $i "${iface}" "${ip}" "${ifnets[*]}" "${ifreason}"
+			# Don't produce an interface if this is just a peer that is also the default gw
+			def_ignore_ifnets=0
+			if (test ${netcount} -eq 1 -a "${gw_if}" = "${iface}" && ip_is_net "${peer}" "${ifnets[*]}" && ip_is_net "${gw_ip}" "${peer}")
+			then
+				echo "### DEBUG: Skipping ${iface} peer ${ifnets[*]} only interface (default gateway)."
+				echo
+				def_ignore_ifnets=1
+			else
+				i=$[i + 1]
+				helpme_iface route $i "${iface}" "${ip}" "${ifnets[*]}" "${ifreason}"
+			fi
 			
 			# Is this interface the default gateway too?
-			if [ ${def} -eq 0 -a "${gw_if}" = "${iface}" ]
+			if [ "${gw_if}" = "${iface}" ]
 			then
 				for nn in ${ifnets[@]}
 				do
@@ -3939,7 +4027,7 @@ EOF
 						echo "### DEBUG: Default gateway ${gw_ip} is part of network ${nn}"
 						
 						i=$[i + 1]
-						helpme_iface route $i "${iface}" "${ip}" "0.0.0.0/0" "from/to unknown networks behind the default gateway ${gw_ip}" "${ifnets[*]}"
+						helpme_iface route $i "${iface}" "${ip}" "default" "from/to unknown networks behind the default gateway ${gw_ip}" "`test ${def_ignore_ifnets} -eq 0 && echo "${ifnets[*]}"`"
 						
 						break
 					fi
@@ -3971,7 +4059,7 @@ EOF
 			src="${found_nets[$i]}"
 			
 			case "${src}" in
-				"0.0.0.0/0")
+				"default")
 					src="not \"\${UNROUTABLE_IPS} ${found_excludes[$i]}\""
 					;;
 					
@@ -3994,7 +4082,7 @@ EOF
 				x=$[x + 1]
 				
 				case "${dst}" in
-					"0.0.0.0/0")
+					"default")
 						dst="not \"\${UNROUTABLE_IPS} ${found_excludes[$j]}\""
 						;;
 						
