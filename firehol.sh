@@ -10,7 +10,7 @@
 #
 # config: /etc/firehol.conf
 #
-# $Id: firehol.sh,v 1.119 2003/03/18 21:27:35 ktsaou Exp $
+# $Id: firehol.sh,v 1.120 2003/03/19 21:51:56 ktsaou Exp $
 #
 FIREHOL_FILE="${0}"
 
@@ -1793,6 +1793,9 @@ rule() {
 	# if set to 1, all owner module options will be ignored
 	local noowner=0
 	
+	# if set to 1, MIRROR will be converted to REJECT
+	local nomirror=0
+	
 	# if set to 1, log and loglimit are ignored.
 	local nolog=0
 	
@@ -2039,6 +2042,7 @@ rule() {
 						
 					mirror|MIRROR)
 						action="MIRROR"
+						test $nomirror -eq 1 && action="REJECT"
 						;;
 						
 					none|NONE)
@@ -2268,11 +2272,17 @@ rule() {
 				
 			in)	# this is incoming traffic - ignore packet ownership
 				local noowner=1
+				local nomirror=0
 				shift
 				;;
 				
 			out)	# this is outgoing traffic - ignore packet ownership if not in an interface
-				test ! "${work_cmd}" = "interface" && local noowner=1
+				if [ ! "${work_cmd}" = "interface" ]
+				then
+					local noowner=1
+				else
+					local nomirror=1
+				fi
 				shift
 				;;
 				
@@ -3235,7 +3245,7 @@ case "${arg}" in
 		else
 		
 		cat <<"EOF"
-$Id: firehol.sh,v 1.119 2003/03/18 21:27:35 ktsaou Exp $
+$Id: firehol.sh,v 1.120 2003/03/19 21:51:56 ktsaou Exp $
 (C) Copyright 2003, Costa Tsaousis <costa@tsaousis.gr>
 FireHOL is distributed under GPL.
 
@@ -3418,7 +3428,7 @@ then
 	
 	cat <<"EOF"
 
-$Id: firehol.sh,v 1.119 2003/03/18 21:27:35 ktsaou Exp $
+$Id: firehol.sh,v 1.120 2003/03/19 21:51:56 ktsaou Exp $
 (C) Copyright 2003, Costa Tsaousis <costa@tsaousis.gr>
 FireHOL is distributed under GPL.
 Home Page: http://firehol.sourceforge.net
@@ -3712,7 +3722,7 @@ then
 	
 	cat >&2 <<"EOF"
 
-$Id: firehol.sh,v 1.119 2003/03/18 21:27:35 ktsaou Exp $
+$Id: firehol.sh,v 1.120 2003/03/19 21:51:56 ktsaou Exp $
 (C) Copyright 2003, Costa Tsaousis <costa@tsaousis.gr>
 FireHOL is distributed under GPL.
 Home Page: http://firehol.sourceforge.net
@@ -3805,7 +3815,7 @@ EOF
 	echo "# "
 
 	cat <<"EOF"
-# $Id: firehol.sh,v 1.119 2003/03/18 21:27:35 ktsaou Exp $
+# $Id: firehol.sh,v 1.120 2003/03/19 21:51:56 ktsaou Exp $
 # (C) Copyright 2003, Costa Tsaousis <costa@tsaousis.gr>
 # FireHOL is distributed under GPL.
 # Home Page: http://firehol.sourceforge.net
