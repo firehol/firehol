@@ -10,7 +10,7 @@
 #
 # config: /etc/firehol/firehol.conf
 #
-# $Id: firehol.sh,v 1.155 2003/09/18 20:54:25 ktsaou Exp $
+# $Id: firehol.sh,v 1.156 2003/10/05 22:58:57 ktsaou Exp $
 #
 FIREHOL_FILE="${0}"
 
@@ -471,12 +471,6 @@ client_syslog_ports="syslog default"
 server_telnet_ports="tcp/telnet"
 client_telnet_ports="default"
 
-# TFTP is more complicated than this.
-# TFTP communicates through high ports. The problem is that there is
-# no relevant iptables module in most distributions.
-#server_tftp_ports="udp/tftp"
-#client_tftp_ports="default"
-
 server_time_ports="tcp/time udp/time"
 client_time_ports="default"
 
@@ -557,28 +551,34 @@ rules_emule() {
 	# ----------------------------------------------------------------------
 	
 	# allow incomming to server tcp/4662
-	rule ${in} action "$@" chain "${in}_${mychain}" proto "tcp" sport any dport 4662 state NEW,ESTABLISHED || return 1
-	rule ${out} reverse action "$@" chain "${out}_${mychain}" proto "tcp" sport any dport 4662 state ESTABLISHED || return 1
+	set_work_function "Setting up rules for EMULE/client-to-server tcp/4662 (${type})"
+	rule ${in}          action "$@" chain "${in}_${mychain}"  proto "tcp" sport any dport 4662 state NEW,ESTABLISHED || return 1
+	rule ${out} reverse action "$@" chain "${out}_${mychain}" proto "tcp" sport any dport 4662 state ESTABLISHED     || return 1
 	
 	# allow outgoing to client tcp/4662
+	set_work_function "Setting up rules for EMULE/server-to-client tcp/4662 (${type})"
 	rule ${out} reverse action "$@" chain "${out}_${mychain}" proto "tcp" dport any sport 4662 state NEW,ESTABLISHED || return 1
-	rule ${in} action "$@" chain "${in}_${mychain}" proto "tcp" dport any sport 4662 state ESTABLISHED || return 1
+	rule ${in}          action "$@" chain "${in}_${mychain}"  proto "tcp" dport any sport 4662 state ESTABLISHED     || return 1
 	
 	# allow incomming to server udp/4672
-	rule ${in} action "$@" chain "${in}_${mychain}" proto "udp" sport any dport 4672 state NEW,ESTABLISHED || return 1
-	rule ${out} reverse action "$@" chain "${out}_${mychain}" proto "udp" sport any dport 4672 state ESTABLISHED || return 1
+	set_work_function "Setting up rules for EMULE/client-to-server udp/4672 (${type})"
+	rule ${in}          action "$@" chain "${in}_${mychain}"  proto "udp" sport any dport 4672 state NEW,ESTABLISHED || return 1
+	rule ${out} reverse action "$@" chain "${out}_${mychain}" proto "udp" sport any dport 4672 state ESTABLISHED     || return 1
 	
 	# allow outgoing to client udp/4672
+	set_work_function "Setting up rules for EMULE/server-to-client udp/4672 (${type})"
 	rule ${out} reverse action "$@" chain "${out}_${mychain}" proto "udp" dport any sport 4672 state NEW,ESTABLISHED || return 1
-	rule ${in} action "$@" chain "${in}_${mychain}" proto "udp" dport any sport 4672 state ESTABLISHED || return 1
+	rule ${in}          action "$@" chain "${in}_${mychain}"  proto "udp" dport any sport 4672 state ESTABLISHED     || return 1
 	
 	# allow incomming to server tcp/4661
-	rule ${in} action "$@" chain "${in}_${mychain}" proto "tcp" sport any dport 4661 state NEW,ESTABLISHED || return 1
-	rule ${out} reverse action "$@" chain "${out}_${mychain}" proto "tcp" sport any dport 4661 state ESTABLISHED || return 1
+	set_work_function "Setting up rules for EMULE/client-to-server tcp/4661 (${type})"
+	rule ${in}          action "$@" chain "${in}_${mychain}"  proto "tcp" sport any dport 4661 state NEW,ESTABLISHED || return 1
+	rule ${out} reverse action "$@" chain "${out}_${mychain}" proto "tcp" sport any dport 4661 state ESTABLISHED     || return 1
 	
 	# allow incomming to server udp/4665
-	rule ${in} action "$@" chain "${in}_${mychain}" proto "udp" sport any dport 4665 state NEW,ESTABLISHED || return 1
-	rule ${out} reverse action "$@" chain "${out}_${mychain}" proto "udp" sport any dport 4665 state ESTABLISHED || return 1
+	set_work_function "Setting up rules for EMULE/client-to-server udp/4665 (${type})"
+	rule ${in}          action "$@" chain "${in}_${mychain}"  proto "udp" sport any dport 4665 state NEW,ESTABLISHED || return 1
+	rule ${out} reverse action "$@" chain "${out}_${mychain}" proto "udp" sport any dport 4665 state ESTABLISHED     || return 1
 	
 	return 0
 }
@@ -608,12 +608,14 @@ rules_hylafax() {
 	# ----------------------------------------------------------------------
 	
 	# allow incomming to server tcp/4559
-	rule ${in} action "$@" chain "${in}_${mychain}" proto "tcp" sport any dport 4559 state NEW,ESTABLISHED || return 1
-	rule ${out} reverse action "$@" chain "${out}_${mychain}" proto "tcp" sport any dport 4559 state ESTABLISHED || return 1
+	set_work_function "Setting up rules for HYLAFAX/client-to-server tcp/4559 (${type})"
+	rule ${in}          action "$@" chain "${in}_${mychain}"  proto "tcp" sport any dport 4559 state NEW,ESTABLISHED || return 1
+	rule ${out} reverse action "$@" chain "${out}_${mychain}" proto "tcp" sport any dport 4559 state ESTABLISHED     || return 1
 	
-	# allow outgoing to client tcp/4558
-	rule ${out} action "$@" chain "${out}_${mychain}" proto "tcp" sport 4558 dport any state NEW,ESTABLISHED || return 1
-        rule ${in} reverse action "$@" chain "${in}_${mychain}" proto "tcp" sport 4558 dport any state ESTABLISHED || return 1
+	# allow outgoing to client from server tcp/4558
+	set_work_function "Setting up rules for HYLAFAX/server-to-client from server tcp/4558 (${type})"
+	rule ${out}        action "$@" chain "${out}_${mychain}" proto "tcp" sport 4558 dport any state NEW,ESTABLISHED || return 1
+        rule ${in} reverse action "$@" chain "${in}_${mychain}"  proto "tcp" sport 4558 dport any state ESTABLISHED     || return 1
 	
 	return 0
 }
@@ -641,15 +643,17 @@ rules_samba() {
 	
 	# ----------------------------------------------------------------------
 	
-	# allow new and established incoming packets
-	rule ${in} action "$@" chain "${in}_${mychain}" proto "udp" sport "netbios-ns ${client_ports}"  dport "netbios-ns" state NEW,ESTABLISHED || return 1
-	rule ${in} action "$@" chain "${in}_${mychain}" proto "udp" sport "netbios-dgm ${client_ports}" dport "netbios-dgm" state NEW,ESTABLISHED || return 1
-	rule ${in} action "$@" chain "${in}_${mychain}" proto "tcp" sport "${client_ports}" dport "netbios-ssn" state NEW,ESTABLISHED || return 1
+	set_work_function "Setting up rules for SAMBA/NETBIOS-NS (${type})"
+	rule ${in}          action "$@" chain "${in}_${mychain}"  proto "udp" sport "netbios-ns ${client_ports}"  dport "netbios-ns" state NEW,ESTABLISHED || return 1
+	rule ${out} reverse action "$@" chain "${out}_${mychain}" proto "udp" sport "netbios-ns ${client_ports}"  dport "netbios-ns" state ESTABLISHED     || return 1
 	
-	# allow outgoing established packets
-	rule ${out} reverse action "$@" chain "${out}_${mychain}" proto "udp" sport "netbios-ns ${client_ports}"  dport "netbios-ns" state ESTABLISHED || return 1
-	rule ${out} reverse action "$@" chain "${out}_${mychain}" proto "udp" sport "netbios-dgm ${client_ports}" dport "netbios-dgm" state ESTABLISHED || return 1
-	rule ${out} reverse action "$@" chain "${out}_${mychain}" proto "tcp" sport "${client_ports}" dport "netbios-ssn" state ESTABLISHED || return 1
+	set_work_function "Setting up rules for SAMBA/NETBIOS-DGM (${type})"
+	rule ${in}          action "$@" chain "${in}_${mychain}"  proto "udp" sport "netbios-dgm ${client_ports}" dport "netbios-dgm" state NEW,ESTABLISHED || return 1
+	rule ${out} reverse action "$@" chain "${out}_${mychain}" proto "udp" sport "netbios-dgm ${client_ports}" dport "netbios-dgm" state ESTABLISHED     || return 1
+	
+	set_work_function "Setting up rules for SAMBA/NETBIOS-SSN (${type})"
+	rule ${in}          action "$@" chain "${in}_${mychain}"  proto "tcp" sport "${client_ports}" dport "netbios-ssn" state NEW,ESTABLISHED || return 1
+	rule ${out} reverse action "$@" chain "${out}_${mychain}" proto "tcp" sport "${client_ports}" dport "netbios-ssn" state ESTABLISHED     || return 1
 	
 	return 0
 }
@@ -677,13 +681,13 @@ rules_pptp() {
 	
 	# ----------------------------------------------------------------------
 	
-	# allow new and established incoming packets
-	rule ${in} action "$@" chain "${in}_${mychain}" proto "tcp" sport "${client_ports}" dport "1723" state NEW,ESTABLISHED || return 1
-	rule ${in} action "$@" chain "${in}_${mychain}" proto "47" state NEW,ESTABLISHED || return 1
+	set_work_function "Setting up rules for PPTP/initial connection (${type})"
+	rule ${in}          action "$@" chain "${in}_${mychain}"  proto "tcp" sport "${client_ports}" dport "1723" state NEW,ESTABLISHED || return 1
+	rule ${out} reverse action "$@" chain "${out}_${mychain}" proto "tcp" sport "${client_ports}" dport "1723" state ESTABLISHED     || return 1
 	
-	# allow outgoing established packets
-	rule ${out} reverse action "$@" chain "${out}_${mychain}" proto "tcp" sport "${client_ports}" dport "1723" state ESTABLISHED || return 1
-	rule ${out} reverse action "$@" chain "${out}_${mychain}" proto "47" state ESTABLISHED|| return 1
+	set_work_function "Setting up rules for PPTP/tunnel GRE traffic (${type})"
+	rule ${in}          action "$@" chain "${in}_${mychain}"  proto "47" state NEW,ESTABLISHED || return 1
+	rule ${out} reverse action "$@" chain "${out}_${mychain}" proto "47" state ESTABLISHED     || return 1
 	
 	return 0
 }
@@ -805,15 +809,13 @@ rules_amanda() {
 	
 	
 	set_work_function "Setting up rules for initial amanda server-to-client connection"
-	
-	rule ${out} action "$@" chain "${out}_${mychain}" proto "udp" dport 10080 state NEW,ESTABLISHED || return 1
-	rule ${in} reverse action "$@" chain "${in}_${mychain}" proto "udp" dport 10080 state ESTABLISHED || return 1
+	rule ${out}        action "$@" chain "${out}_${mychain}" proto "udp" dport 10080 state NEW,ESTABLISHED || return 1
+	rule ${in} reverse action "$@" chain "${in}_${mychain}"  proto "udp" dport 10080 state ESTABLISHED     || return 1
 	
 	
 	set_work_function "Setting up rules for amanda data exchange client-to-server"
-	
-	rule ${in} action "$@" chain "${in}_${mychain}" proto "tcp udp" dport "${FIREHOL_AMANDA_PORTS}" state NEW,ESTABLISHED || return 1
-	rule ${out} reverse action "$@" chain "${out}_${mychain}" proto "tcp udp" dport "${FIREHOL_AMANDA_PORTS}" state ESTABLISHED || return 1
+	rule ${in}          action "$@" chain "${in}_${mychain}"  proto "tcp udp" dport "${FIREHOL_AMANDA_PORTS}" state NEW,ESTABLISHED || return 1
+	rule ${out} reverse action "$@" chain "${out}_${mychain}" proto "tcp udp" dport "${FIREHOL_AMANDA_PORTS}" state ESTABLISHED     || return 1
 	
 	return 0
 }
@@ -847,16 +849,15 @@ rules_ftp() {
 	
 	# allow new and established incoming, and established outgoing
 	# accept port ftp new connections
-	rule ${in} action "$@" chain "${in}_${mychain}" proto tcp sport "${client_ports}" dport ftp state NEW,ESTABLISHED || return 1
-	rule ${out} reverse action "$@" chain "${out}_${mychain}" proto tcp sport "${client_ports}" dport ftp state ESTABLISHED || return 1
+	set_work_function "Setting up rules for initial FTP connection ${type}"
+	rule ${in}          action "$@" chain "${in}_${mychain}"  proto tcp sport "${client_ports}" dport ftp state NEW,ESTABLISHED || return 1
+	rule ${out} reverse action "$@" chain "${out}_${mychain}" proto tcp sport "${client_ports}" dport ftp state ESTABLISHED     || return 1
 	
 	# Active FTP
 	# send port ftp-data related connections
-	
 	set_work_function "Setting up rules for Active FTP ${type}"
-	
 	rule ${out} reverse action "$@" chain "${out}_${mychain}" proto tcp sport "${client_ports}" dport ftp-data state ESTABLISHED,RELATED || return 1
-	rule ${in} action "$@" chain "${in}_${mychain}" proto tcp sport "${client_ports}" dport ftp-data state ESTABLISHED || return 1
+	rule ${in}          action "$@" chain "${in}_${mychain}"  proto tcp sport "${client_ports}" dport ftp-data state ESTABLISHED         || return 1
 	
 	# ----------------------------------------------------------------------
 	
@@ -875,12 +876,63 @@ rules_ftp() {
 	# Passive FTP
 	# accept high-ports related connections
 	set_work_function "Setting up rules for Passive FTP ${type}"
-	
-	rule ${in} action "$@" chain "${in}_${mychain}" proto tcp sport "${c_client_ports}" dport "${s_client_ports}" state ESTABLISHED,RELATED || return 1
-	rule ${out} reverse action "$@" chain "${out}_${mychain}" proto tcp sport "${c_client_ports}" dport "${s_client_ports}" state ESTABLISHED || return 1
+	rule ${in}          action "$@" chain "${in}_${mychain}"  proto tcp sport "${c_client_ports}" dport "${s_client_ports}" state ESTABLISHED,RELATED || return 1
+	rule ${out} reverse action "$@" chain "${out}_${mychain}" proto tcp sport "${c_client_ports}" dport "${s_client_ports}" state ESTABLISHED         || return 1
 	
 	require_kernel_module ip_conntrack_ftp
 	test ${FIREHOL_NAT} -eq 1 && require_kernel_module ip_nat_ftp
+	
+	return 0
+}
+
+
+# --- TFTP ---------------------------------------------------------------------
+# Written by: Goetz Bock <bock@blacknet.de>
+
+rules_tftp() {
+	local mychain="${1}"; shift
+	local type="${1}"; shift
+	
+	local in=in
+	local out=out
+	if [ "${type}" = "client" ]
+	then
+		in=out
+		out=in
+	fi
+	
+	local client_ports="${DEFAULT_CLIENT_PORTS}"
+	if [ "${type}" = "client" -a "${work_cmd}" = "interface" ]
+	then
+		client_ports="${LOCAL_CLIENT_PORTS}"
+	fi
+	
+	# ---------------------------------------------------------------------
+	
+	# allow the initial TFTP connection
+	set_work_function "Setting up rules for initial TFTP connection (${type})"
+	rule ${in}          action "$@" chain "${in}_${mychain}"  proto "udp" sport "${client_ports}" dport tftp state NEW,ESTABLISHED || return 1
+	rule ${out} reverse action "$@" chain "${out}_${mychain}" proto "udp" sport "${client_ports}" dport tftp state ESTABLISHED     || return 1
+	
+	# We now need both server and client port ranges
+	local s_client_ports="${DEFAULT_CLIENT_PORTS}"
+	local c_client_ports="${DEFAULT_CLIENT_PORTS}"
+	
+	if [ "${type}" = "client" -a "${work_cmd}" = "interface" ]
+	then
+		c_client_ports="${LOCAL_CLIENT_PORTS}"
+	elif [ "${type}" = "server" -a "${work_cmd}" = "interface" ]
+	then
+		s_client_ports="${LOCAL_CLIENT_PORTS}"
+	fi
+	
+	# allow the TFTP server to establish a new connection to the client
+	set_work_function "Setting up rules for server-to-client TFTP connection (${type})"
+	rule ${out} reverse action "$@" chain "${out}_${mychain}" proto "udp" sport "${c_client_ports}" dport "${s_client_ports}" state RELATED,ESTABLISHED || return 1
+	rule ${in}          action "$@" chain "${in}_${mychain}"  proto "udp" sport "${c_client_ports}" dport "${s_client_ports}" state ESTABLISHED         || return 1
+	
+	require_kernel_module ip_conntrack_tftp
+	test ${FIREHOL_NAT} -eq 1 && require_kernel_module ip_nat_tftp
 	
 	return 0
 }
@@ -3634,7 +3686,7 @@ case "${arg}" in
 		else
 		
 		${CAT_CMD} <<EOF
-$Id: firehol.sh,v 1.155 2003/09/18 20:54:25 ktsaou Exp $
+$Id: firehol.sh,v 1.156 2003/10/05 22:58:57 ktsaou Exp $
 (C) Copyright 2003, Costa Tsaousis <costa@tsaousis.gr>
 FireHOL is distributed under GPL.
 
@@ -3820,7 +3872,7 @@ then
 	
 	${CAT_CMD} <<EOF
 
-$Id: firehol.sh,v 1.155 2003/09/18 20:54:25 ktsaou Exp $
+$Id: firehol.sh,v 1.156 2003/10/05 22:58:57 ktsaou Exp $
 (C) Copyright 2003, Costa Tsaousis <costa@tsaousis.gr>
 FireHOL is distributed under GPL.
 Home Page: http://firehol.sourceforge.net
@@ -4115,7 +4167,7 @@ then
 	
 	${CAT_CMD} >&2 <<EOF
 
-$Id: firehol.sh,v 1.155 2003/09/18 20:54:25 ktsaou Exp $
+$Id: firehol.sh,v 1.156 2003/10/05 22:58:57 ktsaou Exp $
 (C) Copyright 2003, Costa Tsaousis <costa@tsaousis.gr>
 FireHOL is distributed under GPL.
 Home Page: http://firehol.sourceforge.net
@@ -4144,17 +4196,7 @@ EOF
 	
 	${CAT_CMD} /etc/services	|\
 		${TR_CMD} '\t' ' '	|\
-		${SED_CMD} "s/     / /g" |\
-		${SED_CMD} "s/     / /g" |\
-		${SED_CMD} "s/    / /g" |\
-		${SED_CMD} "s/    / /g" |\
-		${SED_CMD} "s/   / /g"	|\
-		${SED_CMD} "s/   / /g"	|\
-		${SED_CMD} "s/  / /g"	|\
-		${SED_CMD} "s/  / /g"	|\
-		${SED_CMD} "s/  / /g"	|\
-		${SED_CMD} "s/  / /g"	|\
-		${SED_CMD} "s/  / /g"	>services
+		${SED_CMD} "s/ \+/ /g"	>services
 	
 	for c in `echo ${!server_*} | ${TR_CMD} ' ' '\n' | ${GREP_CMD} "_ports$"`
 	do
@@ -4208,7 +4250,7 @@ EOF
 	echo "# "
 
 	${CAT_CMD} <<EOF
-# $Id: firehol.sh,v 1.155 2003/09/18 20:54:25 ktsaou Exp $
+# $Id: firehol.sh,v 1.156 2003/10/05 22:58:57 ktsaou Exp $
 # (C) Copyright 2003, Costa Tsaousis <costa@tsaousis.gr>
 # FireHOL is distributed under GPL.
 # Home Page: http://firehol.sourceforge.net
