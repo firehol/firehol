@@ -1,7 +1,7 @@
 
 RCS file: /cvsroot/firehol/firehol/firehol.sh,v
 Working file: firehol.sh
-head: 1.85
+head: 1.86
 branch:
 locks: strict
 access list:
@@ -9,8 +9,13 @@ symbolic names:
 	start: 1.1.1.1
 	vendor: 1.1.1
 keyword substitution: kv
-total revisions: 86;	selected revisions: 86
+total revisions: 87;	selected revisions: 87
 description:
+----------------------------
+revision 1.86
+date: 2003/01/29 23:19:20;  author: ktsaou;  state: Exp;  lines: +26 -12
+The nat helper was wrongly producing duplicate logs when log/loglimit was
+present in the optional rule parameters. Fixed.
 ----------------------------
 revision 1.85
 date: 2003/01/28 19:47:31;  author: ktsaou;  state: Exp;  lines: +4 -4
