@@ -1,4 +1,4 @@
-$Id: TODO,v 1.12 2004/03/25 23:11:51 ktsaou Exp $
+$Id: TODO,v 1.13 2004/09/10 21:45:03 ktsaou Exp $
 
 The following is a list of features I plan to add to FireHOL,
 assuming that my time permits and there is demand for them.
@@ -40,43 +40,21 @@ The list appears in no particular order.
 7.Support groups of services. Today, an interface or a router is much like
   a group. Ideally, we should also support subgroups that will allow the
   sharing of common protections and src/dst restriction and in the future
-  common NAT and bandwidth shapping values.
+  common NAT and bandwidth shapping values. ==> DONE <==
 
-8.Ideally I would like to achieve a situation where FireHOL
-  directives will be something like:
-  
-  interface eth0 internet maxbw 1Mbps queue-type htb
-	server smtp accept	\
-		maxbw 128kbps	\
-		priority low 	\
-		dnat mailhost.domain.com
-		
-	server http accept	\
-		maxbw all	\
-		priority med	\
-		dnat "1.1.1.1 2.2.2.2" # this is load balancing
-	
-	client ssh accept priority hi
+8.  A Web interface for configuring FireHOL.
 
-  I guess the only way to implement this is by making heavy use of the
-  MANGLE table and MARKing uniquely each FireHOL rule. This will allow all
-  iptables tables (mangle, nat, filter) and iproute to share the same traffic
-  categorization (through the MARK id on each packet). Some research has to be
-  done to find out if this is possible.
+9. A secure mechanism for centralized control of a large number
+   of Linux hosts and routers.
 
-9.  A Web interface for configuring FireHOL.
-
-10. A secure mechanism for centralized control of a large number
-    of Linux hosts and routers.
-
-11. There should be a simple way to produce service variations.
+10. There should be a simple way to produce service variations.
     For example, "I need an http server running on port 81".
     
     Possibly with:
     
     server http/80=81 accept
 
-12. FireHOL services should be left to an external directory
+11. FireHOL services should be left to an external directory
     when installation programs could just drop in files for
     adding services to FireHOL.
     
@@ -85,7 +63,7 @@ The list appears in no particular order.
     the web site) based on the services installed on the
     machine.
 
-13. FireHOL's speed on processing configuration directives
+12. FireHOL's speed on processing configuration directives
     could be significantly improved if the rule() function
     is written in C.
     
@@ -99,13 +77,13 @@ The list appears in no particular order.
     the kernel to activate them at once (thus eliminating
     iptables user-land programs altogether...)
 
-14. Split FireHOL into multiple programs each providing
+13. Split FireHOL into multiple programs each providing
     some of the functions already supported. The idea
     is that there should be a "library" of shell functions
     and then a few drivers that provide the functions
     of the current command line arguments to FireHOL.
 
-15. Isolation of parts of the firewall and separate
+14. Isolation of parts of the firewall and separate
     management for each.
     
     For example, the master configuration should state
@@ -118,12 +96,11 @@ The list appears in no particular order.
     environments where each customer can control his own
     part of the firewall through a simple web interface.
 
-16. Add support for psad by replacing the default log
+15. Add support for psad by replacing the default log
     strings of the DROPs at the end of interfaces and
     the firewall to "DROP".
 
-
-17. Change the way "debug" mode is handled so that the
+16. Change the way "debug" mode is handled so that the
     generated debug file can be run without FireHOL
     installed. This requires a change in the way FireHOL
     configuration settings are processed and the way it
@@ -131,10 +108,20 @@ The list appears in no particular order.
     settings affect the standard header ruleset
     generated.
 
-18. Support for TCPMSS action.
+17. Support for TCPMSS action.
 
-19. Support for ULOG as rule parameter.
+18. Support for ULOG as rule parameter.
 
-20. Support pre-defined rules to be loaded when the
+19. Support pre-defined rules to be loaded when the
     firewall is stopped.
+
+20. Support for logging only NEW connections so that
+    only connection attempts will be logged. Not every
+    packet.
+
+21. Support for POLICY-ACCEPT - DROP EXPLICITLY type
+    of firewalls when the interface policy is 'accept'.
+    This can be done only for interfaces, when the
+    interface policy is 'accept' and should be implemented
+    by ignoring the source ports of the request.
 
