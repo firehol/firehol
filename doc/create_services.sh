@@ -371,6 +371,11 @@ Please refer to the notes of the above services for more information.
 
 service_webmin_notes="<a href=\"http://www.webmin.com\">Webmin</a> is a web-based interface for system administration for Unix."
 
+service_xdmcp_notes="
+<b>X Display Manager Control Protocol</b><br>
+See <a href=\"http://www.jirka.org/gdm-documentation/x70.html\">http://www.jirka.org/gdm-documentation/x70.html</a> for a discussion about XDMCP and firewalls
+(this is about Gnome Display Manager, a replacement of XDM).
+"
 
 # ---------------------------------------------------------------------------------------------------------------
 
@@ -500,7 +505,7 @@ all_services() {
 			grep -e "^rules_.*()"		|\
 			cut -d '(' -f 1			|\
 			sed "s/^rules_//"
-	) | sort | uniq
+	) | sort -f | uniq
 }
 
 
@@ -586,6 +591,8 @@ all_services |\
 			
 			while [ ! "$first" = "$last" ]
 			do
+				# echo >&2 "F:$first L:$last"
+				
 				t=0
 				case "$last" in
 					A)	last=B
@@ -707,7 +714,7 @@ cat <<"EOF"
 <tr><td align=center valign=middle>
 	<A href="http://sourceforge.net"><IMG src="http://sourceforge.net/sflogo.php?group_id=58425&amp;type=5" width="210" height="62" border="0" alt="SourceForge Logo"></A>
 </td><td align=center valign=middle>
-	<small>$Id: create_services.sh,v 1.37 2003/08/23 23:26:50 ktsaou Exp $</small>
+	<small>$Id: create_services.sh,v 1.38 2003/08/31 22:21:49 ktsaou Exp $</small>
 	<p>
 	<b>FireHOL</b>, a firewall for humans...<br>
 	&copy; Copyright 2003
