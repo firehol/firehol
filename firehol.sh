@@ -10,7 +10,7 @@
 #
 # config: /etc/firehol.conf
 #
-# $Id: firehol.sh,v 1.82 2003/01/25 01:46:11 ktsaou Exp $
+# $Id: firehol.sh,v 1.83 2003/01/25 02:33:59 ktsaou Exp $
 #
 
 
@@ -1162,8 +1162,9 @@ router() {
 }
 
 postprocess() {
-	local check_error=1
-	test "A${1}" = "A-ne" && shift && local check_error=0
+	local check="error"
+	test "A${1}" = "A-ne"   && shift && local check="none"
+	test "A${1}" = "A-warn" && shift && local check="warn"
 	
 	local tmp=
 	test ! ${FIREHOL_DEBUG} -eq 1 && local tmp=" >${FIREHOL_OUTPUT}.log 2>&1"
@@ -1178,12 +1179,12 @@ postprocess() {
 		rm -f ${FIREHOL_OUTPUT}
 	fi
 	
-	test ${FIREHOL_DEBUG}   -eq 1 && local check_error=0
-	test ${FIREHOL_EXPLAIN} -eq 1 && local check_error=0
+	test ${FIREHOL_DEBUG}   -eq 1 && local check="none"
+	test ${FIREHOL_EXPLAIN} -eq 1 && local check="none"
 	
-	if [ ${check_error} -eq 1 ]
+	if [ ! ${check} = "none" ]
 	then
-		printf "check_final_status \$? ${FIREHOL_LINEID} " >>${FIREHOL_OUTPUT}
+		printf "r=\$?; test \${r} -gt 0 && runtime_error ${check} \${r} ${FIREHOL_LINEID} " >>${FIREHOL_OUTPUT}
 		printf "%q " "$@" >>${FIREHOL_OUTPUT}
 		printf "\n" >>${FIREHOL_OUTPUT}
 	fi
@@ -2661,31 +2662,57 @@ error() {
 
 
 # ------------------------------------------------------------------------------
-# check_final_status - postprocessing evaluation of commands run
+# runtime_error - postprocessing evaluation of commands run
 # WHY:
 # The generated iptables commands must be checked for errors in case they fail.
 # This command is executed after every postprocessing command to find out
 # if it has been successfull or failed.
 
-check_final_status() {
-	if [ ${1} -gt 0 ]
-	then
-		shift
-		local line="${1}"; shift
+runtime_error() {
+	local type="ERROR"
+	local id=
+	
+	case "${1}" in
+		error)
+			local type="ERROR  "
+			work_final_status=$[work_final_status + 1]
+			local id="# ${work_final_status}."
+			;;
+			
+		warn)
+			local type="WARNING"
+			local id="This might or might not affect the operation of your firewall."
+			;;
 		
-		work_final_status=$[work_final_status + 1]
-		echo >&2
-		echo >&2 "--------------------------------------------------------------------------------"
-		echo >&2 "ERROR #: ${work_final_status}."
-		echo >&2 "WHAT   : A runtime command failed to execute."
-		echo >&2 "SOURCE : line ${line} of ${FIREHOL_CONFIG}"
-		printf >&2 "COMMAND: "
-		printf >&2 "%q " "$@"
-		printf >&2 "\n"
-		echo >&2 "OUTPUT : (of the failed command)"
-		cat ${FIREHOL_OUTPUT}.log
-		echo >&2
-	fi
+		*)
+			work_final_status=$[work_final_status + 1]
+			local id="# ${work_final_status}."
+			
+			echo >&2
+			echo >&2
+			echo >&2 "*** unsupported final status type '${1}'. Assuming it is 'ERROR'"
+			echo >&2
+			echo >&2
+			;;
+	esac
+	shift
+	
+	local ret="${1}"; shift
+	local line="${1}"; shift
+	
+	echo >&2
+	echo >&2
+	echo >&2 "--------------------------------------------------------------------------------"
+	echo >&2 "${type} : ${id}"
+	echo >&2 "WHAT    : A runtime command failed to execute (returned error ${ret})."
+	echo >&2 "SOURCE  : line ${line} of ${FIREHOL_CONFIG}"
+	printf >&2 "COMMAND : "
+	printf >&2 "%q " "$@"
+	printf >&2 "\n"
+	echo >&2 "OUTPUT  : "
+	echo >&2
+	cat ${FIREHOL_OUTPUT}.log
+	echo >&2
 	
 	return 0
 }
@@ -3025,7 +3052,7 @@ case "${arg}" in
 		else
 		
 		cat <<"EOF"
-$Id: firehol.sh,v 1.82 2003/01/25 01:46:11 ktsaou Exp $
+$Id: firehol.sh,v 1.83 2003/01/25 02:33:59 ktsaou Exp $
 (C) Copyright 2002, Costa Tsaousis <costa@tsaousis.gr>
 FireHOL is distributed under GPL.
 
@@ -3193,7 +3220,7 @@ then
 	
 	cat <<"EOF"
 
-$Id: firehol.sh,v 1.82 2003/01/25 01:46:11 ktsaou Exp $
+$Id: firehol.sh,v 1.83 2003/01/25 02:33:59 ktsaou Exp $
 (C) Copyright 2002, Costa Tsaousis <costa@tsaousis.gr>
 FireHOL is distributed under GPL.
 Home Page: http://firehol.sourceforge.net
@@ -3356,18 +3383,26 @@ fi
 cat >"${FIREHOL_OUTPUT}" <<"EOF"
 #!/bin/sh
 
-/sbin/modprobe ip_tables
-/sbin/modprobe ip_conntrack
+/sbin/modprobe ip_tables >${FIREHOL_OUTPUT}.log 2>&1
+r=$?; test ! ${r} -eq 0 && runtime_error warn ${r} INIT /sbin/modprobe ip_tables
+
+/sbin/modprobe ip_conntrack >${FIREHOL_OUTPUT}.log 2>&1
+r=$?; test ! ${r} -eq 0 && runtime_error warn ${r} INIT /sbin/modprobe ip_conntrack
 
 # Find all tables supported
 tables=`cat /proc/net/ip_tables_names`
 for t in ${tables}
 do
 	# Reset/empty this table.
-	/sbin/iptables -t "${t}" -F
-	/sbin/iptables -t "${t}" -X
-	/sbin/iptables -t "${t}" -Z
+	/sbin/iptables -t "${t}" -F >${FIREHOL_OUTPUT}.log 2>&1
+	r=$?; test ! ${r} -eq 0 && runtime_error error ${r} INIT /sbin/iptables -t "${t}" -F
 	
+	/sbin/iptables -t "${t}" -X >${FIREHOL_OUTPUT}.log 2>&1
+	r=$?; test ! ${r} -eq 0 && runtime_error error ${r} INIT /sbin/iptables -t "${t}" -X
+	
+	/sbin/iptables -t "${t}" -Z >${FIREHOL_OUTPUT}.log 2>&1
+	r=$?; test ! ${r} -eq 0 && runtime_error error ${r} INIT /sbin/iptables -t "${t}" -Z
+		
 	# Find all default chains in this table.
 	chains=`/sbin/iptables -t "${t}" -nL | grep "^Chain " | cut -d ' ' -f 2`
 	
@@ -3378,7 +3413,8 @@ do
 	# Set the policy to ACCEPT on all default chains.
 	for c in ${chains}
 	do
-		/sbin/iptables -t "${t}" -P "${c}" ACCEPT
+		/sbin/iptables -t "${t}" -P "${c}" ACCEPT >${FIREHOL_OUTPUT}.log 2>&1
+		r=$?; test ! ${r} -eq 0 && runtime_error error ${r} INIT /sbin/iptables -t "${t}" -P "${c}" ACCEPT
 	done
 done
 
@@ -3416,6 +3452,10 @@ cat >"${FIREHOL_TMP}.awk" <<"EOF"
 /^[[:space:]]*masquerade[[:space:]]/ { printf "FIREHOL_LINEID=${LINENO} " }
 /^[[:space:]]*postprocess[[:space:]]/ { printf "FIREHOL_LINEID=${LINENO} " }
 /^[[:space:]]*transparent_squid[[:space:]]/ { printf "FIREHOL_LINEID=${LINENO} " }
+/^[[:space:]]*nat[[:space:]]/ { printf "FIREHOL_LINEID=${LINENO} " }
+/^[[:space:]]*snat[[:space:]]/ { printf "FIREHOL_LINEID=${LINENO} " }
+/^[[:space:]]*dnat[[:space:]]/ { printf "FIREHOL_LINEID=${LINENO} " }
+/^[[:space:]]*redirect[[:space:]]/ { printf "FIREHOL_LINEID=${LINENO} " }
 { print }
 EOF
 
@@ -3441,7 +3481,8 @@ cat >>"${FIREHOL_OUTPUT}" <<"EOF"
 # Make it drop everything on table 'filter'.
 for c in ${firehol_filter_chains}
 do
-	/sbin/iptables -t filter -P "${c}" DROP
+	/sbin/iptables -t filter -P "${c}" DROP >${FIREHOL_OUTPUT}.log 2>&1
+	r=$?; test ! ${r} -eq 0 && runtime_error error ${r} INIT /sbin/iptables -t filter -P "${c}" DROP
 done
 
 EOF
@@ -3463,7 +3504,7 @@ echo
 
 for m in ${FIREHOL_KERNEL_MODULES}
 do
-	postprocess -ne /sbin/modprobe $m
+	postprocess -warn /sbin/modprobe $m
 done
 
 # XXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXX
