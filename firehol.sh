@@ -10,7 +10,7 @@
 #
 # config: /etc/firehol.conf
 #
-# $Id: firehol.sh,v 1.43 2002/12/13 21:52:19 ktsaou Exp $
+# $Id: firehol.sh,v 1.44 2002/12/16 18:57:30 ktsaou Exp $
 #
 
 # ------------------------------------------------------------------------------
@@ -121,7 +121,7 @@ case "${arg}" in
 		else
 		
 		cat <<"EOF"
-$Id: firehol.sh,v 1.43 2002/12/13 21:52:19 ktsaou Exp $
+$Id: firehol.sh,v 1.44 2002/12/16 18:57:30 ktsaou Exp $
 (C) Copyright 2002, Costa Tsaousis
 FireHOL is distributed under GPL.
 
@@ -2473,16 +2473,16 @@ ret=0
 # just before each known directive.
 # These line numbers will be used for debugging the configuration script.
 
-cat >"${FIREHOL_TMP}.awk" <<EOF
-/^[[:space:]]*interface[[:space:]]/ { printf "FIREHOL_LINEID=\\\${LINENO} " }
-/^[[:space:]]*router[[:space:]]/ { printf "FIREHOL_LINEID=\\\${LINENO} " }
-/^[[:space:]]*route[[:space:]]/ { printf "FIREHOL_LINEID=\\\${LINENO} " }
-/^[[:space:]]*client[[:space:]]/ { printf "FIREHOL_LINEID=\\\${LINENO} " }
-/^[[:space:]]*server[[:space:]]/ { printf "FIREHOL_LINEID=\\\${LINENO} " }
-/^[[:space:]]*iptables[[:space:]]/ { printf "FIREHOL_LINEID=\\\${LINENO} " }
-/^[[:space:]]*protection[[:space:]]/ { printf "FIREHOL_LINEID=\\\${LINENO} " }
-/^[[:space:]]*policy[[:space:]]/ { printf "FIREHOL_LINEID=\\\${LINENO} " }
-/^[[:space:]]*masquerade[[:space:]]/ { printf "FIREHOL_LINEID=\\\${LINENO} " }
+cat >"${FIREHOL_TMP}.awk" <<"EOF"
+/^[[:space:]]*interface[[:space:]]/ { printf "FIREHOL_LINEID=${LINENO} " }
+/^[[:space:]]*router[[:space:]]/ { printf "FIREHOL_LINEID=${LINENO} " }
+/^[[:space:]]*route[[:space:]]/ { printf "FIREHOL_LINEID=${LINENO} " }
+/^[[:space:]]*client[[:space:]]/ { printf "FIREHOL_LINEID=${LINENO} " }
+/^[[:space:]]*server[[:space:]]/ { printf "FIREHOL_LINEID=${LINENO} " }
+/^[[:space:]]*iptables[[:space:]]/ { printf "FIREHOL_LINEID=${LINENO} " }
+/^[[:space:]]*protection[[:space:]]/ { printf "FIREHOL_LINEID=${LINENO} " }
+/^[[:space:]]*policy[[:space:]]/ { printf "FIREHOL_LINEID=${LINENO} " }
+/^[[:space:]]*masquerade[[:space:]]/ { printf "FIREHOL_LINEID=${LINENO} " }
 { print }
 EOF
 
