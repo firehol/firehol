@@ -1,7 +1,7 @@
 
 RCS file: /cvsroot/firehol/firehol/firehol.sh,v
 Working file: firehol.sh
-head: 1.59
+head: 1.61
 branch:
 locks: strict
 access list:
@@ -9,8 +9,23 @@ symbolic names:
 	start: 1.1.1.1
 	vendor: 1.1.1
 keyword substitution: kv
-total revisions: 60;	selected revisions: 60
+total revisions: 62;	selected revisions: 62
 description:
+----------------------------
+revision 1.61
+date: 2003/01/01 04:32:48;  author: ktsaou;  state: Exp;  lines: +6 -3
+Added service: microsoft_ds
+----------------------------
+revision 1.60
+date: 2003/01/01 03:12:17;  author: ktsaou;  state: Exp;  lines: +51 -38
+FireHOL has been changed to be "smart" when REJECTing packets.
+If the packet to be rejected is a TCP packet, it will send back a tcp-reset
+message, while for any other protocol it will send icmp-port-unreachable.
+
+This is now the default behavior, without specifing a 'with' parameter.
+
+Also, the multicast service has been changed to additionally match
+protocol No 2.
 ----------------------------
 revision 1.59
 date: 2002/12/31 09:10:15;  author: ktsaou;  state: Exp;  lines: +20 -12
