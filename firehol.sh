@@ -10,296 +10,8 @@
 #
 # config: /etc/firehol.conf
 #
-# $Id: firehol.sh,v 1.63 2003/01/05 20:03:07 ktsaou Exp $
+# $Id: firehol.sh,v 1.64 2003/01/06 00:41:10 ktsaou Exp $
 #
-
-# ------------------------------------------------------------------------------
-# On non RedHat machines we need success() and failure()
-success() {
-	echo " OK"
-}
-failure() {
-	echo " FAILED"
-}
-
-# Be nice on production environments
-renice 10 $$ >/dev/null 2>/dev/null
-
-# ------------------------------------------------------------------------------
-# A small part bellow is copied from /etc/init.d/iptables
-
-# On RedHat systems this will define success() and failure()
-test -f /etc/init.d/functions && . /etc/init.d/functions
-
-if [ ! -x /sbin/iptables ]; then
-	exit 0
-fi
-
-KERNELMAJ=`uname -r | sed                   -e 's,\..*,,'`
-KERNELMIN=`uname -r | sed -e 's,[^\.]*\.,,' -e 's,\..*,,'`
-
-if [ "$KERNELMAJ" -lt 2 ] ; then
-	exit 0
-fi
-if [ "$KERNELMAJ" -eq 2 -a "$KERNELMIN" -lt 3 ] ; then
-	exit 0
-fi
-
-if  /sbin/lsmod 2>/dev/null | grep -q ipchains ; then
-	# Don't do both
-	exit 0
-fi
-
-
-# --- PARAMETERS Processing ----------------------------------------------------
-
-# The default configuration file
-FIREHOL_CONFIG="/etc/firehol.conf"
-
-# If set to 1, we are just going to present the resulting firewall instead of
-# installing it.
-FIREHOL_DEBUG=0
-
-# If set to 1, the firewall will be saved for normal iptables processing.
-FIREHOL_SAVE=0
-
-# If set to 1, the firewall will be restored if you don't commit it.
-FIREHOL_TRY=1
-
-# If set to 1, FireHOL enters interactive mode to answer questions.
-FIREHOL_EXPLAIN=0
-
-me="${0}"
-arg="${1}"
-shift
-
-case "${arg}" in
-	explain)
-		FIREHOL_EXPLAIN=1
-		;;
-	
-	try)
-		FIREHOL_TRY=1
-		;;
-	
-	start)
-		FIREHOL_TRY=0
-		;;
-	
-	stop)
-		test -f /var/lock/subsys/firehol && rm -f /var/lock/subsys/firehol
-		/etc/init.d/iptables stop
-		exit 0
-		;;
-	
-	restart)
-		FIREHOL_TRY=0
-		;;
-	
-	condrestart)
-		FIREHOL_TRY=0
-		if [ ! -e /var/lock/subsys/firehol ]
-		then
-			exit 0
-		fi
-		;;
-	
-	status)
-		/sbin/iptables -nxvL | less
-		exit $?
-		;;
-	
-	panic)
-		/etc/init.d/iptables panic
-		exit $?
-		;;
-	
-	save)
-		FIREHOL_TRY=0
-		FIREHOL_SAVE=1
-		;;
-		
-	debug)
-		FIREHOL_TRY=0
-		FIREHOL_DEBUG=1
-		;;
-	
-	*)	if [ ! -z "${arg}" -a -f "${arg}" ]
-		then
-			FIREHOL_CONFIG="${arg}"
-			arg="${1}"
-			test "${arg}" = "--" && arg="" && shift
-			test -z "${arg}" && arg="try"
-			
-			case "${arg}" in
-				start)
-					FIREHOL_TRY=0
-					FIREHOL_DEBUG=0
-					;;
-					
-				try)
-					FIREHOL_TRY=1
-					FIREHOL_DEBUG=0
-					;;
-					
-				debug)
-					FIREHOL_TRY=0
-					FIREHOL_DEBUG=1
-					;;
-				
-				*)
-					echo "Cannot accept command line argument '${arg}' here."
-					exit 1
-					;;
-			esac
-		else
-		
-		cat <<"EOF"
-$Id: firehol.sh,v 1.63 2003/01/05 20:03:07 ktsaou Exp $
-(C) Copyright 2002, Costa Tsaousis <costa@tsaousis.gr>
-FireHOL is distributed under GPL.
-
-FireHOL supports the following command line arguments (only one of them):
-
-	start		to activate the firewall configuration.
-			The configuration is expected to be found in
-			/etc/firehol.conf
-			
-	try		to activate the firewall, but wait until
-			the user types the word "commit". If this word
-			is not typed within 30 seconds, the previous
-			firewall is restored.
-			
-	stop		to stop a running iptables firewall.
-			This will allow all traffic to pass unchecked.
-		
-	restart		this is an alias for start and is given for
-			compatibility with /etc/init.d/iptables.
-			
-	condrestart	will start the firewall only if it is not
-			already active. It does not detect a modified
-			configuration file.
-	
-	status		will show the running firewall, as in:
-			/sbin/iptables -nxvL | less
-			
-	panic		will execute "/etc/init.d/iptables panic"
-	
-	save		to start the firewall and then save it using:
-			/etc/init.d/iptables save
-			
-			Note that not all firewalls will work if
-			restored with:
-			/etc/init.d/iptables start
-			
-	debug		to parse the configuration file but instead of
-			activating it, to show the generated iptables
-			statements.
-	
-	explain		to enter interactive mode and accept configuration
-			directives. It also gives the iptables commands
-			for each directive together with reasoning.
-			
-	<a filename>	a different configuration file.
-			If not other argument is given, the configuration
-			will be "tried" (default = try).
-			Otherwise the argument next to the filename can
-			be one of 'start', 'debug' and 'try'.
-
-
--------------------------------------------------------------------------
-
-FireHOL supports the following services (sorted by name):
-EOF
-
-
-		(
-			# The simple services
-			cat "${me}"				|\
-				grep -e "^server_.*_ports="	|\
-				cut -d '=' -f 1			|\
-				sed "s/^server_//"		|\
-				sed "s/_ports\$//"
-			
-			# The complex services
-			cat "${me}"				|\
-				grep -e "^rules_.*()"		|\
-				cut -d '(' -f 1			|\
-				sed "s/^rules_/(*) /"
-		) | sort | uniq |\
-		(
-			x=0
-			while read
-			do
-				x=$[x + 1]
-				if [ $x -gt 4 ]
-				then
-					printf "\n"
-					x=1
-				fi
-				printf "% 16s |" "$REPLY"
-			done
-			printf "\n\n"
-		)
-		
-		cat <<EOF
-
-Services marked with (*) are "smart" or complex services.
-All the others are simple single socket services.
-
-Please note that the service:
-	
-	all	matches all packets, all protocols, all of everything,
-		while ensuring that required kernel modules are loaded.
-	
-	any	allows the matching of packets with unusual rules, like
-		only protocol but no ports. If service any is used
-		without other parameters, it does what service all does
-		but it does not handle kernel modules.
-		For example, to match GRE traffic use:
-		
-		server any mygre accept proto 47
-		
-		Service any does not handle kernel modules.
-		
-	custom	allows the definition of a custom service.
-		The template is:
-		
-		server custom name protocol/sport cport accept
-		
-		where name is just a name, protocol is the protocol the
-		service uses (tcp, udp, etc), sport is server port,
-		cport is the client port. For example, IMAP4 is:
-		
-		server custom imap tcp/143 default accept
-
-
-For more information about FireHOL, please refer to:
-
-		http://firehol.sourceforge.net
-
--------------------------------------------------------------------------
-FireHOL controls your firewall. You should want to get updates quickly.
-Subscribe (at the home page) to get notified of new releases.
-
-EOF
-		exit 1
-		
-		fi
-		;;
-esac
-
-# Remove the next arg if it is --
-test "${1}" = "--" && shift
-
-if [ ${FIREHOL_EXPLAIN} -eq 0 -a ! -f "${FIREHOL_CONFIG}" ]
-then
-	echo -n $"FireHOL config ${FIREHOL_CONFIG} not found:"
-	failure $"FireHOL config ${FIREHOL_CONFIG} not found:"
-	echo
-	exit 1
-fi
-
 
 
 # ------------------------------------------------------------------------------
@@ -356,11 +68,6 @@ FIREHOL_LOG_OPTIONS="--log-level warning"
 FIREHOL_LOG_FREQUENCY="1/second"
 FIREHOL_LOG_BURST="5"
 
-# Complex services' rules may add themeselves to this variable so that
-# the service "all" will also call them.
-# By default it is empty - only rules programmers should change this.
-ALL_SHOULD_ALSO_RUN=
-
 # The client ports to be used for "default" client ports when the
 # client specified is a foreign host.
 # We give all ports above 1000 because a few systems (like Solaris)
@@ -376,6 +83,10 @@ LOCAL_CLIENT_PORTS_LOW=`sysctl net.ipv4.ip_local_port_range | cut -d '=' -f 2 | 
 LOCAL_CLIENT_PORTS_HIGH=`sysctl net.ipv4.ip_local_port_range | cut -d '=' -f 2 | cut -f 2`
 LOCAL_CLIENT_PORTS="${LOCAL_CLIENT_PORTS_LOW}:${LOCAL_CLIENT_PORTS_HIGH}"
 
+
+# ----------------------------------------------------------------------
+# Temporary directories and files
+
 # These files will be created and deleted during our run.
 FIREHOL_DIR="/tmp/firehol-tmp-$$"
 FIREHOL_CHAINS_DIR="${FIREHOL_DIR}/chains"
@@ -383,12 +94,16 @@ FIREHOL_OUTPUT="${FIREHOL_DIR}/firehol-out.sh"
 FIREHOL_SAVED="${FIREHOL_DIR}/firehol-save.sh"
 FIREHOL_TMP="${FIREHOL_DIR}/firehol-tmp.sh"
 
+
+# ----------------------------------------------------------------------
 # This is our version number. It is increased when the configuration
 # file commands and arguments change their meaning and usage, so that
 # the user will have to review it more precisely.
 FIREHOL_VERSION=5
 FIREHOL_VERSION_CHECKED=0
 
+
+# ----------------------------------------------------------------------
 # The initial line number of the configuration file.
 FIREHOL_LINEID="INIT"
 
@@ -413,19 +128,51 @@ FIREHOL_NAT=0
 # in the kernel.
 FIREHOL_ROUTING=0
 
+# Services may add themeselves to this variable so that the service "all" will
+# also call them.
+# By default it is empty - only rules programmers should change this.
+ALL_SHOULD_ALSO_RUN=
+
+
+# ------------------------------------------------------------------------------
+# Command Line Arguments Defaults
+
+# The default configuration file
+# It can be changed on the command line
+FIREHOL_CONFIG="/etc/firehol.conf"
+
+# If set to 1, we are just going to present the resulting firewall instead of
+# installing it.
+# It can be changed on the command line
+FIREHOL_DEBUG=0
+
+# If set to 1, the firewall will be saved for normal iptables processing.
+# It can be changed on the command line
+FIREHOL_SAVE=0
+
+# If set to 1, the firewall will be restored if you don't commit it.
+# It can be changed on the command line
+FIREHOL_TRY=1
+
+# If set to 1, FireHOL enters interactive mode to answer questions.
+# It can be changed on the command line
+FIREHOL_EXPLAIN=0
+
+
 # ------------------------------------------------------------------------------
 # Keep information about the current primary command
 # Primary commands are: interface, router
 
 work_counter=0
 work_cmd=
-work_realcmd=
+work_realcmd=("(unset)")
 work_name=
 work_inface=
 work_outface=
 work_policy="${DEFAULT_INTERFACE_POLICY}"
 work_error=0
 work_function="Initializing"
+
 
 # ------------------------------------------------------------------------------
 # Keep status information
@@ -455,6 +202,7 @@ FIREHOL_DYNAMIC_CHAIN_COUNTER=1
 # The following are definitions for simple services.
 # We define as "simple" the services that are implemented using a single socket,
 # initiated by the client and used by the server.
+#
 # The following list is sorted by service name.
 
 server_AH_ports="51/any"
@@ -1189,9 +937,6 @@ rules_custom() {
 $sp
 EOF
 		
-#		local proto="`echo $sp | cut -d '/' -f 1`"
-#		local sport="`echo $sp | cut -d '/' -f 2`"
-		
 		local cp=
 		for cp in ${my_client_ports}
 		do
@@ -1236,7 +981,7 @@ EOF
 # of firehol.sh. It checks only its release number (R5 currently).
 
 version() {
-	work_realcmd="`printf "%q " version "$@"`"
+        work_realcmd=(${FUNCNAME} "$@")
 	
 	FIREHOL_VERSION_CHECKED=1
 	
@@ -1252,7 +997,7 @@ version() {
 # Setup rules specific to an interface (physical or logical)
 
 interface() {
-	work_realcmd="`printf "%q " interface "$@"`"
+        work_realcmd=(${FUNCNAME} "$@")
 	
 	# --- close any open command ---
 	
@@ -1280,7 +1025,7 @@ interface() {
 	
 	work_cmd="${FUNCNAME}"
 	work_name="${name}"
-	work_realcmd=
+	work_realcmd=("(unset)")
 	
 	set_work_function -ne "Initializing interface '${work_name}'"
 	
@@ -1292,7 +1037,7 @@ interface() {
 
 
 router() {
-	work_realcmd="`printf "%q " router "$@"`"
+        work_realcmd=(${FUNCNAME} "$@")
 	
 	# --- close any open command ---
 	
@@ -1316,7 +1061,7 @@ router() {
 	
 	work_cmd="${FUNCNAME}"
 	work_name="${name}"
-	work_realcmd=
+	work_realcmd=("(unset)")
 	
 	set_work_function -ne "Initializing router '${work_name}'"
 	
@@ -1371,7 +1116,7 @@ iptables() {
 
 
 masquerade() {
-	work_realcmd="`printf "%q " masquerade "$@"`"
+        work_realcmd=(${FUNCNAME} "$@")
 	
 	set_work_function -ne "Initializing masquerade"
 	
@@ -1404,7 +1149,7 @@ masquerade() {
 # produce the iptables rules.
 
 policy() {
-	work_realcmd="`printf "%q " policy "$@"`"
+        work_realcmd=(${FUNCNAME} "$@")
 	
 	require_work set interface || return 1
 	
@@ -1414,9 +1159,8 @@ policy() {
 	return 0
 }
 
-
 server() {
-	work_realcmd="`printf "%q " server "$@"`"
+	work_realcmd=(${FUNCNAME} "$@")
 	
 	require_work set any || return 1
 	smart_function server "$@"
@@ -1424,7 +1168,7 @@ server() {
 }
 
 client() {
-	work_realcmd="`printf "%q " client "$@"`"
+        work_realcmd=(${FUNCNAME} "$@")
 	
 	require_work set any || return 1
 	smart_function client "$@"
@@ -1432,7 +1176,7 @@ client() {
 }
 
 route() {
-	work_realcmd="`printf "%q " route "$@"`"
+        work_realcmd=(${FUNCNAME} "$@")
 	
 	require_work set router || return 1
 	smart_function server "$@"
@@ -1443,7 +1187,7 @@ route() {
 # --- protection ---------------------------------------------------------------
 
 protection() {
-	work_realcmd="`printf "%q " protection "$@"`"
+        work_realcmd=(${FUNCNAME} "$@")
 	
 	require_work set any || return 1
 	
@@ -1711,7 +1455,7 @@ close_cmd() {
 	# Reset the current status variables to empty/default
 	work_counter=0
 	work_cmd=
-	work_realcmd=
+	work_realcmd=("(unset)")
 	work_name=
 	work_inface=
 	work_outface=
@@ -2489,10 +2233,10 @@ error() {
 	echo >&2
 	echo >&2 "--------------------------------------------------------------------------------"
 	echo >&2 "ERROR #: ${work_error}"
-	echo >&2 "COMMAND: ${work_realcmd}"
-	echo >&2 "SOURCE : line ${FIREHOL_LINEID} of ${FIREHOL_CONFIG}"
 	echo >&2 "WHAT   : ${work_function}"
 	echo >&2 "WHY    :" "$@"
+	printf >&2 "COMMAND: "; printf >&2 "%q " "${work_realcmd[@]}"; echo >&2
+	echo >&2 "SOURCE : line ${FIREHOL_LINEID} of ${FIREHOL_CONFIG}"
 	echo >&2
 	
 	return 0
@@ -2707,6 +2451,296 @@ simple_service() {
 # XXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXX
 # ------------------------------------------------------------------------------
 #
+# START UP SCRIPT PROCESSING
+#
+# ------------------------------------------------------------------------------
+# XXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXX
+# ------------------------------------------------------------------------------
+
+# ------------------------------------------------------------------------------
+# On non RedHat machines we need success() and failure()
+success() {
+	echo " OK"
+}
+failure() {
+	echo " FAILED"
+}
+
+# Be nice on production environments
+renice 10 $$ >/dev/null 2>/dev/null
+
+# ------------------------------------------------------------------------------
+# A small part bellow is copied from /etc/init.d/iptables
+
+# On RedHat systems this will define success() and failure()
+test -f /etc/init.d/functions && . /etc/init.d/functions
+
+if [ ! -x /sbin/iptables ]; then
+	exit 0
+fi
+
+KERNELMAJ=`uname -r | sed                   -e 's,\..*,,'`
+KERNELMIN=`uname -r | sed -e 's,[^\.]*\.,,' -e 's,\..*,,'`
+
+if [ "$KERNELMAJ" -lt 2 ] ; then
+	exit 0
+fi
+if [ "$KERNELMAJ" -eq 2 -a "$KERNELMIN" -lt 3 ] ; then
+	exit 0
+fi
+
+if  /sbin/lsmod 2>/dev/null | grep -q ipchains ; then
+	# Don't do both
+	exit 0
+fi
+
+
+# ------------------------------------------------------------------------------
+# XXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXX
+# ------------------------------------------------------------------------------
+#
+# COMMAND LINE ARGUMENTS PROCESSING
+#
+# ------------------------------------------------------------------------------
+# XXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXX
+# ------------------------------------------------------------------------------
+
+me="${0}"
+arg="${1}"
+shift
+
+case "${arg}" in
+	explain)
+		FIREHOL_EXPLAIN=1
+		;;
+	
+	try)
+		FIREHOL_TRY=1
+		;;
+	
+	start)
+		FIREHOL_TRY=0
+		;;
+	
+	stop)
+		test -f /var/lock/subsys/firehol && rm -f /var/lock/subsys/firehol
+		/etc/init.d/iptables stop
+		exit 0
+		;;
+	
+	restart)
+		FIREHOL_TRY=0
+		;;
+	
+	condrestart)
+		FIREHOL_TRY=0
+		if [ ! -e /var/lock/subsys/firehol ]
+		then
+			exit 0
+		fi
+		;;
+	
+	status)
+		/sbin/iptables -nxvL | less
+		exit $?
+		;;
+	
+	panic)
+		/etc/init.d/iptables panic
+		exit $?
+		;;
+	
+	save)
+		FIREHOL_TRY=0
+		FIREHOL_SAVE=1
+		;;
+		
+	debug)
+		FIREHOL_TRY=0
+		FIREHOL_DEBUG=1
+		;;
+	
+	*)	if [ ! -z "${arg}" -a -f "${arg}" ]
+		then
+			FIREHOL_CONFIG="${arg}"
+			arg="${1}"
+			test "${arg}" = "--" && arg="" && shift
+			test -z "${arg}" && arg="try"
+			
+			case "${arg}" in
+				start)
+					FIREHOL_TRY=0
+					FIREHOL_DEBUG=0
+					;;
+					
+				try)
+					FIREHOL_TRY=1
+					FIREHOL_DEBUG=0
+					;;
+					
+				debug)
+					FIREHOL_TRY=0
+					FIREHOL_DEBUG=1
+					;;
+				
+				*)
+					echo "Cannot accept command line argument '${arg}' here."
+					exit 1
+					;;
+			esac
+		else
+		
+		cat <<"EOF"
+$Id: firehol.sh,v 1.64 2003/01/06 00:41:10 ktsaou Exp $
+(C) Copyright 2002, Costa Tsaousis <costa@tsaousis.gr>
+FireHOL is distributed under GPL.
+
+FireHOL supports the following command line arguments (only one of them):
+
+	start		to activate the firewall configuration.
+			The configuration is expected to be found in
+			/etc/firehol.conf
+			
+	try		to activate the firewall, but wait until
+			the user types the word "commit". If this word
+			is not typed within 30 seconds, the previous
+			firewall is restored.
+			
+	stop		to stop a running iptables firewall.
+			This will allow all traffic to pass unchecked.
+		
+	restart		this is an alias for start and is given for
+			compatibility with /etc/init.d/iptables.
+			
+	condrestart	will start the firewall only if it is not
+			already active. It does not detect a modified
+			configuration file.
+	
+	status		will show the running firewall, as in:
+			/sbin/iptables -nxvL | less
+			
+	panic		will execute "/etc/init.d/iptables panic"
+	
+	save		to start the firewall and then save it using
+			/sbin/iptables-save to /etc/sysconfig/iptables
+			
+			Note that not all firewalls will work if
+			restored with:
+			/etc/init.d/iptables start
+			
+	debug		to parse the configuration file but instead of
+			activating it, to show the generated iptables
+			statements.
+	
+	explain		to enter interactive mode and accept configuration
+			directives. It also gives the iptables commands
+			for each directive together with reasoning.
+			
+	<a filename>	a different configuration file.
+			If not other argument is given, the configuration
+			will be "tried" (default = try).
+			Otherwise the argument next to the filename can
+			be one of 'start', 'debug' and 'try'.
+
+
+-------------------------------------------------------------------------
+
+FireHOL supports the following services (sorted by name):
+EOF
+
+
+		(
+			# The simple services
+			cat "${me}"				|\
+				grep -e "^server_.*_ports="	|\
+				cut -d '=' -f 1			|\
+				sed "s/^server_//"		|\
+				sed "s/_ports\$//"
+			
+			# The complex services
+			cat "${me}"				|\
+				grep -e "^rules_.*()"		|\
+				cut -d '(' -f 1			|\
+				sed "s/^rules_/(*) /"
+		) | sort | uniq |\
+		(
+			x=0
+			while read
+			do
+				x=$[x + 1]
+				if [ $x -gt 4 ]
+				then
+					printf "\n"
+					x=1
+				fi
+				printf "% 16s |" "$REPLY"
+			done
+			printf "\n\n"
+		)
+		
+		cat <<EOF
+
+Services marked with (*) are "smart" or complex services.
+All the others are simple single socket services.
+
+Please note that the service:
+	
+	all	matches all packets, all protocols, all of everything,
+		while ensuring that required kernel modules are loaded.
+	
+	any	allows the matching of packets with unusual rules, like
+		only protocol but no ports. If service any is used
+		without other parameters, it does what service all does
+		but it does not handle kernel modules.
+		For example, to match GRE traffic use:
+		
+		server any mygre accept proto 47
+		
+		Service any does not handle kernel modules.
+		
+	custom	allows the definition of a custom service.
+		The template is:
+		
+		server custom name protocol/sport cport accept
+		
+		where name is just a name, protocol is the protocol the
+		service uses (tcp, udp, etc), sport is server port,
+		cport is the client port. For example, IMAP4 is:
+		
+		server custom imap tcp/143 default accept
+
+
+For more information about FireHOL, please refer to:
+
+		http://firehol.sourceforge.net
+
+-------------------------------------------------------------------------
+FireHOL controls your firewall. You should want to get updates quickly.
+Subscribe (at the home page) to get notified of new releases.
+
+EOF
+		exit 1
+		
+		fi
+		;;
+esac
+
+# Remove the next arg if it is --
+test "${1}" = "--" && shift
+
+if [ ${FIREHOL_EXPLAIN} -eq 0 -a ! -f "${FIREHOL_CONFIG}" ]
+then
+	echo -n $"FireHOL config ${FIREHOL_CONFIG} not found:"
+	failure $"FireHOL config ${FIREHOL_CONFIG} not found:"
+	echo
+	exit 1
+fi
+
+
+# ------------------------------------------------------------------------------
+# XXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXX
+# ------------------------------------------------------------------------------
+#
 # MAIN PROCESSING - Interactive mode
 #
 # ------------------------------------------------------------------------------
@@ -2725,7 +2759,7 @@ then
 	
 	cat <<"EOF"
 
-$Id: firehol.sh,v 1.63 2003/01/05 20:03:07 ktsaou Exp $
+$Id: firehol.sh,v 1.64 2003/01/06 00:41:10 ktsaou Exp $
 (C) Copyright 2002, Costa Tsaousis <costa@tsaousis.gr>
 FireHOL is distributed under GPL.
 Home Page: http://firehol.sourceforge.net
@@ -2912,8 +2946,27 @@ fi
 
 # XXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXX
 
+fixed_iptables_save() {
+	local tmp="/tmp/iptables-save-$$"
+	local err=
+	
+	iptables-save -c >$tmp
+	err=$?
+	if [ ! $err -eq 0 ]
+	then
+		rm -f $tmp >/dev/null 2>&1
+		return $err
+	fi
+	
+	sed "s/--uid-owner !/! --uid-owner /g" <$tmp
+	err=$?
+	
+	rm -f $tmp >/dev/null 2>&1
+	return $err
+}
+
 echo -n $"FireHOL: Saving your old firewall to a temporary file:"
-iptables-save >${FIREHOL_SAVED}
+fixed_iptables_save >${FIREHOL_SAVED}
 if [ $? -eq 0 ]
 then
 	success $"FireHOL: Saving your old firewall to a temporary file:"
@@ -3071,6 +3124,18 @@ touch /var/lock/subsys/firehol
 
 if [ ${FIREHOL_SAVE} -eq 1 ]
 then
-	/etc/init.d/iptables save
-	exit $?
+#	/etc/init.d/iptables save
+	echo -n $"FireHOL: Saving firewall to /etc/sysconfig/iptables:"
+	fixed_iptables_save >/etc/sysconfig/iptables
+	
+	if [ ! $? -eq 0 ]
+	then
+		failure $"FireHOL: Saving firewall to /etc/sysconfig/iptables:"
+		echo
+		exit 1
+	fi
+	
+	success $"FireHOL: Saving firewall to /etc/sysconfig/iptables:"
+	echo
+	exit 0
 fi
