@@ -10,7 +10,7 @@
 #
 # config: /etc/firehol.conf
 #
-# $Id: firehol.sh,v 1.61 2003/01/01 04:32:48 ktsaou Exp $
+# $Id: firehol.sh,v 1.62 2003/01/03 23:34:37 ktsaou Exp $
 #
 
 # ------------------------------------------------------------------------------
@@ -155,7 +155,7 @@ case "${arg}" in
 		else
 		
 		cat <<"EOF"
-$Id: firehol.sh,v 1.61 2003/01/01 04:32:48 ktsaou Exp $
+$Id: firehol.sh,v 1.62 2003/01/03 23:34:37 ktsaou Exp $
 (C) Copyright 2002, Costa Tsaousis <costa@tsaousis.gr>
 FireHOL is distributed under GPL.
 
@@ -457,6 +457,9 @@ FIREHOL_DYNAMIC_CHAIN_COUNTER=1
 # initiated by the client and used by the server.
 # The following list is sorted by service name.
 
+server_AH_ports="51/any"
+client_AH_ports="any"
+
 # Debian package proxy
 server_aptproxy_ports="tcp/9999"
 client_aptproxy_ports="default"
@@ -486,11 +489,17 @@ client_dhcp_ports="bootpc"
 server_dhcprelay_ports="udp/bootps"
 client_dhcprelay_ports="bootps"
 
+server_ESP_ports="50/any"
+client_ESP_ports="any"
+
 server_echo_ports="tcp/echo"
 client_echo_ports="default"
 
 server_finger_ports="tcp/finger"
 client_finger_ports="default"
+
+server_GRE_ports="47/any"
+client_GRE_ports="any"
 
 # We assume heartbeat uses ports in the range 690 to 699
 server_heartbeat_ports="udp/690:699"
@@ -502,9 +511,12 @@ client_http_ports="default"
 server_https_ports="tcp/https"
 client_https_ports="default"
 
+server_ICMP_ports="icmp/any"
+client_ICMP_ports="any"
+
 server_icmp_ports="icmp/any"
 client_icmp_ports="any"
-ALL_SHOULD_ALSO_RUN="${ALL_SHOULD_ALSO_RUN} icmp"
+# ALL_SHOULD_ALSO_RUN="${ALL_SHOULD_ALSO_RUN} icmp"
 
 server_ident_ports="tcp/auth"
 client_ident_ports="default"
@@ -2687,7 +2699,7 @@ then
 	
 	cat <<"EOF"
 
-$Id: firehol.sh,v 1.61 2003/01/01 04:32:48 ktsaou Exp $
+$Id: firehol.sh,v 1.62 2003/01/03 23:34:37 ktsaou Exp $
 (C) Copyright 2002, Costa Tsaousis <costa@tsaousis.gr>
 FireHOL is distributed under GPL.
 Home Page: http://firehol.sourceforge.net
