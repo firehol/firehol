@@ -10,7 +10,7 @@
 #
 # config: /etc/firehol.conf
 #
-# $Id: firehol.sh,v 1.33 2002/12/07 00:47:30 ktsaou Exp $
+# $Id: firehol.sh,v 1.34 2002/12/07 18:12:43 ktsaou Exp $
 #
 
 # ------------------------------------------------------------------------------
@@ -110,11 +110,12 @@ case "${arg}" in
 	*)	if [ ! -z "${arg}" -a -f "${arg}" ]
 		then
 			FIREHOL_CONFIG="${arg}"
-			arg="try"
+			arg="${1}"
+			test -z "${arg}" && arg="try"
 		else
 		
 		cat <<"EOF"
-$Id: firehol.sh,v 1.33 2002/12/07 00:47:30 ktsaou Exp $
+$Id: firehol.sh,v 1.34 2002/12/07 18:12:43 ktsaou Exp $
 (C) Copyright 2002, Costa Tsaousis
 FireHOL is distributed under GPL.
 
@@ -155,7 +156,11 @@ FireHOL supports the following command line arguments (only one of them):
 			activating it, to show the generated iptables
 			statements.
 			
-	<a filename>	to "try" a different configuration file.
+	<a filename>	a different configuration file.
+			If not other argument is given, the configuration
+			will be "tried" (default = try).
+			Otherwise the argument next to the filename can
+			be one of the above (start, restart, debug, etc).
 
 
 -------------------------------------------------------------------------
@@ -2238,9 +2243,17 @@ protection() {
 	local in="in"
 	local prface="${work_inface}"
 	
+	local pre="pr"
+	unset reverse
 	if [ "${1}" = "reverse" ]
 	then
-		in="out"
+		local reverse="reverse"	# needed to recursion
+		local pre="prr"		# in case a router has protections
+					# both ways, the second needs to
+					# have different chain names
+					
+		local in="out"		# reverse the interface
+		
 		prface="${work_outface}"
 		shift
 	fi
@@ -2263,26 +2276,26 @@ protection() {
 				;;
 			
 			strong|STRONG|full|FULL|all|ALL)
-				protection "fragments new-tcp-w/o-syn icmp-floods syn-floods malformed-xmas malformed-null malformed-bad" "${rate}" "${burst}"
+				protection ${reverse} "fragments new-tcp-w/o-syn icmp-floods syn-floods malformed-xmas malformed-null malformed-bad" "${rate}" "${burst}"
 				return $?
 				;;
 				
 			fragments|FRAGMENTS)
-				local mychain="pr_${work_name}_fragments"
+				local mychain="#{pre}_${work_name}_fragments"
 				create_chain filter "${mychain}" "${in}_${work_name}" custom "-f"				|| return 1
 				
 				rule chain "${mychain}" loglimit "PACKET FRAGMENTS" action drop 				|| return 1
 				;;
 				
 			new-tcp-w/o-syn|NEW-TCP-W/O-SYN)
-				local mychain="pr_${work_name}_nosyn"
+				local mychain="#{pre}_${work_name}_nosyn"
 				create_chain filter "${mychain}" "${in}_${work_name}" proto tcp state NEW custom "! --syn"	|| return 1
 				
 				rule chain "${mychain}" loglimit "NEW TCP w/o SYN" action drop					|| return 1
 				;;
 				
 			icmp-floods|ICMP-FLOODS)
-				local mychain="pr_${work_name}_icmpflood"
+				local mychain="#{pre}_${work_name}_icmpflood"
 				create_chain filter "${mychain}" "${in}_${work_name}" proto icmp custom "--icmp-type echo-request"	|| return 1
 				
 				rule chain "${mychain}" limit "${rate}" "${burst}" action return				|| return 1
@@ -2290,7 +2303,7 @@ protection() {
 				;;
 				
 			syn-floods|SYN-FLOODS)
-				local mychain="pr_${work_name}_synflood"
+				local mychain="#{pre}_${work_name}_synflood"
 				create_chain filter "${mychain}" "${in}_${work_name}" proto tcp custom "--syn"			|| return 1
 				
 				rule chain "${mychain}" limit "${rate}" "${burst}" action return				|| return 1
@@ -2298,21 +2311,21 @@ protection() {
 				;;
 				
 			malformed-xmas|MALFORMED-XMAS)
-				local mychain="pr_${work_name}_malxmas"
+				local mychain="#{pre}_${work_name}_malxmas"
 				create_chain filter "${mychain}" "${in}_${work_name}" proto tcp custom "--tcp-flags ALL ALL"	|| return 1
 				
 				rule chain "${mychain}" loglimit "MALFORMED XMAS" action drop					|| return 1
 				;;
 				
 			malformed-null|MALFORMED-NULL)
-				local mychain="pr_${work_name}_malnull"
+				local mychain="#{pre}_${work_name}_malnull"
 				create_chain filter "${mychain}" "${in}_${work_name}" proto tcp custom "--tcp-flags ALL NONE"	|| return 1
 				
 				rule chain "${mychain}" loglimit "MALFORMED NULL" action drop					|| return 1
 				;;
 				
 			malformed-bad|MALFORMED-BAD)
-				local mychain="pr_${work_name}_malbad"
+				local mychain="#{pre}_${work_name}_malbad"
 				create_chain filter "${mychain}" "${in}_${work_name}" proto tcp custom "--tcp-flags SYN,FIN SYN,FIN"		|| return 1
 				rule chain "${in}_${work_name}" action "${mychain}"   proto tcp custom "--tcp-flags SYN,RST SYN,RST"			|| return 1
 				rule chain "${in}_${work_name}" action "${mychain}"   proto tcp custom "--tcp-flags ALL     SYN,RST,ACK,FIN,URG"	|| return 1
