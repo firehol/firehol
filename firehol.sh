@@ -10,7 +10,7 @@
 #
 # config: /etc/firehol/firehol.conf
 #
-# $Id: firehol.sh,v 1.210 2004/10/30 22:41:21 ktsaou Exp $
+# $Id: firehol.sh,v 1.211 2004/10/30 23:03:57 ktsaou Exp $
 #
 
 # Remember who you are.
@@ -382,9 +382,6 @@ client_dcpp_ports="default"
 server_dns_ports="udp/53 tcp/53"
 client_dns_ports="any"
 
-server_dhcp_ports="udp/67"
-client_dhcp_ports="68"
-
 # DHCP Relaying (server is the relay server which behaves like a client
 # towards the real DHCP Server); I'm not sure about this one...
 server_dhcprelay_ports="udp/67"
@@ -685,6 +682,36 @@ client_xdmcp_ports="default"
 #    inface/outface, src/dst, sport/dport
 # b) The output rules use ${out}_${mychain} instead of ${in}_${mychain}
 # c) The state rules match the client operation, not the server.
+
+
+# --- DHCP --------------------------------------------------------------------
+
+rules_dhcp() {
+        local mychain="${1}"; shift
+	local type="${1}"; shift
+	
+	local in=in
+	local out=out
+	if [ "${type}" = "client" ]
+	then
+		in=out
+		out=in
+	fi
+	
+	local client_ports="${DEFAULT_CLIENT_PORTS}"
+	if [ "${type}" = "client" -a "${work_cmd}" = "interface" ]
+	then
+		client_ports="${LOCAL_CLIENT_PORTS}"
+	fi
+	
+	# ----------------------------------------------------------------------
+	
+	set_work_function "Setting up rules for DHCP (${type})"
+	rule ${in}          action "$@" chain "${in}_${mychain}"  proto "udp" sport "68" dport "67" || return 1
+	rule ${out} reverse action "$@" chain "${out}_${mychain}" proto "udp" sport "68" dport "67" || return 1
+	
+	return 0
+}
 
 
 # --- EMULE --------------------------------------------------------------------
@@ -4680,7 +4707,7 @@ case "${arg}" in
 		else
 		
 		${CAT_CMD} <<EOF
-$Id: firehol.sh,v 1.210 2004/10/30 22:41:21 ktsaou Exp $
+$Id: firehol.sh,v 1.211 2004/10/30 23:03:57 ktsaou Exp $
 (C) Copyright 2003, Costa Tsaousis <costa@tsaousis.gr>
 FireHOL is distributed under GPL.
 
@@ -4866,7 +4893,7 @@ then
 	
 	${CAT_CMD} <<EOF
 
-$Id: firehol.sh,v 1.210 2004/10/30 22:41:21 ktsaou Exp $
+$Id: firehol.sh,v 1.211 2004/10/30 23:03:57 ktsaou Exp $
 (C) Copyright 2003, Costa Tsaousis <costa@tsaousis.gr>
 FireHOL is distributed under GPL.
 Home Page: http://firehol.sourceforge.net
@@ -5160,7 +5187,7 @@ then
 	
 	${CAT_CMD} >&2 <<EOF
 
-$Id: firehol.sh,v 1.210 2004/10/30 22:41:21 ktsaou Exp $
+$Id: firehol.sh,v 1.211 2004/10/30 23:03:57 ktsaou Exp $
 (C) Copyright 2003, Costa Tsaousis <costa@tsaousis.gr>
 FireHOL is distributed under GPL.
 Home Page: http://firehol.sourceforge.net
@@ -5243,7 +5270,7 @@ EOF
 	echo "# "
 
 	${CAT_CMD} <<EOF
-# $Id: firehol.sh,v 1.210 2004/10/30 22:41:21 ktsaou Exp $
+# $Id: firehol.sh,v 1.211 2004/10/30 23:03:57 ktsaou Exp $
 # (C) Copyright 2003, Costa Tsaousis <costa@tsaousis.gr>
 # FireHOL is distributed under GPL.
 # Home Page: http://firehol.sourceforge.net

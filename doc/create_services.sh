@@ -132,11 +132,17 @@ service_dcpp_notes="
 Direct Connect++ P2P, can be found <a href=\"http://dcplusplus.sourceforge.net\">here</a>.
 "
 
+server_dhcp_ports="udp/67"
+client_dhcp_ports="68"
 service_dhcp_notes="
-Keep in mind that DHCP clients broadcast the network (src 0.0.0.0 dst 255.255.255.255) to find a DHCP server.
-This means that if your <b>server dhcp accept</b> command is placed within
-an interface that has <b>src</b> and / or <b>dst</b> parameters,
-DHCP broadcasts will not enter this interface.
+The DHCP service has been changed in v1.211 of FireHOL and now it is implemented as stateless.
+This has been done because DHCP clients broadcast the network (src 0.0.0.0 dst 255.255.255.255) to find a DHCP server.
+If the DHCP service was stateful the iptables connection tracker would not match the packets and deny to send the reply.
+Note that this change does not affect the security of either DHCP servers or clients, since only the specific ports are
+allowed (there is no random port at either the server or the client side).
+<p>
+Also, keep in mind that the <b>server dhcp accept</b> or <b>client dhcp accept</b> commands should placed within
+interfaces that either do not have <b>src</b> and / or <b>dst</b> defined (because of the initial broadcast).
 <p>
 You can overcome this problem by placing the DHCP service on a separate
 interface, without an <b>src</b> or <b>dst</b> but with a <b>policy return</b>.
@@ -153,22 +159,6 @@ For example:
 <br>&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;...
 <br>&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;client all accept
 </td></tr></table>
-Note that if you are running a DHCP client and your provider has installed more than one DHCP servers, you
-may see a few entries in your system log about packets dropped from the IP of some
-DHCP server to 255.255.255.255 with source port 67 and destination port 68 (protocol UDP).
-This is normal, since the iptables connection tracker will allow only <b>one</b> reply
-to match the DHCP client request. All the other replies will not match a request and will be dropped (and logged).
-<p>
-Also, if \$mylan does not include 255.255.255.255 or if the <b>client all accept</b> is not wanted,
-there may be a need to add in the <b>dhcp</b> interface:
-<p>
-client custom rev_dhcp udp/bootpc bootps accept
-<p>
-This is needed because the iptables connection tracker gets confused when it receives:<p>
-SRC=0.0.0.0 DST=255.255.255.255 PROTO=UDP SPORT=BOOTPC(68) DPORT=BOOTPS(67)<p>
-and the reply from the server is:<p>
-SRC=some_IP DST=255.255.255.255 PROTO=UDP SPORT=BOOTPS(67) DPORT=BOOTPC(68)<p>
-since the reply does not match the request.
 "
 
 service_dhcprelay_notes="DHCP Relay.
@@ -928,7 +918,7 @@ cat <<"EOF"
 <tr><td align=center valign=middle>
 	<A href="http://sourceforge.net"><IMG src="http://sourceforge.net/sflogo.php?group_id=58425&amp;type=5" width="210" height="62" border="0" alt="SourceForge Logo"></A>
 </td><td align=center valign=middle>
-	<small>$Id: create_services.sh,v 1.50 2004/10/30 22:41:22 ktsaou Exp $</small>
+	<small>$Id: create_services.sh,v 1.51 2004/10/30 23:03:57 ktsaou Exp $</small>
 	<p>
 	<b>FireHOL</b>, a firewall for humans...<br>
 	&copy; Copyright 2003
