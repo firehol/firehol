@@ -1,7 +1,7 @@
 
 RCS file: /cvsroot/firehol/firehol/firehol.sh,v
 Working file: firehol.sh
-head: 1.88
+head: 1.89
 branch:
 locks: strict
 access list:
@@ -9,8 +9,12 @@ symbolic names:
 	start: 1.1.1.1
 	vendor: 1.1.1
 keyword substitution: kv
-total revisions: 89;	selected revisions: 89
+total revisions: 90;	selected revisions: 90
 description:
+----------------------------
+revision 1.89
+date: 2003/02/03 23:11:49;  author: ktsaou;  state: Exp;  lines: +52 -3
+Added service emule.
 ----------------------------
 revision 1.88
 date: 2003/01/30 21:39:36;  author: ktsaou;  state: Exp;  lines: +6 -6
