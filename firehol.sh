@@ -10,9 +10,26 @@
 #
 # config: /etc/firehol.conf
 #
-# $Id: firehol.sh,v 1.28 2002/12/04 21:32:26 ktsaou Exp $
+# $Id: firehol.sh,v 1.29 2002/12/04 22:41:13 ktsaou Exp $
 #
 # $Log: firehol.sh,v $
+# Revision 1.29  2002/12/04 22:41:13  ktsaou
+# Re-wrote the negative expressions handling to archieve near hand-made
+# (i.e. optimum) quality of iptables firewall.
+# Now, instead of the linked-list that was created for negative expressions,
+# we match all positive expressions before the negatives and all the
+# negatives are together in one chain.
+# This also fixed possible performance problems due to the large number
+# of chains and rules that the packets had to traverse in order to get
+# matched (or not matched).
+#
+# The fact that now positive rules are matched before negatives has also the
+# benefit that not all traffic has to be matched against the negatives. Now,
+# first we select what might be good for a rule, and then we check if this
+# breaks the negative expressions.
+#
+# Last, this made the iptables firewall much more clear and human readable.
+#
 # Revision 1.28  2002/12/04 21:32:26  ktsaou
 # Fixed a bug that FireHOL was incorrectly choosing LOCAL_CLIENT_PORTS on
 # router configurations. This bug appeared when the router configurations
@@ -245,7 +262,7 @@ case "${arg}" in
 	
 	*)
 		cat <<"EOF"
-$Id: firehol.sh,v 1.28 2002/12/04 21:32:26 ktsaou Exp $
+$Id: firehol.sh,v 1.29 2002/12/04 22:41:13 ktsaou Exp $
 (C) Copyright 2002, Costa Tsaousis
 FireHOL is distributed under GPL.
 
@@ -1460,6 +1477,10 @@ rule() {
 	
 	local custom=
 	
+	# If set to non-zero, this will enable the mechanism for
+	# handling ANDed negative expressions.
+	local have_a_not=0
+	
 	while [ ! -z "${1}" ]
 	do
 		case "${1}" in
@@ -1497,6 +1518,7 @@ rule() {
 					then
 						shift
 						infacenot="!"
+						have_a_not=1
 					else
 						if [ $swi -eq 1 ]
 						then
@@ -1510,6 +1532,7 @@ rule() {
 					then
 						shift
 						outfacenot="!"
+						have_a_not=1
 					else
 						if [ ${swo} -eq 1 ]
 						then
@@ -1530,6 +1553,7 @@ rule() {
 					then
 						shift
 						outfacenot="!"
+						have_a_not=1
 					else
 						if [ ${swo} -eq 1 ]
 						then
@@ -1543,6 +1567,7 @@ rule() {
 					then
 						shift
 						infacenot="!"
+						have_a_not=1
 					else
 						if [ ${swi} -eq 1 ]
 						then
@@ -1563,6 +1588,7 @@ rule() {
 					then
 						shift
 						srcnot="!"
+						have_a_not=1
 					fi
 					src="${1}"
 				else
@@ -1571,6 +1597,7 @@ rule() {
 					then
 						shift
 						dstnot="!"
+						have_a_not=1
 					fi
 					dst="${1}"
 				fi
@@ -1586,6 +1613,7 @@ rule() {
 					then
 						shift
 						dstnot="!"
+						have_a_not=1
 					fi
 					dst="${1}"
 				else
@@ -1594,6 +1622,7 @@ rule() {
 					then
 						shift
 						srcnot="!"
+						have_a_not=1
 					fi
 					src="${1}"
 				fi
@@ -1609,6 +1638,7 @@ rule() {
 					then
 						shift
 						sportnot="!"
+						have_a_not=1
 					fi
 					sport="${1}"
 				else
@@ -1617,6 +1647,7 @@ rule() {
 					then
 						shift
 						dportnot="!"
+						have_a_not=1
 					fi
 					dport="${1}"
 				fi
@@ -1632,6 +1663,7 @@ rule() {
 					then
 						shift
 						dportnot="!"
+						have_a_not=1
 					fi
 					dport="${1}"
 				else
@@ -1640,6 +1672,7 @@ rule() {
 					then
 						shift
 						sportnot="!"
+						have_a_not=1
 					fi
 					sport="${1}"
 				fi
@@ -1653,6 +1686,7 @@ rule() {
 				then
 					shift
 					protonot="!"
+					have_a_not=1
 				fi
 				proto="${1}"
 				shift
@@ -1699,6 +1733,8 @@ rule() {
 				then
 					shift
 					statenot="!"
+					# have_a_not=1 # we really do not need this here!
+					# because we negate this on the positive statements.
 				fi
 				state="${1}"
 				shift
@@ -1712,13 +1748,14 @@ rule() {
 	done
 	
 	
+	local action_is_chain=0
 	case "${action}" in
 		accept|ACCEPT)
 			action=ACCEPT
 			;;
 			
 		deny|DENY)
-			action=DENY
+			action=DROP
 			;;
 			
 		reject|REJECT)
@@ -1733,8 +1770,17 @@ rule() {
 			action=RETURN
 			;;
 			
+		mirror|MIRROR)
+			action=MIRROR
+			;;
+			
 		none|NONE)
 			action=NONE
+			;;
+			
+		*)
+			chain_exists "${action}"
+			local action_is_chain=$?
 			;;
 	esac
 	
@@ -1742,118 +1788,116 @@ rule() {
 	# ----------------------------------------------------------------------------------
 	# Do we have negative contitions?
 	# If yes, we have to make a linked list of chains to the final one.
-	local chain_orig="${chain}"
 	
-	if [ ! "${infacenot}" = "" ]
+	if [ ${have_a_not} -eq 1 ]
 	then
-		local inf=
-		for inf in ${inface}
-		do
-			chain2="${chain_orig}.${FIREHOL_DYNAMIC_CHAIN_COUNTER}"
+		if [ ${action_is_chain} -eq 1 ]
+		then
+			# if the action is a chain name, then just the negative
+			# expressions to this chain. Nothing more.
+			
+			local negative_chain="${action}"
+			local negative_action=
+		else
+			# if the action is a native iptables action, then create
+			# an intermidiate chain to store the negative expression,
+			# and change the action of the rule to point to this action.
+			
+			# In this case, bellow we add after all negatives, the original
+			# action of the rule.
+			
+			local negative_chain="${chain}.${FIREHOL_DYNAMIC_CHAIN_COUNTER}"
 			FIREHOL_DYNAMIC_CHAIN_COUNTER="$[FIREHOL_DYNAMIC_CHAIN_COUNTER + 1]"
 			
-			iptables ${table} -N "${chain2}"
-			iptables ${table} -A "${chain}" -i ! "${inf}" -j "${chain2}"
-			chain="${chain2}"
-		done
-		infacenot=
-		inface=any
-	fi
+			iptables ${table} -N "${negative_chain}"
+			local negative_action="${action}"
+			local action="${negative_chain}"
+		fi
+		
+		
+		if [ ! "${infacenot}" = "" ]
+		then
+			local inf=
+			for inf in ${inface}
+			do
+				iptables ${table} -A "${negative_chain}" -i "${inf}" -j RETURN
+			done
+			infacenot=
+			inface=any
+		fi
 	
-	if [ ! "${outfacenot}" = "" ]
-	then
-		local outf=
-		for outf in ${outface}
-		do
-			chain2="${chain_orig}.${FIREHOL_DYNAMIC_CHAIN_COUNTER}"
-			FIREHOL_DYNAMIC_CHAIN_COUNTER="$[FIREHOL_DYNAMIC_CHAIN_COUNTER + 1]"
-			
-			iptables ${table} -N "${chain2}"
-			iptables ${table} -A "${chain}" -o ! "${outf}" -j "${chain2}"
-			chain="${chain2}"
-		done
-		outfacenot=
-		outface=any
-	fi
-	
-	if [ ! "${srcnot}" = "" ]
-	then
-		local s=
-		for s in ${src}
-		do
-			chain2="${chain_orig}.${FIREHOL_DYNAMIC_CHAIN_COUNTER}"
-			FIREHOL_DYNAMIC_CHAIN_COUNTER="$[FIREHOL_DYNAMIC_CHAIN_COUNTER + 1]"
-			
-			iptables ${table} -N "${chain2}"
-			iptables ${table} -A "${chain}" -s ! "${s}" -j "${chain2}"
-			chain="${chain2}"
-		done
-		srcnot=
-		src=any
-	fi
-	
-	if [ ! "${dstnot}" = "" ]
-	then
-		local d=
-		for d in ${dst}
-		do
-			chain2="${chain_orig}.${FIREHOL_DYNAMIC_CHAIN_COUNTER}"
-			FIREHOL_DYNAMIC_CHAIN_COUNTER="$[FIREHOL_DYNAMIC_CHAIN_COUNTER + 1]"
-			
-			iptables ${table} -N "${chain2}"
-			iptables ${table} -A "${chain}" -d ! "${d}" -j "${chain2}"
-			chain="${chain2}"
-		done
-		dstnot=
-		dst=any
-	fi
-	
-	if [ ! "${sportnot}" = "" ]
-	then
-		local sp=
-		for sp in ${sport}
-		do
-			chain2="${chain_orig}.${FIREHOL_DYNAMIC_CHAIN_COUNTER}"
-			FIREHOL_DYNAMIC_CHAIN_COUNTER="$[FIREHOL_DYNAMIC_CHAIN_COUNTER + 1]"
-			
-			iptables ${table} -N "${chain2}"
-			iptables ${table} -A "${chain}" --sport ! "${sp}" -j "${chain2}"
-			chain="${chain2}"
-		done
-		sportnot=
-		sport=any
-	fi
-	
-	if [ ! "${dportnot}" = "" ]
-	then
-		local dp=
-		for dp in ${dport}
-		do
-			chain2="${chain_orig}.${FIREHOL_DYNAMIC_CHAIN_COUNTER}"
-			FIREHOL_DYNAMIC_CHAIN_COUNTER="$[FIREHOL_DYNAMIC_CHAIN_COUNTER + 1]"
-			
-			iptables ${table} -N "${chain2}"
-			iptables ${table} -A "${chain}" --dport ! "${dp}" -j "${chain2}"
-			chain="${chain2}"
-		done
-		dportnot=
-		dport=any
-	fi
-	
-	if [ ! "${protonot}" = "" ]
-	then
-		local pr=
-		for pr in ${proto}
-		do
-			chain2="${chain_orig}.${FIREHOL_DYNAMIC_CHAIN_COUNTER}"
-			FIREHOL_DYNAMIC_CHAIN_COUNTER="$[FIREHOL_DYNAMIC_CHAIN_COUNTER + 1]"
-			
-			iptables ${table} -N "${chain2}"
-			iptables ${table} -A "${chain}" --p ! "${pr}" -j "${chain2}"
-			chain="${chain2}"
-		done
-		protonot=
-		proto=any
+		if [ ! "${outfacenot}" = "" ]
+		then
+			local outf=
+			for outf in ${outface}
+			do
+				iptables ${table} -A "${negative_chain}" -o "${outf}" -j RETURN
+			done
+			outfacenot=
+			outface=any
+		fi
+		
+		if [ ! "${srcnot}" = "" ]
+		then
+			local s=
+			for s in ${src}
+			do
+				iptables ${table} -A "${negative_chain}" -s "${s}" -j RETURN
+			done
+			srcnot=
+			src=any
+		fi
+		
+		if [ ! "${dstnot}" = "" ]
+		then
+			local d=
+			for d in ${dst}
+			do
+				iptables ${table} -A "${negative_chain}" -d "${d}" -j RETURN
+			done
+			dstnot=
+			dst=any
+		fi
+		
+		if [ ! "${sportnot}" = "" ]
+		then
+			local sp=
+			for sp in ${sport}
+			do
+				iptables ${table} -A "${negative_chain}" --sport "${sp}" -j RETURN
+			done
+			sportnot=
+			sport=any
+		fi
+		
+		if [ ! "${dportnot}" = "" ]
+		then
+			local dp=
+			for dp in ${dport}
+			do
+				iptables ${table} -A "${negative_chain}" --dport "${dp}" -j RETURN
+			done
+			dportnot=
+			dport=any
+		fi
+		
+		if [ ! "${protonot}" = "" ]
+		then
+			local pr=
+			for pr in ${proto}
+			do
+				iptables ${table} -A "${negative_chain}" --p "${pr}" -j RETURN
+			done
+			protonot=
+			proto=any
+		fi
+		
+		# in case this is temporary chain we created for the negative expression,
+		# just make have the final action of the rule.
+		if [ ! -z "${negative_action}" ]
+		then
+			iptables ${table} -A "${negative_chain}" -j "${negative_action}"
+		fi
 	fi
 	
 	
@@ -2048,6 +2092,18 @@ check_final_status() {
 	return 0
 }
 
+chain_exists() {
+	local chain="${1}"
+	
+	local x=
+	for x in ${work_created_chains}
+	do
+		test "${x}" = "${chain}" && return 1
+	done
+	
+	return 0
+}
+
 create_chain() {
 	local table="${1}"
 	local newchain="${2}"
@@ -2059,16 +2115,13 @@ create_chain() {
 #	echo >&2 "CREATED CHAINS : ${work_created_chains}"
 #	echo >&2 "REQUESTED CHAIN: ${newchain}"
 	
-	local x=
-	for x in ${work_created_chains}
-	do
-		test "${x}" = "${newchain}" && return 1
-	done
+	chain_exists "${newchain}"
+	test $? -eq 1 && error "Chain '${newchain}' already exists." && return 1
 	
 	iptables -t ${table} -N "${newchain}" || return 1
-	rule table ${table} chain "${oldchain}" action "${newchain}" "$@" || return 1
-	
 	work_created_chains="${work_created_chains} ${newchain}"
+	
+	rule table ${table} chain "${oldchain}" action "${newchain}" "$@" || return 1
 	
 	return 0
 }
