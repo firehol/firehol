@@ -10,7 +10,7 @@
 #
 # config: /etc/firehol/firehol.conf
 #
-# $Id: firehol.sh,v 1.228 2005/02/09 22:36:24 ktsaou Exp $
+# $Id: firehol.sh,v 1.229 2005/02/17 23:45:02 ktsaou Exp $
 #
 
 # Make sure only root can run us.
@@ -74,13 +74,16 @@ which_cmd() {
 	return 0
 }
 
-# Check for a command during runtime.
-# Currently the following commands are required only when needed:
-#
-# wget or curl (either is fine)
-# gzcat
-#
+# command on demand support.
 require_cmd() {
+	local block=1
+	if [ "a$1" = "a-n" ]
+	then
+		local block=0
+		shift
+	fi
+	
+	# if one is found, return success
 	for x in $1
 	do
 		eval var=`echo ${x} | tr 'a-z' 'A-Z'`_CMD
@@ -92,21 +95,56 @@ require_cmd() {
 		fi
 	done
 	
+	if [ $block -eq 1 ]
+	then
+		echo >&2
+		echo >&2 "ERROR:	THE REQUESTED FEATURE REQUIRES THESE PROGRAMS:"
+		echo >&2
+		echo >&2 "	$*"
+		echo >&2
+		echo >&2 "	You have requested the use of an optional FireHOL"
+		echo >&2 "	feature that requires certain external programs"
+		echo >&2 "	to be installed in the running system."
+		echo >&2
+		echo >&2 "	Please consult your Linux distribution manual to"
+		echo >&2 "	install the package(s) that provide these external"
+		echo >&2 "	programs and retry."
+		echo >&2
+		echo >&2 "	Note that you need an operational 'which' command"
+		echo >&2 "	for FireHOL to find all the external programs it"
+		echo >&2 "	needs. Check it yourself. Run:"
+		echo >&2
+		for x in $1
+		do
+			echo >&2 "	which $x"
+		done
+		
+		exit 1
+	fi
+	
 	return 1
 }
 
+# Currently the following commands are required only when needed.
+# (i.e. Command on Demand)
+#
+# wget or curl (either is fine)
+# gzcat
+# ip
+# netstat
+# egrep
+# date
+# hostname
+
+# Commands that are mandatory for FireHOL operation:
 which_cmd CAT_CMD cat
 which_cmd CUT_CMD cut
 which_cmd CHOWN_CMD chown
 which_cmd CHMOD_CMD chmod
-which_cmd DATE_CMD date
-which_cmd EGREP_CMD egrep
 which_cmd EXPR_CMD expr
 which_cmd GAWK_CMD gawk
 which_cmd GREP_CMD grep
 which_cmd HEAD_CMD head
-which_cmd HOSTNAME_CMD hostname
-which_cmd IP_CMD ip
 which_cmd IPTABLES_CMD iptables
 which_cmd IPTABLES_SAVE_CMD iptables-save
 which_cmd LESS_CMD less
@@ -114,7 +152,6 @@ which_cmd LSMOD_CMD lsmod
 which_cmd MKDIR_CMD mkdir
 which_cmd MV_CMD mv
 which_cmd MODPROBE_CMD modprobe
-which_cmd NETSTAT_CMD netstat
 which_cmd RENICE_CMD renice
 which_cmd RM_CMD rm
 which_cmd SED_CMD sed
@@ -134,7 +171,7 @@ ${RENICE_CMD} 10 $$ >/dev/null 2>/dev/null
 # Find our minor version
 firehol_minor_version() {
 ${CAT_CMD} <<"EOF" | ${CUT_CMD} -d ' ' -f 3 | ${CUT_CMD} -d '.' -f 2
-$Id: firehol.sh,v 1.228 2005/02/09 22:36:24 ktsaou Exp $
+$Id: firehol.sh,v 1.229 2005/02/17 23:45:02 ktsaou Exp $
 EOF
 }
 
@@ -1798,7 +1835,7 @@ cd "${FIREHOL_DEFAULT_WORKING_DIRECTORY}" || exit 1
 firehol_wget() {
 	local url="${1}"
 	
-	require_cmd wget curl || error "Cannot find 'wget' or 'curl' in the path."
+	require_cmd wget curl
 	
 	if [ ! -z "${WGET_CMD}" ]
 	then
@@ -2589,7 +2626,7 @@ protection() {
 # kernel modules.
 
 # optionaly require command gzcat
-require_cmd gzcat
+require_cmd -n gzcat
 
 KERNEL_CONFIG=
 if [ -f "/proc/config" ]
@@ -2632,6 +2669,7 @@ else
 	echo >&2 " all kernel modules for the services used, without"
 	echo >&2 " being able to detect failures."
 	echo >&2 " "
+	sleep 2
 fi
 
 # activation-phase command to check for the existance of
@@ -5154,7 +5192,7 @@ case "${arg}" in
 		else
 		
 		${CAT_CMD} <<EOF
-$Id: firehol.sh,v 1.228 2005/02/09 22:36:24 ktsaou Exp $
+$Id: firehol.sh,v 1.229 2005/02/17 23:45:02 ktsaou Exp $
 (C) Copyright 2003, Costa Tsaousis <costa@tsaousis.gr>
 FireHOL is distributed under GPL.
 
@@ -5340,7 +5378,7 @@ then
 	
 	${CAT_CMD} <<EOF
 
-$Id: firehol.sh,v 1.228 2005/02/09 22:36:24 ktsaou Exp $
+$Id: firehol.sh,v 1.229 2005/02/17 23:45:02 ktsaou Exp $
 (C) Copyright 2003, Costa Tsaousis <costa@tsaousis.gr>
 FireHOL is distributed under GPL.
 Home Page: http://firehol.sourceforge.net
@@ -5459,6 +5497,13 @@ fi
 
 if [ ${FIREHOL_WIZARD} -eq 1 ]
 then
+	# require commands for wizard mode
+	require_cmd ip
+	require_cmd netstat
+	require_cmd egrep
+	require_cmd date
+	require_cmd hostname
+	
 	wizard_ask() {
 		local prompt="${1}"; shift
 		local def="${1}"; shift
@@ -5634,7 +5679,7 @@ then
 	
 	"${CAT_CMD}" >&2 <<EOF
 
-$Id: firehol.sh,v 1.228 2005/02/09 22:36:24 ktsaou Exp $
+$Id: firehol.sh,v 1.229 2005/02/17 23:45:02 ktsaou Exp $
 (C) Copyright 2003, Costa Tsaousis <costa@tsaousis.gr>
 FireHOL is distributed under GPL.
 Home Page: http://firehol.sourceforge.net
@@ -5717,7 +5762,7 @@ EOF
 	echo "# "
 
 	${CAT_CMD} <<EOF
-# $Id: firehol.sh,v 1.228 2005/02/09 22:36:24 ktsaou Exp $
+# $Id: firehol.sh,v 1.229 2005/02/17 23:45:02 ktsaou Exp $
 # (C) Copyright 2003, Costa Tsaousis <costa@tsaousis.gr>
 # FireHOL is distributed under GPL.
 # Home Page: http://firehol.sourceforge.net
