@@ -10,7 +10,7 @@
 #
 # config: /etc/firehol/firehol.conf
 #
-# $Id: firehol.sh,v 1.139 2003/06/30 22:18:46 ktsaou Exp $
+# $Id: firehol.sh,v 1.140 2003/07/20 21:46:41 ktsaou Exp $
 #
 FIREHOL_FILE="${0}"
 
@@ -1910,6 +1910,9 @@ rule() {
 	local sid=any
 	local sidnot=
 	
+	local cmd=any
+	local cmdnot=
+	
 	local log=
 	local logtxt=
 	local loglevel=
@@ -2375,6 +2378,19 @@ rule() {
 				shift
 				;;
 				
+			command|COMMAND|cmd|CMD)
+				shift
+				cmdnot=
+				if [ "${1}" = "not" -o "${1}" = "NOT" ]
+				then
+					shift
+					test ${noowner} -eq 0 && cmdnot="!"
+				fi
+				test ${softwarnings} -eq 1 -a ! "${cmd}" = "any" && softwarning "Overwritting param: cmd '${cmd}' becomes '${1}'"
+				test ${noowner} -eq 0 && cmd="${1}"
+				shift
+				;;
+				
 			custom|CUSTOM)
 				test ${softwarnings} -eq 1 -a ! -z "${custom}" && softwarning "Overwritting param: custom '${custom}' becomes '${2}'"
 				custom="${2}"
@@ -2508,6 +2524,7 @@ rule() {
 	test -z "${gid}"	&& error "Cannot accept an empty 'gid'."	&& return 1
 	test -z "${pid}"	&& error "Cannot accept an empty 'pid'."	&& return 1
 	test -z "${sid}"	&& error "Cannot accept an empty 'sid'."	&& return 1
+	test -z "${cmd}"	&& error "Cannot accept an empty 'cmd'."	&& return 1
 	
 	
 	# ----------------------------------------------------------------------------------
@@ -2527,7 +2544,7 @@ rule() {
 	
 	
 	# ignore 'statenot' since it is negated in the positive rules
-	if [ ! -z "${infacenot}${outfacenot}${macnot}${srcnot}${dstnot}${sportnot}${dportnot}${protonot}${uidnot}${gidnot}${pidnot}${sidnot}" ]
+	if [ ! -z "${infacenot}${outfacenot}${macnot}${srcnot}${dstnot}${sportnot}${dportnot}${protonot}${uidnot}${gidnot}${pidnot}${sidnot}${cmdnot}" ]
 	then
 		if [ ${action_is_chain} -eq 1 ]
 		then
@@ -2711,6 +2728,17 @@ rule() {
 			sid=any
 		fi
 		
+		if [ ! -z "${cmdnot}" ]
+		then
+			local tcmd=
+			for tcmd in ${cmd}
+			do
+				iptables ${table} -A "${negative_chain}" -m owner --cmd-owner "${tcmd}" -j RETURN
+			done
+			cmdnot=
+			cmd=any
+		fi
+		
 		# in case this is temporary chain we created for the negative expression,
 		# just make it have the final action of the rule.
 		if [ ! -z "${negative_action}" ]
@@ -2800,149 +2828,165 @@ rule() {
 							;;
 					esac
 					
-					local pr=
-					for pr in ${proto}
+					local tcmd=
+					for tcmd in ${cmd}
 					do
-						unset proto_arg
+						unset cmd_arg
 						
-						case ${pr} in
+						case ${tcmd} in
 							any|ANY)
 								;;
 							
 							*)
-								local -a proto_arg=("-p" "${pr}")
+								local -a owner_arg=("-m" "owner")
+								local -a cmd_arg=("--cmd-owner" "${tcmd}")
 								;;
 						esac
-							
-						local inf=
-						for inf in ${inface}
+					
+						local pr=
+						for pr in ${proto}
 						do
-							unset inf_arg
-							case ${inf} in
+							unset proto_arg
+							
+							case ${pr} in
 								any|ANY)
 									;;
 								
 								*)
-									local -a inf_arg=("-i" "${inf}")
+									local -a proto_arg=("-p" "${pr}")
 									;;
 							esac
-							
-							local outf=
-							for outf in ${outface}
+								
+							local inf=
+							for inf in ${inface}
 							do
-								unset outf_arg
-								case ${outf} in
+								unset inf_arg
+								case ${inf} in
 									any|ANY)
 										;;
 									
 									*)
-										local -a outf_arg=("-o" "${outf}")
+										local -a inf_arg=("-i" "${inf}")
 										;;
 								esac
 								
-								local sp=
-								for sp in ${sport}
+								local outf=
+								for outf in ${outface}
 								do
-									unset sp_arg
-									case ${sp} in
+									unset outf_arg
+									case ${outf} in
 										any|ANY)
 											;;
 										
 										*)
-											local -a sp_arg=("--sport" "${sp}")
+											local -a outf_arg=("-o" "${outf}")
 											;;
 									esac
 									
-									local dp=
-									for dp in ${dport}
+									local sp=
+									for sp in ${sport}
 									do
-										unset dp_arg
-										case ${dp} in
+										unset sp_arg
+										case ${sp} in
 											any|ANY)
-												;;
+											;;
 											
 											*)
-												local -a dp_arg=("--dport" "${dp}")
-												;;
+											local -a sp_arg=("--sport" "${sp}")
+											;;
 										esac
 										
-										local mc=
-										for mc in ${mac}
+										local dp=
+										for dp in ${dport}
 										do
-											unset mc_arg
-											case ${mc} in
+											unset dp_arg
+											case ${dp} in
 												any|ANY)
 													;;
 												
 												*)
-													local -a mc_arg=("-m" "mac" "--mac-source" "${mc}")
+													local -a dp_arg=("--dport" "${dp}")
 													;;
 											esac
 											
-											local s=
-											for s in ${src}
+											local mc=
+											for mc in ${mac}
 											do
-												unset s_arg
-												case ${s} in
+												unset mc_arg
+												case ${mc} in
 													any|ANY)
 														;;
 													
 													*)
-														local -a s_arg=("-s" "${s}")
+														local -a mc_arg=("-m" "mac" "--mac-source" "${mc}")
 														;;
 												esac
 												
-												local d=
-												for d in ${dst}
+												local s=
+												for s in ${src}
 												do
-													unset d_arg
-													case ${d} in
+													unset s_arg
+													case ${s} in
 														any|ANY)
 															;;
 														
 														*)
-															local -a d_arg=("-d" "${d}")
+															local -a s_arg=("-s" "${s}")
 															;;
 													esac
 													
-													unset state_arg
-													if [ ! -z "${state}" ]
-													then
-														local -a state_arg=("-m" "state" "${statenot}" "--state" "${state}")
-													fi
-													
-													unset limit_arg
-													if [ ! -z "${limit}" ]
-													then
-														local -a limit_arg=("-m" "limit" "--limit" "${limit}" "--limit-burst" "${burst}")
-													fi
-													
-													unset iplimit_arg
-													if [ ! -z "${iplimit}" ]
-													then
-														local -a iplimit_arg=("-m" "iplimit" "--iplimit-above" "${iplimit}" "--iplimit-mask" "${iplimit_mask}")
-													fi
-													
-													declare -a basecmd=("${inf_arg[@]}" "${outf_arg[@]}" "${limit_arg[@]}" "${iplimit_arg[@]}" "${proto_arg[@]}" "${s_arg[@]}" "${sp_arg[@]}" "${d_arg[@]}" "${dp_arg[@]}" "${owner_arg[@]}" "${uid_arg[@]}" "${gid_arg[@]}" "${pid_arg[@]}" "${sid_arg[@]}" "${state_arg[@]}" "${mc_arg[@]}")
-													
-													case "${log}" in
-														'')
-															;;
+													local d=
+													for d in ${dst}
+													do
+														unset d_arg
+														case ${d} in
+															any|ANY)
+																;;
+															
+															*)
+																local -a d_arg=("-d" "${d}")
+																;;
+														esac
 														
-														limit)
-															iptables ${table} -A "${chain}" "${basecmd[@]}" ${custom} -m limit --limit "${FIREHOL_LOG_FREQUENCY}" --limit-burst "${FIREHOL_LOG_BURST}" -j LOG ${FIREHOL_LOG_OPTIONS} --log-level "${loglevel}" --log-prefix="${logtxt}:"
-															;;
+														unset state_arg
+														if [ ! -z "${state}" ]
+														then
+															local -a state_arg=("-m" "state" "${statenot}" "--state" "${state}")
+														fi
+														
+														unset limit_arg
+														if [ ! -z "${limit}" ]
+														then
+															local -a limit_arg=("-m" "limit" "--limit" "${limit}" "--limit-burst" "${burst}")
+														fi
+														
+														unset iplimit_arg
+														if [ ! -z "${iplimit}" ]
+														then
+															local -a iplimit_arg=("-m" "iplimit" "--iplimit-above" "${iplimit}" "--iplimit-mask" "${iplimit_mask}")
+														fi
+														
+														declare -a basecmd=("${inf_arg[@]}" "${outf_arg[@]}" "${limit_arg[@]}" "${iplimit_arg[@]}" "${proto_arg[@]}" "${s_arg[@]}" "${sp_arg[@]}" "${d_arg[@]}" "${dp_arg[@]}" "${owner_arg[@]}" "${uid_arg[@]}" "${gid_arg[@]}" "${pid_arg[@]}" "${sid_arg[@]}" "${cmd_arg[@]}" "${state_arg[@]}" "${mc_arg[@]}")
+														
+														case "${log}" in
+															'')
+																;;
 															
-														normal)
-															iptables ${table} -A "${chain}" "${basecmd[@]}" ${custom} -j LOG ${FIREHOL_LOG_OPTIONS} --log-level "${loglevel}" --log-prefix="${logtxt}:"
-															;;
-															
-														*)
-															error "Unknown log value '${log}'."
-															;;
-													esac
+															limit)
+																iptables ${table} -A "${chain}" "${basecmd[@]}" ${custom} -m limit --limit "${FIREHOL_LOG_FREQUENCY}" --limit-burst "${FIREHOL_LOG_BURST}" -j LOG ${FIREHOL_LOG_OPTIONS} --log-level "${loglevel}" --log-prefix="${logtxt}:"
+																;;
+																
+															normal)
+																iptables ${table} -A "${chain}" "${basecmd[@]}" ${custom} -j LOG ${FIREHOL_LOG_OPTIONS} --log-level "${loglevel}" --log-prefix="${logtxt}:"
+																;;
+																
+															*)
+																error "Unknown log value '${log}'."
+																;;
+														esac
 													
-													rule_action_param "${action}" "${pr}" "${action_param[@]}" -- ${table} -A "${chain}" "${basecmd[@]}" ${custom}
+														rule_action_param "${action}" "${pr}" "${action_param[@]}" -- ${table} -A "${chain}" "${basecmd[@]}" ${custom}
+													done
 												done
 											done
 										done
@@ -3450,7 +3494,7 @@ case "${arg}" in
 		else
 		
 		${CAT_CMD} <<"EOF"
-$Id: firehol.sh,v 1.139 2003/06/30 22:18:46 ktsaou Exp $
+$Id: firehol.sh,v 1.140 2003/07/20 21:46:41 ktsaou Exp $
 (C) Copyright 2003, Costa Tsaousis <costa@tsaousis.gr>
 FireHOL is distributed under GPL.
 
@@ -3636,7 +3680,7 @@ then
 	
 	${CAT_CMD} <<"EOF"
 
-$Id: firehol.sh,v 1.139 2003/06/30 22:18:46 ktsaou Exp $
+$Id: firehol.sh,v 1.140 2003/07/20 21:46:41 ktsaou Exp $
 (C) Copyright 2003, Costa Tsaousis <costa@tsaousis.gr>
 FireHOL is distributed under GPL.
 Home Page: http://firehol.sourceforge.net
@@ -3931,7 +3975,7 @@ then
 	
 	${CAT_CMD} >&2 <<"EOF"
 
-$Id: firehol.sh,v 1.139 2003/06/30 22:18:46 ktsaou Exp $
+$Id: firehol.sh,v 1.140 2003/07/20 21:46:41 ktsaou Exp $
 (C) Copyright 2003, Costa Tsaousis <costa@tsaousis.gr>
 FireHOL is distributed under GPL.
 Home Page: http://firehol.sourceforge.net
@@ -4024,7 +4068,7 @@ EOF
 	echo "# "
 
 	${CAT_CMD} <<"EOF"
-# $Id: firehol.sh,v 1.139 2003/06/30 22:18:46 ktsaou Exp $
+# $Id: firehol.sh,v 1.140 2003/07/20 21:46:41 ktsaou Exp $
 # (C) Copyright 2003, Costa Tsaousis <costa@tsaousis.gr>
 # FireHOL is distributed under GPL.
 # Home Page: http://firehol.sourceforge.net
@@ -4438,7 +4482,8 @@ fixed_iptables_save() {
 		${SED_CMD} "s/--uid-owner !/! --uid-owner /g"	|\
 		${SED_CMD} "s/--gid-owner !/! --gid-owner /g"	|\
 		${SED_CMD} "s/--pid-owner !/! --pid-owner /g"	|\
-		${SED_CMD} "s/--sid-owner !/! --sid-owner /g"
+		${SED_CMD} "s/--sid-owner !/! --sid-owner /g"	|\
+		${SED_CMD} "s/--cmd-owner !/! --cmd-owner /g"
 	
 	err=$?
 	
