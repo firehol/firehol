@@ -10,9 +10,12 @@
 #
 # config: /etc/firehol.conf
 #
-# $Id: firehol.sh,v 1.31 2002/12/05 09:03:37 ktsaou Exp $
+# $Id: firehol.sh,v 1.32 2002/12/05 09:23:36 ktsaou Exp $
 #
 # $Log: firehol.sh,v $
+# Revision 1.32  2002/12/05 09:23:36  ktsaou
+# Added many new services.
+#
 # Revision 1.31  2002/12/05 09:03:37  ktsaou
 # The problem with line numbers on debian systems found to be an awk
 # alternative those systems use. Now FireHOL uses gawk instead of awk.
@@ -274,7 +277,7 @@ case "${arg}" in
 	
 	*)
 		cat <<"EOF"
-$Id: firehol.sh,v 1.31 2002/12/05 09:03:37 ktsaou Exp $
+$Id: firehol.sh,v 1.32 2002/12/05 09:23:36 ktsaou Exp $
 (C) Copyright 2002, Costa Tsaousis
 FireHOL is distributed under GPL.
 
@@ -389,6 +392,7 @@ For more information about FireHOL, please refer to:
 
 		http://firehol.sourceforge.net
 
+Please subscribe (at the same page) to get notified of new releases.
 
 EOF
 		exit 1
@@ -583,6 +587,9 @@ ALL_SHOULD_ALSO_RUN="${ALL_SHOULD_ALSO_RUN} irc"
 server_ldap_ports="tcp/ldap"
 client_ldap_ports="default"
 
+server_ldaps_ports="tcp/ldaps"
+client_ldaps_ports="default"
+
 server_lpd_ports="tcp/printer"
 client_lpd_ports="default"
 
@@ -607,9 +614,16 @@ client_ntp_ports="ntp default"
 server_pop3_ports="tcp/pop3"
 client_pop3_ports="default"
 
+server_pop3s_ports="tcp/pop3s"
+client_pop3s_ports="default"
+
 # Portmap clients appear to use ports bellow 1024
 server_portmap_ports="udp/sunrpc tcp/sunrpc"
 client_portmap_ports="500:65535"
+
+# Privacy Proxy
+server_privoxy_ports="tcp/8118"
+client_privoxy_ports="default"
 
 server_radius_ports="udp/radius udp/radius-acct"
 client_radius_ports="default"
@@ -623,11 +637,20 @@ client_rndc_ports="default"
 server_rsync_ports="tcp/rsync udp/rsync"
 client_rsync_ports="default"
 
+server_squid_ports="tcp/squid"
+client_squid_ports="default"
+
 server_smtp_ports="tcp/smtp"
 client_smtp_ports="default"
 
+server_smtps_ports="tcp/smtps"
+client_smtps_ports="default"
+
 server_snmp_ports="udp/snmp"
 client_snmp_ports="default"
+
+server_snmptrap_ports="udp/snmptrap"
+client_snmptrap_ports="default"
 
 server_ssh_ports="tcp/ssh"
 client_ssh_ports="default"
@@ -639,6 +662,9 @@ client_submission_ports="default"
 # Sun RCP is an alias for service portmap
 server_sunrpc_ports="${server_portmap_ports}"
 client_sunrpc_ports="${client_portmap_ports}"
+
+server_swat_ports="tcp/swat"
+client_swat_ports="default"
 
 server_syslog_ports="udp/syslog"
 client_syslog_ports="syslog"
