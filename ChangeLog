@@ -1,7 +1,7 @@
 
 RCS file: /cvsroot/firehol/firehol/firehol.sh,v
 Working file: firehol.sh
-head: 1.43
+head: 1.45
 branch:
 locks: strict
 access list:
@@ -9,8 +9,32 @@ symbolic names:
 	start: 1.1.1.1
 	vendor: 1.1.1
 keyword substitution: kv
-total revisions: 44;	selected revisions: 44
+total revisions: 46;	selected revisions: 46
 description:
+----------------------------
+revision 1.45
+date: 2002/12/16 20:41:39;  author: ktsaou;  state: Exp;  lines: +56 -86
+Added service DHCP Relay.
+
+Made kernel modules loaded during run time.
+
+Saving of old firewall takes now place before processing the configuration
+file, in order to make sure it will not be altered by accident due to
+some illegal commands in the configuration file.
+
+FireHOL enables kernel routing automatically when there is at least a
+router defined in the configuration.
+
+Now the configuration accepts command line arguments given to FireHOL.
+To send a set of arguments to the script, either just append them to
+FireHOL command line or (in case it is not clear if the argument is going
+to be used by FireHOL or the configuration) precede the configuration
+arguments by -- (two dashes).
+----------------------------
+revision 1.44
+date: 2002/12/16 18:57:30;  author: ktsaou;  state: Exp;  lines: +12 -12
+Restored gawk stuff to previous methodology, using <<"EOF" since escaping
+produced warnings in debian systems.
 ----------------------------
 revision 1.43
 date: 2002/12/13 21:52:19;  author: ktsaou;  state: Exp;  lines: +13 -17

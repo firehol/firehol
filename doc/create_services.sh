@@ -59,6 +59,9 @@ operate DNS without state.
 "
 
 
+service_dhcprelay_notes="DHCP Relay."
+
+
 server_ftp_ports="many"
 client_ftp_ports="many"
 service_ftp_type="complex"
@@ -308,7 +311,7 @@ cat <<"EOF"
 <tr><td align=center valign=middle>
 	<A href="http://sourceforge.net"><IMG src="http://sourceforge.net/sflogo.php?group_id=58425&amp;type=5" width="210" height="62" border="0" alt="SourceForge Logo"></A>
 </td><td align=center valign=middle>
-	<small>$Id: create_services.sh,v 1.5 2002/12/13 08:36:23 ktsaou Exp $</small>
+	<small>$Id: create_services.sh,v 1.6 2002/12/16 20:44:36 ktsaou Exp $</small>
 	<p>
 	<b>FireHOL</b>, a firewall for humans...<br>
 	&copy; Copyright 2002
