@@ -10,7 +10,7 @@
 #
 # config: /etc/firehol/firehol.conf
 #
-# $Id: firehol.sh,v 1.226 2005/01/25 21:28:19 ktsaou Exp $
+# $Id: firehol.sh,v 1.227 2005/02/07 20:56:09 ktsaou Exp $
 #
 
 # Make sure only root can run us.
@@ -74,6 +74,26 @@ which_cmd() {
 	return 0
 }
 
+# Check for a command during runtime.
+# Currently the following commands are required only when needed:
+#
+# wget or curl
+#
+require_cmd() {
+	for x in $1
+	do
+		eval var=`echo ${x} | tr 'a-z' 'A-Z'`_CMD
+		eval val=\$\{${var}\}
+		if [ -z "${val}" ]
+		then
+			which_cmd -n "${var}" "${x}"
+			test $? -eq 0 && return 0
+		fi
+	done
+	
+	return 1
+}
+
 which_cmd CAT_CMD cat
 which_cmd CUT_CMD cut
 which_cmd CHOWN_CMD chown
@@ -103,7 +123,6 @@ which_cmd TOUCH_CMD touch
 which_cmd TR_CMD tr
 which_cmd UNAME_CMD uname
 which_cmd UNIQ_CMD uniq
-which_cmd -n WGET_CMD wget || which_cmd CURL_CMD curl
 
 # Make sure our generated files cannot be accessed by anyone else.
 umask 077
@@ -114,7 +133,7 @@ ${RENICE_CMD} 10 $$ >/dev/null 2>/dev/null
 # Find our minor version
 firehol_minor_version() {
 ${CAT_CMD} <<"EOF" | ${CUT_CMD} -d ' ' -f 3 | ${CUT_CMD} -d '.' -f 2
-$Id: firehol.sh,v 1.226 2005/01/25 21:28:19 ktsaou Exp $
+$Id: firehol.sh,v 1.227 2005/02/07 20:56:09 ktsaou Exp $
 EOF
 }
 
@@ -1778,6 +1797,8 @@ cd "${FIREHOL_DEFAULT_WORKING_DIRECTORY}" || exit 1
 firehol_wget() {
 	local url="${1}"
 	
+	require_cmd wget curl || error "Cannot find 'wget' or 'curl' in the path."
+	
 	if [ ! -z "${WGET_CMD}" ]
 	then
 		${WGET_CMD} -O - "${url}" 2>/dev/null
@@ -1828,6 +1849,9 @@ ecn_shame() {
 		done
 		
 		test ${count} -eq 0 && softwarning "No ECN SHAME IPs found." && return 1
+	else
+		softwarning "TCP_ECN is not enabled in the kernel. ECN_SHAME helper is ignored."
+		return 0
 	fi
 	return 0
 }
@@ -5121,7 +5145,7 @@ case "${arg}" in
 		else
 		
 		${CAT_CMD} <<EOF
-$Id: firehol.sh,v 1.226 2005/01/25 21:28:19 ktsaou Exp $
+$Id: firehol.sh,v 1.227 2005/02/07 20:56:09 ktsaou Exp $
 (C) Copyright 2003, Costa Tsaousis <costa@tsaousis.gr>
 FireHOL is distributed under GPL.
 
@@ -5307,7 +5331,7 @@ then
 	
 	${CAT_CMD} <<EOF
 
-$Id: firehol.sh,v 1.226 2005/01/25 21:28:19 ktsaou Exp $
+$Id: firehol.sh,v 1.227 2005/02/07 20:56:09 ktsaou Exp $
 (C) Copyright 2003, Costa Tsaousis <costa@tsaousis.gr>
 FireHOL is distributed under GPL.
 Home Page: http://firehol.sourceforge.net
@@ -5601,7 +5625,7 @@ then
 	
 	"${CAT_CMD}" >&2 <<EOF
 
-$Id: firehol.sh,v 1.226 2005/01/25 21:28:19 ktsaou Exp $
+$Id: firehol.sh,v 1.227 2005/02/07 20:56:09 ktsaou Exp $
 (C) Copyright 2003, Costa Tsaousis <costa@tsaousis.gr>
 FireHOL is distributed under GPL.
 Home Page: http://firehol.sourceforge.net
@@ -5684,7 +5708,7 @@ EOF
 	echo "# "
 
 	${CAT_CMD} <<EOF
-# $Id: firehol.sh,v 1.226 2005/01/25 21:28:19 ktsaou Exp $
+# $Id: firehol.sh,v 1.227 2005/02/07 20:56:09 ktsaou Exp $
 # (C) Copyright 2003, Costa Tsaousis <costa@tsaousis.gr>
 # FireHOL is distributed under GPL.
 # Home Page: http://firehol.sourceforge.net
