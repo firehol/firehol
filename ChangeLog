@@ -1,7 +1,7 @@
 
 RCS file: /cvsroot/firehol/firehol/firehol.sh,v
 Working file: firehol.sh
-head: 1.194
+head: 1.202
 branch:
 locks: strict
 access list:
@@ -9,8 +9,45 @@ symbolic names:
 	start: 1.1.1.1
 	vendor: 1.1.1
 keyword substitution: kv
-total revisions: 195;	selected revisions: 195
+total revisions: 203;	selected revisions: 203
 description:
+----------------------------
+revision 1.202
+date: 2004/09/12 07:24:58;  author: ktsaou;  state: Exp;  lines: +8 -5
+Added RDP service.
+----------------------------
+revision 1.201
+date: 2004/09/12 06:57:47;  author: ktsaou;  state: Exp;  lines: +9 -5
+Added service NXSERVER.
+----------------------------
+revision 1.200
+date: 2004/09/10 22:07:18;  author: ktsaou;  state: Exp;  lines: +16 -5
+Added a warning if wrong arguments are detected.
+----------------------------
+revision 1.199
+date: 2004/09/10 21:36:26;  author: ktsaou;  state: Exp;  lines: +12 -5
+Added rquotad to the NFS service.
+----------------------------
+revision 1.198
+date: 2004/08/21 21:07:09;  author: ktsaou;  state: Exp;  lines: +6 -6
+Updated RESERVED_IPS according to current IANA reserved IP range.
+----------------------------
+revision 1.197
+date: 2004/07/31 22:31:08;  author: ktsaou;  state: Exp;  lines: +31 -33
+Due to a bug in BASH 3.0, the unset bash function corrupts array variables.
+Changed FireHOL to set all variables to empty instead of unseting them.
+----------------------------
+revision 1.196
+date: 2004/07/29 22:31:14;  author: ktsaou;  state: Exp;  lines: +12 -6
+Added documentation for DHCP and dropped packets.
+Changed radius definition to use port numbers instead of port names
+(gentoo has different names).
+Added RADIUSPROXY and RADIUSOLDPROXY services.
+----------------------------
+revision 1.195
+date: 2004/07/07 22:09:31;  author: ktsaou;  state: Exp;  lines: +14 -7
+Added variable FIREHOL_TRUST_LOOPBACK=1 which if set to 0, FireHOL will not
+trust the lo interface allowing the admin to setup a firewall on it.
 ----------------------------
 revision 1.194
 date: 2004/05/15 10:19:01;  author: ktsaou;  state: Exp;  lines: +9 -5
