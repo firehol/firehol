@@ -10,7 +10,7 @@
 #
 # config: /etc/firehol.conf
 #
-# $Id: firehol.sh,v 1.108 2003/03/07 23:17:38 ktsaou Exp $
+# $Id: firehol.sh,v 1.109 2003/03/07 23:34:29 ktsaou Exp $
 #
 FIREHOL_FILE="${0}"
 
@@ -3189,7 +3189,7 @@ case "${arg}" in
 		else
 		
 		cat <<"EOF"
-$Id: firehol.sh,v 1.108 2003/03/07 23:17:38 ktsaou Exp $
+$Id: firehol.sh,v 1.109 2003/03/07 23:34:29 ktsaou Exp $
 (C) Copyright 2002, Costa Tsaousis <costa@tsaousis.gr>
 FireHOL is distributed under GPL.
 
@@ -3372,7 +3372,7 @@ then
 	
 	cat <<"EOF"
 
-$Id: firehol.sh,v 1.108 2003/03/07 23:17:38 ktsaou Exp $
+$Id: firehol.sh,v 1.109 2003/03/07 23:34:29 ktsaou Exp $
 (C) Copyright 2002, Costa Tsaousis <costa@tsaousis.gr>
 FireHOL is distributed under GPL.
 Home Page: http://firehol.sourceforge.net
@@ -3580,7 +3580,7 @@ then
 	
 	cat >&2 <<"EOF"
 
-$Id: firehol.sh,v 1.108 2003/03/07 23:17:38 ktsaou Exp $
+$Id: firehol.sh,v 1.109 2003/03/07 23:34:29 ktsaou Exp $
 (C) Copyright 2002, Costa Tsaousis <costa@tsaousis.gr>
 FireHOL is distributed under GPL.
 Home Page: http://firehol.sourceforge.net
@@ -3673,7 +3673,7 @@ EOF
 	echo "# "
 
 	cat <<"EOF"
-# $Id: firehol.sh,v 1.108 2003/03/07 23:17:38 ktsaou Exp $
+# $Id: firehol.sh,v 1.109 2003/03/07 23:34:29 ktsaou Exp $
 # (C) Copyright 2002, Costa Tsaousis <costa@tsaousis.gr>
 # FireHOL is distributed under GPL.
 # Home Page: http://firehol.sourceforge.net
@@ -3771,6 +3771,8 @@ EOF
 					ports="${ports} udp/${x}"
 				fi
 			done
+			
+			echo "	server ICMP accept"
 			
 			echo "${ports}" | tr " " "\n" | sort -n | uniq | tr "\n" " " >unknown.ports
 		) | sort | uniq
