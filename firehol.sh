@@ -10,7 +10,7 @@
 #
 # config: /etc/firehol/firehol.conf
 #
-# $Id: firehol.sh,v 1.145 2003/07/20 22:45:50 ktsaou Exp $
+# $Id: firehol.sh,v 1.146 2003/07/27 22:58:59 ktsaou Exp $
 #
 FIREHOL_FILE="${0}"
 
@@ -3325,7 +3325,7 @@ simple_service() {
 # ------------------------------------------------------------------------------
 # On non RedHat machines we need success() and failure()
 success() {
-	echo " OK"
+	printf " OK"
 }
 failure() {
 	echo " FAILED"
@@ -3536,7 +3536,7 @@ case "${arg}" in
 		else
 		
 		${CAT_CMD} <<EOF
-$Id: firehol.sh,v 1.145 2003/07/20 22:45:50 ktsaou Exp $
+$Id: firehol.sh,v 1.146 2003/07/27 22:58:59 ktsaou Exp $
 (C) Copyright 2003, Costa Tsaousis <costa@tsaousis.gr>
 FireHOL is distributed under GPL.
 
@@ -3722,7 +3722,7 @@ then
 	
 	${CAT_CMD} <<EOF
 
-$Id: firehol.sh,v 1.145 2003/07/20 22:45:50 ktsaou Exp $
+$Id: firehol.sh,v 1.146 2003/07/27 22:58:59 ktsaou Exp $
 (C) Copyright 2003, Costa Tsaousis <costa@tsaousis.gr>
 FireHOL is distributed under GPL.
 Home Page: http://firehol.sourceforge.net
@@ -4017,7 +4017,7 @@ then
 	
 	${CAT_CMD} >&2 <<EOF
 
-$Id: firehol.sh,v 1.145 2003/07/20 22:45:50 ktsaou Exp $
+$Id: firehol.sh,v 1.146 2003/07/27 22:58:59 ktsaou Exp $
 (C) Copyright 2003, Costa Tsaousis <costa@tsaousis.gr>
 FireHOL is distributed under GPL.
 Home Page: http://firehol.sourceforge.net
@@ -4110,7 +4110,7 @@ EOF
 	echo "# "
 
 	${CAT_CMD} <<EOF
-# $Id: firehol.sh,v 1.145 2003/07/20 22:45:50 ktsaou Exp $
+# $Id: firehol.sh,v 1.146 2003/07/27 22:58:59 ktsaou Exp $
 # (C) Copyright 2003, Costa Tsaousis <costa@tsaousis.gr>
 # FireHOL is distributed under GPL.
 # Home Page: http://firehol.sourceforge.net
@@ -4746,11 +4746,24 @@ then
 	then
 		if [ -d "/etc/sysconfig" ]
 		then
-			# 
+			# RedHat
 			FIREHOL_AUTOSAVE="/etc/sysconfig/iptables"
 		elif [ -d "/var/lib/iptables" ]
 		then
-			FIREHOL_AUTOSAVE="/var/lib/iptables/autosave"
+			if [ -f /etc/conf.d/iptables ]
+			then
+				# Gentoo
+				IPTABLES_SAVE=
+				
+				. /etc/conf.d/iptables
+				FIREHOL_AUTOSAVE="${IPTABLES_SAVE}"
+			fi
+			
+			if [ -z "${FIREHOL_AUTOSAVE}" ]
+			then
+				# Debian
+				FIREHOL_AUTOSAVE="/var/lib/iptables/autosave"
+			fi
 		else
 			error "Cannot find where to save iptables file. Please set FIREHOL_AUTOSAVE."
 			echo
