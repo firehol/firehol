@@ -10,7 +10,7 @@
 #
 # config: /etc/firehol.conf
 #
-# $Id: firehol.sh,v 1.104 2003/03/06 08:18:49 ktsaou Exp $
+# $Id: firehol.sh,v 1.105 2003/03/07 09:19:19 ktsaou Exp $
 #
 FIREHOL_FILE="${0}"
 
@@ -3189,7 +3189,7 @@ case "${arg}" in
 		else
 		
 		cat <<"EOF"
-$Id: firehol.sh,v 1.104 2003/03/06 08:18:49 ktsaou Exp $
+$Id: firehol.sh,v 1.105 2003/03/07 09:19:19 ktsaou Exp $
 (C) Copyright 2002, Costa Tsaousis <costa@tsaousis.gr>
 FireHOL is distributed under GPL.
 
@@ -3372,7 +3372,7 @@ then
 	
 	cat <<"EOF"
 
-$Id: firehol.sh,v 1.104 2003/03/06 08:18:49 ktsaou Exp $
+$Id: firehol.sh,v 1.105 2003/03/07 09:19:19 ktsaou Exp $
 (C) Copyright 2002, Costa Tsaousis <costa@tsaousis.gr>
 FireHOL is distributed under GPL.
 Home Page: http://firehol.sourceforge.net
@@ -3580,7 +3580,7 @@ then
 	
 	cat >&2 <<"EOF"
 
-$Id: firehol.sh,v 1.104 2003/03/06 08:18:49 ktsaou Exp $
+$Id: firehol.sh,v 1.105 2003/03/07 09:19:19 ktsaou Exp $
 (C) Copyright 2002, Costa Tsaousis <costa@tsaousis.gr>
 FireHOL is distributed under GPL.
 Home Page: http://firehol.sourceforge.net
@@ -3673,7 +3673,7 @@ EOF
 	echo "# "
 
 	cat <<"EOF"
-# $Id: firehol.sh,v 1.104 2003/03/06 08:18:49 ktsaou Exp $
+# $Id: firehol.sh,v 1.105 2003/03/07 09:19:19 ktsaou Exp $
 # (C) Copyright 2002, Costa Tsaousis <costa@tsaousis.gr>
 # FireHOL is distributed under GPL.
 # Home Page: http://firehol.sourceforge.net
@@ -3891,7 +3891,7 @@ EOF
 						echo "### DEBUG: Default gateway ${gw_ip} is part of network ${nn}"
 						
 						i=$[i + 1]
-						helpme_iface ignore $i "${iface}" "${ip}" "0.0.0.0/0" "from/to unknown networks behind the default gateway ${gw_ip}" "${ifnets[*]}"
+						helpme_iface route $i "${iface}" "${ip}" "0.0.0.0/0" "from/to unknown networks behind the default gateway ${gw_ip}" "${ifnets[*]}"
 						
 						break
 					fi
