@@ -10,9 +10,26 @@
 #
 # config: /etc/firehol.conf
 #
-# $Id: firehol.sh,v 1.16 2002/10/31 15:31:52 ktsaou Exp $
+# $Id: firehol.sh,v 1.17 2002/11/01 19:37:20 ktsaou Exp $
 #
 # $Log: firehol.sh,v $
+# Revision 1.17  2002/11/01 19:37:20  ktsaou
+# Added service: any
+# Any allows the administrator to define any stateful rule to match services
+# that cannot have source and destination ports, such as unusual protocols,
+# etc.
+#
+# Syntax: type any name action [optional rule parameters]
+#
+# type: server/client/route
+# name: the name for the service (used for the chain)
+# action: accept, reject, etc.
+#
+#
+# Added service: multicast
+# Multicast allows the administrator to match packets with destination
+# 224.0.0.0/8 in both directions (input/output).
+#
 # Revision 1.16  2002/10/31 15:31:52  ktsaou
 # Added command line parameter 'try' (in addition to 'start', 'stop', etc)
 # that when used it activates the firewall and waits 30 seconds for the
@@ -790,6 +807,77 @@ rules_all() {
 	do
 		"${type}" ${ser} "$@" || return 1
 	done
+	
+	return 0
+}
+
+
+# --- ANY ----------------------------------------------------------------------
+
+rules_any() {
+	local type="${1}"; shift
+	local name="${1}"; shift # a special case: service any gets a name
+	
+	local mychain="${work_name}_${name}_${type}"
+	
+	create_chain filter in_${mychain} in_${work_name}
+	create_chain filter out_${mychain} out_${work_name}
+	
+	local in=in
+	local out=out
+	if [ "${type}" = "client" ]
+	then
+		in=out
+		out=in
+	fi
+	
+	local client_ports="${DEFAULT_CLIENT_PORTS}"
+	if [ "${type}" = "client" ]
+	then
+		client_ports="${LOCAL_CLIENT_PORTS}"
+	fi
+	
+	# ----------------------------------------------------------------------
+	
+	# allow new and established incoming packets
+	rule action "$@" chain ${in}_${mychain} state NEW,ESTABLISHED || return 1
+	
+	# allow outgoing established packets
+	rule reverse action "$@" chain ${out}_${mychain} state ESTABLISHED || return 1
+	
+	return 0
+}
+
+
+# --- MULTICAST ----------------------------------------------------------------
+
+rules_multicast() {
+	local type="${1}"; shift
+	
+	local mychain="${work_name}_multicast_${type}"
+	
+	create_chain filter in_${mychain} in_${work_name}
+	create_chain filter out_${mychain} out_${work_name}
+	
+	local in=in
+	local out=out
+	if [ "${type}" = "client" ]
+	then
+		in=out
+		out=in
+	fi
+	
+	local client_ports="${DEFAULT_CLIENT_PORTS}"
+	if [ "${type}" = "client" ]
+	then
+		client_ports="${LOCAL_CLIENT_PORTS}"
+	fi
+	
+	# ----------------------------------------------------------------------
+	
+	# match multicast packets in both directions
+	rule action "$@" chain ${out}_${mychain} dst "224.0.0.0/8" || return 1
+	rule reverse action "$@" chain ${in}_${mychain} src "224.0.0.0/8" || return 1
 	
 	return 0
 }
