@@ -10,7 +10,7 @@
 #
 # config: /etc/firehol.conf
 #
-# $Id: firehol.sh,v 1.35 2002/12/08 22:05:40 ktsaou Exp $
+# $Id: firehol.sh,v 1.36 2002/12/09 21:13:35 ktsaou Exp $
 #
 
 # ------------------------------------------------------------------------------
@@ -121,7 +121,7 @@ case "${arg}" in
 		else
 		
 		cat <<"EOF"
-$Id: firehol.sh,v 1.35 2002/12/08 22:05:40 ktsaou Exp $
+$Id: firehol.sh,v 1.36 2002/12/09 21:13:35 ktsaou Exp $
 (C) Copyright 2002, Costa Tsaousis
 FireHOL is distributed under GPL.
 
@@ -2287,21 +2287,21 @@ protection() {
 				;;
 				
 			fragments|FRAGMENTS)
-				local mychain="#{pre}_${work_name}_fragments"
+				local mychain="${pre}_${work_name}_fragments"
 				create_chain filter "${mychain}" "${in}_${work_name}" custom "-f"				|| return 1
 				
 				rule chain "${mychain}" loglimit "PACKET FRAGMENTS" action drop 				|| return 1
 				;;
 				
 			new-tcp-w/o-syn|NEW-TCP-W/O-SYN)
-				local mychain="#{pre}_${work_name}_nosyn"
+				local mychain="${pre}_${work_name}_nosyn"
 				create_chain filter "${mychain}" "${in}_${work_name}" proto tcp state NEW custom "! --syn"	|| return 1
 				
 				rule chain "${mychain}" loglimit "NEW TCP w/o SYN" action drop					|| return 1
 				;;
 				
 			icmp-floods|ICMP-FLOODS)
-				local mychain="#{pre}_${work_name}_icmpflood"
+				local mychain="${pre}_${work_name}_icmpflood"
 				create_chain filter "${mychain}" "${in}_${work_name}" proto icmp custom "--icmp-type echo-request"	|| return 1
 				
 				rule chain "${mychain}" limit "${rate}" "${burst}" action return				|| return 1
@@ -2309,7 +2309,7 @@ protection() {
 				;;
 				
 			syn-floods|SYN-FLOODS)
-				local mychain="#{pre}_${work_name}_synflood"
+				local mychain="${pre}_${work_name}_synflood"
 				create_chain filter "${mychain}" "${in}_${work_name}" proto tcp custom "--syn"			|| return 1
 				
 				rule chain "${mychain}" limit "${rate}" "${burst}" action return				|| return 1
@@ -2317,21 +2317,21 @@ protection() {
 				;;
 				
 			malformed-xmas|MALFORMED-XMAS)
-				local mychain="#{pre}_${work_name}_malxmas"
+				local mychain="${pre}_${work_name}_malxmas"
 				create_chain filter "${mychain}" "${in}_${work_name}" proto tcp custom "--tcp-flags ALL ALL"	|| return 1
 				
 				rule chain "${mychain}" loglimit "MALFORMED XMAS" action drop					|| return 1
 				;;
 				
 			malformed-null|MALFORMED-NULL)
-				local mychain="#{pre}_${work_name}_malnull"
+				local mychain="${pre}_${work_name}_malnull"
 				create_chain filter "${mychain}" "${in}_${work_name}" proto tcp custom "--tcp-flags ALL NONE"	|| return 1
 				
 				rule chain "${mychain}" loglimit "MALFORMED NULL" action drop					|| return 1
 				;;
 				
 			malformed-bad|MALFORMED-BAD)
-				local mychain="#{pre}_${work_name}_malbad"
+				local mychain="${pre}_${work_name}_malbad"
 				create_chain filter "${mychain}" "${in}_${work_name}" proto tcp custom "--tcp-flags SYN,FIN SYN,FIN"		|| return 1
 				rule chain "${in}_${work_name}" action "${mychain}"   proto tcp custom "--tcp-flags SYN,RST SYN,RST"			|| return 1
 				rule chain "${in}_${work_name}" action "${mychain}"   proto tcp custom "--tcp-flags ALL     SYN,RST,ACK,FIN,URG"	|| return 1
