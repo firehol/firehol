@@ -320,12 +320,15 @@
 
 <hr noshade size=1 width="70%">
 	
-	<a name="masquerade"><h3><b>masquerade</b> [reverse | interface]</h3></a>
+	<a name="masquerade"><h3><b>masquerade</b> [reverse | interface] [optional rule parameters]</h3></a>
 	The <b>masquerade</b> subcommand will setup masquerading on the outface of the parent primary command.
 	<br>If reverse is specified it will masquerade on the input interface of the parent primary command.
 	<br>If an interface is specified, masquerade will use this one.
 	<p>
-	This command can be used everywhere: within interfaces and routers but also as primary command (in which case the interface argument is required).
+	This command can be used everywhere: within <a href="#interface">interfaces</a> and <a href="#router">routers</a> but also as primary command (in which case the interface argument is required).
+	<p>
+	Please note that if <b>masquerade</b> is used within some <a href="#interface">interface</a> or <a href="#router">router</a>, it does not respect the optional rule parameters
+	given to this interface or router command. <b>Masquerade</b> uses <u>only</u> its own <a href="#parameters">optional rule parameters</a>.
 	<p>
 
 <hr noshade size=1 width="70%">
@@ -627,7 +630,7 @@
 <tr><td align=center valign=middle>
 	<A href="http://sourceforge.net"><IMG src="http://sourceforge.net/sflogo.php?group_id=58425&amp;type=5" width="210" height="62" border="0" alt="SourceForge Logo"></A>
 </td><td align=center valign=middle>
-	<small>$Id: commands.html,v 1.7 2002/12/11 09:16:11 ktsaou Exp $</small>
+	<small>$Id: commands.html,v 1.8 2002/12/16 20:51:44 ktsaou Exp $</small>
 	<p>
 	<b>FireHOL</b>, a firewall for humans...<br>
 	&copy; Copyright 2002
