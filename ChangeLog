@@ -1,7 +1,7 @@
 
 RCS file: /cvsroot/firehol/firehol/firehol.sh,v
 Working file: firehol.sh
-head: 1.213
+head: 1.220
 branch:
 locks: strict
 access list:
@@ -9,8 +9,73 @@ symbolic names:
 	start: 1.1.1.1
 	vendor: 1.1.1
 keyword substitution: kv
-total revisions: 214;	selected revisions: 214
+total revisions: 221;	selected revisions: 221
 description:
+----------------------------
+revision 1.220
+date: 2004/12/23 18:43:03;  author: ktsaou;  state: Exp;  lines: +8 -6
+The knock was not allowing established connections, and knockd was
+inserting a rule with a -s which matched requests but did not match the
+replies.
+
+Now, the default is to allow established connections for knock and only
+control NEW connections via knockd.
+----------------------------
+revision 1.219
+date: 2004/12/22 23:05:57;  author: ktsaou;  state: Exp;  lines: +38 -8
+Small internal changes.
+
+Added support for integration with knockd (http://www.zeroflux.org/knock/)
+This integration comes as part of the ACCEPT action:
+
+accept [with knock <name>]
+The optional parameter 'with knock' allows easy integration with knockd,
+a server that allows you to control access to services, by sending certain
+packets to "knock" the door, before the door is open for service.
+
+This parameter accepts just a name. This name is used to build a special
+chain knock_<name> which will contain no rules, so that the traffic entering
+this chain will just return back and continue to match against the other
+rules until the end of the firewall.
+
+As an example, lets say that you want to allow https traffic based on a knock.
+In FireHOL you write:
+
+   server https accept with knock hidden
+
+and you configure knockd so that it runs:
+
+   iptables -A knock_hidden -s %IP% -j ACCEPT
+
+to enable the https service (notice that there is no need to match anything
+else than the IP. FireHOL already matches everything needed for its rules
+to work), and:
+
+   iptables -D knock_hidden -s %IP% -j ACCEPT
+
+to disable this service for the given IP.
+----------------------------
+revision 1.218
+date: 2004/12/21 21:49:11;  author: ktsaou;  state: Exp;  lines: +24 -18
+Added helper 'transparent_proxy' and modified 'transparent_squid' to call
+the new helper for setting up transparent web proxies.
+----------------------------
+revision 1.217
+date: 2004/12/03 21:29:41;  author: ktsaou;  state: Exp;  lines: +36 -5
+Added service TIMESTAMP.
+----------------------------
+revision 1.216
+date: 2004/11/04 19:47:05;  author: ktsaou;  state: Exp;  lines: +7 -7
+Fixed a bug in FIREHOL_OUTPUT_ACTIVATION_POLICY which was incorrectly
+setting the INPUT policy.
+----------------------------
+revision 1.215
+date: 2004/11/02 00:37:15;  author: ktsaou;  state: Exp;  lines: +38 -5
+Added service ANYSTATELESS
+----------------------------
+revision 1.214
+date: 2004/11/01 00:13:00;  author: ktsaou;  state: Exp;  lines: +30 -10
+Implemented minor version check on services in /etc/firehol/services
 ----------------------------
 revision 1.213
 date: 2004/10/31 03:17:00;  author: ktsaou;  state: Exp;  lines: +9 -6

@@ -10,21 +10,12 @@
 #
 # config: /etc/firehol/firehol.conf
 #
-# $Id: firehol.sh,v 1.220 2004/12/23 18:43:03 ktsaou Exp $
+# $Id: firehol.sh,v 1.221 2004/12/29 22:34:45 ktsaou Exp $
 #
 
 # Remember who you are.
 FIREHOL_FILE="${0}"
 FIREHOL_DEFAULT_WORKING_DIRECTORY="${PWD}"
-
-# Find our minor version
-FIREHOL_MINOR_VERSION="`cat "${FIREHOL_FILE}" | grep "^# \\\$Id:" | head -n 1 | cut -d ' ' -f 4 | cut -d '.' -f 2`"
-expr ${FIREHOL_MINOR_VERSION} + 0 >/dev/null 2>&1
-if [ $? -ne 0 ]
-then
-	FIREHOL_MINOR_VERSION=214
-fi
-
 
 # ------------------------------------------------------------------------------
 # XXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXX
@@ -99,6 +90,21 @@ which_cmd TR_CMD tr
 which_cmd UNAME_CMD uname
 which_cmd UNIQ_CMD uniq
 which_cmd -n WGET_CMD wget || which_cmd CURL_CMD curl
+
+
+# Find our minor version
+firehol_minor_version() {
+${CAT_CMD} <<"EOF" | ${CUT_CMD} -d ' ' -f 3 | ${CUT_CMD} -d '.' -f 2
+$Id: firehol.sh,v 1.221 2004/12/29 22:34:45 ktsaou Exp $
+EOF
+}
+
+FIREHOL_MINOR_VERSION=`firehol_minor_version`
+${EXPR_CMD} ${FIREHOL_MINOR_VERSION} + 0 >/dev/null 2>&1
+if [ $? -ne 0 ]
+then
+	FIREHOL_MINOR_VERSION=220
+fi
 
 
 # Initialize iptables
@@ -5070,7 +5076,7 @@ case "${arg}" in
 		else
 		
 		${CAT_CMD} <<EOF
-$Id: firehol.sh,v 1.220 2004/12/23 18:43:03 ktsaou Exp $
+$Id: firehol.sh,v 1.221 2004/12/29 22:34:45 ktsaou Exp $
 (C) Copyright 2003, Costa Tsaousis <costa@tsaousis.gr>
 FireHOL is distributed under GPL.
 
@@ -5256,7 +5262,7 @@ then
 	
 	${CAT_CMD} <<EOF
 
-$Id: firehol.sh,v 1.220 2004/12/23 18:43:03 ktsaou Exp $
+$Id: firehol.sh,v 1.221 2004/12/29 22:34:45 ktsaou Exp $
 (C) Copyright 2003, Costa Tsaousis <costa@tsaousis.gr>
 FireHOL is distributed under GPL.
 Home Page: http://firehol.sourceforge.net
@@ -5550,7 +5556,7 @@ then
 	
 	${CAT_CMD} >&2 <<EOF
 
-$Id: firehol.sh,v 1.220 2004/12/23 18:43:03 ktsaou Exp $
+$Id: firehol.sh,v 1.221 2004/12/29 22:34:45 ktsaou Exp $
 (C) Copyright 2003, Costa Tsaousis <costa@tsaousis.gr>
 FireHOL is distributed under GPL.
 Home Page: http://firehol.sourceforge.net
@@ -5633,7 +5639,7 @@ EOF
 	echo "# "
 
 	${CAT_CMD} <<EOF
-# $Id: firehol.sh,v 1.220 2004/12/23 18:43:03 ktsaou Exp $
+# $Id: firehol.sh,v 1.221 2004/12/29 22:34:45 ktsaou Exp $
 # (C) Copyright 2003, Costa Tsaousis <costa@tsaousis.gr>
 # FireHOL is distributed under GPL.
 # Home Page: http://firehol.sourceforge.net
@@ -6165,6 +6171,7 @@ ${CAT_CMD} >"${FIREHOL_TMP}.awk" <<"EOF"
 /^[[:space:]]*tcpmss[[:space:]]/ { printf "FIREHOL_LINEID=${LINENO} " }
 /^[[:space:]]*tos[[:space:]]/ { printf "FIREHOL_LINEID=${LINENO} " }
 /^[[:space:]]*transparent_squid[[:space:]]/ { printf "FIREHOL_LINEID=${LINENO} " }
+/^[[:space:]]*transparent_proxy[[:space:]]/ { printf "FIREHOL_LINEID=${LINENO} " }
 { print }
 EOF
 
