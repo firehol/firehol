@@ -1,0 +1,388 @@
+<HTML>
+<HEAD>
+<link rel="stylesheet" type="text/css" href="css.css">
+<TITLE>FireHOL, command reference</TITLE>
+</HEAD>
+
+<BODY bgcolor="#FFFFFF" leftmargin="0" topmargin="0" marginwidth="3" marginheight="1">
+
+<center><h2>Primary commands</h2></center>
+	<a name="interface"><h3><b>interface</b> <font color="red">&lt;real interface&gt;</font> <font color="red">&lt;name&gt;</font> <b>[optional rule parameters]</b></h3></a>
+	<H4>Description</H4>
+	The <b>interface</b> command creates a firewall for protecting the host the firewall is running, from the given interface.
+	<br>The default interface policy is <b>drop</b>, so that if no subcommands are given, the
+	firewall will just drop all incoming <b>and outgoing</b> traffic using this interface.
+	<p>
+	<H4>Parameters</H4>
+	<ul>
+		<li>	<b>real interface</b> is the interface name as shown by <b>ifconfig</b>.
+			Generaly anything iptables accepts, including the pattern character + (the plus sign), is valid.
+			<br>The plus sign after some text will match all interfaces that start with this text.
+			<br>It is allowed to use more than one interfaces separated by spaces, but all of them should be
+			given within one quoted argument:
+			<br>Example: <b>interface "eth0 eth1 ppp0" myname</b>
+			<br>&nbsp;
+			</li>
+
+		<li>	<b>name</b> is a name for this interface.
+			<br>Generally you should use short names (10 characters max) without spaces or other symbols.
+			<br>You should not use the same name more than once in FireHOL primary commands.
+			<br>&nbsp;
+			</li>
+			
+		<li>	<b>optional rule parameters</b> is a set of rules that allow further restriction of the traffic that
+			gets matched for this interface. See <a href="#parameters">Optional Rules Parameters</a> for more information.
+			<br>Example 1: <b>interface eth0 intranet src 10.0.0.0/16</b>
+			<br>Example 2: <b>interface eth0 internet src not "$UNROUTABLE_IPS"</b>
+			(note: UNROUTABLE_IPS is a variable defined by FireHOL that includes all IPs that should not be routable
+			by the Internet).
+			<br>&nbsp;
+			</li>
+		</ul>
+	<p>
+
+<hr noshade size=1 width="70%">
+
+	<a name="router"><h3><b>router</b> <font color="red">&lt;name&gt;</font> <b>[optional rule parameters]</b></h3></a>
+	<H4>Description</H4>
+	The <b>router</b> command creates a firewall for the traffic passing through the host running the firewall.
+	The only acceptable policy on all <b>router</b> commands is <b>return</b> and therefore the policy subcommand
+	cannot be used on routers. This means that no packets are dropped in a router. Packets not matched by any
+	<b>router</b> command will be dropped at the end of the firewall.
+	<p>
+	<H4>Parameters</H4>
+	<ul>
+		<li>	<b>name</b> is a name for this router.
+			<br>The same restrictions of <b>interface</b> names apply here too.
+			<br>&nbsp;
+			</li>
+			
+		<li>	<b>optional rule parameters</b> is a set of rules that allow further restriction of the traffic that
+			gets matched for this router. See <a href="#parameters">Optional Rules Parameters</a> for more information.
+			<br>&nbsp;
+			</li>
+		</ul>
+	
+	Router statements produce similar iptables commands the interface statements produce.
+	For each router statement an <b>in_<font color="red">&lt;name&gt;</font></b> and an
+	<b>out_<font color="red">&lt;name&gt;</font></b> chain are produced to match the traffic
+	in both directions of the router.
+	<br>
+	To match some client or server traffic the administrator has to specify the input/output
+	interface or the source/destination of the request.
+	All inface/outface, src/dst optional rule paramaters can be given either on the <b>router</b>
+	statement in which case will be applied to all subcommands for this <i>router</i>,
+	or on each subcommand within a <b>router</b>.
+	Both are valid.
+	<br>
+	For example:
+	<pre>
+		router mylan inface ppp+ outface eth0
+			server http accept
+			client smtp accept
+	</pre>
+	The above says: Define a router that matches all <u>requests</u> that originate from some PPP interface and go out to eth0.<br>
+	There is an HTTP server in eth0 that client from the PPP interfaces are allowed to reach.<br>
+	Clients on eth0 are allowed to get SMTP traffic from the PPP interfaces.<br>
+	<br>
+	While:
+	<pre>
+		router mylan
+			server http accept inface ppp+ outface eth0
+			server smtp accept inface eth0 outface ppp+
+	</pre>
+	The above says: Define a router that matches any kind of forwarded traffic.<br>
+	For HTTP traffic the clients are on a PPP interface and the servers on eth0.<br>
+	For SMTP traffic the clients are on a eth0 interface and the servers o a PPP interface.
+	<p>
+	Please note that in the second example the SMTP traffic is matched again with a <b>server</b> subcommand,
+	not a <b>client</b> (as in the first example).
+	<p>
+	The <b>client</b> subcommand <u>reverses</u> all the optional rules that are applied <u>indirectly</u> to it.
+	Indirect rule parameters are those that are inherited from the parent command (<b>router</b> in this case).
+	<br>
+	To make it simple, for FireHOL a <b>client</b> is: "a <b>server</b> with all the implicit optional rule parameters reversed".
+	<p>
+	So, in the first example, the <b>client</b> simply flipped the inface and outface rules defined at the <b>router</b>
+	and became an SMTP <b>server</b>.
+	<br>In the second example there is nothing to be flipped, so <b>server</b> and <b>client</b>
+	are exactly the same.<p>
+	I suggest to use <b>client</b> subcommands in routers only if you have inface/outface or src/dst in the <b>router</b> statements.
+	If you are building routers like the second example, don't use <b>client</b>, it is confusing.
+	<p>
+	Older versions of FireHOL did not allow server and client subcommands in routers.
+	Only the <b>route</b> subcommand was allowed. Today, <b>route</b> is just an alias for <b>server</b> and can be
+	used only in routers, not interfaces.
+	<p>
+	Any number of <b>router</b> statements can exist. Since the policy is RETURN on all of them, any traffic
+	not matched by a <i>router</i> will continue to be checked against the second.
+	<p>
+
+<hr noshade size=1 width="70%">
+
+	<a name="version"><h3><b>version</b> <font color="red">&lt;number&gt;</font></h3></a>
+	<H4>Description</H4>
+	The <b>version</b> command states the FireHOL <u>release</u> the configuration file was
+	created for. In case the configuration file is newer than FireHOL, FireHOL will deny
+	to run it.
+	<p>
+	This command is here to allow you or anyone else design and distribute FireHOL configuration files, while
+	ensuring that the correct FireHOL version is going to run them.
+	<p>
+	Since FireHOL configurations are BASH script, it is relatively easy to use FireHOL configurations as small
+	scripts that dynamically process rules stored in a database, in a filesystem as separate files, or elsewhere.
+	This directive will help the developers of FireHOL configurations to control the required version of
+	FireHOL.
+	<p>
+	The FireHOL release is increased every time the format of the configuration file and the internals of FireHOL are changed.
+	<p>
+	
+<hr noshade size=1 width="70%">
+
+	<a name="iptables"><h3><b>iptables</b> <font color="red">&lt;arguments&gt;</font></h3></a>
+	<H4>Description</H4>
+	The <b>iptables</b> command passes all its arguments to the real iptables command, during run-time.
+	<p>
+	You should not use in FireHOL configurations <b>/sbin/iptables</b> or other means to alter a FireHOL firewall.
+	If you do, your commands will be run <u>before</u> FireHOL activates its firewall and while the <u>previous</u>
+	firewall is still running. Also, since FireHOL will delete all <u>previous</u> firewall rules in order to
+	activate the new firewall, any changes you will make, will be deleted too.
+	<p>
+	Always use the <b>iptables</b> directive to hook iptables commands in a FireHOL firewall. Nothing else.
+	<p>
+
+<hr noshade size=1 width="70%">
+<center><h2>Sub-Commands</h2></center>
+
+	<a name="policy"><h3><b>policy</b> <font color="red">&lt;action&gt;</font></h3></a>
+	<H4>Description</H4>
+	The <b>policy</b> subcommand defines the default policy for an <b>interface</b>.
+	<p>
+	This directive accepts all the actions iptables accepts, i.e. DROP, REJECT, ACCEPT,
+	RETURN, etc.
+	Note that there is no meaning to use the LOG action, since FireHOL accepts it as an
+	optional rule parameter (see bellow).
+	<p>
+	The policy of routers cannot be changed and is always RETURN.
+	<p>
+
+<hr noshade size=1 width="70%">
+
+	<a name="protection"><h3><b>protection</b> [reverse] <font color="red">&lt;type&gt;</font> [requests/sec [burst]]</h3></a>
+	<H4>Description</H4>
+	The <b>protection</b> subcommand sets a number of protection rules on an <b>interface</b>.
+	<p>
+	In router configurations, <b>protections</b> are setup on <b>inface</b>. The <b>reverse</b> keyword will make the
+	protections setup on <b>outface</b>.
+	<p>
+	<b>type</b> can be: <br>
+	<ul><b>strong</b>, or <b>full</b>, or <b>all</b>
+	<br>turns on all the possible protections.
+	</ul>
+	<ul><b>fragments</b>
+	<br>Drops all packet fragments. Please note that most probably this rule will never match anything since
+	iptables reconstracts all packets automatically, before the iptables firewall rules are processed, when its connection tracker is running.
+	<br>I left this here for psychological reasons and in case some one finds some use for it.
+	</ul>
+	<ul><b>new-tcp-w/o-syn</b>
+	<br>Drops all TCP packets that initiate a socket but have no the SYN bit set.
+	</ul>
+	<ul><b>syn-floods</b>
+	<br>Allows only a certain amount of new TCP connections per second. The optional two arguments [requests/sec] and [burst]
+	are used by this rule in order to provide control on the number of connections to be allowed.
+	The default is 100 connections per second that can be bursted by 4.
+	<br>Note that this rule applies to all connections attempted regardless of their final result (rejected, dropped, established, etc).
+	Therefore it might not be a good idea to set it too low.
+	</ul>
+	<ul><b>icmp-floods</b>
+	<br>Allows only a certain amount of ICMP echo requests per second. The optional two arguments [requests/sec] and [burst]
+	are used by this rule in order to provide control on the number of connections to be allowed.
+	The default is 100 connections per second that can be bursted by 4.
+	</ul>
+	<ul><b>malformed-xmas</b>
+	<br>Drops all TCP packets that have all the TCP flags set.
+	</ul>
+	<ul><b>malformed-null</b>
+	<br>Drops all TCP packets that have all the TCP flags unset.
+	</ul>
+	<ul><b>malformed-bad</b>
+	<br>Drops all TCP packets that have illegal combinations of TCP flags set.
+	</ul>
+	<p>
+
+<hr noshade size=1 width="70%">
+	
+	<a name="server"><h3><b>server</b> <font color="red">&lt;service&gt;</font> <font color="red">&lt;action&gt;</font> [optional rule parameters]</h3></a>
+	<H4>Description</H4>
+	The <b>server</b> subcommand defines a server of a service. For FireHOL a server is the destination of a request,
+	and even if this is more complex for multi-socket services, <u>for FireHOL a server always accepts requests</u>.
+	<br>This subcommand can be used on both interfaces and routers.
+	<p>
+	<H4>Parameters</H4>
+	<ul>
+		<li>	<b>service</b> is one of the supported service names.
+			<br>The command accepts more than one services in the same argument if they are separated by space
+			and quoted as a single argument.
+			<br>Example 1: <b>server smtp accept</b>
+			<br>Example 2: <b>server "smtp pop3 imap" accept</b>
+			<br>&nbsp;
+			</li>
+
+		<li>	<b>action</b> tells FireHOL what to do with the traffic matching this rule.
+			<p>FireHOL supports the following actions:
+			<br><b>accept</b>, to allow the traffic reach its destination.
+			<br><b>reject</b>, to reject this traffic by sending back an ICMP destination port unreachable message.
+			<br><b>drop</b>, to silently (for the sender) discard the traffic.
+			<br>Please note that although FireHOL supports all other possible iptables actions, I suggest not to
+			use them since FireHOL has not been tested with them.
+			<br>Note also that the <b>log</b> iptables action is a FireHOL optional rule parameter and it is not
+			required to be used as an action.
+			<br>&nbsp;
+			</li>
+			
+		<li>	<b>optional rule parameters</b> is a set of rules that allow further restriction of the traffic that
+			gets matched by this rule. See <a href="#parameters">Optional Rules Parameters</a> for more information.
+			<br>Example 1: <b>server smtp accept src 1.2.3.4</b>
+			<br>Example 2: <b>server smtp accept log "its mail" src 1.2.3.4</b>
+			<br>&nbsp;
+			</li>
+		</ul>
+	<p>
+	
+<hr noshade size=1 width="70%">
+	
+	<a name="client"><h3><b>client</b> <font color="red">&lt;service&gt;</font> <font color="red">&lt;action&gt;</font> [optional rule parameters]</h3></a>
+	The <b>client</b> subcommand defines a client of a service. For FireHOL a client is the source of a request.
+	FireHOL follows this simple rule even on multi-socket complex protocols, so that <u>for FireHOL a client always sends requests</u>.
+	<br>The parameters are exactly the same with the <b>server</b> subcommand.
+	<br>This subcommand can be used on both interfaces and routers.
+	<p>
+
+<hr noshade size=1 width="70%">
+	
+	<a name="route"><h3><b>route</b> <font color="red">&lt;service&gt;</font> <font color="red">&lt;action&gt;</font> [optional rule parameters]</h3></a>
+	The <b>route</b> subcommand is an alias for the <b>server</b> command. It can be used only on routers, not interfaces.
+	<p>
+
+<hr noshade size=1 width="70%">
+	
+	<a name="masqerade"><h3><b>masquerade</b> [reverse | interface]</h3></a>
+	The <b>masquerade</b> subcommand will setup masquerading on the outface of the parent primary command.
+	<br>If reverse is specified it will masquerade on the input interface of the parent primary command.
+	<br>If an interface is specified, masquerade will use this one.
+	<p>
+	This command can be used everywhere: within interfaces and routers but also as primary command (in which case the interface argument is required).
+	<p>
+
+<hr noshade size=1 width="70%">
+<a name="parameters"><center><h2>Optional Rule Parameters</h2></center></a>
+
+	<a name="src"><h3><b>src</b> [not] <font color="red">&lt;host&gt;</font></h3></a>
+	<H4>Description</H4>
+	<b>src</b> defines the source IP address of the <u>REQUEST</u>. If <b>src</b> is defined on a <b>server</b> statement it matches the
+	source of the request which is the remote host, while if it is defined on a <b>client</b> statement it matches <u>again</u>
+	the source of the request, but this time it is the local host. <b>Focus on the REQUEST!!!</b> Forget the reply.
+	<p>
+	<H4>Parameters</H4>
+	<ul>
+		<li>	<b>not</b> is an optional argument that reverses the match. When defined, the rule will match all hosts
+			except the ones defined.
+			<br>Example: <b>server smtp accept src not 1.2.3.4</b>
+			<br>&nbsp;
+			</li>
+
+		<li>	<b>host</b> can be an IP address, a hostname, or a subnet.
+			<br>Multiple hosts/networks can be defined if separated by space and quoted as a single argument.
+			<br>Example 1: <b>server smtp accept src 1.2.3.4</b>
+			<br>Example 2: <b>server smtp accept src not "1.2.3.0/24 5.6.7.8 badhost.example.com"</b>
+			<br>&nbsp;
+			</li>
+		</ul>
+	<p>
+
+<hr noshade size=1 width="70%">
+
+	<a name="dst"><h3><b>dst</b> [not] <font color="red">&lt;host&gt;</font></h3></a>
+	<H4>Description</H4>
+	<b>dst</b> defines the destination of the <u>REQUEST</u>. If <b>dst</b> is defined on a <b>server</b> statement it matches the
+	destination of the request which is the local host, while if it is defined on a <b>client</b> statement it matches <u>again</u>
+	the destination of the request, but this time it is the remote host. <b>Focus on the REQUEST!!!</b> Forget the reply.
+	<p>
+	<b>dst</b> accepts the same parameters as <b>src</b>
+	<p>
+	
+<hr noshade size=1 width="70%">
+
+	<a name="inface"><h3><b>inface</b> [not] <font color="red">&lt;interface&gt;</font></h3></a>
+	<H4>Description</H4>
+	<b>inface</b> defines the interface the <u>REQUEST</u> is received via.
+	<b>inface</b> cannot be used in <b>interface</b> commands.
+	<p>
+	<H4>Parameters</H4>
+	<ul>
+		<li>	<b>not</b> is an optional argument that reverses the match. When defined, the rule will match all interfaces
+			except the ones defined.
+			<br>Example: <b>server smtp accept inface not eth0</b>
+			<br>&nbsp;
+			</li>
+
+		<li>	<b>interface</b> if an interface name in the same format the <b>interface</b> command accepts.
+			<br>Multiple interfaces can be defined if separated by space and quoted as a single argument.
+			<br>Example 1: <b>server smtp accept inface not eth0</b>
+			<br>Example 2: <b>server smtp accept inface not "eth0 eth1"</b>
+			<br>&nbsp;
+			</li>
+		</ul>
+	<p>
+
+<hr noshade size=1 width="70%">
+
+	<a name="outface"><h3><b>outface</b> [not] <font color="red">&lt;interface&gt;</font></h3></a>
+	<H4>Description</H4>
+	<b>outface</b> defines the interface the <u>REQUEST</u> is send via.
+	<b>outface</b> cannot be used in <b>interface</b> commands.
+	<p>
+	<b>outface</b> accepts the same parameters as <b>inface</b>.
+	<p>
+
+<hr noshade size=1 width="70%">
+
+	<a name="custom"><h3><b>custom</b> "<font color="red">parameters</font>"</h3></a>
+	<H4>Description</H4>
+	<b>custom</b> passes its arguments to the generated iptables commands.
+	<p>It is required to quote all the parameters given to <b>custom</b>. If the parameters include a space character
+	between some text that is required to be given to iptables as one argument, it is required to escape another set of
+	quotes in order. Another way is to use double quotes externally and single quotes internally.
+	<br>
+	<br>Example 1: <b>server smtp accept custom "--some-iptables-option and_its_value"</b>
+	<br>Example 2: <b>server smtp accept custom "--some-iptables-option 'one_value another_value'"</b>
+	<p>
+
+<hr noshade size=1 width="70%">
+
+	<a name="log"><h3><b>log</b> <font color="red">"&lt;some text&gt;"</font></h3></a>
+	<H4>Description</H4>
+	<b>log</b> will log the matching packets to syslog. Note that this is not an action.
+	FireHOL will actually produce multiple iptables commands to accomplish both the action for the rule and the logging.
+	<p>
+	
+<hr noshade size=1 width="70%">
+
+	<a name="log"><h3><b>loglimit</b> <font color="red">"&lt;some text&gt;"</font></h3></a>
+	<H4>Description</H4>
+	<b>loglimit</b> is the same with <b>log</b> but limits logging of packets to 1/sec.
+	<p>
+
+<p>
+<hr noshade size=1>
+<table border=0 width="100%">
+<tr><td align=center valign=middle>
+	<A href="http://sourceforge.net"><IMG src="http://sourceforge.net/sflogo.php?group_id=58425&amp;type=5" width="210" height="62" border="0" alt="SourceForge Logo"></A>
+</td><td align=center valign=middle>
+	<small>$Id: commands.html,v 1.1 2002/12/08 22:06:36 ktsaou Exp $</small>
+	<p>
+	<b>FireHOL</b>, a firewall for humans...<br>
+	&copy; Copyright 2002
+	Costa Tsaousis <a href="mailto: costa@tsaousis.gr">&lt;costa@tsaousis.gr&gt</a>
+</body>
+</html>

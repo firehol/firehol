@@ -1,0 +1,47 @@
+<HTML>
+<HEAD>
+<link rel="stylesheet" type="text/css" href="css.css">
+<TITLE>FireHOL, Language Semantics</TITLE>
+</HEAD>
+
+<BODY bgcolor="#FFFFFF" leftmargin="0" topmargin="0" marginwidth="3" marginheight="1">
+
+FireHOL configuration files are normal <a href="http://www.gnu.org/software/bash/bash.html">BASH</a> scripts.
+As such, you can use all <a href="http://www.gnu.org/software/bash/bash.html">BASH</a> features within FireHOL configuration
+files, including functions, loops, variables, I/O, etc, etc.
+<p>
+I have chosen <a href="http://www.gnu.org/software/bash/bash.html">BASH</a> as the configuration language for FireHOL
+since it is the common denominator for a language that all UNIX system administrators and developers
+(or at least those that respect themselves) know and understand better.
+<p>
+The only <a href="http://www.gnu.org/software/bash/bash.html">BASH</a> features a FireHOL configuration script should never use, is <b>traps</b> and the <b>exit</b> command. Traps are used by FireHOL for cleaning
+up all temporary files, and possibly restoring the previously running firewall in case FireHOL execution breaks, and the exit command will not just exit the configuration file, it will exit
+FireHOL. FireHOL has disabled these features by default, so that you will not be able to use them, unless you specificaly enable them.
+<p>
+Also, since a FireHOL configuration script runs inline with FireHOL, all variables and function names defined within the
+configuration file overwrite the ones defined by FireHOL. For this reason you should avoid using variables that start with
+<b>FIREHOL_</b>, <b>work_</b>, <b>server_</b>, and <b>client_</b> as many such variables are used by FireHOL internally.
+There are also a number of functions names you should avoid, but there is no generic pattern at the moment. I suggest you should
+avoid defining functions with the names of FireHOL commands (interface, router, client, server, etc) and functions starting with <b>rules_</b>.
+<p>
+Note however that it is allowed to overwrite a few variables and functions if you want to modify FireHOL services (See the <a href="adding.html">Adding Services</a> section for more on this).
+<p>
+To learn <a href="http://www.gnu.org/software/bash/bash.html">BASH</a> scripting I suggest the following documents:
+<ul>
+	<li><a href="http://www.tldp.org/LDP/abs/html/index.html">Advanced Bash-Scripting Guide</a> (updated)</li>
+	<li><a href="http://www.tldp.org/HOWTO/Bash-Prog-Intro-HOWTO.html">BASH Programming - Introduction HOW-TO</a> (older)</li>
+</ul>
+
+<p>
+<hr noshade size=1>
+<table border=0 width="100%">
+<tr><td align=center valign=middle>
+	<A href="http://sourceforge.net"><IMG src="http://sourceforge.net/sflogo.php?group_id=58425&amp;type=5" width="210" height="62" border="0" alt="SourceForge Logo"></A>
+</td><td align=center valign=middle>
+	<small>$Id: language.html,v 1.1 2002/12/08 22:06:36 ktsaou Exp $</small>
+	<p>
+	<b>FireHOL</b>, a firewall for humans...<br>
+	&copy; Copyright 2002
+	Costa Tsaousis <a href="mailto: costa@tsaousis.gr">&lt;costa@tsaousis.gr&gt</a>
+</body>
+</html>

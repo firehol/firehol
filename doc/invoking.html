@@ -1,0 +1,148 @@
+<HTML>
+<HEAD>
+<link rel="stylesheet" type="text/css" href="css.css">
+<TITLE>FireHOL, command line options</TITLE>
+</HEAD>
+
+<BODY bgcolor="#FFFFFF" leftmargin="0" topmargin="0" marginwidth="3" marginheight="1">
+
+FireHOL has been designed to be a startup service. As such, FireHOL accepts all the command line arguments
+/etc/init.d/iptables plus a few more. Bellow is a list of the currently supported command line arguments:
+<p>
+<center>
+<table border=0 cellpadding=3 cellspacing=5 width="70%">
+<tr><th bgcolor="#000000"><font color="white">Parameter</th><th bgcolor="#000000"><font color="white">Description</th></tr>
+<tr>	<td><b>start</td>
+	<td>	Activates the firewall configuration.
+		<br>The configuration is expected to be found in <b>/etc/firehol.conf</b>
+	</td>
+	</tr>
+<tr>	<td bgcolor="#EEEEEE"><b>try</td>
+	<td bgcolor="#EEEEEE">	Activates the firewall, but waits until
+		the user types the word <b>commit</b>. If this word
+		is not typed within 30 seconds, the previous
+		firewall is restored.
+	</td>
+	</tr>
+<tr>	<td><b>stop</td>
+	<td>	Stops a running iptables firewall by running <b>/etc/init.d/iptables stop</b>.
+		This will allow all traffic to pass unchecked.
+	</td>
+	</tr>
+<tr>	<td bgcolor="#EEEEEE"><b>restart</td>
+	<td bgcolor="#EEEEEE">	this is an alias for <b>start</b> and is given for
+		compatibility with <b>/etc/init.d/iptables</b>.
+	</td>
+	</tr>
+<tr>	<td><b>condrestart</td>
+	<td>	Starts the FireHOL firewall only if it is not
+		already active. It does not detect a modified
+		configuration file, only verifies that FireHOL has been started
+		in the past and not stopped yet.
+	</td>
+	</tr>
+<tr>	<td bgcolor="#EEEEEE"><b>status</td>
+	<td bgcolor="#EEEEEE">	Shows the running firewall, as in
+		<b>/sbin/iptables -nxvL | less</b>
+	</td>
+	</tr>
+<tr>	<td><b>panic</td>
+	<td>	Executes <b>/etc/init.d/iptables panic</b>
+	</td>
+	</tr>
+<tr>	<td bgcolor="#EEEEEE"><b>save</td>
+	<td bgcolor="#EEEEEE">	Start the firewall and then saves it using
+		<b>/etc/init.d/iptables save</b>
+		<p>
+		Note that not all FireHOL firewalls will work if
+		restored with: <b>/etc/init.d/iptables start</b>
+		because FireHOL handles kernel modules and might have queried
+		RPC servers (used by the NFS service) before starting the firewall.
+		Also, FireHOL automatically checks current kernel configuration for
+		client ports range. If you restore a firewall using the iptables service
+		your firewall may not work as expected.
+		
+	</td>
+	</tr>
+<tr>	<td><b>debug</td>
+	<td>	Parses the configuration file but instead of
+		activating it, it shows the generated iptables
+		statements.
+	</td>
+	</tr>
+<tr>	<td bgcolor="#EEEEEE"><b>&lt;a&nbsp;filename&gt;</td>
+	<td bgcolor="#EEEEEE">	a different configuration file.
+		If no other argument is given, the configuration
+		file will be "tried" (default = try).
+		Otherwise the argument next to the filename can
+		be one of the above (start, restart, debug, etc).
+	</td>
+	</tr>
+<tr>	<td bgcolor="#EEEEEE">&lt;nothing&gt;</td>
+	<td bgcolor="#EEEEEE">Presents help about FireHOL usage.</td>
+	</tr>
+</table>
+</center>
+
+<H2>How FireHOL runs?</H2>
+FireHOL is a <a href="http://www.gnu.org/software/bash/bash.html">BASH</a> script.
+To run its configuration file, FireHOL
+first defines a set of functions and variables and then it &quot;sources&quot; 
+(runs inline) its configuration file to be executed by <a href="http://www.gnu.org/software/bash/bash.html">BASH</a>.</p>
+<p>
+The keywords <i>interface</i>, <i>client</i>, <i>server</i>, <i>
+router</i>, etc. are all <a href="http://www.gnu.org/software/bash/bash.html">BASH</a> functions that are executed by <a href="http://www.gnu.org/software/bash/bash.html">BASH</a> when 
+and if they appear in the configuration file. Using shared variables 
+these functions share some state information that allows them to know, 
+for example, that a <i>client</i> command appears within an <i>interface</i> 
+and not within a <i>router</i> and that the name given to an <i>
+interface</i> has not been used before.
+<p>
+Instead of running iptables commands directly, each of these 
+functions (i.e. FireHOL) just writes the generated iptables commands to 
+a temporary file. This is done to prevent altering a running firewall 
+before ensuring that the syntax of the configuration file is correct. 
+So, a complete run of the configuration file actually produces all the 
+iptables commands for the firewall, written to a temporary file 
+(script).&nbsp; Even the <i>iptables</i> commands given within the 
+configuration file use the same concept (they just generate iptables 
+commands in this script).
+<p>
+Finally, this script (the generated iptables commands) has to be run, 
+but before doing so, FireHOL saves the running firewall to another 
+temporary file. The saved firewall will be automatically restored if 
+some of the generated iptables commands produces an error.
+Such an error 
+is possible when for example, you specify an invalid IP address or 
+hostname, or an invalid argument to some&nbsp; parameter that gets passed to 
+iptables as-is.
+<p>
+It is important to understand that <b>during the run of the generated 
+iptables script (including the possible restoration of the old 
+firewall), FireHOL allows all traffic to reach its destination</b>. This 
+has been done to prevent a possible lock-out situation where you are 
+SSHing to the server to alter its firewall, and suddenly you loose the 
+connection (although this can still happen if your new firewall doesn't 
+allow the connection).
+<p>
+If no error has been seen, FireHOL deletes all temporary files 
+generated and exits.
+<p>
+In case there was an error, FireHOL will make the most to restore 
+your previous firewall and will present you details about the error and 
+its line number in the original configuration file.
+
+
+<p>
+<hr noshade size=1>
+<table border=0 width="100%">
+<tr><td align=center valign=middle>
+	<A href="http://sourceforge.net"><IMG src="http://sourceforge.net/sflogo.php?group_id=58425&amp;type=5" width="210" height="62" border="0" alt="SourceForge Logo"></A>
+</td><td align=center valign=middle>
+	<small>$Id: invoking.html,v 1.1 2002/12/08 22:06:36 ktsaou Exp $</small>
+	<p>
+	<b>FireHOL</b>, a firewall for humans...<br>
+	&copy; Copyright 2002
+	Costa Tsaousis <a href="mailto: costa@tsaousis.gr">&lt;costa@tsaousis.gr&gt</a>
+</body>
+</html>
