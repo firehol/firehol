@@ -1,7 +1,7 @@
 
 RCS file: /cvsroot/firehol/firehol/firehol.sh,v
 Working file: firehol.sh
-head: 1.36
+head: 1.40
 branch:
 locks: strict
 access list:
@@ -9,8 +9,26 @@ symbolic names:
 	start: 1.1.1.1
 	vendor: 1.1.1
 keyword substitution: kv
-total revisions: 37;	selected revisions: 37
+total revisions: 41;	selected revisions: 41
 description:
+----------------------------
+revision 1.40
+date: 2002/12/11 20:51:38;  author: ktsaou;  state: Exp;  lines: +4 -4
+Changed service submission to be presented by number instead of name
+because debian does not have this service in /etc/services.
+----------------------------
+revision 1.39
+date: 2002/12/10 23:31:32;  author: ktsaou;  state: Exp;  lines: +3 -3
+Made default protections burst 50.
+----------------------------
+revision 1.38
+date: 2002/12/10 23:08:07;  author: ktsaou;  state: Exp;  lines: +5 -3
+Added FIREHOL_LOG_FREQUENCY and FIREHOL_LOG_BURST to allow control on
+the frequency of the loglimit rule parameter.
+----------------------------
+revision 1.37
+date: 2002/12/10 18:10:38;  author: ktsaou;  state: Exp;  lines: +4 -4
+Fixed a bug in netbios_ns
 ----------------------------
 revision 1.36
 date: 2002/12/09 21:13:35;  author: ktsaou;  state: Exp;  lines: +9 -9

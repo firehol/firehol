@@ -135,6 +135,16 @@ cat <<"EOF"
 
 <BODY bgcolor="#FFFFFF">
 
+Bellow is the list of FireHOL supported services. You can overwrite all the services (including those marked as complex) with the
+procedures defined in <a href="adding.html">Adding Services</a>.
+<p>
+In case you have problems with some service because it is defined by its port names instead of its port numbers, you can find the
+required port numbers at <a href="http://www.graffiti.com/services">http://www.graffiti.com/services</a>.
+<p>
+Please report problems related to port names usage. I will replace the faulty names with the relative numbers to eliminate this problem.
+All the services defined by name in FireHOL are known to resolve in <a href="www.redhat.com">RedHat</a> systems 7.x and 8.
+
+
 <center>
 <table border=0 cellspacing=5 cellpadding=10 width="80%">
 <tr bgcolor="#EEEEEE"><th>Service</th><th>Type</th><th>Description</th></tr>
@@ -284,7 +294,7 @@ cat <<"EOF"
 <tr><td align=center valign=middle>
 	<A href="http://sourceforge.net"><IMG src="http://sourceforge.net/sflogo.php?group_id=58425&amp;type=5" width="210" height="62" border="0" alt="SourceForge Logo"></A>
 </td><td align=center valign=middle>
-	<small>$Id: create_services.sh,v 1.2 2002/12/11 09:22:53 ktsaou Exp $</small>
+	<small>$Id: create_services.sh,v 1.3 2002/12/11 21:04:20 ktsaou Exp $</small>
 	<p>
 	<b>FireHOL</b>, a firewall for humans...<br>
 	&copy; Copyright 2002
