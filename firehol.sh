@@ -10,7 +10,7 @@
 #
 # config: /etc/firehol.conf
 #
-# $Id: firehol.sh,v 1.56 2002/12/23 13:49:09 ktsaou Exp $
+# $Id: firehol.sh,v 1.57 2002/12/23 14:39:19 ktsaou Exp $
 #
 
 # ------------------------------------------------------------------------------
@@ -21,6 +21,9 @@ success() {
 failure() {
 	echo " FAILED"
 }
+
+# Be nice on production environments
+renice 10 $$ >/dev/null 2>/dev/null
 
 # ------------------------------------------------------------------------------
 # A small part bellow is copied from /etc/init.d/iptables
@@ -46,6 +49,7 @@ if  /sbin/lsmod 2>/dev/null | grep -q ipchains ; then
 	# Don't do both
 	exit 0
 fi
+
 
 # --- PARAMETERS Processing ----------------------------------------------------
 
@@ -151,7 +155,7 @@ case "${arg}" in
 		else
 		
 		cat <<"EOF"
-$Id: firehol.sh,v 1.56 2002/12/23 13:49:09 ktsaou Exp $
+$Id: firehol.sh,v 1.57 2002/12/23 14:39:19 ktsaou Exp $
 (C) Copyright 2002, Costa Tsaousis <costa@tsaousis.gr>
 FireHOL is distributed under GPL.
 
@@ -423,20 +427,20 @@ work_policy=${DEFAULT_INTERFACE_POLICY}
 work_error=0
 work_function="Initializing"
 
-set_work_function() {
-	local show_explain=1
-	test "$1" = "-ne" && shift && local show_explain=0
-	
-	work_function="$*"
-	
-	test ${FIREHOL_EXPLAIN} -eq 1 -a ${show_explain} -eq 1 && printf "\n# %s\n" "$*"
-}
-
 # ------------------------------------------------------------------------------
 # Keep status information
 
 # 0 = no errors, 1 = there were errors in the script
 work_final_status=0
+
+# This variable is used for generating dynamic chains when needed for
+# combined negative statements (AND) implied by the "not" parameter
+# to many FireHOL directives.
+# What FireHOL is doing to accomplish this, is to produce dynamically
+# a linked list of iptables chains with just one condition each, making
+# the packets to traverse from chain to chain when matched, to reach
+# their final destination.
+FIREHOL_DYNAMIC_CHAIN_COUNTER=1
 
 
 # ------------------------------------------------------------------------------
@@ -1108,19 +1112,447 @@ rules_multicast() {
 }
 
 
+# --- CUSTOM -------------------------------------------------------------------
+
+rules_custom() {
+	local mychain="${1}"; shift
+	local type="${1}"; shift
+	
+	local server="${1}"; shift
+	local my_server_ports="${1}"; shift
+	local my_client_ports="${1}"; shift
+	
+	local in=in
+	local out=out
+	if [ "${type}" = "client" ]
+	then
+		in=out
+		out=in
+	fi
+	
+	local client_ports="${DEFAULT_CLIENT_PORTS}"
+	if [ "${type}" = "client" -a "${work_cmd}" = "interface" ]
+	then
+		client_ports="${LOCAL_CLIENT_PORTS}"
+	fi
+	
+	# ----------------------------------------------------------------------
+	
+	local sp=
+	for sp in ${my_server_ports}
+	do
+		local proto=
+		local sport=
+		
+		IFS="/" read proto sport <<EOF
+$sp
+EOF
+		
+#		local proto="`echo $sp | cut -d '/' -f 1`"
+#		local sport="`echo $sp | cut -d '/' -f 2`"
+		
+		local cp=
+		for cp in ${my_client_ports}
+		do
+			local cport=
+			case ${cp} in
+				default)
+					cport="${client_ports}"
+					;;
+					
+				*)	cport="${cp}"
+					;;
+			esac
+			
+			# allow new and established incoming packets
+			rule action "$@" chain "${in}_${mychain}" proto "${proto}" sport "${cport}" dport "${sport}" state NEW,ESTABLISHED || return 1
+			
+			# allow outgoing established packets
+			rule reverse action "$@" chain "${out}_${mychain}" proto "${proto}" sport "${cport}" dport "${sport}" state ESTABLISHED || return 1
+		done
+	done
+	
+	return 0
+}
+
+
 # ------------------------------------------------------------------------------
 # XXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXX
 # ------------------------------------------------------------------------------
 #
-# INTERNAL FUNCTIONS BELLOW THIS POINT
+# INTERNAL FUNCTIONS BELLOW THIS POINT - Primary commands
 #
 # ------------------------------------------------------------------------------
 # XXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXX
 # ------------------------------------------------------------------------------
+
+
+# ------------------------------------------------------------------------------
+# Check the version required by the configuration file
+# WHY:
+# We have to make sure the configuration file has been written for this version
+# of FireHOL. Note that the version command does not actually check the version
+# of firehol.sh. It checks only its release number (R5 currently).
+
+version() {
+	work_realcmd="`printf "%q " version "$@"`"
+	
+	FIREHOL_VERSION_CHECKED=1
+	
+	if [ ${1} -gt ${FIREHOL_VERSION} ]
+	then
+		error "Wrong version. FireHOL is v${FIREHOL_VERSION}, your script requires v${1}."
+	fi
+}
+
+
+# ------------------------------------------------------------------------------
+# PRIMARY COMMAND: interface
+# Setup rules specific to an interface (physical or logical)
+
+interface() {
+	work_realcmd="`printf "%q " interface "$@"`"
+	
+	# --- close any open command ---
+	
+	close_cmd || return 1
+	
+	
+	# --- test prerequisites ---
+	
+	require_work clear || return 1
+	set_work_function -ne "Initializing interface"
+	
+	
+	# --- get paramaters and validate them ---
+	
+	# Get the interface
+	local inface="${1}"; shift
+	test -z "${inface}" && error "interface is not set" && return 1
+	
+	# Get the name for this interface
+	local name="${1}"; shift
+	test -z "${name}" && error "Name is not set" && return 1
+	
+	
+	# --- do the job ---
+	
+	work_cmd="${FUNCNAME}"
+	work_name="${name}"
+	work_realcmd=
+	
+	set_work_function -ne "Initializing interface '${work_name}'"
+	
+	create_chain filter "in_${work_name}" INPUT set_work_inface inface "${inface}" "$@" || return 1
+	create_chain filter "out_${work_name}" OUTPUT set_work_outface reverse inface "${inface}" "$@" || return 1
+	
+	return 0
+}
+
+
+router() {
+	work_realcmd="`printf "%q " router "$@"`"
+	
+	# --- close any open command ---
+	
+	close_cmd || return 1
+	
+	
+	# --- test prerequisites ---
+	
+	require_work clear || return 1
+	set_work_function -ne "Initializing router"
+	
+	
+	# --- get paramaters and validate them ---
+	
+	# Get the name for this router
+	local name="${1}"; shift
+	test -z "${name}" && error "router name is not set" && return 1
+	
+	
+	# --- do the job ---
+	
+	work_cmd="${FUNCNAME}"
+	work_name="${name}"
+	work_realcmd=
+	
+	set_work_function -ne "Initializing router '${work_name}'"
+	
+	create_chain filter "in_${work_name}" FORWARD set_work_inface set_work_outface "$@" || return 1
+	create_chain filter "out_${work_name}" FORWARD reverse "$@" || return 1
+	
+	FIREHOL_ROUTING=1
+	
+	return 0
+}
+
+postprocess() {
+	local tmp=" >${FIREHOL_OUTPUT}.log 2>&1"
+	test ${FIREHOL_DEBUG} -eq 1 && local tmp=
+	
+	printf "%q " "$@" >>${FIREHOL_OUTPUT}
+	test ${FIREHOL_EXPLAIN} -eq 0 && echo " $tmp # L:${FIREHOL_LINEID}" >>${FIREHOL_OUTPUT}
+	
+	if [ ${FIREHOL_EXPLAIN} -eq 1 ]
+	then
+		cat ${FIREHOL_OUTPUT}
+		echo
+		rm -f ${FIREHOL_OUTPUT}
+	fi
+	
+	if [ ${FIREHOL_DEBUG} -eq 0 -a ${FIREHOL_EXPLAIN} -eq 0 ]
+	then
+		printf "check_final_status \$? ${FIREHOL_LINEID} " >>${FIREHOL_OUTPUT}
+		printf "%q " "$@" >>${FIREHOL_OUTPUT}
+		printf "\n" >>${FIREHOL_OUTPUT}
+	fi
+	
+	return 0
+}
+
+iptables() {
+	postprocess "/sbin/iptables" "$@"
+	
+	return 0
+}
+
+
+# ------------------------------------------------------------------------------
+# XXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXX
+# ------------------------------------------------------------------------------
+#
+# INTERNAL FUNCTIONS BELLOW THIS POINT - Sub-commands
+#
+# ------------------------------------------------------------------------------
+# XXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXX
+# ------------------------------------------------------------------------------
+
+
+masquerade() {
+	work_realcmd="`printf "%q " masquerade "$@"`"
+	
+	set_work_function -ne "Initializing masquerade"
+	
+	local f="${work_outface}"
+	test "${1}" = "reverse" && f="${work_inface}"
+	
+	test -z "${f}" && local f="${1}"
+	
+	test -z "${f}" && error "masquerade requires an interface set or as argument" && return 1
+	
+	set_work_function "Initializing masquerade on interface '${f}'"
+	
+	local x=
+	for x in ${f}
+	do
+		rule table nat chain POSTROUTING outface "${x}" action MASQUERADE "$@" || return 1
+	done
+	
+	FIREHOL_NAT=1
+	FIREHOL_ROUTING=1
+	
+	return 0
+}
+
+# ------------------------------------------------------------------------------
+# Change the policy of an interface
+# WHY:
+# Not all interfaces have the same policy. The admin must have control over it.
+# Here we just set what the admin wants. At the interface finalization we
+# produce the iptables rules.
+
+policy() {
+	work_realcmd="`printf "%q " policy "$@"`"
+	
+	require_work set interface || return 1
+	
+	set_work_function "Setting interface '${work_interface}' (${work_name}) policy to ${1}"
+	work_policy="${1}"
+	
+	return 0
+}
+
+
+server() {
+	work_realcmd="`printf "%q " server "$@"`"
+	
+	require_work set any || return 1
+	smart_function server "$@"
+	return $?
+}
+
+client() {
+	work_realcmd="`printf "%q " client "$@"`"
+	
+	require_work set any || return 1
+	smart_function client "$@"
+	return $?
+}
+
+route() {
+	work_realcmd="`printf "%q " route "$@"`"
+	
+	require_work set router || return 1
+	smart_function server "$@"
+	return $?
+}
+
+
+# --- protection ---------------------------------------------------------------
+
+protection() {
+	work_realcmd="`printf "%q " protection "$@"`"
+	
+	require_work set any || return 1
+	
+	local in="in"
+	local prface="${work_inface}"
+	
+	local pre="pr"
+	unset reverse
+	if [ "${1}" = "reverse" ]
+	then
+		local reverse="reverse"	# needed to recursion
+		local pre="prr"		# in case a router has protections
+					# both ways, the second needs to
+					# have different chain names
+					
+		local in="out"		# reverse the interface
+		
+		prface="${work_outface}"
+		shift
+	fi
+	
+	local type="${1}"
+	local rate="${2}"
+	local burst="${3}"
+	
+	test -z "${rate}"  && rate="100/s"
+	test -z "${burst}" && burst="50"
+	
+	set_work_function -ne "Generating protections on '${prface}' for ${work_cmd} '${work_name}'"
+	
+	local x=
+	for x in ${type}
+	do
+		case "${x}" in
+			none|NONE)
+				return 0
+				;;
+			
+			strong|STRONG|full|FULL|all|ALL)
+				protection ${reverse} "fragments new-tcp-w/o-syn icmp-floods syn-floods malformed-xmas malformed-null malformed-bad" "${rate}" "${burst}"
+				return $?
+				;;
+				
+			fragments|FRAGMENTS)
+				local mychain="${pre}_${work_name}_fragments"
+				create_chain filter "${mychain}" "${in}_${work_name}" custom "-f"				|| return 1
+				
+				set_work_function "Generating rules to be protected from packet fragments on '${prface}' for ${work_cmd} '${work_name}'"
+				
+				rule chain "${mychain}" loglimit "PACKET FRAGMENTS" action drop 				|| return 1
+				;;
+				
+			new-tcp-w/o-syn|NEW-TCP-W/O-SYN)
+				local mychain="${pre}_${work_name}_nosyn"
+				create_chain filter "${mychain}" "${in}_${work_name}" proto tcp state NEW custom "! --syn"	|| return 1
+				
+				set_work_function "Generating rules to be protected from new TCP connections without the SYN flag set on '${prface}' for ${work_cmd} '${work_name}'"
+				
+				rule chain "${mychain}" loglimit "NEW TCP w/o SYN" action drop					|| return 1
+				;;
+				
+			icmp-floods|ICMP-FLOODS)
+				local mychain="${pre}_${work_name}_icmpflood"
+				create_chain filter "${mychain}" "${in}_${work_name}" proto icmp custom "--icmp-type echo-request"	|| return 1
+				
+				set_work_function "Generating rules to be protected from ICMP floods on '${prface}' for ${work_cmd} '${work_name}'"
+				
+				rule chain "${mychain}" limit "${rate}" "${burst}" action return				|| return 1
+				rule chain "${mychain}" loglimit "ICMP FLOOD" action drop					|| return 1
+				;;
+				
+			syn-floods|SYN-FLOODS)
+				local mychain="${pre}_${work_name}_synflood"
+				create_chain filter "${mychain}" "${in}_${work_name}" proto tcp custom "--syn"			|| return 1
+				
+				set_work_function "Generating rules to be protected from TCP SYN floods on '${prface}' for ${work_cmd} '${work_name}'"
+				
+				rule chain "${mychain}" limit "${rate}" "${burst}" action return				|| return 1
+				rule chain "${mychain}" loglimit "SYN FLOOD" action drop					|| return 1
+				;;
+				
+			malformed-xmas|MALFORMED-XMAS)
+				local mychain="${pre}_${work_name}_malxmas"
+				create_chain filter "${mychain}" "${in}_${work_name}" proto tcp custom "--tcp-flags ALL ALL"	|| return 1
+				
+				set_work_function "Generating rules to be protected from packets with all TCP flags set on '${prface}' for ${work_cmd} '${work_name}'"
+				
+				rule chain "${mychain}" loglimit "MALFORMED XMAS" action drop					|| return 1
+				;;
+				
+			malformed-null|MALFORMED-NULL)
+				local mychain="${pre}_${work_name}_malnull"
+				create_chain filter "${mychain}" "${in}_${work_name}" proto tcp custom "--tcp-flags ALL NONE"	|| return 1
+				
+				set_work_function "Generating rules to be protected from packets with all TCP flags unset on '${prface}' for ${work_cmd} '${work_name}'"
+				
+				rule chain "${mychain}" loglimit "MALFORMED NULL" action drop					|| return 1
+				;;
+				
+			malformed-bad|MALFORMED-BAD)
+				local mychain="${pre}_${work_name}_malbad"
+				create_chain filter "${mychain}" "${in}_${work_name}" proto tcp custom "--tcp-flags SYN,FIN SYN,FIN"			|| return 1
+				
+				set_work_function "Generating rules to be protected from packets with illegal TCP flags on '${prface}' for ${work_cmd} '${work_name}'"
+				
+				rule chain "${in}_${work_name}" action "${mychain}"   proto tcp custom "--tcp-flags SYN,RST SYN,RST"			|| return 1
+				rule chain "${in}_${work_name}" action "${mychain}"   proto tcp custom "--tcp-flags ALL     SYN,RST,ACK,FIN,URG"	|| return 1
+				rule chain "${in}_${work_name}" action "${mychain}"   proto tcp custom "--tcp-flags ALL     FIN,URG,PSH"		|| return 1
+				
+				rule chain "${mychain}" loglimit "MALFORMED BAD" action drop							|| return 1
+				;;
+				
+			*)
+				error "Protection '${x}' does not exists."
+				return 1
+				;;
+		esac
+	done
+	
+	return 0
+}
+
+
+# ------------------------------------------------------------------------------
+# XXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXX
+# ------------------------------------------------------------------------------
+#
+# INTERNAL FUNCTIONS BELLOW THIS POINT - FireHOL internals
+#
+# ------------------------------------------------------------------------------
+# XXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXX
+# ------------------------------------------------------------------------------
+
+
+set_work_function() {
+	local show_explain=1
+	test "$1" = "-ne" && shift && local show_explain=0
+	
+	work_function="$*"
+	
+	test ${FIREHOL_EXPLAIN} -eq 1 -a ${show_explain} -eq 1 && printf "\n# %s\n" "$*"
+}
 
 
 # ------------------------------------------------------------------------------
 # Manage kernel modules
+# WHY:
+# We need to load a set of kernel modules during postprocessing, and after the
+# new firewall has been activated. Here we just keep a list of the required
+# kernel modules.
 
 require_kernel_module() {
 	local new="${1}"
@@ -1138,23 +1570,10 @@ require_kernel_module() {
 
 
 # ------------------------------------------------------------------------------
-# Check our version
-
-version() {
-	work_realcmd="`printf "%q " version "$@"`"
-	
-	FIREHOL_VERSION_CHECKED=1
-	
-	if [ ${1} -gt ${FIREHOL_VERSION} ]
-	then
-		error "Wrong version. FireHOL is v${FIREHOL_VERSION}, your script requires v${1}."
-	fi
-}
-
-
-# ------------------------------------------------------------------------------
-# Make sure we cleanup when we exit.
-# We trap this, so even a CTRL-C will call this and we will not leave tmp files.
+# Make sure we automatically cleanup when we exit.
+# WHY:
+# Even a CTRL-C will call this and we will not leave temp files.
+# Also, if a configuration file breaks, we will detect this too.
 
 firehol_exit() {
 	
@@ -1221,8 +1640,11 @@ require_work() {
 
 # ------------------------------------------------------------------------------
 # Finalizes the rules of the last primary command.
+# WHY:
+# At the end of an interface or router we need to add some code to apply its
+# policy, accept all related packets, etc.
 # Finalization occures automatically when a new primary command is executed and
-# when the script finishes.
+# when the configuration file finishes.
 
 close_cmd() {
 	set_work_function -ne "Closing last open primary command (${work_cmd}/${work_name})"
@@ -1257,89 +1679,10 @@ close_cmd() {
 	return 0
 }
 
-policy() {
-	work_realcmd="`printf "%q " policy "$@"`"
-	
-	require_work set interface || return 1
-	
-	set_work_function "Setting interface '${work_interface}' (${work_name}) policy to ${1}"
-	work_policy="${1}"
-	
-	return 0
-}
-
-masquerade() {
-	work_realcmd="`printf "%q " masquerade "$@"`"
-	
-	set_work_function -ne "Initializing masquerade"
-	
-	local f="${work_outface}"
-	test "${1}" = "reverse" && f="${work_inface}"
-	
-	test -z "${f}" && local f="${1}"
-	
-	test -z "${f}" && error "masquerade requires an interface set or as argument" && return 1
-	
-	set_work_function "Initializing masquerade on interface '${f}'"
-	
-	local x=
-	for x in ${f}
-	do
-		rule table nat chain POSTROUTING outface "${x}" action MASQUERADE "$@" || return 1
-	done
-	
-	FIREHOL_NAT=1
-	FIREHOL_ROUTING=1
-	
-	return 0
-}
-
 # ------------------------------------------------------------------------------
-# PRIMARY COMMAND: interface
-# Setup rules specific to an interface (physical or logical)
-
-interface() {
-	work_realcmd="`printf "%q " interface "$@"`"
-	
-	# --- close any open command ---
-	
-	close_cmd || return 1
-	
-	
-	# --- test prerequisites ---
-	
-	require_work clear || return 1
-	set_work_function -ne "Initializing interface"
-	
-	
-	# --- get paramaters and validate them ---
-	
-	# Get the interface
-	local inface="${1}"; shift
-	test -z "${inface}" && error "interface is not set" && return 1
-	
-	# Get the name for this interface
-	local name="${1}"; shift
-	test -z "${name}" && error "Name is not set" && return 1
-	
-	
-	# --- do the job ---
-	
-	work_cmd="${FUNCNAME}"
-	work_name="${name}"
-	work_realcmd=
-	
-	set_work_function -ne "Initializing interface '${work_name}'"
-	
-	create_chain filter "in_${work_name}" INPUT set_work_inface inface "${inface}" "$@" || return 1
-	create_chain filter "out_${work_name}" OUTPUT set_work_outface reverse inface "${inface}" "$@" || return 1
-	
-	return 0
-}
-
-# ------------------------------------------------------------------------------
-# close_interface()
-# Finalizes the rules for the last interface primary command.
+# close_interface
+# WHY:
+# Finalizes the rules for the last interface().
 
 close_interface() {
 	require_work set interface || return 1
@@ -1371,42 +1714,10 @@ close_interface() {
 }
 
 
-router() {
-	work_realcmd="`printf "%q " router "$@"`"
-	
-	# --- close any open command ---
-	
-	close_cmd || return 1
-	
-	
-	# --- test prerequisites ---
-	
-	require_work clear || return 1
-	set_work_function -ne "Initializing router"
-	
-	
-	# --- get paramaters and validate them ---
-	
-	# Get the name for this router
-	local name="${1}"; shift
-	test -z "${name}" && error "router name is not set" && return 1
-	
-	
-	# --- do the job ---
-	
-	work_cmd="${FUNCNAME}"
-	work_name="${name}"
-	work_realcmd=
-	
-	set_work_function -ne "Initializing router '${work_name}'"
-	
-	create_chain filter "in_${work_name}" FORWARD set_work_inface set_work_outface "$@" || return 1
-	create_chain filter "out_${work_name}" FORWARD reverse "$@" || return 1
-	
-	FIREHOL_ROUTING=1
-	
-	return 0
-}
+# ------------------------------------------------------------------------------
+# close_router
+# WHY:
+# Finalizes the rules for the last router().
 
 close_router() {	
 	require_work set router || return 1
@@ -1417,30 +1728,15 @@ close_router() {
 	rule chain "in_${work_name}" state RELATED action ACCEPT || return 1
 	rule chain "out_${work_name}" state RELATED action ACCEPT || return 1
 	
-# routers always have RETURN as policy	
-#	local inlog=
-#	local outlog=
-#	case ${work_policy} in
-#		return|RETURN)
-#			return 0
-#			;;
-#		
-#		accept|ACCEPT)
-#			inlog=
-#			outlog=
-#			;;
-#		
-#		*)
-#			inlog="loglimit PASSIN-${work_name}"
-#			outlog="loglimit PASSOUT-${work_name}"
-#			;;
-#	esac
-#	
-#	rule chain in_${work_name} ${inlog} action ${work_policy} || return 1
-#	rule reverse chain out_${work_name} ${outlog} action ${work_policy} || return 1
-	
 	return 0
 }
+
+
+# ------------------------------------------------------------------------------
+# close_master
+# WHY:
+# Finalizes the rules for the whole firewall.
+# It assummes there is not primary command open.
 
 close_master() {
 	set_work_function "Finilizing firewall policies"
@@ -1456,14 +1752,13 @@ close_master() {
 	return 0
 }
 
-# This variable is used for generating dynamic chains when needed for
-# combined negative statements (AND) implied by the "not" parameter
-# to many FireHOL directives.
-# What FireHOL is doing to accomplish this, is to produce dynamically
-# a linked list of iptables chains with just one condition each, making
-# the packets to traverse from chain to chain when matched, to reach
-# their final destination.
-FIREHOL_DYNAMIC_CHAIN_COUNTER=1
+
+# ------------------------------------------------------------------------------
+# rule - the heart of FireHOL - iptables commands generation
+# WHY:
+# This is the function that gives all the magic to FireHOL. Actually it is a
+# wrapper for iptables, producing multiple iptables commands based on its
+# arguments. The rest of FireHOL is simply a "driver" for this function.
 
 rule() {
 	local table="-t filter"
@@ -2104,35 +2399,35 @@ rule() {
 	return 0
 }
 
-postprocess() {
-	local tmp=" >${FIREHOL_OUTPUT}.log 2>&1"
-	test ${FIREHOL_DEBUG} -eq 1 && local tmp=
-	
-	printf "%q " "$@" >>${FIREHOL_OUTPUT}
-	test ${FIREHOL_EXPLAIN} -eq 0 && echo " $tmp # L:${FIREHOL_LINEID}" >>${FIREHOL_OUTPUT}
-	
-	if [ ${FIREHOL_EXPLAIN} -eq 1 ]
-	then
-		cat ${FIREHOL_OUTPUT}
-		echo
-		rm -f ${FIREHOL_OUTPUT}
-	fi
-	
-	if [ ${FIREHOL_DEBUG} -eq 0 -a ${FIREHOL_EXPLAIN} -eq 0 ]
-	then
-		printf "check_final_status \$? ${FIREHOL_LINEID} " >>${FIREHOL_OUTPUT}
-		printf "%q " "$@" >>${FIREHOL_OUTPUT}
-		printf "\n" >>${FIREHOL_OUTPUT}
-	fi
+
+# ------------------------------------------------------------------------------
+# error - error reporting while still parsing the configuration file
+# WHY:
+# This is the error handler that presents to the user detected errors during
+# processing FireHOL's configuration file.
+# This command is directly called by other functions of FireHOL.
+
+error() {
+	work_error=$[work_error + 1]
+	echo >&2
+	echo >&2 "--------------------------------------------------------------------------------"
+	echo >&2 "ERROR #: ${work_error}"
+	echo >&2 "COMMAND: ${work_realcmd}"
+	echo >&2 "SOURCE : line ${FIREHOL_LINEID} of ${FIREHOL_CONFIG}"
+	echo >&2 "WHAT   : ${work_function}"
+	echo >&2 "WHY    :" "$@"
+	echo >&2
 	
 	return 0
 }
 
-iptables() {
-	postprocess "/sbin/iptables" "$@"
-	
-	return 0
-}
+
+# ------------------------------------------------------------------------------
+# check_final_status - postprocessing evaluation of commands run
+# WHY:
+# The generated iptables commands must be checked for errors in case they fail.
+# This command is executed after every postprocessing command to find out
+# if it has been successfull or failed.
 
 check_final_status() {
 	if [ ${1} -gt 0 ]
@@ -2157,12 +2452,28 @@ check_final_status() {
 	return 0
 }
 
+
+# ------------------------------------------------------------------------------
+# chain_exists - find if chain name has already being specified
+# WHY:
+# We have to make sure each service gets its own chain.
+# Although FireHOL chain naming makes chains with unique names, this is just
+# an extra sanity check.
+
 chain_exists() {
 	local chain="${1}"
 	
 	test -f "${FIREHOL_CHAINS_DIR}/${chain}" && return 1
 	return 0
 }
+
+
+# ------------------------------------------------------------------------------
+# create_chain - create a chain and link it to the firewall
+# WHY:
+# When a chain is created it must somehow to be linked to the rest of the
+# firewall apropriately. This function first creates the chain and then
+# it links it to its final position within the generated firewall.
 
 create_chain() {
 	local table="${1}"
@@ -2183,23 +2494,16 @@ create_chain() {
 	return 0
 }
 
-error() {
-	work_error=$[work_error + 1]
-	echo >&2
-	echo >&2 "--------------------------------------------------------------------------------"
-	echo >&2 "ERROR #: ${work_error}"
-	echo >&2 "COMMAND: ${work_realcmd}"
-	echo >&2 "SOURCE : line ${FIREHOL_LINEID} of ${FIREHOL_CONFIG}"
-	echo >&2 "WHAT   : ${work_function}"
-	echo >&2 "WHY    :" "$@"
-	echo >&2
-	
-	return 0
-}
 
-# smart_function() creates a chain for the subcommand and
-# detects, for each service given, if it is a simple service
-# or a custom rules based service.
+# ------------------------------------------------------------------------------
+# smart_function - find the valid service definition for a service
+# WHY:
+# FireHOL supports simple and complex services. This function first tries to
+# detect if there are the proper variables set for a simple service, and if
+# they do not exist, it then tries to find the complex function definition for
+# the service.
+#
+# Additionally, it creates a chain for the subcommand.
 
 smart_function() {
 	local type="${1}"	# The current subcommand: server/client/route
@@ -2278,29 +2582,11 @@ smart_function() {
 	return 0
 }
 
-server() {
-	work_realcmd="`printf "%q " server "$@"`"
-	
-	require_work set any || return 1
-	smart_function server "$@"
-	return $?
-}
-
-client() {
-	work_realcmd="`printf "%q " client "$@"`"
-	
-	require_work set any || return 1
-	smart_function client "$@"
-	return $?
-}
-
-route() {
-	work_realcmd="`printf "%q " route "$@"`"
-	
-	require_work set router || return 1
-	smart_function server "$@"
-	return $?
-}
+# ------------------------------------------------------------------------------
+# simple_service - convert a service definition to an inline service definition
+# WHY:
+# When a simple service is detected, there must be someone to call
+# rules_custom() with the appropriate service definition parameters.
 
 simple_service() {
 	local mychain="${1}"; shift
@@ -2340,206 +2626,15 @@ simple_service() {
 }
 
 
-rules_custom() {
-	local mychain="${1}"; shift
-	local type="${1}"; shift
-	
-	local server="${1}"; shift
-	local my_server_ports="${1}"; shift
-	local my_client_ports="${1}"; shift
-	
-	local in=in
-	local out=out
-	if [ "${type}" = "client" ]
-	then
-		in=out
-		out=in
-	fi
-	
-	local client_ports="${DEFAULT_CLIENT_PORTS}"
-	if [ "${type}" = "client" -a "${work_cmd}" = "interface" ]
-	then
-		client_ports="${LOCAL_CLIENT_PORTS}"
-	fi
-	
-	# ----------------------------------------------------------------------
-	
-	local sp=
-	for sp in ${my_server_ports}
-	do
-		local proto=
-		local sport=
-		
-		IFS="/" read proto sport <<EOF
-$sp
-EOF
-		
-#		local proto="`echo $sp | cut -d '/' -f 1`"
-#		local sport="`echo $sp | cut -d '/' -f 2`"
-		
-		local cp=
-		for cp in ${my_client_ports}
-		do
-			local cport=
-			case ${cp} in
-				default)
-					cport="${client_ports}"
-					;;
-					
-				*)	cport="${cp}"
-					;;
-			esac
-			
-			# allow new and established incoming packets
-			rule action "$@" chain "${in}_${mychain}" proto "${proto}" sport "${cport}" dport "${sport}" state NEW,ESTABLISHED || return 1
-			
-			# allow outgoing established packets
-			rule reverse action "$@" chain "${out}_${mychain}" proto "${proto}" sport "${cport}" dport "${sport}" state ESTABLISHED || return 1
-		done
-	done
-	
-	return 0
-}
-
-
-# --- protection ---------------------------------------------------------------
-
-protection() {
-	work_realcmd="`printf "%q " protection "$@"`"
-	
-	require_work set any || return 1
-	
-	local in="in"
-	local prface="${work_inface}"
-	
-	local pre="pr"
-	unset reverse
-	if [ "${1}" = "reverse" ]
-	then
-		local reverse="reverse"	# needed to recursion
-		local pre="prr"		# in case a router has protections
-					# both ways, the second needs to
-					# have different chain names
-					
-		local in="out"		# reverse the interface
-		
-		prface="${work_outface}"
-		shift
-	fi
-	
-	local type="${1}"
-	local rate="${2}"
-	local burst="${3}"
-	
-	test -z "${rate}"  && rate="100/s"
-	test -z "${burst}" && burst="50"
-	
-	set_work_function -ne "Generating protections on '${prface}' for ${work_cmd} '${work_name}'"
-	
-	local x=
-	for x in ${type}
-	do
-		case "${x}" in
-			none|NONE)
-				return 0
-				;;
-			
-			strong|STRONG|full|FULL|all|ALL)
-				protection ${reverse} "fragments new-tcp-w/o-syn icmp-floods syn-floods malformed-xmas malformed-null malformed-bad" "${rate}" "${burst}"
-				return $?
-				;;
-				
-			fragments|FRAGMENTS)
-				local mychain="${pre}_${work_name}_fragments"
-				create_chain filter "${mychain}" "${in}_${work_name}" custom "-f"				|| return 1
-				
-				set_work_function "Generating rules to be protected from packet fragments on '${prface}' for ${work_cmd} '${work_name}'"
-				
-				rule chain "${mychain}" loglimit "PACKET FRAGMENTS" action drop 				|| return 1
-				;;
-				
-			new-tcp-w/o-syn|NEW-TCP-W/O-SYN)
-				local mychain="${pre}_${work_name}_nosyn"
-				create_chain filter "${mychain}" "${in}_${work_name}" proto tcp state NEW custom "! --syn"	|| return 1
-				
-				set_work_function "Generating rules to be protected from new TCP connections without the SYN flag set on '${prface}' for ${work_cmd} '${work_name}'"
-				
-				rule chain "${mychain}" loglimit "NEW TCP w/o SYN" action drop					|| return 1
-				;;
-				
-			icmp-floods|ICMP-FLOODS)
-				local mychain="${pre}_${work_name}_icmpflood"
-				create_chain filter "${mychain}" "${in}_${work_name}" proto icmp custom "--icmp-type echo-request"	|| return 1
-				
-				set_work_function "Generating rules to be protected from ICMP floods on '${prface}' for ${work_cmd} '${work_name}'"
-				
-				rule chain "${mychain}" limit "${rate}" "${burst}" action return				|| return 1
-				rule chain "${mychain}" loglimit "ICMP FLOOD" action drop					|| return 1
-				;;
-				
-			syn-floods|SYN-FLOODS)
-				local mychain="${pre}_${work_name}_synflood"
-				create_chain filter "${mychain}" "${in}_${work_name}" proto tcp custom "--syn"			|| return 1
-				
-				set_work_function "Generating rules to be protected from TCP SYN floods on '${prface}' for ${work_cmd} '${work_name}'"
-				
-				rule chain "${mychain}" limit "${rate}" "${burst}" action return				|| return 1
-				rule chain "${mychain}" loglimit "SYN FLOOD" action drop					|| return 1
-				;;
-				
-			malformed-xmas|MALFORMED-XMAS)
-				local mychain="${pre}_${work_name}_malxmas"
-				create_chain filter "${mychain}" "${in}_${work_name}" proto tcp custom "--tcp-flags ALL ALL"	|| return 1
-				
-				set_work_function "Generating rules to be protected from packets with all TCP flags set on '${prface}' for ${work_cmd} '${work_name}'"
-				
-				rule chain "${mychain}" loglimit "MALFORMED XMAS" action drop					|| return 1
-				;;
-				
-			malformed-null|MALFORMED-NULL)
-				local mychain="${pre}_${work_name}_malnull"
-				create_chain filter "${mychain}" "${in}_${work_name}" proto tcp custom "--tcp-flags ALL NONE"	|| return 1
-				
-				set_work_function "Generating rules to be protected from packets with all TCP flags unset on '${prface}' for ${work_cmd} '${work_name}'"
-				
-				rule chain "${mychain}" loglimit "MALFORMED NULL" action drop					|| return 1
-				;;
-				
-			malformed-bad|MALFORMED-BAD)
-				local mychain="${pre}_${work_name}_malbad"
-				create_chain filter "${mychain}" "${in}_${work_name}" proto tcp custom "--tcp-flags SYN,FIN SYN,FIN"			|| return 1
-				
-				set_work_function "Generating rules to be protected from packets with illegal TCP flags on '${prface}' for ${work_cmd} '${work_name}'"
-				
-				rule chain "${in}_${work_name}" action "${mychain}"   proto tcp custom "--tcp-flags SYN,RST SYN,RST"			|| return 1
-				rule chain "${in}_${work_name}" action "${mychain}"   proto tcp custom "--tcp-flags ALL     SYN,RST,ACK,FIN,URG"	|| return 1
-				rule chain "${in}_${work_name}" action "${mychain}"   proto tcp custom "--tcp-flags ALL     FIN,URG,PSH"		|| return 1
-				
-				rule chain "${mychain}" loglimit "MALFORMED BAD" action drop							|| return 1
-				;;
-				
-			*)
-				error "Protection '${x}' does not exists."
-				return 1
-				;;
-		esac
-	done
-	
-	return 0
-}
-
-
 # ------------------------------------------------------------------------------
 # XXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXX
 # ------------------------------------------------------------------------------
 #
-# MAIN PROCESSING
+# MAIN PROCESSING - Interactive mode
 #
 # ------------------------------------------------------------------------------
 # XXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXX
 # ------------------------------------------------------------------------------
-# Be nice on production environments
-renice 10 $$ >/dev/null 2>/dev/null
 
 if [ ${FIREHOL_EXPLAIN} -eq 1 ]
 then
@@ -2553,7 +2648,7 @@ then
 	
 	cat <<"EOF"
 
-$Id: firehol.sh,v 1.56 2002/12/23 13:49:09 ktsaou Exp $
+$Id: firehol.sh,v 1.57 2002/12/23 14:39:19 ktsaou Exp $
 (C) Copyright 2002, Costa Tsaousis <costa@tsaousis.gr>
 FireHOL is distributed under GPL.
 Home Page: http://firehol.sourceforge.net
@@ -2658,6 +2753,17 @@ EOF
 	
 	exit 0
 fi
+
+
+# ------------------------------------------------------------------------------
+# XXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXX
+# ------------------------------------------------------------------------------
+#
+# MAIN PROCESSING
+#
+# ------------------------------------------------------------------------------
+# XXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXX
+# ------------------------------------------------------------------------------
 
 echo -n $"FireHOL: Setting firewall defaults:"
 ret=0
@@ -2804,8 +2910,10 @@ iptables -t nat -P POSTROUTING ACCEPT		|| ret=$[ret + 1]
 iptables -t nat -P OUTPUT ACCEPT		|| ret=$[ret + 1]
 
 iptables -t mangle -P PREROUTING ACCEPT		|| ret=$[ret + 1]
-#iptables -t mangle -P POSTROUTING ACCEPT	|| ret=$[ret + 1]
+iptables -t mangle -P INPUT ACCEPT		|| ret=$[ret + 1]
+iptables -t mangle -P FORWARD ACCEPT		|| ret=$[ret + 1]
 iptables -t mangle -P OUTPUT ACCEPT		|| ret=$[ret + 1]
+iptables -t mangle -P POSTROUTING ACCEPT	|| ret=$[ret + 1]
 
 if [ ${work_error} -gt 0 -o $ret -gt 0 ]
 then
