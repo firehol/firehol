@@ -6,9 +6,18 @@
 
 <BODY bgcolor="#FFFFFF">
 
-This quick tutorial will give you an idea of how to design your firewall, based on real life examples.
+Since R5 v1.97 of FireHOL there is the command line argument <b>helpme</b> that will try to guess
+your configuration on the running machine. To use it, simply run:<p>
+
+<b>/etc/init.d/firehol helpme &gt;/tmp/firehol.conf</b> <font color="gray">(installed from RPM)</font>, or
 <p>
-Even if you don't use FireHOL, designing a firewall requires a few steps:
+<b>firehol.sh helpme &gt;/tmp/firehol.conf</b> <font color="gray">(installed from .tar.bz2)</font>
+<p>
+The purpose of the <b>helpme</b> feature is to give you a configuration file that you can modify to get an
+operational firewall quickly, especially if your firewalling and iptables knowledge is limited. This feature
+does not stop or alter the running firewall of your machine.
+<p>
+Bellow is the procedure you should follow to manually design a secure FireHOL firewall.
 <p>
 <table border=0 cellpadding=10 cellspacing=0 width="100%">
 <tr><td bgcolor="#EEEEEE"><b>1. Identify all the network interfaces your firewall host has</td></tr></table>
@@ -19,36 +28,18 @@ with traffic on this interface. By default FireHOL will <b>drop</b> all traffic 
 so the network interface will have no meaning to be up and running. This is a common mistake on some ADSL configurations, where users
 ignore the loop device that connects the linux router with the ADSL device.
 <p>
-To identify your network interfaces use the <b>ifconfig</b> command. The example bellow shows my home router ifconfig output:
+To identify your network interfaces use the <b>ip link show</b> command. The example bellow shows my home router <b>ip link show</b> output:
 
 <center><table border=0 cellpadding=15 cellspacing=20 width="70%">
 <tr><td bgcolor="#F0F0F0">
 <b><pre><font color="gray">
-[root@gateway /]# ifconfig
-<font color="red">eth0</font>      Link encap:Ethernet  HWaddr 00:50:FC:21:9A:AB
-          inet addr:195.97.5.193  Bcast:195.97.5.207  Mask:255.255.255.240
-          UP BROADCAST RUNNING MULTICAST  MTU:1500  Metric:1
-          RX packets:273856 errors:0 dropped:0 overruns:0 frame:0
-          TX packets:197377 errors:0 dropped:0 overruns:1 carrier:0
-          collisions:0 txqueuelen:100
-          RX bytes:311341519 (296.9 Mb)  TX bytes:93281783 (88.9 Mb)
-          Interrupt:9 Base address:0x3f00
-
-<font color="red">lo</font>        Link encap:Local Loopback
-          inet addr:127.0.0.1  Mask:255.0.0.0
-          UP LOOPBACK RUNNING  MTU:16436  Metric:1
-          RX packets:7041 errors:0 dropped:0 overruns:0 frame:0
-          TX packets:7041 errors:0 dropped:0 overruns:0 carrier:0
-          collisions:0 txqueuelen:0
-          RX bytes:2079959 (1.9 Mb)  TX bytes:2079959 (1.9 Mb)
-
-<font color="red">ppp0</font>      Link encap:Point-to-Point Protocol
-          inet addr:195.97.5.206  P-t-P:194.30.220.213  Mask:255.255.255.255
-          UP POINTOPOINT RUNNING NOARP MULTICAST  MTU:572  Metric:1
-          RX packets:8883 errors:0 dropped:0 overruns:0 frame:0
-          TX packets:8807 errors:0 dropped:45 overruns:0 carrier:0
-          collisions:0 txqueuelen:3
-          RX bytes:5652345 (5.3 Mb)  TX bytes:1077765 (1.0 Mb)
+[root@gateway /]# ip link show
+1: <font color="red">lo</font>: <LOOPBACK,UP> mtu 16436 qdisc noqueue
+    link/loopback 00:00:00:00:00:00 brd 00:00:00:00:00:00
+2: <font color="red">eth0</font>: <BROADCAST,MULTICAST,PROMISC,UP> mtu 1500 qdisc pfifo_fast qlen 100
+    link/ether 00:50:fc:21:9a:ab brd ff:ff:ff:ff:ff:ff
+12: <font color="red">ppp0</font>: <POINTOPOINT,MULTICAST,NOARP,UP> mtu 1500 qdisc pfifo_fast qlen 3
+    link/ppp
 </font></pre></b>
 </td></tr>
 </table>
@@ -353,7 +344,8 @@ To save typing time, you can use this:
 <p>
 Note that we can remove any router statements not having any rules in them, so the <b>internet2home</b> router has been eliminated.
 <p>
-We might want to have extra checks on each interface to prevent spoofing:
+We might want to have extra checks on each interface to prevent spoofing. To find the IPs of your network interfaces use
+<b>ip addr show</b> and to find the IP networks behind each interface use <b>ip route show</b>.
 
 <center><table border=0 cellpadding=15 cellspacing=20 width="70%">
 <tr><td bgcolor="#F0F0F0">
@@ -557,7 +549,7 @@ We could use the first router (home2internet) to do everything, but then the cli
 <tr><td align=center valign=middle>
 	<A href="http://sourceforge.net"><IMG src="http://sourceforge.net/sflogo.php?group_id=58425&amp;type=5" width="210" height="62" border="0" alt="SourceForge Logo"></A>
 </td><td align=center valign=middle>
-	<small>$Id: tutorial.html,v 1.9 2002/12/31 11:57:40 ktsaou Exp $</small>
+	<small>$Id: tutorial.html,v 1.10 2003/02/26 22:26:20 ktsaou Exp $</small>
 	<p>
 	<b>FireHOL</b>, a firewall for humans...<br>
 	&copy; Copyright 2002

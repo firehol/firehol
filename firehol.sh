@@ -10,7 +10,7 @@
 #
 # config: /etc/firehol.conf
 #
-# $Id: firehol.sh,v 1.97 2003/02/25 21:35:06 ktsaou Exp $
+# $Id: firehol.sh,v 1.98 2003/02/26 22:26:16 ktsaou Exp $
 #
 
 
@@ -3189,7 +3189,7 @@ case "${arg}" in
 		else
 		
 		cat <<"EOF"
-$Id: firehol.sh,v 1.97 2003/02/25 21:35:06 ktsaou Exp $
+$Id: firehol.sh,v 1.98 2003/02/26 22:26:16 ktsaou Exp $
 (C) Copyright 2002, Costa Tsaousis <costa@tsaousis.gr>
 FireHOL is distributed under GPL.
 
@@ -3360,7 +3360,7 @@ then
 	
 	cat <<"EOF"
 
-$Id: firehol.sh,v 1.97 2003/02/25 21:35:06 ktsaou Exp $
+$Id: firehol.sh,v 1.98 2003/02/26 22:26:16 ktsaou Exp $
 (C) Copyright 2002, Costa Tsaousis <costa@tsaousis.gr>
 FireHOL is distributed under GPL.
 Home Page: http://firehol.sourceforge.net
@@ -3523,7 +3523,7 @@ then
 	
 	cat >&2 <<"EOF"
 
-$Id: firehol.sh,v 1.97 2003/02/25 21:35:06 ktsaou Exp $
+$Id: firehol.sh,v 1.98 2003/02/26 22:26:16 ktsaou Exp $
 (C) Copyright 2002, Costa Tsaousis <costa@tsaousis.gr>
 FireHOL is distributed under GPL.
 Home Page: http://firehol.sourceforge.net
@@ -3615,7 +3615,7 @@ EOF
 	echo "# "
 
 	cat <<"EOF"
-# $Id: firehol.sh,v 1.97 2003/02/25 21:35:06 ktsaou Exp $
+# $Id: firehol.sh,v 1.98 2003/02/26 22:26:16 ktsaou Exp $
 # (C) Copyright 2002, Costa Tsaousis <costa@tsaousis.gr>
 # FireHOL is distributed under GPL.
 # Home Page: http://firehol.sourceforge.net
@@ -3827,7 +3827,7 @@ EOF
 	else
 		echo
 		echo
-		echo "#	No router statements have been produced, because your server"
+		echo "# No router statements have been produced, because your server"
 		echo "# is not configured for forwarding traffic."
 		echo
 	fi
