@@ -10,9 +10,18 @@
 #
 # config: /etc/firehol.conf
 #
-# $Id: firehol.sh,v 1.13 2002/10/28 19:47:02 ktsaou Exp $
+# $Id: firehol.sh,v 1.14 2002/10/29 22:20:41 ktsaou Exp $
 #
 # $Log: firehol.sh,v $
+# Revision 1.14  2002/10/29 22:20:41  ktsaou
+# Client and server keywords now work on routers too.
+# (The old 'route' subcommand is an alias for the 'server' subcommand -
+# within a router).
+# Protection can be reversed on routers to match outface instead of inface.
+# Masquerade can be used in interfaces, routers (matches outface - but can
+# be reverse(ed) to match inface) or as a primary command with all the
+# interfaces to be masqueraded in an argument.
+#
 # Revision 1.13  2002/10/28 19:47:02  ktsaou
 # Protection has been extented to work on routers too.
 # Made a few minor aesthetic changes on the generated code. Now in/out chains
@@ -236,7 +245,8 @@ FIREHOL_NAT=0
 
 work_cmd=
 work_name=
-work_iface=
+work_inface=
+work_outface=
 work_policy=${DEFAULT_INTERFACE_POLICY}
 work_error=0
 
@@ -898,7 +908,8 @@ close_cmd() {
 	# Reset the current status variables to empty/default
 	work_cmd=
 	work_name=
-	work_iface=
+	work_inface=
+	work_outface=
 	work_policy=${DEFAULT_INTERFACE_POLICY}
 	
 	return 0
@@ -913,11 +924,17 @@ policy() {
 }
 
 masquerade() {
-	require_work set interface || return 1
+	local f="${1}"
+	test -z "${f}" && f="${work_outface}"
+	test "${f}" = "reverse" && f="${work_inface}"
 	
-	test -z "${work_iface}" && return 1
+	test -z "${f}" && error "masquerade requires an interface set or as argument" && return 1
 	
-	iptables -t nat -A POSTROUTING -o "${work_iface}" -j MASQUERADE || return 1
+	local x=
+	for x in ${f}
+	do
+		iptables -t nat -A POSTROUTING -o ${x} -j MASQUERADE || return 1
+	done
 	
 	FIREHOL_NAT=1
 	
@@ -954,10 +971,9 @@ interface() {
 	
 	work_cmd="${FUNCNAME}"
 	work_name="${name}"
-	work_iface="${inface}"
 	
-	create_chain in_${work_name} INPUT inface ${inface} "$@"
-	create_chain out_${work_name} OUTPUT reverse inface ${inface} "$@"
+	create_chain in_${work_name} INPUT set_work_inface inface ${inface} "$@"
+	create_chain out_${work_name} OUTPUT set_work_outface reverse inface ${inface} "$@"
 	
 	return 0
 }
@@ -1017,7 +1033,7 @@ router() {
 	work_cmd="${FUNCNAME}"
 	work_name="${name}"
 	
-	create_chain in_${work_name} FORWARD "$@"
+	create_chain in_${work_name} FORWARD set_work_inface set_work_outface "$@"
 	create_chain out_${work_name} FORWARD reverse "$@"
 	
 	return 0
@@ -1110,9 +1126,22 @@ rule() {
 	local failed=0
 	local reverse=0
 	
+	local swi=0
+	local swo=0
+	
 	while [ ! -z "$1" ]
 	do
 		case "$1" in
+			set_work_inface|SET_WORK_INFACE)
+				swi=1
+				shift
+				;;
+				
+			set_work_outface|SET_WORK_OUTFACE)
+				swo=1
+				shift
+				;;
+				
 			reverse|REVERSE)
 				reverse=1
 				shift
@@ -1132,6 +1161,11 @@ rule() {
 					then
 						shift
 						infacenot="!"
+					else
+						if [ $swi -eq 1 ]
+						then
+							work_inface="$1"
+						fi
 					fi
 					inface="$1"
 				else
@@ -1140,6 +1174,11 @@ rule() {
 					then
 						shift
 						outfacenot="!"
+					else
+						if [ $swo -eq 1 ]
+						then
+							work_outface="$1"
+						fi
 					fi
 					outface="$1"
 				fi
@@ -1155,6 +1194,11 @@ rule() {
 					then
 						shift
 						outfacenot="!"
+					else
+						if [ $swo -eq 1 ]
+						then
+							work_outface="$1"
+						fi
 					fi
 					outface="$1"
 				else
@@ -1163,6 +1207,11 @@ rule() {
 					then
 						shift
 						infacenot="!"
+					else
+						if [ $swi -eq 1 ]
+						then
+							work_inface="$1"
+						fi
 					fi
 					inface="$1"
 				fi
@@ -1734,23 +1783,22 @@ smart_function() {
 }
 
 server() {
-	require_work set interface || return 1
+	require_work set any || return 1
 	smart_function server "$@"
 	return $?
 }
 
 client() {
-	require_work set interface || return 1
+	require_work set any || return 1
 	smart_function client "$@"
 	return $?
 }
 
 route() {
 	require_work set router || return 1
-	smart_function route "$@"
+	smart_function server "$@"
 	return $?
 }
-
 
 simple_service() {
 	local type="${1}"; shift
@@ -1849,11 +1897,19 @@ rules_custom() {
 # --- protection ---------------------------------------------------------------
 
 protection() {
+	require_work set any || return 1
+	
+	local in="in"
+	
+	if [ "${1}" = "reverse" ]
+	then
+		in="out"
+		shift
+	fi
+	
 	local type="${1}"
 	local rate="${2}"
 	local burst="${3}"
-	
-	require_work set any || return 1
 	
 	test -z "${rate}"  && rate="100/s"
 	test -z "${burst}" && burst="4"
@@ -1873,21 +1929,21 @@ protection() {
 				
 			fragments|FRAGMENTS)
 				local mychain="pr_${work_name}_fragments"
-				create_chain ${mychain} in_${work_name} custom "-f"					|| return 1
+				create_chain ${mychain} ${in}_${work_name} custom "-f"					|| return 1
 				
 				rule chain ${mychain} loglimit "PACKET FRAGMENTS" action drop 				|| return 1
 				;;
 				
 			new-tcp-w/o-syn|NEW-TCP-W/O-SYN)
 				local mychain="pr_${work_name}_nosyn"
-				create_chain ${mychain} in_${work_name} proto tcp state NEW custom "! --syn"		|| return 1
+				create_chain ${mychain} ${in}_${work_name} proto tcp state NEW custom "! --syn"		|| return 1
 				
 				rule chain ${mychain} loglimit "NEW TCP w/o SYN" action drop				|| return 1
 				;;
 				
 			icmp-floods|ICMP-FLOODS)
 				local mychain="pr_${work_name}_icmpflood"
-				create_chain ${mychain} in_${work_name} proto icmp custom "--icmp-type echo-request"	|| return 1
+				create_chain ${mychain} ${in}_${work_name} proto icmp custom "--icmp-type echo-request"	|| return 1
 				
 				rule chain ${mychain} limit "${rate}" "${burst}" action return				|| return 1
 				rule chain ${mychain} loglimit "ICMP FLOOD" action drop					|| return 1
@@ -1895,7 +1951,7 @@ protection() {
 				
 			syn-floods|SYN-FLOODS)
 				local mychain="pr_${work_name}_synflood"
-				create_chain ${mychain} in_${work_name} proto tcp custom "--syn"			|| return 1
+				create_chain ${mychain} ${in}_${work_name} proto tcp custom "--syn"			|| return 1
 				
 				rule chain ${mychain} limit "${rate}" "${burst}" action return				|| return 1
 				rule chain ${mychain} loglimit "SYN FLOOD" action drop					|| return 1
@@ -1903,26 +1959,26 @@ protection() {
 				
 			malformed-xmas|MALFORMED-XMAS)
 				local mychain="pr_${work_name}_malxmas"
-				create_chain ${mychain} in_${work_name} proto tcp custom "--tcp-flags ALL ALL"		|| return 1
+				create_chain ${mychain} ${in}_${work_name} proto tcp custom "--tcp-flags ALL ALL"	|| return 1
 				
 				rule chain ${mychain} loglimit "MALFORMED XMAS" action drop				|| return 1
 				;;
 				
 			malformed-null|MALFORMED-NULL)
 				local mychain="pr_${work_name}_malnull"
-				create_chain ${mychain} in_${work_name} proto tcp custom "--tcp-flags ALL NONE"		|| return 1
+				create_chain ${mychain} ${in}_${work_name} proto tcp custom "--tcp-flags ALL NONE"	|| return 1
 				
 				rule chain ${mychain} loglimit "MALFORMED NULL" action drop				|| return 1
 				;;
 				
 			malformed-bad|MALFORMED-BAD)
 				local mychain="pr_${work_name}_malbad"
-				create_chain ${mychain} in_${work_name}      proto tcp custom "--tcp-flags SYN,FIN SYN,FIN"		|| return 1
-				rule chain in_${work_name} action ${mychain} proto tcp custom "--tcp-flags SYN,RST SYN,RST"		|| return 1
-				rule chain in_${work_name} action ${mychain} proto tcp custom "--tcp-flags ALL     SYN,RST,ACK,FIN,URG"	|| return 1
-				rule chain in_${work_name} action ${mychain} proto tcp custom "--tcp-flags ALL     FIN,URG,PSH"		|| return 1
+				create_chain ${mychain} ${in}_${work_name}      proto tcp custom "--tcp-flags SYN,FIN SYN,FIN"			|| return 1
+				rule chain ${in}_${work_name} action ${mychain} proto tcp custom "--tcp-flags SYN,RST SYN,RST"			|| return 1
+				rule chain ${in}_${work_name} action ${mychain} proto tcp custom "--tcp-flags ALL     SYN,RST,ACK,FIN,URG"	|| return 1
+				rule chain ${in}_${work_name} action ${mychain} proto tcp custom "--tcp-flags ALL     FIN,URG,PSH"		|| return 1
 				
-				rule chain ${mychain} loglimit "MALFORMED BAD" action drop						|| return 1
+				rule chain ${mychain} loglimit "MALFORMED BAD" action drop							|| return 1
 				;;
 		esac
 	done
