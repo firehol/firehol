@@ -21,7 +21,6 @@ requires: kernel >= 2.4
 requires: less
 requires: modutils >= 2.4.13
 requires: net-tools >= 1.57
-requires: procps >= 2.0.7
 requires: sed >= 3.02
 requires: sh-utils >= 2.0
 requires: textutils >= 2.0.11
@@ -83,9 +82,6 @@ then
 	echo
 fi
 /sbin/chkconfig --del firehol
-sleep 1
-/sbin/chkconfig --add firehol
-/sbin/chkconfig --level 2345 firehol off
 
 %preun
 /sbin/chkconfig --del firehol
