@@ -10,7 +10,7 @@
 #
 # config: /etc/firehol/firehol.conf
 #
-# $Id: firehol.sh,v 1.181 2004/03/03 23:18:43 ktsaou Exp $
+# $Id: firehol.sh,v 1.182 2004/03/04 22:05:53 ktsaou Exp $
 #
 
 # Remember who you are.
@@ -1858,7 +1858,6 @@ protection() {
 				rule in chain "${in}_${work_name}" action "${mychain}"   proto tcp custom "--tcp-flags SYN,RST SYN,RST"			|| return 1
 				rule in chain "${in}_${work_name}" action "${mychain}"   proto tcp custom "--tcp-flags ALL     SYN,RST,ACK,FIN,URG"	|| return 1
 				rule in chain "${in}_${work_name}" action "${mychain}"   proto tcp custom "--tcp-flags ALL     FIN,URG,PSH"		|| return 1
-				rule in chain "${in}_${work_name}" action "${mychain}"   proto tcp custom "--tcp-flags SYN,RST,PSH,ACK,URG SYN,RST,PSH,URG"	|| return 1
 				
 				rule in chain "${mychain}" loglimit "MALFORMED BAD" action drop								|| return 1
 				;;
@@ -4031,7 +4030,7 @@ case "${arg}" in
 		else
 		
 		${CAT_CMD} <<EOF
-$Id: firehol.sh,v 1.181 2004/03/03 23:18:43 ktsaou Exp $
+$Id: firehol.sh,v 1.182 2004/03/04 22:05:53 ktsaou Exp $
 (C) Copyright 2003, Costa Tsaousis <costa@tsaousis.gr>
 FireHOL is distributed under GPL.
 
@@ -4217,7 +4216,7 @@ then
 	
 	${CAT_CMD} <<EOF
 
-$Id: firehol.sh,v 1.181 2004/03/03 23:18:43 ktsaou Exp $
+$Id: firehol.sh,v 1.182 2004/03/04 22:05:53 ktsaou Exp $
 (C) Copyright 2003, Costa Tsaousis <costa@tsaousis.gr>
 FireHOL is distributed under GPL.
 Home Page: http://firehol.sourceforge.net
@@ -4512,7 +4511,7 @@ then
 	
 	${CAT_CMD} >&2 <<EOF
 
-$Id: firehol.sh,v 1.181 2004/03/03 23:18:43 ktsaou Exp $
+$Id: firehol.sh,v 1.182 2004/03/04 22:05:53 ktsaou Exp $
 (C) Copyright 2003, Costa Tsaousis <costa@tsaousis.gr>
 FireHOL is distributed under GPL.
 Home Page: http://firehol.sourceforge.net
@@ -4595,7 +4594,7 @@ EOF
 	echo "# "
 
 	${CAT_CMD} <<EOF
-# $Id: firehol.sh,v 1.181 2004/03/03 23:18:43 ktsaou Exp $
+# $Id: firehol.sh,v 1.182 2004/03/04 22:05:53 ktsaou Exp $
 # (C) Copyright 2003, Costa Tsaousis <costa@tsaousis.gr>
 # FireHOL is distributed under GPL.
 # Home Page: http://firehol.sourceforge.net
