@@ -1,4 +1,4 @@
-$Id: TODO,v 1.7 2003/12/04 23:39:27 ktsaou Exp $
+$Id: TODO,v 1.8 2003/12/29 22:40:11 ktsaou Exp $
 
 The following is a list of features I plan to add to FireHOL,
 assuming that my time permits and there is demand for them.
@@ -117,4 +117,9 @@ The list appears in no particular order.
     administration to dedicated server hosting
     environments where each customer can control his own
     part of the firewall through a simple web interface.
+
+16. Add support for psad by replacing the default log
+    strings of the DROPs at the end of interfaces and
+    the firewall to "DROP".
+
 

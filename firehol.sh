@@ -10,7 +10,7 @@
 #
 # config: /etc/firehol/firehol.conf
 #
-# $Id: firehol.sh,v 1.172 2003/12/01 05:03:11 ktsaou Exp $
+# $Id: firehol.sh,v 1.173 2003/12/29 22:40:11 ktsaou Exp $
 #
 
 # Remember who you are.
@@ -1039,6 +1039,65 @@ rules_ping() {
 }
 
 
+# --- P2P ----------------------------------------------------------------------
+
+rules_p2p() {
+        local mychain="${1}"; shift
+	local type="${1}"; shift
+	
+	local in=in
+	local out=out
+	if [ "${type}" = "client" ]
+	then
+		in=out
+		out=in
+	fi
+	
+	local client_ports="${DEFAULT_CLIENT_PORTS}"
+	if [ "${type}" = "client" -a "${work_cmd}" = "interface" ]
+	then
+		client_ports="${LOCAL_CLIENT_PORTS}"
+	fi
+	
+	# ----------------------------------------------------------------------
+	
+	# Remove the action from the arguments.
+	shift
+	
+	do_in() {
+		# allow new and established incoming packets
+		rule ${in} action "$@" chain "${in}_${mychain}" state NEW,ESTABLISHED || return 1
+	}
+	
+	do_out() {
+		# allow outgoing established packets
+		rule ${out} reverse action "$@" chain "${out}_${mychain}" state NEW,ESTABLISHED || return 1
+	}
+	
+	# Kazaa
+	# Check: http://www.derkeiler.com/Mailing-Lists/Firewall-Wizards/2003-06/0152.html
+	# New clients will try to use port 80 - use a proxy to filter this too.
+	set_work_function "Setting up rules for Kazaa (${type})"
+	do_in  drop "$@" proto "tcp udp" sport 1214
+	do_in  drop "$@" proto "tcp udp" dport 1214
+	do_out drop "$@" proto "tcp udp" dport 1214
+	do_out drop "$@" proto "tcp udp" sport 1214
+	
+	# Gnutella
+	
+	# Mldonkey
+	
+	# Emule
+	
+	# audiogalaxy
+	
+	# hotline
+	
+	
+	return 0
+}
+
+
 # --- ALL ----------------------------------------------------------------------
 
 rules_all() {
@@ -1618,8 +1677,10 @@ postprocess() {
 	return 0
 }
 
+FIREHOL_COMMAND_COUNTER=0
 iptables() {
 	postprocess "${IPTABLES_CMD}" "$@"
+	FIREHOL_COMMAND_COUNTER=$[FIREHOL_COMMAND_COUNTER + 1]
 	
 	return 0
 }
@@ -1928,9 +1989,7 @@ load_kernel_module() {
 		check_kernel_module ${mod}
 		if [ $? -gt 0 ]
 		then
-			${MODPROBE_CMD} ${mod} -q >${FIREHOL_OUTPUT}.log 2>&1
-			local r=$?
-			test ! ${r} -eq 0 && runtime_error warn ${r} ${FIREHOL_LINEID} ${MODPROBE_CMD} ${mod} -q
+			postprocess -warn ${MODPROBE_CMD} ${mod} -q
 		fi
 	fi
 	return 0
@@ -2016,7 +2075,7 @@ test $? -gt 0 && exit 1
 # Some sanity check for the order of commands in the configuration file.
 # Each function has a "require_work type command" in order to check that it is
 # placed in a valid point. This means that if you place a "route" command in an
-# interface section (and many other compinations) it will fail.
+# interface section (and many other combinations) it will fail.
 
 require_work() {
 	local type="${1}"
@@ -3963,7 +4022,7 @@ case "${arg}" in
 		else
 		
 		${CAT_CMD} <<EOF
-$Id: firehol.sh,v 1.172 2003/12/01 05:03:11 ktsaou Exp $
+$Id: firehol.sh,v 1.173 2003/12/29 22:40:11 ktsaou Exp $
 (C) Copyright 2003, Costa Tsaousis <costa@tsaousis.gr>
 FireHOL is distributed under GPL.
 
@@ -4149,7 +4208,7 @@ then
 	
 	${CAT_CMD} <<EOF
 
-$Id: firehol.sh,v 1.172 2003/12/01 05:03:11 ktsaou Exp $
+$Id: firehol.sh,v 1.173 2003/12/29 22:40:11 ktsaou Exp $
 (C) Copyright 2003, Costa Tsaousis <costa@tsaousis.gr>
 FireHOL is distributed under GPL.
 Home Page: http://firehol.sourceforge.net
@@ -4444,7 +4503,7 @@ then
 	
 	${CAT_CMD} >&2 <<EOF
 
-$Id: firehol.sh,v 1.172 2003/12/01 05:03:11 ktsaou Exp $
+$Id: firehol.sh,v 1.173 2003/12/29 22:40:11 ktsaou Exp $
 (C) Copyright 2003, Costa Tsaousis <costa@tsaousis.gr>
 FireHOL is distributed under GPL.
 Home Page: http://firehol.sourceforge.net
@@ -4527,7 +4586,7 @@ EOF
 	echo "# "
 
 	${CAT_CMD} <<EOF
-# $Id: firehol.sh,v 1.172 2003/12/01 05:03:11 ktsaou Exp $
+# $Id: firehol.sh,v 1.173 2003/12/29 22:40:11 ktsaou Exp $
 # (C) Copyright 2003, Costa Tsaousis <costa@tsaousis.gr>
 # FireHOL is distributed under GPL.
 # Home Page: http://firehol.sourceforge.net
@@ -5120,7 +5179,7 @@ fi
 
 # XXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXX
 
-echo -n $"FireHOL: Activating new firewall:"
+echo -n $"FireHOL: Activating new firewall (${FIREHOL_COMMAND_COUNTER} cmds):"
 
 source ${FIREHOL_OUTPUT} "$@"
 
@@ -5133,7 +5192,7 @@ then
 	
 	exit 1
 fi
-success $"FireHOL: Activating new firewall:"
+success $"FireHOL: Activating new firewall (${FIREHOL_COMMAND_COUNTER} cmds):"
 echo
 
 if [ ${FIREHOL_TRY} -eq 1 ]
