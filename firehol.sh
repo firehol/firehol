@@ -10,7 +10,7 @@
 #
 # config: /etc/firehol/firehol.conf
 #
-# $Id: firehol.sh,v 1.193 2004/05/05 23:41:19 ktsaou Exp $
+# $Id: firehol.sh,v 1.194 2004/05/15 10:19:01 ktsaou Exp $
 #
 
 # Remember who you are.
@@ -87,6 +87,10 @@ which_cmd UNAME_CMD uname
 which_cmd UNIQ_CMD uniq
 which_cmd -n WGET_CMD wget
 which_cmd -n CURL_CMD curl
+
+
+# Initialize iptables
+${IPTABLES_CMD} -nxvL >/dev/null 2>&1
 
 
 # ------------------------------------------------------------------------------
@@ -4260,7 +4264,7 @@ case "${arg}" in
 		else
 		
 		${CAT_CMD} <<EOF
-$Id: firehol.sh,v 1.193 2004/05/05 23:41:19 ktsaou Exp $
+$Id: firehol.sh,v 1.194 2004/05/15 10:19:01 ktsaou Exp $
 (C) Copyright 2003, Costa Tsaousis <costa@tsaousis.gr>
 FireHOL is distributed under GPL.
 
@@ -4446,7 +4450,7 @@ then
 	
 	${CAT_CMD} <<EOF
 
-$Id: firehol.sh,v 1.193 2004/05/05 23:41:19 ktsaou Exp $
+$Id: firehol.sh,v 1.194 2004/05/15 10:19:01 ktsaou Exp $
 (C) Copyright 2003, Costa Tsaousis <costa@tsaousis.gr>
 FireHOL is distributed under GPL.
 Home Page: http://firehol.sourceforge.net
@@ -4740,7 +4744,7 @@ then
 	
 	${CAT_CMD} >&2 <<EOF
 
-$Id: firehol.sh,v 1.193 2004/05/05 23:41:19 ktsaou Exp $
+$Id: firehol.sh,v 1.194 2004/05/15 10:19:01 ktsaou Exp $
 (C) Copyright 2003, Costa Tsaousis <costa@tsaousis.gr>
 FireHOL is distributed under GPL.
 Home Page: http://firehol.sourceforge.net
@@ -4823,7 +4827,7 @@ EOF
 	echo "# "
 
 	${CAT_CMD} <<EOF
-# $Id: firehol.sh,v 1.193 2004/05/05 23:41:19 ktsaou Exp $
+# $Id: firehol.sh,v 1.194 2004/05/15 10:19:01 ktsaou Exp $
 # (C) Copyright 2003, Costa Tsaousis <costa@tsaousis.gr>
 # FireHOL is distributed under GPL.
 # Home Page: http://firehol.sourceforge.net
