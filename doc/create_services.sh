@@ -106,6 +106,11 @@ To find more about this service please check the <a href=\"adding.html\">Adding 
 service_custom_example="server custom <u>myimap</u> <u>tcp/143</u> <u>default</u> accept"
 
 
+service_dcc_notes="
+Distributed Checksum Clearinghouses. See <a href=\"http://spamassassin.taint.org/faq/index.cgi?req=show&file=faq02.007.htp\">http://spamassassin.taint.org/faq/index.cgi?req=show&file=faq02.007.htp</a> and
+<a href=\"http://www.rhyolite.com/anti-spam/dcc/FAQ.html#firewall-ports\">http://www.rhyolite.com/anti-spam/dcc/FAQ.html#firewall-ports</a>.
+"
+
 service_dcpp_notes="
 Direct Connect++ P2P, can be found <a href=\"http://dcplusplus.sourceforge.net\">here</a>.
 "
@@ -724,7 +729,7 @@ cat <<"EOF"
 <tr><td align=center valign=middle>
 	<A href="http://sourceforge.net"><IMG src="http://sourceforge.net/sflogo.php?group_id=58425&amp;type=5" width="210" height="62" border="0" alt="SourceForge Logo"></A>
 </td><td align=center valign=middle>
-	<small>$Id: create_services.sh,v 1.40 2003/10/12 19:37:36 ktsaou Exp $</small>
+	<small>$Id: create_services.sh,v 1.41 2003/10/18 09:40:45 ktsaou Exp $</small>
 	<p>
 	<b>FireHOL</b>, a firewall for humans...<br>
 	&copy; Copyright 2003
