@@ -1,7 +1,7 @@
 
 RCS file: /cvsroot/firehol/firehol/firehol.sh,v
 Working file: firehol.sh
-head: 1.50
+head: 1.51
 branch:
 locks: strict
 access list:
@@ -9,8 +9,12 @@ symbolic names:
 	start: 1.1.1.1
 	vendor: 1.1.1
 keyword substitution: kv
-total revisions: 51;	selected revisions: 51
+total revisions: 52;	selected revisions: 52
 description:
+----------------------------
+revision 1.51
+date: 2002/12/18 22:05:37;  author: ktsaou;  state: Exp;  lines: +20 -5
+Enhanced the error handler to detect errors separately for each protection.
 ----------------------------
 revision 1.50
 date: 2002/12/18 20:44:08;  author: ktsaou;  state: Exp;  lines: +78 -71

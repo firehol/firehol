@@ -10,7 +10,7 @@
 #
 # config: /etc/firehol.conf
 #
-# $Id: firehol.sh,v 1.51 2002/12/18 22:05:37 ktsaou Exp $
+# $Id: firehol.sh,v 1.52 2002/12/18 23:36:07 ktsaou Exp $
 #
 
 # ------------------------------------------------------------------------------
@@ -123,18 +123,36 @@ case "${arg}" in
 	*)	if [ ! -z "${arg}" -a -f "${arg}" ]
 		then
 			FIREHOL_CONFIG="${arg}"
-			if [ ! -z "${1}" -a ! "${1}" = "--" ]
-			then
-				arg="${1}"
-				shift
-			else
-				arg="try"
-			fi
+			arg="${1}"
+			test "${arg}" = "--" && arg="" && shift
+			test -z "${arg}" && arg="try"
+			
+			case "${arg}" in
+				start)
+					FIREHOL_TRY=0
+					FIREHOL_DEBUG=0
+					;;
+					
+				try)
+					FIREHOL_TRY=1
+					FIREHOL_DEBUG=0
+					;;
+					
+				debug)
+					FIREHOL_TRY=0
+					FIREHOL_DEBUG=1
+					;;
+				
+				*)
+					echo "Cannot accept command line argument '${arg}' here."
+					exit 1
+					;;
+			esac
 		else
 		
 		cat <<"EOF"
-$Id: firehol.sh,v 1.51 2002/12/18 22:05:37 ktsaou Exp $
-(C) Copyright 2002, Costa Tsaousis
+$Id: firehol.sh,v 1.52 2002/12/18 23:36:07 ktsaou Exp $
+(C) Copyright 2002, Costa Tsaousis <costa@tsaousis.gr>
 FireHOL is distributed under GPL.
 
 FireHOL supports the following command line arguments (only one of them):
@@ -182,7 +200,7 @@ FireHOL supports the following command line arguments (only one of them):
 			If not other argument is given, the configuration
 			will be "tried" (default = try).
 			Otherwise the argument next to the filename can
-			be one of the above (start, restart, debug, etc).
+			be one of 'start', 'debug' and 'try'.
 
 
 -------------------------------------------------------------------------
@@ -256,7 +274,9 @@ For more information about FireHOL, please refer to:
 
 		http://firehol.sourceforge.net
 
-Please subscribe (at the same page) to get notified of new releases.
+-------------------------------------------------------------------------
+FireHOL controls your firewall. You should want to get updates quickly.
+Subscribe (at the home page) to get notified of new releases.
 
 EOF
 		exit 1
@@ -1159,11 +1179,11 @@ close_cmd() {
 	
 	case "${work_cmd}" in
 		interface)
-			close_interface
+			close_interface || return 1
 			;;
 		
 		router)
-			close_router
+			close_router || return 1
 			;;
 		
 		'')
@@ -1226,7 +1246,7 @@ masquerade() {
 interface() {
 	# --- close any open command ---
 	
-	close_cmd
+	close_cmd || return 1
 	
 	
 	# --- test prerequisites ---
@@ -1253,8 +1273,8 @@ interface() {
 	
 	set_work_function -ne "Initializing interface '${work_name}'"
 	
-	create_chain filter "in_${work_name}" INPUT set_work_inface inface "${inface}" "$@"
-	create_chain filter "out_${work_name}" OUTPUT set_work_outface reverse inface "${inface}" "$@"
+	create_chain filter "in_${work_name}" INPUT set_work_inface inface "${inface}" "$@" || return 1
+	create_chain filter "out_${work_name}" OUTPUT set_work_outface reverse inface "${inface}" "$@" || return 1
 	
 	return 0
 }
@@ -1283,11 +1303,11 @@ close_interface() {
 	esac
 	
 	# Accept all related traffic to the established connections
-	rule chain "in_${work_name}" state RELATED action ACCEPT
-	rule chain "out_${work_name}" state RELATED action ACCEPT
+	rule chain "in_${work_name}" state RELATED action ACCEPT || return 1
+	rule chain "out_${work_name}" state RELATED action ACCEPT || return 1
 	
-	rule chain "in_${work_name}" "${inlog[@]}" action "${work_policy}"
-	rule reverse chain "out_${work_name}" "${outlog[@]}" action "${work_policy}"
+	rule chain "in_${work_name}" "${inlog[@]}" action "${work_policy}" || return 1
+	rule reverse chain "out_${work_name}" "${outlog[@]}" action "${work_policy}" || return 1
 	
 	return 0
 }
@@ -1296,7 +1316,7 @@ close_interface() {
 router() {
 	# --- close any open command ---
 	
-	close_cmd
+	close_cmd || return 1
 	
 	
 	# --- test prerequisites ---
@@ -1319,8 +1339,8 @@ router() {
 	
 	set_work_function -ne "Initializing router '${work_name}'"
 	
-	create_chain filter "in_${work_name}" FORWARD set_work_inface set_work_outface "$@"
-	create_chain filter "out_${work_name}" FORWARD reverse "$@"
+	create_chain filter "in_${work_name}" FORWARD set_work_inface set_work_outface "$@" || return 1
+	create_chain filter "out_${work_name}" FORWARD reverse "$@" || return 1
 	
 	FIREHOL_ROUTING=1
 	
@@ -1333,8 +1353,8 @@ close_router() {
 	set_work_function "Finilizing router '${work_name}'"
 	
 	# Accept all related traffic to the established connections
-	rule chain "in_${work_name}" state RELATED action ACCEPT
-	rule chain "out_${work_name}" state RELATED action ACCEPT
+	rule chain "in_${work_name}" state RELATED action ACCEPT || return 1
+	rule chain "out_${work_name}" state RELATED action ACCEPT || return 1
 	
 # routers always have RETURN as policy	
 #	local inlog=
@@ -1355,8 +1375,8 @@ close_router() {
 #			;;
 #	esac
 #	
-#	rule chain in_${work_name} ${inlog} action ${work_policy}
-#	rule reverse chain out_${work_name} ${outlog} action ${work_policy}
+#	rule chain in_${work_name} ${inlog} action ${work_policy} || return 1
+#	rule reverse chain out_${work_name} ${outlog} action ${work_policy} || return 1
 	
 	return 0
 }
@@ -1365,13 +1385,13 @@ close_master() {
 	set_work_function "Finilizing firewall policies"
 	
 	# Accept all related traffic to the established connections
-	rule chain INPUT state RELATED action ACCEPT
-	rule chain OUTPUT state RELATED action ACCEPT
-	rule chain FORWARD state RELATED action ACCEPT
+	rule chain INPUT state RELATED action ACCEPT || return 1
+	rule chain OUTPUT state RELATED action ACCEPT || return 1
+	rule chain FORWARD state RELATED action ACCEPT || return 1
 	
-	rule chain INPUT loglimit "IN-unknown" action ${UNMATCHED_INPUT_POLICY}
-	rule chain OUTPUT loglimit "OUT-unknown" action ${UNMATCHED_OUTPUT_POLICY}
-	rule chain FORWARD loglimit "PASS-unknown" action ${UNMATCHED_ROUTER_POLICY}
+	rule chain INPUT loglimit "IN-unknown" action ${UNMATCHED_INPUT_POLICY} || return 1
+	rule chain OUTPUT loglimit "OUT-unknown" action ${UNMATCHED_OUTPUT_POLICY} || return 1
+	rule chain FORWARD loglimit "PASS-unknown" action ${UNMATCHED_ROUTER_POLICY} || return 1
 	return 0
 }
 
@@ -2157,8 +2177,8 @@ smart_function() {
 		
 		local mychain="${work_name}_${servname}_${suffix}"
 		
-		create_chain filter "in_${mychain}" "in_${work_name}"
-		create_chain filter "out_${mychain}" "out_${work_name}"
+		create_chain filter "in_${mychain}" "in_${work_name}" || return 1
+		create_chain filter "out_${mychain}" "out_${work_name}" || return 1
 		
 		# Try the simple services first
 		simple_service "${mychain}" "${type}" "${service}" "$@"
@@ -2448,6 +2468,8 @@ protection() {
 # ------------------------------------------------------------------------------
 # XXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXX
 # ------------------------------------------------------------------------------
+# Be nice on production environments
+renice 10 $$ >/dev/null 2>/dev/null
 
 if [ ${FIREHOL_EXPLAIN} -eq 1 ]
 then
@@ -2460,10 +2482,19 @@ then
 	version ${FIREHOL_VERSION}
 	
 	cat <<"EOF"
-$Id: firehol.sh,v 1.51 2002/12/18 22:05:37 ktsaou Exp $
-(C) Copyright 2002, Costa Tsaousis
+
+$Id: firehol.sh,v 1.52 2002/12/18 23:36:07 ktsaou Exp $
+(C) Copyright 2002, Costa Tsaousis <costa@tsaousis.gr>
 FireHOL is distributed under GPL.
 Home Page: http://firehol.sourceforge.net
+
+--------------------------------------------------------------------------------
+FireHOL controls your firewall. You should want to get updates quickly.
+Subscribe (at the home page) to get notified of new releases.
+--------------------------------------------------------------------------------
+
+You can now start typing FireHOL configuration directives.
+Special interactive commands: help, show, quit
 
 EOF
 	
@@ -2474,6 +2505,9 @@ EOF
 		
 		set_work_function -ne "Executing user input"
 		
+		while [ 1 = 1 ]
+		do
+		
 		set -- ${REPLY}
 		
 		case "${1}" in
@@ -2482,16 +2516,29 @@ EOF
 You can use anything a FireHOL configuration file accepts, including variables,
 loops, etc. Take only care to write loops in one row.
 
-Additionaly, you can use the 'help', 'show' and 'quit' commands.
+Additionaly, you can use the following commands:
+	
+	help	to print this text on your screen.
+	
+	show	to show all the successfull commands so far.
+	
+	quit	to show the interactively given configuration file
+		and quit.
+	
+	in	same as typing: interface eth0 internet
+		This is used as a shortcut to get into the server/client
+		mode in which you can test the rules for certain
+		services.
+
 EOF
-				continue
+				break
 				;;
 				
 			show)
 				echo
 				cat "${FIREHOL_TEMP_CONFIG}"
 				echo
-				continue
+				break
 				;;
 				
 			quit)
@@ -2499,6 +2546,11 @@ EOF
 				cat "${FIREHOL_TEMP_CONFIG}"
 				echo
 				exit 1
+				;;
+				
+			in)
+				REPLY="interface eth0 internet"
+				continue
 				;;
 				
 			*)
@@ -2526,8 +2578,12 @@ EOF
 					
 					printf "\n# > OK <\n"
 				fi
+				break
 				;;
 		esac
+		
+		break
+		done
 	done
 	
 	exit 0
