@@ -10,9 +10,9 @@
 #
 # config: /etc/firehol.conf
 #
-# $Id: firehol.sh,v 1.100 2003/03/05 00:11:56 ktsaou Exp $
+# $Id: firehol.sh,v 1.101 2003/03/05 00:33:56 ktsaou Exp $
 #
-
+FIREHOL_FILE="${0}"
 
 # ------------------------------------------------------------------------------
 # XXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXX
@@ -3189,7 +3189,7 @@ case "${arg}" in
 		else
 		
 		cat <<"EOF"
-$Id: firehol.sh,v 1.100 2003/03/05 00:11:56 ktsaou Exp $
+$Id: firehol.sh,v 1.101 2003/03/05 00:33:56 ktsaou Exp $
 (C) Copyright 2002, Costa Tsaousis <costa@tsaousis.gr>
 FireHOL is distributed under GPL.
 
@@ -3236,6 +3236,8 @@ FireHOL supports the following command line arguments (only one of them):
 			
 	helpme	or	to enter a wizard mode where FireHOL will try
 	wizard		to figure out the configuration you need.
+			You can redirect the standard output of FireHOL to
+			a file to get the config to this file.
 			
 	<a filename>	a different configuration file.
 			If not other argument is given, the configuration
@@ -3318,6 +3320,16 @@ For more information about FireHOL, please refer to:
 -------------------------------------------------------------------------
 FireHOL controls your firewall. You should want to get updates quickly.
 Subscribe (at the home page) to get notified of new releases.
+-------------------------------------------------------------------------
+
+YOU DO NOT KNOW WHAT TO DO? FireHOL can help you! Just run it with the
+argument 'helpme' and it will generate its configuration file for this
+machine. Your running firewall will not be altered or stopped, and no
+systems settings will be modified. Just run:
+
+${FIREHOL_FILE} helpme >/tmp/firehol.conf
+
+and you will get the configuration written to /tmp/firehol.conf
 
 EOF
 		exit 1
@@ -3360,7 +3372,7 @@ then
 	
 	cat <<"EOF"
 
-$Id: firehol.sh,v 1.100 2003/03/05 00:11:56 ktsaou Exp $
+$Id: firehol.sh,v 1.101 2003/03/05 00:33:56 ktsaou Exp $
 (C) Copyright 2002, Costa Tsaousis <costa@tsaousis.gr>
 FireHOL is distributed under GPL.
 Home Page: http://firehol.sourceforge.net
@@ -3568,7 +3580,7 @@ then
 	
 	cat >&2 <<"EOF"
 
-$Id: firehol.sh,v 1.100 2003/03/05 00:11:56 ktsaou Exp $
+$Id: firehol.sh,v 1.101 2003/03/05 00:33:56 ktsaou Exp $
 (C) Copyright 2002, Costa Tsaousis <costa@tsaousis.gr>
 FireHOL is distributed under GPL.
 Home Page: http://firehol.sourceforge.net
@@ -3586,10 +3598,11 @@ Your running firewall will not be stopped or altered.
 You can re-run the same command with output redirection to get the config
 to a file. Example:
 
-/etc/init.d/firehol helpme >/tmp/firehol.conf
-
 EOF
-	
+	echo >&2 "${FIREHOL_FILE} helpme >/tmp/firehol.conf"
+	echo >&2 
+	echo >&2 
+		
 	echo >&2 
 	echo >&2 "Building list of known services."
 	echo >&2 "Please wait..."
@@ -3653,14 +3666,14 @@ EOF
 	echo >&2 "--- snip --- snip --- snip --- snip ---"
 	echo >&2 
 	
-	echo "#!/etc/init.d/firehol"
+	echo "#!${FIREHOL_FILE}"
 	echo "# ------------------------------------------------------------------------------"
 	echo "# This feature is under construction -- use it with care."
 	echo "#             *** NEVER USE THIS CONFIG AS-IS ***"
 	echo "# "
 
 	cat <<"EOF"
-# $Id: firehol.sh,v 1.100 2003/03/05 00:11:56 ktsaou Exp $
+# $Id: firehol.sh,v 1.101 2003/03/05 00:33:56 ktsaou Exp $
 # (C) Copyright 2002, Costa Tsaousis <costa@tsaousis.gr>
 # FireHOL is distributed under GPL.
 # Home Page: http://firehol.sourceforge.net
