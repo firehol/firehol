@@ -63,7 +63,7 @@ interface ppp+ internet
 		My Linux is also a workstation, I want to run any client I wish.
 		</td>
 		<td>
-		<b><font color="grey"><pre>
+		<b><font color="gray"><pre>
 <font color="red">office="my-office-pc.example.com"</font>
 
 interface eth0 lan
@@ -83,7 +83,7 @@ interface ppp+ internet<font color="red">
 		If a server is running on my Linux I want my LAN PCs to use it.
 		</td>
 		<td>
-		<b><font color="grey"><pre>
+		<b><font color="gray"><pre>
 office="my-office-pc.example.com"
 
 interface eth0 lan<font color="red">
@@ -105,7 +105,7 @@ interface ppp+ internet
 		they wish.
 		</td>
 		<td>
-		<b><font color="grey"><pre>
+		<b><font color="gray"><pre>
 office="my-office-pc.example.com"
 
 interface eth0 lan
@@ -129,7 +129,7 @@ router lan2internet inface eth0 outface ppp+
 		I need to masquerade somehow their IP addresses for internet access.
 		</td>
 		<td>
-		<b><font color="grey"><pre>
+		<b><font color="gray"><pre>
 office="my-office-pc.example.com"
 
 interface eth0 lan
@@ -155,9 +155,9 @@ router lan2internet inface eth0 outface ppp+
 <b><u>This is it!</u></b> The firewall is ready. I hope you have noticed that all the rules given match just one direction of the traffic: <b>the request</b>.
 They don't say anything about replies (see for example the <b>src</b>, <b>inface</b> or <b>outface</b> parameters). This is because FireHOL handles the replies
 automatically. You don't have to do anything about them: If a request is allowed, then the corresponding reply is also allowed.
-This also means that FireHOL produces the iptables statements to exactly match what is allowed and nothing more. If for example we remove the <b>client all accept</b>
+This also means that FireHOL produces the iptables statements to exactly match what is allowed <b>in both directions</b> and nothing more. If for example we remove the <b>client all accept</b>
 from the <b>internet</b> interface, our Linux will not be able to do anything with its PPP device execpt to send replies matching the <b>server</b> statements within this interface;
-no pings, no DNS, no nothing!
+no pings, no DNS, no web browsing, no nothing!
 <p>
 Here is another simple example:
 
@@ -253,7 +253,7 @@ supports the following services:</p>
 <tr><td align=center valign=middle>
 	<A href="http://sourceforge.net"><IMG src="http://sourceforge.net/sflogo.php?group_id=58425&amp;type=5" width="210" height="62" border="0" alt="SourceForge Logo"></A>
 </td><td align=center valign=middle>
-	<small>$Id: overview.html,v 1.11 2002/12/23 18:34:54 ktsaou Exp $</small>
+	<small>$Id: overview.html,v 1.12 2002/12/23 18:50:09 ktsaou Exp $</small>
 	<p>
 	<b>FireHOL</b>, a firewall for humans...<br>
 	&copy; Copyright 2002
