@@ -10,9 +10,16 @@
 #
 # config: /etc/firehol.conf
 #
-# $Id: firehol.sh,v 1.20 2002/11/30 22:53:55 ktsaou Exp $
+# $Id: firehol.sh,v 1.21 2002/12/01 04:34:00 ktsaou Exp $
 #
 # $Log: firehol.sh,v $
+# Revision 1.21  2002/12/01 04:34:00  ktsaou
+# More quoting issues fixed. Changed the core to work with BASH arrays in
+# order to handle quoted arguments accurately.
+#
+# Fixed a bug in postprocessing error handler that did not present the
+# command line that produced the error.
+#
 # Revision 1.20  2002/11/30 22:53:55  ktsaou
 # Fixed various problems related to quoted arguments.
 # Fixed iptables generation to support quoted arguments.
@@ -1134,21 +1141,17 @@ close_interface() {
 	
 	work_function="Finilizing interface '${work_name}'"
 	
-	local inlog=
-	local outlog=
 	case "${work_policy}" in
 		return|RETURN)
 			return 0
 			;;
 			
 		accept|ACCEPT)
-			inlog=
-			outlog=
 			;;
 		
 		*)
-			inlog="loglimit 'IN-${work_name}'"
-			outlog="loglimit 'OUT-${work_name}'"
+			local -a inlog=(loglimit "IN-${work_name}")
+			local -a outlog=(loglimit "OUT-${work_name}")
 			;;
 	esac
 	
@@ -1156,8 +1159,8 @@ close_interface() {
 	rule chain "in_${work_name}" state RELATED action ACCEPT
 	rule chain "out_${work_name}" state RELATED action ACCEPT
 	
-	rule chain "in_${work_name}" ${inlog} action "${work_policy}"
-	rule reverse chain "out_${work_name}" ${outlog} action "${work_policy}"
+	rule chain "in_${work_name}" "${inlog[@]}" action "${work_policy}"
+	rule reverse chain "out_${work_name}" "${outlog[@]}" action "${work_policy}"
 	
 	return 0
 }
@@ -1291,13 +1294,13 @@ rule() {
 	local state=
 	local statenot=
 	
-	local custom=
-	
 	local failed=0
 	local reverse=0
 	
 	local swi=0
 	local swo=0
+	
+	unset custom
 	
 	while [ ! -z "${1}" ]
 	do
@@ -1498,7 +1501,7 @@ rule() {
 				;;
 				
 			custom|CUSTOM)
-				custom="${2}"
+				local -a custom=(${2})
 				shift 2
 				;;
 				
@@ -1702,15 +1705,13 @@ rule() {
 	local inf=
 	for inf in ${inface}
 	do
-		local inf_arg=
-		
+		unset inf_arg
 		case ${inf} in
 			any|ANY)
-				inf_arg=
 				;;
 			
 			*)
-				inf_arg="-i ${inf}"
+				local -a inf_arg=("-i" "${inf}")
 				register_iface ${inf}
 				;;
 		esac
@@ -1718,15 +1719,13 @@ rule() {
 		local outf=
 		for outf in ${outface}
 		do
-			local outf_arg=
-			
+			unset outf_arg
 			case ${outf} in
 				any|ANY)
-					outf_arg=
 					;;
 				
 				*)
-					outf_arg="-o ${outf}"
+					local -a outf_arg=("-o" "${outf}")
 					register_iface ${outf}
 					;;
 			esac
@@ -1734,114 +1733,99 @@ rule() {
 			local s=
 			for s in ${src}
 			do
-				local s_arg=
-				
+				unset s_arg
 				case ${s} in
 					any|ANY)
-						s_arg=
 						;;
 					
 					*)
-						s_arg="-s ${s}"
+						local -a s_arg=("-s" "${s}")
 						;;
 				esac
 				
 				local d=
 				for d in ${dst}
 				do
-					local d_arg=
-					
+					unset d_arg
 					case ${d} in
 						any|ANY)
-							d_arg=
 							;;
 						
 						*)
-							d_arg="-d ${d}"
+							local -a d_arg=("-d" "${d}")
 							;;
 					esac
 					
 					local sp=
 					for sp in ${sport}
 					do
-						local sp_arg=
-						
+						unset sp_arg
 						case ${sp} in
 							any|ANY)
-								sp_arg=
 								;;
 							
 							*)
-								sp_arg="--sport ${sp}"
+								local -a sp_arg=("--sport" "${sp}")
 								;;
 						esac
 						
 						local dp=
 						for dp in ${dport}
 						do
-							local dp_arg=
-							
+							unset dp_arg
 							case ${dp} in
 								any|ANY)
-									dp_arg=
 									;;
 								
 								*)
-									dp_arg="--dport ${dp}"
+									local -a dp_arg=("--dport" "${dp}")
 									;;
 							esac
 							
 							local pr=
 							for pr in ${proto}
 							do
-								local proto_arg=
+								unset proto_arg
 								
 								case ${pr} in
 									any|ANY)
-										proto_arg=
 										;;
 									
 									*)
-										proto_arg="-p ${proto}"
+										local -a proto_arg=("-p" "${proto}")
 										;;
 								esac
 								
-								local state_arg=
+								unset state_arg
 								if [ ! -z "${state}" ]
 								then
-									state_arg="-m state ${statenot} --state ${state}"
-								else
-									state_arg=
+									local -a state_arg=("-m" "state" "${statenot}" "--state" "${state}")
 								fi
 								
-								local limit_arg=
+								unset limit_arg
 								if [ ! -z "${limit}" ]
 								then
-									limit_arg="-m limit --limit ${limit} --limit-burst ${burst}"
-								else
-									limit_arg=
+									local -a limit_arg=("-m" "limit" "--limit" "${limit}" "--limit-burst" "${burst}")
 								fi
 								
-								local iplimit_arg=
+								unset iplimit_arg
 								if [ ! -z "${iplimit}" ]
 								then
-									iplimit_arg="-m iplimit --iplimit-above ${iplimit} --iplimit-mask ${iplimit_mask}"
-								else
-									iplimit_arg=
+									local -a iplimit_arg=("-m" "iplimit" "--iplimit-above" "${iplimit}" "--iplimit-mask" "${iplimit_mask}")
 								fi
 								
-								local basecmd="${table} -A '${chain}' ${inf_arg} ${outf_arg} ${state_arg} ${limit_arg} ${iplimit_arg} ${proto_arg} ${s_arg} ${sp_arg} ${d_arg} ${dp_arg} ${custom}"
+								declare -a basecmd=("${table}" "-A" "${chain}" "${inf_arg[@]}" "${outf_arg[@]}" "${limit_arg[@]}" "${iplimit_arg[@]}" "${proto_arg[@]}" "${s_arg[@]}" "${sp_arg[@]}" "${d_arg[@]}" "${dp_arg[@]}" "${custom[@]}" "${state_arg[@]}")
 								
 								case "${log}" in
 									'')
 										;;
 									
 									limit)
-										iptables ${basecmd} -m limit --limit 1/second -j LOG ${FIREHOL_LOG_OPTIONS} --log-prefix="${logtxt}:"
+										iptables "${basecmd[@]}" -m limit --limit 1/second -j LOG ${FIREHOL_LOG_OPTIONS} --log-prefix="${logtxt}:"
 										;;
 										
 									normal)
-										iptables ${basecmd} -j LOG ${FIREHOL_LOG_OPTIONS} --log-prefix="${logtxt}:"
+										iptables "${basecmd[@]}" -j LOG ${FIREHOL_LOG_OPTIONS} --log-prefix="${logtxt}:"
 										;;
 										
 									*)
@@ -1851,7 +1835,7 @@ rule() {
 								
 								if [ ! "${action}" = NONE ]
 								then
-									iptables ${basecmd} -j ${action}
+									iptables "${basecmd[@]}" -j "${action}"
 									test $? -gt 0 && failed=$[failed + 1]
 								fi
 							done
@@ -1872,14 +1856,12 @@ postprocess() {
 	
 #	echo "$@" " $tmp # L:${FIREHOL_LINEID}" >>${FIREHOL_OUTPUT}
 	
-	while [ ! -z "${1}" ]
-	do
-		printf "'%s' " "${1}" >>${FIREHOL_OUTPUT}
-		shift
-	done
+	local cmd=
+	while [ ! -z "${1}" ]; do cmd="${cmd} '${1}'"; shift; done
+	printf "%s" "${cmd}" >>${FIREHOL_OUTPUT}
 	echo " $tmp # L:${FIREHOL_LINEID}" >>${FIREHOL_OUTPUT}
 		
-	test ${FIREHOL_DEBUG} -eq 0 && echo "check_final_status \$? '" "$@" "' ${FIREHOL_LINEID}" >>${FIREHOL_OUTPUT}
+	test ${FIREHOL_DEBUG} -eq 0 && echo "check_final_status \$? '" "${cmd}" "' ${FIREHOL_LINEID}" >>${FIREHOL_OUTPUT}
 	
 	return 0
 }
