@@ -10,7 +10,7 @@
 #
 # config: /etc/firehol.conf
 #
-# $Id: firehol.sh,v 1.85 2003/01/28 19:47:31 ktsaou Exp $
+# $Id: firehol.sh,v 1.86 2003/01/29 23:19:20 ktsaou Exp $
 #
 
 
@@ -990,17 +990,17 @@ nat() {
 	
 	case ${type} in
 		to-source)
-			create_chain nat "nat.${nat_count}" POSTROUTING "$@" inface any || return 1
+			create_chain nat "nat.${nat_count}" POSTROUTING nolog "$@" inface any || return 1
 			local action=snat
 			;;
 		
 		to-destination)
-			create_chain nat "nat.${nat_count}" PREROUTING noowner "$@" outface any || return 1
+			create_chain nat "nat.${nat_count}" PREROUTING noowner nolog "$@" outface any || return 1
 			local action=dnat
 			;;
 			
 		redirect-to)
-			create_chain nat "nat.${nat_count}" PREROUTING noowner "$@" outface any || return 1
+			create_chain nat "nat.${nat_count}" PREROUTING noowner nolog "$@" outface any || return 1
 			local action=redirect
 			;;
 			
@@ -1730,6 +1730,9 @@ rule() {
 	# if set to 1, all owner module options will be ignored
 	local noowner=0
 	
+	# if set to 1, log and loglimit are ignored.
+	local nolog=0
+	
 	# if set to 1, detection algorithm about overwritting optional rule
 	# parameters will take place.
 	local softwarnings=1
@@ -2104,16 +2107,22 @@ rule() {
 				;;
 				
 			log|LOG)
-				test ${softwarnings} -eq 1 -a ! -z "${log}" && softwarning "Overwritting param: log '${log}/${logtxt}' becomes 'normal/${2}'"
-				log=normal
-				logtxt="${2}"
+				if [ ${nolog} -eq 0 ]
+				then
+					test ${softwarnings} -eq 1 -a ! -z "${log}" && softwarning "Overwritting param: log '${log}/${logtxt}' becomes 'normal/${2}'"
+					log=normal
+					logtxt="${2}"
+				fi
 				shift 2
 				;;
 				
 			loglimit|LOGLIMIT)
-				test ${softwarnings} -eq 1 -a ! -z "${log}" && softwarning "Overwritting param: log '${log}/${logtxt}' becomes 'limit/${2}'"
-				log=limit
-				logtxt="${2}"
+				if [ ${nolog} -eq 0 ]
+				then
+					test ${softwarnings} -eq 1 -a ! -z "${log}" && softwarning "Overwritting param: log '${log}/${logtxt}' becomes 'limit/${2}'"
+					log=limit
+					logtxt="${2}"
+				fi
 				shift 2
 				;;
 				
@@ -2138,6 +2147,11 @@ rule() {
 				
 			out)	# this is outgoing traffic - ignore packet ownership if not in an interface
 				test ! "${work_cmd}" = "interface" && local noowner=1
+				shift
+				;;
+				
+			nolog)
+				local nolog=1
 				shift
 				;;
 				
@@ -3052,7 +3066,7 @@ case "${arg}" in
 		else
 		
 		cat <<"EOF"
-$Id: firehol.sh,v 1.85 2003/01/28 19:47:31 ktsaou Exp $
+$Id: firehol.sh,v 1.86 2003/01/29 23:19:20 ktsaou Exp $
 (C) Copyright 2002, Costa Tsaousis <costa@tsaousis.gr>
 FireHOL is distributed under GPL.
 
@@ -3220,7 +3234,7 @@ then
 	
 	cat <<"EOF"
 
-$Id: firehol.sh,v 1.85 2003/01/28 19:47:31 ktsaou Exp $
+$Id: firehol.sh,v 1.86 2003/01/29 23:19:20 ktsaou Exp $
 (C) Copyright 2002, Costa Tsaousis <costa@tsaousis.gr>
 FireHOL is distributed under GPL.
 Home Page: http://firehol.sourceforge.net
