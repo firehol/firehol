@@ -1,5 +1,12 @@
 #!/bin/sh
 
+# $Id: get-iana.sh,v 1.4 2002/10/27 12:44:42 ktsaou Exp $
+#
+# $Log: get-iana.sh,v $
+# Revision 1.4  2002/10/27 12:44:42  ktsaou
+# CVS test
+#
+
 #
 # Program that downloads the IPv4 address space allocation by IANA
 # and creates a list with all reserved address spaces.
