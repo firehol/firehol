@@ -1,7 +1,27 @@
-$Id: WhatIsNew,v 1.4 2004/05/02 22:49:56 ktsaou Exp $
+$Id: WhatIsNew,v 1.5 2004/10/31 21:14:42 ktsaou Exp $
 
 What Is New in public releases.
 -------------------------------
+
+R5 v1.213, Nov 1, 2004
+This is a major release which includes several updates and fixes.
+All users are advised to update to this version. This release
+includes new service definitions: NIS, NUT, NNTPS, ASTERISK,
+DARKSTAT, DISTCC, ESERVER, GIFT, GIFTUI, H323, IAX, IAX2, ICP,
+RTP, SIP, STUN, UPNP, RDP, NXSERVER, RADIUSPROXY, RADIUSOLDPROXY.
+The following service definitions have been updated: DHCP, SAMBA,
+NFS. The following helpers have been added: TOS, DSCP, TCPMSS,
+ECN_SHAME. The following optional rule parameters have been added:
+TOS, MARK, DSCP. Added support for automatic installation of
+service definitions with third party packages, in
+/etc/firehol/services/.
+Also, FireHOL now has improved interoperability with various
+Linux distributions, including BASH 3.x, updated RESERVED_IPS
+for current IANA IPv4 reservations, finer control on ACCEPTed
+services to allow controllable requests per second, the
+ability to control loopback traffic and support for service
+groups.
+
 
 R5 v1.191, May 2, 2004
 This release features more services, including ORACLE, GKRELLMD,
