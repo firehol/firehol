@@ -1,7 +1,7 @@
 
 RCS file: /cvsroot/firehol/firehol/firehol.sh,v
 Working file: firehol.sh
-head: 1.86
+head: 1.88
 branch:
 locks: strict
 access list:
@@ -9,8 +9,20 @@ symbolic names:
 	start: 1.1.1.1
 	vendor: 1.1.1
 keyword substitution: kv
-total revisions: 87;	selected revisions: 87
+total revisions: 89;	selected revisions: 89
 description:
+----------------------------
+revision 1.88
+date: 2003/01/30 21:39:36;  author: ktsaou;  state: Exp;  lines: +6 -6
+Fixed a typo.
+----------------------------
+revision 1.87
+date: 2003/01/30 21:36:07;  author: ktsaou;  state: Exp;  lines: +65 -15
+Added TOS and MARK actions in FireHOL's core to support Type-Of-Service and
+MARKing (for traffic shapping) in the future.
+
+Also, added an error handler that detects use of SNAT, DNAT, REDIRECT
+outside the 'nat' table and TOS, MARK outside the 'mangle' table.
 ----------------------------
 revision 1.86
 date: 2003/01/29 23:19:20;  author: ktsaou;  state: Exp;  lines: +26 -12
