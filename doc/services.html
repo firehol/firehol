@@ -441,7 +441,7 @@
 <b>500:65535</b>
 </td>
 	</tr>
-	<tr><td align=right valign=top nowrap><small><font color="gray">Notes</td><td>The NFS service queries the RPC service on the NFS server host to find out the ports <b>nfsd</b> and <b>mountd</b> are listening. Then, according to these ports it sets up rules on all the supported protocols (as reported by RPC) in order the clients to be able to reach the server. <p> For this reason, the NFS service requires that: <ul> <li>the firewall is restarted if the NFS server is restarted</li> <li>the NFS server must be specified on all nfs statements (only if it is not the localhost)</li> </ul><br>&nbsp;</td></tr>
+	<tr><td align=right valign=top nowrap><small><font color="gray">Notes</td><td>The NFS service queries the RPC service on the NFS server host to find out the ports <b>nfsd</b> and <b>mountd</b> are listening. Then, according to these ports it sets up rules on all the supported protocols (as reported by RPC) in order the clients to be able to reach the server. <p> For this reason, the NFS service requires that: <ul> <li>the firewall is restarted if the NFS server is restarted</li> <li>the NFS server must be specified on all nfs statements (only if it is not the localhost)</li> </ul> Since NFS queries the remote RPC server, it is required to also be allowed to do so, by allowing the <a href="#portmap">portmap</a> service too. Take care, that this is allowed by the <b>running firewall</b> when FireHOL tries to query the RPC server. So you might have to setup NFS in two steps: First add the portmap service and activate the firewall, then add the NFS service and restart the firewall.<br>&nbsp;</td></tr>
 	<tr><td align=right valign=top nowrap><small><font color="gray">Example</td><td><b>client nfs accept <u>dst</u> <u>1.2.3.4</u></b></td></tr>
 	</table>
 	</td></tr>
@@ -947,7 +947,7 @@
 <tr><td align=center valign=middle>
 	<A href="http://sourceforge.net"><IMG src="http://sourceforge.net/sflogo.php?group_id=58425&amp;type=5" width="210" height="62" border="0" alt="SourceForge Logo"></A>
 </td><td align=center valign=middle>
-	<small>$Id: services.html,v 1.4 2002/12/10 18:11:07 ktsaou Exp $</small>
+	<small>$Id: services.html,v 1.5 2002/12/11 09:22:53 ktsaou Exp $</small>
 	<p>
 	<b>FireHOL</b>, a firewall for humans...<br>
 	&copy; Copyright 2002
