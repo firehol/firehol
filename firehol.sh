@@ -10,7 +10,7 @@
 #
 # config: /etc/firehol/firehol.conf
 #
-# $Id: firehol.sh,v 1.149 2003/08/23 21:42:35 ktsaou Exp $
+# $Id: firehol.sh,v 1.150 2003/08/23 22:27:34 ktsaou Exp $
 #
 FIREHOL_FILE="${0}"
 
@@ -1263,6 +1263,7 @@ mac() {
 }
 
 # blacklist creates two types of blacklists: unidirectional or bidirectional
+blacklist_chain=0
 blacklist() {
 	work_realcmd=(${FUNCNAME} "$@")
 	
@@ -1281,6 +1282,28 @@ blacklist() {
 		full=1
 	fi
 	
+	if [ ${blacklist_chain} -eq 0 ]
+	then
+		set_work_function "Generating blacklist chains"
+		
+		# Blacklist INPUT unidirectional
+		iptables -t filter -N BL_IN_UNI	# INPUT
+		iptables -A BL_IN_UNI -m state --state NEW -j DROP
+		
+		# No need for OUTPUT/FORWARD unidirectional
+		
+		# Blacklist INPUT bidirectional
+		iptables -t filter -N BL_IN_BI	# INPUT
+		iptables -A BL_IN_BI -j DROP
+		
+		# Blacklist OUTPUT/FORWARD bidirectional
+		iptables -t filter -N BL_OUT_BI	# OUTPUT and FORWARD
+		iptables -A BL_OUT_BI -p tcp -j REJECT --reject-with tcp-reset
+		iptables -A BL_OUT_BI -j REJECT --reject-with icmp-host-unreachable
+		
+		blacklist_chain=1
+	fi
+	
 	set_work_function "Generating blacklist rules"
 	
 	local z=
@@ -1293,13 +1316,14 @@ blacklist() {
 			
 			if [ ${full} -eq 1 ]
 			then
-				iptables -I INPUT   -s ${x} -j DROP
-				iptables -I OUTPUT  -d ${x} -j REJECT
-				iptables -I FORWARD -s ${x} -j DROP
-				iptables -I FORWARD -d ${x} -j REJECT
+				iptables -I INPUT   -s ${x} -j BL_IN_BI
+				iptables -I FORWARD -s ${x} -j BL_IN_BI
+				
+				iptables -I OUTPUT  -d ${x} -j BL_OUT_BI
+				iptables -I FORWARD -d ${x} -j BL_OUT_BI  
 			else
-				iptables -I INPUT   -s ${x} -m state --state NEW -j DROP
-				iptables -I FORWARD -s ${x} -m state --state NEW -j DROP
+				iptables -I INPUT   -s ${x} -j BL_IN_UNI
+				iptables -I FORWARD -s ${x} -j BL_IN_UNI
 			fi
 		done
 	done
@@ -3583,7 +3607,7 @@ case "${arg}" in
 		else
 		
 		${CAT_CMD} <<EOF
-$Id: firehol.sh,v 1.149 2003/08/23 21:42:35 ktsaou Exp $
+$Id: firehol.sh,v 1.150 2003/08/23 22:27:34 ktsaou Exp $
 (C) Copyright 2003, Costa Tsaousis <costa@tsaousis.gr>
 FireHOL is distributed under GPL.
 
@@ -3769,7 +3793,7 @@ then
 	
 	${CAT_CMD} <<EOF
 
-$Id: firehol.sh,v 1.149 2003/08/23 21:42:35 ktsaou Exp $
+$Id: firehol.sh,v 1.150 2003/08/23 22:27:34 ktsaou Exp $
 (C) Copyright 2003, Costa Tsaousis <costa@tsaousis.gr>
 FireHOL is distributed under GPL.
 Home Page: http://firehol.sourceforge.net
@@ -4064,7 +4088,7 @@ then
 	
 	${CAT_CMD} >&2 <<EOF
 
-$Id: firehol.sh,v 1.149 2003/08/23 21:42:35 ktsaou Exp $
+$Id: firehol.sh,v 1.150 2003/08/23 22:27:34 ktsaou Exp $
 (C) Copyright 2003, Costa Tsaousis <costa@tsaousis.gr>
 FireHOL is distributed under GPL.
 Home Page: http://firehol.sourceforge.net
@@ -4157,7 +4181,7 @@ EOF
 	echo "# "
 
 	${CAT_CMD} <<EOF
-# $Id: firehol.sh,v 1.149 2003/08/23 21:42:35 ktsaou Exp $
+# $Id: firehol.sh,v 1.150 2003/08/23 22:27:34 ktsaou Exp $
 # (C) Copyright 2003, Costa Tsaousis <costa@tsaousis.gr>
 # FireHOL is distributed under GPL.
 # Home Page: http://firehol.sourceforge.net
