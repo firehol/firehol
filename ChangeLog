@@ -1,7 +1,7 @@
 
 RCS file: /cvsroot/firehol/firehol/firehol.sh,v
 Working file: firehol.sh
-head: 1.71
+head: 1.72
 branch:
 locks: strict
 access list:
@@ -9,8 +9,12 @@ symbolic names:
 	start: 1.1.1.1
 	vendor: 1.1.1
 keyword substitution: kv
-total revisions: 72;	selected revisions: 72
+total revisions: 73;	selected revisions: 73
 description:
+----------------------------
+revision 1.72
+date: 2003/01/14 21:49:23;  author: ktsaou;  state: Exp;  lines: +5 -5
+*** empty log message ***
 ----------------------------
 revision 1.71
 date: 2003/01/13 23:31:03;  author: ktsaou;  state: Exp;  lines: +406 -281
