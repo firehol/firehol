@@ -10,7 +10,7 @@
 #
 # config: /etc/firehol/firehol.conf
 #
-# $Id: firehol.sh,v 1.144 2003/07/20 22:14:28 ktsaou Exp $
+# $Id: firehol.sh,v 1.145 2003/07/20 22:45:50 ktsaou Exp $
 #
 FIREHOL_FILE="${0}"
 
@@ -557,7 +557,7 @@ rules_emule() {
 	rule ${in} action "$@" chain "${in}_${mychain}" proto "tcp" sport any dport 4662 state NEW,ESTABLISHED || return 1
 	rule ${out} reverse action "$@" chain "${out}_${mychain}" proto "tcp" sport any dport 4662 state ESTABLISHED || return 1
 	
-	# allow outgoing to server tcp/4662
+	# allow outgoing to client tcp/4662
 	rule ${out} reverse action "$@" chain "${out}_${mychain}" proto "tcp" dport any sport 4662 state NEW,ESTABLISHED || return 1
 	rule ${in} action "$@" chain "${in}_${mychain}" proto "tcp" dport any sport 4662 state ESTABLISHED || return 1
 	
@@ -565,7 +565,7 @@ rules_emule() {
 	rule ${in} action "$@" chain "${in}_${mychain}" proto "udp" sport any dport 4672 state NEW,ESTABLISHED || return 1
 	rule ${out} reverse action "$@" chain "${out}_${mychain}" proto "udp" sport any dport 4672 state ESTABLISHED || return 1
 	
-	# allow outgoing to server udp/4672
+	# allow outgoing to client udp/4672
 	rule ${out} reverse action "$@" chain "${out}_${mychain}" proto "udp" dport any sport 4672 state NEW,ESTABLISHED || return 1
 	rule ${in} action "$@" chain "${in}_${mychain}" proto "udp" dport any sport 4672 state ESTABLISHED || return 1
 	
@@ -579,6 +579,42 @@ rules_emule() {
 	
 	return 0
 }
+
+
+# --- HYLAFAX ------------------------------------------------------------------
+# Written by: Franscisco Javier Felix <ffelix@gescosoft.com>
+
+rules_hylafax() {
+        local mychain="${1}"; shift
+	local type="${1}"; shift
+	
+	local in=in
+	local out=out
+	if [ "${type}" = "client" ]
+	then
+		in=out
+		out=in
+	fi
+	
+	local client_ports="${DEFAULT_CLIENT_PORTS}"
+	if [ "${type}" = "client" -a "${work_cmd}" = "interface" ]
+	then
+		client_ports="${LOCAL_CLIENT_PORTS}"
+	fi
+	
+	# ----------------------------------------------------------------------
+	
+	# allow incomming to server tcp/4559
+	rule ${in} action "$@" chain "${in}_${mychain}" proto "tcp" sport any dport 4559 state NEW,ESTABLISHED || return 1
+	rule ${out} reverse action "$@" chain "${out}_${mychain}" proto "tcp" sport any dport 4559 state ESTABLISHED || return 1
+	
+	# allow outgoing to client tcp/4558
+	rule ${out} action "$@" chain "${out}_${mychain}" proto "tcp" sport 4558 dport any state NEW,ESTABLISHED || return 1
+        rule ${in} reverse action "$@" chain "${in}_${mychain}" proto "tcp" sport 4558 dport any state ESTABLISHED || return 1
+	
+	return 0
+}
+
 
 # --- SAMBA --------------------------------------------------------------------
 
@@ -3500,7 +3536,7 @@ case "${arg}" in
 		else
 		
 		${CAT_CMD} <<EOF
-$Id: firehol.sh,v 1.144 2003/07/20 22:14:28 ktsaou Exp $
+$Id: firehol.sh,v 1.145 2003/07/20 22:45:50 ktsaou Exp $
 (C) Copyright 2003, Costa Tsaousis <costa@tsaousis.gr>
 FireHOL is distributed under GPL.
 
@@ -3686,7 +3722,7 @@ then
 	
 	${CAT_CMD} <<EOF
 
-$Id: firehol.sh,v 1.144 2003/07/20 22:14:28 ktsaou Exp $
+$Id: firehol.sh,v 1.145 2003/07/20 22:45:50 ktsaou Exp $
 (C) Copyright 2003, Costa Tsaousis <costa@tsaousis.gr>
 FireHOL is distributed under GPL.
 Home Page: http://firehol.sourceforge.net
@@ -3981,7 +4017,7 @@ then
 	
 	${CAT_CMD} >&2 <<EOF
 
-$Id: firehol.sh,v 1.144 2003/07/20 22:14:28 ktsaou Exp $
+$Id: firehol.sh,v 1.145 2003/07/20 22:45:50 ktsaou Exp $
 (C) Copyright 2003, Costa Tsaousis <costa@tsaousis.gr>
 FireHOL is distributed under GPL.
 Home Page: http://firehol.sourceforge.net
@@ -4074,7 +4110,7 @@ EOF
 	echo "# "
 
 	${CAT_CMD} <<EOF
-# $Id: firehol.sh,v 1.144 2003/07/20 22:14:28 ktsaou Exp $
+# $Id: firehol.sh,v 1.145 2003/07/20 22:45:50 ktsaou Exp $
 # (C) Copyright 2003, Costa Tsaousis <costa@tsaousis.gr>
 # FireHOL is distributed under GPL.
 # Home Page: http://firehol.sourceforge.net

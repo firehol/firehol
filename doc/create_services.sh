@@ -199,6 +199,11 @@ HeartBeat is the Linux clustering solution available <a href="http://www.linux-h
 This FireHOL service has been designed such a way that it will allow multiple heartbeat clusters on the same LAN.
 "
 
+service_hylafax_notes="
+This complex service allows incomming requests to server port tcp/4559 and outgoing <b>from</b> server port tcp/4558.<br>
+The correct operation of this service has not been verified.
+"
+
 service_ident_example="server ident reject with tcp-reset"
 
 
@@ -696,7 +701,7 @@ cat <<"EOF"
 <tr><td align=center valign=middle>
 	<A href="http://sourceforge.net"><IMG src="http://sourceforge.net/sflogo.php?group_id=58425&amp;type=5" width="210" height="62" border="0" alt="SourceForge Logo"></A>
 </td><td align=center valign=middle>
-	<small>$Id: create_services.sh,v 1.33 2003/06/30 22:18:47 ktsaou Exp $</small>
+	<small>$Id: create_services.sh,v 1.34 2003/07/20 22:45:50 ktsaou Exp $</small>
 	<p>
 	<b>FireHOL</b>, a firewall for humans...<br>
 	&copy; Copyright 2003
