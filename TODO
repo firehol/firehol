@@ -1,4 +1,4 @@
-$Id: TODO,v 1.13 2004/09/10 21:45:03 ktsaou Exp $
+$Id: TODO,v 1.14 2004/09/14 19:16:52 ktsaou Exp $
 
 The following is a list of features I plan to add to FireHOL,
 assuming that my time permits and there is demand for them.
@@ -124,4 +124,9 @@ The list appears in no particular order.
     This can be done only for interfaces, when the
     interface policy is 'accept' and should be implemented
     by ignoring the source ports of the request.
+
+22. Support for ratelimiting NEW connections on ACCEPT.
+    This can be done with something:
+
+    server smtp accept with limit 10/s 50
 
