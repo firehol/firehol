@@ -1,8 +1,15 @@
 #!/bin/bash
 
-# $Id: get-iana.sh,v 1.5 2003/08/23 23:26:50 ktsaou Exp $
+# $Id: get-iana.sh,v 1.6 2004/01/10 18:44:39 ktsaou Exp $
 #
 # $Log: get-iana.sh,v $
+# Revision 1.6  2004/01/10 18:44:39  ktsaou
+# Further optimized and reduced PRIVATE_IPS using:
+# http://www.vergenet.net/linux/aggregate/
+#
+# The supplied get-iana.sh uses 'aggregate-flim' if it finds it in the path.
+# (aggregate-flim is the name of this program when installed on Gentoo)
+#
 # Revision 1.5  2003/08/23 23:26:50  ktsaou
 # Bug #793889:
 # Change #!/bin/sh to #!/bin/bash to allow FireHOL run on systems that
@@ -22,11 +29,14 @@ IANA_RESERVED="IANA - Reserved"
 
 LOG="/tmp/log.$$"
 
+test "$1" = "a" && AGGREGATE="`which aggregate-flim 2>/dev/null`"
+
+printf 'RESERVED_IPS="'
+
 wget -O - --proxy=off "${IPV4_ADDRESS_SPACE_URL}" 2>>$LOG	|\
 	grep "${IANA_RESERVED}"					|\
 	cut -d ' ' -f 1						|\
 (
-	printf 'RESERVED_IPS="'
 	
 	while IFS="/" read range net
 	do
@@ -44,14 +54,29 @@ wget -O - --proxy=off "${IPV4_ADDRESS_SPACE_URL}" 2>>$LOG	|\
 		x=$first
 		while [ ! $x -gt $last ]
 		do
-			printf "$x.0.0.0/$net "
+			echo "$x.0.0.0/$net"
 			x=$[x + 1]
 		done
 	done
-	
-	printf '"'
-	echo
+) | \
+(
+	if [ ! -z "${AGGREGATE}" -a -x "${AGGREGATE}" ]
+	then
+		"${AGGREGATE}" | (
+			while read x
+			do
+				printf "$x "
+			done
+		)
+	else
+		while read x
+		do
+			printf "$x "
+		done
+	fi
 )
+printf '"'
+echo
 
 echo
 echo "Press enter to view the log..."

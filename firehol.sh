@@ -10,7 +10,7 @@
 #
 # config: /etc/firehol/firehol.conf
 #
-# $Id: firehol.sh,v 1.175 2004/01/02 22:32:28 ktsaou Exp $
+# $Id: firehol.sh,v 1.176 2004/01/10 18:44:39 ktsaou Exp $
 #
 
 # Remember who you are.
@@ -86,7 +86,9 @@ UNIQ_CMD=`which_cmd uniq`
 # IANA Reserved IPv4 address space
 # Suggested by Fco.Felix Belmonte <ffelix@gescosoft.com>
 # Optimized (CIDR) by Marc 'HE' Brockschmidt <marc@marcbrockschmidt.de>
-RESERVED_IPS="0.0.0.0/7 2.0.0.0/8 5.0.0.0/8 7.0.0.0/8 23.0.0.0/8 27.0.0.0/8 31.0.0.0/8 36.0.0.0/8 37.0.0.0/8 39.0.0.0/8 41.0.0.0/8 42.0.0.0/8 58.0.0.0/8 59.0.0.0/8 70.0.0.0/7 72.0.0.0/5 83.0.0.0/8 84.0.0.0/6 88.0.0.0/5 96.0.0.0/3 173.0.0.0/8 174.0.0.0/7 176.0.0.0/5 184.0.0.0/6 189.0.0.0/8 190.0.0.0/8 197.0.0.0/8 223.0.0.0/8 240.0.0.0/4"
+# Further optimized and reduced by http://www.vergenet.net/linux/aggregate/
+# The supplied get-iana.sh uses 'aggregate-flim' if it finds it in the path.
+RESERVED_IPS="0.0.0.0/7 2.0.0.0/8 5.0.0.0/8 7.0.0.0/8 23.0.0.0/8 27.0.0.0/8 31.0.0.0/8 36.0.0.0/7 39.0.0.0/8 41.0.0.0/8 42.0.0.0/8 58.0.0.0/7 70.0.0.0/7 72.0.0.0/5 85.0.0.0/8 86.0.0.0/7 88.0.0.0/5 96.0.0.0/3 173.0.0.0/8 174.0.0.0/7 176.0.0.0/5 184.0.0.0/6 189.0.0.0/8 190.0.0.0/8 197.0.0.0/8 223.0.0.0/8 240.0.0.0/4"
 
 # Private IPv4 address space
 # Suggested by Fco.Felix Belmonte <ffelix@gescosoft.com>
@@ -4022,7 +4024,7 @@ case "${arg}" in
 		else
 		
 		${CAT_CMD} <<EOF
-$Id: firehol.sh,v 1.175 2004/01/02 22:32:28 ktsaou Exp $
+$Id: firehol.sh,v 1.176 2004/01/10 18:44:39 ktsaou Exp $
 (C) Copyright 2003, Costa Tsaousis <costa@tsaousis.gr>
 FireHOL is distributed under GPL.
 
@@ -4208,7 +4210,7 @@ then
 	
 	${CAT_CMD} <<EOF
 
-$Id: firehol.sh,v 1.175 2004/01/02 22:32:28 ktsaou Exp $
+$Id: firehol.sh,v 1.176 2004/01/10 18:44:39 ktsaou Exp $
 (C) Copyright 2003, Costa Tsaousis <costa@tsaousis.gr>
 FireHOL is distributed under GPL.
 Home Page: http://firehol.sourceforge.net
@@ -4503,7 +4505,7 @@ then
 	
 	${CAT_CMD} >&2 <<EOF
 
-$Id: firehol.sh,v 1.175 2004/01/02 22:32:28 ktsaou Exp $
+$Id: firehol.sh,v 1.176 2004/01/10 18:44:39 ktsaou Exp $
 (C) Copyright 2003, Costa Tsaousis <costa@tsaousis.gr>
 FireHOL is distributed under GPL.
 Home Page: http://firehol.sourceforge.net
@@ -4586,7 +4588,7 @@ EOF
 	echo "# "
 
 	${CAT_CMD} <<EOF
-# $Id: firehol.sh,v 1.175 2004/01/02 22:32:28 ktsaou Exp $
+# $Id: firehol.sh,v 1.176 2004/01/10 18:44:39 ktsaou Exp $
 # (C) Copyright 2003, Costa Tsaousis <costa@tsaousis.gr>
 # FireHOL is distributed under GPL.
 # Home Page: http://firehol.sourceforge.net
