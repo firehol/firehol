@@ -64,8 +64,6 @@ install -m 644 examples/server-dmz.conf /etc/firehol/examples/server-dmz.conf
 install -m 644 examples/client-all.conf /etc/firehol/examples/client-all.conf
 
 %pre
-test ! -d /etc/firehol && mkdir /etc/firehol
-test ! -d /etc/firehol/examples && mkdir /etc/firehol/examples
 
 %post
 if [ -f /etc/firehol.conf ]
@@ -91,6 +89,9 @@ rm -rf ${RPM_BUILD_DIR}/%{name}-%{version}
 %files
 %defattr(-,root,root)
 %doc README TODO COPYING ChangeLog
+
+%dir /etc/firehol
+%dir /etc/firehol/examples
 
 /etc/init.d/firehol
 /usr/man/man1/firehol.1.gz
