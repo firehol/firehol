@@ -10,9 +10,14 @@
 #
 # config: /etc/firehol.conf
 #
-# $Id: firehol.sh,v 1.12 2002/10/28 18:45:54 ktsaou Exp $
+# $Id: firehol.sh,v 1.13 2002/10/28 19:47:02 ktsaou Exp $
 #
 # $Log: firehol.sh,v $
+# Revision 1.13  2002/10/28 19:47:02  ktsaou
+# Protection has been extented to work on routers too.
+# Made a few minor aesthetic changes on the generated code. Now in/out chains
+# on routers match the inface/outface correctly.
+#
 # Revision 1.12  2002/10/28 18:45:54  ktsaou
 # Added support for ICMP floods protection and from BAD TCP flags protection.
 # This was suggested by: Fco.Felix Belmonte (ffelix@gescosoft.com).
@@ -414,7 +419,7 @@ rules_samba() {
 	
 	local in=in
 	local out=out
-	if [ "${type}" = "route" -o "${type}" = "client" ]
+	if [ "${type}" = "client" ]
 	then
 		in=out
 		out=in
@@ -454,7 +459,7 @@ rules_pptp() {
 	
 	local in=in
 	local out=out
-	if [ "${type}" = "route" -o "${type}" = "client" ]
+	if [ "${type}" = "client" ]
 	then
 		in=out
 		out=in
@@ -492,7 +497,7 @@ rules_nfs() {
 	
 	local in=in
 	local out=out
-	if [ "${type}" = "route" -o "${type}" = "client" ]
+	if [ "${type}" = "client" ]
 	then
 		in=out
 		out=in
@@ -512,7 +517,7 @@ rules_nfs() {
 	local action="${1}"; shift
 	local servers="localhost"
 	
-	if [ "${type}" = "route" -o "${type}" = "client" ]
+	if [ "${type}" = "client" ]
 	then
 		case "${1}" in
 			dst|DST|destination|DESTINATION)
@@ -577,7 +582,7 @@ rules_dns() {
 	
 	local in=in
 	local out=out
-	if [ "${type}" = "route" -o "${type}" = "client" ]
+	if [ "${type}" = "client" ]
 	then
 		in=out
 		out=in
@@ -620,7 +625,7 @@ rules_ftp() {
 	
 	local in=in
 	local out=out
-	if [ "${type}" = "route" -o "${type}" = "client" ]
+	if [ "${type}" = "client" ]
 	then
 		in=out
 		out=in
@@ -684,7 +689,7 @@ rules_icmp() {
 	
 	local in=in
 	local out=out
-	if [ "${type}" = "route" -o "${type}" = "client" ]
+	if [ "${type}" = "client" ]
 	then
 		in=out
 		out=in
@@ -722,7 +727,7 @@ rules_all() {
 	
 	local in=in
 	local out=out
-	if [ "${type}" = "route" -o "${type}" = "client" ]
+	if [ "${type}" = "client" ]
 	then
 		in=out
 		out=in
@@ -1012,8 +1017,8 @@ router() {
 	work_cmd="${FUNCNAME}"
 	work_name="${name}"
 	
-	create_chain in_${work_name} FORWARD reverse "$@"
-	create_chain out_${work_name} FORWARD "$@"
+	create_chain in_${work_name} FORWARD "$@"
+	create_chain out_${work_name} FORWARD reverse "$@"
 	
 	return 0
 }
@@ -1796,7 +1801,7 @@ rules_custom() {
 	
 	local in=in
 	local out=out
-	if [ "${type}" = "route" -o "${type}" = "client" ]
+	if [ "${type}" = "client" ]
 	then
 		in=out
 		out=in
@@ -1848,7 +1853,7 @@ protection() {
 	local rate="${2}"
 	local burst="${3}"
 	
-	require_work set interface || return 1
+	require_work set any || return 1
 	
 	test -z "${rate}"  && rate="100/s"
 	test -z "${burst}" && burst="4"
@@ -1868,46 +1873,46 @@ protection() {
 				
 			fragments|FRAGMENTS)
 				local mychain="pr_${work_name}_fragments"
-				create_chain ${mychain} in_${work_name} custom "-f"							|| return 1
+				create_chain ${mychain} in_${work_name} custom "-f"					|| return 1
 				
-				rule chain ${mychain} loglimit "PACKET FRAGMENTS" action drop 						|| return 1
+				rule chain ${mychain} loglimit "PACKET FRAGMENTS" action drop 				|| return 1
 				;;
 				
 			new-tcp-w/o-syn|NEW-TCP-W/O-SYN)
 				local mychain="pr_${work_name}_nosyn"
-				create_chain ${mychain} in_${work_name} proto tcp state NEW custom "! --syn"				|| return 1
+				create_chain ${mychain} in_${work_name} proto tcp state NEW custom "! --syn"		|| return 1
 				
-				rule chain ${mychain} loglimit "NEW TCP w/o SYN" action drop						|| return 1
+				rule chain ${mychain} loglimit "NEW TCP w/o SYN" action drop				|| return 1
 				;;
 				
 			icmp-floods|ICMP-FLOODS)
 				local mychain="pr_${work_name}_icmpflood"
-				create_chain ${mychain} in_${work_name} proto icmp custom "--icmp-type echo-request"			|| return 1
+				create_chain ${mychain} in_${work_name} proto icmp custom "--icmp-type echo-request"	|| return 1
 				
-				rule chain ${mychain} limit "${rate}" "${burst}" action return						|| return 1
-				rule chain ${mychain} loglimit "ICMP FLOOD" action drop							|| return 1
+				rule chain ${mychain} limit "${rate}" "${burst}" action return				|| return 1
+				rule chain ${mychain} loglimit "ICMP FLOOD" action drop					|| return 1
 				;;
 				
 			syn-floods|SYN-FLOODS)
 				local mychain="pr_${work_name}_synflood"
-				create_chain ${mychain} in_${work_name} proto tcp custom "--syn"					|| return 1
+				create_chain ${mychain} in_${work_name} proto tcp custom "--syn"			|| return 1
 				
-				rule chain ${mychain} limit "${rate}" "${burst}" action return						|| return 1
-				rule chain ${mychain} loglimit "SYN FLOOD" action drop							|| return 1
+				rule chain ${mychain} limit "${rate}" "${burst}" action return				|| return 1
+				rule chain ${mychain} loglimit "SYN FLOOD" action drop					|| return 1
 				;;
 				
 			malformed-xmas|MALFORMED-XMAS)
 				local mychain="pr_${work_name}_malxmas"
-				create_chain ${mychain} in_${work_name} proto tcp custom "--tcp-flags ALL ALL"				|| return 1
+				create_chain ${mychain} in_${work_name} proto tcp custom "--tcp-flags ALL ALL"		|| return 1
 				
-				rule chain ${mychain} loglimit "MALFORMED XMAS" action drop						|| return 1
+				rule chain ${mychain} loglimit "MALFORMED XMAS" action drop				|| return 1
 				;;
 				
 			malformed-null|MALFORMED-NULL)
 				local mychain="pr_${work_name}_malnull"
-				create_chain ${mychain} in_${work_name} proto tcp custom "--tcp-flags ALL NONE"				|| return 1
+				create_chain ${mychain} in_${work_name} proto tcp custom "--tcp-flags ALL NONE"		|| return 1
 				
-				rule chain ${mychain} loglimit "MALFORMED NULL" action drop						|| return 1
+				rule chain ${mychain} loglimit "MALFORMED NULL" action drop				|| return 1
 				;;
 				
 			malformed-bad|MALFORMED-BAD)
