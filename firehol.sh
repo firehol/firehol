@@ -10,7 +10,7 @@
 #
 # config: /etc/firehol/firehol.conf
 #
-# $Id: firehol.sh,v 1.224 2005/01/24 22:24:48 ktsaou Exp $
+# $Id: firehol.sh,v 1.225 2005/01/25 21:07:01 ktsaou Exp $
 #
 
 # Make sure only root can run us.
@@ -114,7 +114,7 @@ ${RENICE_CMD} 10 $$ >/dev/null 2>/dev/null
 # Find our minor version
 firehol_minor_version() {
 ${CAT_CMD} <<"EOF" | ${CUT_CMD} -d ' ' -f 3 | ${CUT_CMD} -d '.' -f 2
-$Id: firehol.sh,v 1.224 2005/01/24 22:24:48 ktsaou Exp $
+$Id: firehol.sh,v 1.225 2005/01/25 21:07:01 ktsaou Exp $
 EOF
 }
 
@@ -144,7 +144,7 @@ ${IPTABLES_CMD} -nxvL >/dev/null 2>&1
 # Directories and files
 
 # These files will be created and deleted during our run.
-FIREHOL_DIR="/tmp/firehol-tmp-$$"
+FIREHOL_DIR="/tmp/.firehol-tmp-$$-${RANDOM}-${RANDOM}"
 FIREHOL_CHAINS_DIR="${FIREHOL_DIR}/chains"
 FIREHOL_OUTPUT="${FIREHOL_DIR}/firehol-out.sh"
 FIREHOL_SAVED="${FIREHOL_DIR}/firehol-save.sh"
@@ -1055,7 +1055,7 @@ rules_nfs() {
 	local x=
 	for x in ${servers}
 	do
-		local tmp="${FIREHOL_DIR}/firehol.rpcinfo.$$"
+		local tmp="${FIREHOL_DIR}/firehol.rpcinfo.$$.${RANDOM}"
 		
 		set_work_function "Getting RPC information from server '${x}'"
 		
@@ -1169,7 +1169,7 @@ rules_nis() {
 	local x=
 	for x in ${servers}
 	do
-		local tmp="${FIREHOL_DIR}/firehol.rpcinfo.$$"
+		local tmp="${FIREHOL_DIR}/firehol.rpcinfo.$$.${RANDOM}"
 		
 		set_work_function "Getting RPC information from server '${x}'"
 		
@@ -2567,9 +2567,9 @@ KERNEL_CONFIG=
 if [ -f "/proc/config" ]
 then
 	KERNEL_CONFIG="/proc/config"
-	${CAT_CMD} /proc/config >/tmp/kcfg.$$
-	source /tmp/kcfg.$$
-	${RM_CMD} -f /tmp/kcfg.$$
+	${CAT_CMD} /proc/config >${FIREHOL_DIR}/kcfg
+	source ${FIREHOL_DIR}/kcfg
+	${RM_CMD} -f ${FIREHOL_DIR}/kcfg
 	
 elif [ -f "/lib/modules/`${UNAME_CMD} -r`/build/.config" ]
 then
@@ -5121,7 +5121,7 @@ case "${arg}" in
 		else
 		
 		${CAT_CMD} <<EOF
-$Id: firehol.sh,v 1.224 2005/01/24 22:24:48 ktsaou Exp $
+$Id: firehol.sh,v 1.225 2005/01/25 21:07:01 ktsaou Exp $
 (C) Copyright 2003, Costa Tsaousis <costa@tsaousis.gr>
 FireHOL is distributed under GPL.
 
@@ -5307,7 +5307,7 @@ then
 	
 	${CAT_CMD} <<EOF
 
-$Id: firehol.sh,v 1.224 2005/01/24 22:24:48 ktsaou Exp $
+$Id: firehol.sh,v 1.225 2005/01/25 21:07:01 ktsaou Exp $
 (C) Copyright 2003, Costa Tsaousis <costa@tsaousis.gr>
 FireHOL is distributed under GPL.
 Home Page: http://firehol.sourceforge.net
@@ -5601,7 +5601,7 @@ then
 	
 	"${CAT_CMD}" >&2 <<EOF
 
-$Id: firehol.sh,v 1.224 2005/01/24 22:24:48 ktsaou Exp $
+$Id: firehol.sh,v 1.225 2005/01/25 21:07:01 ktsaou Exp $
 (C) Copyright 2003, Costa Tsaousis <costa@tsaousis.gr>
 FireHOL is distributed under GPL.
 Home Page: http://firehol.sourceforge.net
@@ -5684,7 +5684,7 @@ EOF
 	echo "# "
 
 	${CAT_CMD} <<EOF
-# $Id: firehol.sh,v 1.224 2005/01/24 22:24:48 ktsaou Exp $
+# $Id: firehol.sh,v 1.225 2005/01/25 21:07:01 ktsaou Exp $
 # (C) Copyright 2003, Costa Tsaousis <costa@tsaousis.gr>
 # FireHOL is distributed under GPL.
 # Home Page: http://firehol.sourceforge.net
