@@ -10,7 +10,7 @@
 #
 # config: /etc/firehol.conf
 #
-# $Id: firehol.sh,v 1.48 2002/12/18 00:35:42 ktsaou Exp $
+# $Id: firehol.sh,v 1.49 2002/12/18 20:18:53 ktsaou Exp $
 #
 
 # ------------------------------------------------------------------------------
@@ -133,7 +133,7 @@ case "${arg}" in
 		else
 		
 		cat <<"EOF"
-$Id: firehol.sh,v 1.48 2002/12/18 00:35:42 ktsaou Exp $
+$Id: firehol.sh,v 1.49 2002/12/18 20:18:53 ktsaou Exp $
 (C) Copyright 2002, Costa Tsaousis
 FireHOL is distributed under GPL.
 
@@ -850,6 +850,9 @@ rules_ftp() {
 		client_ports="${LOCAL_CLIENT_PORTS}"
 	fi
 	
+	# For an explanation of how FTP connections work, see
+	# http://slacksite.com/other/ftp.html
+	
 	# ----------------------------------------------------------------------
 	
 	# allow new and established incoming, and established outgoing
@@ -859,8 +862,11 @@ rules_ftp() {
 	
 	# Active FTP
 	# send port ftp-data related connections
-	rule action "$@" chain "${out}_${mychain}" proto tcp sport ftp-data dport "${client_ports}" state ESTABLISHED,RELATED || return 1
-	rule reverse action "$@" chain "${in}_${mychain}" proto tcp sport ftp-data dport "${client_ports}" state ESTABLISHED || return 1
+	
+	set_work_function "Setting up rules for Active FTP ${type}"
+	
+	rule reverse action "$@" chain "${out}_${mychain}" proto tcp sport "${client_ports}" dport ftp-data state ESTABLISHED,RELATED || return 1
+	rule action "$@" chain "${in}_${mychain}" proto tcp sport "${client_ports}" dport ftp-data state ESTABLISHED || return 1
 	
 	# ----------------------------------------------------------------------
 	
@@ -878,6 +884,8 @@ rules_ftp() {
 	
 	# Passive FTP
 	# accept high-ports related connections
+	set_work_function "Setting up rules for Passive FTP ${type}"
+	
 	rule action "$@" chain "${in}_${mychain}" proto tcp sport "${c_client_ports}" dport "${s_client_ports}" state ESTABLISHED,RELATED || return 1
 	rule reverse action "$@" chain "${out}_${mychain}" proto tcp sport "${c_client_ports}" dport "${s_client_ports}" state ESTABLISHED || return 1
 	
@@ -2430,7 +2438,7 @@ then
 	version ${FIREHOL_VERSION}
 	
 	cat <<"EOF"
-$Id: firehol.sh,v 1.48 2002/12/18 00:35:42 ktsaou Exp $
+$Id: firehol.sh,v 1.49 2002/12/18 20:18:53 ktsaou Exp $
 (C) Copyright 2002, Costa Tsaousis
 FireHOL is distributed under GPL.
 Home Page: http://firehol.sourceforge.net
