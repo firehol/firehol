@@ -13,7 +13,7 @@
 # ------------------------------------------------------------------------------
 # Copied from /etc/init.d/iptables
 
-# On on RedHat machines we need success and failure
+# On non RedHat machines we need success() and failure()
 success() {
 	echo " OK"
 }
@@ -21,6 +21,7 @@ failure() {
 	echo " FAILED"
 }
 
+# On RedHat systems this will define success() and failure()
 test -f /etc/init.d/functions && . /etc/init.d/functions
 
 if [ ! -x /sbin/iptables ]; then
@@ -106,7 +107,6 @@ case "${arg}" in
 		exit $ret
 		;;
 esac
-shift
 
 
 # ------------------------------------------------------------------------------
@@ -119,11 +119,18 @@ shift
 # XXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXX
 # ------------------------------------------------------------------------------
 
-# The default policy for the firewall.
-# If you decide to change this, make sure this does not allow access
-# (i.e. use DROP, REJECT, MIRROR, etc. - not ACCEPT, RETURN, etc).
+# The default policy for the interface commands of the firewall.
 DEFAULT_INTERFACE_POLICY="DROP"
-DEFAULT_ROUTER_POLICY="DROP"
+
+# What to do with unmatched packets?
+UNMATCHED_INPUT_POLICY="DROP"
+UNMATCHED_OUTPUT_POLICY="DROP"
+UNMATCHED_ROUTER_POLICY="DROP"
+
+# Custom rules may add themeselves to this variable so that
+# the service all will also call them.
+# By default it is empty - only rules programmers should change this.
+ALL_SHOULD_ALSO_RUN=
 
 # The client ports to be used for "default" client ports when the client
 # specified is a foreign host.
@@ -191,11 +198,6 @@ client_smtp_ports="default"
 
 server_ident_ports="tcp/auth"
 client_ident_ports="default"
-
-# DNS is now statefull on TCP and not statefull on UDP.
-# See rules_DNS() bellow.
-# server_dns_ports="tcp/domain udp/domain"
-# client_dns_ports="default domain"
 
 server_imap_ports="tcp/imap"
 client_imap_ports="default"
@@ -467,45 +469,6 @@ rules_nfs() {
 }
 
 
-# --- ALL ----------------------------------------------------------------------
-
-rules_all() {
-	local type="${1}"; shift
-	
-	local mychain="${work_name}_all_${type}"
-	
-	create_chain in_${mychain} in_${work_name}
-	create_chain out_${mychain} out_${work_name}
-	
-	local in=in
-	local out=out
-	if [ "${type}" = "route" -o "${type}" = "client" ]
-	then
-		in=out
-		out=in
-	fi
-	
-	local client_ports="${DEFAULT_CLIENT_PORTS}"
-	if [ "${type}" = "client" ]
-	then
-		client_ports="${LOCAL_CLIENT_PORTS}"
-	fi
-	
-	# ----------------------------------------------------------------------
-	
-	# allow new and established incoming packets
-	rule action "$@" chain ${in}_${mychain} state NEW,ESTABLISHED || return 1
-	
-	# allow outgoing established packets
-	rule reverse action "$@" chain ${out}_${mychain} state ESTABLISHED || return 1
-	
-	"${type}" icmp "$@"
-	"${type}" ftp "$@"
-	
-	return 0
-}
-
-
 # --- DNS ----------------------------------------------------------------------
 
 rules_dns() {
@@ -532,10 +495,10 @@ rules_dns() {
 	
 	# ----------------------------------------------------------------------
 	
-	# UDP: allow new and established incoming packets
+	# UDP: allow all incoming DNS packets
 	rule action "$@" chain ${in}_${mychain} proto udp dport domain || return 1
 	
-	# UDP: allow outgoing established packets
+	# UDP: allow all outgoing DNS packets
 	rule reverse action "$@" chain ${out}_${mychain} proto udp dport domain || return 1
 	
 	# TCP: allow new and established incoming packets
@@ -548,6 +511,8 @@ rules_dns() {
 }
 
 # --- FTP ----------------------------------------------------------------------
+
+ALL_SHOULD_ALSO_RUN="${ALL_SHOULD_ALSO_RUN} ftp"
 
 rules_ftp() {
 	local type="${1}"; shift
@@ -608,6 +573,8 @@ rules_ftp() {
 
 # --- ICMP ---------------------------------------------------------------------
 
+ALL_SHOULD_ALSO_RUN="${ALL_SHOULD_ALSO_RUN} icmp"
+
 rules_icmp() {
 	local type="${1}"; shift
 	
@@ -642,6 +609,49 @@ rules_icmp() {
 	
 	return 0
 }
+
+
+# --- ALL ----------------------------------------------------------------------
+
+rules_all() {
+	local type="${1}"; shift
+	
+	local mychain="${work_name}_all_${type}"
+	
+	create_chain in_${mychain} in_${work_name}
+	create_chain out_${mychain} out_${work_name}
+	
+	local in=in
+	local out=out
+	if [ "${type}" = "route" -o "${type}" = "client" ]
+	then
+		in=out
+		out=in
+	fi
+	
+	local client_ports="${DEFAULT_CLIENT_PORTS}"
+	if [ "${type}" = "client" ]
+	then
+		client_ports="${LOCAL_CLIENT_PORTS}"
+	fi
+	
+	# ----------------------------------------------------------------------
+	
+	# allow new and established incoming packets
+	rule action "$@" chain ${in}_${mychain} state NEW,ESTABLISHED || return 1
+	
+	# allow outgoing established packets
+	rule reverse action "$@" chain ${out}_${mychain} state ESTABLISHED || return 1
+	
+	local ser=
+	for ser in ${ALL_SHOULD_ALSO_RUN}
+	do
+		"${type}" ${ser} "$@" || return 1
+	done
+	
+	return 0
+}
+
 
 # ------------------------------------------------------------------------------
 # XXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXX
@@ -906,9 +916,9 @@ close_router() {
 }
 
 close_master() {
-	rule chain INPUT loglimit "IN-unknown" action DROP
-	rule chain OUTPUT loglimit "OUT-unknown" action DROP
-	rule chain FORWARD loglimit "PASS-unknown" action DROP
+	rule chain INPUT loglimit "IN-unknown" action ${UNMATCHED_INPUT_POLICY}
+	rule chain OUTPUT loglimit "OUT-unknown" action ${UNMATCHED_OUTPUT_POLICY}
+	rule chain FORWARD loglimit "PASS-unknown" action ${UNMATCHED_ROUTER_POLICY}
 	return 0
 }
 
@@ -1780,9 +1790,9 @@ fi
 close_cmd					|| ret=$[ret + 1]
 close_master					|| ret=$[ret + 1]
 
-iptables -P INPUT ${DEFAULT_INTERFACE_POLICY}	|| ret=$[ret + 1]
-iptables -P OUTPUT ${DEFAULT_INTERFACE_POLICY}	|| ret=$[ret + 1]
-iptables -P FORWARD ${DEFAULT_ROUTER_POLICY}	|| ret=$[ret + 1]
+iptables -P INPUT DROP				|| ret=$[ret + 1]
+iptables -P OUTPUT DROP				|| ret=$[ret + 1]
+iptables -P FORWARD DROP			|| ret=$[ret + 1]
 
 iptables -t nat -P PREROUTING ACCEPT		|| ret=$[ret + 1]
 iptables -t nat -P POSTROUTING ACCEPT		|| ret=$[ret + 1]
