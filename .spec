@@ -41,6 +41,7 @@ install -c -m 640 examples/client-all.conf /etc/firehol.conf
 %pre
 
 %post
+/sbin/chkconfig --del firehol
 /sbin/chkconfig --add firehol
 
 %preun

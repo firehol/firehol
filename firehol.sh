@@ -10,7 +10,7 @@
 #
 # config: /etc/firehol.conf
 #
-# $Id: firehol.sh,v 1.59 2002/12/31 09:10:15 ktsaou Exp $
+# $Id: firehol.sh,v 1.60 2003/01/01 03:12:17 ktsaou Exp $
 #
 
 # ------------------------------------------------------------------------------
@@ -155,7 +155,7 @@ case "${arg}" in
 		else
 		
 		cat <<"EOF"
-$Id: firehol.sh,v 1.59 2002/12/31 09:10:15 ktsaou Exp $
+$Id: firehol.sh,v 1.60 2003/01/01 03:12:17 ktsaou Exp $
 (C) Copyright 2002, Costa Tsaousis <costa@tsaousis.gr>
 FireHOL is distributed under GPL.
 
@@ -1105,8 +1105,8 @@ rules_multicast() {
 	# ----------------------------------------------------------------------
 	
 	# match multicast packets in both directions
-	rule action "$@" chain "${out}_${mychain}" dst "224.0.0.0/8" || return 1
-	rule reverse action "$@" chain "${in}_${mychain}" src "224.0.0.0/8" || return 1
+	rule action "$@" chain "${out}_${mychain}" dst "224.0.0.0/8" proto 2 || return 1
+	rule reverse action "$@" chain "${in}_${mychain}" src "224.0.0.0/8" proto 2 || return 1
 	
 	return 0
 }
@@ -2084,56 +2084,46 @@ rule() {
 		esac
 	done
 	
-	# we cannot accept empty strings to a few parameters, since this
-	# will prevent us from generating a rule (due to nested BASH loops).
-	
 	local action_is_chain=0
 	case "${action}" in
 		accept|ACCEPT)
 			action=ACCEPT
-			test ! -z "${with}" && error "Parameter 'with' cannot be used on action '${action}'."
-			with=
 			;;
 			
 		deny|DENY)
 			action=DROP
-			test ! -z "${with}" && error "Parameter 'with' cannot be used on action '${action}'."
-			with=
 			;;
 			
 		reject|REJECT)
 			action=REJECT
-			test ! -z "${with}" && with="--reject-with ${with}"
+			
+			# If the user did not specified a rejection message,
+			# we have to be smart and produce a tcp-reset if the protocol
+			# is TCP and an ICMP port unreachable in all other cases.
+			# The special case here is the protocol "any".
+			# To accomplish the differentiation based on protocol we have
+			# to change the protocol "any" to "tcp any"
+			
+			test -z "${with}" -a "${proto}" = "any" && proto="tcp any"
 			;;
 			
 		drop|DROP)
 			action=DROP
-			test ! -z "${with}" && error "Parameter 'with' cannot be used on action '${action}'."
-			with=
 			;;
 			
 		return|RETURN)
 			action=RETURN
-			test ! -z "${with}" && error "Parameter 'with' cannot be used on action '${action}'."
-			with=
 			;;
 			
 		mirror|MIRROR)
 			action=MIRROR
-			test ! -z "${with}" && error "Parameter 'with' cannot be used on action '${action}'."
-			with=
 			;;
 			
 		none|NONE)
 			action=NONE
-			test ! -z "${with}" && error "Parameter 'with' cannot be used on action '${action}'."
-			with=
 			;;
 			
 		*)
-			test ! -z "${with}" && error "Parameter 'with' cannot be used on action '${action}'."
-			with=
-			
 			chain_exists "${action}"
 			local action_is_chain=$?
 			;;
@@ -2266,14 +2256,15 @@ rule() {
 	# ----------------------------------------------------------------------------------
 	# Process the positive rules
 	
-	# some sanity check for the error handler
-	test -z "${inface}" && error "Cannot accept an empty 'inface'." && return 1
-	test -z "${outface}" && error "Cannot accept an empty 'outface'." && return 1
-	test -z "${src}" && error "Cannot accept an empty 'src'." && return 1
-	test -z "${dst}" && error "Cannot accept an empty 'dst'." && return 1
-	test -z "${sport}" && error "Cannot accept an empty 'sport'." && return 1
-	test -z "${dport}" && error "Cannot accept an empty 'dport'." && return 1
-	test -z "${proto}" && error "Cannot accept an empty 'proto'." && return 1
+	# we cannot accept empty strings to a few parameters, since this
+	# will prevent us from generating a rule (due to nested BASH loops).
+	test -z "${inface}"	&& error "Cannot accept an empty 'inface'."	&& return 1
+	test -z "${outface}"	&& error "Cannot accept an empty 'outface'."	&& return 1
+	test -z "${src}"	&& error "Cannot accept an empty 'src'."	&& return 1
+	test -z "${dst}"	&& error "Cannot accept an empty 'dst'."	&& return 1
+	test -z "${sport}"	&& error "Cannot accept an empty 'sport'."	&& return 1
+	test -z "${dport}"	&& error "Cannot accept an empty 'dport'."	&& return 1
+	test -z "${proto}"	&& error "Cannot accept an empty 'proto'."	&& return 1
 	
 	
 	local pr=
@@ -2286,7 +2277,7 @@ rule() {
 				;;
 			
 			*)
-				local -a proto_arg=("-p" "${proto}")
+				local -a proto_arg=("-p" "${pr}")
 				;;
 		esac
 			
@@ -2405,11 +2396,33 @@ rule() {
 										;;
 								esac
 								
-								if [ ! "${action}" = NONE ]
-								then
-									iptables ${table} -A "${chain}" "${basecmd[@]}" ${custom} -j "${action}" ${with}
-									test $? -gt 0 && failed=$[failed + 1]
-								fi
+								# Do the rule
+								case "${action}" in
+									NONE)
+										;;
+									
+									REJECT)
+										local with_arg=
+										if [ ! -z "${with}" ]
+										then
+											with_arg="--reject-with ${with}"
+										else
+											if [ "${pr}" = "tcp" -o "${pr}" = "TCP" ]
+											then
+												with_arg="--reject-with tcp-reset"
+											fi
+										fi
+										
+										iptables ${table} -A "${chain}" "${basecmd[@]}" ${custom} -j "${action}" ${with_arg}
+										test $? -gt 0 && failed=$[failed + 1]
+										;;
+									
+									*)
+										test ! -z "${with}" && error "Parameter 'with' cannot be used on action '${action}'."
+										iptables ${table} -A "${chain}" "${basecmd[@]}" ${custom} -j "${action}"
+										test $? -gt 0 && failed=$[failed + 1]
+										;;
+								esac
 							done
 						done
 					done
@@ -2671,7 +2684,7 @@ then
 	
 	cat <<"EOF"
 
-$Id: firehol.sh,v 1.59 2002/12/31 09:10:15 ktsaou Exp $
+$Id: firehol.sh,v 1.60 2003/01/01 03:12:17 ktsaou Exp $
 (C) Copyright 2002, Costa Tsaousis <costa@tsaousis.gr>
 FireHOL is distributed under GPL.
 Home Page: http://firehol.sourceforge.net
