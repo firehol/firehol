@@ -10,7 +10,7 @@
 #
 # config: /etc/firehol.conf
 #
-# $Id: firehol.sh,v 1.70 2003/01/08 23:33:25 ktsaou Exp $
+# $Id: firehol.sh,v 1.71 2003/01/13 23:31:03 ktsaou Exp $
 #
 
 
@@ -452,14 +452,14 @@ rules_samba() {
 	# ----------------------------------------------------------------------
 	
 	# allow new and established incoming packets
-	rule action "$@" chain "${in}_${mychain}" proto "udp" sport "netbios-ns ${client_ports}"  dport "netbios-ns" state NEW,ESTABLISHED || return 1
-	rule action "$@" chain "${in}_${mychain}" proto "udp" sport "netbios-dgm ${client_ports}" dport "netbios-dgm" state NEW,ESTABLISHED || return 1
-	rule action "$@" chain "${in}_${mychain}" proto "tcp" sport "${client_ports}" dport "netbios-ssn" state NEW,ESTABLISHED || return 1
+	rule ${in} action "$@" chain "${in}_${mychain}" proto "udp" sport "netbios-ns ${client_ports}"  dport "netbios-ns" state NEW,ESTABLISHED || return 1
+	rule ${in} action "$@" chain "${in}_${mychain}" proto "udp" sport "netbios-dgm ${client_ports}" dport "netbios-dgm" state NEW,ESTABLISHED || return 1
+	rule ${in} action "$@" chain "${in}_${mychain}" proto "tcp" sport "${client_ports}" dport "netbios-ssn" state NEW,ESTABLISHED || return 1
 	
 	# allow outgoing established packets
-	rule reverse action "$@" chain "${out}_${mychain}" proto "udp" sport "netbios-ns ${client_ports}"  dport "netbios-ns" state ESTABLISHED || return 1
-	rule reverse action "$@" chain "${out}_${mychain}" proto "udp" sport "netbios-dgm ${client_ports}" dport "netbios-dgm" state ESTABLISHED || return 1
-	rule reverse action "$@" chain "${out}_${mychain}" proto "tcp" sport "${client_ports}" dport "netbios-ssn" state ESTABLISHED || return 1
+	rule ${out} reverse action "$@" chain "${out}_${mychain}" proto "udp" sport "netbios-ns ${client_ports}"  dport "netbios-ns" state ESTABLISHED || return 1
+	rule ${out} reverse action "$@" chain "${out}_${mychain}" proto "udp" sport "netbios-dgm ${client_ports}" dport "netbios-dgm" state ESTABLISHED || return 1
+	rule ${out} reverse action "$@" chain "${out}_${mychain}" proto "tcp" sport "${client_ports}" dport "netbios-ssn" state ESTABLISHED || return 1
 	
 	return 0
 }
@@ -488,12 +488,12 @@ rules_pptp() {
 	# ----------------------------------------------------------------------
 	
 	# allow new and established incoming packets
-	rule action "$@" chain "${in}_${mychain}" proto "tcp" sport "${client_ports}" dport "1723" state NEW,ESTABLISHED || return 1
-	rule action "$@" chain "${in}_${mychain}" proto "47" state NEW,ESTABLISHED || return 1
+	rule ${in} action "$@" chain "${in}_${mychain}" proto "tcp" sport "${client_ports}" dport "1723" state NEW,ESTABLISHED || return 1
+	rule ${in} action "$@" chain "${in}_${mychain}" proto "47" state NEW,ESTABLISHED || return 1
 	
 	# allow outgoing established packets
-	rule reverse action "$@" chain "${out}_${mychain}" proto "tcp" sport "${client_ports}" dport "1723" state ESTABLISHED || return 1
-	rule reverse action "$@" chain "${out}_${mychain}" proto "47" state ESTABLISHED|| return 1
+	rule ${out} reverse action "$@" chain "${out}_${mychain}" proto "tcp" sport "${client_ports}" dport "1723" state ESTABLISHED || return 1
+	rule ${out} reverse action "$@" chain "${out}_${mychain}" proto "47" state ESTABLISHED|| return 1
 	
 	return 0
 }
@@ -576,9 +576,6 @@ rules_nfs() {
 		set_work_function "Processing nfsd rules for server '${x}'"
 		rules_custom "${mychain}" "${type}" nfs-nfsd   "${server_nfsd_ports}"   "500:65535" "${action}" $dst "$@"
 		
-#		"${type}" custom nfs "${server_mountd_ports}" "500:65535" "${action}" $dst "$@"
-#		"${type}" custom nfs "${server_nfsd_ports}"   "500:65535" "${action}" $dst "$@"
-		
 		rm -f "${tmp}"
 		
 		echo >&2 ""
@@ -589,44 +586,6 @@ rules_nfs() {
 	
 	return 0
 }
-
-
-# --- DNS ----------------------------------------------------------------------
-#
-#rules_dns() {
-#        local mychain="${1}"; shift
-#	local type="${1}"; shift
-#	
-#	local in=in
-#	local out=out
-#	if [ "${type}" = "client" ]
-#	then
-#		in=out
-#		out=in
-#	fi
-#	
-#	local client_ports="${DEFAULT_CLIENT_PORTS}"
-#	if [ "${type}" = "client" -a "${work_cmd}" = "interface" ]
-#	then
-#		client_ports="${LOCAL_CLIENT_PORTS}"
-#	fi
-#	
-#	# ----------------------------------------------------------------------
-#	
-#	# UDP: allow all incoming DNS packets
-#	rule action "$@" chain "${in}_${mychain}" proto udp dport domain state NEW,ESTABLISHED || return 1
-#	
-#	# UDP: allow all outgoing DNS packets
-#	rule reverse action "$@" chain "${out}_${mychain}" proto udp dport domain state ESTABLISHED || return 1
-#	
-#	# TCP: allow new and established incoming packets
-#	rule action "$@" chain "${in}_${mychain}" proto tcp dport domain state NEW,ESTABLISHED || return 1
-#	
-#	# TCP: allow outgoing established packets
-#	rule reverse action "$@" chain "${out}_${mychain}" proto tcp dport domain state ESTABLISHED || return 1
-#	
-#	return 0
-#}
 
 
 # --- AMANDA -------------------------------------------------------------------
@@ -657,14 +616,14 @@ rules_amanda() {
 	
 	set_work_function "Setting up rules for initial amanda server-to-client connection"
 	
-	rule action "$@" chain "${out}_${mychain}" proto "udp" dport 10080 state NEW,ESTABLISHED || return 1
-	rule reverse action "$@" chain "${in}_${mychain}" proto "udp" dport 10080 state ESTABLISHED || return 1
+	rule ${out} action "$@" chain "${out}_${mychain}" proto "udp" dport 10080 state NEW,ESTABLISHED || return 1
+	rule ${in} reverse action "$@" chain "${in}_${mychain}" proto "udp" dport 10080 state ESTABLISHED || return 1
 	
 	
 	set_work_function "Setting up rules for amanda data exchange client-to-server"
 	
-	rule action "$@" chain "${in}_${mychain}" proto "tcp udp" dport "${FIREHOL_AMANDA_PORTS}" state NEW,ESTABLISHED || return 1
-	rule reverse action "$@" chain "${out}_${mychain}" proto "tcp udp" dport "${FIREHOL_AMANDA_PORTS}" state ESTABLISHED || return 1
+	rule ${in} action "$@" chain "${in}_${mychain}" proto "tcp udp" dport "${FIREHOL_AMANDA_PORTS}" state NEW,ESTABLISHED || return 1
+	rule ${out} reverse action "$@" chain "${out}_${mychain}" proto "tcp udp" dport "${FIREHOL_AMANDA_PORTS}" state ESTABLISHED || return 1
 	
 	return 0
 }
@@ -698,16 +657,16 @@ rules_ftp() {
 	
 	# allow new and established incoming, and established outgoing
 	# accept port ftp new connections
-	rule action "$@" chain "${in}_${mychain}" proto tcp sport "${client_ports}" dport ftp state NEW,ESTABLISHED || return 1
-	rule reverse action "$@" chain "${out}_${mychain}" proto tcp sport "${client_ports}" dport ftp state ESTABLISHED || return 1
+	rule ${in} action "$@" chain "${in}_${mychain}" proto tcp sport "${client_ports}" dport ftp state NEW,ESTABLISHED || return 1
+	rule ${out} reverse action "$@" chain "${out}_${mychain}" proto tcp sport "${client_ports}" dport ftp state ESTABLISHED || return 1
 	
 	# Active FTP
 	# send port ftp-data related connections
 	
 	set_work_function "Setting up rules for Active FTP ${type}"
 	
-	rule reverse action "$@" chain "${out}_${mychain}" proto tcp sport "${client_ports}" dport ftp-data state ESTABLISHED,RELATED || return 1
-	rule action "$@" chain "${in}_${mychain}" proto tcp sport "${client_ports}" dport ftp-data state ESTABLISHED || return 1
+	rule ${out} reverse action "$@" chain "${out}_${mychain}" proto tcp sport "${client_ports}" dport ftp-data state ESTABLISHED,RELATED || return 1
+	rule ${in} action "$@" chain "${in}_${mychain}" proto tcp sport "${client_ports}" dport ftp-data state ESTABLISHED || return 1
 	
 	# ----------------------------------------------------------------------
 	
@@ -727,50 +686,14 @@ rules_ftp() {
 	# accept high-ports related connections
 	set_work_function "Setting up rules for Passive FTP ${type}"
 	
-	rule action "$@" chain "${in}_${mychain}" proto tcp sport "${c_client_ports}" dport "${s_client_ports}" state ESTABLISHED,RELATED || return 1
-	rule reverse action "$@" chain "${out}_${mychain}" proto tcp sport "${c_client_ports}" dport "${s_client_ports}" state ESTABLISHED || return 1
+	rule ${in} action "$@" chain "${in}_${mychain}" proto tcp sport "${c_client_ports}" dport "${s_client_ports}" state ESTABLISHED,RELATED || return 1
+	rule ${out} reverse action "$@" chain "${out}_${mychain}" proto tcp sport "${c_client_ports}" dport "${s_client_ports}" state ESTABLISHED || return 1
 	
 	require_kernel_module ip_conntrack_ftp
 	test ${FIREHOL_NAT} -eq 1 && require_kernel_module ip_nat_ftp
 	
 	return 0
 }
-
-
-# --- ICMP ---------------------------------------------------------------------
-#
-#ALL_SHOULD_ALSO_RUN="${ALL_SHOULD_ALSO_RUN} icmp"
-#
-#rules_icmp() {
-#        local mychain="${1}"; shift
-#	local type="${1}"; shift
-#	
-#	local in=in
-#	local out=out
-#	if [ "${type}" = "client" ]
-#	then
-#		in=out
-#		out=in
-#	fi
-#	
-#	local client_ports="${DEFAULT_CLIENT_PORTS}"
-#	if [ "${type}" = "client" -a "${work_cmd}" = "interface" ]
-#	then
-#		client_ports="${LOCAL_CLIENT_PORTS}"
-#	fi
-#	
-#	# ----------------------------------------------------------------------
-#	
-#	# check out http://www.cs.princeton.edu/~jns/security/iptables/iptables_conntrack.html#ICMP
-#	
-#	# allow new and established incoming packets
-#	rule action "$@" chain "${in}_${mychain}" proto icmp state NEW,ESTABLISHED,RELATED || return 1
-#	
-#	# allow outgoing established packets
-#	rule reverse action "$@" chain "${out}_${mychain}" proto icmp state ESTABLISHED,RELATED || return 1
-#	
-#	return 0
-#}
 
 
 # --- PING ---------------------------------------------------------------------
@@ -796,10 +719,10 @@ rules_ping() {
 	# ----------------------------------------------------------------------
 	
 	# allow incoming new and established PING packets
-	rule action "$@" chain "${in}_${mychain}" proto icmp custom "--icmp-type echo-request" state NEW,ESTABLISHED || return 1
+	rule ${in} action "$@" chain "${in}_${mychain}" proto icmp custom "--icmp-type echo-request" state NEW,ESTABLISHED || return 1
 	
 	# allow outgoing established packets
-	rule reverse action "$@" chain "${out}_${mychain}" proto icmp custom "--icmp-type echo-reply" state ESTABLISHED || return 1
+	rule ${out} reverse action "$@" chain "${out}_${mychain}" proto icmp custom "--icmp-type echo-reply" state ESTABLISHED || return 1
 	
 	return 0
 }
@@ -828,10 +751,10 @@ rules_all() {
 	# ----------------------------------------------------------------------
 	
 	# allow new and established incoming packets
-	rule action "$@" chain "${in}_${mychain}" state NEW,ESTABLISHED || return 1
+	rule ${in} action "$@" chain "${in}_${mychain}" state NEW,ESTABLISHED || return 1
 	
 	# allow outgoing established packets
-	rule reverse action "$@" chain "${out}_${mychain}" state ESTABLISHED || return 1
+	rule ${out} reverse action "$@" chain "${out}_${mychain}" state ESTABLISHED || return 1
 	
 	local ser=
 	for ser in ${ALL_SHOULD_ALSO_RUN}
@@ -867,10 +790,10 @@ rules_any() {
 	# ----------------------------------------------------------------------
 	
 	# allow new and established incoming packets
-	rule action "$@" chain "${in}_${mychain}" state NEW,ESTABLISHED || return 1
+	rule ${in} action "$@" chain "${in}_${mychain}" state NEW,ESTABLISHED || return 1
 	
 	# allow outgoing established packets
-	rule reverse action "$@" chain "${out}_${mychain}" state ESTABLISHED || return 1
+	rule ${out} reverse action "$@" chain "${out}_${mychain}" state ESTABLISHED || return 1
 	
 	return 0
 }
@@ -899,8 +822,8 @@ rules_multicast() {
 	# ----------------------------------------------------------------------
 	
 	# match multicast packets in both directions
-	rule action "$@" chain "${out}_${mychain}" dst "224.0.0.0/8" proto 2 || return 1
-	rule reverse action "$@" chain "${in}_${mychain}" src "224.0.0.0/8" proto 2 || return 1
+	rule ${out} action "$@" chain "${out}_${mychain}" dst "224.0.0.0/8" proto 2 || return 1
+	rule ${in} reverse action "$@" chain "${in}_${mychain}" src "224.0.0.0/8" proto 2 || return 1
 	
 	return 0
 }
@@ -956,10 +879,10 @@ EOF
 			esac
 			
 			# allow new and established incoming packets
-			rule action "$@" chain "${in}_${mychain}" proto "${proto}" sport "${cport}" dport "${sport}" state NEW,ESTABLISHED || return 1
+			rule ${in} action "$@" chain "${in}_${mychain}" proto "${proto}" sport "${cport}" dport "${sport}" state NEW,ESTABLISHED || return 1
 			
 			# allow outgoing established packets
-			rule reverse action "$@" chain "${out}_${mychain}" proto "${proto}" sport "${cport}" dport "${sport}" state ESTABLISHED || return 1
+			rule ${out} reverse action "$@" chain "${out}_${mychain}" proto "${proto}" sport "${cport}" dport "${sport}" state ESTABLISHED || return 1
 		done
 	done
 	
@@ -990,7 +913,7 @@ fi
 masquerade() {
         work_realcmd=(${FUNCNAME} "$@")
 	
-	set_work_function -ne "Initializing masquerade"
+	set_work_function -ne "Initializing $FUNCNAME"
 	
 	local f="${work_outface}"
 	test "${1}" = "reverse" && f="${work_inface}"
@@ -1001,7 +924,7 @@ masquerade() {
 	
 	set_work_function "Initializing masquerade on interface '${f}'"
 	
-	rule table nat chain POSTROUTING "$@" inface any outface "${f}" action MASQUERADE || return 1
+	rule noowner table nat chain POSTROUTING "$@" inface any outface "${f}" action MASQUERADE || return 1
 	
 	FIREHOL_NAT=1
 	FIREHOL_ROUTING=1
@@ -1014,6 +937,10 @@ transparent_squid_count=0
 transparent_squid() {
         work_realcmd=($FUNCNAME "$@")
 	
+	set_work_function -ne "Initializing $FUNCNAME"
+	
+	require_work clear || ( error "$FUNCNAME cannot be used in '${work_cmd}'. Put it before any '${work_cmd}' definition."; return 1 )
+	
 	local redirect="${1}"; shift
 	local user="${1}"; shift
 	
@@ -1023,22 +950,16 @@ transparent_squid() {
 	
 	set_work_function "Setting up rules for catching routed web traffic"
 	
-	create_chain nat "in_trsquid.${transparent_squid_count}" PREROUTING "$@" outface any proto tcp sport "${DEFAULT_CLIENT_PORTS}" dport http || return 1
+	create_chain nat "in_trsquid.${transparent_squid_count}" PREROUTING noowner "$@" outface any proto tcp sport "${DEFAULT_CLIENT_PORTS}" dport http || return 1
 	rule table nat chain "in_trsquid.${transparent_squid_count}" proto tcp dport http action REDIRECT to-port ${redirect} || return 1
 	
 	if [ ! -z "${user}" ]
 	then
 		set_work_function "Setting up rules for catching outgoing web traffic"
-		create_chain nat "out_trsquid.${transparent_squid_count}" OUTPUT nosoftwarnings "$@" inface any outface any src any proto tcp sport "${LOCAL_CLIENT_PORTS}" dport http || return 1
+		create_chain nat "out_trsquid.${transparent_squid_count}" OUTPUT "$@" uid not "${user}" nosoftwarnings inface any outface any src any proto tcp sport "${LOCAL_CLIENT_PORTS}" dport http || return 1
 		
 		# do not cache traffic for localhost web servers
 		rule table nat chain "out_trsquid.${transparent_squid_count}" dst "127.0.0.1" action RETURN || return 1
-		
-		local x=
-		for x in ${user}
-		do
-			rule table nat chain "out_trsquid.${transparent_squid_count}" custom "-m owner --uid-owner ${x}" action RETURN || return 1
-		done
 		
 		rule table nat chain "out_trsquid.${transparent_squid_count}" proto tcp dport http action REDIRECT to-port ${redirect} || return 1
 	fi
@@ -1092,18 +1013,18 @@ interface() {
 	# --- test prerequisites ---
 	
 	require_work clear || return 1
-	set_work_function -ne "Initializing interface"
+	set_work_function -ne "Initializing $FUNCNAME"
 	
 	
 	# --- get paramaters and validate them ---
 	
 	# Get the interface
 	local inface="${1}"; shift
-	test -z "${inface}" && error "interface is not set" && return 1
+	test -z "${inface}" && error "real interface is not set" && return 1
 	
 	# Get the name for this interface
 	local name="${1}"; shift
-	test -z "${name}" && error "Name is not set" && return 1
+	test -z "${name}" && error "$FUNCNAME name is not set" && return 1
 	
 	
 	# --- do the job ---
@@ -1112,10 +1033,10 @@ interface() {
 	work_name="${name}"
 	work_realcmd=("(unset)")
 	
-	set_work_function -ne "Initializing interface '${work_name}'"
+	set_work_function -ne "Initializing $FUNCNAME '${work_name}'"
 	
-	create_chain filter "in_${work_name}" INPUT set_work_inface inface "${inface}" "$@" || return 1
-	create_chain filter "out_${work_name}" OUTPUT set_work_outface reverse inface "${inface}" "$@" || return 1
+	create_chain filter "in_${work_name}" INPUT in set_work_inface "$@" inface "${inface}" outface any || return 1
+	create_chain filter "out_${work_name}" OUTPUT out set_work_outface reverse "$@" inface "${inface}" outface any || return 1
 	
 	return 0
 }
@@ -1132,14 +1053,14 @@ router() {
 	# --- test prerequisites ---
 	
 	require_work clear || return 1
-	set_work_function -ne "Initializing router"
+	set_work_function -ne "Initializing $FUNCNAME"
 	
 	
 	# --- get paramaters and validate them ---
 	
 	# Get the name for this router
 	local name="${1}"; shift
-	test -z "${name}" && error "router name is not set" && return 1
+	test -z "${name}" && error "$FUNCNAME name is not set" && return 1
 	
 	
 	# --- do the job ---
@@ -1148,10 +1069,10 @@ router() {
 	work_name="${name}"
 	work_realcmd=("(unset)")
 	
-	set_work_function -ne "Initializing router '${work_name}'"
+	set_work_function -ne "Initializing $FUNCNAME '${work_name}'"
 	
-	create_chain filter "in_${work_name}" FORWARD set_work_inface set_work_outface "$@" || return 1
-	create_chain filter "out_${work_name}" FORWARD reverse "$@" || return 1
+	create_chain filter "in_${work_name}" FORWARD in set_work_inface set_work_outface "$@" || return 1
+	create_chain filter "out_${work_name}" FORWARD out reverse "$@" || return 1
 	
 	FIREHOL_ROUTING=1
 	
@@ -1292,71 +1213,71 @@ protection() {
 				
 			fragments|FRAGMENTS)
 				local mychain="${pre}_${work_name}_fragments"
-				create_chain filter "${mychain}" "${in}_${work_name}" custom "-f"				|| return 1
+				create_chain filter "${mychain}" "${in}_${work_name}" in custom "-f"				|| return 1
 				
 				set_work_function "Generating rules to be protected from packet fragments on '${prface}' for ${work_cmd} '${work_name}'"
 				
-				rule chain "${mychain}" loglimit "PACKET FRAGMENTS" action drop 				|| return 1
+				rule in chain "${mychain}" loglimit "PACKET FRAGMENTS" action drop 				|| return 1
 				;;
 				
 			new-tcp-w/o-syn|NEW-TCP-W/O-SYN)
 				local mychain="${pre}_${work_name}_nosyn"
-				create_chain filter "${mychain}" "${in}_${work_name}" proto tcp state NEW custom "! --syn"	|| return 1
+				create_chain filter "${mychain}" "${in}_${work_name}" in proto tcp state NEW custom "! --syn"	|| return 1
 				
 				set_work_function "Generating rules to be protected from new TCP connections without the SYN flag set on '${prface}' for ${work_cmd} '${work_name}'"
 				
-				rule chain "${mychain}" loglimit "NEW TCP w/o SYN" action drop					|| return 1
+				rule in chain "${mychain}" loglimit "NEW TCP w/o SYN" action drop				|| return 1
 				;;
 				
 			icmp-floods|ICMP-FLOODS)
 				local mychain="${pre}_${work_name}_icmpflood"
-				create_chain filter "${mychain}" "${in}_${work_name}" proto icmp custom "--icmp-type echo-request"	|| return 1
+				create_chain filter "${mychain}" "${in}_${work_name}" in proto icmp custom "--icmp-type echo-request"	|| return 1
 				
 				set_work_function "Generating rules to be protected from ICMP floods on '${prface}' for ${work_cmd} '${work_name}'"
 				
-				rule chain "${mychain}" limit "${rate}" "${burst}" action return				|| return 1
-				rule chain "${mychain}" loglimit "ICMP FLOOD" action drop					|| return 1
+				rule in chain "${mychain}" limit "${rate}" "${burst}" action return				|| return 1
+				rule in chain "${mychain}" loglimit "ICMP FLOOD" action drop					|| return 1
 				;;
 				
 			syn-floods|SYN-FLOODS)
 				local mychain="${pre}_${work_name}_synflood"
-				create_chain filter "${mychain}" "${in}_${work_name}" proto tcp custom "--syn"			|| return 1
+				create_chain filter "${mychain}" "${in}_${work_name}" in proto tcp custom "--syn"		|| return 1
 				
 				set_work_function "Generating rules to be protected from TCP SYN floods on '${prface}' for ${work_cmd} '${work_name}'"
 				
-				rule chain "${mychain}" limit "${rate}" "${burst}" action return				|| return 1
-				rule chain "${mychain}" loglimit "SYN FLOOD" action drop					|| return 1
+				rule in chain "${mychain}" limit "${rate}" "${burst}" action return				|| return 1
+				rule in chain "${mychain}" loglimit "SYN FLOOD" action drop					|| return 1
 				;;
 				
 			malformed-xmas|MALFORMED-XMAS)
 				local mychain="${pre}_${work_name}_malxmas"
-				create_chain filter "${mychain}" "${in}_${work_name}" proto tcp custom "--tcp-flags ALL ALL"	|| return 1
+				create_chain filter "${mychain}" "${in}_${work_name}" in proto tcp custom "--tcp-flags ALL ALL"	|| return 1
 				
 				set_work_function "Generating rules to be protected from packets with all TCP flags set on '${prface}' for ${work_cmd} '${work_name}'"
 				
-				rule chain "${mychain}" loglimit "MALFORMED XMAS" action drop					|| return 1
+				rule in chain "${mychain}" loglimit "MALFORMED XMAS" action drop				|| return 1
 				;;
 				
 			malformed-null|MALFORMED-NULL)
 				local mychain="${pre}_${work_name}_malnull"
-				create_chain filter "${mychain}" "${in}_${work_name}" proto tcp custom "--tcp-flags ALL NONE"	|| return 1
+				create_chain filter "${mychain}" "${in}_${work_name}" in proto tcp custom "--tcp-flags ALL NONE" || return 1
 				
 				set_work_function "Generating rules to be protected from packets with all TCP flags unset on '${prface}' for ${work_cmd} '${work_name}'"
 				
-				rule chain "${mychain}" loglimit "MALFORMED NULL" action drop					|| return 1
+				rule in chain "${mychain}" loglimit "MALFORMED NULL" action drop				|| return 1
 				;;
 				
 			malformed-bad|MALFORMED-BAD)
 				local mychain="${pre}_${work_name}_malbad"
-				create_chain filter "${mychain}" "${in}_${work_name}" proto tcp custom "--tcp-flags SYN,FIN SYN,FIN"			|| return 1
+				create_chain filter "${mychain}" "${in}_${work_name}" in proto tcp custom "--tcp-flags SYN,FIN SYN,FIN"			|| return 1
 				
 				set_work_function "Generating rules to be protected from packets with illegal TCP flags on '${prface}' for ${work_cmd} '${work_name}'"
 				
-				rule chain "${in}_${work_name}" action "${mychain}"   proto tcp custom "--tcp-flags SYN,RST SYN,RST"			|| return 1
-				rule chain "${in}_${work_name}" action "${mychain}"   proto tcp custom "--tcp-flags ALL     SYN,RST,ACK,FIN,URG"	|| return 1
-				rule chain "${in}_${work_name}" action "${mychain}"   proto tcp custom "--tcp-flags ALL     FIN,URG,PSH"		|| return 1
+				rule in chain "${in}_${work_name}" action "${mychain}"   proto tcp custom "--tcp-flags SYN,RST SYN,RST"			|| return 1
+				rule in chain "${in}_${work_name}" action "${mychain}"   proto tcp custom "--tcp-flags ALL     SYN,RST,ACK,FIN,URG"	|| return 1
+				rule in chain "${in}_${work_name}" action "${mychain}"   proto tcp custom "--tcp-flags ALL     FIN,URG,PSH"		|| return 1
 				
-				rule chain "${mychain}" loglimit "MALFORMED BAD" action drop							|| return 1
+				rule in chain "${mychain}" loglimit "MALFORMED BAD" action drop								|| return 1
 				;;
 				
 			*)
@@ -1687,6 +1608,18 @@ rule() {
 	local proto=any
 	local protonot=
 	
+	local uid=any
+	local uidnot=
+	
+	local gid=any
+	local gidnot=
+	
+	local pid=any
+	local pidnot=
+	
+	local sid=any
+	local sidnot=
+	
 	local log=
 	local logtxt=
 	
@@ -1709,6 +1642,9 @@ rule() {
 	
 	local custom=
 	
+	# if set to 1, all owner module options will be ignored
+	local noowner=0
+	
 	# if set to 1, detection algorithm about overwritting optional rule
 	# parameters will take place.
 	local softwarnings=1
@@ -1721,21 +1657,6 @@ rule() {
 	while [ ! -z "${1}" ]
 	do
 		case "${1}" in
-			nosoftwarnings)
-				local softwarnings=0
-				shift
-				;;
-				
-			set_work_inface|SET_WORK_INFACE)
-				swi=1
-				shift
-				;;
-				
-			set_work_outface|SET_WORK_OUTFACE)
-				swo=1
-				shift
-				;;
-				
 			reverse|REVERSE)
 				reverse=1
 				shift
@@ -1949,38 +1870,6 @@ rule() {
 				shift
 				;;
 				
-			custom|CUSTOM)
-				test ${softwarnings} -eq 1 -a ! -z "${custom}" && softwarning "Overwritting param: custom '${custom}' becomes '${2}'"
-				custom="${2}"
-				shift 2
-				;;
-				
-			log|LOG)
-				log=normal
-				logtxt="${2}"
-				shift 2
-				;;
-				
-			loglimit|LOGLIMIT)
-				log=limit
-				logtxt="${2}"
-				shift 2
-				;;
-				
-			limit|LIMIT)
-				test ${softwarnings} -eq 1 -a ! -z "${limit}" && softwarning "Overwritting param: limit '${limit}' becomes '${2}'"
-				limit="${2}"
-				burst="${3}"
-				shift 3
-				;;
-				
-			iplimit|IPLIMIT)
-				test ${softwarnings} -eq 1 -a ! -z "${iplimit}" && softwarning "Overwritting param: iplimit '${iplimit}' becomes '${2}'"
-				iplimit="${2}"
-				iplimit_mask="${3}"
-				shift 3
-				;;
-				
 			action|ACTION)
 				test ${softwarnings} -eq 1 -a ! -z "${action}" && softwarning "Overwritting param: action '${action}' becomes '${2}'"
 				action="${2}"
@@ -2051,6 +1940,131 @@ rule() {
 				shift
 				;;
 				
+			user|USER|uid|UID)
+				shift
+				uidnot=
+				if [ "${1}" = "not" -o "${1}" = "NOT" ]
+				then
+					shift
+					uidnot="!"
+					test ${noowner} -eq 0 && have_a_not=1
+				fi
+				test ${softwarnings} -eq 1 -a ! "${uid}" = "any" && softwarning "Overwritting param: uid '${uid}' becomes '${1}'"
+				test ${noowner} -eq 0 && uid="${1}"
+				shift
+				;;
+				
+			group|GROUP|gid|GID)
+				shift
+				gidnot=
+				if [ "${1}" = "not" -o "${1}" = "NOT" ]
+				then
+					shift
+					gidnot="!"
+					test ${noowner} -eq 0 && have_a_not=1
+				fi
+				test ${softwarnings} -eq 1 -a ! "${gid}" = "any" && softwarning "Overwritting param: gid '${gid}' becomes '${1}'"
+				test ${noowner} -eq 0 && gid="${1}"
+				shift
+				;;
+				
+			process|PROCESS|pid|PID)
+				shift
+				pidnot=
+				if [ "${1}" = "not" -o "${1}" = "NOT" ]
+				then
+					shift
+					pidnot="!"
+					test ${noowner} -eq 0 && have_a_not=1
+				fi
+				test ${softwarnings} -eq 1 -a ! "${pid}" = "any" && softwarning "Overwritting param: pid '${pid}' becomes '${1}'"
+				test ${noowner} -eq 0 && pid="${1}"
+				shift
+				;;
+				
+			session|SESSION|sid|SID)
+				shift
+				sidnot=
+				if [ "${1}" = "not" -o "${1}" = "NOT" ]
+				then
+					shift
+					sidnot="!"
+					test ${noowner} -eq 0 && have_a_not=1
+				fi
+				test ${softwarnings} -eq 1 -a ! "${sid}" = "any" && softwarning "Overwritting param: sid '${sid}' becomes '${1}'"
+				test ${noowner} -eq 0 && sid="${1}"
+				shift
+				;;
+				
+			custom|CUSTOM)
+				test ${softwarnings} -eq 1 -a ! -z "${custom}" && softwarning "Overwritting param: custom '${custom}' becomes '${2}'"
+				custom="${2}"
+				shift 2
+				;;
+				
+			log|LOG)
+				test ${softwarnings} -eq 1 -a ! -z "${log}" && softwarning "Overwritting param: log '${log}/${logtxt}' becomes 'normal/${2}'"
+				log=normal
+				logtxt="${2}"
+				shift 2
+				;;
+				
+			loglimit|LOGLIMIT)
+				test ${softwarnings} -eq 1 -a ! -z "${log}" && softwarning "Overwritting param: log '${log}/${logtxt}' becomes 'limit/${2}'"
+				log=limit
+				logtxt="${2}"
+				shift 2
+				;;
+				
+			limit|LIMIT)
+				test ${softwarnings} -eq 1 -a ! -z "${limit}" && softwarning "Overwritting param: limit '${limit}' becomes '${2}'"
+				limit="${2}"
+				burst="${3}"
+				shift 3
+				;;
+				
+			iplimit|IPLIMIT)
+				test ${softwarnings} -eq 1 -a ! -z "${iplimit}" && softwarning "Overwritting param: iplimit '${iplimit}' becomes '${2}'"
+				iplimit="${2}"
+				iplimit_mask="${3}"
+				shift 3
+				;;
+				
+			in)	# this is incoming traffic - ignore packet ownership
+				local noowner=1
+				shift
+				;;
+				
+			out)	# this is outgoing traffic - ignore packet ownership if not in an interface
+				test ! "${work_cmd}" = "interface" && local noowner=1
+				shift
+				;;
+				
+			noowner)
+				local noowner=1
+				shift
+				;;
+				
+			softwarnings)
+				local softwarnings=1
+				shift
+				;;
+				
+			nosoftwarnings)
+				local softwarnings=0
+				shift
+				;;
+				
+			set_work_inface|SET_WORK_INFACE)
+				swi=1
+				shift
+				;;
+				
+			set_work_outface|SET_WORK_OUTFACE)
+				swo=1
+				shift
+				;;
+				
 			*)
 				error "Cannot understand directive '${1}'."
 				return 1
@@ -2079,6 +2093,10 @@ rule() {
 	test -z "${sport}"	&& error "Cannot accept an empty 'sport'."	&& return 1
 	test -z "${dport}"	&& error "Cannot accept an empty 'dport'."	&& return 1
 	test -z "${proto}"	&& error "Cannot accept an empty 'proto'."	&& return 1
+	test -z "${uid}"	&& error "Cannot accept an empty 'uid'."	&& return 1
+	test -z "${gid}"	&& error "Cannot accept an empty 'gid'."	&& return 1
+	test -z "${pid}"	&& error "Cannot accept an empty 'pid'."	&& return 1
+	test -z "${sid}"	&& error "Cannot accept an empty 'sid'."	&& return 1
 	
 	
 	# ----------------------------------------------------------------------------------
@@ -2114,7 +2132,6 @@ rule() {
 		if [ ! "${infacenot}" = "" ]
 		then
 			local inf=
-			test -z "${inface}" && error "Cannot accept an empty 'inface'." && return 1
 			for inf in ${inface}
 			do
 				iptables ${table} -A "${negative_chain}" -i "${inf}" -j RETURN
@@ -2126,7 +2143,6 @@ rule() {
 		if [ ! "${outfacenot}" = "" ]
 		then
 			local outf=
-			test -z "${outface}" && error "Cannot accept an empty 'outface'." && return 1
 			for outf in ${outface}
 			do
 				iptables ${table} -A "${negative_chain}" -o "${outf}" -j RETURN
@@ -2138,7 +2154,6 @@ rule() {
 		if [ ! "${srcnot}" = "" ]
 		then
 			local s=
-			test -z "${src}" && error "Cannot accept an empty 'src'." && return 1
 			for s in ${src}
 			do
 				iptables ${table} -A "${negative_chain}" -s "${s}" -j RETURN
@@ -2150,7 +2165,6 @@ rule() {
 		if [ ! "${dstnot}" = "" ]
 		then
 			local d=
-			test -z "${dst}" && error "Cannot accept an empty 'dst'." && return 1
 			for d in ${dst}
 			do
 				iptables ${table} -A "${negative_chain}" -d "${d}" -j RETURN
@@ -2162,7 +2176,6 @@ rule() {
 		if [ ! "${sportnot}" = "" ]
 		then
 			local sp=
-			test -z "${sport}" && error "Cannot accept an empty 'sport'." && return 1
 			for sp in ${sport}
 			do
 				iptables ${table} -A "${negative_chain}" --sport "${sp}" -j RETURN
@@ -2174,7 +2187,6 @@ rule() {
 		if [ ! "${dportnot}" = "" ]
 		then
 			local dp=
-			test -z "${dport}" && error "Cannot accept an empty 'dport'." && return 1
 			for dp in ${dport}
 			do
 				iptables ${table} -A "${negative_chain}" --dport "${dp}" -j RETURN
@@ -2186,7 +2198,6 @@ rule() {
 		if [ ! "${protonot}" = "" ]
 		then
 			local pr=
-			test -z "${proto}" && error "Cannot accept an empty 'proto'." && return 1
 			for pr in ${proto}
 			do
 				iptables ${table} -A "${negative_chain}" --p "${pr}" -j RETURN
@@ -2195,8 +2206,52 @@ rule() {
 			proto=any
 		fi
 		
+		if [ ! "${uidnot}" = "" ]
+		then
+			local tuid=
+			for tuid in ${uid}
+			do
+				iptables ${table} -A "${negative_chain}" -m owner --uid-owner "${tuid}" -j RETURN
+			done
+			uidnot=
+			uid=any
+		fi
+		
+		if [ ! "${gidnot}" = "" ]
+		then
+			local tgid=
+			for tgid in ${gid}
+			do
+				iptables ${table} -A "${negative_chain}" -m owner --gid-owner "${tgid}" -j RETURN
+			done
+			gidnot=
+			gid=any
+		fi
+		
+		if [ ! "${pidnot}" = "" ]
+		then
+			local tpid=
+			for tpid in ${pid}
+			do
+				iptables ${table} -A "${negative_chain}" -m owner --pid-owner "${tpid}" -j RETURN
+			done
+			pidnot=
+			pid=any
+		fi
+		
+		if [ ! "${sidnot}" = "" ]
+		then
+			local tsid=
+			for tsid in ${sid}
+			do
+				iptables ${table} -A "${negative_chain}" -m owner --sid-owner "${tsid}" -j RETURN
+			done
+			sidnot=
+			sid=any
+		fi
+		
 		# in case this is temporary chain we created for the negative expression,
-		# just make have the final action of the rule.
+		# just make it have the final action of the rule.
 		if [ ! -z "${negative_action}" ]
 		then
 			local pr=
@@ -2223,136 +2278,201 @@ rule() {
 	# ----------------------------------------------------------------------------------
 	# Process the positive rules
 	
-	local pr=
-	for pr in ${proto}
+	local tuid=
+	for tuid in ${uid}
 	do
-		unset proto_arg
+		unset uid_arg
+		unset owner_arg
 		
-		case ${pr} in
+		case ${tuid} in
 			any|ANY)
 				;;
 			
 			*)
-				local -a proto_arg=("-p" "${pr}")
+				local -a owner_arg=("-m" "owner")
+				local -a uid_arg=("--uid-owner" "${tuid}")
 				;;
 		esac
-			
-		local inf=
-		for inf in ${inface}
+	
+		local tgid=
+		for tgid in ${gid}
 		do
-			unset inf_arg
-			case ${inf} in
+			unset gid_arg
+			
+			case ${tgid} in
 				any|ANY)
 					;;
 				
 				*)
-					local -a inf_arg=("-i" "${inf}")
+					local -a owner_arg=("-m" "owner")
+					local -a gid_arg=("--gid-owner" "${tgid}")
 					;;
 			esac
-			
-			local outf=
-			for outf in ${outface}
+		
+			local tpid=
+			for tpid in ${pid}
 			do
-				unset outf_arg
-				case ${outf} in
+				unset pid_arg
+				
+				case ${tpid} in
 					any|ANY)
 						;;
 					
 					*)
-						local -a outf_arg=("-o" "${outf}")
+						local -a owner_arg=("-m" "owner")
+						local -a pid_arg=("--pid-owner" "${tpid}")
 						;;
 				esac
-				
-				local sp=
-				for sp in ${sport}
+			
+				local tsid=
+				for tsid in ${sid}
 				do
-					unset sp_arg
-					case ${sp} in
+					unset sid_arg
+					
+					case ${tsid} in
 						any|ANY)
 							;;
 						
 						*)
-							local -a sp_arg=("--sport" "${sp}")
+							local -a owner_arg=("-m" "owner")
+							local -a sid_arg=("--sid-owner" "${tsid}")
 							;;
 					esac
 					
-					local dp=
-					for dp in ${dport}
+					local pr=
+					for pr in ${proto}
 					do
-						unset dp_arg
-						case ${dp} in
+						unset proto_arg
+						
+						case ${pr} in
 							any|ANY)
 								;;
 							
 							*)
-								local -a dp_arg=("--dport" "${dp}")
+								local -a proto_arg=("-p" "${pr}")
 								;;
 						esac
-						
-						local s=
-						for s in ${src}
+							
+						local inf=
+						for inf in ${inface}
 						do
-							unset s_arg
-							case ${s} in
+							unset inf_arg
+							case ${inf} in
 								any|ANY)
 									;;
 								
 								*)
-									local -a s_arg=("-s" "${s}")
+									local -a inf_arg=("-i" "${inf}")
 									;;
 							esac
 							
-							local d=
-							for d in ${dst}
+							local outf=
+							for outf in ${outface}
 							do
-								unset d_arg
-								case ${d} in
+								unset outf_arg
+								case ${outf} in
 									any|ANY)
 										;;
 									
 									*)
-										local -a d_arg=("-d" "${d}")
+										local -a outf_arg=("-o" "${outf}")
 										;;
 								esac
 								
-								unset state_arg
-								if [ ! -z "${state}" ]
-								then
-									local -a state_arg=("-m" "state" "${statenot}" "--state" "${state}")
-								fi
-								
-								unset limit_arg
-								if [ ! -z "${limit}" ]
-								then
-									local -a limit_arg=("-m" "limit" "--limit" "${limit}" "--limit-burst" "${burst}")
-								fi
-								
-								unset iplimit_arg
-								if [ ! -z "${iplimit}" ]
-								then
-									local -a iplimit_arg=("-m" "iplimit" "--iplimit-above" "${iplimit}" "--iplimit-mask" "${iplimit_mask}")
-								fi
-								
-								declare -a basecmd=("${inf_arg[@]}" "${outf_arg[@]}" "${limit_arg[@]}" "${iplimit_arg[@]}" "${proto_arg[@]}" "${s_arg[@]}" "${sp_arg[@]}" "${d_arg[@]}" "${dp_arg[@]}" "${state_arg[@]}")
-								
-								case "${log}" in
-									'')
-										;;
+								local sp=
+								for sp in ${sport}
+								do
+									unset sp_arg
+									case ${sp} in
+										any|ANY)
+											;;
+										
+										*)
+											local -a sp_arg=("--sport" "${sp}")
+											;;
+									esac
 									
-									limit)
-										iptables ${table} -A "${chain}" "${basecmd[@]}" ${custom} -m limit --limit "${FIREHOL_LOG_FREQUENCY}" --limit-burst "${FIREHOL_LOG_BURST}" -j LOG ${FIREHOL_LOG_OPTIONS} --log-prefix="${logtxt}:"
-										;;
+									local dp=
+									for dp in ${dport}
+									do
+										unset dp_arg
+										case ${dp} in
+											any|ANY)
+												;;
+											
+											*)
+												local -a dp_arg=("--dport" "${dp}")
+												;;
+										esac
 										
-									normal)
-										iptables ${table} -A "${chain}" "${basecmd[@]}" ${custom} -j LOG ${FIREHOL_LOG_OPTIONS} --log-prefix="${logtxt}:"
-										;;
-										
-									*)
-										error "Unknown log value '${log}'."
-										;;
-								esac
-								
-								rule_action_param "${action}" "${pr}" "${action_param[@]}" -- ${table} -A "${chain}" "${basecmd[@]}" ${custom}
+										local s=
+										for s in ${src}
+										do
+											unset s_arg
+											case ${s} in
+												any|ANY)
+													;;
+												
+												*)
+													local -a s_arg=("-s" "${s}")
+													;;
+											esac
+											
+											local d=
+											for d in ${dst}
+											do
+												unset d_arg
+												case ${d} in
+													any|ANY)
+														;;
+													
+													*)
+														local -a d_arg=("-d" "${d}")
+														;;
+												esac
+												
+												unset state_arg
+												if [ ! -z "${state}" ]
+												then
+													local -a state_arg=("-m" "state" "${statenot}" "--state" "${state}")
+												fi
+												
+												unset limit_arg
+												if [ ! -z "${limit}" ]
+												then
+													local -a limit_arg=("-m" "limit" "--limit" "${limit}" "--limit-burst" "${burst}")
+												fi
+												
+												unset iplimit_arg
+												if [ ! -z "${iplimit}" ]
+												then
+													local -a iplimit_arg=("-m" "iplimit" "--iplimit-above" "${iplimit}" "--iplimit-mask" "${iplimit_mask}")
+												fi
+												
+												declare -a basecmd=("${inf_arg[@]}" "${outf_arg[@]}" "${limit_arg[@]}" "${iplimit_arg[@]}" "${proto_arg[@]}" "${s_arg[@]}" "${sp_arg[@]}" "${d_arg[@]}" "${dp_arg[@]}" "${owner_arg[@]}" "${uid_arg[@]}" "${gid_arg[@]}" "${pid_arg[@]}" "${sid_arg[@]}" "${state_arg[@]}")
+												
+												case "${log}" in
+													'')
+														;;
+													
+													limit)
+														iptables ${table} -A "${chain}" "${basecmd[@]}" ${custom} -m limit --limit "${FIREHOL_LOG_FREQUENCY}" --limit-burst "${FIREHOL_LOG_BURST}" -j LOG ${FIREHOL_LOG_OPTIONS} --log-prefix="${logtxt}:"
+														;;
+														
+													normal)
+														iptables ${table} -A "${chain}" "${basecmd[@]}" ${custom} -j LOG ${FIREHOL_LOG_OPTIONS} --log-prefix="${logtxt}:"
+														;;
+														
+													*)
+														error "Unknown log value '${log}'."
+														;;
+												esac
+												
+												rule_action_param "${action}" "${pr}" "${action_param[@]}" -- ${table} -A "${chain}" "${basecmd[@]}" ${custom}
+											done
+										done
+									done
+								done
 							done
 						done
 					done
@@ -2766,7 +2886,7 @@ case "${arg}" in
 		else
 		
 		cat <<"EOF"
-$Id: firehol.sh,v 1.70 2003/01/08 23:33:25 ktsaou Exp $
+$Id: firehol.sh,v 1.71 2003/01/13 23:31:03 ktsaou Exp $
 (C) Copyright 2002, Costa Tsaousis <costa@tsaousis.gr>
 FireHOL is distributed under GPL.
 
@@ -2934,7 +3054,7 @@ then
 	
 	cat <<"EOF"
 
-$Id: firehol.sh,v 1.70 2003/01/08 23:33:25 ktsaou Exp $
+$Id: firehol.sh,v 1.71 2003/01/13 23:31:03 ktsaou Exp $
 (C) Copyright 2002, Costa Tsaousis <costa@tsaousis.gr>
 FireHOL is distributed under GPL.
 Home Page: http://firehol.sourceforge.net
@@ -3133,7 +3253,12 @@ fixed_iptables_save() {
 		return $err
 	fi
 	
-	sed "s/--uid-owner !/! --uid-owner /g" <$tmp
+	cat ${tmp} |\
+		sed "s/--uid-owner !/! --uid-owner /g"	|\
+		sed "s/--gid-owner !/! --gid-owner /g"	|\
+		sed "s/--pid-owner !/! --pid-owner /g"	|\
+		sed "s/--sid-owner !/! --sid-owner /g"
+	
 	err=$?
 	
 	rm -f $tmp >/dev/null 2>&1
