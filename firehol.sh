@@ -10,7 +10,7 @@
 #
 # config: /etc/firehol.conf
 #
-# $Id: firehol.sh,v 1.57 2002/12/23 14:39:19 ktsaou Exp $
+# $Id: firehol.sh,v 1.58 2002/12/31 08:55:42 ktsaou Exp $
 #
 
 # ------------------------------------------------------------------------------
@@ -155,7 +155,7 @@ case "${arg}" in
 		else
 		
 		cat <<"EOF"
-$Id: firehol.sh,v 1.57 2002/12/23 14:39:19 ktsaou Exp $
+$Id: firehol.sh,v 1.58 2002/12/31 08:55:42 ktsaou Exp $
 (C) Copyright 2002, Costa Tsaousis <costa@tsaousis.gr>
 FireHOL is distributed under GPL.
 
@@ -1807,6 +1807,8 @@ rule() {
 	
 	local custom=
 	
+	local with=
+	
 	# If set to non-zero, this will enable the mechanism for
 	# handling ANDed negative expressions.
 	local have_a_not=0
@@ -2054,6 +2056,11 @@ rule() {
 			action|ACTION)
 				action="${2}"
 				shift 2
+				if [ "${1}" = "with" ]
+				then
+					with="${2}"
+					shift 2
+				fi
 				;;
 				
 			state|STATE)
@@ -2084,33 +2091,41 @@ rule() {
 	case "${action}" in
 		accept|ACCEPT)
 			action=ACCEPT
+			with=
 			;;
 			
 		deny|DENY)
 			action=DROP
+			with=
 			;;
 			
 		reject|REJECT)
 			action=REJECT
+			test ! -z "${with}" && with="--reject-with ${with}"
 			;;
 			
 		drop|DROP)
 			action=DROP
+			with=
 			;;
 			
 		return|RETURN)
 			action=RETURN
+			with=
 			;;
 			
 		mirror|MIRROR)
 			action=MIRROR
+			with=
 			;;
 			
 		none|NONE)
 			action=NONE
+			with=
 			;;
 			
 		*)
+			with=
 			chain_exists "${action}"
 			local action_is_chain=$?
 			;;
@@ -2384,7 +2399,7 @@ rule() {
 								
 								if [ ! "${action}" = NONE ]
 								then
-									iptables ${table} -A "${chain}" "${basecmd[@]}" ${custom} -j "${action}"
+									iptables ${table} -A "${chain}" "${basecmd[@]}" ${custom} -j "${action}" ${with}
 									test $? -gt 0 && failed=$[failed + 1]
 								fi
 							done
@@ -2648,7 +2663,7 @@ then
 	
 	cat <<"EOF"
 
-$Id: firehol.sh,v 1.57 2002/12/23 14:39:19 ktsaou Exp $
+$Id: firehol.sh,v 1.58 2002/12/31 08:55:42 ktsaou Exp $
 (C) Copyright 2002, Costa Tsaousis <costa@tsaousis.gr>
 FireHOL is distributed under GPL.
 Home Page: http://firehol.sourceforge.net
