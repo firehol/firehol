@@ -84,19 +84,23 @@ FireHOL has been designed to be a startup service. As such, FireHOL accepts all 
 </table>
 </center>
 
-<H2>How FireHOL runs?</H2>
+<p>
+<table border=0 cellpadding=10 cellspacing=0 width="100%">
+<tr><td bgcolor="#EEEEEE"><b>What happens when FireHOL runs?</td></tr></table>
+<br>
+
 FireHOL is a <a href="http://www.gnu.org/software/bash/bash.html">BASH</a> script.
 To run its configuration file, FireHOL
 first defines a set of functions and variables and then it &quot;sources&quot; 
 (runs inline) its configuration file to be executed by <a href="http://www.gnu.org/software/bash/bash.html">BASH</a>.</p>
 <p>
-The keywords <i>interface</i>, <i>client</i>, <i>server</i>, <i>
-router</i>, etc. are all <a href="http://www.gnu.org/software/bash/bash.html">BASH</a> functions that are executed by <a href="http://www.gnu.org/software/bash/bash.html">BASH</a> when 
+The keywords <b>interface</b>, <b>client</b>, <b>server</b>, <b>
+router</b>, etc. are all <a href="http://www.gnu.org/software/bash/bash.html">BASH</a> functions that are executed by <a href="http://www.gnu.org/software/bash/bash.html">BASH</a> when 
 and if they appear in the configuration file. Using shared variables 
 these functions share some state information that allows them to know, 
-for example, that a <i>client</i> command appears within an <i>interface</i> 
-and not within a <i>router</i> and that the name given to an <i>
-interface</i> has not been used before.
+for example, that a <b>client</b> command appears within an <b>interface</b> 
+and not within a <b>router</b> and that the name given to an <b>
+interface</b> has not been used before.
 <p>
 Instead of running iptables commands directly, each of these 
 functions (i.e. FireHOL) just writes the generated iptables commands to 
@@ -104,7 +108,7 @@ a temporary file. This is done to prevent altering a running firewall
 before ensuring that the syntax of the configuration file is correct. 
 So, a complete run of the configuration file actually produces all the 
 iptables commands for the firewall, written to a temporary file 
-(script).&nbsp; Even the <i>iptables</i> commands given within the 
+(script).&nbsp; Even the <b>iptables</b> commands given within the 
 configuration file use the same concept (they just generate iptables 
 commands in this script).
 <p>
@@ -139,7 +143,7 @@ its line number in the original configuration file.
 <tr><td align=center valign=middle>
 	<A href="http://sourceforge.net"><IMG src="http://sourceforge.net/sflogo.php?group_id=58425&amp;type=5" width="210" height="62" border="0" alt="SourceForge Logo"></A>
 </td><td align=center valign=middle>
-	<small>$Id: invoking.html,v 1.2 2002/12/09 22:40:41 ktsaou Exp $</small>
+	<small>$Id: invoking.html,v 1.3 2002/12/10 15:27:12 ktsaou Exp $</small>
 	<p>
 	<b>FireHOL</b>, a firewall for humans...<br>
 	&copy; Copyright 2002

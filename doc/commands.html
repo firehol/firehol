@@ -6,7 +6,58 @@
 
 <BODY bgcolor="#FFFFFF">
 
-<center><h2>Primary commands</h2></center>
+<center><a name="contents"><h2>Table of Contents</h2></a></center>
+<ul>
+	<li><a href="#primary_commands">Primary Commands</a>
+		<ul>
+			<li><a href="#interface">interface</a>, control what the firewall host can do
+			<li><a href="#router">router</a>, control what traffic can pass through the firewall host
+			<li><a href="#version">version</a>, require a specific version of FireHOL
+			<li><a href="#iptables">iptables</a>, add some custom iptables commands to the firewall
+		</ul>
+		&nbsp;
+	</li>
+	<li><a href="#subcommands">Sub-Commands</a>
+		<ul>
+			<li><a href="#policy">policy</a>, set the default action for unmatched packets of an
+				<a href="#interface">interface</a>
+			</li>
+			<li><a href="#protection">protection</a>, add extra protections to
+				<a href="#interface">interfaces</a> and <a href="#router">routers</a>
+			</li>
+			<li><a href="#server">server</a>, accept requests to some <a href="services.html">service</a>
+			</li>
+			<li><a href="#client">client</a>, accept replies to some <a href="services.html">service</a>
+			</li>
+			<li><a href="#route">route</a>, route traffic
+			</li>
+			<li><a href="#masquerade">masquerade</a>, setup masquerading to an
+				<a href="#interface">interface</a>
+			</li>
+		</ul>
+		&nbsp;
+	</li>
+	<li><a href="#parameters">Optional Rule Parameters</a>
+		<ul>
+			<li><a href="#src">src</a>, set the source of traffic</li>
+			<li><a href="#dst">dst</a>, set the destination of traffic</li>
+			<li><a href="#inface">inface</a>, set the network interface traffic is received via</li>
+			<li><a href="#outface">outface</a>, set the network interface traffic is send via</li>
+			<li><a href="#custom">custom</a>, pass a few custom parameters to the generated iptables
+			statements</li>
+			<li><a href="#log">log</a>, write something to the syslog when traffic is matched</li>
+			<li><a href="#loglimit">loglimit</a>, write (limited) something to the syslog when traffic is matched</li>
+		</ul>
+		&nbsp;
+	</li>
+	<li><a href="#control_variables">Variables that control FireHOL</a><br>&nbsp;</li>
+	<li><a href="#use_variables">Variables FireHOL offers</a><br>&nbsp;</li>
+</ul>
+
+<hr noshade size=1 width="70%">
+
+<center><a name="primary_commands"><h2>Primary commands</h2></a></center>
+
 	<a name="interface"><h3><b>interface</b> <font color="red">&lt;real interface&gt;</font> <font color="red">&lt;name&gt;</font> <b>[optional rule parameters]</b></h3></a>
 	<H4>Description</H4>
 	The <b>interface</b> command creates a firewall for protecting the host the firewall is running, from the given interface.
@@ -152,7 +203,7 @@
 	<p>
 
 <hr noshade size=1 width="70%">
-<center><h2>Sub-Commands</h2></center>
+<center><a name="subcommands"><h2>Sub-Commands</h2></a></center>
 
 	<a name="policy"><h3><b>policy</b> <font color="red">&lt;action&gt;</font></h3></a>
 	<H4>Description</H4>
@@ -266,7 +317,7 @@
 
 <hr noshade size=1 width="70%">
 	
-	<a name="masqerade"><h3><b>masquerade</b> [reverse | interface]</h3></a>
+	<a name="masquerade"><h3><b>masquerade</b> [reverse | interface]</h3></a>
 	The <b>masquerade</b> subcommand will setup masquerading on the outface of the parent primary command.
 	<br>If reverse is specified it will masquerade on the input interface of the parent primary command.
 	<br>If an interface is specified, masquerade will use this one.
@@ -368,13 +419,13 @@
 	
 <hr noshade size=1 width="70%">
 
-	<a name="log"><h3><b>loglimit</b> <font color="red">"&lt;some text&gt;"</font></h3></a>
+	<a name="loglimit"><h3><b>loglimit</b> <font color="red">"&lt;some text&gt;"</font></h3></a>
 	<H4>Description</H4>
 	<b>loglimit</b> is the same with <b>log</b> but limits logging of packets to 1/sec.
 	<p>
 
 <hr noshade size=1 width="70%">
-<a name="parameters"><center><h2>Variables that control FireHOL</h2></center></a>
+<a name="control_variables"><center><h2>Variables that control FireHOL</h2></center></a>
 
 	<a name="DEFAULT_INTERFACE_POLICY"><h3><b>DEFAULT_INTERFACE_POLICY</b></h3></a>
 	<H4>Description</H4>
@@ -443,7 +494,7 @@
 
 
 <hr noshade size=1 width="70%">
-<a name="parameters"><center><h2>Variables that FireHOL offers</h2></center></a>
+<a name="use_variables"><center><h2>Variables that FireHOL offers</h2></center></a>
 
 	<a name="RESERVED_IPS"><h3><b>RESERVED_IPS</b></h3></a>
 	<H4>Description</H4>
@@ -479,7 +530,7 @@
 <tr><td align=center valign=middle>
 	<A href="http://sourceforge.net"><IMG src="http://sourceforge.net/sflogo.php?group_id=58425&amp;type=5" width="210" height="62" border="0" alt="SourceForge Logo"></A>
 </td><td align=center valign=middle>
-	<small>$Id: commands.html,v 1.3 2002/12/09 22:40:41 ktsaou Exp $</small>
+	<small>$Id: commands.html,v 1.4 2002/12/10 15:27:12 ktsaou Exp $</small>
 	<p>
 	<b>FireHOL</b>, a firewall for humans...<br>
 	&copy; Copyright 2002
