@@ -15,16 +15,17 @@ Even if you don't use FireHOL, designing a firewall requires a few steps:
 <br>
 Network interfaces are there for some reason. You have to do something about all the interfaces of your host.
 If you don't do something at the firewall level with a network interface, then it depends of the firewall policy what will happen
-with traffic on this interface. By default FireHOL will <b>drop</b> all traffic comming in and going out, so the network interface
-will have no meaning to be there.
+with traffic on this interface. By default FireHOL will <b>drop</b> all traffic comming in and going out via an undefined network interface,
+so the network interface will have no meaning to be up and running. This is a common mistake on some ADSL configurations, where users
+ignore the loop device that connects the linux router with the ADSL device.
 <p>
 To identify your network interfaces use the <b>ifconfig</b> command. The example bellow shows my home router ifconfig output:
 
 <center><table border=0 cellpadding=15 cellspacing=20 width="70%">
 <tr><td bgcolor="#F0F0F0">
-<b><pre>
+<b><pre><font color="gray">
 [root@gateway /]# ifconfig
-eth0      Link encap:Ethernet  HWaddr 00:50:FC:21:9A:AB
+<font color="red">eth0</font>      Link encap:Ethernet  HWaddr 00:50:FC:21:9A:AB
           inet addr:195.97.5.193  Bcast:195.97.5.207  Mask:255.255.255.240
           UP BROADCAST RUNNING MULTICAST  MTU:1500  Metric:1
           RX packets:273856 errors:0 dropped:0 overruns:0 frame:0
@@ -33,7 +34,7 @@ eth0      Link encap:Ethernet  HWaddr 00:50:FC:21:9A:AB
           RX bytes:311341519 (296.9 Mb)  TX bytes:93281783 (88.9 Mb)
           Interrupt:9 Base address:0x3f00
 
-lo        Link encap:Local Loopback
+<font color="red">lo</font>        Link encap:Local Loopback
           inet addr:127.0.0.1  Mask:255.0.0.0
           UP LOOPBACK RUNNING  MTU:16436  Metric:1
           RX packets:7041 errors:0 dropped:0 overruns:0 frame:0
@@ -41,14 +42,14 @@ lo        Link encap:Local Loopback
           collisions:0 txqueuelen:0
           RX bytes:2079959 (1.9 Mb)  TX bytes:2079959 (1.9 Mb)
 
-ppp0      Link encap:Point-to-Point Protocol
+<font color="red">ppp0</font>      Link encap:Point-to-Point Protocol
           inet addr:195.97.5.206  P-t-P:194.30.220.213  Mask:255.255.255.255
           UP POINTOPOINT RUNNING NOARP MULTICAST  MTU:572  Metric:1
           RX packets:8883 errors:0 dropped:0 overruns:0 frame:0
           TX packets:8807 errors:0 dropped:45 overruns:0 carrier:0
           collisions:0 txqueuelen:3
           RX bytes:5652345 (5.3 Mb)  TX bytes:1077765 (1.0 Mb)
-</pre></b>
+</font></pre></b>
 </td></tr>
 </table>
 </center>
@@ -154,7 +155,7 @@ First write one interface statement for each network interface you identified ab
 
 <center><table border=0 cellpadding=15 cellspacing=20 width="70%">
 <tr><td bgcolor="#F0F0F0">
-<b><pre>
+<b><pre><font color="red">
 	version 5
 	
 	interface eth0 home
@@ -163,7 +164,7 @@ First write one interface statement for each network interface you identified ab
 	interface ppp+ internet
 	
 	
-</pre></b>
+</font></pre></b>
 </td></tr>
 </table>
 </center>
@@ -172,7 +173,7 @@ Now, we can add the servers for each interface (based on the table above). Remem
 
 <center><table border=0 cellpadding=15 cellspacing=20 width="70%">
 <tr><td bgcolor="#F0F0F0">
-<b><pre>
+<b><pre><font color="gray">
 	version 5
 	
 	interface eth0 home<font color="red">
@@ -190,7 +191,7 @@ Now, we can add the servers for each interface (based on the table above). Remem
 		server http	accept
 		server ftp	accept
 	</font>
-</pre></b>
+</font></pre></b>
 </td></tr>
 </table>
 </center>
@@ -198,7 +199,7 @@ Now, we can add the clients for each interface. Remember that these clients are 
 
 <center><table border=0 cellpadding=15 cellspacing=20 width="70%">
 <tr><td bgcolor="#F0F0F0">
-<b><pre>
+<b><pre><font color="gray">
 	version 5
 	
 	interface eth0 home
@@ -222,7 +223,7 @@ Now, we can add the clients for each interface. Remember that these clients are 
 		<font color="red">
 		client all	accept
 		</font>
-</pre></b>
+</font></pre></b>
 </td></tr>
 </table>
 </center>
@@ -238,7 +239,7 @@ so on.
 
 <center><table border=0 cellpadding=15 cellspacing=20 width="70%">
 <tr><td bgcolor="#F0F0F0">
-<b><pre>
+<b><pre><font color="gray">
 	version 5
 	
 	interface eth0 home
@@ -269,7 +270,7 @@ so on.
 	router internet2home inface ppp+ outface eth0
 	
 	</font>
-</pre></b>
+</font></pre></b>
 </td></tr>
 </table>
 </center>
@@ -284,7 +285,7 @@ ppp+, and do not route any request comming from the internet and going out to th
 
 <center><table border=0 cellpadding=15 cellspacing=20 width="70%">
 <tr><td bgcolor="#F0F0F0">
-<b><pre>
+<b><pre><font color="gray">
 	version 5
 	
 	interface eth0 home
@@ -316,7 +317,7 @@ ppp+, and do not route any request comming from the internet and going out to th
 	router internet2home inface ppp+ outface eth0
 	
 	
-</pre></b>
+</font></pre></b>
 </td></tr>
 </table>
 </center>
@@ -330,22 +331,22 @@ To save typing time, you can use this:
 
 <center><table border=0 cellpadding=15 cellspacing=20 width="70%">
 <tr><td bgcolor="#F0F0F0">
-<b><pre>
+<b><pre><font color="gray">
 	version 5
 	
-	interface eth0 home
+	interface eth0 home<font color="red">
 		server "dns ftp samba squid dhcp http ssh icmp"	accept
 		client "samba icmp"				accept
+	</font>
 	
-	
-	interface ppp+ internet
-		server "smtp http ftp"	accept
+	interface ppp+ internet<font color="red">
+		server "smtp http ftp"	accept</font>
 		client all		accept
 	
 	
 	router home2internet inface eth0 outface ppp+
 		route all accept
-</pre></b>
+</font></pre></b>
 </td></tr>
 </table>
 </center>
@@ -356,7 +357,7 @@ We might want to have extra checks on each interface to prevent spoofing:
 
 <center><table border=0 cellpadding=15 cellspacing=20 width="70%">
 <tr><td bgcolor="#F0F0F0">
-<b><pre>
+<b><pre><font color="gray">
 	version 5
 	<font color="red">
 	# The network of our eth0 LAN.
@@ -374,7 +375,7 @@ We might want to have extra checks on each interface to prevent spoofing:
 	
 	router home2internet inface eth0 outface ppp+
 		route all accept
-</pre></b>
+</font></pre></b>
 </td></tr>
 </table>
 </center>
@@ -386,7 +387,7 @@ router:
 
 <center><table border=0 cellpadding=15 cellspacing=20 width="70%">
 <tr><td bgcolor="#F0F0F0">
-<b><pre>
+<b><pre><font color="gray">
 	version 5
 	
 	# The network of our eth0 LAN.
@@ -405,7 +406,7 @@ router:
 	router home2internet inface eth0 outface ppp+
 		<font color="red">masquerade</font>
 		route all accept
-</pre></b>
+</font></pre></b>
 </td></tr>
 </table>
 </center>
@@ -415,7 +416,7 @@ We can now protect our ppp interface even further. For this we use the <a href="
 
 <center><table border=0 cellpadding=15 cellspacing=20 width="70%">
 <tr><td bgcolor="#F0F0F0">
-<b><pre>
+<b><pre><font color="gray">
 	version 5
 	
 	# The network of our eth0 LAN.
@@ -435,7 +436,7 @@ We can now protect our ppp interface even further. For this we use the <a href="
 	router home2internet inface eth0 outface ppp+
 		masquerade
 		route all accept
-</pre></b>
+</font></pre></b>
 </td></tr>
 </table>
 </center>
@@ -446,7 +447,7 @@ command:
 
 <center><table border=0 cellpadding=15 cellspacing=20 width="70%">
 <tr><td bgcolor="#F0F0F0">
-<b><pre>
+<b><pre><font color="gray">
 	version 5
 	
 	# The network of our eth0 LAN.
@@ -467,7 +468,7 @@ command:
 	router home2internet inface eth0 outface ppp+
 		masquerade
 		route all accept
-</pre></b>
+</font></pre></b>
 </td></tr>
 </table>
 </center>
@@ -477,7 +478,7 @@ With our current firewall, such servers will have to timeout before accepting ou
 
 <center><table border=0 cellpadding=15 cellspacing=20 width="70%">
 <tr><td bgcolor="#F0F0F0">
-<b><pre>
+<b><pre><font color="gray">
 	version 5
 	
 	# The network of our eth0 LAN.
@@ -505,7 +506,7 @@ With our current firewall, such servers will have to timeout before accepting ou
 	router internet2home inface ppp+ outface eth0
 		route ident reject
 	</font>
-</pre></b>
+</font></pre></b>
 </td></tr>
 </table>
 </center>
@@ -514,7 +515,7 @@ The whole routing schema could be rewritten as:
 
 <center><table border=0 cellpadding=15 cellspacing=20 width="70%">
 <tr><td bgcolor="#F0F0F0">
-<b><pre>
+<b><pre><font color="gray">
 	version 5
 	
 	# The network of our eth0 LAN.
@@ -536,11 +537,11 @@ The whole routing schema could be rewritten as:
 	
 	<font color="red">
 	router internet2home inface ppp+ outface eth0
-		masqerade reverse
+		masquerade reverse
 		client all	accept
 		server ident	reject
 	</font>
-</pre></b>
+</font></pre></b>
 </td></tr>
 </table>
 </center>
@@ -553,7 +554,7 @@ then the client and server commands would be reversed (server all, client ident)
 <tr><td align=center valign=middle>
 	<A href="http://sourceforge.net"><IMG src="http://sourceforge.net/sflogo.php?group_id=58425&amp;type=5" width="210" height="62" border="0" alt="SourceForge Logo"></A>
 </td><td align=center valign=middle>
-	<small>$Id: tutorial.html,v 1.5 2002/12/15 21:44:07 ktsaou Exp $</small>
+	<small>$Id: tutorial.html,v 1.6 2002/12/16 18:00:34 ktsaou Exp $</small>
 	<p>
 	<b>FireHOL</b>, a firewall for humans...<br>
 	&copy; Copyright 2002
