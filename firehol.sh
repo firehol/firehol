@@ -10,7 +10,7 @@
 #
 # config: /etc/firehol/firehol.conf
 #
-# $Id: firehol.sh,v 1.180 2004/03/03 22:19:15 ktsaou Exp $
+# $Id: firehol.sh,v 1.181 2004/03/03 23:18:43 ktsaou Exp $
 #
 
 # Remember who you are.
@@ -33,44 +33,48 @@ PATH="${PATH}:/bin:/usr/bin:/sbin:/usr/sbin"
 # If one of those is not found, FireHOL will refuse to run.
 
 which_cmd() {
-	unalias $1 >/dev/null 2>&1
-	local cmd=`which $1 | head -n 1`
+	unalias $2 >/dev/null 2>&1
+	local cmd=`which $2 | head -n 1`
 	if [ $? -gt 0 -o ! -x "${cmd}" ]
 	then
-		echo "ERROR: Command '$1' not found in system path."
+		echo >&2
+		echo >&2 "ERROR:	Command '$2' not found in the system path."
+		echo >&2 "	FireHOL requires this command for its operation."
+		echo >&2 "	Please install the required package and retry."
+		echo >&2
 		exit 1
 	fi
 	
-	echo "${cmd}"
+	eval $1=${cmd}
 }
 
-CAT_CMD=`which_cmd cat`
-CUT_CMD=`which_cmd cut`
-CHOWN_CMD=`which_cmd chown`
-CHMOD_CMD=`which_cmd chmod`
-DATE_CMD=`which_cmd date`
-EGREP_CMD=`which_cmd egrep`
-GAWK_CMD=`which_cmd gawk`
-GREP_CMD=`which_cmd grep`
-HOSTNAME_CMD=`which_cmd hostname`
-IP_CMD=`which_cmd ip`
-IPTABLES_CMD=`which_cmd iptables`
-IPTABLES_SAVE_CMD=`which_cmd iptables-save`
-LESS_CMD=`which_cmd less`
-LSMOD_CMD=`which_cmd lsmod`
-MKDIR_CMD=`which_cmd mkdir`
-MV_CMD=`which_cmd mv`
-MODPROBE_CMD=`which_cmd modprobe`
-NETSTAT_CMD=`which_cmd netstat`
-RENICE_CMD=`which_cmd renice`
-RM_CMD=`which_cmd rm`
-SED_CMD=`which_cmd sed`
-SORT_CMD=`which_cmd sort`
-SYSCTL_CMD=`which_cmd sysctl`
-TOUCH_CMD=`which_cmd touch`
-TR_CMD=`which_cmd tr`
-UNAME_CMD=`which_cmd uname`
-UNIQ_CMD=`which_cmd uniq`
+which_cmd CAT_CMD cat
+which_cmd CUT_CMD cut
+which_cmd CHOWN_CMD chown
+which_cmd CHMOD_CMD chmod
+which_cmd DATE_CMD date
+which_cmd EGREP_CMD egrep
+which_cmd GAWK_CMD gawk
+which_cmd GREP_CMD grep
+which_cmd HOSTNAME_CMD hostname
+which_cmd IP_CMD ip
+which_cmd IPTABLES_CMD iptables
+which_cmd IPTABLES_SAVE_CMD iptables-save
+which_cmd LESS_CMD less
+which_cmd LSMOD_CMD lsmod
+which_cmd MKDIR_CMD mkdir
+which_cmd MV_CMD mv
+which_cmd MODPROBE_CMD modprobe
+which_cmd NETSTAT_CMD netstat
+which_cmd RENICE_CMD renice
+which_cmd RM_CMD rm
+which_cmd SED_CMD sed
+which_cmd SORT_CMD sort
+which_cmd SYSCTL_CMD sysctl
+which_cmd TOUCH_CMD touch
+which_cmd TR_CMD tr
+which_cmd UNAME_CMD uname
+which_cmd UNIQ_CMD uniq
 
 
 # ------------------------------------------------------------------------------
@@ -4027,7 +4031,7 @@ case "${arg}" in
 		else
 		
 		${CAT_CMD} <<EOF
-$Id: firehol.sh,v 1.180 2004/03/03 22:19:15 ktsaou Exp $
+$Id: firehol.sh,v 1.181 2004/03/03 23:18:43 ktsaou Exp $
 (C) Copyright 2003, Costa Tsaousis <costa@tsaousis.gr>
 FireHOL is distributed under GPL.
 
@@ -4213,7 +4217,7 @@ then
 	
 	${CAT_CMD} <<EOF
 
-$Id: firehol.sh,v 1.180 2004/03/03 22:19:15 ktsaou Exp $
+$Id: firehol.sh,v 1.181 2004/03/03 23:18:43 ktsaou Exp $
 (C) Copyright 2003, Costa Tsaousis <costa@tsaousis.gr>
 FireHOL is distributed under GPL.
 Home Page: http://firehol.sourceforge.net
@@ -4508,7 +4512,7 @@ then
 	
 	${CAT_CMD} >&2 <<EOF
 
-$Id: firehol.sh,v 1.180 2004/03/03 22:19:15 ktsaou Exp $
+$Id: firehol.sh,v 1.181 2004/03/03 23:18:43 ktsaou Exp $
 (C) Copyright 2003, Costa Tsaousis <costa@tsaousis.gr>
 FireHOL is distributed under GPL.
 Home Page: http://firehol.sourceforge.net
@@ -4591,7 +4595,7 @@ EOF
 	echo "# "
 
 	${CAT_CMD} <<EOF
-# $Id: firehol.sh,v 1.180 2004/03/03 22:19:15 ktsaou Exp $
+# $Id: firehol.sh,v 1.181 2004/03/03 23:18:43 ktsaou Exp $
 # (C) Copyright 2003, Costa Tsaousis <costa@tsaousis.gr>
 # FireHOL is distributed under GPL.
 # Home Page: http://firehol.sourceforge.net
