@@ -10,7 +10,7 @@
 #
 # config: /etc/firehol/firehol.conf
 #
-# $Id: firehol.sh,v 1.128 2003/05/01 01:30:24 ktsaou Exp $
+# $Id: firehol.sh,v 1.129 2003/05/22 19:39:53 ktsaou Exp $
 #
 FIREHOL_FILE="${0}"
 
@@ -19,30 +19,45 @@ PATH="${PATH}:/bin:/usr/bin:/sbin:/usr/sbin"
 # External commands FireHOL will need.
 # If one of those is not found, FireHOL will refuse to run.
 
-CAT_CMD=`which cat`			|| exit 1
-CUT_CMD=`which cut`			|| exit 1
-DATE_CMD=`which date`			|| exit 1
-EGREP_CMD=`which egrep`			|| exit 1
-GAWK_CMD=`which gawk`			|| exit 1
-GREP_CMD=`which grep`			|| exit 1
-HOSTNAME_CMD=`which hostname`		|| exit 1
-IP_CMD=`which ip`			|| exit 1
-IPTABLES_CMD=`which iptables`		|| exit 1
-IPTABLES_SAVE_CMD=`which iptables-save`	|| exit 1
-LESS_CMD=`which less`			|| exit 1
-LSMOD_CMD=`which lsmod`			|| exit 1
-MKDIR_CMD=`which mkdir`			|| exit 1
-MODPROBE_CMD=`which modprobe`		|| exit 1
-NETSTAT_CMD=`which netstat`		|| exit 1
-RENICE_CMD=`which renice`		|| exit 1
-RM_CMD=`which rm`			|| exit 1
-SED_CMD=`which sed`			|| exit 1
-SORT_CMD=`which sort`			|| exit 1
-SYSCTL_CMD=`which sysctl`		|| exit 1
-TOUCH_CMD=`which touch`			|| exit 1
-TR_CMD=`which tr`			|| exit 1
-UNAME_CMD=`which uname`			|| exit 1
-UNIQ_CMD=`which uniq`			|| exit 1
+which_cmd() {
+	unalias $1 >/dev/null 2>&1
+	local cmd=`which $1 | head -1`
+	if [ $? -gt 0 -o ! -x "${cmd}" ]
+	then
+		echo "ERROR: Command '$1' not found in system path."
+		exit 1
+	fi
+	
+	echo "${cmd}"
+}
+
+CAT_CMD=`which_cmd cat`
+CUT_CMD=`which_cmd cut`
+CHOWN_CMD=`which_cmd chown`
+CHMOD_CMD=`which_cmd chmod`
+DATE_CMD=`which_cmd date`
+EGREP_CMD=`which_cmd egrep`
+GAWK_CMD=`which_cmd gawk`
+GREP_CMD=`which_cmd grep`
+HOSTNAME_CMD=`which_cmd hostname`
+IP_CMD=`which_cmd ip`
+IPTABLES_CMD=`which_cmd iptables`
+IPTABLES_SAVE_CMD=`which_cmd iptables-save`
+LESS_CMD=`which_cmd less`
+LSMOD_CMD=`which_cmd lsmod`
+MKDIR_CMD=`which_cmd mkdir`
+MV_CMD=`which_cmd mv`
+MODPROBE_CMD=`which_cmd modprobe`
+NETSTAT_CMD=`which_cmd netstat`
+RENICE_CMD=`which_cmd renice`
+RM_CMD=`which_cmd rm`
+SED_CMD=`which_cmd sed`
+SORT_CMD=`which_cmd sort`
+SYSCTL_CMD=`which_cmd sysctl`
+TOUCH_CMD=`which_cmd touch`
+TR_CMD=`which_cmd tr`
+UNAME_CMD=`which_cmd uname`
+UNIQ_CMD=`which_cmd uniq`
 
 
 # ------------------------------------------------------------------------------
@@ -175,6 +190,18 @@ ALL_SHOULD_ALSO_RUN=
 # The default configuration file
 # It can be changed on the command line
 FIREHOL_CONFIG="/etc/firehol/firehol.conf"
+
+if [ ! -d /etc/firehol -a -f /etc/firehol.conf ]
+then
+	mkdir /etc/firehol
+	${CHOWN_CMD} root:root /etc/firehol
+	${CHMOD_CMD} 700 /etc/firehol
+	${MV_CMD} /etc/firehol.conf "${FIREHOL_CONFIG}"
+	
+	echo >&2
+	echo >&2 "NOTICE: Your config file /etc/firehol.conf has been moved to ${FIREHOL_CONFIG}"
+	sleep 5
+fi
 
 # If set to 1, we are just going to present the resulting firewall instead of
 # installing it.
@@ -3334,7 +3361,7 @@ case "${arg}" in
 		else
 		
 		${CAT_CMD} <<"EOF"
-$Id: firehol.sh,v 1.128 2003/05/01 01:30:24 ktsaou Exp $
+$Id: firehol.sh,v 1.129 2003/05/22 19:39:53 ktsaou Exp $
 (C) Copyright 2003, Costa Tsaousis <costa@tsaousis.gr>
 FireHOL is distributed under GPL.
 
@@ -3520,7 +3547,7 @@ then
 	
 	${CAT_CMD} <<"EOF"
 
-$Id: firehol.sh,v 1.128 2003/05/01 01:30:24 ktsaou Exp $
+$Id: firehol.sh,v 1.129 2003/05/22 19:39:53 ktsaou Exp $
 (C) Copyright 2003, Costa Tsaousis <costa@tsaousis.gr>
 FireHOL is distributed under GPL.
 Home Page: http://firehol.sourceforge.net
@@ -3815,7 +3842,7 @@ then
 	
 	${CAT_CMD} >&2 <<"EOF"
 
-$Id: firehol.sh,v 1.128 2003/05/01 01:30:24 ktsaou Exp $
+$Id: firehol.sh,v 1.129 2003/05/22 19:39:53 ktsaou Exp $
 (C) Copyright 2003, Costa Tsaousis <costa@tsaousis.gr>
 FireHOL is distributed under GPL.
 Home Page: http://firehol.sourceforge.net
@@ -3908,7 +3935,7 @@ EOF
 	echo "# "
 
 	${CAT_CMD} <<"EOF"
-# $Id: firehol.sh,v 1.128 2003/05/01 01:30:24 ktsaou Exp $
+# $Id: firehol.sh,v 1.129 2003/05/22 19:39:53 ktsaou Exp $
 # (C) Copyright 2003, Costa Tsaousis <costa@tsaousis.gr>
 # FireHOL is distributed under GPL.
 # Home Page: http://firehol.sourceforge.net
