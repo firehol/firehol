@@ -6,12 +6,127 @@
 
 <BODY bgcolor="#FFFFFF">
 
-This section will eventually have a troubleshooting guide for FireHOL.
+Troubleshooting a running firewall is relatively simple and for almost all iptables firewalls the means you have are the same:
+<b>the system log</b>.
 <p>
-For the moment I'll give you a hint: <b>check the system log</b>.
+The system log (usually at <b>/var/log/messages</b>) will log all the packets dropped <b>implicitly</b> by FireHOL.
+<b>Implicitly</b> means all packets that did not match any of the rules in FireHOL's configuration file.
 <p>
-More later...
+FireHOL always logs all packets not matched by any rule, although it does not log every single packet,
+in order to protect you from an attack that could "eat" all of your free hard disk space.
+<p>
+The frequency packets are logged is controlled by the same means the optional rule parameter
+<a href="commands.html#loglimit">loglimit</a> is controlled.
+<p>
+In the system log you will find entries that look like:
+<small><pre>
+Dec 21 20:01:07 gateway kernel: IN-internet:IN=ppp0 OUT= MAC= SRC=200.75.88.187 DST=195.97.5.193 \
+	LEN=78 TOS=0x00 PREC=0x00 TTL=111 ID=63816 PROTO=UDP SPT=34165 DPT=137 LEN=58 
 
+Dec 21 22:25:39 gateway kernel: OUT-unknown:IN= OUT=ppp0 SRC=195.97.5.193 DST=192.168.23.1 \
+	LEN=48 TOS=0x00 PREC=0x00 TTL=64 ID=0 DF PROTO=TCP SPT=139 DPT=1255 WINDOW=2128 RES=0x00 ACK SYN URGP=0 
+	
+Dec 21 20:01:07 gateway kernel: PASS-unknown:IN=ppp0 OUT=eth0 SRC=200.75.88.187 DST=195.97.5.194 \
+	LEN=78 TOS=0x00 PREC=0x00 TTL=110 ID=64840 PROTO=UDP SPT=34132 DPT=137 LEN=58 
+</pre></small>
+Each of such lines represent one packet that did not satifly the requirements of the configuration file rules.
+<p>
+The important things to look in these logs are:
+<br>&nbsp;
+<ul>
+	<li><b>Its reason text</b>. In FireHOL this has the form <b>IN-name</b>, <b>OUT-name</b>, <b>PASS-name</b>.
+	<br>&nbsp;
+	<ul>
+		<li><b>IN-name</b> matches packets that dropped at the end of the interface's <b>name</b> input.
+		These are packets tried to come into this host (it is not routed traffic).
+		<br>
+		<b>Name</b> matches the name given to a FireHOL <a href="commands.html#interface">interface</a>.
+		There is also the special name <b>unknown</b> that matches packets tried to come into this
+		host but did not match any of the <a href="commands.html#interface">interfaces</a> given
+		in FireHOL's configuration file.
+		<br>&nbsp;
+		</li>
+		
+		<li><b>OUT-name</b> matches packets that dropped at the end of the interface's <b>name</b> output.
+		These are packets the host tried to send (it is not traffic routed).
+		<br>
+		<b>Name</b> matches the name given to a FireHOL <a href="commands.html#interface">interface</a>.
+		There is also the special name <b>unknown</b> that matches packets tried to go out of this
+		host but did not match any of the <a href="commands.html#interface">interfaces</a> given
+		in FireHOL's configuration file.
+		<br>&nbsp;
+		</li>
+		
+		<li><b>PASS-unknown</b> matches packets that dropped at the end of all
+		<a href="commands.html#router">routers</a>. 
+		This matches forwarded traffic.
+		<br>
+		There is no <b>name</b> here, since all FireHOL <a href="commands.html#router">routers</a>
+		have only one <a href="commands.html#policy">policy</a>: <b>RETURN</b>.
+		This makes all packets traverse all routers and then dropped at the end of the firewall.
+		<br>&nbsp;
+		</li>
+	</ul>
+	</li>
+	
+	<li><b>IN=</b> gives the real network interface name the packet came in from.
+	<br>
+	It can be empty when the packet was generated localy.
+	<br>&nbsp;
+	</li>
+	
+	<li><b>OUT=</b> gives the real network interface name the packet tried to use to go out of this host.
+	<br>
+	It can be empty when the packet was to be received by the firewall host.
+	<br>&nbsp;
+	</li>
+	
+	<li><b>SRC=</b> gives the IP address of the sender.
+	<br>&nbsp;
+	</li>
+
+	<li><b>DST=</b> gives the IP address of the packet's destination.
+	<br>&nbsp;
+	</li>
+
+	<li><b>PROTO=</b> gives the protocol this packet is using (TCP, UDP, ICMP, etc).
+	<br>&nbsp;
+	</li>
+
+	<li><b>SPT=</b> gives the source port number of this packet.
+	<br>&nbsp;
+	</li>
+
+	<li><b>DPT=</b> gives the destination port number of this packet.
+	<br>&nbsp;
+	</li>
+</ul>
+
+Generally, you should monitor the system log for such entries and decide if each entry was something usefull or not.
+If it was something usefull, you should have added another service somewhere in your FireHOL configuration to match
+that packet and allow it to reach its destination. If it was not something usefull, then FireHOL did the right job
+and dropped it.
+<p>
+Keep in mind that there are certain cases where packets get dropped even though FireHOL has specific rules that should
+allow them to pass. Such cases are not allways errors, and here is why:
+<p>
+The iptables connection tracker has a mechanism for matching request packets and reply packets.
+When an allowed request comes in, the connection tracker keeps it in a list and then waits for a matching reply to
+come in the opposite direction. This list of <b>active connections</b> is availble for you to see at <b>/proc/net/ip_conntrack</b>.
+Simply <b>cat</b> this file to see all the current connections your system has.
+<p>
+The connection tracker will wait for a reply a certain amount of time. This time is, for example, about 20 seconds for UDP traffic.
+After that time the connection tracker will remove the request from its list.
+A reply that is send after the connection tracker has removed the request from its list, will be dropped and therefore logged in
+the system log.
+<p>
+This situation may, for example, produce a few log entries in your DNS server for cases where the DNS server could not respond
+within the time limits set by iptables, but this is not a problem because the DNS client had already timed out in 2 or 3 seconds.
+<p>
+Note however that the above are common when the connection tracker is trying to keep a state on a stateless protocol
+(such as UDP or ICMP). Stateful protocols, such as TCP, always respond immediately to acknowledge the connection and therefore
+the time needed by the application server to respond does not make the connection tracker to remove the request from its
+list.
 
 <p>
 <hr noshade size=1>
@@ -19,7 +134,7 @@ More later...
 <tr><td align=center valign=middle>
 	<A href="http://sourceforge.net"><IMG src="http://sourceforge.net/sflogo.php?group_id=58425&amp;type=5" width="210" height="62" border="0" alt="SourceForge Logo"></A>
 </td><td align=center valign=middle>
-	<small>$Id: trouble.html,v 1.3 2002/12/09 22:40:41 ktsaou Exp $</small>
+	<small>$Id: trouble.html,v 1.4 2002/12/22 04:52:13 ktsaou Exp $</small>
 	<p>
 	<b>FireHOL</b>, a firewall for humans...<br>
 	&copy; Copyright 2002
