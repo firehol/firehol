@@ -10,7 +10,7 @@
 #
 # config: /etc/firehol.conf
 #
-# $Id: firehol.sh,v 1.36 2002/12/09 21:13:35 ktsaou Exp $
+# $Id: firehol.sh,v 1.37 2002/12/10 18:10:38 ktsaou Exp $
 #
 
 # ------------------------------------------------------------------------------
@@ -121,7 +121,7 @@ case "${arg}" in
 		else
 		
 		cat <<"EOF"
-$Id: firehol.sh,v 1.36 2002/12/09 21:13:35 ktsaou Exp $
+$Id: firehol.sh,v 1.37 2002/12/10 18:10:38 ktsaou Exp $
 (C) Copyright 2002, Costa Tsaousis
 FireHOL is distributed under GPL.
 
@@ -457,7 +457,7 @@ server_mysql_ports="tcp/mysql"
 client_mysql_ports="default"
 
 server_netbios_ns_ports="udp/netbios-ns"
-client_netbios_ns_ports="default udp/netbios-ns"
+client_netbios_ns_ports="default netbios-ns"
 
 server_netbios_dgm_ports="udp/netbios-dgm"
 client_netbios_dgm_ports="default netbios-dgm"
@@ -684,7 +684,7 @@ rules_nfs() {
 	local action="${1}"; shift
 	local servers="localhost"
 	
-	if [ "${type}" = "client" ]
+	if [ "${type}" = "client" -o ! "${work_cmd}" = "interface" ]
 	then
 		case "${1}" in
 			dst|DST|destination|DESTINATION)
