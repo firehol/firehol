@@ -10,7 +10,7 @@
 #
 # config: /etc/firehol.conf
 #
-# $Id: firehol.sh,v 1.69 2003/01/08 22:42:46 ktsaou Exp $
+# $Id: firehol.sh,v 1.70 2003/01/08 23:33:25 ktsaou Exp $
 #
 
 
@@ -1029,7 +1029,7 @@ transparent_squid() {
 	if [ ! -z "${user}" ]
 	then
 		set_work_function "Setting up rules for catching outgoing web traffic"
-		create_chain nat "out_trsquid.${transparent_squid_count}" OUTPUT "$@" inface any outface any src any proto tcp sport "${LOCAL_CLIENT_PORTS}" dport http || return 1
+		create_chain nat "out_trsquid.${transparent_squid_count}" OUTPUT nosoftwarnings "$@" inface any outface any src any proto tcp sport "${LOCAL_CLIENT_PORTS}" dport http || return 1
 		
 		# do not cache traffic for localhost web servers
 		rule table nat chain "out_trsquid.${transparent_squid_count}" dst "127.0.0.1" action RETURN || return 1
@@ -1663,7 +1663,7 @@ rule_action_param() {
 }
 
 rule() {
-	local table="-t filter"
+	local table=
 	local chain=
 	
 	local inface=any
@@ -1709,6 +1709,11 @@ rule() {
 	
 	local custom=
 	
+	# if set to 1, detection algorithm about overwritting optional rule
+	# parameters will take place.
+	local softwarnings=1
+	
+	
 	# If set to non-zero, this will enable the mechanism for
 	# handling ANDed negative expressions.
 	local have_a_not=0
@@ -1716,6 +1721,11 @@ rule() {
 	while [ ! -z "${1}" ]
 	do
 		case "${1}" in
+			nosoftwarnings)
+				local softwarnings=0
+				shift
+				;;
+				
 			set_work_inface|SET_WORK_INFACE)
 				swi=1
 				shift
@@ -1732,11 +1742,13 @@ rule() {
 				;;
 				
 			table|TABLE)
+				test ${softwarnings} -eq 1 -a ! -z "${table}" && softwarning "Overwritting param: ${1} '${chain}' becomes '${2}'"
 				table="-t ${2}"
 				shift 2
 				;;
 				
 			chain|CHAIN)
+				test ${softwarnings} -eq 1 -a ! -z "${chain}" && softwarning "Overwritting param: ${1} '${chain}' becomes '${2}'"
 				chain="${2}"
 				shift 2
 				;;
@@ -1757,6 +1769,7 @@ rule() {
 							work_inface="${1}"
 						fi
 					fi
+					test ${softwarnings} -eq 1 -a ! "${inface}" = "any" && softwarning "Overwritting param: inface '${inface}' becomes '${1}'"
 					inface="${1}"
 				else
 					outfacenot=
@@ -1771,6 +1784,7 @@ rule() {
 							work_outface="$1"
 						fi
 					fi
+					test ${softwarnings} -eq 1 -a ! "${outface}" = "any" && softwarning "Overwritting param: outface '${outface}' becomes '${1}'"
 					outface="${1}"
 				fi
 				shift
@@ -1792,6 +1806,7 @@ rule() {
 							work_outface="${1}"
 						fi
 					fi
+					test ${softwarnings} -eq 1 -a ! "${outface}" = "any" && softwarning "Overwritting param: outface '${outface}' becomes '${1}'"
 					outface="${1}"
 				else
 					infacenot=
@@ -1806,6 +1821,7 @@ rule() {
 							work_inface="${1}"
 						fi
 					fi
+					test ${softwarnings} -eq 1 -a ! "${inface}" = "any" && softwarning "Overwritting param: inface '${inface}' becomes '${1}'"
 					inface="${1}"
 				fi
 				shift
@@ -1822,6 +1838,7 @@ rule() {
 						srcnot="!"
 						have_a_not=1
 					fi
+					test ${softwarnings} -eq 1 -a ! "${src}" = "any" && softwarning "Overwritting param: src '${src}' becomes '${1}'"
 					src="${1}"
 				else
 					dstnot=
@@ -1831,6 +1848,7 @@ rule() {
 						dstnot="!"
 						have_a_not=1
 					fi
+					test ${softwarnings} -eq 1 -a ! "${dst}" = "any" && softwarning "Overwritting param: dst '${dst}' becomes '${1}'"
 					dst="${1}"
 				fi
 				shift
@@ -1847,6 +1865,7 @@ rule() {
 						dstnot="!"
 						have_a_not=1
 					fi
+					test ${softwarnings} -eq 1 -a ! "${dst}" = "any" && softwarning "Overwritting param: dst '${dst}' becomes '${1}'"
 					dst="${1}"
 				else
 					srcnot=
@@ -1856,6 +1875,7 @@ rule() {
 						srcnot="!"
 						have_a_not=1
 					fi
+					test ${softwarnings} -eq 1 -a ! "${src}" = "any" && softwarning "Overwritting param: src '${src}' becomes '${1}'"
 					src="${1}"
 				fi
 				shift
@@ -1872,6 +1892,7 @@ rule() {
 						sportnot="!"
 						have_a_not=1
 					fi
+					test ${softwarnings} -eq 1 -a ! "${sport}" = "any" && softwarning "Overwritting param: sport '${sport}' becomes '${1}'"
 					sport="${1}"
 				else
 					dportnot=
@@ -1881,6 +1902,7 @@ rule() {
 						dportnot="!"
 						have_a_not=1
 					fi
+					test ${softwarnings} -eq 1 -a ! "${dport}" = "any" && softwarning "Overwritting param: dport '${dport}' becomes '${1}'"
 					dport="${1}"
 				fi
 				shift
@@ -1897,6 +1919,7 @@ rule() {
 						dportnot="!"
 						have_a_not=1
 					fi
+					test ${softwarnings} -eq 1 -a ! "${dport}" = "any" && softwarning "Overwritting param: dport '${dport}' becomes '${1}'"
 					dport="${1}"
 				else
 					sportnot=
@@ -1906,6 +1929,7 @@ rule() {
 						sportnot="!"
 						have_a_not=1
 					fi
+					test ${softwarnings} -eq 1 -a ! "${sport}" = "any" && softwarning "Overwritting param: sport '${sport}' becomes '${1}'"
 					sport="${1}"
 				fi
 				shift
@@ -1920,11 +1944,13 @@ rule() {
 					protonot="!"
 					have_a_not=1
 				fi
+				test ${softwarnings} -eq 1 -a ! "${proto}" = "any" && softwarning "Overwritting param: proto '${proto}' becomes '${1}'"
 				proto="${1}"
 				shift
 				;;
 				
 			custom|CUSTOM)
+				test ${softwarnings} -eq 1 -a ! -z "${custom}" && softwarning "Overwritting param: custom '${custom}' becomes '${2}'"
 				custom="${2}"
 				shift 2
 				;;
@@ -1942,18 +1968,21 @@ rule() {
 				;;
 				
 			limit|LIMIT)
+				test ${softwarnings} -eq 1 -a ! -z "${limit}" && softwarning "Overwritting param: limit '${limit}' becomes '${2}'"
 				limit="${2}"
 				burst="${3}"
 				shift 3
 				;;
 				
 			iplimit|IPLIMIT)
+				test ${softwarnings} -eq 1 -a ! -z "${iplimit}" && softwarning "Overwritting param: iplimit '${iplimit}' becomes '${2}'"
 				iplimit="${2}"
 				iplimit_mask="${3}"
 				shift 3
 				;;
 				
 			action|ACTION)
+				test ${softwarnings} -eq 1 -a ! -z "${action}" && softwarning "Overwritting param: action '${action}' becomes '${2}'"
 				action="${2}"
 				shift 2
 				
@@ -2017,6 +2046,7 @@ rule() {
 					# have_a_not=1 # we really do not need this here!
 					# because we negate this on the positive statements.
 				fi
+				test ${softwarnings} -eq 1 -a ! -z "${state}" && softwarning "Overwritting param: state '${state}' becomes '${1}'"
 				state="${1}"
 				shift
 				;;
@@ -2028,6 +2058,7 @@ rule() {
 		esac
 	done
 	
+	test -z "${table}" && table="-t filter"
 	
 	# If the user did not specified a rejection message,
 	# we have to be smart and produce a tcp-reset if the protocol
@@ -2334,6 +2365,19 @@ rule() {
 	return 0
 }
 
+
+softwarning() {
+	echo >&2
+	echo >&2 "--------------------------------------------------------------------------------"
+	echo >&2 "WARNING"
+	echo >&2 "WHAT   : ${work_function}"
+	echo >&2 "WHY    :" "$@"
+	printf >&2 "COMMAND: "; printf >&2 "%q " "${work_realcmd[@]}"; echo >&2
+	echo >&2 "SOURCE : line ${FIREHOL_LINEID} of ${FIREHOL_CONFIG}"
+	echo >&2
+	
+	return 0
+}
 
 # ------------------------------------------------------------------------------
 # error - error reporting while still parsing the configuration file
@@ -2655,7 +2699,24 @@ case "${arg}" in
 		;;
 	
 	status)
-		/sbin/iptables -nxvL | less
+		(
+			echo 
+			echo "--- MANGLE ---------------------------------------------------------------------"
+			echo 
+			/sbin/iptables -t mangle -nxvL
+			
+			echo 
+			echo 
+			echo "--- NAT ------------------------------------------------------------------------"
+			echo 
+			/sbin/iptables -t nat -nxvL
+			
+			echo 
+			echo 
+			echo "--- FILTER ---------------------------------------------------------------------"
+			echo 
+			/sbin/iptables -nxvL
+		) | less
 		exit $?
 		;;
 	
@@ -2705,7 +2766,7 @@ case "${arg}" in
 		else
 		
 		cat <<"EOF"
-$Id: firehol.sh,v 1.69 2003/01/08 22:42:46 ktsaou Exp $
+$Id: firehol.sh,v 1.70 2003/01/08 23:33:25 ktsaou Exp $
 (C) Copyright 2002, Costa Tsaousis <costa@tsaousis.gr>
 FireHOL is distributed under GPL.
 
@@ -2873,7 +2934,7 @@ then
 	
 	cat <<"EOF"
 
-$Id: firehol.sh,v 1.69 2003/01/08 22:42:46 ktsaou Exp $
+$Id: firehol.sh,v 1.70 2003/01/08 23:33:25 ktsaou Exp $
 (C) Copyright 2002, Costa Tsaousis <costa@tsaousis.gr>
 FireHOL is distributed under GPL.
 Home Page: http://firehol.sourceforge.net
@@ -3114,6 +3175,7 @@ cat >"${FIREHOL_TMP}.awk" <<"EOF"
 /^[[:space:]]*policy[[:space:]]/ { printf "FIREHOL_LINEID=${LINENO} " }
 /^[[:space:]]*masquerade[[:space:]]/ { printf "FIREHOL_LINEID=${LINENO} " }
 /^[[:space:]]*postprocess[[:space:]]/ { printf "FIREHOL_LINEID=${LINENO} " }
+/^[[:space:]]*transparent_squid[[:space:]]/ { printf "FIREHOL_LINEID=${LINENO} " }
 { print }
 EOF
 
