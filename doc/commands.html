@@ -38,6 +38,9 @@
 			<li><a href="#iptables">iptables</a>, add some custom iptables commands to the firewall
 			<li><a href="#masquerade">masquerade</a>, setup masquerading (NAT) to the output of a network interface</li>
 			<li><a href="#transparent_squid">transparent_squid</a>, setup a transparent squid proxy running on the firewall host</li>
+			<li><a href="#nat">nat</a>, setup a NAT rule for routed traffic</li>
+			<li><a href="#dnat">dnat</a>, setup a Destination NAT rule for routed traffic</li>
+			<li><a href="#snat">snat</a>, setup a Source NAT rule for routed traffic</li>
 		</ul>
 		&nbsp;
 	</li>
@@ -417,6 +420,61 @@ Subcommands must be given within <a href="#primary_commands">Primary commands</a
 	<br>Example 2: <b>transparent_squid 8080 "squid privoxy root bin" inface not "ppp+ ipsec+" dst not "a.not.proxied.server"</b>
 	<p>
 
+<hr noshade size=1 width="100%">
+	
+	<a name="nat"><h3><b>nat</b> <font color="red">&lt;type&gt; &lt;target&gt;</font> [optional rule parameters]</h3></a>
+	The <b>nat</b> helper sets up a NAT rule for routed traffic.
+	<p>
+	The <b>type</b> parameter can be:
+	<ul>
+		<li><b>to-source</b>, to define a Source NAT (created in NAT/POSTROUTING).
+		<br>The <b>target</b> in this case is the source address to be set in packets matching the
+		optional rule parameters (if no optional rule parameters, all forwarded traffic will be matched).
+		<b>target</b> accepts all <b>--to-source</b> values <b>iptables</b> accepts (see <b>iptables -j SNAT --help</b>).
+		Multiple --to-source values can be given, if separated by space and quoted as a single argument.
+		<p>
+		<a href="#inface">inface</a> should not be used in SNAT, because iptables does provide this information
+		at this point.
+		<br>&nbsp;
+		</li>
+		<li><b>to-destination</b>, to define a Destination NAT (created in NAT/PREROUTING).
+		<br>The <b>target</b> in this case is the destination address to be set in packets matching the
+		optional rule parameters (if no optional rule parameters, all forwarded traffic will be matched).
+		<b>target</b> accepts all <b>--to-destination</b> values <b>iptables</b> accepts (see <b>iptables -j DNAT --help</b>).
+		Multiple --to-destination values can be given, if separated by space and quoted as a single argument.
+		<p>
+		<a href="#outface">outface</a> should not be used in DNAT, because iptables does provide this information
+		at this point.
+		<br>&nbsp;
+		</li>
+	</ul>
+	<p>
+	Example 1: <b>nat to-source 1.1.1.1 outface eth0 src 2.2.2.2 dst 3.3.3.3</b>
+	<br>Example 1: <b>nat to-destination 4.4.4.4 inface eth0 src 5.5.5.5 dst 6.6.6.6</b>
+	<p>
+
+<hr noshade size=1 width="100%">
+	
+	<a name="snat"><h3><b>snat</b> [to] <font color="red">&lt;target&gt;</font> [optional rule parameters]</h3></a>
+	The <b>snat</b> helper sets up a Source NAT rule for routed traffic, by calling<br>
+	<b>nat to-source &lt;target&gt [optional rule parameters]</b>
+	<p>
+	See the <a href="#nat">nat</a> helper.
+	<p>
+	Example 1: <b>snat to 1.1.1.1 outface eth0 src 2.2.2.2 dst 3.3.3.3</b>
+	<p>
+	
+<hr noshade size=1 width="100%">
+	
+	<a name="dnat"><h3><b>dnat</b> [to] <font color="red">&lt;target&gt;</font> [optional rule parameters]</h3></a>
+	The <b>dnat</b> helper sets up a Destination NAT rule for routed traffic, by calling<br>
+	<b>nat to-destination &lt;target&gt [optional rule parameters]</b>
+	<p>
+	See the <a href="#nat">nat</a> helper.
+	<p>
+	Example 1: <b>dnat to 1.1.1.1 inface eth0 src 2.2.2.2 dst 3.3.3.3</b>
+	<p>
+	
 <table border=0 cellpadding=10 cellspacing=0 width="100%"><tr bgcolor="#777777"><td align=center><font color="white"><b><big><a name="actions">Actions</a></td</tr></table>
 <small>
 Actions are the actions to be taken on services and traffic described by other commands and functions.
@@ -973,7 +1031,7 @@ about optional rule parameters that should not be used in certain commands.
 <tr><td align=center valign=middle>
 	<A href="http://sourceforge.net"><IMG src="http://sourceforge.net/sflogo.php?group_id=58425&amp;type=5" width="210" height="62" border="0" alt="SourceForge Logo"></A>
 </td><td align=center valign=middle>
-	<small>$Id: commands.html,v 1.15 2003/01/13 23:36:21 ktsaou Exp $</small>
+	<small>$Id: commands.html,v 1.16 2003/01/20 22:24:26 ktsaou Exp $</small>
 	<p>
 	<b>FireHOL</b>, a firewall for humans...<br>
 	&copy; Copyright 2002
