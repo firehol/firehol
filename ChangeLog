@@ -1,7 +1,7 @@
 
 RCS file: /cvsroot/firehol/firehol/firehol.sh,v
 Working file: firehol.sh
-head: 1.144
+head: 1.145
 branch:
 locks: strict
 access list:
@@ -9,8 +9,12 @@ symbolic names:
 	start: 1.1.1.1
 	vendor: 1.1.1
 keyword substitution: kv
-total revisions: 145;	selected revisions: 145
+total revisions: 146;	selected revisions: 146
 description:
+----------------------------
+revision 1.145
+date: 2003/07/20 22:45:50;  author: ktsaou;  state: Exp;  lines: +43 -7
+Added service HYLAFAX, although experimental.
 ----------------------------
 revision 1.144
 date: 2003/07/20 22:14:28;  author: ktsaou;  state: Exp;  lines: +37 -37
