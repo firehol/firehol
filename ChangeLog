@@ -1,7 +1,7 @@
 
 RCS file: /cvsroot/firehol/firehol/firehol.sh,v
 Working file: firehol.sh
-head: 1.176
+head: 1.179
 branch:
 locks: strict
 access list:
@@ -9,8 +9,28 @@ symbolic names:
 	start: 1.1.1.1
 	vendor: 1.1.1
 keyword substitution: kv
-total revisions: 177;	selected revisions: 177
+total revisions: 180;	selected revisions: 180
 description:
+----------------------------
+revision 1.179
+date: 2004/03/03 21:24:41;  author: ktsaou;  state: Exp;  lines: +12 -15
+Minor mac optional rule parameter fix.
+----------------------------
+revision 1.178
+date: 2004/03/03 20:32:35;  author: ktsaou;  state: Exp;  lines: +11 -6
+Completed the mac optional rule parameter. This was implemented since
+v1.134 but it was producing rules for both input and output packets.
+
+Now, it produces mac rules only for packets comming in the firewall
+(interfaces and routers).
+----------------------------
+revision 1.177
+date: 2004/02/07 00:43:11;  author: ktsaou;  state: Exp;  lines: +6 -6
+BUG 891471:
+Multicast CIDR block is actually 224.0.0.0/4.
+It extends from 224-239.
+
+Fixed.
 ----------------------------
 revision 1.176
 date: 2004/01/10 18:44:39;  author: ktsaou;  state: Exp;  lines: +8 -6
