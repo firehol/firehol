@@ -10,7 +10,7 @@
 #
 # config: /etc/firehol.conf
 #
-# $Id: firehol.sh,v 1.73 2003/01/16 00:33:26 ktsaou Exp $
+# $Id: firehol.sh,v 1.74 2003/01/16 00:55:36 ktsaou Exp $
 #
 
 
@@ -970,25 +970,40 @@ transparent_squid() {
 	return 0
 }
 
-snat_count=0
-snat() {
+nat_count=0
+nat() {
         work_realcmd=($FUNCNAME "$@")
 	
 	set_work_function -ne "Initializing $FUNCNAME"
 	
 	require_work clear || ( error "$FUNCNAME cannot be used in '${work_cmd}'. Put it before any '${work_cmd}' definition."; return 1 )
 	
-	local to="${1}"
-	shift
+	local type="${1}"; shift
+	local to="${1}";   shift
 	
-	snat_count=$[snat_count + 1]
+	nat_count=$[nat_count + 1]
 	
-	set_work_function "Setting up rules for SNAT"
+	set_work_function "Setting up rules for NAT"
 	
-	create_chain nat "snat.${snat_count}" POSTROUTING noowner "$@" nosoftwarnings inface any || return 1
+	case ${type} in
+		to-source)
+			create_chain nat "nat.${nat_count}" POSTROUTING "$@" inface any || return 1
+			local action=snat
+			;;
+		
+		to-destination)
+			create_chain nat "nat.${nat_count}" PREROUTING "$@" outface any || return 1
+			local action=dnat
+			;;
+		
+		*)
+			error "$FUNCNAME requires a 'to-source' or 'to-destination' as its first argument. '${type}' is not understood."
+			return 1
+			;;
+	esac
 	
 	# we now need to keep the protocol
-	rule table nat chain "snat.${snat_count}" noowner "$@" action snat to "${to}" nosoftwarnings src any dst any inface any outface any sport any dport any || return 1
+	rule table nat chain "nat.${nat_count}" noowner "$@" action "${action}" to "${to}" nosoftwarnings src any dst any inface any outface any sport any dport any || return 1
 	
 	FIREHOL_NAT=1
 	FIREHOL_ROUTING=1
@@ -996,30 +1011,26 @@ snat() {
 	return 0
 }
 
-dnat_count=0
+snat() {
+        work_realcmd=($FUNCNAME "$@")
+	
+	set_work_function -ne "Initializing $FUNCNAME"
+	
+	local to="${1}"; shift
+	test "${to}" = "to" && local to="${1}"; shift
+	
+	nat "to-source" "${to}" "$@"
+}
+
 dnat() {
         work_realcmd=($FUNCNAME "$@")
 	
 	set_work_function -ne "Initializing $FUNCNAME"
 	
-	require_work clear || ( error "$FUNCNAME cannot be used in '${work_cmd}'. Put it before any '${work_cmd}' definition."; return 1 )
+	local to="${1}"; shift
+	test "${to}" = "to" && local to="${1}"; shift
 	
-	local to="${1}"
-	shift
-	
-	dnat_count=$[dnat_count + 1]
-	
-	set_work_function "Setting up rules for SNAT"
-	
-	create_chain nat "dnat.${dnat_count}" PREROUTING noowner "$@" nosoftwarnings inface any || return 1
-	
-	# we now need to keep the protocol
-	rule table nat chain "dnat.${dnat_count}" noowner "$@" action dnat to "${to}" nosoftwarnings src any dst any inface any outface any sport any dport any || return 1
-	
-	FIREHOL_NAT=1
-	FIREHOL_ROUTING=1
-	
-	return 0
+	nat "to-destination" "${to}" "$@"
 }
 
 # ------------------------------------------------------------------------------
@@ -2982,7 +2993,7 @@ case "${arg}" in
 		else
 		
 		cat <<"EOF"
-$Id: firehol.sh,v 1.73 2003/01/16 00:33:26 ktsaou Exp $
+$Id: firehol.sh,v 1.74 2003/01/16 00:55:36 ktsaou Exp $
 (C) Copyright 2002, Costa Tsaousis <costa@tsaousis.gr>
 FireHOL is distributed under GPL.
 
@@ -3150,7 +3161,7 @@ then
 	
 	cat <<"EOF"
 
-$Id: firehol.sh,v 1.73 2003/01/16 00:33:26 ktsaou Exp $
+$Id: firehol.sh,v 1.74 2003/01/16 00:55:36 ktsaou Exp $
 (C) Copyright 2002, Costa Tsaousis <costa@tsaousis.gr>
 FireHOL is distributed under GPL.
 Home Page: http://firehol.sourceforge.net
