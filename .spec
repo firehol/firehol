@@ -60,9 +60,8 @@ rm -rf ${RPM_BUILD_DIR}/%{name}-%{version}
 
 %doc examples/home-adsl.conf
 %doc examples/home-dialup.conf
-%doc examples/home-router.conf
 %doc examples/office.conf
-%doc examples/office-private-lan.conf
+%doc examples/server-dmz.conf
 %doc examples/client-all.conf
 
 %doc doc/adding.html
