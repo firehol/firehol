@@ -10,7 +10,7 @@
 #
 # config: /etc/firehol/firehol.conf
 #
-# $Id: firehol.sh,v 1.136 2003/06/28 21:26:20 ktsaou Exp $
+# $Id: firehol.sh,v 1.137 2003/06/28 23:22:49 ktsaou Exp $
 #
 FIREHOL_FILE="${0}"
 
@@ -1193,15 +1193,17 @@ mac() {
 	
 	require_work clear || ( error "$FUNCNAME cannot be used in '${work_cmd}'. Put it before any '${work_cmd}' definition."; return 1 )
 	
-	set_work_function "Setting up rules for MAC address match"
-	
 	if [ ${wrongmac_chain} -eq 0 ]
 	then
+		set_work_function "Creating the MAC-MISSMATCH chain (only once)"
+		
 		iptables -t filter -N WRONGMAC
 		rule table filter chain WRONGMAC loglimit "MAC MISSMATCH" action DROP || return 1
 		
 		wrongmac_chain=1
 	fi
+	
+	set_work_function "If the source IP ${1} does not match MAC ${2}, drop the packet"
 	
 	iptables -t filter -A INPUT   -s "${1}" -m mac --mac-source ! "${2}" -j WRONGMAC
 	iptables -t filter -A FORWARD -s "${1}" -m mac --mac-source ! "${2}" -j WRONGMAC
@@ -3439,7 +3441,7 @@ case "${arg}" in
 		else
 		
 		${CAT_CMD} <<"EOF"
-$Id: firehol.sh,v 1.136 2003/06/28 21:26:20 ktsaou Exp $
+$Id: firehol.sh,v 1.137 2003/06/28 23:22:49 ktsaou Exp $
 (C) Copyright 2003, Costa Tsaousis <costa@tsaousis.gr>
 FireHOL is distributed under GPL.
 
@@ -3625,7 +3627,7 @@ then
 	
 	${CAT_CMD} <<"EOF"
 
-$Id: firehol.sh,v 1.136 2003/06/28 21:26:20 ktsaou Exp $
+$Id: firehol.sh,v 1.137 2003/06/28 23:22:49 ktsaou Exp $
 (C) Copyright 2003, Costa Tsaousis <costa@tsaousis.gr>
 FireHOL is distributed under GPL.
 Home Page: http://firehol.sourceforge.net
@@ -3920,7 +3922,7 @@ then
 	
 	${CAT_CMD} >&2 <<"EOF"
 
-$Id: firehol.sh,v 1.136 2003/06/28 21:26:20 ktsaou Exp $
+$Id: firehol.sh,v 1.137 2003/06/28 23:22:49 ktsaou Exp $
 (C) Copyright 2003, Costa Tsaousis <costa@tsaousis.gr>
 FireHOL is distributed under GPL.
 Home Page: http://firehol.sourceforge.net
@@ -4013,7 +4015,7 @@ EOF
 	echo "# "
 
 	${CAT_CMD} <<"EOF"
-# $Id: firehol.sh,v 1.136 2003/06/28 21:26:20 ktsaou Exp $
+# $Id: firehol.sh,v 1.137 2003/06/28 23:22:49 ktsaou Exp $
 # (C) Copyright 2003, Costa Tsaousis <costa@tsaousis.gr>
 # FireHOL is distributed under GPL.
 # Home Page: http://firehol.sourceforge.net
