@@ -10,7 +10,7 @@
 #
 # config: /etc/firehol/firehol.conf
 #
-# $Id: firehol.sh,v 1.192 2004/05/04 21:39:33 ktsaou Exp $
+# $Id: firehol.sh,v 1.193 2004/05/05 23:41:19 ktsaou Exp $
 #
 
 # Remember who you are.
@@ -33,16 +33,26 @@ PATH="${PATH}:/bin:/usr/bin:/sbin:/usr/sbin"
 # If one of those is not found, FireHOL will refuse to run.
 
 which_cmd() {
+	local block=1
+	if [ "a${1}" = "a-n" ]
+	then
+		local block=0
+		shift
+	fi
+	
 	unalias $2 >/dev/null 2>&1
 	local cmd=`which $2 | head -n 1`
 	if [ $? -gt 0 -o ! -x "${cmd}" ]
 	then
-		echo >&2
-		echo >&2 "ERROR:	Command '$2' not found in the system path."
-		echo >&2 "	FireHOL requires this command for its operation."
-		echo >&2 "	Please install the required package and retry."
-		echo >&2
-		exit 1
+		if [ ${block} -eq 1 ]
+		then
+			echo >&2
+			echo >&2 "ERROR:	Command '$2' not found in the system path."
+			echo >&2 "	FireHOL requires this command for its operation."
+			echo >&2 "	Please install the required package and retry."
+			echo >&2
+			exit 1
+		fi
 	fi
 	
 	eval $1=${cmd}
@@ -75,6 +85,8 @@ which_cmd TOUCH_CMD touch
 which_cmd TR_CMD tr
 which_cmd UNAME_CMD uname
 which_cmd UNIQ_CMD uniq
+which_cmd -n WGET_CMD wget
+which_cmd -n CURL_CMD curl
 
 
 # ------------------------------------------------------------------------------
@@ -86,6 +98,15 @@ which_cmd UNIQ_CMD uniq
 # ------------------------------------------------------------------------------
 # XXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXX
 # ------------------------------------------------------------------------------
+
+FIREHOL_SPOOL_DIR="/var/spool/firehol"
+
+# Make sure we have a directory for our data.
+if [ ! -d "${FIREHOL_SPOOL_DIR}" ]
+then
+	${MKDIR_CMD} -p "${FIREHOL_SPOOL_DIR}" || exit 1
+fi
+
 
 # IANA Reserved IPv4 address space
 # Suggested by Fco.Felix Belmonte <ffelix@gescosoft.com>
@@ -1295,6 +1316,62 @@ fi
 # ------------------------------------------------------------------------------
 # XXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXX
 # ------------------------------------------------------------------------------
+
+# Fetch a URL and output it to the standard output.
+firehol_wget() {
+	local url="${1}"
+	
+	if [ ! -z "${WGET_CMD}" ]
+	then
+		${WGET_CMD} -O - "${url}" 2>/dev/null
+		return $?
+	elif [ ! -z "${CURL_CMD}" ]
+	then
+		${CURL_CMD} -s "${url}"
+		return $?
+	fi
+	
+	error "Cannot use either 'wget' or 'curl' to fetch '${url}'."
+	return 1
+}
+
+FIREHOL_ECN_SHAME_URL="http://urchin.earth.li/cgi-bin/ecn.pl?output=ip"
+ecn_shame() {
+	work_realcmd_helper ${FUNCNAME} "$@"
+	
+	set_work_function -ne "Initializing $FUNCNAME"
+	
+	if [ `${CAT_CMD} /proc/sys/net/ipv4/tcp_ecn` -eq 1 ]
+	then
+		set_work_function "Fetching '${FIREHOL_ECN_SHAME_URL}'."
+		
+		# Reads in list of ip address and makes iptables rules to drop ecn
+		# from packets destined for those hosts.
+		# http://urchin.earth.li/ecn/
+		
+		local tmp="${FIREHOL_DIR}/ecn_shame.ips"
+		
+		firehol_wget "${FIREHOL_ECN_SHAME_URL}" | ${SORT_CMD} | ${UNIQ_CMD} >"${tmp}"
+		if [ $? -ne 0 -o ! -s "${tmp}" ]
+		then
+			softwarning "Cannot fetch '${FIREHOL_ECN_SHAME_URL}'."
+		else
+			${MV_CMD} -f "${tmp}" "${FIREHOL_SPOOL_DIR}/ecn_shame.ips"
+		fi
+		
+		set_work_function "Removing ECN for all communication from/to SHAME ECN list."
+		
+		local count=0
+		for ip in `${CAT_CMD} "${FIREHOL_SPOOL_DIR}/ecn_shame.ips"`
+		do
+			local count=$[count + 1]
+			iptables -t mangle -A POSTROUTING -p tcp -d ${ip} -j ECN --ecn-tcp-remove
+		done
+		
+		test ${count} -eq 0 && softwarning "No ECN SHAME IPs found." && return 1
+	fi
+	return 0
+}
 
 masquerade() {
 	work_realcmd_helper ${FUNCNAME} "$@"
@@ -4183,7 +4260,7 @@ case "${arg}" in
 		else
 		
 		${CAT_CMD} <<EOF
-$Id: firehol.sh,v 1.192 2004/05/04 21:39:33 ktsaou Exp $
+$Id: firehol.sh,v 1.193 2004/05/05 23:41:19 ktsaou Exp $
 (C) Copyright 2003, Costa Tsaousis <costa@tsaousis.gr>
 FireHOL is distributed under GPL.
 
@@ -4369,7 +4446,7 @@ then
 	
 	${CAT_CMD} <<EOF
 
-$Id: firehol.sh,v 1.192 2004/05/04 21:39:33 ktsaou Exp $
+$Id: firehol.sh,v 1.193 2004/05/05 23:41:19 ktsaou Exp $
 (C) Copyright 2003, Costa Tsaousis <costa@tsaousis.gr>
 FireHOL is distributed under GPL.
 Home Page: http://firehol.sourceforge.net
@@ -4663,7 +4740,7 @@ then
 	
 	${CAT_CMD} >&2 <<EOF
 
-$Id: firehol.sh,v 1.192 2004/05/04 21:39:33 ktsaou Exp $
+$Id: firehol.sh,v 1.193 2004/05/05 23:41:19 ktsaou Exp $
 (C) Copyright 2003, Costa Tsaousis <costa@tsaousis.gr>
 FireHOL is distributed under GPL.
 Home Page: http://firehol.sourceforge.net
@@ -4746,7 +4823,7 @@ EOF
 	echo "# "
 
 	${CAT_CMD} <<EOF
-# $Id: firehol.sh,v 1.192 2004/05/04 21:39:33 ktsaou Exp $
+# $Id: firehol.sh,v 1.193 2004/05/05 23:41:19 ktsaou Exp $
 # (C) Copyright 2003, Costa Tsaousis <costa@tsaousis.gr>
 # FireHOL is distributed under GPL.
 # Home Page: http://firehol.sourceforge.net
