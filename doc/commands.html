@@ -431,6 +431,8 @@ Subcommands must be given within <a href="#primary_commands">Primary commands</a
 		</li>
 	</ul>
 	<p>
+	Of course, make sure that your firewall allows requests to reach your proxy server.
+	<p>     
 	Example 1: <b>transparent_squid 3128 squid inface eth0 src 10.0.0.0/8</b>
 	<br>Example 2: <b>transparent_squid 8080 "squid privoxy root bin" inface not "ppp+ ipsec+" dst not "a.not.proxied.server"</b>
 	<p>
@@ -448,18 +450,32 @@ Subcommands must be given within <a href="#primary_commands">Primary commands</a
 		<b>target</b> accepts all <b>--to-source</b> values <b>iptables</b> accepts (see <b>iptables -j SNAT --help</b>).
 		Multiple --to-source values can be given, if separated by space and quoted as a single argument.
 		<p>
-		<a href="#inface">inface</a> should not be used in SNAT, because iptables does provide this information
+		<a href="#inface">inface</a> should not be used in SNAT, because iptables does not provide this information
 		at this point.
+		<p>
+		<b>YOU HAVE TO MAKE SURE THAT THE SOURCE ADDRESS YOU SPECIFY IS SUCH THAT THE REPLIES WILL BE SEND BACK
+		TO THE HOST DOING THE NAT.</b> If the traffic does not get back to this host, then SNAT will simply not work.
+		<p>
+		THE PACKET FILTERING MECHANISM WILL <b>NOT KNOW</b> THE CHANGE OF THE SOURCE ADDRESS. For packet filtering
+		(client, server, route statements in interfaces and routers), the
+		traffic will flow in both directions with its <b>real</b> source address (i.e. real = as it is, before SNATed).
+		For the host doing the NAT, <b>real</b> is "where do I have to really send it?"
 		<br>&nbsp;
 		</li>
 		<li><b>to-destination</b>, to define a Destination NAT (created in NAT/PREROUTING).
 		<br>The <b>target</b> in this case is the destination address to be set in packets matching the
 		optional rule parameters (if no optional rule parameters, all forwarded traffic will be matched).
 		<b>target</b> accepts all <b>--to-destination</b> values <b>iptables</b> accepts (see <b>iptables -j DNAT --help</b>).
-		Multiple --to-destination values can be given, if separated by space and quoted as a single argument.
+		Multiple --to-destination values can be given, if separated by space and quoted as a single argument (in
+		which case DNAT becomes a load-balancer).
 		<p>
-		<a href="#outface">outface</a> should not be used in DNAT, because iptables does provide this information
+		<a href="#outface">outface</a> should not be used in DNAT, because iptables does not provide this information
 		at this point.
+		<p>
+		THE PACKET FILTERING MECHANISM WILL <b>KNOW</b> THE CHANGE OF THE DESTINATION ADDRESS. For packet filtering
+		(client, server, route statements in interfaces and routers), the
+		traffic will flow in both directions with its <b>real</b> destination address (i.e. real = as it is, after DNATed).
+		For the host doing the NAT, <b>real</b> is "where do I have to really send it?"
 		<br>&nbsp;
 		</li>
 		<li><b>redirect-to</b>, to catch traffic comming in and send it to the local machine (created in NAT/PREROUTING).
@@ -467,8 +483,13 @@ Subcommands must be given within <a href="#primary_commands">Primary commands</a
 		will be redirected to (if no optional rule parameters are given, all incomming traffic will be matched).
 		<b>target</b> accepts all <b>--to-ports</b> values <b>iptables</b> accepts (see <b>iptables -j REDIRECT --help</b>).
 		<p>
-		<a href="#outface">outface</a> should not be used in REDIRECT, because iptables does provide this information
+		<a href="#outface">outface</a> should not be used in REDIRECT, because iptables does not provide this information
 		at this point.
+		<p>
+		THE PACKET FILTERING MECHANISM WILL <b>KNOW</b> THE CHANGE OF THE DESTINATION PORT. For packet filtering
+		(client, server statements in interfaces), the
+		traffic will flow in both directions with its <b>real</b> destination port (i.e. real = as it is, after REDIRECTed).
+		For the host doing the NAT, <b>real</b> is "where do I have to really send it?"
 		<br>&nbsp;
 		</li>
 	</ul>
@@ -489,6 +510,9 @@ Subcommands must be given within <a href="#primary_commands">Primary commands</a
 		</tr>
 	<tr bgcolor="#F0F0F0">	<td nowrap align=center valign=middle>nat to-destination 1.1.1.1 proto tcp dport 25 dst 2.2.2.2</td>
 		<td>Redirects to 1.1.1.1 all traffic comming in or passing through and going to 2.2.2.2 to port tcp/25.</td>
+		</tr>
+	<tr bgcolor="#F0F0F0">	<td nowrap align=center valign=middle>nat to-destination 1.1.1.1 proto tcp dport 25 dst 2.2.2.2 src 3.3.3.3</td>
+		<td>Redirects to 1.1.1.1 all traffic comming in or passing through from 3.3.3.3 and going to 2.2.2.2 to port tcp/25.</td>
 		</tr>
 	</table>
 	</center>
@@ -530,7 +554,7 @@ Subcommands must be given within <a href="#primary_commands">Primary commands</a
 	<p>
 	See the <a href="#nat">nat</a> helper.
 	<p>
-	Example 1: <b>nat redirect-to 8080 inface eth0 src 2.2.2.0/24 proto tcp dport 80</b>
+	Example 1: <b>redirect to 8080 inface eth0 src 2.2.2.0/24 proto tcp dport 80</b>
 	<p>
 	
 <table border=0 cellpadding=10 cellspacing=0 width="100%"><tr bgcolor="#777777"><td align=center><font color="white"><b><big><a name="actions">Actions</a></td</tr></table>
@@ -1111,7 +1135,7 @@ about optional rule parameters that should not be used in certain commands.
 <tr><td align=center valign=middle>
 	<A href="http://sourceforge.net"><IMG src="http://sourceforge.net/sflogo.php?group_id=58425&amp;type=5" width="210" height="62" border="0" alt="SourceForge Logo"></A>
 </td><td align=center valign=middle>
-	<small>$Id: commands.html,v 1.27 2003/04/05 21:20:56 ktsaou Exp $</small>
+	<small>$Id: commands.html,v 1.28 2003/04/20 10:47:38 ktsaou Exp $</small>
 	<p>
 	<b>FireHOL</b>, a firewall for humans...<br>
 	&copy; Copyright 2003
