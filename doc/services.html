@@ -118,7 +118,7 @@ All the services defined by name in FireHOL are known to resolve in <a href="htt
 	<tr><td align=left valign=top><font color="gray" size=+1><b>N</td></tr>
 	<tr><td align=left valign=top><small>
 
-<a href="#netbackup">netbackup</a>, <a href="#netbios_dgm">netbios_dgm</a>, <a href="#netbios_ns">netbios_ns</a>, <a href="#netbios_ssn">netbios_ssn</a>, <a href="#nfs">nfs</a>, <a href="#nntp">nntp</a>, <a href="#nntps">nntps</a>, <a href="#ntp">ntp</a>, <a href="#nxserver">nxserver</a></td></tr></table></td>
+<a href="#netbackup">netbackup</a>, <a href="#netbios_dgm">netbios_dgm</a>, <a href="#netbios_ns">netbios_ns</a>, <a href="#netbios_ssn">netbios_ssn</a>, <a href="#nfs">nfs</a>, <a href="#nis">nis</a>, <a href="#nntp">nntp</a>, <a href="#nntps">nntps</a>, <a href="#ntp">ntp</a>, <a href="#nut">nut</a>, <a href="#nxserver">nxserver</a></td></tr></table></td>
 </tr><tr>
 
 <td width="25%" align=left valign=top>
@@ -1366,6 +1366,25 @@ All the services defined by name in FireHOL are known to resolve in <a href="htt
 	</td>
 	</tr>
 <tr  bgcolor="#F0F0F0">
+	<td align="center" valign="top"><a name="nis"><b>nis</b></a></td>
+	<td align="center" valign="top">complex</td>
+	<td>
+		<table cellspacing=0 cellpadding=2 border=0>
+		<tr>
+<td align=right valign=top nowrap><small><font color=gray>Server Ports</td><td>&nbsp;
+<b>many</b>
+</td></tr><tr><td align=right valign=top nowrap><small><font color=gray>Client Ports</td><td>&nbsp;
+<b>500:65535</b>
+</td></tr><tr><td align=right valign=top nowrap><small><font color=gray>Netfilter Modules</td><td>&nbsp;
+</td></tr><tr><td align=right valign=top nowrap><small><font color=gray>Netfilter NAT Modules</td><td>&nbsp;
+</td>
+	</tr>
+	<tr><td align=right valign=top nowrap><small><font color="gray">Notes</td><td>The nis service queries the RPC service on the nis server host to find out the ports <b>ypserv</b> and <b>yppasswdd</b> are listening. Then, according to these ports it sets up rules on all the supported protocols (as reported by RPC) in order the clients to be able to reach the server. <p> For this reason, the nis service requires that: <ul> <li>the firewall is restarted if the nis server is restarted</li> <li>the nis server must be specified on all nis statements (only if it is not the localhost)</li> </ul> Since nis queries the remote RPC server, it is required to also be allowed to do so, by allowing the <a href="#portmap">portmap</a> service too. Take care, that this is allowed by the <b>running firewall</b> when FireHOL tries to query the RPC server. So you might have to setup nis in two steps: First add the portmap service and activate the firewall, then add the nis service and restart the firewall. <p> This service has been created by <a href="https://sourceforge.net/tracker/?func=detail&atid=487695&aid=1050951&group_id=58425">Carlos Rodrigues</a>. His comments regarding this implementation, are: <p> <b>These rules work for client access only!</b> <p> Pushing changes to slave servers won't work if these rules are active somewhere between the master and its slaves, because it is impossible to predict the ports where <b>yppush</b> will be listening on each push. <p> Pulling changes directly on the slaves will work, and could be improved performance-wise if these rules are modified to open <b>fypxfrd</b>. This wasn't done because it doesn't make that much sense since pushing changes on the master server is the most common, and recommended, way to replicate maps.<br>&nbsp;</td></tr>
+	<tr><td align=right valign=top nowrap><small><font color="gray">Example</td><td><b>client nis accept <u>dst</u> <u>1.2.3.4</u></b></td></tr>
+	</table>
+	</td>
+	</tr>
+<tr >
 	<td align="center" valign="top"><a name="nntp"><b>nntp</b></a></td>
 	<td align="center" valign="top">simple</td>
 	<td>
@@ -1384,7 +1403,7 @@ All the services defined by name in FireHOL are known to resolve in <a href="htt
 	</table>
 	</td>
 	</tr>
-<tr >
+<tr  bgcolor="#F0F0F0">
 	<td align="center" valign="top"><a name="nntps"><b>nntps</b></a></td>
 	<td align="center" valign="top">simple</td>
 	<td>
@@ -1403,7 +1422,7 @@ All the services defined by name in FireHOL are known to resolve in <a href="htt
 	</table>
 	</td>
 	</tr>
-<tr  bgcolor="#F0F0F0">
+<tr >
 	<td align="center" valign="top"><a name="ntp"><b>ntp</b></a></td>
 	<td align="center" valign="top">simple</td>
 	<td>
@@ -1423,6 +1442,27 @@ All the services defined by name in FireHOL are known to resolve in <a href="htt
 	</tr>
 	<tr><td align=right valign=top nowrap><small><font color="gray">Notes</td><td><br>&nbsp;</td></tr>
 	<tr><td align=right valign=top nowrap><small><font color="gray">Example</td><td><b>server ntp accept</b></td></tr>
+	</table>
+	</td>
+	</tr>
+<tr  bgcolor="#F0F0F0">
+	<td align="center" valign="top"><a name="nut"><b>nut</b></a></td>
+	<td align="center" valign="top">simple</td>
+	<td>
+		<table cellspacing=0 cellpadding=2 border=0>
+		<tr>
+<td align=right valign=top nowrap><small><font color=gray>Server Ports</td><td>&nbsp;
+<b>tcp/3493</b>
+, 
+<b>udp/3493</b>
+</td></tr><tr><td align=right valign=top nowrap><small><font color=gray>Client Ports</td><td>&nbsp;
+<b>default</b>
+</td></tr><tr><td align=right valign=top nowrap><small><font color=gray>Netfilter Modules</td><td>&nbsp;
+</td></tr><tr><td align=right valign=top nowrap><small><font color=gray>Netfilter NAT Modules</td><td>&nbsp;
+</td>
+	</tr>
+	<tr><td align=right valign=top nowrap><small><font color="gray">Notes</td><td><br>&nbsp;</td></tr>
+	<tr><td align=right valign=top nowrap><small><font color="gray">Example</td><td><b>server nut accept</b></td></tr>
 	</table>
 	</td>
 	</tr>
@@ -2309,7 +2349,7 @@ All the services defined by name in FireHOL are known to resolve in <a href="htt
 <tr><td align=center valign=middle>
 	<A href="http://sourceforge.net"><IMG src="http://sourceforge.net/sflogo.php?group_id=58425&amp;type=5" width="210" height="62" border="0" alt="SourceForge Logo"></A>
 </td><td align=center valign=middle>
-	<small>$Id: services.html,v 1.54 2004/10/08 22:30:55 ktsaou Exp $</small>
+	<small>$Id: services.html,v 1.55 2004/10/30 21:13:26 ktsaou Exp $</small>
 	<p>
 	<b>FireHOL</b>, a firewall for humans...<br>
 	&copy; Copyright 2003

@@ -435,6 +435,39 @@ If you do this then you will have to define the the ports using the procedure de
 "
 service_nfs_example="client nfs accept <u>dst</u> <u>1.2.3.4</u>"
 
+server_nis_ports="many"
+client_nis_ports="500:65535"
+service_nis_type="complex"
+service_nis_notes="
+The nis service queries the RPC service on the nis server host to find out the ports <b>ypserv</b> and <b>yppasswdd</b> are listening.
+Then, according to these ports it sets up rules on all the supported protocols (as reported by RPC) in order the
+clients to be able to reach the server.
+<p>
+For this reason, the nis service requires that:
+<ul>
+	<li>the firewall is restarted if the nis server is restarted</li>
+	<li>the nis server must be specified on all nis statements (only if it is not the localhost)</li>
+</ul>
+Since nis queries the remote RPC server, it is required to also be allowed to do so, by allowing the
+<a href=\"#portmap\">portmap</a> service too. Take care, that this is allowed by the <b>running firewall</b>
+when FireHOL tries to query the RPC server. So you might have to setup nis in two steps: First add the portmap
+service and activate the firewall, then add the nis service and restart the firewall.
+<p>
+This service has been created by <a href=\"https://sourceforge.net/tracker/?func=detail&atid=487695&aid=1050951&group_id=58425\">Carlos Rodrigues</a>.
+His comments regarding this implementation, are:
+<p>
+<b>These rules work for client access only!</b>
+<p>
+Pushing changes to slave servers won't work if these rules are active
+somewhere between the master and its slaves, because it is impossible to
+predict the ports where <b>yppush</b> will be listening on each push.
+<p>
+Pulling changes directly on the slaves will work, and could be improved
+performance-wise if these rules are modified to open <b>fypxfrd</b>. This wasn't
+done because it doesn't make that much sense since pushing changes on the
+master server is the most common, and recommended, way to replicate maps.
+"
+service_nis_example="client nis accept <u>dst</u> <u>1.2.3.4</u>"
 
 service_nxserver_notes="
 Default ports used by NX server for connections without encryption.<br>
@@ -885,7 +918,7 @@ cat <<"EOF"
 <tr><td align=center valign=middle>
 	<A href="http://sourceforge.net"><IMG src="http://sourceforge.net/sflogo.php?group_id=58425&amp;type=5" width="210" height="62" border="0" alt="SourceForge Logo"></A>
 </td><td align=center valign=middle>
-	<small>$Id: create_services.sh,v 1.48 2004/09/26 00:52:56 ktsaou Exp $</small>
+	<small>$Id: create_services.sh,v 1.49 2004/10/30 21:13:26 ktsaou Exp $</small>
 	<p>
 	<b>FireHOL</b>, a firewall for humans...<br>
 	&copy; Copyright 2003

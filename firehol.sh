@@ -10,7 +10,7 @@
 #
 # config: /etc/firehol/firehol.conf
 #
-# $Id: firehol.sh,v 1.207 2004/10/28 23:03:06 ktsaou Exp $
+# $Id: firehol.sh,v 1.208 2004/10/30 21:13:26 ktsaou Exp $
 #
 
 # Remember who you are.
@@ -961,6 +961,110 @@ rules_nfs() {
 		echo >&2 ""
 		echo >&2 "WARNING:"
 		echo >&2 "This firewall must be restarted if NFS server ${x} is restarted!"
+		echo >&2 ""
+	done
+	
+	return 0
+}
+
+
+# --- NIS ----------------------------------------------------------------------
+# These rules work for client access only!
+#
+# Pushing changes to slave servers won't work if these rules are active
+# somewhere between the master and its slaves, because it is impossible to
+# predict the ports where "yppush" will be listening on each push.
+#
+# Pulling changes directly on the slaves will work, and could be improved
+# performance-wise if these rules are modified to open "fypxfrd". This wasn't
+# done because it doesn't make that much sense since pushing changes on the
+# master server is the most common, and recommended, way to replicate maps.
+#
+# Created by Carlos Rodrigues <crlf@users.sourceforge.net>
+# Feature Requests item #1050951 <https://sourceforge.net/tracker/?func=detail&atid=487695&aid=1050951&group_id=58425>
+
+rules_nis() {
+        local mychain="${1}"; shift
+	local type="${1}"; shift
+	
+	local in=in
+	local out=out
+	if [ "${type}" = "client" ]
+	then
+		in=out
+		out=in
+	fi
+	
+	local client_ports="${DEFAULT_CLIENT_PORTS}"
+	if [ "${type}" = "client" -a "${work_cmd}" = "interface" ]
+	then
+		client_ports="${LOCAL_CLIENT_PORTS}"
+	fi
+	
+	# ----------------------------------------------------------------------
+	
+	# This command requires in the client or route subcommands,
+	# the first argument after the policy/action is a dst.
+	
+	local action="${1}"; shift
+	local servers="localhost"
+	
+	if [ "${type}" = "client" -o ! "${work_cmd}" = "interface" ]
+	then
+		case "${1}" in
+			dst|DST|destination|DESTINATION)
+				shift
+				local servers="${1}"
+				shift
+				;;
+				
+			*)
+				error "Please re-phrase to: ${type} nis ${action} dst <NIS_SERVER> [other rules]"
+				return 1
+				;;
+		esac
+	fi
+	
+	local x=
+	for x in ${servers}
+	do
+		local tmp="${FIREHOL_DIR}/firehol.rpcinfo.$$"
+		
+		set_work_function "Getting RPC information from server '${x}'"
+		
+		rpcinfo -p ${x} >"${tmp}"
+		if [ $? -gt 0 -o ! -s "${tmp}" ]
+		then
+			error "Cannot get rpcinfo from host '${x}' (using the previous firewall rules)"
+			${RM_CMD} -f "${tmp}"
+			return 1
+		fi
+		
+		local server_ypserv_ports="`${CAT_CMD} "${tmp}" | ${GREP_CMD} " ypserv$"  | ( while read a b proto port s; do echo "$proto/$port"; done ) | ${SORT_CMD} | ${UNIQ_CMD}`"
+		local server_yppasswdd_ports="`${CAT_CMD} "${tmp}" | ${GREP_CMD} " yppasswdd$"  | ( while read a b proto port s; do echo "$proto/$port"; done ) | ${SORT_CMD} | ${UNIQ_CMD}`"
+		
+		test -z "${server_ypserv_ports}" && error "Cannot find ypserv ports for nis server '${x}'" && return 1
+		
+		local dst=
+		if [ ! "${x}" = "localhost" ]
+		then
+			dst="dst ${x}"
+		fi
+		
+		if [ ! -z "${server_yppasswd_ports}" ]
+		then
+			set_work_function "Processing yppasswd rules for server '${x}'"
+			rules_custom "${mychain}" "${type}" nis-yppasswd "${server_yppasswdd_ports}" "500:65535" "${action}" $dst "$@"
+		fi
+		
+		set_work_function "Processing ypserv rules for server '${x}'"
+		rules_custom "${mychain}" "${type}" nis-ypserv "${server_ypserv_ports}" "500:65535" "${action}" $dst "$@"
+		
+		${RM_CMD} -f "${tmp}"
+		
+		echo >&2 ""
+		echo >&2 "WARNING:"
+		echo >&2 "This firewall must be restarted if NIS server ${x} is restarted!"
 		echo >&2 ""
 	done
 	
@@ -4562,7 +4666,7 @@ case "${arg}" in
 		else
 		
 		${CAT_CMD} <<EOF
-$Id: firehol.sh,v 1.207 2004/10/28 23:03:06 ktsaou Exp $
+$Id: firehol.sh,v 1.208 2004/10/30 21:13:26 ktsaou Exp $
 (C) Copyright 2003, Costa Tsaousis <costa@tsaousis.gr>
 FireHOL is distributed under GPL.
 
@@ -4748,7 +4852,7 @@ then
 	
 	${CAT_CMD} <<EOF
 
-$Id: firehol.sh,v 1.207 2004/10/28 23:03:06 ktsaou Exp $
+$Id: firehol.sh,v 1.208 2004/10/30 21:13:26 ktsaou Exp $
 (C) Copyright 2003, Costa Tsaousis <costa@tsaousis.gr>
 FireHOL is distributed under GPL.
 Home Page: http://firehol.sourceforge.net
@@ -5042,7 +5146,7 @@ then
 	
 	${CAT_CMD} >&2 <<EOF
 
-$Id: firehol.sh,v 1.207 2004/10/28 23:03:06 ktsaou Exp $
+$Id: firehol.sh,v 1.208 2004/10/30 21:13:26 ktsaou Exp $
 (C) Copyright 2003, Costa Tsaousis <costa@tsaousis.gr>
 FireHOL is distributed under GPL.
 Home Page: http://firehol.sourceforge.net
@@ -5125,7 +5229,7 @@ EOF
 	echo "# "
 
 	${CAT_CMD} <<EOF
-# $Id: firehol.sh,v 1.207 2004/10/28 23:03:06 ktsaou Exp $
+# $Id: firehol.sh,v 1.208 2004/10/30 21:13:26 ktsaou Exp $
 # (C) Copyright 2003, Costa Tsaousis <costa@tsaousis.gr>
 # FireHOL is distributed under GPL.
 # Home Page: http://firehol.sourceforge.net
