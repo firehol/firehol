@@ -10,7 +10,7 @@
 #
 # config: /etc/firehol/firehol.conf
 #
-# $Id: firehol.sh,v 1.191 2004/04/23 22:15:18 ktsaou Exp $
+# $Id: firehol.sh,v 1.192 2004/05/04 21:39:33 ktsaou Exp $
 #
 
 # Remember who you are.
@@ -2202,6 +2202,8 @@ close_cmd() {
 close_interface() {
 	require_work set interface || return 1
 	
+	close_all_groups
+	
 	set_work_function "Finilizing interface '${work_name}'"
 	
 	case "${work_policy}" in
@@ -2237,6 +2239,8 @@ close_interface() {
 close_router() {	
 	require_work set router || return 1
 	
+	close_all_groups
+	
 	set_work_function "Finilizing router '${work_name}'"
 	
 	# Accept all related traffic to the established connections
@@ -2266,6 +2270,73 @@ close_master() {
 	rule chain FORWARD loglimit "PASS-unknown" action ${UNMATCHED_ROUTER_POLICY} || return 1
 	return 0
 }
+
+
+FIREHOL_GROUP_COUNTER=0
+FIREHOL_GROUP_DEPTH=0
+FIREHOL_GROUP_STACK=()
+group() {
+        work_realcmd_primary ${FUNCNAME} "$@"
+	
+	require_work set any || return 1
+	
+	local type="${1}"; shift
+	
+	case $type in
+		with|start|begin)
+			# increase the counter
+			FIREHOL_GROUP_COUNTER=$[FIREHOL_GROUP_COUNTER + 1]
+			
+			set_work_function "Starting new group No ${FIREHOL_GROUP_COUNTER}, under '${work_name}'"
+			
+			# put the current name in the stack
+			FIREHOL_GROUP_STACK[$FIREHOL_GROUP_DEPTH]=${work_name}
+			FIREHOL_GROUP_DEPTH=$[FIREHOL_GROUP_DEPTH + 1]
+			
+			# name for the new chain
+			mychain="group${FIREHOL_GROUP_COUNTER}"
+			
+			# create the new chain
+			create_chain filter "in_${mychain}" "in_${work_name}" in "$@" || return 1
+			create_chain filter "out_${mychain}" "out_${work_name}" out reverse "$@" || return 1
+			
+			# set a new name for new rules
+			work_name=${mychain}
+			;;
+		
+		end|stop|close)
+			if [ ${FIREHOL_GROUP_DEPTH} -eq 0 ]
+			then
+				error "There is no group open to close."
+				return 1
+			fi
+			
+			# pop one name from the stack
+			FIREHOL_GROUP_DEPTH=$[FIREHOL_GROUP_DEPTH - 1]
+			
+			set_work_function "Closing group '${work_name}'. Now working under '${FIREHOL_GROUP_STACK[$FIREHOL_GROUP_DEPTH]}'"
+			
+			work_name=${FIREHOL_GROUP_STACK[$FIREHOL_GROUP_DEPTH]}
+			;;
+		
+		*)
+			error "Statement 'group' requires the first argument to be one of with, start, begin, end, stop, close."
+			return 1
+			;;
+	esac
+	
+	return 0
+}
+
+close_all_groups() {
+	while [ ${FIREHOL_GROUP_DEPTH} -gt 0 ]
+	do
+		group close || return 1
+	done
+	
+	return 0
+}
+
 
 
 # ------------------------------------------------------------------------------
@@ -4112,7 +4183,7 @@ case "${arg}" in
 		else
 		
 		${CAT_CMD} <<EOF
-$Id: firehol.sh,v 1.191 2004/04/23 22:15:18 ktsaou Exp $
+$Id: firehol.sh,v 1.192 2004/05/04 21:39:33 ktsaou Exp $
 (C) Copyright 2003, Costa Tsaousis <costa@tsaousis.gr>
 FireHOL is distributed under GPL.
 
@@ -4298,7 +4369,7 @@ then
 	
 	${CAT_CMD} <<EOF
 
-$Id: firehol.sh,v 1.191 2004/04/23 22:15:18 ktsaou Exp $
+$Id: firehol.sh,v 1.192 2004/05/04 21:39:33 ktsaou Exp $
 (C) Copyright 2003, Costa Tsaousis <costa@tsaousis.gr>
 FireHOL is distributed under GPL.
 Home Page: http://firehol.sourceforge.net
@@ -4592,7 +4663,7 @@ then
 	
 	${CAT_CMD} >&2 <<EOF
 
-$Id: firehol.sh,v 1.191 2004/04/23 22:15:18 ktsaou Exp $
+$Id: firehol.sh,v 1.192 2004/05/04 21:39:33 ktsaou Exp $
 (C) Copyright 2003, Costa Tsaousis <costa@tsaousis.gr>
 FireHOL is distributed under GPL.
 Home Page: http://firehol.sourceforge.net
@@ -4675,7 +4746,7 @@ EOF
 	echo "# "
 
 	${CAT_CMD} <<EOF
-# $Id: firehol.sh,v 1.191 2004/04/23 22:15:18 ktsaou Exp $
+# $Id: firehol.sh,v 1.192 2004/05/04 21:39:33 ktsaou Exp $
 # (C) Copyright 2003, Costa Tsaousis <costa@tsaousis.gr>
 # FireHOL is distributed under GPL.
 # Home Page: http://firehol.sourceforge.net
