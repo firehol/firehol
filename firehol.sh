@@ -10,7 +10,7 @@
 #
 # config: /etc/firehol/firehol.conf
 #
-# $Id: firehol.sh,v 1.177 2004/02/07 00:43:11 ktsaou Exp $
+# $Id: firehol.sh,v 1.178 2004/03/03 20:32:35 ktsaou Exp $
 #
 
 # Remember who you are.
@@ -2354,6 +2354,9 @@ rule() {
 	# if set to 1, all owner module options will be ignored
 	local noowner=0
 	
+	# if set to 1, all mac options will be ignored
+	local nomac=0
+	
 	# if set to 1, MIRROR will be converted to REJECT
 	local nomirror=0
 	
@@ -2518,7 +2521,7 @@ rule() {
 						macnot="!"
 					fi
 					test ${softwarnings} -eq 1 -a ! "${mac}" = "any" && softwarning "Overwritting param: mac '${mac}' becomes '${1}'"
-					mac="${1}"
+					test ${nomac} -eq 0 && mac="${1}"
 				fi
 				shift
 				;;
@@ -2913,6 +2916,7 @@ rule() {
 			in)	# this is incoming traffic - ignore packet ownership
 				local noowner=1
 				local nomirror=0
+				local nomac=0
 				shift
 				;;
 				
@@ -2923,6 +2927,7 @@ rule() {
 				else
 					local nomirror=1
 				fi
+				nomac=1
 				shift
 				;;
 				
@@ -4024,7 +4029,7 @@ case "${arg}" in
 		else
 		
 		${CAT_CMD} <<EOF
-$Id: firehol.sh,v 1.177 2004/02/07 00:43:11 ktsaou Exp $
+$Id: firehol.sh,v 1.178 2004/03/03 20:32:35 ktsaou Exp $
 (C) Copyright 2003, Costa Tsaousis <costa@tsaousis.gr>
 FireHOL is distributed under GPL.
 
@@ -4210,7 +4215,7 @@ then
 	
 	${CAT_CMD} <<EOF
 
-$Id: firehol.sh,v 1.177 2004/02/07 00:43:11 ktsaou Exp $
+$Id: firehol.sh,v 1.178 2004/03/03 20:32:35 ktsaou Exp $
 (C) Copyright 2003, Costa Tsaousis <costa@tsaousis.gr>
 FireHOL is distributed under GPL.
 Home Page: http://firehol.sourceforge.net
@@ -4505,7 +4510,7 @@ then
 	
 	${CAT_CMD} >&2 <<EOF
 
-$Id: firehol.sh,v 1.177 2004/02/07 00:43:11 ktsaou Exp $
+$Id: firehol.sh,v 1.178 2004/03/03 20:32:35 ktsaou Exp $
 (C) Copyright 2003, Costa Tsaousis <costa@tsaousis.gr>
 FireHOL is distributed under GPL.
 Home Page: http://firehol.sourceforge.net
@@ -4588,7 +4593,7 @@ EOF
 	echo "# "
 
 	${CAT_CMD} <<EOF
-# $Id: firehol.sh,v 1.177 2004/02/07 00:43:11 ktsaou Exp $
+# $Id: firehol.sh,v 1.178 2004/03/03 20:32:35 ktsaou Exp $
 # (C) Copyright 2003, Costa Tsaousis <costa@tsaousis.gr>
 # FireHOL is distributed under GPL.
 # Home Page: http://firehol.sourceforge.net
