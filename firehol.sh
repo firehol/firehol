@@ -10,9 +10,15 @@
 #
 # config: /etc/firehol.conf
 #
-# $Id: firehol.sh,v 1.30 2002/12/04 23:12:10 ktsaou Exp $
+# $Id: firehol.sh,v 1.31 2002/12/05 09:03:37 ktsaou Exp $
 #
 # $Log: firehol.sh,v $
+# Revision 1.31  2002/12/05 09:03:37  ktsaou
+# The problem with line numbers on debian systems found to be an awk
+# alternative those systems use. Now FireHOL uses gawk instead of awk.
+#
+# Added service SUBMISSION (SMTP or SSL/TLS).
+#
 # Revision 1.30  2002/12/04 23:12:10  ktsaou
 # Fixed a problem where empty parameters to src, dst, etc where not giving
 # an error and where not producing any iptables statements.
@@ -268,7 +274,7 @@ case "${arg}" in
 	
 	*)
 		cat <<"EOF"
-$Id: firehol.sh,v 1.30 2002/12/04 23:12:10 ktsaou Exp $
+$Id: firehol.sh,v 1.31 2002/12/05 09:03:37 ktsaou Exp $
 (C) Copyright 2002, Costa Tsaousis
 FireHOL is distributed under GPL.
 
@@ -625,6 +631,10 @@ client_snmp_ports="default"
 
 server_ssh_ports="tcp/ssh"
 client_ssh_ports="default"
+
+# SMTP over SSL/TLS
+server_submission_ports="tcp/submission"
+client_submission_ports="default"
 
 # Sun RCP is an alias for service portmap
 server_sunrpc_ports="${server_portmap_ports}"
@@ -2586,7 +2596,7 @@ cat >"${FIREHOL_TMP}.awk" <<EOF
 { print }
 EOF
 
-cat ${FIREHOL_CONFIG} | awk -f "${FIREHOL_TMP}.awk" >${FIREHOL_TMP}
+cat ${FIREHOL_CONFIG} | gawk -f "${FIREHOL_TMP}.awk" >${FIREHOL_TMP}
 rm -f "${FIREHOL_TMP}.awk"
 
 # ------------------------------------------------------------------------------
