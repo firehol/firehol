@@ -352,7 +352,7 @@ server_nfs_ports="many"
 client_nfs_ports="500:65535"
 service_nfs_type="complex"
 service_nfs_notes="
-The NFS service queries the RPC service on the NFS server host to find out the ports <b>nfsd</b> and <b>mountd</b> are listening.
+The NFS service queries the RPC service on the NFS server host to find out the ports <b>nfsd</b>, <b>mountd</b>, <b>lockd</b> and <b>rquotad</b> are listening.
 Then, according to these ports it sets up rules on all the supported protocols (as reported by RPC) in order the
 clients to be able to reach the server.
 <p>
@@ -784,7 +784,7 @@ cat <<"EOF"
 <tr><td align=center valign=middle>
 	<A href="http://sourceforge.net"><IMG src="http://sourceforge.net/sflogo.php?group_id=58425&amp;type=5" width="210" height="62" border="0" alt="SourceForge Logo"></A>
 </td><td align=center valign=middle>
-	<small>$Id: create_services.sh,v 1.44 2004/07/29 22:31:15 ktsaou Exp $</small>
+	<small>$Id: create_services.sh,v 1.45 2004/09/10 21:36:27 ktsaou Exp $</small>
 	<p>
 	<b>FireHOL</b>, a firewall for humans...<br>
 	&copy; Copyright 2003

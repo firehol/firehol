@@ -10,7 +10,7 @@
 #
 # config: /etc/firehol/firehol.conf
 #
-# $Id: firehol.sh,v 1.198 2004/08/21 21:07:09 ktsaou Exp $
+# $Id: firehol.sh,v 1.199 2004/09/10 21:36:26 ktsaou Exp $
 #
 
 # Remember who you are.
@@ -855,6 +855,7 @@ rules_nfs() {
 			return 1
 		fi
 		
+		local server_rquotad_ports="`${CAT_CMD} "${tmp}" | ${GREP_CMD} " rquotad$"  | ( while read a b proto port s; do echo "$proto/$port"; done ) | ${SORT_CMD} | ${UNIQ_CMD}`"
 		local server_mountd_ports="`${CAT_CMD} "${tmp}" | ${GREP_CMD} " mountd$"  | ( while read a b proto port s; do echo "$proto/$port"; done ) | ${SORT_CMD} | ${UNIQ_CMD}`"
 		local server_lockd_ports="`${CAT_CMD} "${tmp}" | ${GREP_CMD} " nlockmgr$" | ( while read a b proto port s; do echo "$proto/$port"; done ) | ${SORT_CMD} | ${UNIQ_CMD}`"
 		local server_nfsd_ports="`${CAT_CMD} "${tmp}" | ${GREP_CMD} " nfs$"       | ( while read a b proto port s; do echo "$proto/$port"; done ) | ${SORT_CMD} | ${UNIQ_CMD}`"
@@ -867,6 +868,12 @@ rules_nfs() {
 		if [ ! "${x}" = "localhost" ]
 		then
 			dst="dst ${x}"
+		fi
+		
+		if [ ! -z "${server_rquotad_ports}" ]
+		then
+			set_work_function "Processing rquotad rules for server '${x}'"
+			rules_custom "${mychain}" "${type}" nfs-rquotad "${server_rquotad_ports}" "500:65535" "${action}" $dst "$@"
 		fi
 		
 		set_work_function "Processing mountd rules for server '${x}'"
@@ -4274,7 +4281,7 @@ case "${arg}" in
 		else
 		
 		${CAT_CMD} <<EOF
-$Id: firehol.sh,v 1.198 2004/08/21 21:07:09 ktsaou Exp $
+$Id: firehol.sh,v 1.199 2004/09/10 21:36:26 ktsaou Exp $
 (C) Copyright 2003, Costa Tsaousis <costa@tsaousis.gr>
 FireHOL is distributed under GPL.
 
@@ -4460,7 +4467,7 @@ then
 	
 	${CAT_CMD} <<EOF
 
-$Id: firehol.sh,v 1.198 2004/08/21 21:07:09 ktsaou Exp $
+$Id: firehol.sh,v 1.199 2004/09/10 21:36:26 ktsaou Exp $
 (C) Copyright 2003, Costa Tsaousis <costa@tsaousis.gr>
 FireHOL is distributed under GPL.
 Home Page: http://firehol.sourceforge.net
@@ -4754,7 +4761,7 @@ then
 	
 	${CAT_CMD} >&2 <<EOF
 
-$Id: firehol.sh,v 1.198 2004/08/21 21:07:09 ktsaou Exp $
+$Id: firehol.sh,v 1.199 2004/09/10 21:36:26 ktsaou Exp $
 (C) Copyright 2003, Costa Tsaousis <costa@tsaousis.gr>
 FireHOL is distributed under GPL.
 Home Page: http://firehol.sourceforge.net
@@ -4837,7 +4844,7 @@ EOF
 	echo "# "
 
 	${CAT_CMD} <<EOF
-# $Id: firehol.sh,v 1.198 2004/08/21 21:07:09 ktsaou Exp $
+# $Id: firehol.sh,v 1.199 2004/09/10 21:36:26 ktsaou Exp $
 # (C) Copyright 2003, Costa Tsaousis <costa@tsaousis.gr>
 # FireHOL is distributed under GPL.
 # Home Page: http://firehol.sourceforge.net
