@@ -10,7 +10,7 @@
 #
 # config: /etc/firehol.conf
 #
-# $Id: firehol.sh,v 1.123 2003/04/20 10:18:10 ktsaou Exp $
+# $Id: firehol.sh,v 1.124 2003/04/23 20:42:26 ktsaou Exp $
 #
 FIREHOL_FILE="${0}"
 
@@ -3334,7 +3334,7 @@ case "${arg}" in
 		else
 		
 		${CAT_CMD} <<"EOF"
-$Id: firehol.sh,v 1.123 2003/04/20 10:18:10 ktsaou Exp $
+$Id: firehol.sh,v 1.124 2003/04/23 20:42:26 ktsaou Exp $
 (C) Copyright 2003, Costa Tsaousis <costa@tsaousis.gr>
 FireHOL is distributed under GPL.
 
@@ -3520,7 +3520,7 @@ then
 	
 	${CAT_CMD} <<"EOF"
 
-$Id: firehol.sh,v 1.123 2003/04/20 10:18:10 ktsaou Exp $
+$Id: firehol.sh,v 1.124 2003/04/23 20:42:26 ktsaou Exp $
 (C) Copyright 2003, Costa Tsaousis <costa@tsaousis.gr>
 FireHOL is distributed under GPL.
 Home Page: http://firehol.sourceforge.net
@@ -3814,7 +3814,7 @@ then
 	
 	${CAT_CMD} >&2 <<"EOF"
 
-$Id: firehol.sh,v 1.123 2003/04/20 10:18:10 ktsaou Exp $
+$Id: firehol.sh,v 1.124 2003/04/23 20:42:26 ktsaou Exp $
 (C) Copyright 2003, Costa Tsaousis <costa@tsaousis.gr>
 FireHOL is distributed under GPL.
 Home Page: http://firehol.sourceforge.net
@@ -3907,7 +3907,7 @@ EOF
 	echo "# "
 
 	${CAT_CMD} <<"EOF"
-# $Id: firehol.sh,v 1.123 2003/04/20 10:18:10 ktsaou Exp $
+# $Id: firehol.sh,v 1.124 2003/04/23 20:42:26 ktsaou Exp $
 # (C) Copyright 2003, Costa Tsaousis <costa@tsaousis.gr>
 # FireHOL is distributed under GPL.
 # Home Page: http://firehol.sourceforge.net
@@ -4226,8 +4226,6 @@ EOF
 				dst="${found_nets[$j]}"
 				dst_ip="${found_ips[$j]}"
 				
-				x=$[x + 1]
-				
 				case "${dst}" in
 					"default")
 						dst="not \"\${UNROUTABLE_IPS} ${found_excludes[$j]}\""
@@ -4237,6 +4235,10 @@ EOF
 						dst="\"${dst}\""
 						;;
 				esac
+				
+				test "${inface}" = "${outface}" -a "${src}" = "${dst}" && continue
+				
+				x=$[x + 1]
 				
 				echo
 				echo "# Router No ${x}."
@@ -4264,6 +4266,15 @@ EOF
 				echo
 			done
 		done
+		
+		if [ ${x} -eq 0 ]
+		then
+			echo
+			echo
+			echo "# No router statements have been produced, because your server"
+			echo "# does not seem to need any."
+			echo
+		fi
 	else
 		echo
 		echo
