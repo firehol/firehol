@@ -10,7 +10,7 @@
 #
 # config: /etc/firehol.conf
 #
-# $Id: firehol.sh,v 1.79 2003/01/22 21:02:43 ktsaou Exp $
+# $Id: firehol.sh,v 1.80 2003/01/22 21:14:21 ktsaou Exp $
 #
 
 
@@ -3003,7 +3003,7 @@ case "${arg}" in
 		else
 		
 		cat <<"EOF"
-$Id: firehol.sh,v 1.79 2003/01/22 21:02:43 ktsaou Exp $
+$Id: firehol.sh,v 1.80 2003/01/22 21:14:21 ktsaou Exp $
 (C) Copyright 2002, Costa Tsaousis <costa@tsaousis.gr>
 FireHOL is distributed under GPL.
 
@@ -3171,7 +3171,7 @@ then
 	
 	cat <<"EOF"
 
-$Id: firehol.sh,v 1.79 2003/01/22 21:02:43 ktsaou Exp $
+$Id: firehol.sh,v 1.80 2003/01/22 21:14:21 ktsaou Exp $
 (C) Copyright 2002, Costa Tsaousis <costa@tsaousis.gr>
 FireHOL is distributed under GPL.
 Home Page: http://firehol.sourceforge.net
@@ -3419,7 +3419,7 @@ cat >>"${FIREHOL_OUTPUT}" <<"EOF"
 # Make it drop everything on table 'filter'.
 for c in ${firehol_filter_chains}
 do
-	/sbin/iptables -t "${t}" -P "${c}" DROP
+	/sbin/iptables -t filter -P "${c}" DROP
 done
 
 EOF
