@@ -97,7 +97,7 @@ case "${arg}" in
 	
 	*)
 		echo >&2 "FireHOL: Calling the iptables service..."
-		/etc/init.d/iptables "$@"
+		/etc/init.d/iptables "${arg}"
 		ret=$?
 		if [ $ret -gt 0 ]
 		then
@@ -123,6 +123,7 @@ shift
 # If you decide to change this, make sure this does not allow access
 # (i.e. use DROP, REJECT, MIRROR, etc. - not ACCEPT, RETURN, etc).
 DEFAULT_INTERFACE_POLICY="DROP"
+DEFAULT_ROUTER_POLICY="DROP"
 
 # The client ports to be used for "default" client ports when the client
 # specified is a foreign host.
@@ -144,7 +145,7 @@ FIREHOL_TMP="/tmp/firehol-tmp-$$.sh"
 # This is our version number. It is increased when the configuration file commands
 # and arguments change their meaning and usage, so that the user will have to review
 # it more precisely.
-FIREHOL_VERSION=4
+FIREHOL_VERSION=5
 FIREHOL_VERSION_CHECKED=0
 
 FIREHOL_LINEID="INIT"
@@ -191,8 +192,10 @@ client_smtp_ports="default"
 server_ident_ports="tcp/auth"
 client_ident_ports="default"
 
-server_dns_ports="tcp/domain udp/domain"
-client_dns_ports="default domain"
+# DNS is now statefull on TCP and not statefull on UDP.
+# See rules_DNS() bellow.
+# server_dns_ports="tcp/domain udp/domain"
+# client_dns_ports="default domain"
 
 server_imap_ports="tcp/imap"
 client_imap_ports="default"
@@ -251,8 +254,17 @@ client_syslog_ports="syslog"
 server_snmp_ports="udp/snmp"
 client_snmp_ports="default"
 
-server_ntp_ports="udp/ntp"
-client_ntp_ports="ntp"
+server_rsync_ports="tcp/rsync udp/rsync"
+client_rsync_ports="default"
+
+server_vmwareauth_ports="tcp/903"
+client_vmwareauth_ports="default"
+
+server_vmwareweb_ports="tcp/8222"
+client_vmwareweb_ports="default"
+
+server_ntp_ports="udp/ntp tcp/ntp"
+client_ntp_ports="ntp default"
 
 # Portmap clients appear to use ports bellow 1024
 server_portmap_ports="udp/sunrpc tcp/sunrpc"
@@ -493,6 +505,47 @@ rules_all() {
 	return 0
 }
 
+
+# --- DNS ----------------------------------------------------------------------
+
+rules_dns() {
+	local type="${1}"; shift
+	
+	local mychain="${work_name}_all_${type}"
+	
+	create_chain in_${mychain} in_${work_name}
+	create_chain out_${mychain} out_${work_name}
+	
+	local in=in
+	local out=out
+	if [ "${type}" = "route" -o "${type}" = "client" ]
+	then
+		in=out
+		out=in
+	fi
+	
+	local client_ports="${DEFAULT_CLIENT_PORTS}"
+	if [ "${type}" = "client" ]
+	then
+		client_ports="${LOCAL_CLIENT_PORTS}"
+	fi
+	
+	# ----------------------------------------------------------------------
+	
+	# UDP: allow new and established incoming packets
+	rule action "$@" chain ${in}_${mychain} proto udp dport domain || return 1
+	
+	# UDP: allow outgoing established packets
+	rule reverse action "$@" chain ${out}_${mychain} proto udp dport domain || return 1
+	
+	# TCP: allow new and established incoming packets
+	rule action "$@" chain ${in}_${mychain} proto tcp dport domain state NEW,ESTABLISHED || return 1
+	
+	# TCP: allow outgoing established packets
+	rule reverse action "$@" chain ${out}_${mychain} proto tcp dport domain state ESTABLISHED || return 1
+	
+	return 0
+}
 
 # --- FTP ----------------------------------------------------------------------
 
@@ -1729,7 +1782,7 @@ close_master					|| ret=$[ret + 1]
 
 iptables -P INPUT ${DEFAULT_INTERFACE_POLICY}	|| ret=$[ret + 1]
 iptables -P OUTPUT ${DEFAULT_INTERFACE_POLICY}	|| ret=$[ret + 1]
-iptables -P FORWARD ${DEFAULT_INTERFACE_POLICY}	|| ret=$[ret + 1]
+iptables -P FORWARD ${DEFAULT_ROUTER_POLICY}	|| ret=$[ret + 1]
 
 iptables -t nat -P PREROUTING ACCEPT		|| ret=$[ret + 1]
 iptables -t nat -P POSTROUTING ACCEPT		|| ret=$[ret + 1]
