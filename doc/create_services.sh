@@ -466,10 +466,15 @@ all_services() {
 
 # header
 cat <<"EOF"
+<!DOCTYPE HTML PUBLIC "-//W3C//DTD HTML 4.0 Transitional//EN">
 <HTML>
 <HEAD>
 <link rel="stylesheet" type="text/css" href="css.css">
 <TITLE>FireHOL, supported services</TITLE>
+<meta name="author" content="Costa Tsaousis">
+<meta name="description" content="Home for the Linux iptables stateful packet filtering firewall configurator, FireHOL.">
+<meta name="keywords" content="IPTABLES, Netfilter, firewall, security, NAT, router, port, forward, redirect, SNAT, DNAT, Linux, protect, masquerade, stateful, packet, filter, DMZ, DSL, cable, modem, dual-homed, multi-homed, example, block, easy">
+<meta http-equiv="Expires" content="Wed, 19 Mar 2003 00:00:01 GMT">
 </HEAD>
 
 <BODY bgcolor="#FFFFFF">
@@ -652,7 +657,7 @@ cat <<"EOF"
 <tr><td align=center valign=middle>
 	<A href="http://sourceforge.net"><IMG src="http://sourceforge.net/sflogo.php?group_id=58425&amp;type=5" width="210" height="62" border="0" alt="SourceForge Logo"></A>
 </td><td align=center valign=middle>
-	<small>$Id: create_services.sh,v 1.27 2003/03/18 21:27:37 ktsaou Exp $</small>
+	<small>$Id: create_services.sh,v 1.28 2003/03/19 21:52:59 ktsaou Exp $</small>
 	<p>
 	<b>FireHOL</b>, a firewall for humans...<br>
 	&copy; Copyright 2003

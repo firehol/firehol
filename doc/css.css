@@ -3,6 +3,16 @@ A:visited { text-decoration:none; color:navy; font-weight: bold;}
 A:active { text-decoration:none; color:navy; font-weight: bold;}
 A:hover { text-decoration:underline; color:navy; font-weight: bold;}
 
-BODY, P, DIV, TD, TH, TR, FORM, OL, UL, LI, INPUT, TEXTAREA, SELECT {font-family: sans-serif; }
-B {font-family: sans-serif; font-weight: bold; }
-PRE,TT { font-family: courier; font-weight: bold; }
+BODY, P, DIV, TD, TH, TR, FORM, OL, UL, LI, INPUT, TEXTAREA, SELECT {
+	font-family: Trebuchet ms, Tahoma, Verdana, Arial, Helvetica;
+}
+
+B {
+	font-family: Trebuchet ms, Tahoma, Verdana, Arial, Helvetica;
+	font-weight: bold;
+}
+
+PRE, TT {
+	font-family: lucidatypewriter, lucida console, courier;
+	font-weight: bold;
+}
