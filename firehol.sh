@@ -10,7 +10,7 @@
 #
 # config: /etc/firehol.conf
 #
-# $Id: firehol.sh,v 1.109 2003/03/07 23:34:29 ktsaou Exp $
+# $Id: firehol.sh,v 1.110 2003/03/14 20:36:52 ktsaou Exp $
 #
 FIREHOL_FILE="${0}"
 
@@ -94,6 +94,10 @@ FIREHOL_CHAINS_DIR="${FIREHOL_DIR}/chains"
 FIREHOL_OUTPUT="${FIREHOL_DIR}/firehol-out.sh"
 FIREHOL_SAVED="${FIREHOL_DIR}/firehol-save.sh"
 FIREHOL_TMP="${FIREHOL_DIR}/firehol-tmp.sh"
+
+# Where /etc/init.d/iptables expects its configuration?
+# Leave it empty for automatic detection
+FIREHOL_AUTOSAVE=
 
 
 # ----------------------------------------------------------------------
@@ -3189,7 +3193,7 @@ case "${arg}" in
 		else
 		
 		cat <<"EOF"
-$Id: firehol.sh,v 1.109 2003/03/07 23:34:29 ktsaou Exp $
+$Id: firehol.sh,v 1.110 2003/03/14 20:36:52 ktsaou Exp $
 (C) Copyright 2002, Costa Tsaousis <costa@tsaousis.gr>
 FireHOL is distributed under GPL.
 
@@ -3372,7 +3376,7 @@ then
 	
 	cat <<"EOF"
 
-$Id: firehol.sh,v 1.109 2003/03/07 23:34:29 ktsaou Exp $
+$Id: firehol.sh,v 1.110 2003/03/14 20:36:52 ktsaou Exp $
 (C) Copyright 2002, Costa Tsaousis <costa@tsaousis.gr>
 FireHOL is distributed under GPL.
 Home Page: http://firehol.sourceforge.net
@@ -3580,7 +3584,7 @@ then
 	
 	cat >&2 <<"EOF"
 
-$Id: firehol.sh,v 1.109 2003/03/07 23:34:29 ktsaou Exp $
+$Id: firehol.sh,v 1.110 2003/03/14 20:36:52 ktsaou Exp $
 (C) Copyright 2002, Costa Tsaousis <costa@tsaousis.gr>
 FireHOL is distributed under GPL.
 Home Page: http://firehol.sourceforge.net
@@ -3673,7 +3677,7 @@ EOF
 	echo "# "
 
 	cat <<"EOF"
-# $Id: firehol.sh,v 1.109 2003/03/07 23:34:29 ktsaou Exp $
+# $Id: firehol.sh,v 1.110 2003/03/14 20:36:52 ktsaou Exp $
 # (C) Copyright 2002, Costa Tsaousis <costa@tsaousis.gr>
 # FireHOL is distributed under GPL.
 # Home Page: http://firehol.sourceforge.net
@@ -4234,18 +4238,34 @@ touch /var/lock/subsys/firehol
 
 if [ ${FIREHOL_SAVE} -eq 1 ]
 then
-#	/etc/init.d/iptables save
-	echo -n $"FireHOL: Saving firewall to /etc/sysconfig/iptables:"
-	fixed_iptables_save >/etc/sysconfig/iptables
+	if [ -z "${FIREHOL_AUTOSAVE}" ]
+	then
+		if [ -d "/etc/sysconfig" ]
+		then
+			# 
+			FIREHOL_AUTOSAVE="/etc/sysconfig/iptables"
+		elif [ -d "/var/lib/iptables" ]
+		then
+			FIREHOL_AUTOSAVE="/var/lib/iptables/autosave"
+		else
+			error "Cannot find where to save iptables file. Please set FIREHOL_AUTOSAVE."
+			echo
+			exit 1
+		fi
+	fi
+	
+	echo -n $"FireHOL: Saving firewall to ${FIREHOL_AUTOSAVE}:"
+	
+	fixed_iptables_save >"${FIREHOL_AUTOSAVE}"
 	
 	if [ ! $? -eq 0 ]
 	then
-		failure $"FireHOL: Saving firewall to /etc/sysconfig/iptables:"
+		failure $"FireHOL: Saving firewall to ${FIREHOL_AUTOSAVE}:"
 		echo
 		exit 1
 	fi
 	
-	success $"FireHOL: Saving firewall to /etc/sysconfig/iptables:"
+	success $"FireHOL: Saving firewall to ${FIREHOL_AUTOSAVE}:"
 	echo
 	exit 0
 fi
