@@ -17,41 +17,41 @@ FireHOL has been designed to be a startup service. As such, FireHOL accepts all 
 <center>
 <table border=0 cellpadding=3 cellspacing=5 width="70%">
 <tr><th bgcolor="#000000"><font color="white">Parameter</th><th bgcolor="#000000"><font color="white">Description</th></tr>
-<tr>	<td><b>start</td>
+<tr>	<td valign=top><b>start</td>
 	<td>	Activates the firewall configuration.
 		<br>The configuration is expected to be found in <b>/etc/firehol.conf</b>
 	</td>
 	</tr>
-<tr>	<td bgcolor="#EEEEEE"><b>try</td>
+<tr>	<td valign=top bgcolor="#EEEEEE"><b>try</td>
 	<td bgcolor="#EEEEEE">	Activates the firewall, but waits until
 		the user types the word <b>commit</b>. If this word
 		is not typed within 30 seconds, the previous
 		firewall is restored.
 	</td>
 	</tr>
-<tr>	<td><b>stop</td>
+<tr>	<td valign=top><b>stop</td>
 	<td>	Stops a running iptables firewall by running <b>/etc/init.d/iptables stop</b>.
 		This will allow all traffic to pass unchecked.
 	</td>
 	</tr>
-<tr>	<td bgcolor="#EEEEEE"><b>restart</td>
+<tr>	<td valign=top bgcolor="#EEEEEE"><b>restart</td>
 	<td bgcolor="#EEEEEE">	this is an alias for <b>start</b> and is given for
 		compatibility with <b>/etc/init.d/iptables</b>.
 	</td>
 	</tr>
-<tr>	<td><b>condrestart</td>
+<tr>	<td valign=top><b>condrestart</td>
 	<td>	Starts the FireHOL firewall only if it is not
 		already active. It does not detect a modified
 		configuration file, only verifies that FireHOL has been started
 		in the past and not stopped yet.
 	</td>
 	</tr>
-<tr>	<td bgcolor="#EEEEEE"><b>status</td>
+<tr>	<td valign=top bgcolor="#EEEEEE"><b>status</td>
 	<td bgcolor="#EEEEEE">	Shows the running firewall, as in
 		<b>/sbin/iptables -nxvL | less</b>
 	</td>
 	</tr>
-<tr>	<td><b>panic</td>
+<tr>	<td valign=top><b>panic</td>
 	<td>	It removes all rules from the running firewall and then it DROPs all
 	traffic on all iptables tables (mangle, nat, filter) and pre-defined chains
 	(PREROUTING, INPUT, FORWARD, OUTPUT, POSTROUTING), thus blocking all IP
@@ -71,7 +71,7 @@ FireHOL has been designed to be a startup service. As such, FireHOL accepts all 
 	in panic will be allowed.
 	</td>
 	</tr>
-<tr>	<td bgcolor="#EEEEEE"><b>save</td>
+<tr>	<td valign=top bgcolor="#EEEEEE"><b>save</td>
 	<td bgcolor="#EEEEEE">	Start the firewall and then save it using
 		<b>/sbin/iptables-save</b> to <b>/etc/sysconfig/iptables</b>.
 		<p>
@@ -92,13 +92,13 @@ FireHOL has been designed to be a startup service. As such, FireHOL accepts all 
 		
 	</td>
 	</tr>
-<tr>	<td><b>debug</td>
+<tr>	<td valign=top><b>debug</td>
 	<td>	Parses the configuration file but instead of
 		activating it, it shows the generated iptables
 		statements.
 	</td>
 	</tr>
-<tr>	<td bgcolor="#EEEEEE"><b>explain</td>
+<tr>	<td valign=top bgcolor="#EEEEEE"><b>explain</td>
 	<td bgcolor="#EEEEEE">	Enters an interactive mode where it accepts normal configuration commands
 		and presents the generated iptables commands for each of them, together
 		with some reasoning for its purpose. Additionally, it automatically generates
@@ -112,7 +112,7 @@ FireHOL has been designed to be a startup service. As such, FireHOL accepts all 
 		</ul>
 	</td>
 	</tr>
-<tr>	<td><b>helpme</td>
+<tr>	<td valign=top><b>helpme</td>
 	<td>	Tries to guess the FireHOL configuration needed for the current machine.
 		<br>
 		FireHOL will not stop or alter the running firewall. The configuration
@@ -127,7 +127,7 @@ FireHOL has been designed to be a startup service. As such, FireHOL accepts all 
 		comments of the generated file will instruct you for many of them.
 	</td>
 	</tr>
-<tr>	<td bgcolor="#EEEEEE"><b>&lt;a&nbsp;filename&gt;</td>
+<tr>	<td valign=top bgcolor="#EEEEEE"><b>&lt;a&nbsp;filename&gt;</td>
 	<td bgcolor="#EEEEEE">	a different configuration file.
 		If no other argument is given, the configuration
 		file will be "tried" (default = try).
@@ -135,7 +135,7 @@ FireHOL has been designed to be a startup service. As such, FireHOL accepts all 
 		be one of <b>start</b>, <b>debug</b>, <b>try</b>.
 	</td>
 	</tr>
-<tr>	<td>&lt;nothing&gt;</td>
+<tr>	<td valign=top>&lt;nothing&gt;</td>
 	<td>Presents help about FireHOL usage.</td>
 	</tr>
 </table>
@@ -204,7 +204,7 @@ its line number in the original configuration file.
 <tr><td align=center valign=middle>
 	<A href="http://sourceforge.net"><IMG src="http://sourceforge.net/sflogo.php?group_id=58425&amp;type=5" width="210" height="62" border="0" alt="SourceForge Logo"></A>
 </td><td align=center valign=middle>
-	<small>$Id: invoking.html,v 1.13 2003/03/19 21:52:59 ktsaou Exp $</small>
+	<small>$Id: invoking.html,v 1.14 2003/03/19 21:59:15 ktsaou Exp $</small>
 	<p>
 	<b>FireHOL</b>, a firewall for humans...<br>
 	&copy; Copyright 2003
