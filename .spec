@@ -118,6 +118,7 @@ rm -rf ${RPM_BUILD_DIR}/%{name}-%{version}
 %doc doc/index.html
 %doc doc/language.html
 %doc doc/services.html
+%doc doc/search.html
 %doc doc/tutorial.html
 %doc doc/commands.html
 %doc doc/header.html

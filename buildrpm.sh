@@ -1,5 +1,5 @@
 #!/bin/bash
-# $Id: buildrpm.sh,v 1.8 2003/10/12 13:46:50 ktsaou Exp $
+# $Id: buildrpm.sh,v 1.9 2004/11/01 00:23:08 ktsaou Exp $
 # 
 # This script will build a FireHOL RPM.
 #
@@ -82,6 +82,7 @@ doc/invoking.html
 doc/language.html
 doc/overview.html
 doc/services.html
+doc/search.html
 doc/support.html
 doc/trouble.html
 doc/tutorial.html
