@@ -10,9 +10,21 @@
 #
 # config: /etc/firehol.conf
 #
-# $Id: firehol.sh,v 1.19 2002/11/30 14:33:33 ktsaou Exp $
+# $Id: firehol.sh,v 1.20 2002/11/30 22:53:55 ktsaou Exp $
 #
 # $Log: firehol.sh,v $
+# Revision 1.20  2002/11/30 22:53:55  ktsaou
+# Fixed various problems related to quoted arguments.
+# Fixed iptables generation to support quoted arguments.
+# Made chain names shorter.
+#
+# Every single element in the firehol config now gets its own chain.
+# Previously, the same services (e.g. smtp servers) were implemented using
+# only one pair of chains.
+#
+# Enhanced the error handler of logical and syntactical error. Now it says
+# were and why an error has occured.
+#
 # Revision 1.19  2002/11/30 14:33:33  ktsaou
 # As suggested by Florian Thiel <thiel@ksan.de>:
 # a. Fixed service IRC to work on TCP instead of UDP.
@@ -298,13 +310,14 @@ FIREHOL_NAT=0
 # Keep information about the current primary command
 # Primary commands are: interface, router
 
+work_counter=0
 work_cmd=
 work_name=
 work_inface=
 work_outface=
 work_policy=${DEFAULT_INTERFACE_POLICY}
 work_error=0
-
+work_function="Initializing"
 
 # ------------------------------------------------------------------------------
 # Keep status information
@@ -492,12 +505,8 @@ client_webcache_ports="default"
 # --- SAMBA --------------------------------------------------------------------
 
 rules_samba() {
+        local mychain="${1}"; shift
 	local type="${1}"; shift
-	
-	local mychain="${work_name}_samba_${type}"
-	
-	create_chain filter in_${mychain} in_${work_name}
-	create_chain filter out_${mychain} out_${work_name}
 	
 	local in=in
 	local out=out
@@ -532,12 +541,8 @@ rules_samba() {
 # --- PPTP --------------------------------------------------------------------
 
 rules_pptp() {
+        local mychain="${1}"; shift
 	local type="${1}"; shift
-	
-	local mychain="${work_name}_pptp_${type}"
-	
-	create_chain filter in_${mychain} in_${work_name}
-	create_chain filter out_${mychain} out_${work_name}
 	
 	local in=in
 	local out=out
@@ -570,12 +575,8 @@ rules_pptp() {
 # --- NFS ----------------------------------------------------------------------
 
 rules_nfs() {
+        local mychain="${1}"; shift
 	local type="${1}"; shift
-	
-	local mychain="${work_name}_nfs_${type}"
-	
-	create_chain filter in_${mychain} in_${work_name}
-	create_chain filter out_${mychain} out_${work_name}
 	
 	local in=in
 	local out=out
@@ -637,8 +638,8 @@ rules_nfs() {
 			dst="dst ${x}"
 		fi
 		
-		rules_custom "${type}" nfs "${server_mountd_ports}" "500:65535" "${action}" $dst "$@"
-		rules_custom "${type}" nfs "${server_nfsd_ports}"   "500:65535" "${action}" $dst "$@"
+		"${type}" custom nfs "${server_mountd_ports}" "500:65535" "${action}" $dst "$@"
+		"${type}" custom nfs "${server_nfsd_ports}"   "500:65535" "${action}" $dst "$@"
 		
 		rm -f "${tmp}"
 		
@@ -655,12 +656,8 @@ rules_nfs() {
 # --- DNS ----------------------------------------------------------------------
 
 rules_dns() {
+        local mychain="${1}"; shift
 	local type="${1}"; shift
-	
-	local mychain="${work_name}_all_${type}"
-	
-	create_chain filter in_${mychain} in_${work_name}
-	create_chain filter out_${mychain} out_${work_name}
 	
 	local in=in
 	local out=out
@@ -679,16 +676,16 @@ rules_dns() {
 	# ----------------------------------------------------------------------
 	
 	# UDP: allow all incoming DNS packets
-	rule action "$@" chain ${in}_${mychain} proto udp dport domain || return 1
+	rule action "$@" chain "${in}_${mychain}" proto udp dport domain || return 1
 	
 	# UDP: allow all outgoing DNS packets
-	rule reverse action "$@" chain ${out}_${mychain} proto udp dport domain || return 1
+	rule reverse action "$@" chain "${out}_${mychain}" proto udp dport domain || return 1
 	
 	# TCP: allow new and established incoming packets
-	rule action "$@" chain ${in}_${mychain} proto tcp dport domain state NEW,ESTABLISHED || return 1
+	rule action "$@" chain "${in}_${mychain}" proto tcp dport domain state NEW,ESTABLISHED || return 1
 	
 	# TCP: allow outgoing established packets
-	rule reverse action "$@" chain ${out}_${mychain} proto tcp dport domain state ESTABLISHED || return 1
+	rule reverse action "$@" chain "${out}_${mychain}" proto tcp dport domain state ESTABLISHED || return 1
 	
 	return 0
 }
@@ -698,12 +695,8 @@ rules_dns() {
 ALL_SHOULD_ALSO_RUN="${ALL_SHOULD_ALSO_RUN} ftp"
 
 rules_ftp() {
+        local mychain="${1}"; shift
 	local type="${1}"; shift
-	
-	local mychain="${work_name}_ftp_${type}"
-	
-	create_chain filter in_${mychain} in_${work_name}
-	create_chain filter out_${mychain} out_${work_name}
 	
 	local in=in
 	local out=out
@@ -723,13 +716,13 @@ rules_ftp() {
 	
 	# allow new and established incoming, and established outgoing
 	# accept port ftp new connections
-	rule action "$@" chain ${in}_${mychain} proto tcp sport ${client_ports} dport ftp state NEW,ESTABLISHED || return 1
-	rule reverse action "$@" chain ${out}_${mychain} proto tcp sport ${client_ports} dport ftp state ESTABLISHED || return 1
+	rule action "$@" chain "${in}_${mychain}" proto tcp sport "${client_ports}" dport ftp state NEW,ESTABLISHED || return 1
+	rule reverse action "$@" chain "${out}_${mychain}" proto tcp sport "${client_ports}" dport ftp state ESTABLISHED || return 1
 	
 	# Active FTP
 	# send port ftp-data related connections
-	rule action "$@" chain ${out}_${mychain} proto tcp sport ftp-data dport ${client_ports} state ESTABLISHED,RELATED || return 1
-	rule reverse action "$@" chain ${in}_${mychain} proto tcp sport ftp-data dport ${client_ports} state ESTABLISHED || return 1
+	rule action "$@" chain "${out}_${mychain}" proto tcp sport ftp-data dport "${client_ports}" state ESTABLISHED,RELATED || return 1
+	rule reverse action "$@" chain "${in}_${mychain}" proto tcp sport ftp-data dport "${client_ports}" state ESTABLISHED || return 1
 	
 	# ----------------------------------------------------------------------
 	
@@ -747,8 +740,8 @@ rules_ftp() {
 	
 	# Passive FTP
 	# accept high-ports related connections
-	rule action "$@" chain ${in}_${mychain} proto tcp sport ${c_client_ports} dport ${s_client_ports} state ESTABLISHED,RELATED || return 1
-	rule reverse action "$@" chain ${out}_${mychain} proto tcp sport ${c_client_ports} dport ${s_client_ports} state ESTABLISHED || return 1
+	rule action "$@" chain "${in}_${mychain}" proto tcp sport "${c_client_ports}" dport "${s_client_ports}" state ESTABLISHED,RELATED || return 1
+	rule reverse action "$@" chain "${out}_${mychain}" proto tcp sport "${c_client_ports}" dport "${s_client_ports}" state ESTABLISHED || return 1
 	
 	require_kernel_module ip_conntrack_ftp
 	test ${FIREHOL_NAT} -eq 1 && require_kernel_module ip_nat_ftp
@@ -762,12 +755,8 @@ rules_ftp() {
 ALL_SHOULD_ALSO_RUN="${ALL_SHOULD_ALSO_RUN} icmp"
 
 rules_icmp() {
+        local mychain="${1}"; shift
 	local type="${1}"; shift
-	
-	local mychain="${work_name}_icmp_${type}"
-	
-	create_chain filter in_${mychain} in_${work_name}
-	create_chain filter out_${mychain} out_${work_name}
 	
 	local in=in
 	local out=out
@@ -788,10 +777,10 @@ rules_icmp() {
 	# check out http://www.cs.princeton.edu/~jns/security/iptables/iptables_conntrack.html#ICMP
 	
 	# allow new and established incoming packets
-	rule action "$@" chain ${in}_${mychain} proto icmp state NEW,ESTABLISHED,RELATED || return 1
+	rule action "$@" chain "${in}_${mychain}" proto icmp state NEW,ESTABLISHED,RELATED || return 1
 	
 	# allow outgoing established packets
-	rule reverse action "$@" chain ${out}_${mychain} proto icmp state ESTABLISHED,RELATED || return 1
+	rule reverse action "$@" chain "${out}_${mychain}" proto icmp state ESTABLISHED,RELATED || return 1
 	
 	return 0
 }
@@ -800,12 +789,8 @@ rules_icmp() {
 # --- ALL ----------------------------------------------------------------------
 
 rules_all() {
+        local mychain="${1}"; shift
 	local type="${1}"; shift
-	
-	local mychain="${work_name}_all_${type}"
-	
-	create_chain filter in_${mychain} in_${work_name}
-	create_chain filter out_${mychain} out_${work_name}
 	
 	local in=in
 	local out=out
@@ -824,10 +809,10 @@ rules_all() {
 	# ----------------------------------------------------------------------
 	
 	# allow new and established incoming packets
-	rule action "$@" chain ${in}_${mychain} state NEW,ESTABLISHED || return 1
+	rule action "$@" chain "${in}_${mychain}" state NEW,ESTABLISHED || return 1
 	
 	# allow outgoing established packets
-	rule reverse action "$@" chain ${out}_${mychain} state ESTABLISHED || return 1
+	rule reverse action "$@" chain "${out}_${mychain}" state ESTABLISHED || return 1
 	
 	local ser=
 	for ser in ${ALL_SHOULD_ALSO_RUN}
@@ -842,13 +827,9 @@ rules_all() {
 # --- ANY ----------------------------------------------------------------------
 
 rules_any() {
+        local mychain="${1}"; shift
 	local type="${1}"; shift
 	local name="${1}"; shift # a special case: service any gets a name
-	
-	local mychain="${work_name}_${name}_${type}"
-	
-	create_chain filter in_${mychain} in_${work_name}
-	create_chain filter out_${mychain} out_${work_name}
 	
 	local in=in
 	local out=out
@@ -867,10 +848,10 @@ rules_any() {
 	# ----------------------------------------------------------------------
 	
 	# allow new and established incoming packets
-	rule action "$@" chain ${in}_${mychain} state NEW,ESTABLISHED || return 1
+	rule action "$@" chain "${in}_${mychain}" state NEW,ESTABLISHED || return 1
 	
 	# allow outgoing established packets
-	rule reverse action "$@" chain ${out}_${mychain} state ESTABLISHED || return 1
+	rule reverse action "$@" chain "${out}_${mychain}" state ESTABLISHED || return 1
 	
 	return 0
 }
@@ -879,12 +860,8 @@ rules_any() {
 # --- MULTICAST ----------------------------------------------------------------
 
 rules_multicast() {
+        local mychain="${1}"; shift
 	local type="${1}"; shift
-	
-	local mychain="${work_name}_multicast_${type}"
-	
-	create_chain filter in_${mychain} in_${work_name}
-	create_chain filter out_${mychain} out_${work_name}
 	
 	local in=in
 	local out=out
@@ -903,8 +880,8 @@ rules_multicast() {
 	# ----------------------------------------------------------------------
 	
 	# match multicast packets in both directions
-	rule action "$@" chain ${out}_${mychain} dst "224.0.0.0/8" || return 1
-	rule reverse action "$@" chain ${in}_${mychain} src "224.0.0.0/8" || return 1
+	rule action "$@" chain "${out}_${mychain}" dst "224.0.0.0/8" || return 1
+	rule reverse action "$@" chain "${in}_${mychain}" src "224.0.0.0/8" || return 1
 	
 	return 0
 }
@@ -958,11 +935,11 @@ version() {
 
 firehol_exit() {
 	
-	if [ -f ${FIREHOL_SAVED} ]
+	if [ -f "${FIREHOL_SAVED}" ]
 	then
 		echo
 		echo -n "FireHOL: Restoring old firewall:"
-		iptables-restore <${FIREHOL_SAVED}
+		iptables-restore <"${FIREHOL_SAVED}"
 		if [ $? -eq 0 ]
 		then
 			success "FireHOL: Restoring old firewall:"
@@ -982,7 +959,7 @@ firehol_exit() {
 }
 
 # Make sure there is no saved firewall.
-test -f ${FIREHOL_SAVED} && rm -f ${FIREHOL_SAVED}
+test -f "${FIREHOL_SAVED}" && rm -f "${FIREHOL_SAVED}"
 
 # Run our exit even if we don't call exit.
 trap firehol_exit EXIT
@@ -990,7 +967,7 @@ trap firehol_exit EXIT
 
 
 # ------------------------------------------------------------------------------
-# Keep track of all interfaces the script uses
+# Keep track of all interfaces used
 
 register_iface() {
 	local iface="${1}"
@@ -1029,7 +1006,7 @@ require_work() {
 		
 		set)
 			test -z "${work_cmd}" && error "The command used requires that a primary command is set." && return 1
-			test ! ${work_cmd} = "${cmd}" -a ! "${cmd}" = "any"  && error "Primary command is '${work_cmd}' but '${cmd}' is required." && return 1
+			test ! "${work_cmd}" = "${cmd}" -a ! "${cmd}" = "any"  && error "Primary command is '${work_cmd}' but '${cmd}' is required." && return 1
 			;;
 			
 		*)
@@ -1048,7 +1025,9 @@ require_work() {
 # when the script finishes.
 
 close_cmd() {
-	case ${work_cmd} in
+	work_function="Closing last open primary command (${work_cmd}/${work_name})"
+	
+	case "${work_cmd}" in
 		interface)
 			close_interface
 			;;
@@ -1067,11 +1046,12 @@ close_cmd() {
 	esac
 	
 	# Reset the current status variables to empty/default
+	work_counter=0
 	work_cmd=
 	work_name=
 	work_inface=
 	work_outface=
-	work_policy=${DEFAULT_INTERFACE_POLICY}
+	work_policy="${DEFAULT_INTERFACE_POLICY}"
 	
 	return 0
 }
@@ -1079,7 +1059,7 @@ close_cmd() {
 policy() {
 	require_work set interface || return 1
 	
-	work_policy=${1}
+	work_policy="${1}"
 	
 	return 0
 }
@@ -1089,13 +1069,15 @@ masquerade() {
 	test -z "${f}" && f="${work_outface}"
 	test "${f}" = "reverse" && f="${work_inface}"
 	
+	work_function="Initializing masquerade"
+	
 	test -z "${f}" && error "masquerade requires an interface set or as argument" && return 1
 	
 	local x=
 	for x in ${f}
 	do
-#		iptables -t nat -A POSTROUTING -o ${x} -j MASQUERADE || return 1
-		rule table nat chain POSTROUTING outface ${x} action MASQUERADE "$@" || return 1
+#		iptables -t nat -A POSTROUTING -o "${x}" -j MASQUERADE || return 1
+		rule table nat chain POSTROUTING outface "${x}" action MASQUERADE "$@" || return 1
 	done
 	
 	FIREHOL_NAT=1
@@ -1116,16 +1098,17 @@ interface() {
 	# --- test prerequisites ---
 	
 	require_work clear || return 1
+	work_function="Initializing interface"
 	
 	
 	# --- get paramaters and validate them ---
 	
 	# Get the interface
-	local inface=$1; shift
+	local inface="${1}"; shift
 	test -z "${inface}" && error "interface is not set" && return 1
 	
 	# Get the name for this interface
-	local name=$1; shift
+	local name="${1}"; shift
 	test -z "${name}" && error "Name is not set" && return 1
 	
 	
@@ -1134,8 +1117,10 @@ interface() {
 	work_cmd="${FUNCNAME}"
 	work_name="${name}"
 	
-	create_chain filter in_${work_name} INPUT set_work_inface inface ${inface} "$@"
-	create_chain filter out_${work_name} OUTPUT set_work_outface reverse inface ${inface} "$@"
+	work_function="Initializing interface '${work_name}'"
+	
+	create_chain filter "in_${work_name}" INPUT set_work_inface inface "${inface}" "$@"
+	create_chain filter "out_${work_name}" OUTPUT set_work_outface reverse inface "${inface}" "$@"
 	
 	return 0
 }
@@ -1147,9 +1132,11 @@ interface() {
 close_interface() {
 	require_work set interface || return 1
 	
+	work_function="Finilizing interface '${work_name}'"
+	
 	local inlog=
 	local outlog=
-	case ${work_policy} in
+	case "${work_policy}" in
 		return|RETURN)
 			return 0
 			;;
@@ -1160,17 +1147,17 @@ close_interface() {
 			;;
 		
 		*)
-			inlog="loglimit IN-${work_name}"
-			outlog="loglimit OUT-${work_name}"
+			inlog="loglimit 'IN-${work_name}'"
+			outlog="loglimit 'OUT-${work_name}'"
 			;;
 	esac
 	
 	# Accept all related traffic to the established connections
-	rule chain in_${work_name} state RELATED action ACCEPT
-	rule chain out_${work_name} state RELATED action ACCEPT
+	rule chain "in_${work_name}" state RELATED action ACCEPT
+	rule chain "out_${work_name}" state RELATED action ACCEPT
 	
-	rule chain in_${work_name} ${inlog} action ${work_policy}
-	rule reverse chain out_${work_name} ${outlog} action ${work_policy}
+	rule chain "in_${work_name}" ${inlog} action "${work_policy}"
+	rule reverse chain "out_${work_name}" ${outlog} action "${work_policy}"
 	
 	return 0
 }
@@ -1185,12 +1172,13 @@ router() {
 	# --- test prerequisites ---
 	
 	require_work clear || return 1
+	work_function="Initializing router"
 	
 	
 	# --- get paramaters and validate them ---
 	
 	# Get the name for this router
-	local name=$1; shift
+	local name="${1}"; shift
 	test -z "${name}" && error "router name is not set" && return 1
 	
 	
@@ -1199,18 +1187,22 @@ router() {
 	work_cmd="${FUNCNAME}"
 	work_name="${name}"
 	
-	create_chain filter in_${work_name} FORWARD set_work_inface set_work_outface "$@"
-	create_chain filter out_${work_name} FORWARD reverse "$@"
+	work_function="Initializing router '${work_name}'"
+	
+	create_chain filter "in_${work_name}" FORWARD set_work_inface set_work_outface "$@"
+	create_chain filter "out_${work_name}" FORWARD reverse "$@"
 	
 	return 0
 }
 
-close_router() {
+close_router() {	
 	require_work set router || return 1
 	
+	work_function="Finilizing router '${work_name}'"
+	
 	# Accept all related traffic to the established connections
-	rule chain in_${work_name} state RELATED action ACCEPT
-	rule chain out_${work_name} state RELATED action ACCEPT
+	rule chain "in_${work_name}" state RELATED action ACCEPT
+	rule chain "out_${work_name}" state RELATED action ACCEPT
 	
 # routers always have RETURN as policy	
 #	local inlog=
@@ -1238,6 +1230,8 @@ close_router() {
 }
 
 close_master() {
+	work_function="Finilizing firewall policies"
+	
 	# Accept all related traffic to the established connections
 	rule chain INPUT state RELATED action ACCEPT
 	rule chain OUTPUT state RELATED action ACCEPT
@@ -1305,9 +1299,9 @@ rule() {
 	local swi=0
 	local swo=0
 	
-	while [ ! -z "$1" ]
+	while [ ! -z "${1}" ]
 	do
-		case "$1" in
+		case "${1}" in
 			set_work_inface|SET_WORK_INFACE)
 				swi=1
 				shift
@@ -1324,12 +1318,12 @@ rule() {
 				;;
 				
 			table|TABLE)
-				table="-t $2"
+				table="-t ${2}"
 				shift 2
 				;;
 				
 			chain|CHAIN)
-				chain="$2"
+				chain="${2}"
 				shift 2
 				;;
 				
@@ -1338,30 +1332,30 @@ rule() {
 				if [ ${reverse} -eq 0 ]
 				then
 					infacenot=
-					if [ "$1" = "not" -o "$1" = "NOT" ]
+					if [ "${1}" = "not" -o "${1}" = "NOT" ]
 					then
 						shift
 						infacenot="!"
 					else
 						if [ $swi -eq 1 ]
 						then
-							work_inface="$1"
+							work_inface="${1}"
 						fi
 					fi
-					inface="$1"
+					inface="${1}"
 				else
 					outfacenot=
-					if [ "$1" = "not" -o "$1" = "NOT" ]
+					if [ "${1}" = "not" -o "${1}" = "NOT" ]
 					then
 						shift
 						outfacenot="!"
 					else
-						if [ $swo -eq 1 ]
+						if [ ${swo} -eq 1 ]
 						then
 							work_outface="$1"
 						fi
 					fi
-					outface="$1"
+					outface="${1}"
 				fi
 				shift
 				;;
@@ -1371,30 +1365,30 @@ rule() {
 				if [ ${reverse} -eq 0 ]
 				then
 					outfacenot=
-					if [ "$1" = "not" -o "$1" = "NOT" ]
+					if [ "${1}" = "not" -o "${1}" = "NOT" ]
 					then
 						shift
 						outfacenot="!"
 					else
-						if [ $swo -eq 1 ]
+						if [ ${swo} -eq 1 ]
 						then
-							work_outface="$1"
+							work_outface="${1}"
 						fi
 					fi
-					outface="$1"
+					outface="${1}"
 				else
 					infacenot=
-					if [ "$1" = "not" -o "$1" = "NOT" ]
+					if [ "${1}" = "not" -o "${1}" = "NOT" ]
 					then
 						shift
 						infacenot="!"
 					else
-						if [ $swi -eq 1 ]
+						if [ ${swi} -eq 1 ]
 						then
-							work_inface="$1"
+							work_inface="${1}"
 						fi
 					fi
-					inface="$1"
+					inface="${1}"
 				fi
 				shift
 				;;
@@ -1404,20 +1398,20 @@ rule() {
 				if [ ${reverse} -eq 0 ]
 				then
 					srcnot=
-					if [ "$1" = "not" -o "$1" = "NOT" ]
+					if [ "${1}" = "not" -o "${1}" = "NOT" ]
 					then
 						shift
 						srcnot="!"
 					fi
-					src="$1"
+					src="${1}"
 				else
 					dstnot=
-					if [ "$1" = "not" -o "$1" = "NOT" ]
+					if [ "${1}" = "not" -o "${1}" = "NOT" ]
 					then
 						shift
 						dstnot="!"
 					fi
-					dst="$1"
+					dst="${1}"
 				fi
 				shift
 				;;
@@ -1427,20 +1421,20 @@ rule() {
 				if [ ${reverse} -eq 0 ]
 				then
 					dstnot=
-					if [ "$1" = "not" -o "$1" = "NOT" ]
+					if [ "${1}" = "not" -o "${1}" = "NOT" ]
 					then
 						shift
 						dstnot="!"
 					fi
-					dst="$1"
+					dst="${1}"
 				else
 					srcnot=
-					if [ "$1" = "not" -o "$1" = "NOT" ]
+					if [ "${1}" = "not" -o "${1}" = "NOT" ]
 					then
 						shift
 						srcnot="!"
 					fi
-					src="$1"
+					src="${1}"
 				fi
 				shift
 				;;
@@ -1450,20 +1444,20 @@ rule() {
 				if [ ${reverse} -eq 0 ]
 				then
 					sportnot=
-					if [ "$1" = "not" -o "$1" = "NOT" ]
+					if [ "${1}" = "not" -o "${1}" = "NOT" ]
 					then
 						shift
 						sportnot="!"
 					fi
-					sport="$1"
+					sport="${1}"
 				else
 					dportnot=
-					if [ "$1" = "not" -o "$1" = "NOT" ]
+					if [ "${1}" = "not" -o "${1}" = "NOT" ]
 					then
 						shift
 						dportnot="!"
 					fi
-					dport="$1"
+					dport="${1}"
 				fi
 				shift
 				;;
@@ -1473,20 +1467,20 @@ rule() {
 				if [ ${reverse} -eq 0 ]
 				then
 					dportnot=
-					if [ "$1" = "not" -o "$1" = "NOT" ]
+					if [ "${1}" = "not" -o "${1}" = "NOT" ]
 					then
 						shift
 						dportnot="!"
 					fi
-					dport="$1"
+					dport="${1}"
 				else
 					sportnot=
-					if [ "$1" = "not" -o "$1" = "NOT" ]
+					if [ "${1}" = "not" -o "${1}" = "NOT" ]
 					then
 						shift
 						sportnot="!"
 					fi
-					sport="$1"
+					sport="${1}"
 				fi
 				shift
 				;;
@@ -1494,70 +1488,70 @@ rule() {
 			proto|PROTO|protocol|PROTOCOL)
 				shift
 				protonot=
-				if [ "$1" = "not" -o "$1" = "NOT" ]
+				if [ "${1}" = "not" -o "${1}" = "NOT" ]
 				then
 					shift
 					protonot="!"
 				fi
-				proto="$1"
+				proto="${1}"
 				shift
 				;;
 				
 			custom|CUSTOM)
-				custom="$2"
+				custom="${2}"
 				shift 2
 				;;
 				
 			log|LOG)
 				log=normal
-				logtxt="$2"
+				logtxt="${2}"
 				shift 2
 				;;
 				
 			loglimit|LOGLIMIT)
 				log=limit
-				logtxt="$2"
+				logtxt="${2}"
 				shift 2
 				;;
 				
 			limit|LIMIT)
-				limit="$2"
-				burst="$3"
+				limit="${2}"
+				burst="${3}"
 				shift 3
 				;;
 				
 			iplimit|IPLIMIT)
-				iplimit="$2"
-				iplimit_mask="$3"
+				iplimit="${2}"
+				iplimit_mask="${3}"
 				shift 3
 				;;
 				
 			action|ACTION)
-				action="$2"
+				action="${2}"
 				shift 2
 				;;
 				
 			state|STATE)
 				shift
 				statenot=
-				if [ "$1" = "not" -o "$1" = "NOT" ]
+				if [ "${1}" = "not" -o "${1}" = "NOT" ]
 				then
 					shift
 					statenot="!"
 				fi
-				state="$1"
+				state="${1}"
 				shift
 				;;
 				
 			*)
-				error "Cannot understand directive '$1'."
+				error "Cannot understand directive '${1}'."
 				return 1
 				;;
 		esac
 	done
 	
 	
-	case ${action} in
+	case "${action}" in
 		accept|ACCEPT)
 			action=ACCEPT
 			;;
@@ -1836,18 +1830,18 @@ rule() {
 									iplimit_arg=
 								fi
 								
-								local basecmd="${table} -A ${chain} ${inf_arg} ${outf_arg} ${state_arg} ${limit_arg} ${iplimit_arg} ${proto_arg} ${s_arg} ${sp_arg} ${d_arg} ${dp_arg} ${custom}"
+								local basecmd="${table} -A '${chain}' ${inf_arg} ${outf_arg} ${state_arg} ${limit_arg} ${iplimit_arg} ${proto_arg} ${s_arg} ${sp_arg} ${d_arg} ${dp_arg} ${custom}"
 								
 								case "${log}" in
 									'')
 										;;
 									
 									limit)
-										iptables ${basecmd} -m limit --limit 1/second -j LOG ${FIREHOL_LOG_OPTIONS} --log-prefix="\"${logtxt}:\""
+										iptables ${basecmd} -m limit --limit 1/second -j LOG ${FIREHOL_LOG_OPTIONS} --log-prefix="${logtxt}:"
 										;;
 										
 									normal)
-										iptables ${basecmd} -j LOG ${FIREHOL_LOG_OPTIONS} --log-prefix="\"${logtxt}:\""
+										iptables ${basecmd} -j LOG ${FIREHOL_LOG_OPTIONS} --log-prefix="${logtxt}:"
 										;;
 										
 									*)
@@ -1855,7 +1849,7 @@ rule() {
 										;;
 								esac
 								
-								if [ ! ${action} = NONE ]
+								if [ ! "${action}" = NONE ]
 								then
 									iptables ${basecmd} -j ${action}
 									test $? -gt 0 && failed=$[failed + 1]
@@ -1876,8 +1870,15 @@ postprocess() {
 	local tmp=" >${FIREHOL_OUTPUT}.log 2>&1"
 	test ${FIREHOL_DEBUG} -eq 1 && local tmp=
 	
-	echo "$@" " $tmp # L:${FIREHOL_LINEID}" >>${FIREHOL_OUTPUT}
+#	echo "$@" " $tmp # L:${FIREHOL_LINEID}" >>${FIREHOL_OUTPUT}
 	
+	while [ ! -z "${1}" ]
+	do
+		printf "'%s' " "${1}" >>${FIREHOL_OUTPUT}
+		shift
+	done
+	echo " $tmp # L:${FIREHOL_LINEID}" >>${FIREHOL_OUTPUT}
+		
 	test ${FIREHOL_DEBUG} -eq 0 && echo "check_final_status \$? '" "$@" "' ${FIREHOL_LINEID}" >>${FIREHOL_OUTPUT}
 	
 	return 0
@@ -1890,7 +1891,7 @@ iptables() {
 }
 
 check_final_status() {
-	if [ $1 -gt 0 ]
+	if [ ${1} -gt 0 ]
 	then
 		work_final_status=$[work_final_status + 1]
 		echo >&2
@@ -1913,6 +1914,8 @@ create_chain() {
 	local oldchain="${3}"
 	shift 3
 	
+	work_function="Creating chain '${newchain}' under '${oldchain}' in table '${table}'"
+	
 #	echo >&2 "CREATED CHAINS : ${work_created_chains}"
 #	echo >&2 "REQUESTED CHAIN: ${newchain}"
 	
@@ -1931,13 +1934,21 @@ create_chain() {
 }
 
 error() {
+	work_error=$[work_error + 1]
 	echo >&2
-	echo >&2 "*** Error in file: ${FIREHOL_CONFIG}, line ${FIREHOL_LINEID}:"
-	echo >&2 "$@"
-	work_error=1
+	echo >&2 "--------------------------------------------------------------------------------"
+	echo >&2 "ERROR #: ${work_error}"
+	echo >&2 "WHAT   : ${work_function}"
+	echo >&2 "WHY    :" "$@"
+	echo >&2 "SOURCE : line ${FIREHOL_LINEID} of ${FIREHOL_CONFIG}"
+	echo >&2
 	
 	return 0
 }
+
+# smart_function() creates a chain for the subcommand and
+# detects, for each service given, if it is a simple service
+# or a custom rules based service.
 
 smart_function() {
 	local type="${1}"	# The current subcommand: server/client/route
@@ -1947,18 +1958,64 @@ smart_function() {
 	local service=
 	for service in $services
 	do
+		work_function="Looking up service '${service}' (${type})"
+		
+		# Increase the command counter, to make all chains within a primary
+		# command, unique.
+		work_counter=$[work_counter + 1]
+		
+		local suffix="u${work_counter}"
+		case "${type}" in
+			client)
+				suffix="c${work_counter}"
+				;;
+			
+			server)
+				suffix="s${work_counter}"
+				;;
+			
+			route)
+				suffix="r${work_counter}"
+				;;
+			
+			*)	error "Cannot understand type '${type}'."
+				return 1
+				;;
+		esac
+		
+		local mychain="${work_name}_${service}_${suffix}"
+		
+		create_chain filter "in_${mychain}" "in_${work_name}"
+		create_chain filter "out_${mychain}" "out_${work_name}"
+		
 		# Try the simple services first
-		simple_service "${type}" "${service}" "$@"
-		test $? -eq 0 && continue
+		simple_service "${mychain}" "${type}" "${service}" "$@"
+		local ret=$?
+		
+		# simple service completed succesfully.
+		test $ret -eq 0 && continue
+		
+		# simple service exists but failed.
+		if [ $ret -ne 127 ]
+		then
+			error "Simple service '${service}' returned an error ($ret)."
+			return 1
+		fi
+		
 		
 		# Try the custom services
 		local fn="rules_${service}"
-		"${fn}" "${type}" "$@"
-		if [ $? -gt 0 ]
+		"${fn}" "${mychain}" "${type}" "$@"
+		local ret=$?
+		test $ret -eq 0 && continue
+		
+		if [ $ret -eq 127 ]
 		then
-			error "Function ${fn} returned an error."
-			return 1
+			error "There is no service '${service}' defined."
+		else
+			error "Complex service '${service}' returned an error ($ret)."
 		fi
+		return 1
 	done
 	
 	return 0
@@ -1983,6 +2040,7 @@ route() {
 }
 
 simple_service() {
+	local mychain="${1}"; shift
 	local type="${1}"; shift
 	local server="${1}"; shift
 	
@@ -1992,7 +2050,7 @@ simple_service() {
 	local client_varname="client_${server}_ports"
 	local client_ports="`eval echo \\\$${client_varname}`"
 	
-	test -z "${server_ports}" -o -z "${client_ports}" && return 1
+	test -z "${server_ports}" -o -z "${client_ports}" && return 127
 	
 	local x=
 	local varname="require_${server}_modules"
@@ -2012,22 +2070,18 @@ simple_service() {
 		done
 	fi
 	
-	rules_custom "${type}" "${server}" "${server_ports}" "${client_ports}" "$@"
+	rules_custom "${mychain}" "${type}" "${server}" "${server_ports}" "${client_ports}" "$@"
 	return $?
 }
 
 
 rules_custom() {
+	local mychain="${1}"; shift
 	local type="${1}"; shift
 	
 	local server="${1}"; shift
 	local my_server_ports="${1}"; shift
 	local my_client_ports="${1}"; shift
-	
-	local mychain="${work_name}_${server}_${type}"
-	
-	create_chain filter in_${mychain} in_${work_name}
-	create_chain filter out_${mychain} out_${work_name}
 	
 	local in=in
 	local out=out
@@ -2065,10 +2119,10 @@ rules_custom() {
 			esac
 			
 			# allow new and established incoming packets
-			rule action "$@" chain ${in}_${mychain} proto ${proto} sport ${cport} dport ${sport} state NEW,ESTABLISHED || return 1
+			rule action "$@" chain "${in}_${mychain}" proto "${proto}" sport "${cport}" dport "${sport}" state NEW,ESTABLISHED || return 1
 			
 			# allow outgoing established packets
-			rule reverse action "$@" chain ${out}_${mychain} proto ${proto} sport ${cport} dport ${sport} state ESTABLISHED || return 1
+			rule reverse action "$@" chain "${out}_${mychain}" proto "${proto}" sport "${cport}" dport "${sport}" state ESTABLISHED || return 1
 		done
 	done
 	
@@ -2101,7 +2155,7 @@ protection() {
 	local x=
 	for x in ${type}
 	do
-		case ${x} in
+		case "${x}" in
 			none|NONE)
 				return 0
 				;;
@@ -2113,56 +2167,56 @@ protection() {
 				
 			fragments|FRAGMENTS)
 				local mychain="pr_${work_name}_fragments"
-				create_chain filter ${mychain} ${in}_${work_name} custom "-f"					|| return 1
+				create_chain filter "${mychain}" "${in}_${work_name}" custom "-f"				|| return 1
 				
-				rule chain ${mychain} loglimit "PACKET FRAGMENTS" action drop 					|| return 1
+				rule chain "${mychain}" loglimit "PACKET FRAGMENTS" action drop 				|| return 1
 				;;
 				
 			new-tcp-w/o-syn|NEW-TCP-W/O-SYN)
 				local mychain="pr_${work_name}_nosyn"
-				create_chain filter ${mychain} ${in}_${work_name} proto tcp state NEW custom "! --syn"		|| return 1
+				create_chain filter "${mychain}" "${in}_${work_name}" proto tcp state NEW custom "! --syn"	|| return 1
 				
-				rule chain ${mychain} loglimit "NEW TCP w/o SYN" action drop					|| return 1
+				rule chain "${mychain}" loglimit "NEW TCP w/o SYN" action drop					|| return 1
 				;;
 				
 			icmp-floods|ICMP-FLOODS)
 				local mychain="pr_${work_name}_icmpflood"
-				create_chain filter ${mychain} ${in}_${work_name} proto icmp custom "--icmp-type echo-request"	|| return 1
+				create_chain filter "${mychain}" "${in}_${work_name}" proto icmp custom "--icmp-type echo-request"	|| return 1
 				
-				rule chain ${mychain} limit "${rate}" "${burst}" action return					|| return 1
-				rule chain ${mychain} loglimit "ICMP FLOOD" action drop						|| return 1
+				rule chain "${mychain}" limit "${rate}" "${burst}" action return				|| return 1
+				rule chain "${mychain}" loglimit "ICMP FLOOD" action drop					|| return 1
 				;;
 				
 			syn-floods|SYN-FLOODS)
 				local mychain="pr_${work_name}_synflood"
-				create_chain filter ${mychain} ${in}_${work_name} proto tcp custom "--syn"			|| return 1
+				create_chain filter "${mychain}" "${in}_${work_name}" proto tcp custom "--syn"			|| return 1
 				
-				rule chain ${mychain} limit "${rate}" "${burst}" action return					|| return 1
-				rule chain ${mychain} loglimit "SYN FLOOD" action drop						|| return 1
+				rule chain "${mychain}" limit "${rate}" "${burst}" action return				|| return 1
+				rule chain "${mychain}" loglimit "SYN FLOOD" action drop					|| return 1
 				;;
 				
 			malformed-xmas|MALFORMED-XMAS)
 				local mychain="pr_${work_name}_malxmas"
-				create_chain filter ${mychain} ${in}_${work_name} proto tcp custom "--tcp-flags ALL ALL"	|| return 1
+				create_chain filter "${mychain}" "${in}_${work_name}" proto tcp custom "--tcp-flags ALL ALL"	|| return 1
 				
-				rule chain ${mychain} loglimit "MALFORMED XMAS" action drop					|| return 1
+				rule chain "${mychain}" loglimit "MALFORMED XMAS" action drop					|| return 1
 				;;
 				
 			malformed-null|MALFORMED-NULL)
 				local mychain="pr_${work_name}_malnull"
-				create_chain filter ${mychain} ${in}_${work_name} proto tcp custom "--tcp-flags ALL NONE"	|| return 1
+				create_chain filter "${mychain}" "${in}_${work_name}" proto tcp custom "--tcp-flags ALL NONE"	|| return 1
 				
-				rule chain ${mychain} loglimit "MALFORMED NULL" action drop					|| return 1
+				rule chain "${mychain}" loglimit "MALFORMED NULL" action drop					|| return 1
 				;;
 				
 			malformed-bad|MALFORMED-BAD)
 				local mychain="pr_${work_name}_malbad"
-				create_chain filter ${mychain} ${in}_${work_name}      proto tcp custom "--tcp-flags SYN,FIN SYN,FIN"		|| return 1
-				rule chain ${in}_${work_name} action ${mychain} proto tcp custom "--tcp-flags SYN,RST SYN,RST"			|| return 1
-				rule chain ${in}_${work_name} action ${mychain} proto tcp custom "--tcp-flags ALL     SYN,RST,ACK,FIN,URG"	|| return 1
-				rule chain ${in}_${work_name} action ${mychain} proto tcp custom "--tcp-flags ALL     FIN,URG,PSH"		|| return 1
+				create_chain filter "${mychain}" "${in}_${work_name}" proto tcp custom "--tcp-flags SYN,FIN SYN,FIN"		|| return 1
+				rule chain "${in}_${work_name}" action "${mychain}"   proto tcp custom "--tcp-flags SYN,RST SYN,RST"			|| return 1
+				rule chain "${in}_${work_name}" action "${mychain}"   proto tcp custom "--tcp-flags ALL     SYN,RST,ACK,FIN,URG"	|| return 1
+				rule chain "${in}_${work_name}" action "${mychain}"   proto tcp custom "--tcp-flags ALL     FIN,URG,PSH"		|| return 1
 				
-				rule chain ${mychain} loglimit "MALFORMED BAD" action drop							|| return 1
+				rule chain "${mychain}" loglimit "MALFORMED BAD" action drop							|| return 1
 				;;
 		esac
 	done
