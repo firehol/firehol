@@ -10,7 +10,7 @@
 #
 # config: /etc/firehol.conf
 #
-# $Id: firehol.sh,v 1.58 2002/12/31 08:55:42 ktsaou Exp $
+# $Id: firehol.sh,v 1.59 2002/12/31 09:10:15 ktsaou Exp $
 #
 
 # ------------------------------------------------------------------------------
@@ -155,7 +155,7 @@ case "${arg}" in
 		else
 		
 		cat <<"EOF"
-$Id: firehol.sh,v 1.58 2002/12/31 08:55:42 ktsaou Exp $
+$Id: firehol.sh,v 1.59 2002/12/31 09:10:15 ktsaou Exp $
 (C) Copyright 2002, Costa Tsaousis <costa@tsaousis.gr>
 FireHOL is distributed under GPL.
 
@@ -423,7 +423,7 @@ work_realcmd=
 work_name=
 work_inface=
 work_outface=
-work_policy=${DEFAULT_INTERFACE_POLICY}
+work_policy="${DEFAULT_INTERFACE_POLICY}"
 work_error=0
 work_function="Initializing"
 
@@ -1368,7 +1368,7 @@ policy() {
 	require_work set interface || return 1
 	
 	set_work_function "Setting interface '${work_interface}' (${work_name}) policy to ${1}"
-	work_policy="${1}"
+	work_policy="$*"
 	
 	return 0
 }
@@ -1707,8 +1707,8 @@ close_interface() {
 	rule chain "in_${work_name}" state RELATED action ACCEPT || return 1
 	rule chain "out_${work_name}" state RELATED action ACCEPT || return 1
 	
-	rule chain "in_${work_name}" "${inlog[@]}" action "${work_policy}" || return 1
-	rule reverse chain "out_${work_name}" "${outlog[@]}" action "${work_policy}" || return 1
+	rule chain "in_${work_name}" "${inlog[@]}" action ${work_policy} || return 1
+	rule reverse chain "out_${work_name}" "${outlog[@]}" action ${work_policy} || return 1
 	
 	return 0
 }
@@ -2056,11 +2056,11 @@ rule() {
 			action|ACTION)
 				action="${2}"
 				shift 2
-				if [ "${1}" = "with" ]
-				then
-					with="${2}"
-					shift 2
-				fi
+				;;
+			
+			with|WITH)
+				with="${2}"
+				shift 2
 				;;
 				
 			state|STATE)
@@ -2091,11 +2091,13 @@ rule() {
 	case "${action}" in
 		accept|ACCEPT)
 			action=ACCEPT
+			test ! -z "${with}" && error "Parameter 'with' cannot be used on action '${action}'."
 			with=
 			;;
 			
 		deny|DENY)
 			action=DROP
+			test ! -z "${with}" && error "Parameter 'with' cannot be used on action '${action}'."
 			with=
 			;;
 			
@@ -2106,26 +2108,32 @@ rule() {
 			
 		drop|DROP)
 			action=DROP
+			test ! -z "${with}" && error "Parameter 'with' cannot be used on action '${action}'."
 			with=
 			;;
 			
 		return|RETURN)
 			action=RETURN
+			test ! -z "${with}" && error "Parameter 'with' cannot be used on action '${action}'."
 			with=
 			;;
 			
 		mirror|MIRROR)
 			action=MIRROR
+			test ! -z "${with}" && error "Parameter 'with' cannot be used on action '${action}'."
 			with=
 			;;
 			
 		none|NONE)
 			action=NONE
+			test ! -z "${with}" && error "Parameter 'with' cannot be used on action '${action}'."
 			with=
 			;;
 			
 		*)
+			test ! -z "${with}" && error "Parameter 'with' cannot be used on action '${action}'."
 			with=
+			
 			chain_exists "${action}"
 			local action_is_chain=$?
 			;;
@@ -2663,7 +2671,7 @@ then
 	
 	cat <<"EOF"
 
-$Id: firehol.sh,v 1.58 2002/12/31 08:55:42 ktsaou Exp $
+$Id: firehol.sh,v 1.59 2002/12/31 09:10:15 ktsaou Exp $
 (C) Copyright 2002, Costa Tsaousis <costa@tsaousis.gr>
 FireHOL is distributed under GPL.
 Home Page: http://firehol.sourceforge.net
