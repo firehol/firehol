@@ -39,11 +39,11 @@ then
 fi
 
 backup="/etc/init.d/firehol.$$"
-backupconf="/etc/firehol.conf.$$"
+backupconf="/etc/firehol/firehol.conf.$$"
 
 # backup the current files.
-test -f /etc/init.d/firehol && mv -f /etc/init.d/firehol "${backup}"
-test -f /etc/firehol.conf   && mv -f /etc/firehol.conf "${backupconf}"
+test -f /etc/init.d/firehol       && mv -f /etc/init.d/firehol "${backup}"
+test -f /etc/firehol/firehol.conf && mv -f /etc/firehol/firehol.conf "${backupconf}"
 
 # make the tmp dir
 test -d "/tmp/$myname" && rm -rf "/tmp/${myname}"
@@ -82,4 +82,4 @@ cd "$here"
 
 # restore the original files.
 test -f "${backup}"     && mv -f "${backup}" /etc/init.d/firehol
-test -f "${backupconf}" && mv -f "${backupconf}" /etc/firehol.conf
+test -f "${backupconf}" && mv -f "${backupconf}" /etc/firehol/firehol.conf
