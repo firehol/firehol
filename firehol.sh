@@ -138,32 +138,44 @@ PRIVATE_IPS="10.0.0.0/8 169.254.0.0/16 172.16.0.0/12 169.254.0.0/16 192.88.99.0/
 # The multicast address space
 MULTICAST_IPS="224.0.0.0/8"
 
-# A shortcut to have all the Internet unroutable addresses in one variable
+# A shortcut to have all the Internet unroutable addresses in one
+# variable
 UNROUTABLE_IPS="${RESERVED_IPS} ${PRIVATE_IPS}"
 
-# ------------------------------------------------------------------------------
+# ----------------------------------------------------------------------
 
 # The default policy for the interface commands of the firewall.
+# This can be controlled on a per interface basis using the
+# policy interface subscommand. 
 DEFAULT_INTERFACE_POLICY="DROP"
 
 # What to do with unmatched packets?
+# To change these, simply define them the configuration file.
 UNMATCHED_INPUT_POLICY="DROP"
 UNMATCHED_OUTPUT_POLICY="DROP"
 UNMATCHED_ROUTER_POLICY="DROP"
 
-# Custom rules may add themeselves to this variable so that
-# the service all will also call them.
+# Options for iptables LOG action.
+# These options will be added to all LOG actions FireHOL will generate.
+# To change them, type such a line in the configuration file.
+FIREHOL_LOG_OPTIONS="--log-level warning --log-tcp-sequence --log-tcp-options --log-ip-options"
+
+# Complex services' rules may add themeselves to this variable so that
+# the service "all" will also call them.
 # By default it is empty - only rules programmers should change this.
 ALL_SHOULD_ALSO_RUN=
 
-# The client ports to be used for "default" client ports when the client
-# specified is a foreign host.
-# We give all ports above 1000 because a few systems (like Solaris) use this range.
+# The client ports to be used for "default" client ports when the
+# client specified is a foreign host.
+# We give all ports above 1000 because a few systems (like Solaris)
+# use this range.
+# Note that FireHOL will ask the kernel for default client ports of
+# the local host. This only applies to client ports of remote hosts.
 DEFAULT_CLIENT_PORTS="1000:65535"
 
 # Get the default client ports from the kernel configuration.
-# This is formed to a range of ports to be used for all "default" client ports
-# when the client specified is the localhost.
+# This is formed to a range of ports to be used for all "default"
+# client ports when the client specified is the localhost.
 LOCAL_CLIENT_PORTS_LOW=`sysctl net.ipv4.ip_local_port_range | cut -d '=' -f 2 | cut -f 1`
 LOCAL_CLIENT_PORTS_HIGH=`sysctl net.ipv4.ip_local_port_range | cut -d '=' -f 2 | cut -f 2`
 LOCAL_CLIENT_PORTS=`echo ${LOCAL_CLIENT_PORTS_LOW}:${LOCAL_CLIENT_PORTS_HIGH}`
@@ -173,9 +185,9 @@ FIREHOL_OUTPUT="/tmp/firehol-out-$$.sh"
 FIREHOL_SAVED="/tmp/firehol-save-$$.sh"
 FIREHOL_TMP="/tmp/firehol-tmp-$$.sh"
 
-# This is our version number. It is increased when the configuration file commands
-# and arguments change their meaning and usage, so that the user will have to review
-# it more precisely.
+# This is our version number. It is increased when the configuration
+# file commands and arguments change their meaning and usage, so that
+# the user will have to review it more precisely.
 FIREHOL_VERSION=5
 FIREHOL_VERSION_CHECKED=0
 
@@ -184,8 +196,9 @@ FIREHOL_LINEID="INIT"
 
 # Variable kernel module requirements.
 # Suggested by Fco.Felix Belmonte <ffelix@gescosoft.com>
-# Bellow are the minimum ones. Note that each of the complex services may add to this
-# variable the kernel modules it requires. See rules_ftp() bellow for an example.
+# Bellow are the minimum ones. Note that each of the complex services
+# may add to this variable the kernel modules it requires.
+# See rules_ftp() bellow for an example.
 FIREHOL_KERNEL_MODULES="ip_tables ip_conntrack"
 #
 # In the configuration file you can write:
@@ -194,9 +207,10 @@ FIREHOL_KERNEL_MODULES="ip_tables ip_conntrack"
 # 
 # to have FireHOL require a specific module for the configurarion.
 
-# Set this to 1 in the configuration file to have FireHOL complex services
-# load NAT kernel modules too.
+# Set this to 1 in the configuration file to have FireHOL complex
+# services' rules load NAT kernel modules too.
 FIREHOL_NAT=0
+
 
 # ------------------------------------------------------------------------------
 # Keep information about the current primary command
@@ -267,10 +281,9 @@ client_ssh_ports="default"
 server_telnet_ports="tcp/telnet"
 client_telnet_ports="default"
 
-# TFTP is more complicated that this.
-# TFTP communicates through high ports.
-# The problem is that there is no relevant
-# iptables module in most distributions.
+# TFTP is more complicated than this.
+# TFTP communicates through high ports. The problem is that there is
+# no relevant iptables module in most distributions.
 # server_tftp_ports="udp/tftp"
 # client_tftp_ports="default"
 
@@ -298,9 +311,6 @@ client_radius_ports="default"
 server_radiusold_ports="udp/1645 udp/1646"
 client_radiusold_ports="default"
 
-server_vmware_ports="tcp/902"
-client_vmware_ports="default"
-
 server_netbios_ns_ports="udp/netbios-ns"
 client_netbios_ns_ports="default udp/netbios-ns"
 
@@ -318,6 +328,9 @@ client_snmp_ports="default"
 
 server_rsync_ports="tcp/rsync udp/rsync"
 client_rsync_ports="default"
+
+server_vmware_ports="tcp/902"
+client_vmware_ports="default"
 
 server_vmwareauth_ports="tcp/903"
 client_vmwareauth_ports="default"
@@ -1561,11 +1574,11 @@ rule() {
 										;;
 									
 									limit)
-										iptables ${basecmd} -m limit --limit 1/second -j LOG --log-prefix="\"${logtxt}:\""
+										iptables ${basecmd} -m limit --limit 1/second -j LOG ${FIREHOL_LOG_OPTIONS} --log-prefix="\"${logtxt}:\""
 										;;
-								
+										
 									normal)
-										iptables ${basecmd} -j LOG --log-prefix="\"${logtxt}:\""
+										iptables ${basecmd} -j LOG ${FIREHOL_LOG_OPTIONS} --log-prefix="\"${logtxt}:\""
 										;;
 										
 									*)
@@ -2047,6 +2060,7 @@ then
 	exit 1
 fi
 success $"FireHOL: Loading required kernel modules:"
+echo
 
 
 # XXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXX

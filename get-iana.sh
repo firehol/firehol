@@ -11,7 +11,7 @@ IANA_RESERVED="IANA - Reserved"
 LOG="/tmp/log.$$"
 
 wget -O - --proxy=off "${IPV4_ADDRESS_SPACE_URL}" 2>>$LOG	|\
-	grep "${IANA_RESERVED}"					|\
+	grep "${RESERVED_IPS}"					|\
 	cut -d ' ' -f 1						|\
 (
 	printf 'IANA_RESERVED="'
