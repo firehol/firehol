@@ -10,7 +10,7 @@
 #
 # config: /etc/firehol/firehol.conf
 #
-# $Id: firehol.sh,v 1.183 2004/04/01 23:30:28 ktsaou Exp $
+# $Id: firehol.sh,v 1.184 2004/04/21 21:35:29 ktsaou Exp $
 #
 
 # Remember who you are.
@@ -254,6 +254,10 @@ FIREHOL_WIZARD=0
 # If set to 0, FireHOL will not try to load the required kernel modules.
 # It can be set in the configuration file.
 FIREHOL_LOAD_KERNEL_MODULES=1
+
+# If set to 1, FireHOL will output the commands of the configuration file
+# with variables expanded.
+FIREHOL_CONF_SHOW=1
 
 
 # ------------------------------------------------------------------------------
@@ -1290,7 +1294,7 @@ fi
 # ------------------------------------------------------------------------------
 
 masquerade() {
-	work_realcmd=(${FUNCNAME} "$@")
+	work_realcmd_helper ${FUNCNAME} "$@"
 	
 	set_work_function -ne "Initializing $FUNCNAME"
 	
@@ -1314,7 +1318,7 @@ masquerade() {
 # helper transparent_squid <squid_port> <squid_user>
 transparent_squid_count=0
 transparent_squid() {
-	work_realcmd=($FUNCNAME "$@")
+	work_realcmd_helper $FUNCNAME "$@"
 	
 	set_work_function -ne "Initializing $FUNCNAME"
 	
@@ -1351,7 +1355,7 @@ transparent_squid() {
 
 nat_count=0
 nat() {
-	work_realcmd=($FUNCNAME "$@")
+	work_realcmd_helper $FUNCNAME "$@"
 	
 	set_work_function -ne "Initializing $FUNCNAME"
 	
@@ -1396,7 +1400,7 @@ nat() {
 }
 
 snat() {
-	work_realcmd=($FUNCNAME "$@")
+#	work_realcmd_helper $FUNCNAME "$@"
 	
 	set_work_function -ne "Initializing $FUNCNAME"
 	
@@ -1407,7 +1411,7 @@ snat() {
 }
 
 dnat() {
-	work_realcmd=($FUNCNAME "$@")
+#	work_realcmd_helper $FUNCNAME "$@"
 	
 	set_work_function -ne "Initializing $FUNCNAME"
 	
@@ -1418,7 +1422,7 @@ dnat() {
 }
 
 redirect() {
-	work_realcmd=($FUNCNAME "$@")
+#	work_realcmd_helper $FUNCNAME "$@"
 	
 	set_work_function -ne "Initializing $FUNCNAME"
 	
@@ -1430,7 +1434,7 @@ redirect() {
 
 wrongmac_chain=0
 mac() {
-	work_realcmd=($FUNCNAME "$@")
+	work_realcmd_helper $FUNCNAME "$@"
 	
 	set_work_function -ne "Initializing $FUNCNAME"
 	
@@ -1457,7 +1461,7 @@ mac() {
 # blacklist creates two types of blacklists: unidirectional or bidirectional
 blacklist_chain=0
 blacklist() {
-	work_realcmd=(${FUNCNAME} "$@")
+	work_realcmd_helper ${FUNCNAME} "$@"
 	
 	set_work_function -ne "Initializing $FUNCNAME"
 	
@@ -1525,7 +1529,7 @@ blacklist() {
 
 mark_count=0
 mark() {
-	work_realcmd=($FUNCNAME "$@")
+	work_realcmd_helper $FUNCNAME "$@"
 	
 	set_work_function -ne "Initializing $FUNCNAME"
 	
@@ -1565,7 +1569,7 @@ mark() {
 # of firehol.sh. It checks only its release number (R5 currently).
 
 version() {
-        work_realcmd=(${FUNCNAME} "$@")
+        work_realcmd_helper ${FUNCNAME} "$@"
 	
 	if [ ${1} -gt ${FIREHOL_VERSION} ]
 	then
@@ -1579,7 +1583,7 @@ version() {
 # Setup rules specific to an interface (physical or logical)
 
 interface() {
-        work_realcmd=(${FUNCNAME} "$@")
+        work_realcmd_primary ${FUNCNAME} "$@"
 	
 	# --- close any open command ---
 	
@@ -1619,7 +1623,7 @@ interface() {
 
 
 router() {
-        work_realcmd=(${FUNCNAME} "$@")
+        work_realcmd_helper ${FUNCNAME} "$@"
 	
 	# --- close any open command ---
 	
@@ -1656,38 +1660,48 @@ router() {
 }
 
 postprocess() {
+#       work_realcmd_helper ${FUNCNAME} "$@"
+	
 	local check="error"
 	test "A${1}" = "A-ne"   && shift && local check="none"
 	test "A${1}" = "A-warn" && shift && local check="warn"
-	
-	local tmp=
-	test ! ${FIREHOL_DEBUG} -eq 1 && local tmp=" >${FIREHOL_OUTPUT}.log 2>&1"
-	
-	printf "%q " "$@" >>${FIREHOL_OUTPUT}
-	test ${FIREHOL_EXPLAIN} -eq 0 && echo " $tmp # L:${FIREHOL_LINEID}" >>${FIREHOL_OUTPUT}
-	
-	if [ ${FIREHOL_EXPLAIN} -eq 1 ]
-	then
-		${CAT_CMD} ${FIREHOL_OUTPUT}
-		echo
-		${RM_CMD} -f ${FIREHOL_OUTPUT}
-	fi
 	
 	test ${FIREHOL_DEBUG}   -eq 1 && local check="none"
 	test ${FIREHOL_EXPLAIN} -eq 1 && local check="none"
 	
 	if [ ! ${check} = "none" ]
 	then
-		printf "r=\$?; test \${r} -gt 0 && runtime_error ${check} \${r} ${FIREHOL_LINEID} " >>${FIREHOL_OUTPUT}
-		printf "%q " "$@" >>${FIREHOL_OUTPUT}
-		printf "\n" >>${FIREHOL_OUTPUT}
+		printf "runcmd '${check}' '${FIREHOL_LINEID}' " >>${FIREHOL_OUTPUT}
 	fi
+	
+	printf "%q " "$@" >>${FIREHOL_OUTPUT}
+	printf "\n" >>${FIREHOL_OUTPUT}
+	
+	if [ ${FIREHOL_EXPLAIN} -eq 1 ]
+	then
+		${CAT_CMD} ${FIREHOL_OUTPUT}
+		${RM_CMD} -f ${FIREHOL_OUTPUT}
+	fi
+	
+	return 0
+}
+
+runcmd() {
+	local check="${1}"; shift
+	local line="${1}"; shift
+	local cmd="${1}"; shift
+	
+	"${cmd}" "$@" >${FIREHOL_OUTPUT}.log 2>&1
+	local r=$?
+	test ${r} -gt 0 && runtime_error ${check} ${r} ${line} "${cmd}" "$@"
 	
 	return 0
 }
 
 FIREHOL_COMMAND_COUNTER=0
 iptables() {
+#       work_realcmd_helper ${FUNCNAME} "$@"
+	
 	postprocess "${IPTABLES_CMD}" "$@"
 	FIREHOL_COMMAND_COUNTER=$[FIREHOL_COMMAND_COUNTER + 1]
 	
@@ -1714,7 +1728,7 @@ iptables() {
 # produce the iptables rules.
 
 policy() {
-        work_realcmd=(${FUNCNAME} "$@")
+        work_realcmd_secondary ${FUNCNAME} "$@"
 	
 	require_work set interface || return 1
 	
@@ -1725,7 +1739,7 @@ policy() {
 }
 
 server() {
-	work_realcmd=(${FUNCNAME} "$@")
+	work_realcmd_secondary ${FUNCNAME} "$@"
 	
 	require_work set any || return 1
 	smart_function server "$@"
@@ -1733,7 +1747,7 @@ server() {
 }
 
 client() {
-        work_realcmd=(${FUNCNAME} "$@")
+        work_realcmd_secondary ${FUNCNAME} "$@"
 	
 	require_work set any || return 1
 	smart_function client "$@"
@@ -1741,7 +1755,7 @@ client() {
 }
 
 route() {
-        work_realcmd=(${FUNCNAME} "$@")
+        work_realcmd_secondary ${FUNCNAME} "$@"
 	
 	require_work set router || return 1
 	smart_function server "$@"
@@ -1752,7 +1766,7 @@ route() {
 # --- protection ---------------------------------------------------------------
 
 protection() {
-        work_realcmd=(${FUNCNAME} "$@")
+        work_realcmd_secondary ${FUNCNAME} "$@"
 	
 	require_work set any || return 1
 	
@@ -2002,7 +2016,7 @@ load_kernel_module() {
 		check_kernel_module ${mod}
 		if [ $? -gt 0 ]
 		then
-			postprocess -warn ${MODPROBE_CMD} ${mod} -q
+			runcmd warn ${FIREHOL_LINEID} ${MODPROBE_CMD} ${mod} -q
 		fi
 	fi
 	return 0
@@ -2042,7 +2056,13 @@ set_work_function() {
 	
 	work_function="$*"
 	
-	test ${FIREHOL_EXPLAIN} -eq 1 -a ${show_explain} -eq 1 && printf "\n# %s\n" "$*"
+	if [ ${FIREHOL_EXPLAIN} -eq 1 ]
+	then
+		test ${show_explain} -eq 1 && printf "\n# %s\n" "$*"
+	elif [ ${FIREHOL_CONF_SHOW} -eq 1 ]
+	then
+		test ${show_explain} -eq 1 && printf "\n# INFO>>> %s\n" "$*" >>${FIREHOL_OUTPUT}
+	fi
 }
 
 # ------------------------------------------------------------------------------
@@ -3809,6 +3829,41 @@ simple_service() {
 	return $?
 }
 
+show_work_realcmd() {
+	test ${FIREHOL_EXPLAIN} -eq 1 && return 0
+	
+	(
+		printf "\n\n"
+		printf "# === CONFIGURATION STATEMENT =================================================\n"
+		printf "# CONF:%3d>>>	" ${FIREHOL_LINEID}
+		
+		case $1 in
+			2)	printf "	"
+				;;
+			*)	;;
+		esac
+		
+		printf "%q " "${work_realcmd[@]}"
+		printf "\n\n"
+	) >>${FIREHOL_OUTPUT}
+}
+
+work_realcmd_primary() {
+	work_realcmd=("$@")
+	test ${FIREHOL_CONF_SHOW} -eq 1 && show_work_realcmd 1
+}
+
+work_realcmd_secondary() {
+	work_realcmd=("$@")
+	test ${FIREHOL_CONF_SHOW} -eq 1 && show_work_realcmd 2
+}
+
+work_realcmd_helper() {	
+	work_realcmd=("$@")
+	test ${FIREHOL_CONF_SHOW} -eq 1 && show_work_realcmd 3
+}
+
+
 
 # ------------------------------------------------------------------------------
 # XXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXX
@@ -3839,6 +3894,7 @@ ${RENICE_CMD} 10 $$ >/dev/null 2>/dev/null
 test -f /etc/init.d/functions && . /etc/init.d/functions
 
 if [ -z "${IPTABLES_CMD}" -o ! -x "${IPTABLES_CMD}" ]; then
+	echo >&2 "Cannot find an executables iptables command."
 	exit 0
 fi
 
@@ -4037,7 +4093,7 @@ case "${arg}" in
 		else
 		
 		${CAT_CMD} <<EOF
-$Id: firehol.sh,v 1.183 2004/04/01 23:30:28 ktsaou Exp $
+$Id: firehol.sh,v 1.184 2004/04/21 21:35:29 ktsaou Exp $
 (C) Copyright 2003, Costa Tsaousis <costa@tsaousis.gr>
 FireHOL is distributed under GPL.
 
@@ -4223,7 +4279,7 @@ then
 	
 	${CAT_CMD} <<EOF
 
-$Id: firehol.sh,v 1.183 2004/04/01 23:30:28 ktsaou Exp $
+$Id: firehol.sh,v 1.184 2004/04/21 21:35:29 ktsaou Exp $
 (C) Copyright 2003, Costa Tsaousis <costa@tsaousis.gr>
 FireHOL is distributed under GPL.
 Home Page: http://firehol.sourceforge.net
@@ -4339,7 +4395,6 @@ fi
 # ------------------------------------------------------------------------------
 # XXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXX
 # ------------------------------------------------------------------------------
-
 
 if [ ${FIREHOL_WIZARD} -eq 1 ]
 then
@@ -4518,7 +4573,7 @@ then
 	
 	${CAT_CMD} >&2 <<EOF
 
-$Id: firehol.sh,v 1.183 2004/04/01 23:30:28 ktsaou Exp $
+$Id: firehol.sh,v 1.184 2004/04/21 21:35:29 ktsaou Exp $
 (C) Copyright 2003, Costa Tsaousis <costa@tsaousis.gr>
 FireHOL is distributed under GPL.
 Home Page: http://firehol.sourceforge.net
@@ -4601,7 +4656,7 @@ EOF
 	echo "# "
 
 	${CAT_CMD} <<EOF
-# $Id: firehol.sh,v 1.183 2004/04/01 23:30:28 ktsaou Exp $
+# $Id: firehol.sh,v 1.184 2004/04/21 21:35:29 ktsaou Exp $
 # (C) Copyright 2003, Costa Tsaousis <costa@tsaousis.gr>
 # FireHOL is distributed under GPL.
 # Home Page: http://firehol.sourceforge.net
@@ -5111,23 +5166,24 @@ ret=0
 # These line numbers will be used for debugging the configuration script.
 
 ${CAT_CMD} >"${FIREHOL_TMP}.awk" <<"EOF"
+/^[[:space:]]*blacklist[[:space:]]/ { printf "FIREHOL_LINEID=${LINENO} " }
+/^[[:space:]]*client[[:space:]]/ { printf "FIREHOL_LINEID=${LINENO} " }
+/^[[:space:]]*dnat[[:space:]]/ { printf "FIREHOL_LINEID=${LINENO} " }
 /^[[:space:]]*interface[[:space:]]/ { printf "FIREHOL_LINEID=${LINENO} " }
+/^[[:space:]]*iptables[[:space:]]/ { printf "FIREHOL_LINEID=${LINENO} " }
+/^[[:space:]]*mac[[:space:]]/ { printf "FIREHOL_LINEID=${LINENO} " }
+/^[[:space:]]*mark[[:space:]]/ { printf "FIREHOL_LINEID=${LINENO} " }
+/^[[:space:]]*masquerade[[:space:]]/ { printf "FIREHOL_LINEID=${LINENO} " }
+/^[[:space:]]*nat[[:space:]]/ { printf "FIREHOL_LINEID=${LINENO} " }
+/^[[:space:]]*policy[[:space:]]/ { printf "FIREHOL_LINEID=${LINENO} " }
+/^[[:space:]]*postprocess[[:space:]]/ { printf "FIREHOL_LINEID=${LINENO} " }
+/^[[:space:]]*protection[[:space:]]/ { printf "FIREHOL_LINEID=${LINENO} " }
+/^[[:space:]]*redirect[[:space:]]/ { printf "FIREHOL_LINEID=${LINENO} " }
 /^[[:space:]]*router[[:space:]]/ { printf "FIREHOL_LINEID=${LINENO} " }
 /^[[:space:]]*route[[:space:]]/ { printf "FIREHOL_LINEID=${LINENO} " }
-/^[[:space:]]*client[[:space:]]/ { printf "FIREHOL_LINEID=${LINENO} " }
 /^[[:space:]]*server[[:space:]]/ { printf "FIREHOL_LINEID=${LINENO} " }
-/^[[:space:]]*iptables[[:space:]]/ { printf "FIREHOL_LINEID=${LINENO} " }
-/^[[:space:]]*protection[[:space:]]/ { printf "FIREHOL_LINEID=${LINENO} " }
-/^[[:space:]]*policy[[:space:]]/ { printf "FIREHOL_LINEID=${LINENO} " }
-/^[[:space:]]*masquerade[[:space:]]/ { printf "FIREHOL_LINEID=${LINENO} " }
-/^[[:space:]]*postprocess[[:space:]]/ { printf "FIREHOL_LINEID=${LINENO} " }
-/^[[:space:]]*transparent_squid[[:space:]]/ { printf "FIREHOL_LINEID=${LINENO} " }
-/^[[:space:]]*nat[[:space:]]/ { printf "FIREHOL_LINEID=${LINENO} " }
 /^[[:space:]]*snat[[:space:]]/ { printf "FIREHOL_LINEID=${LINENO} " }
-/^[[:space:]]*dnat[[:space:]]/ { printf "FIREHOL_LINEID=${LINENO} " }
-/^[[:space:]]*redirect[[:space:]]/ { printf "FIREHOL_LINEID=${LINENO} " }
-/^[[:space:]]*mac[[:space:]]/ { printf "FIREHOL_LINEID=${LINENO} " }
-/^[[:space:]]*blacklist[[:space:]]/ { printf "FIREHOL_LINEID=${LINENO} " }
+/^[[:space:]]*transparent_squid[[:space:]]/ { printf "FIREHOL_LINEID=${LINENO} " }
 { print }
 EOF
 
@@ -5190,7 +5246,10 @@ fi
 
 if [ ${FIREHOL_DEBUG} -eq 1 ]
 then
+	printf "Press return to continue >"
+	read
 	${CAT_CMD} ${FIREHOL_OUTPUT}
+	
 	exit 1
 fi
 
