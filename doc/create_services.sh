@@ -194,6 +194,10 @@ service_GRE_notes="Generic Routing Encapsulation (protocol No 47).
 For more information see RFC <a href=\"http://www.ietf.org/rfc/rfc2784.txt?number=2784\">RFC 2784</a>.
 "
 
+service_heartbeat_notes="
+HeartBeat is the Linux clustering solution available <a href="http://www.linux-ha.org/">http://www.linux-ha.org/</a>.
+This FireHOL service has been designed such a way that it will allow multiple heartbeat clusters on the same LAN.
+"
 
 service_ident_example="server ident reject with tcp-reset"
 
@@ -354,10 +358,8 @@ Please refer to the notes of the above services for more information.
 "
 
 
-service_heartbeat_notes="
-HeartBeat is the Linux clustering solution available <a href="http://www.linux-ha.org/">http://www.linux-ha.org/</a>.
-This FireHOL service has been designed such a way that it will allow multiple heartbeat clusters on the same LAN.
-"
+service_webmin_notes="<a href=\"http://www.webmin.com\">Webmin</a> is a web-based interface for system administration for Unix."
+
 
 # ---------------------------------------------------------------------------------------------------------------
 
@@ -694,7 +696,7 @@ cat <<"EOF"
 <tr><td align=center valign=middle>
 	<A href="http://sourceforge.net"><IMG src="http://sourceforge.net/sflogo.php?group_id=58425&amp;type=5" width="210" height="62" border="0" alt="SourceForge Logo"></A>
 </td><td align=center valign=middle>
-	<small>$Id: create_services.sh,v 1.32 2003/06/30 22:07:02 ktsaou Exp $</small>
+	<small>$Id: create_services.sh,v 1.33 2003/06/30 22:18:47 ktsaou Exp $</small>
 	<p>
 	<b>FireHOL</b>, a firewall for humans...<br>
 	&copy; Copyright 2003
