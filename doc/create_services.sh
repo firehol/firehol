@@ -203,6 +203,13 @@ service_isakmp_notes="IPSec key negotiation (IKE on UDP port 500).
 For more information see the <a href=\"http://www.freeswan.org/freeswan_trees/freeswan-1.99/doc/quickstart-firewall.html#quick_firewall\">FreeS/WAN documentation</a>.
 "
 
+service_lpd_notes="Line Printer Deamon Protocol (LPD)
+<p>
+LPD is documented in <a href=\"http://www.ietf.org/rfc/rfc1179.txt?number=1179\">RFC 1179</a>.
+<p>
+Since many operating systems are incorrectly using the default client ports for LPD access, this
+definition allows the default client ports to access the service (additionally to the RFC defined 721 to 731 inclusive)."
+
 
 service_microsoft_ds_notes="
 Direct Hosted (i.e. NETBIOS-less SMB)
@@ -675,7 +682,7 @@ cat <<"EOF"
 <tr><td align=center valign=middle>
 	<A href="http://sourceforge.net"><IMG src="http://sourceforge.net/sflogo.php?group_id=58425&amp;type=5" width="210" height="62" border="0" alt="SourceForge Logo"></A>
 </td><td align=center valign=middle>
-	<small>$Id: create_services.sh,v 1.30 2003/06/10 21:27:48 ktsaou Exp $</small>
+	<small>$Id: create_services.sh,v 1.31 2003/06/28 21:26:21 ktsaou Exp $</small>
 	<p>
 	<b>FireHOL</b>, a firewall for humans...<br>
 	&copy; Copyright 2003
