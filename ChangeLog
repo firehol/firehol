@@ -1,7 +1,7 @@
 
 RCS file: /cvsroot/firehol/firehol/firehol.sh,v
 Working file: firehol.sh
-head: 1.57
+head: 1.59
 branch:
 locks: strict
 access list:
@@ -9,8 +9,19 @@ symbolic names:
 	start: 1.1.1.1
 	vendor: 1.1.1
 keyword substitution: kv
-total revisions: 58;	selected revisions: 58
+total revisions: 60;	selected revisions: 60
 description:
+----------------------------
+revision 1.59
+date: 2002/12/31 09:10:15;  author: ktsaou;  state: Exp;  lines: +20 -12
+Extended REJECT control ('with' parameter) to work on 'policy' and on the
+default firewall policies.
+----------------------------
+revision 1.58
+date: 2002/12/31 08:55:42;  author: ktsaou;  state: Exp;  lines: +19 -4
+Added optional rule parameter "with" which is only valid just after the
+action "REJECT" on all rules. "with" allows finer control over the method
+of packet rejection.
 ----------------------------
 revision 1.57
 date: 2002/12/23 14:39:19;  author: ktsaou;  state: Exp;  lines: +609 -501
