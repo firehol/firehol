@@ -10,7 +10,7 @@
 #
 # config: /etc/firehol.conf
 #
-# $Id: firehol.sh,v 1.92 2003/02/20 22:32:56 ktsaou Exp $
+# $Id: firehol.sh,v 1.93 2003/02/21 23:47:22 ktsaou Exp $
 #
 
 
@@ -3189,7 +3189,7 @@ case "${arg}" in
 		else
 		
 		cat <<"EOF"
-$Id: firehol.sh,v 1.92 2003/02/20 22:32:56 ktsaou Exp $
+$Id: firehol.sh,v 1.93 2003/02/21 23:47:22 ktsaou Exp $
 (C) Copyright 2002, Costa Tsaousis <costa@tsaousis.gr>
 FireHOL is distributed under GPL.
 
@@ -3360,7 +3360,7 @@ then
 	
 	cat <<"EOF"
 
-$Id: firehol.sh,v 1.92 2003/02/20 22:32:56 ktsaou Exp $
+$Id: firehol.sh,v 1.93 2003/02/21 23:47:22 ktsaou Exp $
 (C) Copyright 2002, Costa Tsaousis <costa@tsaousis.gr>
 FireHOL is distributed under GPL.
 Home Page: http://firehol.sourceforge.net
@@ -3517,7 +3517,7 @@ then
 	
 	cat <<"EOF"
 
-$Id: firehol.sh,v 1.92 2003/02/20 22:32:56 ktsaou Exp $
+$Id: firehol.sh,v 1.93 2003/02/21 23:47:22 ktsaou Exp $
 (C) Copyright 2002, Costa Tsaousis <costa@tsaousis.gr>
 FireHOL is distributed under GPL.
 Home Page: http://firehol.sourceforge.net
@@ -3593,7 +3593,8 @@ fixed_iptables_save() {
 	local tmp="/tmp/iptables-save-$$"
 	local err=
 	
-	iptables-save -c >$tmp
+	/sbin/modprobe ip_tables >/dev/null 2>&1
+	/sbin/iptables-save -c >$tmp
 	err=$?
 	if [ ! $err -eq 0 ]
 	then
