@@ -1,8 +1,10 @@
-$Id: WhatIsNew,v 1.2 2003/10/07 23:42:17 ktsaou Exp $
+$Id: WhatIsNew,v 1.3 2003/10/12 19:37:35 ktsaou Exp $
 
 What Is New in public releases.
 -------------------------------
 
+R5 v1.159, Oct 10, 2003
+This release features more services including MSN, DCPP, JABBER, JABBERD, WEBMIN, TIME, POSTGRES, HYLAFAX, XDMCP, TFTP, Veritas NetBackup, many updates and fixes to other services, three new helpers, the MAC helper (global pairing of MAC and IP addresses), the BLACKLIST helper (blacklist certain IPs - unidirectional or bidirectional), the MARK helper (mark packets for use by QoS), two new optional rule parameters, MAC (match source MAC address) and OWNER (match the user sending traffic), and it also provides better interoperability with various distributions (mainly Gentoo - also firehol now detects if all needed commands are present), more control on kernel module management (and better detection of iptables modules compiled in the kernel), more control on firewall status during a firewall restart, cleaner iptables commands generation, better support for kernel 2.6.x, and more.
 
 R5 v1.120, Apr 6, 2003
 The main new feature of this release is the HELPME function that

@@ -271,6 +271,10 @@ The multicast service matches all packets send to 224.0.0.0/8 using protocol No 
 "
 service_multicast_example="server multicast reject with proto-unreach"
 
+service_netbackup_notes="
+This is the Veritas NetBackup service. To use this service you must define it
+as both client and server in NetBackup clients and NetBackup servers."
+service_netbackup_example="server netbackup accept<br>client netbackup accept"
 
 service_netbios_ns_notes="
 NETBIOS Name Service
@@ -720,7 +724,7 @@ cat <<"EOF"
 <tr><td align=center valign=middle>
 	<A href="http://sourceforge.net"><IMG src="http://sourceforge.net/sflogo.php?group_id=58425&amp;type=5" width="210" height="62" border="0" alt="SourceForge Logo"></A>
 </td><td align=center valign=middle>
-	<small>$Id: create_services.sh,v 1.39 2003/10/05 23:01:02 ktsaou Exp $</small>
+	<small>$Id: create_services.sh,v 1.40 2003/10/12 19:37:36 ktsaou Exp $</small>
 	<p>
 	<b>FireHOL</b>, a firewall for humans...<br>
 	&copy; Copyright 2003
