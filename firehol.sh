@@ -10,7 +10,7 @@
 #
 # config: /etc/firehol/firehol.conf
 #
-# $Id: firehol.sh,v 1.148 2003/08/19 22:21:32 ktsaou Exp $
+# $Id: firehol.sh,v 1.149 2003/08/23 21:42:35 ktsaou Exp $
 #
 FIREHOL_FILE="${0}"
 
@@ -1261,6 +1261,53 @@ mac() {
 	
 	return 0
 }
+
+# blacklist creates two types of blacklists: unidirectional or bidirectional
+blacklist() {
+	work_realcmd=(${FUNCNAME} "$@")
+	
+	set_work_function -ne "Initializing $FUNCNAME"
+	
+	require_work clear || ( error "$FUNCNAME cannot be used in '${work_cmd}'. Put it before any '${work_cmd}' definition."; return 1 )
+	
+	local full=1
+	if [ "${1}" = "them" -o "${1}" = "him" -o "${1}" = "her" -o "${1}" = "it" -o "${1}" = "this" -o "${1}" = "these"  -o "${1}" = "input" ]
+	then
+		shift
+		full=0
+	elif [ "${1}" = "all" -o "${1}" = "full" ]
+	then
+		shift
+		full=1
+	fi
+	
+	set_work_function "Generating blacklist rules"
+	
+	local z=
+	for z in $@
+	do
+		local x=
+		for x in ${z}
+		do
+			set_work_function "Blacklisting '${x}'"
+			
+			if [ ${full} -eq 1 ]
+			then
+				iptables -I INPUT   -s ${x} -j DROP
+				iptables -I OUTPUT  -d ${x} -j REJECT
+				iptables -I FORWARD -s ${x} -j DROP
+				iptables -I FORWARD -d ${x} -j REJECT
+			else
+				iptables -I INPUT   -s ${x} -m state --state NEW -j DROP
+				iptables -I FORWARD -s ${x} -m state --state NEW -j DROP
+			fi
+		done
+	done
+	
+	return 0
+}
+
+
 
 # ------------------------------------------------------------------------------
 # XXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXX
@@ -3536,7 +3583,7 @@ case "${arg}" in
 		else
 		
 		${CAT_CMD} <<EOF
-$Id: firehol.sh,v 1.148 2003/08/19 22:21:32 ktsaou Exp $
+$Id: firehol.sh,v 1.149 2003/08/23 21:42:35 ktsaou Exp $
 (C) Copyright 2003, Costa Tsaousis <costa@tsaousis.gr>
 FireHOL is distributed under GPL.
 
@@ -3722,7 +3769,7 @@ then
 	
 	${CAT_CMD} <<EOF
 
-$Id: firehol.sh,v 1.148 2003/08/19 22:21:32 ktsaou Exp $
+$Id: firehol.sh,v 1.149 2003/08/23 21:42:35 ktsaou Exp $
 (C) Copyright 2003, Costa Tsaousis <costa@tsaousis.gr>
 FireHOL is distributed under GPL.
 Home Page: http://firehol.sourceforge.net
@@ -4017,7 +4064,7 @@ then
 	
 	${CAT_CMD} >&2 <<EOF
 
-$Id: firehol.sh,v 1.148 2003/08/19 22:21:32 ktsaou Exp $
+$Id: firehol.sh,v 1.149 2003/08/23 21:42:35 ktsaou Exp $
 (C) Copyright 2003, Costa Tsaousis <costa@tsaousis.gr>
 FireHOL is distributed under GPL.
 Home Page: http://firehol.sourceforge.net
@@ -4110,7 +4157,7 @@ EOF
 	echo "# "
 
 	${CAT_CMD} <<EOF
-# $Id: firehol.sh,v 1.148 2003/08/19 22:21:32 ktsaou Exp $
+# $Id: firehol.sh,v 1.149 2003/08/23 21:42:35 ktsaou Exp $
 # (C) Copyright 2003, Costa Tsaousis <costa@tsaousis.gr>
 # FireHOL is distributed under GPL.
 # Home Page: http://firehol.sourceforge.net
@@ -4632,6 +4679,8 @@ ${CAT_CMD} >"${FIREHOL_TMP}.awk" <<"EOF"
 /^[[:space:]]*snat[[:space:]]/ { printf "FIREHOL_LINEID=${LINENO} " }
 /^[[:space:]]*dnat[[:space:]]/ { printf "FIREHOL_LINEID=${LINENO} " }
 /^[[:space:]]*redirect[[:space:]]/ { printf "FIREHOL_LINEID=${LINENO} " }
+/^[[:space:]]*mac[[:space:]]/ { printf "FIREHOL_LINEID=${LINENO} " }
+/^[[:space:]]*blacklist[[:space:]]/ { printf "FIREHOL_LINEID=${LINENO} " }
 { print }
 EOF
 
