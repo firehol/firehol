@@ -10,7 +10,7 @@
 #
 # config: /etc/firehol.conf
 #
-# $Id: firehol.sh,v 1.50 2002/12/18 20:44:08 ktsaou Exp $
+# $Id: firehol.sh,v 1.51 2002/12/18 22:05:37 ktsaou Exp $
 #
 
 # ------------------------------------------------------------------------------
@@ -133,7 +133,7 @@ case "${arg}" in
 		else
 		
 		cat <<"EOF"
-$Id: firehol.sh,v 1.50 2002/12/18 20:44:08 ktsaou Exp $
+$Id: firehol.sh,v 1.51 2002/12/18 22:05:37 ktsaou Exp $
 (C) Copyright 2002, Costa Tsaousis
 FireHOL is distributed under GPL.
 
@@ -2344,7 +2344,7 @@ protection() {
 	test -z "${rate}"  && rate="100/s"
 	test -z "${burst}" && burst="50"
 	
-	set_work_function "Generating protections on '${prface}' for ${work_cmd} '${work_name}'"
+	set_work_function -ne "Generating protections on '${prface}' for ${work_cmd} '${work_name}'"
 	
 	local x=
 	for x in ${type}
@@ -2363,6 +2363,8 @@ protection() {
 				local mychain="${pre}_${work_name}_fragments"
 				create_chain filter "${mychain}" "${in}_${work_name}" custom "-f"				|| return 1
 				
+				set_work_function "Generating rules to be protected from packet fragments on '${prface}' for ${work_cmd} '${work_name}'"
+				
 				rule chain "${mychain}" loglimit "PACKET FRAGMENTS" action drop 				|| return 1
 				;;
 				
@@ -2370,12 +2372,16 @@ protection() {
 				local mychain="${pre}_${work_name}_nosyn"
 				create_chain filter "${mychain}" "${in}_${work_name}" proto tcp state NEW custom "! --syn"	|| return 1
 				
+				set_work_function "Generating rules to be protected from new TCP connections without the SYN flag set on '${prface}' for ${work_cmd} '${work_name}'"
+				
 				rule chain "${mychain}" loglimit "NEW TCP w/o SYN" action drop					|| return 1
 				;;
 				
 			icmp-floods|ICMP-FLOODS)
 				local mychain="${pre}_${work_name}_icmpflood"
 				create_chain filter "${mychain}" "${in}_${work_name}" proto icmp custom "--icmp-type echo-request"	|| return 1
+				
+				set_work_function "Generating rules to be protected from ICMP floods on '${prface}' for ${work_cmd} '${work_name}'"
 				
 				rule chain "${mychain}" limit "${rate}" "${burst}" action return				|| return 1
 				rule chain "${mychain}" loglimit "ICMP FLOOD" action drop					|| return 1
@@ -2385,6 +2391,8 @@ protection() {
 				local mychain="${pre}_${work_name}_synflood"
 				create_chain filter "${mychain}" "${in}_${work_name}" proto tcp custom "--syn"			|| return 1
 				
+				set_work_function "Generating rules to be protected from TCP SYN floods on '${prface}' for ${work_cmd} '${work_name}'"
+				
 				rule chain "${mychain}" limit "${rate}" "${burst}" action return				|| return 1
 				rule chain "${mychain}" loglimit "SYN FLOOD" action drop					|| return 1
 				;;
@@ -2393,6 +2401,8 @@ protection() {
 				local mychain="${pre}_${work_name}_malxmas"
 				create_chain filter "${mychain}" "${in}_${work_name}" proto tcp custom "--tcp-flags ALL ALL"	|| return 1
 				
+				set_work_function "Generating rules to be protected from packets with all TCP flags set on '${prface}' for ${work_cmd} '${work_name}'"
+				
 				rule chain "${mychain}" loglimit "MALFORMED XMAS" action drop					|| return 1
 				;;
 				
@@ -2400,12 +2410,17 @@ protection() {
 				local mychain="${pre}_${work_name}_malnull"
 				create_chain filter "${mychain}" "${in}_${work_name}" proto tcp custom "--tcp-flags ALL NONE"	|| return 1
 				
+				set_work_function "Generating rules to be protected from packets with all TCP flags unset on '${prface}' for ${work_cmd} '${work_name}'"
+				
 				rule chain "${mychain}" loglimit "MALFORMED NULL" action drop					|| return 1
 				;;
 				
 			malformed-bad|MALFORMED-BAD)
 				local mychain="${pre}_${work_name}_malbad"
-				create_chain filter "${mychain}" "${in}_${work_name}" proto tcp custom "--tcp-flags SYN,FIN SYN,FIN"		|| return 1
+				create_chain filter "${mychain}" "${in}_${work_name}" proto tcp custom "--tcp-flags SYN,FIN SYN,FIN"			|| return 1
+				
+				set_work_function "Generating rules to be protected from packets with illegal TCP flags on '${prface}' for ${work_cmd} '${work_name}'"
+				
 				rule chain "${in}_${work_name}" action "${mychain}"   proto tcp custom "--tcp-flags SYN,RST SYN,RST"			|| return 1
 				rule chain "${in}_${work_name}" action "${mychain}"   proto tcp custom "--tcp-flags ALL     SYN,RST,ACK,FIN,URG"	|| return 1
 				rule chain "${in}_${work_name}" action "${mychain}"   proto tcp custom "--tcp-flags ALL     FIN,URG,PSH"		|| return 1
@@ -2445,7 +2460,7 @@ then
 	version ${FIREHOL_VERSION}
 	
 	cat <<"EOF"
-$Id: firehol.sh,v 1.50 2002/12/18 20:44:08 ktsaou Exp $
+$Id: firehol.sh,v 1.51 2002/12/18 22:05:37 ktsaou Exp $
 (C) Copyright 2002, Costa Tsaousis
 FireHOL is distributed under GPL.
 Home Page: http://firehol.sourceforge.net
