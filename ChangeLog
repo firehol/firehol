@@ -1,7 +1,7 @@
 
 RCS file: /cvsroot/firehol/firehol/firehol.sh,v
 Working file: firehol.sh
-head: 1.220
+head: 1.223
 branch:
 locks: strict
 access list:
@@ -9,8 +9,21 @@ symbolic names:
 	start: 1.1.1.1
 	vendor: 1.1.1
 keyword substitution: kv
-total revisions: 221;	selected revisions: 221
+total revisions: 224;	selected revisions: 224
 description:
+----------------------------
+revision 1.223
+date: 2005/01/24 21:23:38;  author: ktsaou;  state: Exp;  lines: +145 -103
+Added security checks to directory creation mechanism.
+----------------------------
+revision 1.222
+date: 2005/01/21 19:58:09;  author: ktsaou;  state: Exp;  lines: +9 -6
+Added service DICT (kdict, gnome-dictionary).
+----------------------------
+revision 1.221
+date: 2004/12/29 22:34:45;  author: ktsaou;  state: Exp;  lines: +21 -14
+Minor fixes for calculating minor firehol version number, added transparent
+proxy to line number calculation and fix a typo in the docs.
 ----------------------------
 revision 1.220
 date: 2004/12/23 18:43:03;  author: ktsaou;  state: Exp;  lines: +8 -6
