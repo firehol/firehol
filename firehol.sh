@@ -10,7 +10,7 @@
 #
 # config: /etc/firehol/firehol.conf
 #
-# $Id: firehol.sh,v 1.168 2003/11/04 21:43:02 ktsaou Exp $
+# $Id: firehol.sh,v 1.169 2003/11/18 23:00:48 ktsaou Exp $
 #
 
 # Remember who you are.
@@ -3057,7 +3057,7 @@ rule() {
 			local pr=
 			for pr in ${proto}
 			do
-				iptables ${table} -A "${negative_chain}" --p "${pr}" -j RETURN
+				iptables ${table} -A "${negative_chain}" -p "${pr}" -j RETURN
 			done
 			protonot=
 			proto=any
@@ -3948,7 +3948,7 @@ case "${arg}" in
 		else
 		
 		${CAT_CMD} <<EOF
-$Id: firehol.sh,v 1.168 2003/11/04 21:43:02 ktsaou Exp $
+$Id: firehol.sh,v 1.169 2003/11/18 23:00:48 ktsaou Exp $
 (C) Copyright 2003, Costa Tsaousis <costa@tsaousis.gr>
 FireHOL is distributed under GPL.
 
@@ -4134,7 +4134,7 @@ then
 	
 	${CAT_CMD} <<EOF
 
-$Id: firehol.sh,v 1.168 2003/11/04 21:43:02 ktsaou Exp $
+$Id: firehol.sh,v 1.169 2003/11/18 23:00:48 ktsaou Exp $
 (C) Copyright 2003, Costa Tsaousis <costa@tsaousis.gr>
 FireHOL is distributed under GPL.
 Home Page: http://firehol.sourceforge.net
@@ -4429,7 +4429,7 @@ then
 	
 	${CAT_CMD} >&2 <<EOF
 
-$Id: firehol.sh,v 1.168 2003/11/04 21:43:02 ktsaou Exp $
+$Id: firehol.sh,v 1.169 2003/11/18 23:00:48 ktsaou Exp $
 (C) Copyright 2003, Costa Tsaousis <costa@tsaousis.gr>
 FireHOL is distributed under GPL.
 Home Page: http://firehol.sourceforge.net
@@ -4512,7 +4512,7 @@ EOF
 	echo "# "
 
 	${CAT_CMD} <<EOF
-# $Id: firehol.sh,v 1.168 2003/11/04 21:43:02 ktsaou Exp $
+# $Id: firehol.sh,v 1.169 2003/11/18 23:00:48 ktsaou Exp $
 # (C) Copyright 2003, Costa Tsaousis <costa@tsaousis.gr>
 # FireHOL is distributed under GPL.
 # Home Page: http://firehol.sourceforge.net
