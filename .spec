@@ -55,7 +55,8 @@ test ! -d /etc/firehol/examples && mkdir /etc/firehol/examples
 test -f /etc/firehol.conf && mv -f /etc/firehol.conf /etc/firehol/firehol.conf
 install -m 750 firehol.sh /etc/init.d/firehol
 install -m 640 examples/client-all.conf /etc/firehol/firehol.conf
-install -m 644 man/firehol.1 /usr/man/man1/firehol.1
+gzip -9 man/firehol.1
+install -m 644 man/firehol.1.gz /usr/man/man1/firehol.1.gz
 install -m 644 examples/home-adsl.conf /etc/firehol/examples/home-adsl.conf
 install -m 644 examples/home-dialup.conf /etc/firehol/examples/home-dialup.conf
 install -m 644 examples/office.conf /etc/firehol/examples/office.conf
