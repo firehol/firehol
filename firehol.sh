@@ -10,7 +10,7 @@
 #
 # config: /etc/firehol/firehol.conf
 #
-# $Id: firehol.sh,v 1.187 2004/04/21 22:39:40 ktsaou Exp $
+# $Id: firehol.sh,v 1.188 2004/04/21 22:57:11 ktsaou Exp $
 #
 
 # Remember who you are.
@@ -4101,7 +4101,7 @@ case "${arg}" in
 		else
 		
 		${CAT_CMD} <<EOF
-$Id: firehol.sh,v 1.187 2004/04/21 22:39:40 ktsaou Exp $
+$Id: firehol.sh,v 1.188 2004/04/21 22:57:11 ktsaou Exp $
 (C) Copyright 2003, Costa Tsaousis <costa@tsaousis.gr>
 FireHOL is distributed under GPL.
 
@@ -4287,7 +4287,7 @@ then
 	
 	${CAT_CMD} <<EOF
 
-$Id: firehol.sh,v 1.187 2004/04/21 22:39:40 ktsaou Exp $
+$Id: firehol.sh,v 1.188 2004/04/21 22:57:11 ktsaou Exp $
 (C) Copyright 2003, Costa Tsaousis <costa@tsaousis.gr>
 FireHOL is distributed under GPL.
 Home Page: http://firehol.sourceforge.net
@@ -4581,7 +4581,7 @@ then
 	
 	${CAT_CMD} >&2 <<EOF
 
-$Id: firehol.sh,v 1.187 2004/04/21 22:39:40 ktsaou Exp $
+$Id: firehol.sh,v 1.188 2004/04/21 22:57:11 ktsaou Exp $
 (C) Copyright 2003, Costa Tsaousis <costa@tsaousis.gr>
 FireHOL is distributed under GPL.
 Home Page: http://firehol.sourceforge.net
@@ -4664,7 +4664,7 @@ EOF
 	echo "# "
 
 	${CAT_CMD} <<EOF
-# $Id: firehol.sh,v 1.187 2004/04/21 22:39:40 ktsaou Exp $
+# $Id: firehol.sh,v 1.188 2004/04/21 22:57:11 ktsaou Exp $
 # (C) Copyright 2003, Costa Tsaousis <costa@tsaousis.gr>
 # FireHOL is distributed under GPL.
 # Home Page: http://firehol.sourceforge.net
@@ -5254,8 +5254,6 @@ fi
 
 if [ ${FIREHOL_DEBUG} -eq 1 ]
 then
-	printf "Press return to continue >"
-	read
 	${CAT_CMD} ${FIREHOL_OUTPUT}
 	
 	exit 1
