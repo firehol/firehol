@@ -10,7 +10,7 @@
 #
 # config: /etc/firehol.conf
 #
-# $Id: firehol.sh,v 1.126 2003/04/24 08:15:08 ktsaou Exp $
+# $Id: firehol.sh,v 1.127 2003/04/30 23:29:47 ktsaou Exp $
 #
 FIREHOL_FILE="${0}"
 
@@ -679,7 +679,7 @@ rules_nfs() {
 		
 		echo >&2 ""
 		echo >&2 "WARNING:"
-		echo >&2 "This firewall must be restarted if NFS server ${x} is restarted !!!"
+		echo >&2 "This firewall must be restarted if NFS server ${x} is restarted!"
 		echo >&2 ""
 	done
 	
@@ -3215,7 +3215,7 @@ case "${arg}" in
 		exit 0
 		;;
 	
-	restart)
+	restart|force-reload)
 		FIREHOL_TRY=0
 		;;
 	
@@ -3334,7 +3334,7 @@ case "${arg}" in
 		else
 		
 		${CAT_CMD} <<"EOF"
-$Id: firehol.sh,v 1.126 2003/04/24 08:15:08 ktsaou Exp $
+$Id: firehol.sh,v 1.127 2003/04/30 23:29:47 ktsaou Exp $
 (C) Copyright 2003, Costa Tsaousis <costa@tsaousis.gr>
 FireHOL is distributed under GPL.
 
@@ -3520,7 +3520,7 @@ then
 	
 	${CAT_CMD} <<"EOF"
 
-$Id: firehol.sh,v 1.126 2003/04/24 08:15:08 ktsaou Exp $
+$Id: firehol.sh,v 1.127 2003/04/30 23:29:47 ktsaou Exp $
 (C) Copyright 2003, Costa Tsaousis <costa@tsaousis.gr>
 FireHOL is distributed under GPL.
 Home Page: http://firehol.sourceforge.net
@@ -3815,7 +3815,7 @@ then
 	
 	${CAT_CMD} >&2 <<"EOF"
 
-$Id: firehol.sh,v 1.126 2003/04/24 08:15:08 ktsaou Exp $
+$Id: firehol.sh,v 1.127 2003/04/30 23:29:47 ktsaou Exp $
 (C) Copyright 2003, Costa Tsaousis <costa@tsaousis.gr>
 FireHOL is distributed under GPL.
 Home Page: http://firehol.sourceforge.net
@@ -3908,7 +3908,7 @@ EOF
 	echo "# "
 
 	${CAT_CMD} <<"EOF"
-# $Id: firehol.sh,v 1.126 2003/04/24 08:15:08 ktsaou Exp $
+# $Id: firehol.sh,v 1.127 2003/04/30 23:29:47 ktsaou Exp $
 # (C) Copyright 2003, Costa Tsaousis <costa@tsaousis.gr>
 # FireHOL is distributed under GPL.
 # Home Page: http://firehol.sourceforge.net
@@ -3919,12 +3919,12 @@ EOF
 # ------------------------------------------------------------------------------
 #
 EOF
-	echo "# This config will have the same effect as NO PROTECTION !!!"
+	echo "# This config will have the same effect as NO PROTECTION!"
 	echo "# Everything that found to be running, is allowed."
 	echo "# "
 	echo "# Date: `${DATE_CMD}` on host `${HOSTNAME_CMD}`"
 	echo "# "
-	echo "# The TODOs bellow, are YOUR to-dos !!!"
+	echo "# The TODOs bellow, are YOUR to-dos!"
 	echo
 	
 	# globals for routing
