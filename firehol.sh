@@ -10,7 +10,7 @@
 #
 # config: /etc/firehol.conf
 #
-# $Id: firehol.sh,v 1.78 2003/01/22 20:54:05 ktsaou Exp $
+# $Id: firehol.sh,v 1.79 2003/01/22 21:02:43 ktsaou Exp $
 #
 
 
@@ -3003,7 +3003,7 @@ case "${arg}" in
 		else
 		
 		cat <<"EOF"
-$Id: firehol.sh,v 1.78 2003/01/22 20:54:05 ktsaou Exp $
+$Id: firehol.sh,v 1.79 2003/01/22 21:02:43 ktsaou Exp $
 (C) Copyright 2002, Costa Tsaousis <costa@tsaousis.gr>
 FireHOL is distributed under GPL.
 
@@ -3171,7 +3171,7 @@ then
 	
 	cat <<"EOF"
 
-$Id: firehol.sh,v 1.78 2003/01/22 20:54:05 ktsaou Exp $
+$Id: firehol.sh,v 1.79 2003/01/22 21:02:43 ktsaou Exp $
 (C) Copyright 2002, Costa Tsaousis <costa@tsaousis.gr>
 FireHOL is distributed under GPL.
 Home Page: http://firehol.sourceforge.net
@@ -3337,17 +3337,23 @@ cat >"${FIREHOL_OUTPUT}" <<"EOF"
 /sbin/modprobe ip_tables
 /sbin/modprobe ip_conntrack
 
+# Find all tables supported
 tables=`cat /proc/net/ip_tables_names`
 for t in ${tables}
 do
+	# Reset/empty this table.
 	/sbin/iptables -t "${t}" -F
 	/sbin/iptables -t "${t}" -X
 	/sbin/iptables -t "${t}" -Z
 	
+	# Find all default chains in this table.
 	chains=`/sbin/iptables -t "${t}" -nL | grep "^Chain " | cut -d ' ' -f 2`
+	
+	# If this is the 'filter' table, remember the default chains.
+	# This will be used at the end to make it DROP all packets.
 	test "${t}" = "filter" && firehol_filter_chains="${chains}"
 	
-	# Temporarily, set policy to ACCEPT
+	# Set the policy to ACCEPT on all default chains.
 	for c in ${chains}
 	do
 		/sbin/iptables -t "${t}" -P "${c}" ACCEPT
@@ -3410,7 +3416,7 @@ close_master					|| ret=$[ret + 1]
 
 cat >>"${FIREHOL_OUTPUT}" <<"EOF"
 
-# Make it drop everything on 'filter'
+# Make it drop everything on table 'filter'.
 for c in ${firehol_filter_chains}
 do
 	/sbin/iptables -t "${t}" -P "${c}" DROP
