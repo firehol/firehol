@@ -11,9 +11,9 @@ Packager: Costa Tsaousis
 BuildArchitectures: noarch
 
 requires: kernel >= 2.4
-requires: gawk >= 3.1
+requires: gawk >= 3.0
 requires: iptables >= 1.2.4
-requires: bash >= 2.05
+requires: bash >= 2.04
 
 %description
 FireHOL uses an extremely simple but powerfull way to define

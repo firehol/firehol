@@ -50,11 +50,12 @@ test -d "/tmp/$myname" && rm -rf "/tmp/${myname}"
 mkdir -p "/tmp/${myname}"
 
 # copy all needed files
-find . -type f		|\
-	grep -v "\.bck"	|\
-	grep -v "CVS"	|\
-	grep -v "\~"	|\
-	sed "s/^.\///"	|\
+find . -type f			|\
+	grep -v "\.bck"		|\
+	grep -v "CVS"		|\
+	grep -v "buildrpm.sh"	|\
+	grep -v "\~"		|\
+	sed "s/^.\///"		|\
 	(
 		while read
 		do
