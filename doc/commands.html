@@ -458,6 +458,27 @@ Subcommands must be given within <a href="#primary_commands">Primary commands</a
 		<br>&nbsp;
 		</li>
 	</ul>
+	Please understand that the <b>optional rule parameters</b> are used only to limit the traffic to be matched.
+	Consider these examples:
+	<p>
+	<center>
+	<table border=0 cellpadding=5 cellspacing=1 width="80%">
+	<tr bgcolor=black><th><font color=white>Command</th><th><font color=white>Description</th></tr>
+	<tr>	<td nowrap align=center valign=middle>nat to-destination 1.1.1.1</td>
+		<td>Sends to 1.1.1.1 all traffic comming in or passing trhough the firewall host.</td>
+		</tr>
+	<tr bgcolor="#F0F0F0">	<td nowrap align=center valign=middle>nat to-destination 1.1.1.1 dst 2.2.2.2</td>
+		<td>Redirects to 1.1.1.1 all traffic comming in or passing through, and going to 2.2.2.2.</td>
+		</tr>
+	<tr>	<td nowrap align=center valign=middle>nat to-destination 1.1.1.1 proto tcp dst 2.2.2.2</td>
+		<td>Redirects to 1.1.1.1 all TCP traffic comming in or passing through and going to 2.2.2.2.</td>
+		</tr>
+	<tr bgcolor="#F0F0F0">	<td nowrap align=center valign=middle>nat to-destination 1.1.1.1 proto tcp dport 25 dst 2.2.2.2</td>
+		<td>Redirects to 1.1.1.1 all traffic comming in or passing through and going to 2.2.2.2 to port tcp/25.</td>
+		</tr>
+	</table>
+	</center>
+	
 	<p>
 	Example 1: <b>nat to-source 1.1.1.1 outface eth0 src 2.2.2.2 dst 3.3.3.3</b>
 	<br>Example 2: <b>nat to-destination 4.4.4.4 inface eth0 src 5.5.5.5 dst 6.6.6.6</b>
@@ -1054,7 +1075,7 @@ about optional rule parameters that should not be used in certain commands.
 <tr><td align=center valign=middle>
 	<A href="http://sourceforge.net"><IMG src="http://sourceforge.net/sflogo.php?group_id=58425&amp;type=5" width="210" height="62" border="0" alt="SourceForge Logo"></A>
 </td><td align=center valign=middle>
-	<small>$Id: commands.html,v 1.18 2003/01/27 23:34:24 ktsaou Exp $</small>
+	<small>$Id: commands.html,v 1.19 2003/02/02 19:40:59 ktsaou Exp $</small>
 	<p>
 	<b>FireHOL</b>, a firewall for humans...<br>
 	&copy; Copyright 2002
