@@ -1,7 +1,7 @@
 #!/bin/bash
-# $Id: buildrpm.sh,v 1.6 2003/10/07 23:42:17 ktsaou Exp $
+# $Id: buildrpm.sh,v 1.7 2003/10/12 13:43:41 ktsaou Exp $
 # 
-# This script build a FireHOL RPM.
+# This script will build a FireHOL RPM.
 #
 
 here=`pwd`
