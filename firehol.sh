@@ -10,9 +10,12 @@
 #
 # config: /etc/firehol.conf
 #
-# $Id: firehol.sh,v 1.24 2002/12/03 22:03:00 ktsaou Exp $
+# $Id: firehol.sh,v 1.25 2002/12/03 22:07:09 ktsaou Exp $
 #
 # $Log: firehol.sh,v $
+# Revision 1.25  2002/12/03 22:07:09  ktsaou
+# Fixed the usage banner to show the "services" parameter.
+#
 # Revision 1.24  2002/12/03 22:03:00  ktsaou
 # Another work around to fix the problem of LINENO not working in debian
 # systems.
@@ -220,7 +223,7 @@ case "${arg}" in
 	
 	services)
 		cat <<"EOF"
-$Id: firehol.sh,v 1.24 2002/12/03 22:03:00 ktsaou Exp $
+$Id: firehol.sh,v 1.25 2002/12/03 22:07:09 ktsaou Exp $
 (C) Copyright 2002, Costa Tsaousis
 
 FireHOL supports the following services (sorted by name):
@@ -291,7 +294,9 @@ EOF
 		ret=$?
 		if [ $ret -gt 0 ]
 		then
-			echo >&2 "FireHOL: use also the 'debug' to see and 'try' to test the configuration."
+			echo >&2 "FireHOL: use also 'debug' to see the generated iptables statements."
+			echo >&2 "FireHOL: use also 'try' to test the configuration before using it."
+			echo >&2 "FireHOL: use also 'services' to see a list of supported services."
 		fi
 		exit $ret
 		;;
