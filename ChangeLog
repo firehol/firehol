@@ -1,7 +1,7 @@
 
 RCS file: /cvsroot/firehol/firehol/firehol.sh,v
 Working file: firehol.sh
-head: 1.72
+head: 1.75
 branch:
 locks: strict
 access list:
@@ -9,8 +9,20 @@ symbolic names:
 	start: 1.1.1.1
 	vendor: 1.1.1
 keyword substitution: kv
-total revisions: 73;	selected revisions: 73
+total revisions: 76;	selected revisions: 76
 description:
+----------------------------
+revision 1.75
+date: 2003/01/20 21:50:36;  author: ktsaou;  state: Exp;  lines: +6 -3
+Added service cvspserver as suggested by Florian Thiel <thiel@ksan.de>
+----------------------------
+revision 1.74
+date: 2003/01/16 00:55:36;  author: ktsaou;  state: Exp;  lines: +38 -27
+Made snat and dnat use one core function named 'nat'.
+----------------------------
+revision 1.73
+date: 2003/01/16 00:33:26;  author: ktsaou;  state: Exp;  lines: +166 -70
+Added experimental "snat" and "dnat" helpers.
 ----------------------------
 revision 1.72
 date: 2003/01/14 21:49:23;  author: ktsaou;  state: Exp;  lines: +5 -5
