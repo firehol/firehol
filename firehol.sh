@@ -10,7 +10,7 @@
 #
 # config: /etc/firehol/firehol.conf
 #
-# $Id: firehol.sh,v 1.214 2004/11/01 00:13:00 ktsaou Exp $
+# $Id: firehol.sh,v 1.215 2004/11/02 00:37:15 ktsaou Exp $
 #
 
 # Remember who you are.
@@ -1436,6 +1436,39 @@ rules_any() {
 	
 	# allow outgoing established packets
 	rule ${out} reverse action "$@" chain "${out}_${mychain}" state ESTABLISHED || return 1
+	
+	return 0
+}
+
+
+# --- ANYSTATELESS -------------------------------------------------------------
+
+rules_anystateless() {
+        local mychain="${1}"; shift
+	local type="${1}"; shift
+	local name="${1}"; shift # a special case: service any gets a name
+	
+	local in=in
+	local out=out
+	if [ "${type}" = "client" ]
+	then
+		in=out
+		out=in
+	fi
+	
+	local client_ports="${DEFAULT_CLIENT_PORTS}"
+	if [ "${type}" = "client" -a "${work_cmd}" = "interface" ]
+	then
+		client_ports="${LOCAL_CLIENT_PORTS}"
+	fi
+	
+	# ----------------------------------------------------------------------
+	
+	# allow new and established incoming packets
+	rule ${in} action "$@" chain "${in}_${mychain}" || return 1
+	
+	# allow outgoing established packets
+	rule ${out} reverse action "$@" chain "${out}_${mychain}" || return 1
 	
 	return 0
 }
@@ -4968,7 +5001,7 @@ case "${arg}" in
 		else
 		
 		${CAT_CMD} <<EOF
-$Id: firehol.sh,v 1.214 2004/11/01 00:13:00 ktsaou Exp $
+$Id: firehol.sh,v 1.215 2004/11/02 00:37:15 ktsaou Exp $
 (C) Copyright 2003, Costa Tsaousis <costa@tsaousis.gr>
 FireHOL is distributed under GPL.
 
@@ -5154,7 +5187,7 @@ then
 	
 	${CAT_CMD} <<EOF
 
-$Id: firehol.sh,v 1.214 2004/11/01 00:13:00 ktsaou Exp $
+$Id: firehol.sh,v 1.215 2004/11/02 00:37:15 ktsaou Exp $
 (C) Copyright 2003, Costa Tsaousis <costa@tsaousis.gr>
 FireHOL is distributed under GPL.
 Home Page: http://firehol.sourceforge.net
@@ -5448,7 +5481,7 @@ then
 	
 	${CAT_CMD} >&2 <<EOF
 
-$Id: firehol.sh,v 1.214 2004/11/01 00:13:00 ktsaou Exp $
+$Id: firehol.sh,v 1.215 2004/11/02 00:37:15 ktsaou Exp $
 (C) Copyright 2003, Costa Tsaousis <costa@tsaousis.gr>
 FireHOL is distributed under GPL.
 Home Page: http://firehol.sourceforge.net
@@ -5531,7 +5564,7 @@ EOF
 	echo "# "
 
 	${CAT_CMD} <<EOF
-# $Id: firehol.sh,v 1.214 2004/11/01 00:13:00 ktsaou Exp $
+# $Id: firehol.sh,v 1.215 2004/11/02 00:37:15 ktsaou Exp $
 # (C) Copyright 2003, Costa Tsaousis <costa@tsaousis.gr>
 # FireHOL is distributed under GPL.
 # Home Page: http://firehol.sourceforge.net
