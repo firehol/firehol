@@ -439,6 +439,113 @@ We can now protect our ppp interface even further. For this we use the <a href="
 </td></tr>
 </table>
 </center>
+<p>
+It could be nice if instead of dropping wrong packets originated from the ethernet, to reject them so that our workstations
+will not have to timeout if we do something that is not allowed. To do this we use the <a href="commands.html#policy">policy</a>
+command:
+
+<center><table border=0 cellpadding=15 cellspacing=20 width="70%">
+<tr><td bgcolor="#F0F0F0">
+<b><pre>
+	version 5
+	
+	# The network of our eth0 LAN.
+	home_ips="195.97.5.192/28"
+	
+	interface eth0 home src "${home_ips}"
+		<font color="red">policy reject</font>
+		server "dns ftp samba squid dhcp http ssh icmp"	accept
+		client "samba icmp"				accept
+	
+	
+	interface ppp+ internet src not "${home_ips} ${UNROUTABLE_IPS}"
+		protection strong 10/sec 10
+		server "smtp http ftp"	accept
+		client all		accept
+	
+	
+	router home2internet inface eth0 outface ppp+
+		masquerade
+		route all accept
+</pre></b>
+</td></tr>
+</table>
+</center>
+<p>
+Some servers on the Internet try to <b>ident</b> back the client to find information about the user requesting the service.
+With our current firewall, such servers will have to timeout before accepting our request. To speed thinks up we could write:
+
+<center><table border=0 cellpadding=15 cellspacing=20 width="70%">
+<tr><td bgcolor="#F0F0F0">
+<b><pre>
+	version 5
+	
+	# The network of our eth0 LAN.
+	home_ips="195.97.5.192/28"
+	
+	interface eth0 home src "${home_ips}"
+		policy reject
+		server "dns ftp samba squid dhcp http ssh icmp"	accept
+		client "samba icmp"				accept
+		
+		<font color="red">server ident reject</font>
+	
+	
+	interface ppp+ internet src not "${home_ips} ${UNROUTABLE_IPS}"
+		protection strong 10/sec 10
+		server "smtp http ftp"	accept
+		client all		accept
+	
+	
+	router home2internet inface eth0 outface ppp+
+		masquerade
+		route all accept
+	
+	<font color="red">
+	router internet2home inface ppp+ outface eth0
+		route ident reject
+	</font>
+</pre></b>
+</td></tr>
+</table>
+</center>
+Note that we now have added the router we eliminated above, since we need to add a service to it.<p>
+The whole routing schema could be rewritten as:
+
+<center><table border=0 cellpadding=15 cellspacing=20 width="70%">
+<tr><td bgcolor="#F0F0F0">
+<b><pre>
+	version 5
+	
+	# The network of our eth0 LAN.
+	home_ips="195.97.5.192/28"
+	
+	interface eth0 home src "${home_ips}"
+		policy reject
+		server "dns ftp samba squid dhcp http ssh icmp"	accept
+		client "samba icmp"				accept
+		
+		server ident reject
+	
+	
+	interface ppp+ internet src not "${home_ips} ${UNROUTABLE_IPS}"
+		protection strong 10/sec 10
+		server "smtp http ftp"	accept
+		client all		accept
+	
+	
+	<font color="red">
+	router internet2home inface ppp+ outface eth0
+		masqerade reverse
+		client all	accept
+		server ident	reject
+	</font>
+</pre></b>
+</td></tr>
+</table>
+</center>
+Now we have elimited the first router, but we defined everything in the second. We could use the first one to do everything, but
+then the client and server commands would be reversed (server all, client ident) which would be confusing.
 
 <p>
 <hr noshade size=1>
@@ -446,7 +553,7 @@ We can now protect our ppp interface even further. For this we use the <a href="
 <tr><td align=center valign=middle>
 	<A href="http://sourceforge.net"><IMG src="http://sourceforge.net/sflogo.php?group_id=58425&amp;type=5" width="210" height="62" border="0" alt="SourceForge Logo"></A>
 </td><td align=center valign=middle>
-	<small>$Id: tutorial.html,v 1.4 2002/12/15 20:55:35 ktsaou Exp $</small>
+	<small>$Id: tutorial.html,v 1.5 2002/12/15 21:44:07 ktsaou Exp $</small>
 	<p>
 	<b>FireHOL</b>, a firewall for humans...<br>
 	&copy; Copyright 2002
