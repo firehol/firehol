@@ -10,9 +10,16 @@
 #
 # config: /etc/firehol.conf
 #
-# $Id: firehol.sh,v 1.18 2002/11/03 13:17:39 ktsaou Exp $
+# $Id: firehol.sh,v 1.19 2002/11/30 14:33:33 ktsaou Exp $
 #
 # $Log: firehol.sh,v $
+# Revision 1.19  2002/11/30 14:33:33  ktsaou
+# As suggested by Florian Thiel <thiel@ksan.de>:
+# a. Fixed service IRC to work on TCP instead of UDP.
+# b. Added services: UUCP, VNC, WEBCACHE, IMAPS, IKE.
+#
+# Also fixed the home-router.conf example (it was outdated).
+#
 # Revision 1.18  2002/11/03 13:17:39  ktsaou
 # Minor aesthetic changes.
 #
@@ -324,57 +331,23 @@ work_created_chains=
 # The following are definitions for simple services.
 # We define as "simple" the services that are implemented using a single socket,
 # initiated by the client and used by the server.
-
-server_echo_ports="tcp/echo"
-client_echo_ports="default"
+# The following list is sorted by service name.
 
 server_daytime_ports="tcp/daytime"
 client_daytime_ports="default"
 
-server_finger_ports="tcp/finger"
-client_finger_ports="default"
-
-server_rndc_ports="tcp/rndc"
-client_rndc_ports="default"
-
-server_nntp_ports="tcp/nntp"
-client_nntp_ports="default"
-
-server_smtp_ports="tcp/smtp"
-client_smtp_ports="default"
-
-server_ident_ports="tcp/auth"
-client_ident_ports="default"
-
-server_imap_ports="tcp/imap"
-client_imap_ports="default"
-
-server_pop3_ports="tcp/pop3"
-client_pop3_ports="default"
-
-server_ssh_ports="tcp/ssh"
-client_ssh_ports="default"
-
-server_telnet_ports="tcp/telnet"
-client_telnet_ports="default"
-
-# TFTP is more complicated than this.
-# TFTP communicates through high ports. The problem is that there is
-# no relevant iptables module in most distributions.
-server_tftp_ports="udp/tftp"
-client_tftp_ports="default"
-
-server_irc_ports="udp/ircd"
-client_irc_ports="default"
-require_irc_modules="ip_conntrack_irc"
-require_irc_nat_modules="ip_nat_irc"
-ALL_SHOULD_ALSO_RUN="${ALL_SHOULD_ALSO_RUN} irc"
-
 server_dhcp_ports="udp/bootps"
 client_dhcp_ports="bootpc"
 
-server_ldap_ports="tcp/ldap"
-client_ldap_ports="default"
+server_echo_ports="tcp/echo"
+client_echo_ports="default"
+
+server_finger_ports="tcp/finger"
+client_finger_ports="default"
+
+# We assume heartbeat uses ports in the range 690 to 699
+server_heartbeat_ports="udp/690:699"
+client_heartbeat_ports="default"
 
 server_http_ports="tcp/http"
 client_http_ports="default"
@@ -382,17 +355,32 @@ client_http_ports="default"
 server_https_ports="tcp/https"
 client_https_ports="default"
 
-server_mysql_ports="tcp/mysql"
-client_mysql_ports="default"
+server_ident_ports="tcp/auth"
+client_ident_ports="default"
+
+server_ike_ports="udp/500"
+client_ike_ports="default"
+
+server_imap_ports="tcp/imap"
+client_imap_ports="default"
+
+server_imaps_ports="tcp/imaps"
+client_imaps_ports="default"
+
+server_irc_ports="tcp/ircd"
+client_irc_ports="default"
+require_irc_modules="ip_conntrack_irc"
+require_irc_nat_modules="ip_nat_irc"
+ALL_SHOULD_ALSO_RUN="${ALL_SHOULD_ALSO_RUN} irc"
+
+server_ldap_ports="tcp/ldap"
+client_ldap_ports="default"
 
 server_lpd_ports="tcp/printer"
 client_lpd_ports="default"
 
-server_radius_ports="udp/radius udp/radius-acct"
-client_radius_ports="default"
-
-server_radiusold_ports="udp/1645 udp/1646"
-client_radiusold_ports="default"
+server_mysql_ports="tcp/mysql"
+client_mysql_ports="default"
 
 server_netbios_ns_ports="udp/netbios-ns"
 client_netbios_ns_ports="default udp/netbios-ns"
@@ -403,14 +391,58 @@ client_netbios_dgm_ports="default netbios-dgm"
 server_netbios_ssn_ports="tcp/netbios-ssn"
 client_netbios_ssn_ports="default"
 
-server_syslog_ports="udp/syslog"
-client_syslog_ports="syslog"
+server_nntp_ports="tcp/nntp"
+client_nntp_ports="default"
+
+server_ntp_ports="udp/ntp tcp/ntp"
+client_ntp_ports="ntp default"
+
+server_pop3_ports="tcp/pop3"
+client_pop3_ports="default"
+
+# Portmap clients appear to use ports bellow 1024
+server_portmap_ports="udp/sunrpc tcp/sunrpc"
+client_portmap_ports="500:65535"
+
+server_radius_ports="udp/radius udp/radius-acct"
+client_radius_ports="default"
+
+server_radiusold_ports="udp/1645 udp/1646"
+client_radiusold_ports="default"
+
+server_rndc_ports="tcp/rndc"
+client_rndc_ports="default"
+
+server_rsync_ports="tcp/rsync udp/rsync"
+client_rsync_ports="default"
+
+server_smtp_ports="tcp/smtp"
+client_smtp_ports="default"
 
 server_snmp_ports="udp/snmp"
 client_snmp_ports="default"
 
-server_rsync_ports="tcp/rsync udp/rsync"
-client_rsync_ports="default"
+server_ssh_ports="tcp/ssh"
+client_ssh_ports="default"
+
+# Sun RCP is an alias for service portmap
+server_sunrpc_ports="${server_portmap_ports}"
+client_sunrpc_ports="${client_portmap_ports}"
+
+server_syslog_ports="udp/syslog"
+client_syslog_ports="syslog"
+
+server_telnet_ports="tcp/telnet"
+client_telnet_ports="default"
+
+# TFTP is more complicated than this.
+# TFTP communicates through high ports. The problem is that there is
+# no relevant iptables module in most distributions.
+server_tftp_ports="udp/tftp"
+client_tftp_ports="default"
+
+server_uucp_ports="tcp/uucp"
+client_uucp_ports="default"
 
 server_vmware_ports="tcp/902"
 client_vmware_ports="default"
@@ -421,19 +453,11 @@ client_vmwareauth_ports="default"
 server_vmwareweb_ports="tcp/8222"
 client_vmwareweb_ports="default"
 
-server_ntp_ports="udp/ntp tcp/ntp"
-client_ntp_ports="ntp default"
+server_vnc_ports="tcp/5900:5903"
+client_vnc_ports="default"
 
-# Portmap clients appear to use ports bellow 1024
-server_portmap_ports="udp/sunrpc tcp/sunrpc"
-client_portmap_ports="500:65535"
-
-server_sunrpc_ports="${server_portmap_ports}"
-client_sunrpc_ports="${client_portmap_ports}"
-
-# We assume heartbeat uses ports in the range 690 to 699
-server_heartbeat_ports="udp/690:699"
-client_heartbeat_ports="default"
+server_webcache_ports="tcp/webcache"
+client_webcache_ports="default"
 
 
 # ------------------------------------------------------------------------------
