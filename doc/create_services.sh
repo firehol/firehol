@@ -29,7 +29,7 @@ client_amanda_ports="many"
 service_amanda_type="complex"
 service_amanda_notes="
 This implementation of <a href=\"http://amanda.sf.net\">AMANDA, the Advanced Maryland Automatic Network Disk Archiver</a>
-is based on the <a href=\"http://amanda.sourceforge.net/fom-serve/cache/139.html\">notes posted at Amanda's Faq-O-Matic</a>.
+is based on the <a href=\"http://amanda.sourceforge.net/cgi-bin/fom?_highlightWords=firewall&file=139\">notes posted at Amanda's Faq-O-Matic</a>.
 <p>
 Based on this, FireHOL allows:<br>
 <ul>
@@ -313,7 +313,7 @@ cat <<"EOF"
 <tr><td align=center valign=middle>
 	<A href="http://sourceforge.net"><IMG src="http://sourceforge.net/sflogo.php?group_id=58425&amp;type=5" width="210" height="62" border="0" alt="SourceForge Logo"></A>
 </td><td align=center valign=middle>
-	<small>$Id: create_services.sh,v 1.8 2002/12/19 22:52:15 ktsaou Exp $</small>
+	<small>$Id: create_services.sh,v 1.9 2002/12/19 23:15:43 ktsaou Exp $</small>
 	<p>
 	<b>FireHOL</b>, a firewall for humans...<br>
 	&copy; Copyright 2002

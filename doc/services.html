@@ -47,7 +47,7 @@ All the services defined by name in FireHOL are known to resolve in <a href="www
 <b>many</b>
 </td>
 	</tr>
-	<tr><td align=right valign=top nowrap><small><font color="gray">Notes</td><td>This implementation of <a href="http://amanda.sf.net">AMANDA, the Advanced Maryland Automatic Network Disk Archiver</a> is based on the <a href="http://amanda.sourceforge.net/fom-serve/cache/139.html">notes posted at Amanda's Faq-O-Matic</a>. <p> Based on this, FireHOL allows:<br> <ul> <li>a connection from the server to the client at <b>udp 10080</b></li> <li>connections from the client to the server at <b>tcp & udp 850:859</b></li> </ul> I <b>strongly suggest</b> to use this service in your firewall together with src/dst to prevent opening ports 850:859 uncoditionally to everyone. <p> This complex service handles correctly the multi-socket bi-directional connections made. Use the FireHOL <b>server</b> directive on the Amanda server, and FireHOL's <b>client</b> on the Amanda client.<br>&nbsp;</td></tr>
+	<tr><td align=right valign=top nowrap><small><font color="gray">Notes</td><td>This implementation of <a href="http://amanda.sf.net">AMANDA, the Advanced Maryland Automatic Network Disk Archiver</a> is based on the <a href="http://amanda.sourceforge.net/cgi-bin/fom?_highlightWords=firewall&file=139">notes posted at Amanda's Faq-O-Matic</a>. <p> Based on this, FireHOL allows:<br> <ul> <li>a connection from the server to the client at <b>udp 10080</b></li> <li>connections from the client to the server at <b>tcp & udp 850:859</b></li> </ul> I <b>strongly suggest</b> to use this service in your firewall together with src/dst to prevent opening ports 850:859 uncoditionally to everyone. <p> This complex service handles correctly the multi-socket bi-directional connections made. Use the FireHOL <b>server</b> directive on the Amanda server, and FireHOL's <b>client</b> on the Amanda client.<br>&nbsp;</td></tr>
 	<tr><td align=right valign=top nowrap><small><font color="gray">Example</td><td><b>server amanda accept</b></td></tr>
 	</table>
 	</td></tr>
@@ -1007,7 +1007,7 @@ All the services defined by name in FireHOL are known to resolve in <a href="www
 <tr><td align=center valign=middle>
 	<A href="http://sourceforge.net"><IMG src="http://sourceforge.net/sflogo.php?group_id=58425&amp;type=5" width="210" height="62" border="0" alt="SourceForge Logo"></A>
 </td><td align=center valign=middle>
-	<small>$Id: services.html,v 1.12 2002/12/19 22:52:15 ktsaou Exp $</small>
+	<small>$Id: services.html,v 1.13 2002/12/19 23:15:43 ktsaou Exp $</small>
 	<p>
 	<b>FireHOL</b>, a firewall for humans...<br>
 	&copy; Copyright 2002
