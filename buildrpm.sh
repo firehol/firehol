@@ -8,7 +8,7 @@ then
 	exit 1
 fi
 
-files="firehol.sh .spec examples/ppp-client.conf"
+files="firehol.sh .spec examples/client-all.conf"
 
 for x in $files
 do
