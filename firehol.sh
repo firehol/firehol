@@ -10,7 +10,7 @@
 #
 # config: /etc/firehol.conf
 #
-# $Id: firehol.sh,v 1.77 2003/01/22 19:13:27 ktsaou Exp $
+# $Id: firehol.sh,v 1.78 2003/01/22 20:54:05 ktsaou Exp $
 #
 
 
@@ -1600,7 +1600,7 @@ close_master() {
 rule_action_param() {
 	local action="${1}"; shift
 	local protocol="${1}"; shift
-	local -a action_param=
+	local -a action_param=()
 	
 	local count=0
 	while [ ! -z "${1}" -a ! "A${1}" = "A--" ]
@@ -1618,11 +1618,6 @@ rule_action_param() {
 		return 1
 	fi
 	
-	if [ "${action_param[0]}" = "" ]
-	then
-		unset action_param
-	fi
-	
 	# Do the rule
 	case "${action}" in
 		NONE)
@@ -1636,7 +1631,7 @@ rule_action_param() {
 				then
 					action_param=("--reject-with" "tcp-reset")
 				else
-					unset action_param
+					action_param=()
 				fi
 			fi
 			;;
@@ -1716,6 +1711,8 @@ rule() {
 	# parameters will take place.
 	local softwarnings=1
 	
+	# set it, in order to be local
+	local -a action_param=()
 	
 	while [ ! -z "${1}" ]
 	do
@@ -1963,7 +1960,7 @@ rule() {
 						action="SNAT"
 						if [ "${1}" = "to" ]
 						then
-							local -a action_param=
+							local -a action_param=()
 							local x=
 							for x in ${2}
 							do
@@ -1980,7 +1977,7 @@ rule() {
 						action="DNAT"
 						if [ "${1}" = "to" ]
 						then
-							local -a action_param=
+							local -a action_param=()
 							local x=
 							for x in ${2}
 							do
@@ -3006,7 +3003,7 @@ case "${arg}" in
 		else
 		
 		cat <<"EOF"
-$Id: firehol.sh,v 1.77 2003/01/22 19:13:27 ktsaou Exp $
+$Id: firehol.sh,v 1.78 2003/01/22 20:54:05 ktsaou Exp $
 (C) Copyright 2002, Costa Tsaousis <costa@tsaousis.gr>
 FireHOL is distributed under GPL.
 
@@ -3174,7 +3171,7 @@ then
 	
 	cat <<"EOF"
 
-$Id: firehol.sh,v 1.77 2003/01/22 19:13:27 ktsaou Exp $
+$Id: firehol.sh,v 1.78 2003/01/22 20:54:05 ktsaou Exp $
 (C) Copyright 2002, Costa Tsaousis <costa@tsaousis.gr>
 FireHOL is distributed under GPL.
 Home Page: http://firehol.sourceforge.net
@@ -3291,75 +3288,7 @@ fi
 # XXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXX
 # ------------------------------------------------------------------------------
 
-echo -n $"FireHOL: Setting firewall defaults:"
-ret=0
-
 # --- Initialization -----------------------------------------------------------
-
-# Make sure we can load the ip_tables and ip_conntrack kernel modules.
-# If we cannot load these, then iptables cannot be used at this time
-# either because iptables is not supported by the running kernel, or
-# because some other firewalling solution (ipchains) is currently running.
-
-/sbin/modprobe ip_tables	|| ret=$[ret + 1]
-/sbin/modprobe ip_conntrack	|| ret=$[ret + 1]
-
-
-# Place all the statements bellow to the beginning of the final firewall script.
-echo "#!/bin/sh" >"${FIREHOL_OUTPUT}"
-
-# in case you want to run the generated script at a later time, this is needed.
-postprocess /sbin/modprobe ip_tables
-postprocess /sbin/modprobe ip_conntrack
-
-iptables -F				|| ret=$[ret + 1]
-iptables -X				|| ret=$[ret + 1]
-iptables -Z				|| ret=$[ret + 1]
-iptables -t nat -F			|| ret=$[ret + 1]
-iptables -t nat -X			|| ret=$[ret + 1]
-iptables -t nat -Z			|| ret=$[ret + 1]
-iptables -t mangle -F			|| ret=$[ret + 1]
-iptables -t mangle -X			|| ret=$[ret + 1]
-iptables -t mangle -Z			|| ret=$[ret + 1]
-
-
-# ------------------------------------------------------------------------------
-# Set everything to accept in order not to loose the connection the user might
-# be working now.
-
-iptables -P INPUT ACCEPT		|| ret=$[ret + 1]
-iptables -P OUTPUT ACCEPT		|| ret=$[ret + 1]
-iptables -P FORWARD ACCEPT		|| ret=$[ret + 1]
-
-
-# ------------------------------------------------------------------------------
-# Accept everything in/out the loopback device.
-
-iptables -A INPUT -i lo -j ACCEPT	|| ret=$[ret + 1]
-iptables -A OUTPUT -o lo -j ACCEPT	|| ret=$[ret + 1]
-
-
-# ------------------------------------------------------------------------------
-# Drop all invalid packets.
-# Netfilter HOWTO suggests to DROP all INVALID packets.
-
-iptables -A INPUT -m state --state INVALID -j DROP	|| ret=$[ret + 1]
-iptables -A OUTPUT -m state --state INVALID -j DROP	|| ret=$[ret + 1]
-iptables -A FORWARD -m state --state INVALID -j DROP	|| ret=$[ret + 1]
-
-
-if [ $ret -eq 0 ]
-then
-	success $"FireHOL: Setting firewall defaults:"
-	echo
-else
-	failure$ $"FireHOL: Setting firewall defaults:"
-	echo
-	exit 1
-fi
-
-
-# XXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXX
 
 fixed_iptables_save() {
 	local tmp="/tmp/iptables-save-$$"
@@ -3398,6 +3327,44 @@ else
 	exit 1
 fi
 
+
+# XXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXX
+
+# Place all the statements bellow to the beginning of the final firewall script.
+cat >"${FIREHOL_OUTPUT}" <<"EOF"
+#!/bin/sh
+
+/sbin/modprobe ip_tables
+/sbin/modprobe ip_conntrack
+
+tables=`cat /proc/net/ip_tables_names`
+for t in ${tables}
+do
+	/sbin/iptables -t "${t}" -F
+	/sbin/iptables -t "${t}" -X
+	/sbin/iptables -t "${t}" -Z
+	
+	chains=`/sbin/iptables -t "${t}" -nL | grep "^Chain " | cut -d ' ' -f 2`
+	test "${t}" = "filter" && firehol_filter_chains="${chains}"
+	
+	# Temporarily, set policy to ACCEPT
+	for c in ${chains}
+	do
+		/sbin/iptables -t "${t}" -P "${c}" ACCEPT
+	done
+done
+
+# Accept everything in/out the loopback device.
+/sbin/iptables -A INPUT -i lo -j ACCEPT
+/sbin/iptables -A OUTPUT -o lo -j ACCEPT
+
+# Drop all invalid packets.
+# Netfilter HOWTO suggests to DROP all INVALID packets.
+/sbin/iptables -A INPUT -m state --state INVALID -j DROP
+/sbin/iptables -A OUTPUT -m state --state INVALID -j DROP
+/sbin/iptables -A FORWARD -m state --state INVALID -j DROP
+
+EOF
 
 # XXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXX
 
@@ -3441,19 +3408,15 @@ enable exit			# Enable the exit buildin shell command.
 close_cmd					|| ret=$[ret + 1]
 close_master					|| ret=$[ret + 1]
 
-iptables -P INPUT DROP				|| ret=$[ret + 1]
-iptables -P OUTPUT DROP				|| ret=$[ret + 1]
-iptables -P FORWARD DROP			|| ret=$[ret + 1]
+cat >>"${FIREHOL_OUTPUT}" <<"EOF"
 
-iptables -t nat -P PREROUTING ACCEPT		|| ret=$[ret + 1]
-iptables -t nat -P POSTROUTING ACCEPT		|| ret=$[ret + 1]
-iptables -t nat -P OUTPUT ACCEPT		|| ret=$[ret + 1]
+# Make it drop everything on 'filter'
+for c in ${firehol_filter_chains}
+do
+	/sbin/iptables -t "${t}" -P "${c}" DROP
+done
 
-iptables -t mangle -P PREROUTING ACCEPT		|| ret=$[ret + 1]
-iptables -t mangle -P INPUT ACCEPT		|| ret=$[ret + 1]
-iptables -t mangle -P FORWARD ACCEPT		|| ret=$[ret + 1]
-iptables -t mangle -P OUTPUT ACCEPT		|| ret=$[ret + 1]
-iptables -t mangle -P POSTROUTING ACCEPT	|| ret=$[ret + 1]
+EOF
 
 if [ ${work_error} -gt 0 -o $ret -gt 0 ]
 then
