@@ -1,30 +1,97 @@
 <HTML>
 <HEAD>
 <link rel="stylesheet" type="text/css" href="css.css">
-<TITLE>FireHOL, supported services</TITLE>
+<TITLE>FireHOL, overview</TITLE>
 </HEAD>
 
 <BODY bgcolor="#FFFFFF">
 
-<center><table border=0 cellpadding=15 cellspacing=20 width="70%">
-<tr><td bgcolor="#FFFFFF">
-FireHOL has been designed to be:
-<ul>
-	<li><b>secure</b> (as this is the most important factor for a firewall)</li>
-	<li>completely <b>dynamic</b> (to allow you do whatever you like)</li>
-	<li>extremely <b>simple</b> to configure, understand, audit, use and alter.</li>
-</ul>
+<table border=0 cellpadding=10 cellspacing=0 width="100%">
+<tr><td bgcolor="#EEEEEE"><b>What is FireHOL?</td></tr></table>
+<br>
+FireHOL is an iptables firewall generator producing stateful iptables packet filtering firewalls, on Linux hosts and routers
+with any number of network interfaces, any number of routes, any number of services served, any number of complexity
+between variations of the services (including positive and negative expressions).
 <p>
-FireHOL has been designed to be a firewall for... <b>humans</b>!
-</td></tr>
-</table>
-</center>
+FireHOL is a <b>language to express firewalling rules</b>, not just a script that produces some kind of a firewall.
+<p>
+The goals of FireHOL are:
+<ul>
+	<li>Make firewalling an easy, straight forward task for everyone, independently of the security skills he/she has.
+	<br>FireHOL configuration files are very easy to type and read. To understand a complex firewall you will need
+	just a few seconds.
+	<br>Take a look bellow for an example configuration.
+	<br>&nbsp;
+	</li>
+	<li>Be as secure as possible by allowing explicitly only the wanted traffic to flow.
+	<br>FireHOL produces <b>stateful</b> rules for any service or protocol, <b>in both directions</b> of the firewall.
+	<br>&nbsp;
+	</li>
+	<li>Be a resource of knowledge around services and their peculiarities, as far as firewalling is concerned.
+	<br>Check the <a href="services.html">services</a> list.
+	<br>&nbsp;
+	</li>
+	<li>Be open enough for any firewalling need. Although FireHOL is pre-configured for a large number of services, you
+	can configure any service you like and FireHOL will turn it into a <b>client</b>, a <b>server</b>, or a <b>router</b>.
+	<br>&nbsp;
+	</li>
+	<li>Be flexible enough to be used by end users and guru administrator requiring extremely complex firewalls.
+	<br>FireHOL configuration files are BASH scripts; you can write in them anything BASH accepts, including variables,
+	pipes, loops, conditions, calls to external programs, run other BASH scripts with FireHOL directives in them, etc.
+	<br>&nbsp;
+	</li>
+	<li>Be simple to install on any modern Linux system; only one file is required, no compilations involved.
+	<br>&nbsp;
+	</li>
+</ul>
 
+<table border=0 cellpadding=10 cellspacing=0 width="100%">
+<tr><td bgcolor="#EEEEEE"><b>Is it secure?</td></tr></table>
+<br>
+FireHOL is <b>secure</b> because it has been designed with the right firewalling concept: <b>deny everything,
+then allow only what is needed</b>.
+<p>
+Also, FireHOL produces <b>stateful</b> iptables packet filtering firewalls (and possibly, the only generic tool today that
+does that for all services in both directions of the firewall).
+<p>
+Stateful means that traffic allowed to pass is part of a valid connection that has been initiated the right way.
+Stateful also means that you can have control based on
+who initiated the traffic. For example: you can choose to be able to ping anyone on the internet, but no one to be able
+to ping you. If for example you don't need to run a server on your Linux host, you can easily achieve a situation where
+you are able to do anything to anyone, but as far as the rest of world is concerned, <b>you do not exist</b>!
+<p>
+
+<table border=0 cellpadding=10 cellspacing=0 width="100%">
+<tr><td bgcolor="#EEEEEE"><b>Learn another language?</td></tr></table>
+<br>
 FireHOL has been designed to allow you configure your firewall the same way you think of it.
-Consider this example:<p>
+Its language is extremely simple. Basically you have to learn four commands:
+<ul>
+	<li><a href="commands.html#interface">interface</a>, to setup a firewall on a network interface
+	<br>&nbsp;
+	</li>
+	<li><a href="commands.html#router">router</a>, to setup a firewall on traffic routed from one network interface to another
+	<br>&nbsp;
+	</li>
+	<li><a href="commands.html#server">server</a>, to setup a listening service within an interface or router.
+	The same command can be used as <a href="commands.html#route">route</a> within routers.
+	<br>&nbsp;
+	</li>
+	<li><a href="commands.html#client">client</a>, to setup a service client within an interface or router
+	<br>&nbsp;
+	</li>
+</ul>
+<b>Client</b> and <b>server</b> commands have exactly the same syntax.
+<b>Interface</b> has two mandatory arguments and <b>router</b> has only one (and this is the same with one of the two <b>interface</b> requires).
+All the <a href="commands.html#parameters">optional parameters</a> are the same to all of them. This sounds like just one command
+is to be learned...
+<p>
+Of course there are a <a href="commands.html">few more commands</a> defined, but all of them exist just to give you finer control on these four.
+<p>
+If you don't believe it is simple, consider this example:<p>
 
 <center><table border=0 cellpadding=10 cellspacing=5 width="80%">
-<tr bgcolor="black"><th width="60%"><b><font color="white">Your thoughts...</th><th width="40%"><b><font color="white">In FireHOL</th></tr>
+<tr bgcolor="black"><th width="60%"><b><font color="white">Thoughts...</th><th width="40%"><b><font color="white">In FireHOL</th></tr>
 <tr><td>	I have a Linux host with two network interfaces.<p>
 		<ul>
 			<li>The first is <b>eth0</b> that connects to my <b>LAN</b>
@@ -228,14 +295,6 @@ The complete configuration file (a little bit enriched) of the above example cou
 </table>
 </center>
 
-FireHOL is <b>secure</b> because it has been designed with the right firewalling concept: <b>deny everything, then allow only what is
-needed</b>. FireHOL is secure because it produces <b>stateful</b> iptables packet filtering
-firewalls (and possibly, the only generic tool today that does that). Stateful, means that you can have control based on who initiated the traffic. For example: you can choose to be able to
-ping anyone on the internet, but no one to be able to ping you.
-<br>
-If for example you don't need to run a server on your Linux host, you can easily achieve a situation where you are
-able to do anything to anyone, but as far as the rest of world is concerned, <b>you do not exist</b>!
-<p>
 FireHOL is completely <b>dynamic</b>, since with its <a href="language.html">language</a> you can describe any firewall
 configuration you wish using simple <a href="commands.html">commands</a>.
 <p>
@@ -299,7 +358,7 @@ supports the following services:</p>
 <tr><td align=center valign=middle>
 	<A href="http://sourceforge.net"><IMG src="http://sourceforge.net/sflogo.php?group_id=58425&amp;type=5" width="210" height="62" border="0" alt="SourceForge Logo"></A>
 </td><td align=center valign=middle>
-	<small>$Id: overview.html,v 1.14 2002/12/31 11:57:40 ktsaou Exp $</small>
+	<small>$Id: overview.html,v 1.15 2003/01/02 00:27:59 ktsaou Exp $</small>
 	<p>
 	<b>FireHOL</b>, a firewall for humans...<br>
 	&copy; Copyright 2002
