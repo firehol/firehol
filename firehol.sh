@@ -10,7 +10,7 @@
 #
 # config: /etc/firehol/firehol.conf
 #
-# $Id: firehol.sh,v 1.147 2003/07/31 20:44:45 ktsaou Exp $
+# $Id: firehol.sh,v 1.148 2003/08/19 22:21:32 ktsaou Exp $
 #
 FIREHOL_FILE="${0}"
 
@@ -1623,7 +1623,7 @@ check_kernel_module() {
 	
 	case ${mod} in
 		ip_tables)
-			test -f /proc/net/ip_tables_name && return 0
+			test -f /proc/net/ip_tables_names && return 0
 			return 1
 			;;
 		
@@ -3536,7 +3536,7 @@ case "${arg}" in
 		else
 		
 		${CAT_CMD} <<EOF
-$Id: firehol.sh,v 1.147 2003/07/31 20:44:45 ktsaou Exp $
+$Id: firehol.sh,v 1.148 2003/08/19 22:21:32 ktsaou Exp $
 (C) Copyright 2003, Costa Tsaousis <costa@tsaousis.gr>
 FireHOL is distributed under GPL.
 
@@ -3722,7 +3722,7 @@ then
 	
 	${CAT_CMD} <<EOF
 
-$Id: firehol.sh,v 1.147 2003/07/31 20:44:45 ktsaou Exp $
+$Id: firehol.sh,v 1.148 2003/08/19 22:21:32 ktsaou Exp $
 (C) Copyright 2003, Costa Tsaousis <costa@tsaousis.gr>
 FireHOL is distributed under GPL.
 Home Page: http://firehol.sourceforge.net
@@ -4017,7 +4017,7 @@ then
 	
 	${CAT_CMD} >&2 <<EOF
 
-$Id: firehol.sh,v 1.147 2003/07/31 20:44:45 ktsaou Exp $
+$Id: firehol.sh,v 1.148 2003/08/19 22:21:32 ktsaou Exp $
 (C) Copyright 2003, Costa Tsaousis <costa@tsaousis.gr>
 FireHOL is distributed under GPL.
 Home Page: http://firehol.sourceforge.net
@@ -4110,7 +4110,7 @@ EOF
 	echo "# "
 
 	${CAT_CMD} <<EOF
-# $Id: firehol.sh,v 1.147 2003/07/31 20:44:45 ktsaou Exp $
+# $Id: firehol.sh,v 1.148 2003/08/19 22:21:32 ktsaou Exp $
 # (C) Copyright 2003, Costa Tsaousis <costa@tsaousis.gr>
 # FireHOL is distributed under GPL.
 # Home Page: http://firehol.sourceforge.net
