@@ -10,7 +10,7 @@
 #
 # config: /etc/firehol/firehol.conf
 #
-# $Id: firehol.sh,v 1.219 2004/12/22 23:05:57 ktsaou Exp $
+# $Id: firehol.sh,v 1.220 2004/12/23 18:43:03 ktsaou Exp $
 #
 
 # Remember who you are.
@@ -3024,8 +3024,10 @@ rule_action_param() {
 							iptables ${table} -N "${name}"
 							touch "${FIREHOL_CHAINS_DIR}/${name}"
 							
+							iptables -A "${name}" -m state --state ESTABLISHED -j ACCEPT
+							
 							# knockd (http://www.zeroflux.org/knock/)
-							# will create the rules inside this chain.
+							# will create more rules inside this chain to match NEW packets.
 						fi
 						
 						# send the rule to be generated to this knock chain
@@ -5068,7 +5070,7 @@ case "${arg}" in
 		else
 		
 		${CAT_CMD} <<EOF
-$Id: firehol.sh,v 1.219 2004/12/22 23:05:57 ktsaou Exp $
+$Id: firehol.sh,v 1.220 2004/12/23 18:43:03 ktsaou Exp $
 (C) Copyright 2003, Costa Tsaousis <costa@tsaousis.gr>
 FireHOL is distributed under GPL.
 
@@ -5254,7 +5256,7 @@ then
 	
 	${CAT_CMD} <<EOF
 
-$Id: firehol.sh,v 1.219 2004/12/22 23:05:57 ktsaou Exp $
+$Id: firehol.sh,v 1.220 2004/12/23 18:43:03 ktsaou Exp $
 (C) Copyright 2003, Costa Tsaousis <costa@tsaousis.gr>
 FireHOL is distributed under GPL.
 Home Page: http://firehol.sourceforge.net
@@ -5548,7 +5550,7 @@ then
 	
 	${CAT_CMD} >&2 <<EOF
 
-$Id: firehol.sh,v 1.219 2004/12/22 23:05:57 ktsaou Exp $
+$Id: firehol.sh,v 1.220 2004/12/23 18:43:03 ktsaou Exp $
 (C) Copyright 2003, Costa Tsaousis <costa@tsaousis.gr>
 FireHOL is distributed under GPL.
 Home Page: http://firehol.sourceforge.net
@@ -5631,7 +5633,7 @@ EOF
 	echo "# "
 
 	${CAT_CMD} <<EOF
-# $Id: firehol.sh,v 1.219 2004/12/22 23:05:57 ktsaou Exp $
+# $Id: firehol.sh,v 1.220 2004/12/23 18:43:03 ktsaou Exp $
 # (C) Copyright 2003, Costa Tsaousis <costa@tsaousis.gr>
 # FireHOL is distributed under GPL.
 # Home Page: http://firehol.sourceforge.net
