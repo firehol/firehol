@@ -10,7 +10,7 @@
 #
 # config: /etc/firehol.conf
 #
-# $Id: firehol.sh,v 1.41 2002/12/12 20:07:47 ktsaou Exp $
+# $Id: firehol.sh,v 1.42 2002/12/13 19:56:11 ktsaou Exp $
 #
 
 # ------------------------------------------------------------------------------
@@ -121,7 +121,7 @@ case "${arg}" in
 		else
 		
 		cat <<"EOF"
-$Id: firehol.sh,v 1.41 2002/12/12 20:07:47 ktsaou Exp $
+$Id: firehol.sh,v 1.42 2002/12/13 19:56:11 ktsaou Exp $
 (C) Copyright 2002, Costa Tsaousis
 FireHOL is distributed under GPL.
 
@@ -332,12 +332,14 @@ DEFAULT_CLIENT_PORTS="1000:65535"
 # client ports when the client specified is the localhost.
 LOCAL_CLIENT_PORTS_LOW=`sysctl net.ipv4.ip_local_port_range | cut -d '=' -f 2 | cut -f 1`
 LOCAL_CLIENT_PORTS_HIGH=`sysctl net.ipv4.ip_local_port_range | cut -d '=' -f 2 | cut -f 2`
-LOCAL_CLIENT_PORTS=`echo ${LOCAL_CLIENT_PORTS_LOW}:${LOCAL_CLIENT_PORTS_HIGH}`
+LOCAL_CLIENT_PORTS="${LOCAL_CLIENT_PORTS_LOW}:${LOCAL_CLIENT_PORTS_HIGH}"
 
 # These files will be created and deleted during our run.
-FIREHOL_OUTPUT="/tmp/firehol-out-$$.sh"
-FIREHOL_SAVED="/tmp/firehol-save-$$.sh"
-FIREHOL_TMP="/tmp/firehol-tmp-$$.sh"
+FIREHOL_DIR="/tmp/firehol-tmp-$$"
+FIREHOL_CHAINS_DIR="${FIREHOL_DIR}/chains"
+FIREHOL_OUTPUT="${FIREHOL_DIR}/firehol-out.sh"
+FIREHOL_SAVED="${FIREHOL_DIR}/firehol-save.sh"
+FIREHOL_TMP="${FIREHOL_DIR}/firehol-tmp.sh"
 
 # This is our version number. It is increased when the configuration
 # file commands and arguments change their meaning and usage, so that
@@ -382,14 +384,8 @@ work_function="Initializing"
 # ------------------------------------------------------------------------------
 # Keep status information
 
-# Keeps a list of all interfaces we have setup rules
-work_interfaces=
-
 # 0 = no errors, 1 = there were errors in the script
 work_final_status=0
-
-# keeps a list of all created iptables chains
-work_created_chains=
 
 
 # ------------------------------------------------------------------------------
@@ -1053,42 +1049,19 @@ firehol_exit() {
 		echo
 	fi
 	
-	test -f "${FIREHOL_OUTPUT}"	&& rm -f "${FIREHOL_OUTPUT}"
-	test -f "${FIREHOL_OUTPUT}.log"	&& rm -f "${FIREHOL_OUTPUT}.log"
-	test -f "${FIREHOL_SAVED}"	&& rm -f "${FIREHOL_SAVED}"
-	test -f "${FIREHOL_TMP}"	&& rm -f "${FIREHOL_TMP}"
-	test -f "${FIREHOL_TMP}.awk"	&& rm -f "${FIREHOL_TMP}.awk"
-	
+	test -d "${FIREHOL_DIR}" && rm -rf "${FIREHOL_DIR}"
 	return 0
 }
-
-# Make sure there is no saved firewall.
-test -f "${FIREHOL_SAVED}" && rm -f "${FIREHOL_SAVED}"
 
 # Run our exit even if we don't call exit.
 trap firehol_exit EXIT
 
+test -d "${FIREHOL_DIR}" && rm -rf "${FIREHOL_DIR}"
+mkdir -p "${FIREHOL_DIR}"
+test $? -gt 0 && exit 1
 
-
-# ------------------------------------------------------------------------------
-# Keep track of all interfaces used
-
-register_iface() {
-	local iface="${1}"
-	
-	local found=0
-	local x=
-	for x in ${work_interfaces}
-	do
-		if [ "${x}" = "${iface}" ]
-		then
-			found=1
-			break
-		fi
-	done
-	
-	test $found -eq 0 && work_interfaces="${work_interfaces} ${iface}"
-}
+mkdir -p "${FIREHOL_CHAINS_DIR}"
+test $? -gt 0 && exit 1
 
 
 # ------------------------------------------------------------------------------
@@ -1247,8 +1220,8 @@ close_interface() {
 			;;
 		
 		*)
-			local -a inlog=(loglimit "IN-${work_name}")
-			local -a outlog=(loglimit "OUT-${work_name}")
+			local -a inlog=(loglimit "'IN-${work_name}'")
+			local -a outlog=(loglimit "'OUT-${work_name}'")
 			;;
 	esac
 	
@@ -1835,104 +1808,105 @@ rule() {
 	# ----------------------------------------------------------------------------------
 	# Process the positive rules
 	
-	local inf=
+	# some sanity check for the error handler
 	test -z "${inface}" && error "Cannot accept an empty 'inface'." && return 1
-	for inf in ${inface}
+	test -z "${outface}" && error "Cannot accept an empty 'outface'." && return 1
+	test -z "${src}" && error "Cannot accept an empty 'src'." && return 1
+	test -z "${dst}" && error "Cannot accept an empty 'dst'." && return 1
+	test -z "${sport}" && error "Cannot accept an empty 'sport'." && return 1
+	test -z "${dport}" && error "Cannot accept an empty 'dport'." && return 1
+	test -z "${proto}" && error "Cannot accept an empty 'proto'." && return 1
+	
+	
+	local pr=
+	for pr in ${proto}
 	do
-		unset inf_arg
-		case ${inf} in
+		unset proto_arg
+		
+		case ${pr} in
 			any|ANY)
 				;;
 			
 			*)
-				local -a inf_arg=("-i" "${inf}")
-				register_iface ${inf}
+				local -a proto_arg=("-p" "${proto}")
 				;;
 		esac
-		
-		local outf=
-		test -z "${outface}" && error "Cannot accept an empty 'outface'." && return 1
-		for outf in ${outface}
+			
+		local inf=
+		for inf in ${inface}
 		do
-			unset outf_arg
-			case ${outf} in
+			unset inf_arg
+			case ${inf} in
 				any|ANY)
 					;;
 				
 				*)
-					local -a outf_arg=("-o" "${outf}")
-					register_iface ${outf}
+					local -a inf_arg=("-i" "${inf}")
 					;;
 			esac
 			
-			local s=
-			test -z "${src}" && error "Cannot accept an empty 'src'." && return 1
-			for s in ${src}
+			local outf=
+			for outf in ${outface}
 			do
-				unset s_arg
-				case ${s} in
+				unset outf_arg
+				case ${outf} in
 					any|ANY)
 						;;
 					
 					*)
-						local -a s_arg=("-s" "${s}")
+						local -a outf_arg=("-o" "${outf}")
 						;;
 				esac
 				
-				local d=
-				test -z "${dst}" && error "Cannot accept an empty 'dst'." && return 1
-				for d in ${dst}
+				local sp=
+				for sp in ${sport}
 				do
-					unset d_arg
-					case ${d} in
+					unset sp_arg
+					case ${sp} in
 						any|ANY)
 							;;
 						
 						*)
-							local -a d_arg=("-d" "${d}")
+							local -a sp_arg=("--sport" "${sp}")
 							;;
 					esac
 					
-					local sp=
-					test -z "${sport}" && error "Cannot accept an empty 'sport'." && return 1
-					for sp in ${sport}
+					local dp=
+					for dp in ${dport}
 					do
-						unset sp_arg
-						case ${sp} in
+						unset dp_arg
+						case ${dp} in
 							any|ANY)
 								;;
 							
 							*)
-								local -a sp_arg=("--sport" "${sp}")
+								local -a dp_arg=("--dport" "${dp}")
 								;;
 						esac
 						
-						local dp=
-						test -z "${dport}" && error "Cannot accept an empty 'dport'." && return 1
-						for dp in ${dport}
+						local s=
+						for s in ${src}
 						do
-							unset dp_arg
-							case ${dp} in
+							unset s_arg
+							case ${s} in
 								any|ANY)
 									;;
 								
 								*)
-									local -a dp_arg=("--dport" "${dp}")
+									local -a s_arg=("-s" "${s}")
 									;;
 							esac
 							
-							local pr=
-							test -z "${proto}" && error "Cannot accept an empty 'proto'." && return 1
-							for pr in ${proto}
+							local d=
+							for d in ${dst}
 							do
-								unset proto_arg
-								
-								case ${pr} in
+								unset d_arg
+								case ${d} in
 									any|ANY)
 										;;
 									
 									*)
-										local -a proto_arg=("-p" "${proto}")
+										local -a d_arg=("-d" "${d}")
 										;;
 								esac
 								
@@ -1954,18 +1928,18 @@ rule() {
 									local -a iplimit_arg=("-m" "iplimit" "--iplimit-above" "${iplimit}" "--iplimit-mask" "${iplimit_mask}")
 								fi
 								
-								declare -a basecmd=("${table}" "-A" "${chain}" "${inf_arg[@]}" "${outf_arg[@]}" "${limit_arg[@]}" "${iplimit_arg[@]}" "${proto_arg[@]}" "${s_arg[@]}" "${sp_arg[@]}" "${d_arg[@]}" "${dp_arg[@]}" "${state_arg[@]}")
+								declare -a basecmd=("${inf_arg[@]}" "${outf_arg[@]}" "${limit_arg[@]}" "${iplimit_arg[@]}" "${proto_arg[@]}" "${s_arg[@]}" "${sp_arg[@]}" "${d_arg[@]}" "${dp_arg[@]}" "${state_arg[@]}")
 								
 								case "${log}" in
 									'')
 										;;
 									
 									limit)
-										iptables "${basecmd[@]}" ${custom} -m limit --limit "${FIREHOL_LOG_FREQUENCY}" --limit-burst "${FIREHOL_LOG_BURST}" -j LOG ${FIREHOL_LOG_OPTIONS} --log-prefix="${logtxt}:"
+										iptables ${table} -A "${chain}" "${basecmd[@]}" ${custom} -m limit --limit "${FIREHOL_LOG_FREQUENCY}" --limit-burst "${FIREHOL_LOG_BURST}" -j LOG ${FIREHOL_LOG_OPTIONS} --log-prefix="${logtxt}:"
 										;;
 										
 									normal)
-										iptables "${basecmd[@]}" ${custom} -j LOG ${FIREHOL_LOG_OPTIONS} --log-prefix="${logtxt}:"
+										iptables ${table} -A "${chain}" "${basecmd[@]}" ${custom} -j LOG ${FIREHOL_LOG_OPTIONS} --log-prefix="${logtxt}:"
 										;;
 										
 									*)
@@ -1975,7 +1949,7 @@ rule() {
 								
 								if [ ! "${action}" = NONE ]
 								then
-									iptables "${basecmd[@]}" ${custom} -j "${action}"
+									iptables ${table} -A "${chain}" "${basecmd[@]}" ${custom} -j "${action}"
 									test $? -gt 0 && failed=$[failed + 1]
 								fi
 							done
@@ -1996,12 +1970,19 @@ postprocess() {
 	
 #	echo "$@" " $tmp # L:${FIREHOL_LINEID}" >>${FIREHOL_OUTPUT}
 	
-	local cmd=
-	while [ ! -z "${1}" ]; do cmd="${cmd} '${1}'"; shift; done
-	printf "%s" "${cmd}" >>${FIREHOL_OUTPUT}
+#	local cmd="``"
+#	while [ ! -z "${1}" ]; do cmd="${cmd} '${1}'"; shift; done
+#	printf "%s" "${cmd}" >>${FIREHOL_OUTPUT}
+	
+	printf "%q " "$@" >>${FIREHOL_OUTPUT}
 	echo " $tmp # L:${FIREHOL_LINEID}" >>${FIREHOL_OUTPUT}
-		
-	test ${FIREHOL_DEBUG} -eq 0 && echo "check_final_status \$? '" "${cmd}" "' ${FIREHOL_LINEID}" >>${FIREHOL_OUTPUT}
+	
+	if [ ${FIREHOL_DEBUG} -eq 0 ]
+	then
+		printf "check_final_status \$? '" >>${FIREHOL_OUTPUT}
+		printf "%q " "$@" >>${FIREHOL_OUTPUT}
+		echo "' ${FIREHOL_LINEID}" >>${FIREHOL_OUTPUT}
+	fi
 	
 	return 0
 }
@@ -2033,12 +2014,7 @@ check_final_status() {
 chain_exists() {
 	local chain="${1}"
 	
-	local x=
-	for x in ${work_created_chains}
-	do
-		test "${x}" = "${chain}" && return 1
-	done
-	
+	test -f "${FIREHOL_CHAINS_DIR}/${chain}" && return 1
 	return 0
 }
 
@@ -2050,14 +2026,11 @@ create_chain() {
 	
 	work_function="Creating chain '${newchain}' under '${oldchain}' in table '${table}'"
 	
-#	echo >&2 "CREATED CHAINS : ${work_created_chains}"
-#	echo >&2 "REQUESTED CHAIN: ${newchain}"
-	
 	chain_exists "${newchain}"
 	test $? -eq 1 && error "Chain '${newchain}' already exists." && return 1
 	
 	iptables -t ${table} -N "${newchain}" || return 1
-	work_created_chains="${work_created_chains} ${newchain}"
+	touch "${FIREHOL_CHAINS_DIR}/${newchain}"
 	
 	rule table ${table} chain "${oldchain}" action "${newchain}" "$@" || return 1
 	
@@ -2176,16 +2149,16 @@ simple_service() {
 	local server="${1}"; shift
 	
 	local server_varname="server_${server}_ports"
-	local server_ports="`eval echo \\\$${server_varname}`"
+	eval local server_ports="\$${server_varname}"
 	
 	local client_varname="client_${server}_ports"
-	local client_ports="`eval echo \\\$${client_varname}`"
+	eval local client_ports="\$${client_varname}"
 	
 	test -z "${server_ports}" -o -z "${client_ports}" && return 127
 	
 	local x=
 	local varname="require_${server}_modules"
-	local value="`eval echo \\\$${varname}`"
+	eval local value="\$${varname}"
 	for x in ${value}
 	do
 		require_kernel_module $x || return 1
@@ -2194,7 +2167,7 @@ simple_service() {
 	if [ ${FIREHOL_NAT} -eq 1 ]
 	then
 		local varname="require_${server}_nat_modules"
-		local value="`eval echo \\\$${varname}`"
+		eval local value="\$${varname}"
 		for x in ${value}
 		do
 			require_kernel_module $x || return 1
@@ -2233,8 +2206,15 @@ rules_custom() {
 	local sp=
 	for sp in ${my_server_ports}
 	do
-		local proto="`echo $sp | cut -d '/' -f 1`"
-		local sport="`echo $sp | cut -d '/' -f 2`"
+		local proto=
+		local sport=
+		
+		IFS="/" read proto sport <<EOF
+$sp
+EOF
+		
+#		local proto="`echo $sp | cut -d '/' -f 1`"
+#		local sport="`echo $sp | cut -d '/' -f 2`"
 		
 		local cp=
 		for cp in ${my_client_ports}
