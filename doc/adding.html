@@ -19,6 +19,26 @@ automatically. FireHOL is extremely easy to understand, configure and audit.
 
 <BODY bgcolor="#FFFFFF">
 
+<center>
+<script type="text/javascript"><!--
+google_ad_client = "pub-4254040714325099";
+google_ad_width = 728;
+google_ad_height = 90;
+google_ad_format = "728x90_as";
+google_ad_channel ="";
+google_page_url = document.location;
+google_color_border = "336699";
+google_color_bg = "FFFFFF";
+google_color_link = "0000FF";
+google_color_url = "008000";
+google_color_text = "000000";
+//--></script>
+<script type="text/javascript"
+  src="http://pagead2.googlesyndication.com/pagead/show_ads.js">
+</script>
+</center>
+<p>
+
 It is very simple to extend FireHOL for simple single socket services.
 There are two different ways to do it.<p>
 
@@ -260,12 +280,40 @@ the complex services currently supported. If you know the basics of BASH program
 own.
 
 <p>
+<table border=0 cellpadding=10 cellspacing=0 width="100%">
+<tr><td bgcolor="#EEEEEE"><b><a name="distributed">Distribution of services with third party packages</a></td></tr></table>
+<br>
+FireHOL v1.213 and above includes a feature that allows third parties to install new service definitions
+in the directory <b>/etc/firehol/services</b>. The purpose of this feature is to allow the distributors of
+third party packages (like proxy servers, dns servers, etc) automatically install their service definitions
+in your system when their applications are installed.
+<p>
+To install a service definition, just create a file with any name, but with extension <b>.conf</b> in the
+directory <b>/etc/firehol/services</b>. The file itself must be a BASH script with any logic in it. The only
+requirements are:
+<ul>
+	<li>The script sets up one or more service definitions, either in simple or complex form.</li>
+	<li>The first line of the script looks like this:
+	<p>
+	<b>#FHVER: 1:213</b>
+	<p>
+	The two numbers are the major and minor versions of the FireHOL service definition API. In fact,
+	the major number (1) is increased if the API logic is changed, and the minor (213) is the minimum version of
+	FireHOL the service is expected to work with.
+	<p>
+	FireHOL will deny to run the service if the major number is different or if the installed version
+	of FireHOL is older than the one expected by the service.
+	</li>
+</ul>
+
+
+<p>
 <hr noshade size=1>
 <table border=0 width="100%">
 <tr><td align=center valign=middle>
 	<A href="http://sourceforge.net"><IMG src="http://sourceforge.net/sflogo.php?group_id=58425&amp;type=5" width="210" height="62" border="0" alt="SourceForge Logo"></A>
 </td><td align=center valign=middle>
-	<small>$Id: adding.html,v 1.8 2003/04/05 21:20:56 ktsaou Exp $</small>
+	<small>$Id: adding.html,v 1.9 2004/10/31 23:40:44 ktsaou Exp $</small>
 	<p>
 	<b>FireHOL</b>, a firewall for humans...<br>
 	&copy; Copyright 2002

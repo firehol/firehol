@@ -20,6 +20,27 @@ automatically. FireHOL is extremely easy to understand, configure and audit.
 
 <BODY bgcolor="#FFFFFF">
 
+<center>
+<script type="text/javascript"><!--
+google_ad_client = "pub-4254040714325099";
+google_ad_width = 728;
+google_ad_height = 90;
+google_ad_format = "728x90_as";
+google_ad_channel ="";
+google_page_url = document.location;
+google_color_border = "336699";
+google_color_bg = "FFFFFF";
+google_color_link = "0000FF";
+google_color_url = "008000";
+google_color_text = "000000";
+//--></script>
+<script type="text/javascript"
+  src="http://pagead2.googlesyndication.com/pagead/show_ads.js">
+</script>
+</center>
+<p>
+
+
 <center><a name="contents"><h2>Table of Contents</h2></a></center>
 <ul>
 	<li><a href="#primary_commands">Primary Commands</a>
@@ -43,6 +64,8 @@ automatically. FireHOL is extremely easy to understand, configure and audit.
 			</li>
 			<li><a href="#route">route</a>, route traffic
 			</li>
+			<li><a href="#group_cmd">group</a>, group a number of services with common optional rule parameters
+			</li>
 		</ul>
 		&nbsp;
 	</li>
@@ -51,6 +74,7 @@ automatically. FireHOL is extremely easy to understand, configure and audit.
 			<li><a href="#blacklist">blacklist</a>, setup a unidirectional or bidirectional blacklist</li>
 			<li><a href="#dnat">dnat</a>, setup a Destination NAT rule for routed traffic</li>
 			<li><a href="#dscp">dscp</a>, set the DSCP field in the packet header, to a raw value or a DiffServ class</li>
+			<li><a href="#ecn_shame">ecn_shame</a>, disable ECN for all hosts in the ECN Shame list</li>
 			<li><a href="#iptables">iptables</a>, add some custom iptables commands to the firewall
 			<li><a href="#mac">mac</a>, setup a source mac address with IP match</li>
 			<li><a href="#mark">mark</a>, mark traffic for traffic shapping tools</li>
@@ -372,6 +396,42 @@ Subcommands must be given within <a href="#primary_commands">Primary commands</a
 	The <b>route</b> subcommand is an alias for the <b>server</b> command that can be used only on routers, not interfaces.
 	<p>
 
+<hr noshade size=1 width="100%">
+	
+	<a name="group_cmd"><h3><b>group</b> with [optional rule parameters]</h3>
+	<h3><b>group</b> end</h3></a>
+	
+	The <b>group</b> subcommand allows grouping for <a href="#server">server</a> and <a href="#client">client</a>
+	subcommands that share common optional rule parameters.
+	<p>
+	There is only one reason for using groups: Optimization of the generated firewall rules.
+	With groups, all the optional rule parameters are checked only once, while entering the
+	group, and then each service is applied without extra processing.
+	<p>
+	For example:
+<center><table border=0 cellpadding=15 cellspacing=20 width="70%">
+<tr><td bgcolor="#F0F0F0">
+<b><pre>
+
+	interface any world
+		server http accept
+		
+		# trusted services
+		group with src "1.2.3.4 5.6.7.8"
+			server ssh	accept
+			server telnet	accept
+		group end
+		
+		client all accept
+</pre></b>
+</td></tr>
+</table>
+</center>
+	The above will be optimal compared with <b>server "ssh telnet" accept src "1.2.3.4 5.6.7.8"</b>.
+	<p>
+	FireHOL supports nested groups.
+	<p>
+
 
 <table border=0 cellpadding=10 cellspacing=0 width="100%"><tr bgcolor="#777777"><td align=center><font color="white"><b><big><a name="helpers">Helper Commands</a></td</tr></table>
 <small>Helper commands provide shortcuts for common functions not handled by the core of FireHOL's logic.</small>
@@ -443,6 +503,13 @@ Subcommands must be given within <a href="#primary_commands">Primary commands</a
 	<br>Example 2: <b>dscp 0x20 FORWARD</b>, will set DCSP to 0x20 (32) of all packets passing through the local machine.
 	<br>Example 3: <b>dscp class EF FORWARD proto tcp dport 25 dst 1.1.1.1 src 2.2.2.2</b>, will set DSCP to DeffServ class EF
 	for all packets sent by 2.2.2.2, passing through the local machine and targeting port TCP/25 of host 1.1.1.1.
+	<p>
+
+<hr noshade size=1 width="100%">
+	
+	<a name="ecn_shame"><h3><b>ecn_shame</b></h3></a>
+	The <b>ecn_shame</b> helper checks if <a href="http://urchin.earth.li/ecn/">Explicit Congestion Notification (ECN)</a> is enabled in the kernel, and if it is, it fetches
+	the <a href="http://urchin.earth.li/cgi-bin/ecn.pl?output=ip">ECN Hall of Shame</a> list and disables ECN for all hosts present in the list.
 	<p>
 
 <hr noshade size=1 width="100%">
@@ -1532,7 +1599,7 @@ about optional rule parameters that should not be used in certain commands.
 <tr><td align=center valign=middle>
 	<A href="http://sourceforge.net"><IMG src="http://sourceforge.net/sflogo.php?group_id=58425&amp;type=5" width="210" height="62" border="0" alt="SourceForge Logo"></A>
 </td><td align=center valign=middle>
-	<small>$Id: commands.html,v 1.54 2004/10/31 02:21:02 ktsaou Exp $</small>
+	<small>$Id: commands.html,v 1.55 2004/10/31 23:40:45 ktsaou Exp $</small>
 	<p>
 	<b>FireHOL</b>, a firewall for humans...<br>
 	&copy; Copyright 2003
