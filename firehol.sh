@@ -10,8 +10,17 @@
 #
 # config: /etc/firehol/firehol.conf
 #
-# $Id: firehol.sh,v 1.222 2005/01/21 19:58:09 ktsaou Exp $
+# $Id: firehol.sh,v 1.223 2005/01/24 21:23:38 ktsaou Exp $
 #
+
+# Make sure only root can run us.
+if [ ! "${UID}" = 0 ]
+then
+	echo >&2
+	echo >&2
+	echo >&2 "Only user root can run FireHOL."
+	echo >&2
+fi
 
 # Remember who you are.
 FIREHOL_FILE="${0}"
@@ -27,7 +36,7 @@ FIREHOL_DEFAULT_WORKING_DIRECTORY="${PWD}"
 # XXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXX
 # ------------------------------------------------------------------------------
 
-PATH="${PATH}:/bin:/usr/bin:/sbin:/usr/sbin"
+export PATH="${PATH}:/bin:/usr/bin:/sbin:/usr/sbin"
 
 # External commands FireHOL will need.
 # If one of those is not found, FireHOL will refuse to run.
@@ -51,6 +60,11 @@ which_cmd() {
 			echo >&2 "	FireHOL requires this command for its operation."
 			echo >&2 "	Please install the required package and retry."
 			echo >&2
+			echo >&2 "	Note that you need an operational 'which' command"
+			echo >&2 "	for FireHOL to find all the external programs it"
+			echo >&2 "	needs. Check it yourself. Run:"
+			echo >&2
+			echo >&2 "	which $2"
 			exit 1
 		fi
 		return 1
@@ -91,11 +105,16 @@ which_cmd UNAME_CMD uname
 which_cmd UNIQ_CMD uniq
 which_cmd -n WGET_CMD wget || which_cmd CURL_CMD curl
 
+# Make sure our generated files cannot be accessed by anyone else.
+umask 077
+
+# Be nice on production environments
+${RENICE_CMD} 10 $$ >/dev/null 2>/dev/null
 
 # Find our minor version
 firehol_minor_version() {
 ${CAT_CMD} <<"EOF" | ${CUT_CMD} -d ' ' -f 3 | ${CUT_CMD} -d '.' -f 2
-$Id: firehol.sh,v 1.222 2005/01/21 19:58:09 ktsaou Exp $
+$Id: firehol.sh,v 1.223 2005/01/24 21:23:38 ktsaou Exp $
 EOF
 }
 
@@ -121,14 +140,120 @@ ${IPTABLES_CMD} -nxvL >/dev/null 2>&1
 # XXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXX
 # ------------------------------------------------------------------------------
 
+# ----------------------------------------------------------------------
+# Directories and files
+
+# These files will be created and deleted during our run.
+FIREHOL_DIR="/tmp/firehol-tmp-$$"
+FIREHOL_CHAINS_DIR="${FIREHOL_DIR}/chains"
+FIREHOL_OUTPUT="${FIREHOL_DIR}/firehol-out.sh"
+FIREHOL_SAVED="${FIREHOL_DIR}/firehol-save.sh"
+FIREHOL_TMP="${FIREHOL_DIR}/firehol-tmp.sh"
+
 FIREHOL_SPOOL_DIR="/var/spool/firehol"
+
+# The default configuration file
+# It can be changed on the command line
+FIREHOL_CONFIG_DIR="/etc/firehol"
+FIREHOL_CONFIG="${FIREHOL_CONFIG_DIR}/firehol.conf"
+
+# Where /etc/init.d/iptables expects its configuration?
+# Leave it empty for automatic detection
+FIREHOL_AUTOSAVE=
+
+
+# ------------------------------------------------------------------------------
+# Make sure we automatically cleanup when we exit.
+# WHY:
+# Even a CTRL-C will call this and we will not leave temp files.
+# Also, if a configuration file breaks, we will detect this too.
+
+firehol_exit() {
+	if [ -f "${FIREHOL_SAVED}" ]
+	then
+		echo
+		echo -n $"FireHOL: Restoring old firewall:"
+		iptables-restore <"${FIREHOL_SAVED}"
+		if [ $? -eq 0 ]
+		then
+			success $"FireHOL: Restoring old firewall:"
+		else
+			failure $"FireHOL: Restoring old firewall:"
+		fi
+		echo
+	fi
+	
+	test -d "${FIREHOL_DIR}" && ${RM_CMD} -rf "${FIREHOL_DIR}"
+	return 0
+}
+
+# Run our exit even if we don't call exit.
+trap firehol_exit EXIT
+
+
+# ------------------------------------------------------------------------------
+# Create the directories we need.
+
+if [ ! -d "${FIREHOL_CONFIG_DIR}" -a -f /etc/firehol.conf ]
+then
+	"${MKDIR_CMD}" "${FIREHOL_CONFIG_DIR}"			|| exit 1
+	"${CHOWN_CMD}" root:root "${FIREHOL_CONFIG_DIR}"	|| exit 1
+	"${CHMOD_CMD}" 700 "${FIREHOL_CONFIG_DIR}"		|| exit 1
+	"${MV_CMD}" /etc/firehol.conf "${FIREHOL_CONFIG}"	|| exit 1
+	
+	echo >&2
+	echo >&2
+	echo >&2 "NOTICE: Your config file /etc/firehol.conf has been moved to ${FIREHOL_CONFIG}"
+	echo >&2
+	sleep 5
+fi
+
+# Externally defined services can be placed in "${FIREHOL_CONFIG_DIR}/services/"
+if [ ! -d "${FIREHOL_CONFIG_DIR}/services" ]
+then
+	"${MKDIR_CMD}" -p "${FIREHOL_CONFIG_DIR}/services"
+	if [ $? -ne 0 ]
+	then
+		echo >&2
+		echo >&2
+		echo >&2 "FireHOL needs to create the directory '${FIREHOL_CONFIG_DIR}/services', but it cannot."
+		echo >&2 "Possibly you have a file with this name, or something else is happening."
+		echo >&2 "Please solve this issue and retry".
+		echo >&2
+		exit 1
+	fi
+	"${CHOWN_CMD}" root:root "${FIREHOL_CONFIG_DIR}/services"
+	"${CHMOD_CMD}" 700 "${FIREHOL_CONFIG_DIR}/services"
+fi
+
+# Remove any old directories that might be there.
+if [ -d "${FIREHOL_DIR}" ]
+then
+	"${RM_CMD}" -rf "${FIREHOL_DIR}"
+	if [ $? -ne 0 -o -e "${FIREHOL_DIR}" ]
+	then
+		echo >&2
+		echo >&2
+		echo >&2 "Cannot clean temporary directory '${FIREHOL_DIR}'."
+		echo >&2
+		exit 1
+	fi
+fi
+"${MKDIR_CMD}" -p "${FIREHOL_DIR}"				|| exit 1
+"${MKDIR_CMD}" -p "${FIREHOL_CHAINS_DIR}"			|| exit 1
+
 
 # Make sure we have a directory for our data.
 if [ ! -d "${FIREHOL_SPOOL_DIR}" ]
 then
-	${MKDIR_CMD} -p "${FIREHOL_SPOOL_DIR}" || exit 1
+	"${MKDIR_CMD}" -p "${FIREHOL_SPOOL_DIR}"		|| exit 1
+	"${CHOWN_CMD}" root:root "${FIREHOL_CONFIG_DIR}"	|| exit 1
+	"${CHMOD_CMD}" 700 "${FIREHOL_CONFIG_DIR}"		|| exit 1
 fi
 
+
+# ------------------------------------------------------------------------------
+# IP definitions
 
 # IANA Reserved IPv4 address space
 # Suggested by Fco.Felix Belmonte <ffelix@gescosoft.com>
@@ -202,21 +327,6 @@ LOCAL_CLIENT_PORTS="${LOCAL_CLIENT_PORTS_LOW}:${LOCAL_CLIENT_PORTS_HIGH}"
 
 
 # ----------------------------------------------------------------------
-# Temporary directories and files
-
-# These files will be created and deleted during our run.
-FIREHOL_DIR="/tmp/firehol-tmp-$$"
-FIREHOL_CHAINS_DIR="${FIREHOL_DIR}/chains"
-FIREHOL_OUTPUT="${FIREHOL_DIR}/firehol-out.sh"
-FIREHOL_SAVED="${FIREHOL_DIR}/firehol-save.sh"
-FIREHOL_TMP="${FIREHOL_DIR}/firehol-tmp.sh"
-
-# Where /etc/init.d/iptables expects its configuration?
-# Leave it empty for automatic detection
-FIREHOL_AUTOSAVE=
-
-
-# ----------------------------------------------------------------------
 # This is our version number. It is increased when the configuration
 # file commands and arguments change their meaning and usage, so that
 # the user will have to review it more precisely.
@@ -255,24 +365,7 @@ ALL_SHOULD_ALSO_RUN=
 
 
 # ------------------------------------------------------------------------------
-# Command Line Arguments Defaults
-
-# The default configuration file
-# It can be changed on the command line
-FIREHOL_CONFIG_DIR="/etc/firehol"
-FIREHOL_CONFIG="${FIREHOL_CONFIG_DIR}/firehol.conf"
-
-if [ ! -d "${FIREHOL_CONFIG_DIR}" -a -f /etc/firehol.conf ]
-then
-	mkdir "${FIREHOL_CONFIG_DIR}"
-	${CHOWN_CMD} root:root "${FIREHOL_CONFIG_DIR}"
-	${CHMOD_CMD} 700 "${FIREHOL_CONFIG_DIR}"
-	${MV_CMD} /etc/firehol.conf "${FIREHOL_CONFIG}"
-	
-	echo >&2
-	echo >&2 "NOTICE: Your config file /etc/firehol.conf has been moved to ${FIREHOL_CONFIG}"
-	sleep 5
-fi
+# Various Defaults
 
 # If set to 1, we are just going to present the resulting firewall instead of
 # installing it.
@@ -1625,30 +1718,18 @@ fi
 # XXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXX
 # ------------------------------------------------------------------------------
 
-# Externally defined services can be placed in "${FIREHOL_CONFIG_DIR}/services/"
-if [ ! -d "${FIREHOL_CONFIG_DIR}/services" ]
-then
-	"${MKDIR_CMD}" -p "${FIREHOL_CONFIG_DIR}/services"
-	if [ $? -ne 0 ]
-	then
-		echo >&2
-		echo >&2
-		echo >&2 "FireHOL needs to create the directory '${FIREHOL_CONFIG_DIR}/services', but it cannot."
-		echo >&2 "Possibly you have a file with this name, or something else is happening."
-		echo >&2 "Please solve this issue and retry".
-		echo >&2
-		exit 1
-	fi
-	"${CHOWN_CMD}" root:root "${FIREHOL_CONFIG_DIR}/services"
-	"${CHMOD_CMD}" 700 "${FIREHOL_CONFIG_DIR}/services"
-fi
-
 # Load all the services.
 # All these files should start with: #FHVER: 1
 cd "${FIREHOL_CONFIG_DIR}/services" || exit 1
 for f in `ls *.conf 2>/dev/null`
 do
 	cd "${FIREHOL_CONFIG_DIR}/services" || exit 1
+	
+	if [ ! -O "${f}" ]
+	then
+		echo >&2 " >>> Ignoring service in '${FIREHOL_CONFIG_DIR}/services/${f}' because it is not owned by root."
+		continue
+	fi
 	
 	n=`"${HEAD_CMD}" -n 1 "${f}" | "${CUT_CMD}" -d ':' -f 2`
 	"${EXPR_CMD}" ${n} + 0 >/dev/null 2>&1
@@ -2640,42 +2721,6 @@ set_work_function() {
 		test ${show_explain} -eq 1 && printf "\n# INFO>>> %s\n" "$*" >>${FIREHOL_OUTPUT}
 	fi
 }
-
-# ------------------------------------------------------------------------------
-# Make sure we automatically cleanup when we exit.
-# WHY:
-# Even a CTRL-C will call this and we will not leave temp files.
-# Also, if a configuration file breaks, we will detect this too.
-
-firehol_exit() {
-	
-	if [ -f "${FIREHOL_SAVED}" ]
-	then
-		echo
-		echo -n $"FireHOL: Restoring old firewall:"
-		iptables-restore <"${FIREHOL_SAVED}"
-		if [ $? -eq 0 ]
-		then
-			success $"FireHOL: Restoring old firewall:"
-		else
-			failure $"FireHOL: Restoring old firewall:"
-		fi
-		echo
-	fi
-	
-	test -d "${FIREHOL_DIR}" && ${RM_CMD} -rf "${FIREHOL_DIR}"
-	return 0
-}
-
-# Run our exit even if we don't call exit.
-trap firehol_exit EXIT
-
-test -d "${FIREHOL_DIR}" && ${RM_CMD} -rf "${FIREHOL_DIR}"
-${MKDIR_CMD} -p "${FIREHOL_DIR}"
-test $? -gt 0 && exit 1
-
-${MKDIR_CMD} -p "${FIREHOL_CHAINS_DIR}"
-test $? -gt 0 && exit 1
 
 
 # ------------------------------------------------------------------------------
@@ -4859,9 +4904,6 @@ failure() {
 	echo " FAILED"
 }
 
-# Be nice on production environments
-${RENICE_CMD} 10 $$ >/dev/null 2>/dev/null
-
 # ------------------------------------------------------------------------------
 # A small part bellow is copied from /etc/init.d/iptables
 
@@ -5079,7 +5121,7 @@ case "${arg}" in
 		else
 		
 		${CAT_CMD} <<EOF
-$Id: firehol.sh,v 1.222 2005/01/21 19:58:09 ktsaou Exp $
+$Id: firehol.sh,v 1.223 2005/01/24 21:23:38 ktsaou Exp $
 (C) Copyright 2003, Costa Tsaousis <costa@tsaousis.gr>
 FireHOL is distributed under GPL.
 
@@ -5265,7 +5307,7 @@ then
 	
 	${CAT_CMD} <<EOF
 
-$Id: firehol.sh,v 1.222 2005/01/21 19:58:09 ktsaou Exp $
+$Id: firehol.sh,v 1.223 2005/01/24 21:23:38 ktsaou Exp $
 (C) Copyright 2003, Costa Tsaousis <costa@tsaousis.gr>
 FireHOL is distributed under GPL.
 Home Page: http://firehol.sourceforge.net
@@ -5551,15 +5593,15 @@ then
 	}
 	
 	cd "${FIREHOL_DIR}"
-	${MKDIR_CMD} ports
-	${MKDIR_CMD} keys
+	"${MKDIR_CMD}" ports
+	"${MKDIR_CMD}" keys
 	cd ports
-	${MKDIR_CMD} tcp
-	${MKDIR_CMD} udp
+	"${MKDIR_CMD}" tcp
+	"${MKDIR_CMD}" udp
 	
-	${CAT_CMD} >&2 <<EOF
+	"${CAT_CMD}" >&2 <<EOF
 
-$Id: firehol.sh,v 1.222 2005/01/21 19:58:09 ktsaou Exp $
+$Id: firehol.sh,v 1.223 2005/01/24 21:23:38 ktsaou Exp $
 (C) Copyright 2003, Costa Tsaousis <costa@tsaousis.gr>
 FireHOL is distributed under GPL.
 Home Page: http://firehol.sourceforge.net
@@ -5642,7 +5684,7 @@ EOF
 	echo "# "
 
 	${CAT_CMD} <<EOF
-# $Id: firehol.sh,v 1.222 2005/01/21 19:58:09 ktsaou Exp $
+# $Id: firehol.sh,v 1.223 2005/01/24 21:23:38 ktsaou Exp $
 # (C) Copyright 2003, Costa Tsaousis <costa@tsaousis.gr>
 # FireHOL is distributed under GPL.
 # Home Page: http://firehol.sourceforge.net
