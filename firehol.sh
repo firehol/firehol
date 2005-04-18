@@ -10,7 +10,7 @@
 #
 # config: /etc/firehol/firehol.conf
 #
-# $Id: firehol.sh,v 1.232 2005/04/18 21:00:22 ktsaou Exp $
+# $Id: firehol.sh,v 1.233 2005/04/18 22:38:23 ktsaou Exp $
 #
 
 # Make sure only root can run us.
@@ -171,7 +171,7 @@ ${RENICE_CMD} 10 $$ >/dev/null 2>/dev/null
 # Find our minor version
 firehol_minor_version() {
 ${CAT_CMD} <<"EOF" | ${CUT_CMD} -d ' ' -f 3 | ${CUT_CMD} -d '.' -f 2
-$Id: firehol.sh,v 1.232 2005/04/18 21:00:22 ktsaou Exp $
+$Id: firehol.sh,v 1.233 2005/04/18 22:38:23 ktsaou Exp $
 EOF
 }
 
@@ -3225,6 +3225,12 @@ rule() {
 	local dst=any
 	local dstnot=
 	
+	local srctype=
+	local srctypenot=
+	
+	local dsttype=
+	local dsttypenot=
+	
 	local sport=any
 	local sportnot=
 	
@@ -3500,6 +3506,56 @@ rule() {
 					fi
 					test ${softwarnings} -eq 1 -a ! "${src}" = "any" && softwarning "Overwritting param: src '${src}' becomes '${1}'"
 					src="${1}"
+				fi
+				shift
+				;;
+				
+			srctype|SRCTYPE|sourcetype|SOURCETYPE)
+				shift
+				if [ ${reverse} -eq 0 ]
+				then
+					srctypenot=
+					if [ "${1}" = "not" -o "${1}" = "NOT" ]
+					then
+						shift
+						srctypenot="!"
+					fi
+					test ${softwarnings} -eq 1 -a ! "${srctype}" = "" && softwarning "Overwritting param: srctype '${srctype}' becomes '${1}'"
+					srctype="`echo ${1} | sed "s|^ \+||" | sed "s| \+\$||" | sed "s| \+|,|g" | tr a-z A-Z`"
+				else
+					dsttypenot=
+					if [ "${1}" = "not" -o "${1}" = "NOT" ]
+					then
+						shift
+						dsttypenot="!"
+					fi
+					test ${softwarnings} -eq 1 -a ! "${dsttype}" = "" && softwarning "Overwritting param: dsttype '${dsttype}' becomes '${1}'"
+					dsttype="`echo ${1} | sed "s|^ \+||" | sed "s| \+\$||" | sed "s| \+|,|g" | tr a-z A-Z`"
+				fi
+				shift
+				;;
+				
+			dsttype|DSTTYPE|destinationtype|DESTINATIONTYPE)
+				shift
+				if [ ${reverse} -eq 0 ]
+				then
+					dsttypenot=
+					if [ "${1}" = "not" -o "${1}" = "NOT" ]
+					then
+						shift
+						dsttypenot="!"
+					fi
+					test ${softwarnings} -eq 1 -a ! "${dsttype}" = "" && softwarning "Overwritting param: dsttype '${dsttype}' becomes '${1}'"
+					dsttype="`echo ${1} | sed "s|^ \+||" | sed "s| \+\$||" | sed "s| \+|,|g" | tr a-z A-Z`"
+				else
+					srctypenot=
+					if [ "${1}" = "not" -o "${1}" = "NOT" ]
+					then
+						shift
+						srctypenot="!"
+					fi
+					test ${softwarnings} -eq 1 -a ! "${srctype}" = "" && softwarning "Overwritting param: srctype '${srctype}' becomes '${1}'"
+					srctype="`echo ${1} | sed "s|^ \+||" | sed "s| \+\$||" | sed "s| \+|,|g" | tr a-z A-Z`"
 				fi
 				shift
 				;;
@@ -4041,7 +4097,7 @@ rule() {
 	#         this temporary chain.
 	
 	
-	# ignore 'statenot' since it is negated in the positive rules
+	# ignore 'statenot', 'srctypenot', 'dsttypenot' since it is negated in the positive rules
 	if [ ! -z "${infacenot}${outfacenot}${physinnot}${physoutnot}${macnot}${srcnot}${dstnot}${sportnot}${dportnot}${protonot}${uidnot}${gidnot}${pidnot}${sidnot}${cmdnot}${marknot}${tosnot}${dscpnot}" ]
 	then
 		if [ ${action_is_chain} -eq 1 ]
@@ -4590,6 +4646,25 @@ rule() {
 				;;
 		esac
 	
+	# addrtype (srctype, dsttype)
+	local -a addrtype_arg=()
+	local -a stp_arg=()
+	local -a dtp_arg=()
+	if [ ! -z "${srctype}${dsttype}" ]
+	then
+		local -a addrtype_arg=("-m" "addrtype")
+		
+		if [ ! -z "${srctype}" ]
+		then
+			local -a stp_arg=("${srctypenot}" "--src-type" "${srctype}")
+		fi
+		
+		if [ ! -z "${dsttype}" ]
+		then
+			local -a dtp_arg=("${dsttypenot}" "--dst-type" "${dsttype}")
+		fi
+	fi
+	
 	# state
 	local -a state_arg=()
 	if [ ! -z "${state}" ]
@@ -4612,7 +4687,7 @@ rule() {
 	fi
 	
 	# build the command
-	declare -a basecmd=("${inf_arg[@]}" "${outf_arg[@]}" "${physdev_arg[@]}" "${inph_arg[@]}" "${outph_arg[@]}" "${limit_arg[@]}" "${iplimit_arg[@]}" "${proto_arg[@]}" "${s_arg[@]}" "${sp_arg[@]}" "${d_arg[@]}" "${dp_arg[@]}" "${owner_arg[@]}" "${uid_arg[@]}" "${gid_arg[@]}" "${pid_arg[@]}" "${sid_arg[@]}" "${cmd_arg[@]}" "${state_arg[@]}" "${mc_arg[@]}" "${mark_arg[@]}" "${tos_arg[@]}" "${dscp_arg[@]}")
+	declare -a basecmd=("${inf_arg[@]}" "${outf_arg[@]}" "${physdev_arg[@]}" "${inph_arg[@]}" "${outph_arg[@]}" "${limit_arg[@]}" "${iplimit_arg[@]}" "${proto_arg[@]}" "${s_arg[@]}" "${sp_arg[@]}" "${d_arg[@]}" "${dp_arg[@]}" "${owner_arg[@]}" "${uid_arg[@]}" "${gid_arg[@]}" "${pid_arg[@]}" "${sid_arg[@]}" "${cmd_arg[@]}" "${addrtype_arg[@]}" "${stp_arg[@]}" "${dtp_arg[@]}" "${state_arg[@]}" "${mc_arg[@]}" "${mark_arg[@]}" "${tos_arg[@]}" "${dscp_arg[@]}")
 	
 	# log mode selection
 	local -a logopts_arg=()
@@ -5204,7 +5279,7 @@ case "${arg}" in
 		else
 		
 		${CAT_CMD} <<EOF
-$Id: firehol.sh,v 1.232 2005/04/18 21:00:22 ktsaou Exp $
+$Id: firehol.sh,v 1.233 2005/04/18 22:38:23 ktsaou Exp $
 (C) Copyright 2003, Costa Tsaousis <costa@tsaousis.gr>
 FireHOL is distributed under GPL.
 
@@ -5390,7 +5465,7 @@ then
 	
 	${CAT_CMD} <<EOF
 
-$Id: firehol.sh,v 1.232 2005/04/18 21:00:22 ktsaou Exp $
+$Id: firehol.sh,v 1.233 2005/04/18 22:38:23 ktsaou Exp $
 (C) Copyright 2003, Costa Tsaousis <costa@tsaousis.gr>
 FireHOL is distributed under GPL.
 Home Page: http://firehol.sourceforge.net
@@ -5691,7 +5766,7 @@ then
 	
 	"${CAT_CMD}" >&2 <<EOF
 
-$Id: firehol.sh,v 1.232 2005/04/18 21:00:22 ktsaou Exp $
+$Id: firehol.sh,v 1.233 2005/04/18 22:38:23 ktsaou Exp $
 (C) Copyright 2003, Costa Tsaousis <costa@tsaousis.gr>
 FireHOL is distributed under GPL.
 Home Page: http://firehol.sourceforge.net
@@ -5774,7 +5849,7 @@ EOF
 	echo "# "
 
 	${CAT_CMD} <<EOF
-# $Id: firehol.sh,v 1.232 2005/04/18 21:00:22 ktsaou Exp $
+# $Id: firehol.sh,v 1.233 2005/04/18 22:38:23 ktsaou Exp $
 # (C) Copyright 2003, Costa Tsaousis <costa@tsaousis.gr>
 # FireHOL is distributed under GPL.
 # Home Page: http://firehol.sourceforge.net
