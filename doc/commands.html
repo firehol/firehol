@@ -1476,6 +1476,7 @@ about optional rule parameters that should not be used in certain commands.
 	<a name="FIREHOL_LOG_OPTIONS"><h3><b>FIREHOL_LOG_OPTIONS</b></h3></a>
 	<a name="FIREHOL_LOG_FREQUENCY"><h3><b>FIREHOL_LOG_FREQUENCY</b></h3></a>
 	<a name="FIREHOL_LOG_BURST"><h3><b>FIREHOL_LOG_BURST</b></h3></a>
+	<a name="FIREHOL_LOG_PREFIX"><h3><b>FIREHOL_LOG_PREFIX</b></h3></a>
 	<H4>Description</H4>
 	FIREHOL_LOG_MODE controls the method of logging used by FireHOL. Currently,
 	two modes are supported: <b>LOG</b> and <b>ULOG</b>.
@@ -1491,14 +1492,19 @@ about optional rule parameters that should not be used in certain commands.
 	rule will write packets to the syslog. FIREHOL_LOG_FREQUENCY is set to the maximum average
 	frequency and FIREHOL_LOG_BURST specifies the maximum initial number of packets to match.
 	<p>
+	FIREHOL_LOG_PREFIX adds its contents to every log line, so that FireHOL logs can easily be detected in the 
+	system log. By default it is empty.
+	<p>
 	Default: <b>FIREHOL_LOG_MODE="LOG"</b><br>
 	Default: <b>FIREHOL_LOG_OPTIONS="--log-level warning"</b><br>
 	Default: <b>FIREHOL_LOG_FREQUENCY="1/second"</b><br>
 	Default: <b>FIREHOL_LOG_BURST="5"</b><br>
+	Default: <b>FIREHOL_LOG_PREFIX=""</b><br>
 	<br>
 	Example: <b>FIREHOL_LOG_OPTIONS="--log-level info --log-tcp-options --log-ip-options"</b><br>
 	Example: <b>FIREHOL_LOG_FREQUENCY="30/minute"</b><br>
 	Example: <b>FIREHOL_LOG_BURST="2"</b><br>
+	Example: <b>FIREHOL_LOG_PREFIX="FIREHOL: "</b><br>
 	<br>
 	To see the available iptables log options, run <b>/sbin/iptables -j LOG --help</b> or <b>/sbin/iptables -j ULOG --help</b> (depending on FIREHOL_LOG_MODE)<br>
 	To see what iptables accepts as frequencies and bursts run, <b>/sbin/iptables -m limit --help</b></br>
@@ -1641,7 +1647,7 @@ about optional rule parameters that should not be used in certain commands.
 <tr><td align=center valign=middle>
 	<A href="http://sourceforge.net"><IMG src="http://sourceforge.net/sflogo.php?group_id=58425&amp;type=5" width="210" height="62" border="0" alt="SourceForge Logo"></A>
 </td><td align=center valign=middle>
-	<small>$Id: commands.html,v 1.62 2005/01/24 22:19:43 ktsaou Exp $</small>
+	<small>$Id: commands.html,v 1.63 2005/04/18 21:00:28 ktsaou Exp $</small>
 	<p>
 	<b>FireHOL</b>, a firewall for humans...<br>
 	&copy; Copyright 2004

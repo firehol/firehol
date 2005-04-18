@@ -10,7 +10,7 @@
 #
 # config: /etc/firehol/firehol.conf
 #
-# $Id: firehol.sh,v 1.231 2005/04/03 21:48:04 ktsaou Exp $
+# $Id: firehol.sh,v 1.232 2005/04/18 21:00:22 ktsaou Exp $
 #
 
 # Make sure only root can run us.
@@ -171,7 +171,7 @@ ${RENICE_CMD} 10 $$ >/dev/null 2>/dev/null
 # Find our minor version
 firehol_minor_version() {
 ${CAT_CMD} <<"EOF" | ${CUT_CMD} -d ' ' -f 3 | ${CUT_CMD} -d '.' -f 2
-$Id: firehol.sh,v 1.231 2005/04/03 21:48:04 ktsaou Exp $
+$Id: firehol.sh,v 1.232 2005/04/18 21:00:22 ktsaou Exp $
 EOF
 }
 
@@ -367,6 +367,7 @@ FIREHOL_LOG_LEVEL="warning"
 FIREHOL_LOG_MODE="LOG"
 FIREHOL_LOG_FREQUENCY="1/second"
 FIREHOL_LOG_BURST="5"
+FIREHOL_LOG_PREFIX=""
 
 # The client ports to be used for "default" client ports when the
 # client specified is a foreign host.
@@ -3124,9 +3125,9 @@ rule_action_param() {
 								local -a logopts_arg=()
 								if [ "${FIREHOL_LOG_MODE}" = "ULOG" ]
 								then
-									local -a logopts_arg=("--ulog-prefix='OVERFLOW:'")
+									local -a logopts_arg=("--ulog-prefix='${FIREHOL_LOG_PREFIX}OVERFLOW:'")
 								else
-									local -a logopts_arg=("--log-level" "${FIREHOL_LOG_LEVEL}" "--log-prefix='OVERFLOW:'")
+									local -a logopts_arg=("--log-level" "${FIREHOL_LOG_LEVEL}" "--log-prefix='${FIREHOL_LOG_PREFIX}OVERFLOW:'")
 								fi
 								iptables ${table} -A "${accept_limit_chain}" -m limit --limit "${FIREHOL_LOG_FREQUENCY}" --limit-burst "${FIREHOL_LOG_BURST}" -j ${FIREHOL_LOG_MODE} ${FIREHOL_LOG_OPTIONS} "${logopts_arg[@]}"
 								
@@ -4617,9 +4618,9 @@ rule() {
 	local -a logopts_arg=()
 	if [ "${FIREHOL_LOG_MODE}" = "ULOG" ]
 	then
-		local -a logopts_arg=("--ulog-prefix='${logtxt}:'")
+		local -a logopts_arg=("--ulog-prefix='${FIREHOL_LOG_PREFIX}${logtxt}:'")
 	else
-		local -a logopts_arg=("--log-level" "${loglevel}" "--log-prefix='${logtxt}:'")
+		local -a logopts_arg=("--log-level" "${loglevel}" "--log-prefix='${FIREHOL_LOG_PREFIX}${logtxt}:'")
 	fi
 	
 	# log / loglimit
@@ -5203,7 +5204,7 @@ case "${arg}" in
 		else
 		
 		${CAT_CMD} <<EOF
-$Id: firehol.sh,v 1.231 2005/04/03 21:48:04 ktsaou Exp $
+$Id: firehol.sh,v 1.232 2005/04/18 21:00:22 ktsaou Exp $
 (C) Copyright 2003, Costa Tsaousis <costa@tsaousis.gr>
 FireHOL is distributed under GPL.
 
@@ -5389,7 +5390,7 @@ then
 	
 	${CAT_CMD} <<EOF
 
-$Id: firehol.sh,v 1.231 2005/04/03 21:48:04 ktsaou Exp $
+$Id: firehol.sh,v 1.232 2005/04/18 21:00:22 ktsaou Exp $
 (C) Copyright 2003, Costa Tsaousis <costa@tsaousis.gr>
 FireHOL is distributed under GPL.
 Home Page: http://firehol.sourceforge.net
@@ -5690,7 +5691,7 @@ then
 	
 	"${CAT_CMD}" >&2 <<EOF
 
-$Id: firehol.sh,v 1.231 2005/04/03 21:48:04 ktsaou Exp $
+$Id: firehol.sh,v 1.232 2005/04/18 21:00:22 ktsaou Exp $
 (C) Copyright 2003, Costa Tsaousis <costa@tsaousis.gr>
 FireHOL is distributed under GPL.
 Home Page: http://firehol.sourceforge.net
@@ -5773,7 +5774,7 @@ EOF
 	echo "# "
 
 	${CAT_CMD} <<EOF
-# $Id: firehol.sh,v 1.231 2005/04/03 21:48:04 ktsaou Exp $
+# $Id: firehol.sh,v 1.232 2005/04/18 21:00:22 ktsaou Exp $
 # (C) Copyright 2003, Costa Tsaousis <costa@tsaousis.gr>
 # FireHOL is distributed under GPL.
 # Home Page: http://firehol.sourceforge.net
