@@ -1,8 +1,11 @@
 #!/bin/bash
 
-# $Id: get-iana.sh,v 1.7 2005/05/08 23:27:23 ktsaou Exp $
+# $Id: get-iana.sh,v 1.8 2005/06/02 15:48:52 ktsaou Exp $
 #
 # $Log: get-iana.sh,v $
+# Revision 1.8  2005/06/02 15:48:52  ktsaou
+# Allowed 127.0.0.1 to be in RESERVED_IPS
+#
 # Revision 1.7  2005/05/08 23:27:23  ktsaou
 # Updated RESERVED_IPS to current IANA reservations.
 #
@@ -57,7 +60,8 @@ wget -O - --proxy=off "${IPV4_ADDRESS_SPACE_URL}" 2>>$LOG	|\
 		x=$first
 		while [ ! $x -gt $last ]
 		do
-			test $x -ne 127 && echo "$x.0.0.0/$net"
+			# test $x -ne 127 && echo "$x.0.0.0/$net"
+			echo "$x.0.0.0/$net"
 			x=$[x + 1]
 		done
 	done
