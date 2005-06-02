@@ -10,7 +10,7 @@
 #
 # config: /etc/firehol/firehol.conf
 #
-# $Id: firehol.sh,v 1.235 2005/06/02 15:48:52 ktsaou Exp $
+# $Id: firehol.sh,v 1.236 2005/06/02 16:20:35 ktsaou Exp $
 #
 
 # Make sure only root can run us.
@@ -171,7 +171,7 @@ ${RENICE_CMD} 10 $$ >/dev/null 2>/dev/null
 # Find our minor version
 firehol_minor_version() {
 ${CAT_CMD} <<"EOF" | ${CUT_CMD} -d ' ' -f 3 | ${CUT_CMD} -d '.' -f 2
-$Id: firehol.sh,v 1.235 2005/06/02 15:48:52 ktsaou Exp $
+$Id: firehol.sh,v 1.236 2005/06/02 16:20:35 ktsaou Exp $
 EOF
 }
 
@@ -3453,7 +3453,7 @@ rule() {
 				if [ "${1}" = "not" -o "${1}" = "NOT" ]
 				then
 					shift
-					macnot="!"
+					test ${nomac} -eq 0 && macnot="!"
 				fi
 				test ${softwarnings} -eq 1 -a ! "${mac}" = "any" && softwarning "Overwritting param: mac '${mac}' becomes '${1}'"
 				test ${nomac} -eq 0 && mac="${1}"
@@ -5279,7 +5279,7 @@ case "${arg}" in
 		else
 		
 		${CAT_CMD} <<EOF
-$Id: firehol.sh,v 1.235 2005/06/02 15:48:52 ktsaou Exp $
+$Id: firehol.sh,v 1.236 2005/06/02 16:20:35 ktsaou Exp $
 (C) Copyright 2003, Costa Tsaousis <costa@tsaousis.gr>
 FireHOL is distributed under GPL.
 
@@ -5465,7 +5465,7 @@ then
 	
 	${CAT_CMD} <<EOF
 
-$Id: firehol.sh,v 1.235 2005/06/02 15:48:52 ktsaou Exp $
+$Id: firehol.sh,v 1.236 2005/06/02 16:20:35 ktsaou Exp $
 (C) Copyright 2003, Costa Tsaousis <costa@tsaousis.gr>
 FireHOL is distributed under GPL.
 Home Page: http://firehol.sourceforge.net
@@ -5766,7 +5766,7 @@ then
 	
 	"${CAT_CMD}" >&2 <<EOF
 
-$Id: firehol.sh,v 1.235 2005/06/02 15:48:52 ktsaou Exp $
+$Id: firehol.sh,v 1.236 2005/06/02 16:20:35 ktsaou Exp $
 (C) Copyright 2003, Costa Tsaousis <costa@tsaousis.gr>
 FireHOL is distributed under GPL.
 Home Page: http://firehol.sourceforge.net
@@ -5849,7 +5849,7 @@ EOF
 	echo "# "
 
 	${CAT_CMD} <<EOF
-# $Id: firehol.sh,v 1.235 2005/06/02 15:48:52 ktsaou Exp $
+# $Id: firehol.sh,v 1.236 2005/06/02 16:20:35 ktsaou Exp $
 # (C) Copyright 2003, Costa Tsaousis <costa@tsaousis.gr>
 # FireHOL is distributed under GPL.
 # Home Page: http://firehol.sourceforge.net
