@@ -10,7 +10,7 @@
 #
 # config: /etc/firehol/firehol.conf
 #
-# $Id: firehol.sh,v 1.236 2005/06/02 16:20:35 ktsaou Exp $
+# $Id: firehol.sh,v 1.237 2005/09/21 21:32:58 ktsaou Exp $
 #
 
 # Make sure only root can run us.
@@ -171,7 +171,7 @@ ${RENICE_CMD} 10 $$ >/dev/null 2>/dev/null
 # Find our minor version
 firehol_minor_version() {
 ${CAT_CMD} <<"EOF" | ${CUT_CMD} -d ' ' -f 3 | ${CUT_CMD} -d '.' -f 2
-$Id: firehol.sh,v 1.236 2005/06/02 16:20:35 ktsaou Exp $
+$Id: firehol.sh,v 1.237 2005/09/21 21:32:58 ktsaou Exp $
 EOF
 }
 
@@ -206,6 +206,9 @@ FIREHOL_CHAINS_DIR="${FIREHOL_DIR}/chains"
 FIREHOL_OUTPUT="${FIREHOL_DIR}/firehol-out.sh"
 FIREHOL_SAVED="${FIREHOL_DIR}/firehol-save.sh"
 FIREHOL_TMP="${FIREHOL_DIR}/firehol-tmp.sh"
+
+FIREHOL_LOCK_DIR="/var/lock/subsys"
+test ! -d "${FIREHOL_LOCK_DIR}" && FIREHOL_LOCK_DIR="/var/lock"
 
 FIREHOL_SPOOL_DIR="/var/spool/firehol"
 
@@ -5130,8 +5133,8 @@ case "${arg}" in
 	stop)
 		test ! -z "${1}" && softwarning "Arguments after parameter '${arg}' are ignored."
 		
-		test -f /var/lock/subsys/firehol && ${RM_CMD} -f /var/lock/subsys/firehol
-		test -f /var/lock/subsys/iptables && ${RM_CMD} -f /var/lock/subsys/iptables
+		test -f "${FIREHOL_LOCK_DIR}/firehol" && ${RM_CMD} -f "${FIREHOL_LOCK_DIR}/firehol"
+		test -f "${FIREHOL_LOCK_DIR}/iptables" && ${RM_CMD} -f "${FIREHOL_LOCK_DIR}/iptables"
 		
 		echo -n $"FireHOL: Clearing Firewall:"
 		load_kernel_module ip_tables
@@ -5163,7 +5166,7 @@ case "${arg}" in
 	condrestart)
 		test ! -z "${1}" && softwarning "Arguments after parameter '${arg}' are ignored."
 		FIREHOL_TRY=0
-		if [ -f /var/lock/subsys/firehol ]
+		if [ -f "${FIREHOL_LOCK_DIR}/firehol" ]
 		then
 			exit 0
 		fi
@@ -5279,7 +5282,7 @@ case "${arg}" in
 		else
 		
 		${CAT_CMD} <<EOF
-$Id: firehol.sh,v 1.236 2005/06/02 16:20:35 ktsaou Exp $
+$Id: firehol.sh,v 1.237 2005/09/21 21:32:58 ktsaou Exp $
 (C) Copyright 2003, Costa Tsaousis <costa@tsaousis.gr>
 FireHOL is distributed under GPL.
 
@@ -5465,7 +5468,7 @@ then
 	
 	${CAT_CMD} <<EOF
 
-$Id: firehol.sh,v 1.236 2005/06/02 16:20:35 ktsaou Exp $
+$Id: firehol.sh,v 1.237 2005/09/21 21:32:58 ktsaou Exp $
 (C) Copyright 2003, Costa Tsaousis <costa@tsaousis.gr>
 FireHOL is distributed under GPL.
 Home Page: http://firehol.sourceforge.net
@@ -5766,7 +5769,7 @@ then
 	
 	"${CAT_CMD}" >&2 <<EOF
 
-$Id: firehol.sh,v 1.236 2005/06/02 16:20:35 ktsaou Exp $
+$Id: firehol.sh,v 1.237 2005/09/21 21:32:58 ktsaou Exp $
 (C) Copyright 2003, Costa Tsaousis <costa@tsaousis.gr>
 FireHOL is distributed under GPL.
 Home Page: http://firehol.sourceforge.net
@@ -5849,7 +5852,7 @@ EOF
 	echo "# "
 
 	${CAT_CMD} <<EOF
-# $Id: firehol.sh,v 1.236 2005/06/02 16:20:35 ktsaou Exp $
+# $Id: firehol.sh,v 1.237 2005/09/21 21:32:58 ktsaou Exp $
 # (C) Copyright 2003, Costa Tsaousis <costa@tsaousis.gr>
 # FireHOL is distributed under GPL.
 # Home Page: http://firehol.sourceforge.net
@@ -6486,11 +6489,11 @@ fi
 # Remove the saved firewall, so that the trap will not restore it.
 ${RM_CMD} -f "${FIREHOL_SAVED}"
 
-# RedHat startup service locking.
-if [ -d /var/lock/subsys ]
+# Startup service locking.
+if [ -d "${FIREHOL_LOCK_DIR}" ]
 then
-	${TOUCH_CMD} /var/lock/subsys/iptables
-	${TOUCH_CMD} /var/lock/subsys/firehol
+	${TOUCH_CMD} "${FIREHOL_LOCK_DIR}/iptables"
+	${TOUCH_CMD} "${FIREHOL_LOCK_DIR}/firehol"
 fi
 
 

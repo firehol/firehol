@@ -1,7 +1,7 @@
 
 RCS file: /cvsroot/firehol/firehol/firehol.sh,v
 Working file: firehol.sh
-head: 1.226
+head: 1.236
 branch:
 locks: strict
 access list:
@@ -9,8 +9,56 @@ symbolic names:
 	start: 1.1.1.1
 	vendor: 1.1.1
 keyword substitution: kv
-total revisions: 227;	selected revisions: 227
+total revisions: 237;	selected revisions: 237
 description:
+----------------------------
+revision 1.236
+date: 2005/06/02 16:20:35;  author: ktsaou;  state: Exp;  lines: +7 -7
+fixed a bug in negative 'mac' expressions where a faulty rule was generated
+for matching mac-source 'any'.
+----------------------------
+revision 1.235
+date: 2005/06/02 15:48:52;  author: ktsaou;  state: Exp;  lines: +7 -7
+Allowed 127.0.0.1 to be in RESERVED_IPS
+----------------------------
+revision 1.234
+date: 2005/05/08 23:27:22;  author: ktsaou;  state: Exp;  lines: +7 -7
+Updated RESERVED_IPS to current IANA reservations.
+----------------------------
+revision 1.233
+date: 2005/04/18 22:38:23;  author: ktsaou;  state: Exp;  lines: +83 -8
+Added 'addrtype' matches, in the form of 'srctype' and 'dsttype' optional
+rule parameters.
+----------------------------
+revision 1.232
+date: 2005/04/18 21:00:22;  author: ktsaou;  state: Exp;  lines: +11 -10
+Added FIREHOL_LOG_PREFIX.
+----------------------------
+revision 1.231
+date: 2005/04/03 21:48:04;  author: ktsaou;  state: Exp;  lines: +16 -6
+Added experimental protection all-floods.
+----------------------------
+revision 1.230
+date: 2005/03/01 19:52:56;  author: ktsaou;  state: Exp;  lines: +7 -6
+Made FireHOL trap SIGHUP and cleanup properly on it.
+----------------------------
+revision 1.229
+date: 2005/02/17 23:45:02;  author: ktsaou;  state: Exp;  lines: +64 -19
+Made a set of external commands optional in wizard mode, so that FireHOL
+will work if these are absent, but will refuse to enter wizard mode.
+----------------------------
+revision 1.228
+date: 2005/02/09 22:36:24;  author: ktsaou;  state: Exp;  lines: +17 -8
+Added support for /proc/config.gz for kernel configuration.
+This is silently ignored if the command 'gzcat' cannot be found in the
+system path.
+----------------------------
+revision 1.227
+date: 2005/02/07 20:56:09;  author: ktsaou;  state: Exp;  lines: +31 -7
+Made wget and curl optional. Now they are required only when they are
+really needed.
+
+Also, small fixes in ecn_shame helper.
 ----------------------------
 revision 1.226
 date: 2005/01/25 21:28:19;  author: ktsaou;  state: Exp;  lines: +10 -10
