@@ -10,7 +10,7 @@
 #
 # config: /etc/firehol/firehol.conf
 #
-# $Id: firehol.sh,v 1.238 2005/10/16 08:55:53 ktsaou Exp $
+# $Id: firehol.sh,v 1.239 2005/10/27 23:46:01 ktsaou Exp $
 #
 
 # Make sure only root can run us.
@@ -171,7 +171,7 @@ ${RENICE_CMD} 10 $$ >/dev/null 2>/dev/null
 # Find our minor version
 firehol_minor_version() {
 ${CAT_CMD} <<"EOF" | ${CUT_CMD} -d ' ' -f 3 | ${CUT_CMD} -d '.' -f 2
-$Id: firehol.sh,v 1.238 2005/10/16 08:55:53 ktsaou Exp $
+$Id: firehol.sh,v 1.239 2005/10/27 23:46:01 ktsaou Exp $
 EOF
 }
 
@@ -662,6 +662,9 @@ client_lpd_ports="721:731 default"
 
 server_microsoft_ds_ports="tcp/445"
 client_microsoft_ds_ports="default"
+
+server_ms_ds_ports="tcp/445"
+client_ms_ds_ports="default"
 
 server_mms_ports="tcp/1755 udp/1755"
 client_mms_ports="default"
@@ -5300,7 +5303,7 @@ case "${arg}" in
 		else
 		
 		${CAT_CMD} <<EOF
-$Id: firehol.sh,v 1.238 2005/10/16 08:55:53 ktsaou Exp $
+$Id: firehol.sh,v 1.239 2005/10/27 23:46:01 ktsaou Exp $
 (C) Copyright 2003, Costa Tsaousis <costa@tsaousis.gr>
 FireHOL is distributed under GPL.
 
@@ -5486,7 +5489,7 @@ then
 	
 	${CAT_CMD} <<EOF
 
-$Id: firehol.sh,v 1.238 2005/10/16 08:55:53 ktsaou Exp $
+$Id: firehol.sh,v 1.239 2005/10/27 23:46:01 ktsaou Exp $
 (C) Copyright 2003, Costa Tsaousis <costa@tsaousis.gr>
 FireHOL is distributed under GPL.
 Home Page: http://firehol.sourceforge.net
@@ -5787,7 +5790,7 @@ then
 	
 	"${CAT_CMD}" >&2 <<EOF
 
-$Id: firehol.sh,v 1.238 2005/10/16 08:55:53 ktsaou Exp $
+$Id: firehol.sh,v 1.239 2005/10/27 23:46:01 ktsaou Exp $
 (C) Copyright 2003, Costa Tsaousis <costa@tsaousis.gr>
 FireHOL is distributed under GPL.
 Home Page: http://firehol.sourceforge.net
@@ -5870,7 +5873,7 @@ EOF
 	echo "# "
 
 	${CAT_CMD} <<EOF
-# $Id: firehol.sh,v 1.238 2005/10/16 08:55:53 ktsaou Exp $
+# $Id: firehol.sh,v 1.239 2005/10/27 23:46:01 ktsaou Exp $
 # (C) Copyright 2003, Costa Tsaousis <costa@tsaousis.gr>
 # FireHOL is distributed under GPL.
 # Home Page: http://firehol.sourceforge.net

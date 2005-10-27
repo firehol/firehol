@@ -347,6 +347,19 @@ so that either direct hosted or traditional SMB can be served simultaneously.
 Please refer to the <a href=\"#netbios_ssn\">netbios_ssn</a> service for more information.
 "
 
+service_ms_ds_notes="
+Direct Hosted (i.e. NETBIOS-less SMB)
+<p>
+This is another NETBIOS Session Service with minor differences with <a href=\"#netbios_ssn\">netbios_ssn</a>.
+It is supported only by Windows 2000 and Windows XP and it offers the advantage of being indepedent of WINS
+for name resolution.
+<p>
+It seems that samba supports transparently this protocol on the <a href=\"#netbios_ssn\">netbios_ssn</a> ports,
+so that either direct hosted or traditional SMB can be served simultaneously.
+<p>
+Please refer to the <a href=\"#netbios_ssn\">netbios_ssn</a> service for more information.
+"
+
 service_msn_notes="
 Microsoft MSN Messenger Service<p>
 For a discussion about what works and what is not, please take a look at
@@ -963,7 +976,7 @@ cat <<"EOF"
 <tr><td align=center valign=middle>
 	<A href="http://sourceforge.net"><IMG src="http://sourceforge.net/sflogo.php?group_id=58425&amp;type=5" width="210" height="62" border="0" alt="SourceForge Logo"></A>
 </td><td align=center valign=middle>
-	<small>$Id: create_services.sh,v 1.55 2005/01/24 22:19:49 ktsaou Exp $</small>
+	<small>$Id: create_services.sh,v 1.56 2005/10/27 23:46:01 ktsaou Exp $</small>
 	<p>
 	<b>FireHOL</b>, a firewall for humans...<br>
 	&copy; Copyright 2004
