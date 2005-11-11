@@ -10,7 +10,7 @@
 #
 # config: /etc/firehol/firehol.conf
 #
-# $Id: firehol.sh,v 1.239 2005/10/27 23:46:01 ktsaou Exp $
+# $Id: firehol.sh,v 1.240 2005/11/11 21:49:03 ktsaou Exp $
 #
 
 # Make sure only root can run us.
@@ -171,7 +171,7 @@ ${RENICE_CMD} 10 $$ >/dev/null 2>/dev/null
 # Find our minor version
 firehol_minor_version() {
 ${CAT_CMD} <<"EOF" | ${CUT_CMD} -d ' ' -f 3 | ${CUT_CMD} -d '.' -f 2
-$Id: firehol.sh,v 1.239 2005/10/27 23:46:01 ktsaou Exp $
+$Id: firehol.sh,v 1.240 2005/11/11 21:49:03 ktsaou Exp $
 EOF
 }
 
@@ -3129,7 +3129,7 @@ rule_action_param() {
 						# to pass.
 						if [ "${do_accept_limit}" = "1" ]
 						then
-							local accept_limit_chain="`echo "ACCEPT ${freq} ${burst} ${overflow}" | tr " /." "___"`"
+							local accept_limit_chain="`echo "ACCEPT LIMIT ${freq} ${burst} ${overflow}" | tr " /." "___"`"
 							
 							# does the chain we need already exist?
 							if [ ! -f "${FIREHOL_CHAINS_DIR}/${accept_limit_chain}" ]
@@ -3149,9 +3149,9 @@ rule_action_param() {
 								local -a logopts_arg=()
 								if [ "${FIREHOL_LOG_MODE}" = "ULOG" ]
 								then
-									local -a logopts_arg=("--ulog-prefix='${FIREHOL_LOG_PREFIX}OVERFLOW:'")
+									local -a logopts_arg=("--ulog-prefix='${FIREHOL_LOG_PREFIX}LIMIT_OVERFLOW:'")
 								else
-									local -a logopts_arg=("--log-level" "${FIREHOL_LOG_LEVEL}" "--log-prefix='${FIREHOL_LOG_PREFIX}OVERFLOW:'")
+									local -a logopts_arg=("--log-level" "${FIREHOL_LOG_LEVEL}" "--log-prefix='${FIREHOL_LOG_PREFIX}LIMIT_OVERFLOW:'")
 								fi
 								iptables ${table} -A "${accept_limit_chain}" -m limit --limit "${FIREHOL_LOG_FREQUENCY}" --limit-burst "${FIREHOL_LOG_BURST}" -j ${FIREHOL_LOG_MODE} ${FIREHOL_LOG_OPTIONS} "${logopts_arg[@]}"
 								
@@ -3167,6 +3167,62 @@ rule_action_param() {
 							
 							# send the rule to be generated to this chain
 							local action=${accept_limit_chain}
+						fi
+						;;
+						
+					"recent")
+						# limit NEW connections to the specified rate
+						local name="${action_param[1]}"
+						local seconds="${action_param[2]}"
+						local hits="${action_param[3]}"
+						
+						# unset the action_param, so that if this rule does not include NEW connections,
+						# we will not append anything to the generated iptables statements.
+						local -a action_param=()
+						
+						# find is this rule matches NEW connections
+						local has_new=`echo "${state}" | grep -i NEW`
+						local do_accept_recent=0
+						if [ -z "${statenot}" ]
+						then
+							test ! -z "${has_new}" && local do_accept_recent=1
+						else
+							test -z "${has_new}" && local do_accept_recent=1
+						fi
+						
+						# we have a match for NEW connections.
+						# redirect the traffic to a new chain, which will control
+						# the NEW connections while allowing all the other traffic
+						# to pass.
+						if [ "${do_accept_recent}" = "1" ]
+						then
+							local accept_recent_chain="`echo "ACCEPT RECENT $name $seconds $hits" | tr " /." "___"`"
+							
+							# does the chain we need already exist?
+							if [ ! -f "${FIREHOL_CHAINS_DIR}/${accept_recent_chain}" ]
+							then
+								# the chain does not exist. create it.
+								iptables ${table} -N "${accept_recent_chain}"
+								touch "${FIREHOL_CHAINS_DIR}/${accept_recent_chain}"
+								
+								# first, if the traffic is not a NEW connection, allow it.
+								# doing this first will speed up normal traffic.
+								iptables ${table} -A "${accept_recent_chain}" -m state ! --state NEW -j ACCEPT
+								
+								# accept NEW connections within the given limits.
+								iptables ${table} -A "${accept_recent_chain}" -m recent --set --name "${name}"
+								
+								local t1=
+								test ! -z $seconds && local t1="--seconds ${seconds}"
+								local t2=
+								test ! -z $hits && local t2="--hitcount ${hits}"
+								
+								iptables ${table} -A "${accept_recent_chain}" -m recent --update ${t1} ${t2} --name "${name}" -j RETURN
+								iptables ${table} -A "${accept_recent_chain}" -j ACCEPT
+							fi
+							
+							# send the rule to be generated to this chain
+							local action=${accept_recent_chain}
 						fi
 						;;
 						
@@ -3719,6 +3775,11 @@ rule() {
 										action_param[4]="${2}"
 										shift 2
 									fi
+									;;
+								
+								recent|RECENT)
+									local -a action_param=("recent" "${2}" "${3}" "${4}")
+									shift 4
 									;;
 								
 								knock|KNOCK)
@@ -5303,7 +5364,7 @@ case "${arg}" in
 		else
 		
 		${CAT_CMD} <<EOF
-$Id: firehol.sh,v 1.239 2005/10/27 23:46:01 ktsaou Exp $
+$Id: firehol.sh,v 1.240 2005/11/11 21:49:03 ktsaou Exp $
 (C) Copyright 2003, Costa Tsaousis <costa@tsaousis.gr>
 FireHOL is distributed under GPL.
 
@@ -5489,7 +5550,7 @@ then
 	
 	${CAT_CMD} <<EOF
 
-$Id: firehol.sh,v 1.239 2005/10/27 23:46:01 ktsaou Exp $
+$Id: firehol.sh,v 1.240 2005/11/11 21:49:03 ktsaou Exp $
 (C) Copyright 2003, Costa Tsaousis <costa@tsaousis.gr>
 FireHOL is distributed under GPL.
 Home Page: http://firehol.sourceforge.net
@@ -5790,7 +5851,7 @@ then
 	
 	"${CAT_CMD}" >&2 <<EOF
 
-$Id: firehol.sh,v 1.239 2005/10/27 23:46:01 ktsaou Exp $
+$Id: firehol.sh,v 1.240 2005/11/11 21:49:03 ktsaou Exp $
 (C) Copyright 2003, Costa Tsaousis <costa@tsaousis.gr>
 FireHOL is distributed under GPL.
 Home Page: http://firehol.sourceforge.net
@@ -5873,7 +5934,7 @@ EOF
 	echo "# "
 
 	${CAT_CMD} <<EOF
-# $Id: firehol.sh,v 1.239 2005/10/27 23:46:01 ktsaou Exp $
+# $Id: firehol.sh,v 1.240 2005/11/11 21:49:03 ktsaou Exp $
 # (C) Copyright 2003, Costa Tsaousis <costa@tsaousis.gr>
 # FireHOL is distributed under GPL.
 # Home Page: http://firehol.sourceforge.net
