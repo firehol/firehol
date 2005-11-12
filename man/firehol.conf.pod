@@ -1281,7 +1281,7 @@ to use this variable on interfaces and routers accepting Internet traffic.
 
 =head1 FILES
 
-F</etc/firehol.conf>
+F</etc/firehol/firehol.conf>
 
 =head1 AUTHOR
 
