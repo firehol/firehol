@@ -10,7 +10,7 @@
 #
 # config: /etc/firehol/firehol.conf
 #
-# $Id: firehol.sh,v 1.242 2006/01/18 21:20:28 ktsaou Exp $
+# $Id: firehol.sh,v 1.243 2006/01/18 21:24:22 ktsaou Exp $
 #
 
 # Make sure only root can run us.
@@ -171,7 +171,7 @@ ${RENICE_CMD} 10 $$ >/dev/null 2>/dev/null
 # Find our minor version
 firehol_minor_version() {
 ${CAT_CMD} <<"EOF" | ${CUT_CMD} -d ' ' -f 3 | ${CUT_CMD} -d '.' -f 2
-$Id: firehol.sh,v 1.242 2006/01/18 21:20:28 ktsaou Exp $
+$Id: firehol.sh,v 1.243 2006/01/18 21:24:22 ktsaou Exp $
 EOF
 }
 
@@ -321,7 +321,7 @@ fi
 # Optimized (CIDR) by Marc 'HE' Brockschmidt <marc@marcbrockschmidt.de>
 # Further optimized and reduced by http://www.vergenet.net/linux/aggregate/
 # The supplied get-iana.sh uses 'aggregate-flim' if it finds it in the path.
-RESERVED_IPS="0.0.0.0/7 2.0.0.0/8 5.0.0.0/8 7.0.0.0/8 23.0.0.0/8 27.0.0.0/8 31.0.0.0/8 36.0.0.0/7 39.0.0.0/8 42.0.0.0/8 74.0.0.0/7 76.0.0.0/6 89.0.0.0/8 90.0.0.0/7 92.0.0.0/6 96.0.0.0/4 112.0.0.0/5 120.0.0.0/6 127.0.0.0/8 173.0.0.0/8 174.0.0.0/7 176.0.0.0/5 184.0.0.0/6 189.0.0.0/8 190.0.0.0/8 197.0.0.0/8 223.0.0.0/8 240.0.0.0/4 "
+RESERVED_IPS="0.0.0.0/7 2.0.0.0/8 5.0.0.0/8 7.0.0.0/8 23.0.0.0/8 27.0.0.0/8 31.0.0.0/8 36.0.0.0/7 39.0.0.0/8 42.0.0.0/8 77.0.0.0/8 78.0.0.0/7 92.0.0.0/6 96.0.0.0/4 112.0.0.0/5 120.0.0.0/8 127.0.0.0/8 173.0.0.0/8 174.0.0.0/7 176.0.0.0/5 184.0.0.0/6 197.0.0.0/8 223.0.0.0/8 240.0.0.0/4"
 
 # Private IPv4 address space
 # Suggested by Fco.Felix Belmonte <ffelix@gescosoft.com>
@@ -5364,7 +5364,7 @@ case "${arg}" in
 		else
 		
 		${CAT_CMD} <<EOF
-$Id: firehol.sh,v 1.242 2006/01/18 21:20:28 ktsaou Exp $
+$Id: firehol.sh,v 1.243 2006/01/18 21:24:22 ktsaou Exp $
 (C) Copyright 2003, Costa Tsaousis <costa@tsaousis.gr>
 FireHOL is distributed under GPL.
 
@@ -5550,7 +5550,7 @@ then
 	
 	${CAT_CMD} <<EOF
 
-$Id: firehol.sh,v 1.242 2006/01/18 21:20:28 ktsaou Exp $
+$Id: firehol.sh,v 1.243 2006/01/18 21:24:22 ktsaou Exp $
 (C) Copyright 2003, Costa Tsaousis <costa@tsaousis.gr>
 FireHOL is distributed under GPL.
 Home Page: http://firehol.sourceforge.net
@@ -5851,7 +5851,7 @@ then
 	
 	"${CAT_CMD}" >&2 <<EOF
 
-$Id: firehol.sh,v 1.242 2006/01/18 21:20:28 ktsaou Exp $
+$Id: firehol.sh,v 1.243 2006/01/18 21:24:22 ktsaou Exp $
 (C) Copyright 2003, Costa Tsaousis <costa@tsaousis.gr>
 FireHOL is distributed under GPL.
 Home Page: http://firehol.sourceforge.net
@@ -5934,7 +5934,7 @@ EOF
 	echo "# "
 
 	${CAT_CMD} <<EOF
-# $Id: firehol.sh,v 1.242 2006/01/18 21:20:28 ktsaou Exp $
+# $Id: firehol.sh,v 1.243 2006/01/18 21:24:22 ktsaou Exp $
 # (C) Copyright 2003, Costa Tsaousis <costa@tsaousis.gr>
 # FireHOL is distributed under GPL.
 # Home Page: http://firehol.sourceforge.net
