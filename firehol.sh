@@ -10,7 +10,7 @@
 #
 # config: /etc/firehol/firehol.conf
 #
-# $Id: firehol.sh,v 1.243 2006/01/18 21:24:22 ktsaou Exp $
+# $Id: firehol.sh,v 1.244 2006/03/11 12:24:34 ktsaou Exp $
 #
 
 # Make sure only root can run us.
@@ -171,7 +171,7 @@ ${RENICE_CMD} 10 $$ >/dev/null 2>/dev/null
 # Find our minor version
 firehol_minor_version() {
 ${CAT_CMD} <<"EOF" | ${CUT_CMD} -d ' ' -f 3 | ${CUT_CMD} -d '.' -f 2
-$Id: firehol.sh,v 1.243 2006/01/18 21:24:22 ktsaou Exp $
+$Id: firehol.sh,v 1.244 2006/03/11 12:24:34 ktsaou Exp $
 EOF
 }
 
@@ -713,6 +713,9 @@ client_nxserver_ports="default"
 # Oracle database
 server_oracle_ports="tcp/1521"
 client_oracle_ports="default"
+
+server_OSPF_ports="89/any"
+client_OSPF_ports="any"
 
 server_pop3_ports="tcp/110"
 client_pop3_ports="default"
@@ -5364,7 +5367,7 @@ case "${arg}" in
 		else
 		
 		${CAT_CMD} <<EOF
-$Id: firehol.sh,v 1.243 2006/01/18 21:24:22 ktsaou Exp $
+$Id: firehol.sh,v 1.244 2006/03/11 12:24:34 ktsaou Exp $
 (C) Copyright 2003, Costa Tsaousis <costa@tsaousis.gr>
 FireHOL is distributed under GPL.
 
@@ -5550,7 +5553,7 @@ then
 	
 	${CAT_CMD} <<EOF
 
-$Id: firehol.sh,v 1.243 2006/01/18 21:24:22 ktsaou Exp $
+$Id: firehol.sh,v 1.244 2006/03/11 12:24:34 ktsaou Exp $
 (C) Copyright 2003, Costa Tsaousis <costa@tsaousis.gr>
 FireHOL is distributed under GPL.
 Home Page: http://firehol.sourceforge.net
@@ -5820,7 +5823,12 @@ then
 		local i4=${4}
 		local i5=${5:-32}
 		
-		echo ${i1}.${i2}.${i3}.${i4}/${i5}
+		if [ "${i5}" = "32" ]
+		then
+			echo ${i1}.${i2}.${i3}.${i4}
+		else
+			echo ${i1}.${i2}.${i3}.${i4}/${i5}
+		fi
 	}
 	
 	ips2net() {
@@ -5851,7 +5859,7 @@ then
 	
 	"${CAT_CMD}" >&2 <<EOF
 
-$Id: firehol.sh,v 1.243 2006/01/18 21:24:22 ktsaou Exp $
+$Id: firehol.sh,v 1.244 2006/03/11 12:24:34 ktsaou Exp $
 (C) Copyright 2003, Costa Tsaousis <costa@tsaousis.gr>
 FireHOL is distributed under GPL.
 Home Page: http://firehol.sourceforge.net
@@ -5934,7 +5942,7 @@ EOF
 	echo "# "
 
 	${CAT_CMD} <<EOF
-# $Id: firehol.sh,v 1.243 2006/01/18 21:24:22 ktsaou Exp $
+# $Id: firehol.sh,v 1.244 2006/03/11 12:24:34 ktsaou Exp $
 # (C) Copyright 2003, Costa Tsaousis <costa@tsaousis.gr>
 # FireHOL is distributed under GPL.
 # Home Page: http://firehol.sourceforge.net
