@@ -10,7 +10,7 @@
 #
 # config: /etc/firehol/firehol.conf
 #
-# $Id: firehol.sh,v 1.245 2006/03/12 12:54:55 ktsaou Exp $
+# $Id: firehol.sh,v 1.246 2006/03/23 18:50:16 ktsaou Exp $
 #
 
 # Make sure only root can run us.
@@ -171,7 +171,7 @@ ${RENICE_CMD} 10 $$ >/dev/null 2>/dev/null
 # Find our minor version
 firehol_minor_version() {
 ${CAT_CMD} <<"EOF" | ${CUT_CMD} -d ' ' -f 3 | ${CUT_CMD} -d '.' -f 2
-$Id: firehol.sh,v 1.245 2006/03/12 12:54:55 ktsaou Exp $
+$Id: firehol.sh,v 1.246 2006/03/23 18:50:16 ktsaou Exp $
 EOF
 }
 
@@ -308,8 +308,8 @@ fi
 if [ ! -d "${FIREHOL_SPOOL_DIR}" ]
 then
 	"${MKDIR_CMD}" "${FIREHOL_SPOOL_DIR}"			|| exit 1
-	"${CHOWN_CMD}" root:root "${FIREHOL_CONFIG_DIR}"	|| exit 1
-	"${CHMOD_CMD}" 700 "${FIREHOL_CONFIG_DIR}"		|| exit 1
+	"${CHOWN_CMD}" root:root "${FIREHOL_SPOOL_DIR}"		|| exit 1
+	"${CHMOD_CMD}" 700 "${FIREHOL_SPOOL_DIR}"		|| exit 1
 fi
 
 
@@ -5367,7 +5367,7 @@ case "${arg}" in
 		else
 		
 		${CAT_CMD} <<EOF
-$Id: firehol.sh,v 1.245 2006/03/12 12:54:55 ktsaou Exp $
+$Id: firehol.sh,v 1.246 2006/03/23 18:50:16 ktsaou Exp $
 (C) Copyright 2003, Costa Tsaousis <costa@tsaousis.gr>
 FireHOL is distributed under GPL.
 
@@ -5553,7 +5553,7 @@ then
 	
 	${CAT_CMD} <<EOF
 
-$Id: firehol.sh,v 1.245 2006/03/12 12:54:55 ktsaou Exp $
+$Id: firehol.sh,v 1.246 2006/03/23 18:50:16 ktsaou Exp $
 (C) Copyright 2003, Costa Tsaousis <costa@tsaousis.gr>
 FireHOL is distributed under GPL.
 Home Page: http://firehol.sourceforge.net
@@ -5859,7 +5859,7 @@ then
 	
 	"${CAT_CMD}" >&2 <<EOF
 
-$Id: firehol.sh,v 1.245 2006/03/12 12:54:55 ktsaou Exp $
+$Id: firehol.sh,v 1.246 2006/03/23 18:50:16 ktsaou Exp $
 (C) Copyright 2003, Costa Tsaousis <costa@tsaousis.gr>
 FireHOL is distributed under GPL.
 Home Page: http://firehol.sourceforge.net
@@ -5942,7 +5942,7 @@ EOF
 	echo "# "
 
 	${CAT_CMD} <<EOF
-# $Id: firehol.sh,v 1.245 2006/03/12 12:54:55 ktsaou Exp $
+# $Id: firehol.sh,v 1.246 2006/03/23 18:50:16 ktsaou Exp $
 # (C) Copyright 2003, Costa Tsaousis <costa@tsaousis.gr>
 # FireHOL is distributed under GPL.
 # Home Page: http://firehol.sourceforge.net
