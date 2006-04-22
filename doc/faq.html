@@ -210,11 +210,15 @@ manages to get access within these few seconds, his socket will simply timeout a
 <!-- INSTALLATION --------------------------------------------------------  -->
 
 <table border=0 cellpadding=10 cellspacing=0 width="100%">
-<tr><td bgcolor="#EEEEEE"><b><A NAME="install">I installed FireHOL but where the hell is it located? I cannot run it!</a></td></tr></table>
+<tr><td bgcolor="#EEEEEE"><b><A NAME="install">I installed FireHOL but where is it located? I cannot run it!</a></td></tr></table>
 <br>
 FireHOL has been designed to be a startup service. Its exact location depends on the distribution you are using.
 Most probably you will find FireHOL in /etc/init.d and in RedHat systems you can also access it with the <b>service</b>
 command.
+<p>
+On Ubuntu, become root and modify /etc/default/firehol to have START_FIREHOL=YES,
+then, as root, start it with "/etc/init.d/firehol start".
+To make it start automatically run "update-rc.d firehol defaults".
 <p>
 
 <table border=0 cellpadding=10 cellspacing=0 width="100%">
@@ -272,7 +276,7 @@ exist in most kernels distributed today with the main Linux distributions.
 <tr><td align=center valign=middle>
 	<A href="http://sourceforge.net"><IMG src="http://sourceforge.net/sflogo.php?group_id=58425&amp;type=5" width="210" height="62" border="0" alt="SourceForge Logo"></A>
 </td><td align=center valign=middle>
-	<small>$Id: faq.html,v 1.5 2004/10/31 23:43:25 ktsaou Exp $</small>
+	<small>$Id: faq.html,v 1.6 2006/04/22 17:26:18 ktsaou Exp $</small>
 	<p>
 	<b>FireHOL</b>, a firewall for humans...<br>
 	&copy; Copyright 2004

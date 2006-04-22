@@ -10,7 +10,7 @@
 #
 # config: /etc/firehol/firehol.conf
 #
-# $Id: firehol.sh,v 1.246 2006/03/23 18:50:16 ktsaou Exp $
+# $Id: firehol.sh,v 1.247 2006/04/22 17:26:18 ktsaou Exp $
 #
 
 # Make sure only root can run us.
@@ -171,7 +171,7 @@ ${RENICE_CMD} 10 $$ >/dev/null 2>/dev/null
 # Find our minor version
 firehol_minor_version() {
 ${CAT_CMD} <<"EOF" | ${CUT_CMD} -d ' ' -f 3 | ${CUT_CMD} -d '.' -f 2
-$Id: firehol.sh,v 1.246 2006/03/23 18:50:16 ktsaou Exp $
+$Id: firehol.sh,v 1.247 2006/04/22 17:26:18 ktsaou Exp $
 EOF
 }
 
@@ -2531,6 +2531,11 @@ protection() {
 		case "${x}" in
 			none|NONE)
 				return 0
+				;;
+			
+			bad-packets|BAD-PACKETS)
+				protection ${reverse} "invalid fragments new-tcp-w/o-syn malformed-xmas malformed-null malformed-bad" "${rate}" "${burst}"
+				return $?
 				;;
 			
 			strong|STRONG|full|FULL|all|ALL)
@@ -5367,7 +5372,7 @@ case "${arg}" in
 		else
 		
 		${CAT_CMD} <<EOF
-$Id: firehol.sh,v 1.246 2006/03/23 18:50:16 ktsaou Exp $
+$Id: firehol.sh,v 1.247 2006/04/22 17:26:18 ktsaou Exp $
 (C) Copyright 2003, Costa Tsaousis <costa@tsaousis.gr>
 FireHOL is distributed under GPL.
 
@@ -5553,7 +5558,7 @@ then
 	
 	${CAT_CMD} <<EOF
 
-$Id: firehol.sh,v 1.246 2006/03/23 18:50:16 ktsaou Exp $
+$Id: firehol.sh,v 1.247 2006/04/22 17:26:18 ktsaou Exp $
 (C) Copyright 2003, Costa Tsaousis <costa@tsaousis.gr>
 FireHOL is distributed under GPL.
 Home Page: http://firehol.sourceforge.net
@@ -5859,7 +5864,7 @@ then
 	
 	"${CAT_CMD}" >&2 <<EOF
 
-$Id: firehol.sh,v 1.246 2006/03/23 18:50:16 ktsaou Exp $
+$Id: firehol.sh,v 1.247 2006/04/22 17:26:18 ktsaou Exp $
 (C) Copyright 2003, Costa Tsaousis <costa@tsaousis.gr>
 FireHOL is distributed under GPL.
 Home Page: http://firehol.sourceforge.net
@@ -5942,7 +5947,7 @@ EOF
 	echo "# "
 
 	${CAT_CMD} <<EOF
-# $Id: firehol.sh,v 1.246 2006/03/23 18:50:16 ktsaou Exp $
+# $Id: firehol.sh,v 1.247 2006/04/22 17:26:18 ktsaou Exp $
 # (C) Copyright 2003, Costa Tsaousis <costa@tsaousis.gr>
 # FireHOL is distributed under GPL.
 # Home Page: http://firehol.sourceforge.net
