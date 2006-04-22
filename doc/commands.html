@@ -304,6 +304,11 @@ Subcommands must be given within <a href="#primary_commands">Primary commands</a
 	<b>type</b> can be: <br>
 	<ul><b>strong</b>, or <b>full</b>, or <b>all</b>
 	<br>turns on all the possible protections.
+	<br>Currently it includes: invalid fragments new-tcp-w/o-syn icmp-floods syn-floods malformed-xmas malformed-null malformed-bad.
+	</ul>
+	<ul><b>bad-packets</b>
+	<br>turns on all the possible protections that detect bad packets based one the packet contents themselves, not the packets transfer rate.
+	<br>Currently it includes: invalid fragments new-tcp-w/o-syn malformed-xmas malformed-null malformed-bad.
 	</ul>
 	<ul><b>invalid</b>
 	<br>Drops all incoming INVALID packets. Invalid packets are those that are matched by "-m state --state INVALID", so they are all those
@@ -333,6 +338,14 @@ Subcommands must be given within <a href="#primary_commands">Primary commands</a
 	are used by this rule in order to provide control on the number of connections to be allowed.
 	The default is 100 connections per second that can match 50 (it was 4 in v1.38 and before) packets initially
 	(this is implemented using the <b>limit</b> module of iptables: see <b>man iptables</b> for more).
+	</ul>
+	<ul><b>all-floods</b>
+	<br>Allows only a certain amount of new connections per second. The optional two arguments [requests/sec] and [burst]
+	are used by this rule in order to provide control on the number of connections to be allowed.
+	The default is 100 connections per second that can match 50 (it was 4 in v1.38 and before) packets initially
+	(this is implemented using the <b>limit</b> module of iptables: see <b>man iptables</b> for more).
+	<br>Note that this rule applies to all connections attempted regardless of their final result (rejected, dropped, established, etc).
+	Therefore it might not be a good idea to set it too low.
 	</ul>
 	<ul><b>malformed-xmas</b>
 	<br>Drops all TCP packets that have all the TCP flags set.
@@ -1684,7 +1697,7 @@ about optional rule parameters that should not be used in certain commands.
 <tr><td align=center valign=middle>
 	<A href="http://sourceforge.net"><IMG src="http://sourceforge.net/sflogo.php?group_id=58425&amp;type=5" width="210" height="62" border="0" alt="SourceForge Logo"></A>
 </td><td align=center valign=middle>
-	<small>$Id: commands.html,v 1.65 2006/01/18 21:52:30 ktsaou Exp $</small>
+	<small>$Id: commands.html,v 1.66 2006/04/22 17:32:56 ktsaou Exp $</small>
 	<p>
 	<b>FireHOL</b>, a firewall for humans...<br>
 	&copy; Copyright 2004
