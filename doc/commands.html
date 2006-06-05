@@ -53,7 +53,7 @@ google_color_text = "000000";
 	<li><a href="#subcommands">Sub-Commands</a>
 		<ul>
 			<li><a href="#policy">policy</a>, set the default action for unmatched packets of an
-				<a href="#interface">interface</a>
+				<a href="#interface">interface</a> or a <a href="#router">router</a>
 			</li>
 			<li><a href="#protection">protection</a>, add extra protections to
 				<a href="#interface">interfaces</a> and <a href="#router">routers</a>
@@ -190,9 +190,11 @@ The optional rule parameters given to the primary commands are <b>indirectly</b>
 	<a name="router"><h3><b>router</b> <font color="red">&lt;name&gt;</font> <b>[optional rule parameters]</b></h3></a>
 	<H4>Description</H4>
 	The <b>router</b> command creates a firewall for the traffic passing through the host running the firewall.
-	The only acceptable policy on all <b>router</b> commands is <b>return</b> and therefore the policy subcommand
-	cannot be used on routers. This means that no packets are dropped in a router. Packets not matched by any
-	<b>router</b> command will be dropped at the end of the firewall.
+	The default policy on <b>router</b> commands is <b>return</b>. This means that by default no packets are dropped in a router.
+	Packets not matched by any <b>router</b> command will be dropped at the end of the firewall.
+	Change the default policy of a router only if you understand clearly what gets matched by the router statement. It is very common
+	to have overlapping definitions of routers and changing this policy to anything other than the default may have strange results
+	for your configuration. (Changing the policy on routers appeared in v1.248).
 	<p>
 	INPORTANT<br>
 	Note that unlike ipchains, in <b>iptables</b> traffic passing through the firewall
@@ -1470,6 +1472,21 @@ about optional rule parameters that should not be used in certain commands.
 
 <hr noshade size=1 width="100%">
 
+	<a name="DEFAULT_ROUTER_POLICY"><h3><b>DEFAULT_ROUTER_POLICY</b></h3></a>
+	<H4>Description</H4>
+	DEFAULT_ROUTER_POLICY controls the default action to be taken on traffic not matched by any rule within a router.
+	Actually, this is a global setting for what <a href="#policy">policy</a> does for a <a href="#router">router</a>.
+	<p>
+	All packets that reach the end of a router are logged only if the action is <b>not</b> <a href="#return">return</a> or <a href="#accept">accept</a>.
+	You can control the frequency of this logging by altering the frequency <a href="#loglimit">loglimit</a> uses.
+	<p>
+	Default: <b>DEFAULT_ROUTER_POLICY="RETURN"</b><br>
+	<br>
+	Example: <b>DEFAULT_ROUTER_POLICY="REJECT"</b>
+	<p>
+
+<hr noshade size=1 width="100%">
+
 	<a name="UNMATCHED_INPUT_POLICY"><h3><b>UNMATCHED_INPUT_POLICY</b></h3></a>
 	<a name="UNMATCHED_OUTPUT_POLICY"><h3><b>UNMATCHED_OUTPUT_POLICY</b></h3></a>
 	<a name="UNMATCHED_ROUTER_POLICY"><h3><b>UNMATCHED_ROUTER_POLICY</b></h3></a>
@@ -1697,7 +1714,7 @@ about optional rule parameters that should not be used in certain commands.
 <tr><td align=center valign=middle>
 	<A href="http://sourceforge.net"><IMG src="http://sourceforge.net/sflogo.php?group_id=58425&amp;type=5" width="210" height="62" border="0" alt="SourceForge Logo"></A>
 </td><td align=center valign=middle>
-	<small>$Id: commands.html,v 1.66 2006/04/22 17:32:56 ktsaou Exp $</small>
+	<small>$Id: commands.html,v 1.67 2006/06/05 17:25:33 ktsaou Exp $</small>
 	<p>
 	<b>FireHOL</b>, a firewall for humans...<br>
 	&copy; Copyright 2004

@@ -10,7 +10,7 @@
 #
 # config: /etc/firehol/firehol.conf
 #
-# $Id: firehol.sh,v 1.247 2006/04/22 17:26:18 ktsaou Exp $
+# $Id: firehol.sh,v 1.248 2006/06/05 17:25:33 ktsaou Exp $
 #
 
 # Make sure only root can run us.
@@ -171,7 +171,7 @@ ${RENICE_CMD} 10 $$ >/dev/null 2>/dev/null
 # Find our minor version
 firehol_minor_version() {
 ${CAT_CMD} <<"EOF" | ${CUT_CMD} -d ' ' -f 3 | ${CUT_CMD} -d '.' -f 2
-$Id: firehol.sh,v 1.247 2006/04/22 17:26:18 ktsaou Exp $
+$Id: firehol.sh,v 1.248 2006/06/05 17:25:33 ktsaou Exp $
 EOF
 }
 
@@ -347,6 +347,11 @@ UNROUTABLE_IPS="${RESERVED_IPS} ${PRIVATE_IPS}"
 # policy interface subscommand. 
 DEFAULT_INTERFACE_POLICY="DROP"
 
+# The default policy for the router commands of the firewall.
+# This can be controlled on a per interface basis using the
+# policy interface subscommand. 
+DEFAULT_ROUTER_POLICY="RETURN"
+
 # Which is the filter table chains policy during firewall activation?
 FIREHOL_INPUT_ACTIVATION_POLICY="ACCEPT"
 FIREHOL_OUTPUT_ACTIVATION_POLICY="ACCEPT"
@@ -472,7 +477,7 @@ work_realcmd=("(unset)")
 work_name=
 work_inface=
 work_outface=
-work_policy="${DEFAULT_INTERFACE_POLICY}"
+work_policy=
 work_error=0
 work_function="Initializing"
 
@@ -2458,9 +2463,9 @@ iptables() {
 policy() {
         work_realcmd_secondary ${FUNCNAME} "$@"
 	
-	require_work set interface || return 1
+	require_work set any || return 1
 	
-	set_work_function "Setting interface '${work_inface}' (${work_name}) policy to ${1}"
+	set_work_function "Setting policy of ${work_name} to ${1}"
 	work_policy="$*"
 	
 	return 0
@@ -2891,10 +2896,11 @@ close_cmd() {
 	work_name=
 	work_inface=
 	work_outface=
-	work_policy="${DEFAULT_INTERFACE_POLICY}"
+	work_policy=
 	
 	return 0
 }
+
 
 # ------------------------------------------------------------------------------
 # close_interface
@@ -2908,6 +2914,12 @@ close_interface() {
 	
 	set_work_function "Finilizing interface '${work_name}'"
 	
+	# Accept all related traffic to the established connections
+	rule chain "in_${work_name}" state RELATED action ACCEPT || return 1
+	rule chain "out_${work_name}" state RELATED action ACCEPT || return 1
+	
+	# make sure we have a policy
+	test -z "${work_policy}" && work_policy="${DEFAULT_INTERFACE_POLICY}"
 	case "${work_policy}" in
 		return|RETURN)
 			return 0
@@ -2916,15 +2928,11 @@ close_interface() {
 		accept|ACCEPT)
 			;;
 		
-		*)
+		*)	
 			local -a inlog=(loglimit "'IN-${work_name}'")
 			local -a outlog=(loglimit "'OUT-${work_name}'")
 			;;
 	esac
-	
-	# Accept all related traffic to the established connections
-	rule chain "in_${work_name}" state RELATED action ACCEPT || return 1
-	rule chain "out_${work_name}" state RELATED action ACCEPT || return 1
 	
 	if [ "${FIREHOL_DROP_ORPHAN_TCP_ACK_FIN}" = "1" ]
 	then
@@ -2955,6 +2963,32 @@ close_router() {
 	# Accept all related traffic to the established connections
 	rule chain "in_${work_name}" state RELATED action ACCEPT || return 1
 	rule chain "out_${work_name}" state RELATED action ACCEPT || return 1
+	
+	# make sure we have a policy
+	test -z "${work_policy}" && work_policy="${DEFAULT_ROUTER_POLICY}"
+	case "${work_policy}" in
+		return|RETURN)
+			return 0
+			;;
+			
+		accept|ACCEPT)
+			;;
+		
+		*)	
+			local -a inlog=(loglimit "'PASS-${work_name}'")
+			local -a outlog=(loglimit "'PASS-${work_name}'")
+			;;
+	esac
+	
+	if [ "${FIREHOL_DROP_ORPHAN_TCP_ACK_FIN}" = "1" ]
+	then
+		# Silently drop orphan TCP/ACK FIN packets
+		rule chain "in_${work_name}" state NEW proto tcp custom "--tcp-flags ALL ACK,FIN" action DROP || return 1
+		rule reverse chain "out_${work_name}" state NEW proto tcp custom "--tcp-flags ALL ACK,FIN" action DROP || return 1
+	fi
+	
+	rule chain "in_${work_name}" "${inlog[@]}" action ${work_policy} || return 1
+	rule reverse chain "out_${work_name}" "${outlog[@]}" action ${work_policy} || return 1
 	
 	return 0
 }
@@ -3947,6 +3981,10 @@ rule() {
 							error "${action} must on a the 'mangle' table."
 							return 1
 						fi
+						;;
+						
+					tarpit|TARPIT)
+						action="TARPIT"
 						;;
 						
 					*)
@@ -5372,7 +5410,7 @@ case "${arg}" in
 		else
 		
 		${CAT_CMD} <<EOF
-$Id: firehol.sh,v 1.247 2006/04/22 17:26:18 ktsaou Exp $
+$Id: firehol.sh,v 1.248 2006/06/05 17:25:33 ktsaou Exp $
 (C) Copyright 2003, Costa Tsaousis <costa@tsaousis.gr>
 FireHOL is distributed under GPL.
 
@@ -5558,7 +5596,7 @@ then
 	
 	${CAT_CMD} <<EOF
 
-$Id: firehol.sh,v 1.247 2006/04/22 17:26:18 ktsaou Exp $
+$Id: firehol.sh,v 1.248 2006/06/05 17:25:33 ktsaou Exp $
 (C) Copyright 2003, Costa Tsaousis <costa@tsaousis.gr>
 FireHOL is distributed under GPL.
 Home Page: http://firehol.sourceforge.net
@@ -5864,7 +5902,7 @@ then
 	
 	"${CAT_CMD}" >&2 <<EOF
 
-$Id: firehol.sh,v 1.247 2006/04/22 17:26:18 ktsaou Exp $
+$Id: firehol.sh,v 1.248 2006/06/05 17:25:33 ktsaou Exp $
 (C) Copyright 2003, Costa Tsaousis <costa@tsaousis.gr>
 FireHOL is distributed under GPL.
 Home Page: http://firehol.sourceforge.net
@@ -5947,7 +5985,7 @@ EOF
 	echo "# "
 
 	${CAT_CMD} <<EOF
-# $Id: firehol.sh,v 1.247 2006/04/22 17:26:18 ktsaou Exp $
+# $Id: firehol.sh,v 1.248 2006/06/05 17:25:33 ktsaou Exp $
 # (C) Copyright 2003, Costa Tsaousis <costa@tsaousis.gr>
 # FireHOL is distributed under GPL.
 # Home Page: http://firehol.sourceforge.net
