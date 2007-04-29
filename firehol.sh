@@ -10,7 +10,7 @@
 #
 # config: /etc/firehol/firehol.conf
 #
-# $Id: firehol.sh,v 1.251 2007/02/04 23:28:41 ktsaou Exp $
+# $Id: firehol.sh,v 1.252 2007/04/29 18:34:55 ktsaou Exp $
 #
 
 # Make sure only root can run us.
@@ -171,7 +171,7 @@ ${RENICE_CMD} 10 $$ >/dev/null 2>/dev/null
 # Find our minor version
 firehol_minor_version() {
 ${CAT_CMD} <<"EOF" | ${CUT_CMD} -d ' ' -f 3 | ${CUT_CMD} -d '.' -f 2
-$Id: firehol.sh,v 1.251 2007/02/04 23:28:41 ktsaou Exp $
+$Id: firehol.sh,v 1.252 2007/04/29 18:34:55 ktsaou Exp $
 EOF
 }
 
@@ -4792,12 +4792,12 @@ rule() {
 		
 		if [ ! -z "${srctype}" ]
 		then
-			local -a stp_arg=("${srctypenot}" "--src-type" "${srctype}")
+			local -a stp_arg=(${srctypenot} "--src-type" "${srctype}")
 		fi
 		
 		if [ ! -z "${dsttype}" ]
 		then
-			local -a dtp_arg=("${dsttypenot}" "--dst-type" "${dsttype}")
+			local -a dtp_arg=(${dsttypenot} "--dst-type" "${dsttype}")
 		fi
 	fi
 	
@@ -4805,7 +4805,7 @@ rule() {
 	local -a state_arg=()
 	if [ ! -z "${state}" ]
 	then
-		local -a state_arg=("-m" "state" "${statenot}" "--state" "${state}")
+		local -a state_arg=("-m" "state" ${statenot} "--state" "${state}")
 	fi
 	
 	# limit
@@ -5415,7 +5415,7 @@ case "${arg}" in
 		else
 		
 		${CAT_CMD} <<EOF
-$Id: firehol.sh,v 1.251 2007/02/04 23:28:41 ktsaou Exp $
+$Id: firehol.sh,v 1.252 2007/04/29 18:34:55 ktsaou Exp $
 (C) Copyright 2003, Costa Tsaousis <costa@tsaousis.gr>
 FireHOL is distributed under GPL.
 
@@ -5601,7 +5601,7 @@ then
 	
 	${CAT_CMD} <<EOF
 
-$Id: firehol.sh,v 1.251 2007/02/04 23:28:41 ktsaou Exp $
+$Id: firehol.sh,v 1.252 2007/04/29 18:34:55 ktsaou Exp $
 (C) Copyright 2003, Costa Tsaousis <costa@tsaousis.gr>
 FireHOL is distributed under GPL.
 Home Page: http://firehol.sourceforge.net
@@ -5907,7 +5907,7 @@ then
 	
 	"${CAT_CMD}" >&2 <<EOF
 
-$Id: firehol.sh,v 1.251 2007/02/04 23:28:41 ktsaou Exp $
+$Id: firehol.sh,v 1.252 2007/04/29 18:34:55 ktsaou Exp $
 (C) Copyright 2003, Costa Tsaousis <costa@tsaousis.gr>
 FireHOL is distributed under GPL.
 Home Page: http://firehol.sourceforge.net
@@ -5990,7 +5990,7 @@ EOF
 	echo "# "
 
 	${CAT_CMD} <<EOF
-# $Id: firehol.sh,v 1.251 2007/02/04 23:28:41 ktsaou Exp $
+# $Id: firehol.sh,v 1.252 2007/04/29 18:34:55 ktsaou Exp $
 # (C) Copyright 2003, Costa Tsaousis <costa@tsaousis.gr>
 # FireHOL is distributed under GPL.
 # Home Page: http://firehol.sourceforge.net
