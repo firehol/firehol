@@ -1,8 +1,11 @@
 #!/bin/bash
 
-# $Id: get-iana.sh,v 1.8 2005/06/02 15:48:52 ktsaou Exp $
+# $Id: get-iana.sh,v 1.9 2007/04/29 19:34:11 ktsaou Exp $
 #
 # $Log: get-iana.sh,v $
+# Revision 1.9  2007/04/29 19:34:11  ktsaou
+# *** empty log message ***
+#
 # Revision 1.8  2005/06/02 15:48:52  ktsaou
 # Allowed 127.0.0.1 to be in RESERVED_IPS
 #
@@ -35,7 +38,7 @@ IANA_RESERVED="IANA - Reserved"
 
 LOG="/tmp/log.$$"
 
-test "$1" = "a" && AGGREGATE="`which aggregate-flim 2>/dev/null`"
+AGGREGATE="`which aggregate-flim 2>/dev/null`"
 
 printf 'RESERVED_IPS="'
 
