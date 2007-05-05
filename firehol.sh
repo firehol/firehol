@@ -10,7 +10,7 @@
 #
 # config: /etc/firehol/firehol.conf
 #
-# $Id: firehol.sh,v 1.253 2007/04/29 18:38:41 ktsaou Exp $
+# $Id: firehol.sh,v 1.254 2007/05/05 23:38:31 ktsaou Exp $
 #
 
 # Make sure only root can run us.
@@ -132,7 +132,6 @@ require_cmd() {
 # gzcat
 # ip
 # netstat
-# egrep
 # date
 # hostname
 
@@ -141,7 +140,9 @@ which_cmd CAT_CMD cat
 which_cmd CUT_CMD cut
 which_cmd CHOWN_CMD chown
 which_cmd CHMOD_CMD chmod
+which_cmd EGREP_CMD egrep
 which_cmd EXPR_CMD expr
+which_cmd FIND_CMD find
 which_cmd GAWK_CMD gawk
 which_cmd GREP_CMD grep
 which_cmd HEAD_CMD head
@@ -171,7 +172,7 @@ ${RENICE_CMD} 10 $$ >/dev/null 2>/dev/null
 # Find our minor version
 firehol_minor_version() {
 ${CAT_CMD} <<"EOF" | ${CUT_CMD} -d ' ' -f 3 | ${CUT_CMD} -d '.' -f 2
-$Id: firehol.sh,v 1.253 2007/04/29 18:38:41 ktsaou Exp $
+$Id: firehol.sh,v 1.254 2007/05/05 23:38:31 ktsaou Exp $
 EOF
 }
 
@@ -312,6 +313,86 @@ then
 	"${CHMOD_CMD}" 700 "${FIREHOL_SPOOL_DIR}"		|| exit 1
 fi
 
+load_ips() {
+	local v="${1}" # the variable
+	local d="${2}" # the default value
+	local dt="${3}" # days old
+	local m="${4}" # additional info for file generation
+	local c="${5}" # if set, complain if file is missing
+	
+	if [ ! -f "${FIREHOL_CONFIG_DIR}/${v}" ]
+	then
+		if [ ! -z "${c}" ]
+		then
+			echo >&2
+			echo >&2
+			echo >&2 "WARNING "
+			echo >&2 "Cannot find file '${FIREHOL_CONFIG_DIR}/${v}'."
+			echo >&2 "Using internal default values for variable '${v}' and all inherited ones."
+			echo >&2
+			
+			if [ ! -z "${m}" ]
+			then
+				echo >&2 "${m}"
+				echo >&2
+			fi
+		fi
+		
+		eval "export ${v}=\"${d}\""
+		return 0
+	fi
+	
+	if [ ${dt} -gt 0 ]
+	then
+		local t=`${FIND_CMD} "${FIREHOL_CONFIG_DIR}/${v}" -mtime +${dt}`
+		if [ ! -z "${t}" ]
+		then
+			echo >&2
+			echo >&2
+			echo >&2 "WARNING"
+			echo >&2 "File '${FIREHOL_CONFIG_DIR}/${v}' is more than ${dt} days old."
+			echo >&2 "You should update it to ensure proper operation of your firewall."
+			echo >&2
+			
+			if [ ! -z "${m}" ]
+			then
+				echo >&2 "${m}"
+				echo >&2
+			fi
+		fi
+	fi
+	
+	local t=`${CAT_CMD} "${FIREHOL_CONFIG_DIR}/${v}" | ${EGREP_CMD} "^ *[0-9]+\.[0-9]+\.[0-9]+\.[0-9]+/[0-9]+ *$"`
+	local t2=
+	local i=0
+	for x in ${t}
+	do
+		i=$[i + 1]
+		t2="${t2} ${x}"
+	done
+	
+	if [ ${i} -eq 0 -o -z "${t2}" ]
+	then
+		echo >&2
+		echo >&2
+		echo >&2 "WARNING "
+		echo >&2 "The file '${FIREHOL_CONFIG_DIR}/${v}' contains zero IP definitions."
+		echo >&2 "Using internal default values for variable '${v}' and all inherited ones."
+		echo >&2
+		
+		if [ ! -z "${m}" ]
+		then
+			echo >&2 "${m}"
+			echo >&2
+		fi
+		
+		eval "export ${v}=\"${d}\""
+		return 0
+	fi
+	
+	eval "export ${v}=\"${t2}\""
+	return 0
+}
 
 # ------------------------------------------------------------------------------
 # IP definitions
@@ -322,6 +403,7 @@ fi
 # Further optimized and reduced by http://www.vergenet.net/linux/aggregate/
 # The supplied get-iana.sh uses 'aggregate-flim' if it finds it in the path.
 RESERVED_IPS="0.0.0.0/7 2.0.0.0/8 5.0.0.0/8 7.0.0.0/8 23.0.0.0/8 27.0.0.0/8 31.0.0.0/8 36.0.0.0/7 39.0.0.0/8 42.0.0.0/8 46.0.0.0/8 94.0.0.0/7 100.0.0.0/6 104.0.0.0/5 112.0.0.0/6 127.0.0.0/8 173.0.0.0/8 174.0.0.0/7 176.0.0.0/5 184.0.0.0/6 197.0.0.0/8 223.0.0.0/8 240.0.0.0/4 "
+load_ips RESERVED_IPS "${RESERVED_IPS}" 90 "Run the supplied get-iana.sh script to generate this file." require-file
 
 # Private IPv4 address space
 # Suggested by Fco.Felix Belmonte <ffelix@gescosoft.com>
@@ -332,13 +414,16 @@ RESERVED_IPS="0.0.0.0/7 2.0.0.0/8 5.0.0.0/8 7.0.0.0/8 23.0.0.0/8 27.0.0.0/8 31.0
 # 192.88.99.0/24   => RFC 3068: 6to4 anycast & RFC 2544: Benchmarking addresses
 # 192.168.0.0/16   => RFC 1918: Private use
 PRIVATE_IPS="10.0.0.0/8 169.254.0.0/16 172.16.0.0/12 192.0.2.0/24 192.88.99.0/24 192.168.0.0/16"
+load_ips PRIVATE_IPS "${PRIVATE_IPS}" 0
 
 # The multicast address space
 MULTICAST_IPS="224.0.0.0/4"
+load_ips MULTICAST_IPS "${MULTICAST_IPS}" 0
 
 # A shortcut to have all the Internet unroutable addresses in one
 # variable
 UNROUTABLE_IPS="${RESERVED_IPS} ${PRIVATE_IPS}"
+load_ips UNROUTABLE_IPS "${UNROUTABLE_IPS}" 0
 
 # ----------------------------------------------------------------------
 
@@ -5415,7 +5500,7 @@ case "${arg}" in
 		else
 		
 		${CAT_CMD} <<EOF
-$Id: firehol.sh,v 1.253 2007/04/29 18:38:41 ktsaou Exp $
+$Id: firehol.sh,v 1.254 2007/05/05 23:38:31 ktsaou Exp $
 (C) Copyright 2003, Costa Tsaousis <costa@tsaousis.gr>
 FireHOL is distributed under GPL.
 
@@ -5601,7 +5686,7 @@ then
 	
 	${CAT_CMD} <<EOF
 
-$Id: firehol.sh,v 1.253 2007/04/29 18:38:41 ktsaou Exp $
+$Id: firehol.sh,v 1.254 2007/05/05 23:38:31 ktsaou Exp $
 (C) Copyright 2003, Costa Tsaousis <costa@tsaousis.gr>
 FireHOL is distributed under GPL.
 Home Page: http://firehol.sourceforge.net
@@ -5723,7 +5808,6 @@ then
 	# require commands for wizard mode
 	require_cmd ip
 	require_cmd netstat
-	require_cmd egrep
 	require_cmd date
 	require_cmd hostname
 	
@@ -5907,7 +5991,7 @@ then
 	
 	"${CAT_CMD}" >&2 <<EOF
 
-$Id: firehol.sh,v 1.253 2007/04/29 18:38:41 ktsaou Exp $
+$Id: firehol.sh,v 1.254 2007/05/05 23:38:31 ktsaou Exp $
 (C) Copyright 2003, Costa Tsaousis <costa@tsaousis.gr>
 FireHOL is distributed under GPL.
 Home Page: http://firehol.sourceforge.net
@@ -5990,7 +6074,7 @@ EOF
 	echo "# "
 
 	${CAT_CMD} <<EOF
-# $Id: firehol.sh,v 1.253 2007/04/29 18:38:41 ktsaou Exp $
+# $Id: firehol.sh,v 1.254 2007/05/05 23:38:31 ktsaou Exp $
 # (C) Copyright 2003, Costa Tsaousis <costa@tsaousis.gr>
 # FireHOL is distributed under GPL.
 # Home Page: http://firehol.sourceforge.net

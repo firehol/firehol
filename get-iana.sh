@@ -1,8 +1,25 @@
 #!/bin/bash
 
-# $Id: get-iana.sh,v 1.9 2007/04/29 19:34:11 ktsaou Exp $
+# $Id: get-iana.sh,v 1.10 2007/05/05 23:38:31 ktsaou Exp $
 #
 # $Log: get-iana.sh,v $
+# Revision 1.10  2007/05/05 23:38:31  ktsaou
+# Added support for external definitions of:
+#
+# RESERVED_IPS
+# PRIVATE_IPS
+# MULTICAST_IPS
+# UNROUTABLE_IPS
+#
+# in files under the same name in /etc/firehol/.
+# Only RESERVED_IPS is mandatory (firehol will complain if it is not there,
+# but it will still work without it), and is also the only file that firehol
+# checks how old is it. If it is 90+ days old, firehol will complain again.
+#
+# Changed the supplied get-iana.sh script to generate the RESERVED_IPS file.
+# FireHOL also instructs the user to use this script if the file is missing
+# or is too old.
+#
 # Revision 1.9  2007/04/29 19:34:11  ktsaou
 # *** empty log message ***
 #
@@ -36,22 +53,34 @@
 IPV4_ADDRESS_SPACE_URL="http://www.iana.org/assignments/ipv4-address-space"
 IANA_RESERVED="IANA - Reserved"
 
-LOG="/tmp/log.$$"
+tempfile="/tmp/iana.$$.$RANDOM"
 
 AGGREGATE="`which aggregate-flim 2>/dev/null`"
+if [ -z "${AGGREGATE}" ]
+then
+	echo >&2
+	echo >&2
+	echo >&2 "WARNING"
+	echo >&2 "Please install 'aggregate-flim' to shrink the list of IPs."
+	echo >&2
+	echo >&2
+fi
 
-printf 'RESERVED_IPS="'
+echo >&2
+echo >&2 "Fetching IANA IPv4 Address Space, from:"
+echo >&2 "${IPV4_ADDRESS_SPACE_URL}"
+echo >&2
 
-wget -O - --proxy=off "${IPV4_ADDRESS_SPACE_URL}" 2>>$LOG	|\
-	grep "${IANA_RESERVED}"					|\
-	cut -d ' ' -f 1						|\
+wget -O - --proxy=off "${IPV4_ADDRESS_SPACE_URL}"	|\
+	grep "${IANA_RESERVED}"				|\
+	cut -d ' ' -f 1					|\
 (
 	
 	while IFS="/" read range net
 	do
 		if [ ! $net -eq 8 ]
 		then
-			echo >>$LOG "Cannot handle network masks of $net bits ($range/$net)"
+			echo >&2 "Cannot handle network masks of $net bits ($range/$net)"
 			continue
 		fi
 		 
@@ -72,24 +101,79 @@ wget -O - --proxy=off "${IPV4_ADDRESS_SPACE_URL}" 2>>$LOG	|\
 (
 	if [ ! -z "${AGGREGATE}" -a -x "${AGGREGATE}" ]
 	then
-		"${AGGREGATE}" | (
-			while read x
-			do
-				printf "$x "
-			done
-		)
+		"${AGGREGATE}"
 	else
-		while read x
-		do
-			printf "$x "
-		done
+		cat
 	fi
-)
-printf '"'
-echo
+) >"${tempfile}"
 
-echo
-echo "Press enter to view the log..."
-read
-less $LOG
-rm -f $LOG
+echo >&2 
+echo >&2 
+echo >&2 "FOUND THE FOLLOWING RESERVED IP RANGES:"
+printf "RESERVED_IPS=\""
+i=0
+for x in `cat ${tempfile}`
+do
+	i=$[i + 1]
+	printf "${x} "
+done
+printf "\"\n"
+
+if [ $i -eq 0 ]
+then
+	echo >&2 
+	echo >&2 
+	echo >&2 "Failed to find reserved IPs."
+	echo >&2 "Possibly the file format has been changed, or I cannot fetch the URL."
+	echo >&2 
+	
+	rm -f ${tempfile}
+	exit 1
+fi
+echo >&2
+echo >&2
+echo >&2 "Differences between the fetched list and the list installed in"
+echo >&2 "/etc/firehol/RESERVED_IPS:"
+
+echo >&2 "# diff /etc/firehol/RESERVED_IPS ${tempfile}"
+diff /etc/firehol/RESERVED_IPS ${tempfile}
+
+if [ $? -eq 0 ]
+then
+	echo >&2
+	echo >&2 "No differences found."
+	echo >&2
+	
+	rm -f ${tempfile}
+	exit 0
+fi
+
+echo >&2 
+echo >&2 
+echo >&2 "Would you like to save this list to /etc/firehol/RESERVED_IPS"
+echo >&2 "so that FireHOL will automatically use it from now on?"
+echo >&2
+while [ 1 = 1 ]
+do
+	printf >&2 "yes or no > "
+	read x
+	
+	case "${x}" in
+		yes)	cp -f /etc/firehol/RESERVED_IPS /etc/firehol/RESERVED_IPS.old 2>/dev/null
+			cat "${tempfile}" >/etc/firehol/RESERVED_IPS || exit 1
+			echo >&2 "New RESERVED_IPS written to '/etc/firehol/RESERVED_IPS'."
+			break
+			;;
+			
+		no)
+			echo >&2 "Saved nothing."
+			break
+			;;
+			
+		*)	echo >&2 "Cannot understand '${x}'."
+			;;
+	esac
+done
+
+rm -f ${tempfile}
+
