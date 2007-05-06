@@ -10,7 +10,7 @@
 #
 # config: /etc/firehol/firehol.conf
 #
-# $Id: firehol.sh,v 1.254 2007/05/05 23:38:31 ktsaou Exp $
+# $Id: firehol.sh,v 1.255 2007/05/06 14:42:43 ktsaou Exp $
 #
 
 # Make sure only root can run us.
@@ -172,7 +172,7 @@ ${RENICE_CMD} 10 $$ >/dev/null 2>/dev/null
 # Find our minor version
 firehol_minor_version() {
 ${CAT_CMD} <<"EOF" | ${CUT_CMD} -d ' ' -f 3 | ${CUT_CMD} -d '.' -f 2
-$Id: firehol.sh,v 1.254 2007/05/05 23:38:31 ktsaou Exp $
+$Id: firehol.sh,v 1.255 2007/05/06 14:42:43 ktsaou Exp $
 EOF
 }
 
@@ -2802,7 +2802,19 @@ fi
 # 1 = module can be loaded with modprobe
 # 2 = no info about this module in the kernel
 check_kernel_config() {
-	eval local kcfg="\$${1}"
+	# In kernel 2.6.20+ _IP_ was removed from kernel iptables config names.
+	# Try both versions.
+	local t=`echo ${1} | sed "s/_IP_//g"`
+	eval local kcfg1="\$${1}"
+	eval local kcfg2="\$${t}"
+	
+	# prefer the kernel 2.6.20 way
+	if [ ! -z "${kcfg2}" ]
+	then
+		kcfg="${kcfg2}"
+	else
+		kcfg="${kcfg1}"
+	fi
 	
 	case ${kcfg} in
 		y)	return 0
@@ -2833,19 +2845,19 @@ check_kernel_module() {
 			return $?
 			;;
 		
-		ip_conntrack)
-			test -f /proc/net/ip_conntrack && return 0
+		ip_conntrack|nf_conntrack)
+			test -f /proc/net/ip_conntrack -o -f /proc/net/nf_conntrack && return 0
 			check_kernel_config CONFIG_IP_NF_CONNTRACK
 			return $?
 			;;
 			
-		ip_conntrack_*)
+		ip_conntrack_*|nf_conntrack_*)
 			local mnam="CONFIG_IP_NF_`echo ${mod} | ${CUT_CMD} -d '_' -f 3- | ${TR_CMD} a-z A-Z`"
 			check_kernel_config ${mnam}
 			return $?
 			;;
 			
-		ip_nat_*)
+		ip_nat_*|nf_nat_*)
 			local mnam="CONFIG_IP_NF_NAT_`echo ${mod} | ${CUT_CMD} -d '_' -f 3- | ${TR_CMD} a-z A-Z`"
 			check_kernel_config ${mnam}
 			return $?
@@ -5500,7 +5512,7 @@ case "${arg}" in
 		else
 		
 		${CAT_CMD} <<EOF
-$Id: firehol.sh,v 1.254 2007/05/05 23:38:31 ktsaou Exp $
+$Id: firehol.sh,v 1.255 2007/05/06 14:42:43 ktsaou Exp $
 (C) Copyright 2003, Costa Tsaousis <costa@tsaousis.gr>
 FireHOL is distributed under GPL.
 
@@ -5686,7 +5698,7 @@ then
 	
 	${CAT_CMD} <<EOF
 
-$Id: firehol.sh,v 1.254 2007/05/05 23:38:31 ktsaou Exp $
+$Id: firehol.sh,v 1.255 2007/05/06 14:42:43 ktsaou Exp $
 (C) Copyright 2003, Costa Tsaousis <costa@tsaousis.gr>
 FireHOL is distributed under GPL.
 Home Page: http://firehol.sourceforge.net
@@ -5991,7 +6003,7 @@ then
 	
 	"${CAT_CMD}" >&2 <<EOF
 
-$Id: firehol.sh,v 1.254 2007/05/05 23:38:31 ktsaou Exp $
+$Id: firehol.sh,v 1.255 2007/05/06 14:42:43 ktsaou Exp $
 (C) Copyright 2003, Costa Tsaousis <costa@tsaousis.gr>
 FireHOL is distributed under GPL.
 Home Page: http://firehol.sourceforge.net
@@ -6074,7 +6086,7 @@ EOF
 	echo "# "
 
 	${CAT_CMD} <<EOF
-# $Id: firehol.sh,v 1.254 2007/05/05 23:38:31 ktsaou Exp $
+# $Id: firehol.sh,v 1.255 2007/05/06 14:42:43 ktsaou Exp $
 # (C) Copyright 2003, Costa Tsaousis <costa@tsaousis.gr>
 # FireHOL is distributed under GPL.
 # Home Page: http://firehol.sourceforge.net
