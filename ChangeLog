@@ -1,7 +1,7 @@
 
 RCS file: /cvsroot/firehol/firehol/firehol.sh,v
 Working file: firehol.sh
-head: 1.236
+head: 1.255
 branch:
 locks: strict
 access list:
@@ -9,8 +9,139 @@ symbolic names:
 	start: 1.1.1.1
 	vendor: 1.1.1
 keyword substitution: kv
-total revisions: 237;	selected revisions: 237
+total revisions: 256;	selected revisions: 256
 description:
+----------------------------
+revision 1.255
+date: 2007/05/06 14:42:43;  author: ktsaou;  state: Exp;  lines: +23 -11
+Made firehol correctly identify newer kernel options regarding iptables
+modules (applies to kernels 2.6.20+).
+----------------------------
+revision 1.254
+date: 2007/05/05 23:38:31;  author: ktsaou;  state: Exp;  lines: +92 -8
+Added support for external definitions of:
+
+RESERVED_IPS
+PRIVATE_IPS
+MULTICAST_IPS
+UNROUTABLE_IPS
+
+in files under the same name in /etc/firehol/.
+Only RESERVED_IPS is mandatory (firehol will complain if it is not there,
+but it will still work without it), and is also the only file that firehol
+checks how old is it. If it is 90+ days old, firehol will complain again.
+
+Changed the supplied get-iana.sh script to generate the RESERVED_IPS file.
+FireHOL also instructs the user to use this script if the file is missing
+or is too old.
+----------------------------
+revision 1.253
+date: 2007/04/29 18:38:41;  author: ktsaou;  state: Exp;  lines: +7 -7
+Updated RESERVED_IPS
+----------------------------
+revision 1.252
+date: 2007/04/29 18:34:55;  author: ktsaou;  state: Exp;  lines: +9 -9
+BASH 3.2 support.
+The problem is in array variables.
+For some reason, an empty array member in BASH 3.1 produces no iptables
+arguments, but in BASH 3.2 an empty array member produces an empty iptables
+argument which breaks iptables.
+----------------------------
+revision 1.251
+date: 2007/02/04 23:28:41;  author: ktsaou;  state: Exp;  lines: +7 -7
+Updated RESERVED_IPS.
+----------------------------
+revision 1.250
+date: 2006/11/21 23:41:23;  author: ktsaou;  state: Exp;  lines: +7 -7
+Updated latest IANA RESERVED_IPS.
+----------------------------
+revision 1.249
+date: 2006/06/05 17:47:48;  author: ktsaou;  state: Exp;  lines: +11 -6
+Applied patch of bug: 1498292, "nfs" service missing ports for "rpc.statd"
+----------------------------
+revision 1.248
+date: 2006/06/05 17:25:33;  author: ktsaou;  state: Exp;  lines: +53 -15
+Added support for TARPIT.
+Made 'policy' work for routers too.
+----------------------------
+revision 1.247
+date: 2006/04/22 17:26:18;  author: ktsaou;  state: Exp;  lines: +11 -6
+Added protection 'bad-packets'.
+----------------------------
+revision 1.246
+date: 2006/03/23 18:50:16;  author: ktsaou;  state: Exp;  lines: +8 -8
+Fixed bug 1455569:
+When FireHOL has created the
+$FIREHOL_SPOOL_DIR, it then runs chown and chmod on
+the $FIREHOL_CONFIG_DIR. This looks like a
+cut-n-paste error, since it at that point makes more
+sense to chown/chmod $FIREHOL_SPOOL_DIR.
+----------------------------
+revision 1.245
+date: 2006/03/12 12:54:55;  author: ktsaou;  state: Exp;  lines: +7 -7
+Updated RESERVED_IPS for latest IANA assignements.
+----------------------------
+revision 1.244
+date: 2006/03/11 12:24:34;  author: ktsaou;  state: Exp;  lines: +15 -7
+Added service OSPF.
+
+Make the wizard to ommit /32 from IPs since iptables now seems to complain
+about it. Check bug: 1435098
+----------------------------
+revision 1.243
+date: 2006/01/18 21:24:22;  author: ktsaou;  state: Exp;  lines: +7 -7
+Updated RESERVED_IPS.
+----------------------------
+revision 1.242
+date: 2006/01/18 21:20:28;  author: ktsaou;  state: Exp;  lines: +7 -7
+Fixed the SIP service to allow port 5060 for the client (had only 'default').
+----------------------------
+revision 1.241
+date: 2005/11/19 09:38:25;  author: ktsaou;  state: Exp;  lines: +7 -7
+Added tcp/8333 to vmwareweb
+----------------------------
+revision 1.240
+date: 2005/11/11 21:49:03;  author: ktsaou;  state: Exp;  lines: +70 -9
+Added option 'recent' to action 'ACCEPT':
+
+Example:
+
+server smtp accept with recent NAME SECONDS HITS
+
+where
+
+NAME is a name for this RECENT match
+SECONDS is a number, or empty ("")
+HITS is a number, or empty ("")
+
+Check:
+
+iptables -m recent --help
+
+for more information.
+----------------------------
+revision 1.239
+date: 2005/10/27 23:46:01;  author: ktsaou;  state: Exp;  lines: +9 -6
+created a copy of "microsoft_ds" service as "ms_ds" to overcome the issue
+of long chain names.
+----------------------------
+revision 1.238
+date: 2005/10/16 08:55:53;  author: ktsaou;  state: Exp;  lines: +24 -6
+Added variable FIREHOL_DROP_ORPHAN_TCP_ACK_FIN which once set to 1 in the
+config file, it makes FireHOL drop all packets that appear as NEW
+connections to the connection tracker but they are TCP and have ACK and FIN
+set.
+
+This should eliminate the logs that appear in a few busy environments where
+the iptables connection tracker removes entries from its table when it
+sees the FIN and therefore the ACK,FIN is considered a NEW connection.
+
+See also https://sourceforge.net/tracker/?func=detail&atid=487693&aid=1326811&group_id=58425
+----------------------------
+revision 1.237
+date: 2005/09/21 21:32:58;  author: ktsaou;  state: Exp;  lines: +16 -13
+Made it dynamically detect /var/lock/subsys and switch back to /var/lock
+if the first does not exist.
 ----------------------------
 revision 1.236
 date: 2005/06/02 16:20:35;  author: ktsaou;  state: Exp;  lines: +7 -7

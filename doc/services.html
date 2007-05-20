@@ -131,7 +131,7 @@ All the services defined by name in FireHOL are known to resolve in <a href="htt
 	<tr><td align=left valign=top><font color="gray" size=+1><b>M</td></tr>
 	<tr><td align=left valign=top><small>
 
-<a href="#microsoft_ds">microsoft_ds</a>, <a href="#mms">mms</a>, <a href="#msn">msn</a>, <a href="#multicast">multicast</a>, <a href="#mysql">mysql</a></td></tr></table></td>
+<a href="#microsoft_ds">microsoft_ds</a>, <a href="#mms">mms</a>, <a href="#ms_ds">ms_ds</a>, <a href="#msn">msn</a>, <a href="#multicast">multicast</a>, <a href="#mysql">mysql</a></td></tr></table></td>
 
 <td width="25%" align=left valign=top>
 	<table border=0 cellpadding=2 cellspacing=2 width="100%">
@@ -146,7 +146,7 @@ All the services defined by name in FireHOL are known to resolve in <a href="htt
 	<tr><td align=left valign=top><font color="gray" size=+1><b>O</td></tr>
 	<tr><td align=left valign=top><small>
 
-<a href="#oracle">oracle</a></td></tr></table></td>
+<a href="#oracle">oracle</a>, <a href="#OSPF">OSPF</a></td></tr></table></td>
 
 <td width="25%" align=left valign=top>
 	<table border=0 cellpadding=2 cellspacing=2 width="100%">
@@ -1256,6 +1256,25 @@ All the services defined by name in FireHOL are known to resolve in <a href="htt
 	</td>
 	</tr>
 <tr  bgcolor="#F0F0F0">
+	<td align="center" valign="top"><a name="ms_ds"><b>ms_ds</b></a></td>
+	<td align="center" valign="top">simple</td>
+	<td>
+		<table cellspacing=0 cellpadding=2 border=0>
+		<tr>
+<td align=right valign=top nowrap><small><font color=gray>Server Ports</td><td>&nbsp;
+<b>tcp/445</b>
+</td></tr><tr><td align=right valign=top nowrap><small><font color=gray>Client Ports</td><td>&nbsp;
+<b>default</b>
+</td></tr><tr><td align=right valign=top nowrap><small><font color=gray>Netfilter Modules</td><td>&nbsp;
+</td></tr><tr><td align=right valign=top nowrap><small><font color=gray>Netfilter NAT Modules</td><td>&nbsp;
+</td>
+	</tr>
+	<tr><td align=right valign=top nowrap><small><font color="gray">Notes</td><td>Direct Hosted (i.e. NETBIOS-less SMB) <p> This is another NETBIOS Session Service with minor differences with <a href="#netbios_ssn">netbios_ssn</a>. It is supported only by Windows 2000 and Windows XP and it offers the advantage of being indepedent of WINS for name resolution. <p> It seems that samba supports transparently this protocol on the <a href="#netbios_ssn">netbios_ssn</a> ports, so that either direct hosted or traditional SMB can be served simultaneously. <p> Please refer to the <a href="#netbios_ssn">netbios_ssn</a> service for more information.<br>&nbsp;</td></tr>
+	<tr><td align=right valign=top nowrap><small><font color="gray">Example</td><td><b>server ms_ds accept</b></td></tr>
+	</table>
+	</td>
+	</tr>
+<tr >
 	<td align="center" valign="top"><a name="msn"><b>msn</b></a></td>
 	<td align="center" valign="top">simple</td>
 	<td>
@@ -1274,7 +1293,7 @@ All the services defined by name in FireHOL are known to resolve in <a href="htt
 	</table>
 	</td>
 	</tr>
-<tr >
+<tr  bgcolor="#F0F0F0">
 	<td align="center" valign="top"><a name="multicast"><b>multicast</b></a></td>
 	<td align="center" valign="top">complex</td>
 	<td>
@@ -1293,7 +1312,7 @@ All the services defined by name in FireHOL are known to resolve in <a href="htt
 	</table>
 	</td>
 	</tr>
-<tr  bgcolor="#F0F0F0">
+<tr >
 	<td align="center" valign="top"><a name="mysql"><b>mysql</b></a></td>
 	<td align="center" valign="top">simple</td>
 	<td>
@@ -1312,7 +1331,7 @@ All the services defined by name in FireHOL are known to resolve in <a href="htt
 	</table>
 	</td>
 	</tr>
-<tr >
+<tr  bgcolor="#F0F0F0">
 	<td align="center" valign="top"><a name="netbackup"><b>netbackup</b></a></td>
 	<td align="center" valign="top">simple</td>
 	<td>
@@ -1343,7 +1362,7 @@ All the services defined by name in FireHOL are known to resolve in <a href="htt
 	</table>
 	</td>
 	</tr>
-<tr  bgcolor="#F0F0F0">
+<tr >
 	<td align="center" valign="top"><a name="netbios_dgm"><b>netbios_dgm</b></a></td>
 	<td align="center" valign="top">simple</td>
 	<td>
@@ -1364,7 +1383,7 @@ All the services defined by name in FireHOL are known to resolve in <a href="htt
 	</table>
 	</td>
 	</tr>
-<tr >
+<tr  bgcolor="#F0F0F0">
 	<td align="center" valign="top"><a name="netbios_ns"><b>netbios_ns</b></a></td>
 	<td align="center" valign="top">simple</td>
 	<td>
@@ -1385,7 +1404,7 @@ All the services defined by name in FireHOL are known to resolve in <a href="htt
 	</table>
 	</td>
 	</tr>
-<tr  bgcolor="#F0F0F0">
+<tr >
 	<td align="center" valign="top"><a name="netbios_ssn"><b>netbios_ssn</b></a></td>
 	<td align="center" valign="top">simple</td>
 	<td>
@@ -1404,7 +1423,7 @@ All the services defined by name in FireHOL are known to resolve in <a href="htt
 	</table>
 	</td>
 	</tr>
-<tr >
+<tr  bgcolor="#F0F0F0">
 	<td align="center" valign="top"><a name="nfs"><b>nfs</b></a></td>
 	<td align="center" valign="top">complex</td>
 	<td>
@@ -1423,7 +1442,7 @@ All the services defined by name in FireHOL are known to resolve in <a href="htt
 	</table>
 	</td>
 	</tr>
-<tr  bgcolor="#F0F0F0">
+<tr >
 	<td align="center" valign="top"><a name="nis"><b>nis</b></a></td>
 	<td align="center" valign="top">complex</td>
 	<td>
@@ -1442,7 +1461,7 @@ All the services defined by name in FireHOL are known to resolve in <a href="htt
 	</table>
 	</td>
 	</tr>
-<tr >
+<tr  bgcolor="#F0F0F0">
 	<td align="center" valign="top"><a name="nntp"><b>nntp</b></a></td>
 	<td align="center" valign="top">simple</td>
 	<td>
@@ -1461,7 +1480,7 @@ All the services defined by name in FireHOL are known to resolve in <a href="htt
 	</table>
 	</td>
 	</tr>
-<tr  bgcolor="#F0F0F0">
+<tr >
 	<td align="center" valign="top"><a name="nntps"><b>nntps</b></a></td>
 	<td align="center" valign="top">simple</td>
 	<td>
@@ -1480,7 +1499,7 @@ All the services defined by name in FireHOL are known to resolve in <a href="htt
 	</table>
 	</td>
 	</tr>
-<tr >
+<tr  bgcolor="#F0F0F0">
 	<td align="center" valign="top"><a name="ntp"><b>ntp</b></a></td>
 	<td align="center" valign="top">simple</td>
 	<td>
@@ -1503,7 +1522,7 @@ All the services defined by name in FireHOL are known to resolve in <a href="htt
 	</table>
 	</td>
 	</tr>
-<tr  bgcolor="#F0F0F0">
+<tr >
 	<td align="center" valign="top"><a name="nut"><b>nut</b></a></td>
 	<td align="center" valign="top">simple</td>
 	<td>
@@ -1524,7 +1543,7 @@ All the services defined by name in FireHOL are known to resolve in <a href="htt
 	</table>
 	</td>
 	</tr>
-<tr >
+<tr  bgcolor="#F0F0F0">
 	<td align="center" valign="top"><a name="nxserver"><b>nxserver</b></a></td>
 	<td align="center" valign="top">simple</td>
 	<td>
@@ -1543,7 +1562,7 @@ All the services defined by name in FireHOL are known to resolve in <a href="htt
 	</table>
 	</td>
 	</tr>
-<tr  bgcolor="#F0F0F0">
+<tr >
 	<td align="center" valign="top"><a name="oracle"><b>oracle</b></a></td>
 	<td align="center" valign="top">simple</td>
 	<td>
@@ -1559,6 +1578,25 @@ All the services defined by name in FireHOL are known to resolve in <a href="htt
 	</tr>
 	<tr><td align=right valign=top nowrap><small><font color="gray">Notes</td><td><br>&nbsp;</td></tr>
 	<tr><td align=right valign=top nowrap><small><font color="gray">Example</td><td><b>server oracle accept</b></td></tr>
+	</table>
+	</td>
+	</tr>
+<tr  bgcolor="#F0F0F0">
+	<td align="center" valign="top"><a name="OSPF"><b>OSPF</b></a></td>
+	<td align="center" valign="top">simple</td>
+	<td>
+		<table cellspacing=0 cellpadding=2 border=0>
+		<tr>
+<td align=right valign=top nowrap><small><font color=gray>Server Ports</td><td>&nbsp;
+<b>89/any</b>
+</td></tr><tr><td align=right valign=top nowrap><small><font color=gray>Client Ports</td><td>&nbsp;
+<b>any</b>
+</td></tr><tr><td align=right valign=top nowrap><small><font color=gray>Netfilter Modules</td><td>&nbsp;
+</td></tr><tr><td align=right valign=top nowrap><small><font color=gray>Netfilter NAT Modules</td><td>&nbsp;
+</td>
+	</tr>
+	<tr><td align=right valign=top nowrap><small><font color="gray">Notes</td><td><br>&nbsp;</td></tr>
+	<tr><td align=right valign=top nowrap><small><font color="gray">Example</td><td><b>server OSPF accept</b></td></tr>
 	</table>
 	</td>
 	</tr>
@@ -1900,6 +1938,8 @@ All the services defined by name in FireHOL are known to resolve in <a href="htt
 <td align=right valign=top nowrap><small><font color=gray>Server Ports</td><td>&nbsp;
 <b>udp/5060</b>
 </td></tr><tr><td align=right valign=top nowrap><small><font color=gray>Client Ports</td><td>&nbsp;
+<b>5060</b>
+, 
 <b>default</b>
 </td></tr><tr><td align=right valign=top nowrap><small><font color=gray>Netfilter Modules</td><td>&nbsp;
 </td></tr><tr><td align=right valign=top nowrap><small><font color=gray>Netfilter NAT Modules</td><td>&nbsp;
@@ -2312,6 +2352,8 @@ All the services defined by name in FireHOL are known to resolve in <a href="htt
 		<tr>
 <td align=right valign=top nowrap><small><font color=gray>Server Ports</td><td>&nbsp;
 <b>tcp/8222</b>
+, 
+<b>tcp/8333</b>
 </td></tr><tr><td align=right valign=top nowrap><small><font color=gray>Client Ports</td><td>&nbsp;
 <b>default</b>
 </td></tr><tr><td align=right valign=top nowrap><small><font color=gray>Netfilter Modules</td><td>&nbsp;
@@ -2426,7 +2468,7 @@ All the services defined by name in FireHOL are known to resolve in <a href="htt
 <tr><td align=center valign=middle>
 	<A href="http://sourceforge.net"><IMG src="http://sourceforge.net/sflogo.php?group_id=58425&amp;type=5" width="210" height="62" border="0" alt="SourceForge Logo"></A>
 </td><td align=center valign=middle>
-	<small>$Id: services.html,v 1.64 2005/01/24 22:19:55 ktsaou Exp $</small>
+	<small>$Id: services.html,v 1.65 2007/05/20 16:53:22 ktsaou Exp $</small>
 	<p>
 	<b>FireHOL</b>, a firewall for humans...<br>
 	&copy; Copyright 2004

@@ -1,7 +1,30 @@
-$Id: WhatIsNew,v 1.10 2005/01/30 03:02:01 ktsaou Exp $
+$Id: WhatIsNew,v 1.11 2007/05/20 16:53:22 ktsaou Exp $
 
 What Is New in public releases.
 -------------------------------
+
+R5 v1.255, May 20, 2007
+Fixed kernel 2.6.20+ compatibility issues.
+Fixed BASH 3.2 compatibility issues.
+Fixed iptables compatibility issues.
+
+FireHOL supports external definitions of RESERVED_IPS,
+PRIVATE_IPS, MULTICAST_IPS, UNROUTABLE_IPS in /etc/firehol.
+Also, complains if RESERVED_IPS is older that 90 days.
+
+Policy, now works on routers too.
+
+Updated services: nfs, OSPF, sip, vmwareweb, 
+Added protections: bad-packets, all-floods
+Added actions: TARPIT
+Added support for the RECENT iptables module.
+Added addrtype support in optional rule parameters.
+
+Added FIREHOL_DROP_ORPHAN_TCP_ACK_FIN for busy servers.
+Added FIREHOL_LOG_PREFIX to improve logging.
+
+Fixed various minor bugs.
+
 
 R5 v1.226, Jan 30, 2005
 Still there were issues with the temporary files.

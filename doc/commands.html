@@ -96,6 +96,7 @@ google_color_text = "000000";
 			<li><a href="#reject">reject</a>, don't allow the traffic to pass, but send a rejection message to the sender</li>
 			<li><a href="#drop">drop</a>, discard the traffic without sending anything back to the sender</li>
 			<li><a href="#deny">deny</a>, an alias for <a href="#drop">drop</a></li>
+			<li><a href="#tarpit">tarpit</a>, tarpit TCP traffic making the remote client to timeout after several minutes</li>
 			<li><a href="#return">return</a>, return to processing the parent flow of rules</li>
 			<li><a href="#mirror">mirror</a>, send the traffic back to the sender at the port of the destination</li>
 			<li><a href="#redirect">redirect</a>, redirect the traffic to another port on the local host</li>
@@ -289,8 +290,6 @@ Subcommands must be given within <a href="#primary_commands">Primary commands</a
 	By changing the policy to accept, you <u>CANNOT</u> create valid "ACCEPT EVERYTHING, DROP EXPLICITLY" firewalls.</b><br>
 	The policy should be set to accept only if you <u>really trust</u> the hosts that can reach the machine via this interface.
 	For information about this, see: <a href="https://sourceforge.net/tracker/index.php?func=detail&aid=927532&group_id=58425&atid=487692">Bug 927532</a>.
-	<p>
-	The policy of routers cannot be changed and is always RETURN.
 	<p>
 
 <hr noshade size=1 width="100%">
@@ -873,6 +872,7 @@ multiple iptables statements to achieve both the logging and the action.
 
 	<a name="accept"><h3><b>accept</b> [with limit &lt;frequency&gt; &lt;burst&gt; [overflow &lt;action&gt;]]</h3></a>
 	<h3><b>accept</b> [with knock &lt;name&gt;]</h3>
+	<h3><b>accept</b> [with recent &lt;name&gt; &lt;seconds&gt; &lt;hits&gt;]</h3>
 	<b>accept</b> allows the traffic matching the rules to reach its destination.
 	<p>
 	<b>with limit</b><br>
@@ -909,10 +909,18 @@ multiple iptables statements to achieve both the logging and the action.
 	- i.e. the same knock as far as knockd is concerned - will allow all the FireHOL services with the same knock name to serve requests for the given IP).
 	Check also <a href="https://sourceforge.net/forum/forum.php?thread_id=1199404&forum_id=196547">this forum post</a>.
 	<p>
+	<p>
+	<b>with recent</b><br>
+	The optional parameter <b>with recent</b> allows new connections to be limited per remote IP for a number of seconds and/or hits.
+	The name parameter allows multiple statements to share the same recent list of IPs.
+	If the time or the hits are not required, set them to empty.
+	Keep in mind that when a new connection is not allowed, the traffic will continue to be matched by the rest of the firewall. In other words, if the traffic is not allowed due to the limitations set here, it is not dropped. It is just not matched by this rule.
+	<p>
 	Example 1: <b>server smtp accept</b>, to allow SMTP requests and their replies to flow.<br>
 	Example 2: <b>server smtp accept with limit 10/s 100</b>, to allow SMTP requests to come at 10/second max, with a burst of 100, and their replies to flow back.<br>
 	Example 3: <b>server smtp accept with limit 10/s 100 overflow drop</b>, to allow SMTP requests to come at 10/second max, with a burst of 100, and their replies to flow back. The overflow requests will be dropped.<br>
 	Example 4: <b>server smtp accept with limit 10/s 100 src "1.2.3.4 5.6.7.8"</b>, same as example 2, but the only valid clients are given as argument to <b>src</b>
+	Example 4: <b>server smtp accept with recent mail 60 2</b>, to allow only 2 connections every 60 seconds per remote IP, to the smtp server.
 	<p>
 
 <hr noshade size=1 width="100%">
@@ -1040,6 +1048,16 @@ multiple iptables statements to achieve both the logging and the action.
 	<b>deny</b> is just an alias for <a href="#drop">drop</a>, made for those who are used to ipchains terminology.
 	<p>
 	Example: <b>server smtp deny</b>, to silently discard SMTP requests and their replies.
+	<p>
+
+<hr noshade size=1 width="100%">
+
+	<a name="tarpit"><h3><b>tarpit</b></h3></a>
+	Captures and holds incoming TCP connections using no local per-connection resources. Connections are accepted, but immediately switched to the persist state (0 byte window),
+	in which the remote side stops sending data and asks to continue every 60-240 seconds. Attempts to close the connection are ignored, forcing the remote side to
+	time out the connection in 12-24 minutes.
+	<p>
+	Example: <b>server smtp tarpit</b>, to force remote clients to timeout.
 	<p>
 
 <hr noshade size=1 width="100%">
@@ -1678,12 +1696,31 @@ about optional rule parameters that should not be used in certain commands.
 	Example: <b>FIREHOL_TRUST_LOOPBACK=0</b>
 	<p>
 
+<hr noshade size=1 width="100%">
+
+	<a name="FIREHOL_DROP_ORPHAN_TCP_ACK_FIN"><h3><b>FIREHOL_DROP_ORPHAN_TCP_ACK_FIN</b></h3></a>
+	<H4>Description</H4>
+	FIREHOL_DROP_ORPHAN_TCP_ACK_FIN allows you to choose if FireHOL will drop all TCP connections
+	with ACK FIN set without logging them.
+	In busy environments the iptables connection tracker removes from the connection tracking list
+	entries when it receives a FIN. This makes the ACK FIN appear as an invalid packet (it does not
+	match anything on the connection tracking list, and it is not a new connection).
+	Normally FireHOL logs this traffic. If FIREHOL_DROP_ORPHAN_TCP_ACK_FIN is set to 1, FireHOL
+	will silentrly drop such packets.
+	<p>
+	Default: <b>FIREHOL_DROP_ORPHAN_TCP_ACK_FIN=0</b>
+	<br>
+	Example: <b>FIREHOL_DROP_ORPHAN_TCP_ACK_FIN=1</b>
+	<p>
+
 <table border=0 cellpadding=10 cellspacing=0 width="100%"><tr bgcolor="#777777"><td align=center><font color="white"><b><big><a name="use_variables">Variables that FireHOL offers</a></td</tr></table>
 <p>
 	<a name="RESERVED_IPS"><h3><b>RESERVED_IPS</b></h3></a>
 	<H4>Description</H4>
 	This variable includes all the IP addresses defined as <b>IANA - Reserved</b> by <a href="http://www.iana.org">IANA</a>.
-	The supplied <b>get-iana.sh</b> script creates this variable by directly fetching <a href="http://www.iana.org/assignments/ipv4-address-space">this</a> document.
+	You can overwrite the internal default definion of this variable by creating a file with same name in /etc/firehol.
+	This file accepts an IP definition per line.
+	The supplied <b>get-iana.sh</b> script creates this file by directly fetching <a href="http://www.iana.org/assignments/ipv4-address-space">this</a> document.
 	<p>
 	Example: <b>interface eth0 internet src not "${RESERVED_IPS}"</b>
 	<p>
@@ -1693,6 +1730,8 @@ about optional rule parameters that should not be used in certain commands.
 	<a name="PRIVATE_IPS"><h3><b>PRIVATE_IPS</b></h3></a>
 	<H4>Description</H4>
 	This variable includes all the IP addresses defined as <b>Private</b> or <b>Test</b> by <a href="http://www.ietf.org/rfc/rfc3330.txt?number=3330">RFC 3330</a>.
+	You can overwrite the internal default definion of this variable by creating a file with same name in /etc/firehol.
+	This file accepts an IP definition per line.
 	<p>
 	Example: <b>interface eth0 internet src not "${PRIVATE_IPS}"</b>
 	<p>
@@ -1703,8 +1742,21 @@ about optional rule parameters that should not be used in certain commands.
 	<H4>Description</H4>
 	This variable is both RESERVED_IPS and PRIVATE_IPS together. I suggest to use this variable on interfaces and routers
 	accepting Internet traffic.
+	You can overwrite the internal default definion of this variable by creating a file with same name in /etc/firehol.
+	This file accepts an IP definition per line.
 	<p>
 	Example: <b>interface eth0 internet src not "${UNROUTABLE_IPS}"</b>
+	<p>
+	
+
+<hr noshade size=1 width="100%">
+
+	<a name="MULTICAST_IPS"><h3><b>MULTICAST_IPS</b></h3></a>
+	<H4>Description</H4>
+	You can overwrite the internal default definion of this variable by creating a file with same name in /etc/firehol.
+	This file accepts an IP definition per line.
+	<p>
+	Example: <b>interface eth0 internet src not "${MULTICAST_IPS}"</b>
 	<p>
 	
 
@@ -1714,7 +1766,7 @@ about optional rule parameters that should not be used in certain commands.
 <tr><td align=center valign=middle>
 	<A href="http://sourceforge.net"><IMG src="http://sourceforge.net/sflogo.php?group_id=58425&amp;type=5" width="210" height="62" border="0" alt="SourceForge Logo"></A>
 </td><td align=center valign=middle>
-	<small>$Id: commands.html,v 1.67 2006/06/05 17:25:33 ktsaou Exp $</small>
+	<small>$Id: commands.html,v 1.68 2007/05/20 16:53:22 ktsaou Exp $</small>
 	<p>
 	<b>FireHOL</b>, a firewall for humans...<br>
 	&copy; Copyright 2004
