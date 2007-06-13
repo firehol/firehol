@@ -113,7 +113,7 @@ rm -rf ${RPM_BUILD_DIR}/%{name}-%{version}
 /etc/firehol/examples/client-all.conf
 /etc/firehol/examples/lan-gateway.conf
 
-%doc adblock.sh get-iana.sh
+%doc adblock.sh get-iana.sh check-iana.sh
 %doc doc/adding.html
 %doc doc/css.css
 %doc doc/fwtest.html

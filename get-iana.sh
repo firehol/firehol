@@ -1,8 +1,11 @@
 #!/bin/bash
 
-# $Id: get-iana.sh,v 1.10 2007/05/05 23:38:31 ktsaou Exp $
+# $Id: get-iana.sh,v 1.11 2007/06/13 14:40:04 ktsaou Exp $
 #
 # $Log: get-iana.sh,v $
+# Revision 1.11  2007/06/13 14:40:04  ktsaou
+# *** empty log message ***
+#
 # Revision 1.10  2007/05/05 23:38:31  ktsaou
 # Added support for external definitions of:
 #
@@ -56,6 +59,11 @@ IANA_RESERVED="IANA - Reserved"
 tempfile="/tmp/iana.$$.$RANDOM"
 
 AGGREGATE="`which aggregate-flim 2>/dev/null`"
+if [ -z "${AGGREGATE}" ]
+then
+	AGGREGATE="`which aggregate 2>/dev/null`"
+fi
+
 if [ -z "${AGGREGATE}" ]
 then
 	echo >&2
