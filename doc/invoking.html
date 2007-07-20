@@ -118,6 +118,11 @@ FireHOL has been designed to be a startup service. As such, FireHOL accepts all 
 		Also, FireHOL automatically checks current kernel configuration for
 		client ports range. If you restore a firewall using the iptables service
 		your firewall may not work as expected.
+		<p>
+		Since v1.258 FireHOL also saves the required kernel modules in an
+		executable shell script in /var/spool/firehol/last_save_modules.sh.
+		This script can be called during boot to restore the required kernel
+		modules for the firewall saved using this command.
 		
 	</td>
 	</tr>
@@ -233,7 +238,7 @@ its line number in the original configuration file.
 <tr><td align=center valign=middle>
 	<A href="http://sourceforge.net"><IMG src="http://sourceforge.net/sflogo.php?group_id=58425&amp;type=5" width="210" height="62" border="0" alt="SourceForge Logo"></A>
 </td><td align=center valign=middle>
-	<small>$Id: invoking.html,v 1.19 2004/10/31 23:43:25 ktsaou Exp $</small>
+	<small>$Id: invoking.html,v 1.20 2007/07/20 21:16:59 ktsaou Exp $</small>
 	<p>
 	<b>FireHOL</b>, a firewall for humans...<br>
 	&copy; Copyright 2004
