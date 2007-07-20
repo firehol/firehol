@@ -71,6 +71,7 @@ google_color_text = "000000";
 	</li>
 	<li><a href="#helpers">Helper commands</a>
 		<ul>
+			<li><a href="#action">action</a>, setup custom filtering actions</li>
 			<li><a href="#blacklist">blacklist</a>, setup a unidirectional or bidirectional blacklist</li>
 			<li><a href="#dnat">dnat</a>, setup a Destination NAT rule for routed traffic</li>
 			<li><a href="#dscp">dscp</a>, set the DSCP field in the packet header, to a raw value or a DiffServ class</li>
@@ -454,6 +455,52 @@ Subcommands must be given within <a href="#primary_commands">Primary commands</a
 <small>Helper commands provide shortcuts for common functions not handled by the core of FireHOL's logic.</small>
 <p>
 
+	<a name="action"><h3><b>action</b> [chain <font color="red">&lt;name&gt;</font> <font color="red">&lt;action&gt;</font></h3></a>
+	The <b>action</b> helper creates an iptables chain which can be used to control the action of other firewall rules during runtime.
+	For example, you can setup the custom action ACT1, which by default is ACCEPT, but under certain cases it can be changed to DROP, REJECT or RETURN without
+	restarting the firewall.
+	<p>
+	The first argument must always be the word <b>chain</b>, for the moment.
+	<ul>
+		<li><b>name</b> can be any chain name accepted by iptables. It is suggested to keep it between 5 to 10 letters.
+		<br>&nbsp;
+		</li>
+		<li><b>action</b> can be any <a href="action">action</a> supported by FireHOL, although ony ACCEPT, REJECT, DROP, RETURN may
+		have any meaning under this use.
+		</li>
+		<p>
+	</ul>
+	
+	Example 1:
+	<p>
+	At the top of firehol.conf, create the action ACT1:
+	<p>
+	action chain ACT1 accept
+	<p>
+	later, in interfaces and routers, create rules that use the ACT1 action:
+	<p>
+	server smtp ACT1
+	client imap ACT1
+	<p>
+	Please note that actions created this way are case sensitive.<br>
+	At some point, and while the firewall is running, the action ACT1 can be changed to DROP, with this linux command (this is not FireHOL specific):
+	<p>
+	iptables -t filter -I ACT1 -j DROP
+	<p>
+	The above command inserts (-I) the new action DROP above the default action ACCEPT, and therefore all the traffic matching the FireHOL rules that have
+	the action ACT1 will now be dropped.<br>
+	To return to the default action (ACCEPT), run the following linux command:
+	<p>
+	iptables -t filter -D ACT1 -j DROP
+	<p>
+	This command deletes (-D) the DROP action that was inserted above the default action. If you delete all actions in the chain ACT1, the default action will be RETURN,
+	in which case all rules with action ACT1 will be nutralized (it will be the same as they were not specified at all in firehol.conf).
+	<p>
+	Example 2: <b>action chain "ACT1 ACT2 ACT3" accept chain "ACT4 ACT5 ACT6" drop</b> # will create 6 actions, ACT1, ACT2, ACT3 with ACCEPT and ACT4, ACT5, ACT6 with DROP<br>
+	<p>
+	
+<hr noshade size=1 width="100%">
+	
 	<a name="blacklist"><h3><b>blacklist</b> [option] <font color="red">&lt;IPs&gt;</font></h3></a>
 	The <b>blacklist</b> helper creates a blacklist for the <b>IP</b> addresses given. It supports two modes of operation
 	based on the option given (or the absence of it).
@@ -1766,7 +1813,7 @@ about optional rule parameters that should not be used in certain commands.
 <tr><td align=center valign=middle>
 	<A href="http://sourceforge.net"><IMG src="http://sourceforge.net/sflogo.php?group_id=58425&amp;type=5" width="210" height="62" border="0" alt="SourceForge Logo"></A>
 </td><td align=center valign=middle>
-	<small>$Id: commands.html,v 1.68 2007/05/20 16:53:22 ktsaou Exp $</small>
+	<small>$Id: commands.html,v 1.69 2007/07/20 19:58:38 ktsaou Exp $</small>
 	<p>
 	<b>FireHOL</b>, a firewall for humans...<br>
 	&copy; Copyright 2004

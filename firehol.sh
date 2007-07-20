@@ -10,7 +10,7 @@
 #
 # config: /etc/firehol/firehol.conf
 #
-# $Id: firehol.sh,v 1.256 2007/05/22 22:52:53 ktsaou Exp $
+# $Id: firehol.sh,v 1.257 2007/07/20 19:58:38 ktsaou Exp $
 #
 
 # Make sure only root can run us.
@@ -172,7 +172,7 @@ ${RENICE_CMD} 10 $$ >/dev/null 2>/dev/null
 # Find our minor version
 firehol_minor_version() {
 ${CAT_CMD} <<"EOF" | ${CUT_CMD} -d ' ' -f 3 | ${CUT_CMD} -d '.' -f 2
-$Id: firehol.sh,v 1.256 2007/05/22 22:52:53 ktsaou Exp $
+$Id: firehol.sh,v 1.257 2007/07/20 19:58:38 ktsaou Exp $
 EOF
 }
 
@@ -2000,6 +2000,51 @@ ecn_shame() {
 		softwarning "TCP_ECN is not enabled in the kernel. ECN_SHAME helper is ignored."
 		return 0
 	fi
+	return 0
+}
+
+# define custom actions
+action() {
+	work_realcmd_helper $FUNCNAME "$@"
+	
+	set_work_function -ne "Initializing $FUNCNAME"
+	
+	require_work clear || ( error "$FUNCNAME cannot be used in '${work_cmd}'. Put it before any '${work_cmd}' definition."; return 1 )
+	
+	while [ ! -z "${1}" ]
+	do
+		local what="${1}"; shift
+		
+		case "${what}" in
+			chain)	local name="${1}"; shift
+				local act="${1}"; shift
+				
+				if [ -z "${name}" ]
+				then
+					error "Cannot create an action chain without a name."
+					return 1
+				fi
+				
+				if [ -z "${act}" ]
+				then
+					error "Cannot create the action chain(s) '$name' without a default action."
+					return 1
+				fi
+				
+				local nm=
+				for nm in $name
+				do
+					create_chain filter ${nm}
+					rule table filter chain ${nm} action "${act}"
+				done
+				;;
+				
+			*)	error "Cannot understand $FUNCNAME '${what}'."
+				return 1
+				;;
+		esac
+	done
+	
 	return 0
 }
 
@@ -5104,7 +5149,10 @@ create_chain() {
 	iptables -t ${table} -N "${newchain}" || return 1
 	${TOUCH_CMD} "${FIREHOL_CHAINS_DIR}/${newchain}"
 	
-	rule table ${table} chain "${oldchain}" action "${newchain}" "$@" || return 1
+	if [ ! -z "${oldchain}" ]
+	then
+		rule table ${table} chain "${oldchain}" action "${newchain}" "$@" || return 1
+	fi
 	
 	return 0
 }
@@ -5512,7 +5560,7 @@ case "${arg}" in
 		else
 		
 		${CAT_CMD} <<EOF
-$Id: firehol.sh,v 1.256 2007/05/22 22:52:53 ktsaou Exp $
+$Id: firehol.sh,v 1.257 2007/07/20 19:58:38 ktsaou Exp $
 (C) Copyright 2003, Costa Tsaousis <costa@tsaousis.gr>
 FireHOL is distributed under GPL.
 
@@ -5698,7 +5746,7 @@ then
 	
 	${CAT_CMD} <<EOF
 
-$Id: firehol.sh,v 1.256 2007/05/22 22:52:53 ktsaou Exp $
+$Id: firehol.sh,v 1.257 2007/07/20 19:58:38 ktsaou Exp $
 (C) Copyright 2003, Costa Tsaousis <costa@tsaousis.gr>
 FireHOL is distributed under GPL.
 Home Page: http://firehol.sourceforge.net
@@ -6003,7 +6051,7 @@ then
 	
 	"${CAT_CMD}" >&2 <<EOF
 
-$Id: firehol.sh,v 1.256 2007/05/22 22:52:53 ktsaou Exp $
+$Id: firehol.sh,v 1.257 2007/07/20 19:58:38 ktsaou Exp $
 (C) Copyright 2003, Costa Tsaousis <costa@tsaousis.gr>
 FireHOL is distributed under GPL.
 Home Page: http://firehol.sourceforge.net
@@ -6086,7 +6134,7 @@ EOF
 	echo "# "
 
 	${CAT_CMD} <<EOF
-# $Id: firehol.sh,v 1.256 2007/05/22 22:52:53 ktsaou Exp $
+# $Id: firehol.sh,v 1.257 2007/07/20 19:58:38 ktsaou Exp $
 # (C) Copyright 2003, Costa Tsaousis <costa@tsaousis.gr>
 # FireHOL is distributed under GPL.
 # Home Page: http://firehol.sourceforge.net
