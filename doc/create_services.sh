@@ -370,7 +370,7 @@ server_multicast_ports="N/A"
 client_multicast_ports="N/A"
 service_multicast_type="complex"
 service_multicast_notes="
-The multicast service matches all packets send to 224.0.0.0/8 using protocol No 2.
+The multicast service matches all packets send to 224.0.0.0/4 using IGMP or UDP.
 "
 service_multicast_example="server multicast reject with proto-unreach"
 
@@ -976,7 +976,7 @@ cat <<"EOF"
 <tr><td align=center valign=middle>
 	<A href="http://sourceforge.net"><IMG src="http://sourceforge.net/sflogo.php?group_id=58425&amp;type=5" width="210" height="62" border="0" alt="SourceForge Logo"></A>
 </td><td align=center valign=middle>
-	<small>$Id: create_services.sh,v 1.56 2005/10/27 23:46:01 ktsaou Exp $</small>
+	<small>$Id: create_services.sh,v 1.57 2007/07/20 21:28:14 ktsaou Exp $</small>
 	<p>
 	<b>FireHOL</b>, a firewall for humans...<br>
 	&copy; Copyright 2004
