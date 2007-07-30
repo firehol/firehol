@@ -10,7 +10,7 @@
 #
 # config: /etc/firehol/firehol.conf
 #
-# $Id: firehol.sh,v 1.260 2007/07/26 21:39:50 ktsaou Exp $
+# $Id: firehol.sh,v 1.261 2007/07/30 22:52:48 ktsaou Exp $
 #
 
 # Make sure only root can run us.
@@ -143,6 +143,7 @@ which_cmd CHMOD_CMD chmod
 which_cmd EGREP_CMD egrep
 which_cmd EXPR_CMD expr
 which_cmd FIND_CMD find
+which_cmd FOLD_CMD fold
 which_cmd GAWK_CMD gawk
 which_cmd GREP_CMD grep
 which_cmd HEAD_CMD head
@@ -172,7 +173,7 @@ ${RENICE_CMD} 10 $$ >/dev/null 2>/dev/null
 # Find our minor version
 firehol_minor_version() {
 ${CAT_CMD} <<"EOF" | ${CUT_CMD} -d ' ' -f 3 | ${CUT_CMD} -d '.' -f 2
-$Id: firehol.sh,v 1.260 2007/07/26 21:39:50 ktsaou Exp $
+$Id: firehol.sh,v 1.261 2007/07/30 22:52:48 ktsaou Exp $
 EOF
 }
 
@@ -5578,7 +5579,7 @@ case "${arg}" in
 		else
 		
 		${CAT_CMD} <<EOF
-$Id: firehol.sh,v 1.260 2007/07/26 21:39:50 ktsaou Exp $
+$Id: firehol.sh,v 1.261 2007/07/30 22:52:48 ktsaou Exp $
 (C) Copyright 2002-2007, Costa Tsaousis <costa@tsaousis.gr>
 FireHOL is distributed under GPL.
 
@@ -5764,7 +5765,7 @@ then
 	
 	${CAT_CMD} <<EOF
 
-$Id: firehol.sh,v 1.260 2007/07/26 21:39:50 ktsaou Exp $
+$Id: firehol.sh,v 1.261 2007/07/30 22:52:48 ktsaou Exp $
 (C) Copyright 2003, Costa Tsaousis <costa@tsaousis.gr>
 FireHOL is distributed under GPL.
 Home Page: http://firehol.sourceforge.net
@@ -5964,7 +5965,7 @@ then
 		
 		local nm=$[n + d - 1]
 		
-		printf "### DEBUG: Is ${ip} part of network ${net}? "
+		printf "# INFO: Is ${ip} part of network ${net}? "
 		
 		if [ ${i} -ge ${n} -a ${i} -le ${nm} ]
 		then
@@ -6069,7 +6070,7 @@ then
 	
 	"${CAT_CMD}" >&2 <<EOF
 
-$Id: firehol.sh,v 1.260 2007/07/26 21:39:50 ktsaou Exp $
+$Id: firehol.sh,v 1.261 2007/07/30 22:52:48 ktsaou Exp $
 (C) Copyright 2003, Costa Tsaousis <costa@tsaousis.gr>
 FireHOL is distributed under GPL.
 Home Page: http://firehol.sourceforge.net
@@ -6145,31 +6146,21 @@ EOF
 	echo >&2 "--- snip --- snip --- snip --- snip ---"
 	echo >&2 
 	
-	echo "#!${FIREHOL_FILE}"
-	echo "# ------------------------------------------------------------------------------"
-	echo "# This feature is under construction -- use it with care."
-	echo "#             *** NEVER USE THIS CONFIG AS-IS ***"
-	echo "# "
-
 	${CAT_CMD} <<EOF
-# $Id: firehol.sh,v 1.260 2007/07/26 21:39:50 ktsaou Exp $
-# (C) Copyright 2003, Costa Tsaousis <costa@tsaousis.gr>
-# FireHOL is distributed under GPL.
-# Home Page: http://firehol.sourceforge.net
+#!${FIREHOL_FILE}
+# $Id: firehol.sh,v 1.261 2007/07/30 22:52:48 ktsaou Exp $
 # 
-# ------------------------------------------------------------------------------
-# FireHOL controls your firewall. You should want to get updates quickly.
-# Subscribe (at the home page) to get notified of new releases.
-# ------------------------------------------------------------------------------
+# This config will have the same effect as NO PROTECTION!
+# Everything that found to be running, is allowed.
+# YOU SHOULD NEVER USE THIS CONFIG AS-IS.
+# 
+# Date: `${DATE_CMD}` on host `${HOSTNAME_CMD}`
+# 
+# IMPORTANT:
+# The TODOs bellow, are *YOUR* to-dos!
 #
+
 EOF
-	echo "# This config will have the same effect as NO PROTECTION!"
-	echo "# Everything that found to be running, is allowed."
-	echo "# "
-	echo "# Date: `${DATE_CMD}` on host `${HOSTNAME_CMD}`"
-	echo "# "
-	echo "# The TODOs bellow, are YOUR to-dos!"
-	echo
 	
 	# globals for routing
 	set -a found_interfaces=
@@ -6212,6 +6203,7 @@ EOF
 		else
 			echo "# on the ${iface} interface with IP ${ifip} (net: ${ifnets})."
 		fi
+		
 		echo "# TODO: Change \"interface${i}\" to something with meaning to you."
 		echo "# TODO: Check the optional rule parameters (src/dst)."
 		echo "# TODO: Remove 'dst ${ifip}' if this is dynamically assigned."
@@ -6257,12 +6249,19 @@ EOF
 		) | ${SORT_CMD} | ${UNIQ_CMD}
 		
 		echo
-		echo "	# The following ${iface} server ports are not known by FireHOL:"
-		echo "	# `${CAT_CMD} unknown.ports`"
-		echo "	# TODO: If you need any of them, you should define new services."
-		echo "	#       (see Adding Services at the web site - http://firehol.sf.net)."
+		echo "	# The following ${iface} services are not known by FireHOL:"
+		${CAT_CMD} unknown.ports | ${FOLD_CMD} -s -w 65 | ${SED_CMD} "s|^ *|\t# |"
 		echo
 		
+		echo
+		echo "	# Custom service definitions for the above unknown services."
+		local ts=
+		for ts in `${CAT_CMD} unknown.ports`
+		do
+			echo "	server custom `echo "if$i/$ts" | tr "/" "_"` $ts any accept"
+		done
+		
+		echo
 		echo "	# The following means that this machine can REQUEST anything via ${iface}."
 		echo "	# TODO: On production servers, avoid this and allow only the"
 		echo "	#       client services you really need."
@@ -6277,14 +6276,15 @@ EOF
 	i=0
 	for iface in ${interfaces}
 	do
-		echo "### DEBUG: Processing interface '${iface}'"
-		ips=`${IP_CMD} addr show dev ${iface} | ${SED_CMD} "s/  / /g" | ${SED_CMD} "s/  / /g" | ${SED_CMD} "s/  / /g" | ${GREP_CMD} "^ inet " | ${CUT_CMD} -d ' ' -f 3 | ${CUT_CMD} -d '/' -f 1 | ips2net -`
-		peer=`${IP_CMD} addr show dev ${iface} | ${SED_CMD} "s/  / /g" | ${SED_CMD} "s/  / /g" | ${SED_CMD} "s/  / /g" | ${SED_CMD} "s/peer /peer:/g" | ${TR_CMD} " " "\n" | ${GREP_CMD} "^peer:" | ${CUT_CMD} -d ':' -f 2 | ips2net -`
+		echo "# INFO: Processing interface '${iface}'"
+		ips=`${IP_CMD} addr show dev ${iface} | ${SED_CMD} "s/ \+/ /g" | ${GREP_CMD} "^ inet " | ${CUT_CMD} -d ' ' -f 3 | ${CUT_CMD} -d '/' -f 1 | ips2net -`
+		peer=`${IP_CMD} addr show dev ${iface} | ${SED_CMD} "s/ \+/ /g" | ${SED_CMD} "s/peer /peer:/g" | ${TR_CMD} " " "\n" | ${GREP_CMD} "^peer:" | ${CUT_CMD} -d ':' -f 2 | ips2net -`
 		nets=`${IP_CMD} route show dev ${iface} | ${CUT_CMD} -d ' ' -f 1 | ips2net -`
 		
 		if [ -z "${ips}" -o -z "${nets}" ]
 		then
 			echo
+			echo "# IMPORTANT: "
 			echo "# Ignoring interface '${iface}' because does not have an IP or route."
 			echo
 			continue
@@ -6292,7 +6292,7 @@ EOF
 		
 		for ip in ${ips}
 		do
-			echo "### DEBUG: Processing IP ${ip} of interface '${iface}'"
+			echo "# INFO: Processing IP ${ip} of interface '${iface}'"
 			
 			ifreason=""
 			
@@ -6363,7 +6363,7 @@ EOF
 						
 						if ip_in_net ${gw} ${nn}
 						then
-							echo "### DEBUG: Route ${net} is accessed through ${gw}"
+							echo "# INFO: Route ${net} is accessed through ${gw}"
 							
 							# Add it to ifnets
 							f=0; ff=0
@@ -6399,7 +6399,7 @@ EOF
 			def_ignore_ifnets=0
 			if (test ${netcount} -eq 1 -a "${gw_if}" = "${iface}" && ip_is_net "${peer}" "${ifnets[*]}" && ip_is_net "${gw_ip}" "${peer}")
 			then
-				echo "### DEBUG: Skipping ${iface} peer ${ifnets[*]} only interface (default gateway)."
+				echo "# INFO: Skipping ${iface} peer ${ifnets[*]} only interface (default gateway)."
 				echo
 				def_ignore_ifnets=1
 			else
@@ -6414,7 +6414,7 @@ EOF
 				do
 					if ip_in_net "${gw_ip}" ${nn}
 					then
-						echo "### DEBUG: Default gateway ${gw_ip} is part of network ${nn}"
+						echo "# INFO: Default gateway ${gw_ip} is part of network ${nn}"
 						
 						i=$[i + 1]
 						helpme_iface route $i "${iface}" "${ip}" "default" "from/to unknown networks behind the default gateway ${gw_ip}" "`test ${def_ignore_ifnets} -eq 0 && echo "${ifnets[*]}"`"
@@ -6425,7 +6425,7 @@ EOF
 			fi
 		done
 	done
-		
+	
 	echo
 	echo "# The above $i interfaces were found active at this moment."
 	echo "# Add more interfaces that can potentially be activated in the future."
