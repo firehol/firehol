@@ -10,7 +10,7 @@
 #
 # config: /etc/firehol/firehol.conf
 #
-# $Id: firehol.sh,v 1.262 2007/08/20 00:53:22 ktsaou Exp $
+# $Id: firehol.sh,v 1.263 2007/08/20 02:03:28 ktsaou Exp $
 #
 
 # Make sure only root can run us.
@@ -173,7 +173,7 @@ ${RENICE_CMD} 10 $$ >/dev/null 2>/dev/null
 # Find our minor version
 firehol_minor_version() {
 ${CAT_CMD} <<"EOF" | ${CUT_CMD} -d ' ' -f 3 | ${CUT_CMD} -d '.' -f 2
-$Id: firehol.sh,v 1.262 2007/08/20 00:53:22 ktsaou Exp $
+$Id: firehol.sh,v 1.263 2007/08/20 02:03:28 ktsaou Exp $
 EOF
 }
 
@@ -5579,7 +5579,7 @@ case "${arg}" in
 		else
 		
 		${CAT_CMD} <<EOF
-$Id: firehol.sh,v 1.262 2007/08/20 00:53:22 ktsaou Exp $
+$Id: firehol.sh,v 1.263 2007/08/20 02:03:28 ktsaou Exp $
 (C) Copyright 2002-2007, Costa Tsaousis <costa@tsaousis.gr>
 FireHOL is distributed under GPL.
 
@@ -5765,7 +5765,7 @@ then
 	
 	${CAT_CMD} <<EOF
 
-$Id: firehol.sh,v 1.262 2007/08/20 00:53:22 ktsaou Exp $
+$Id: firehol.sh,v 1.263 2007/08/20 02:03:28 ktsaou Exp $
 (C) Copyright 2003, Costa Tsaousis <costa@tsaousis.gr>
 FireHOL is distributed under GPL.
 Home Page: http://firehol.sourceforge.net
@@ -6070,7 +6070,7 @@ then
 	
 	"${CAT_CMD}" >&2 <<EOF
 
-$Id: firehol.sh,v 1.262 2007/08/20 00:53:22 ktsaou Exp $
+$Id: firehol.sh,v 1.263 2007/08/20 02:03:28 ktsaou Exp $
 (C) Copyright 2003, Costa Tsaousis <costa@tsaousis.gr>
 FireHOL is distributed under GPL.
 Home Page: http://firehol.sourceforge.net
@@ -6148,7 +6148,7 @@ EOF
 	
 	${CAT_CMD} <<EOF
 #!${FIREHOL_FILE}
-# $Id: firehol.sh,v 1.262 2007/08/20 00:53:22 ktsaou Exp $
+# $Id: firehol.sh,v 1.263 2007/08/20 02:03:28 ktsaou Exp $
 # 
 # This config will have the same effect as NO PROTECTION!
 # Everything that found to be running, is allowed.
@@ -6223,7 +6223,7 @@ EOF
 		(
 			local x=
 			local ports=
-			for x in `${NETSTAT_CMD} -an | ${EGREP_CMD} "^tcp" | ${GREP_CMD} "0.0.0.0:*" | ${EGREP_CMD} " (${ifip}|0.0.0.0):[0-9]+" | ${CUT_CMD} -d ':' -f 2 | ${CUT_CMD} -d ' ' -f 1 | ${SORT_CMD} -n | ${UNIQ_CMD}`
+			for x in `${NETSTAT_CMD} -an | ${EGREP_CMD} "^tcp" | ${SED_CMD} "s|:::|0.0.0.0:|g" | ${GREP_CMD} "0.0.0.0:*" | ${EGREP_CMD} " (${ifip}|0.0.0.0):[0-9]+" | ${CUT_CMD} -d ':' -f 2 | ${CUT_CMD} -d ' ' -f 1 | ${SORT_CMD} -n | ${UNIQ_CMD}`
 			do
 				if [ -f "tcp/${x}" ]
 				then
@@ -6233,7 +6233,7 @@ EOF
 				fi
 			done
 			
-			for x in `${NETSTAT_CMD} -an | ${EGREP_CMD} "^udp" | ${GREP_CMD} "0.0.0.0:*" | ${EGREP_CMD} " (${ifip}|0.0.0.0):[0-9]+" | ${CUT_CMD} -d ':' -f 2 | ${CUT_CMD} -d ' ' -f 1 | ${SORT_CMD} -n | ${UNIQ_CMD}`
+			for x in `${NETSTAT_CMD} -an | ${EGREP_CMD} "^udp" | ${SED_CMD} "s|:::|0.0.0.0:|g" | ${GREP_CMD} "0.0.0.0:*" | ${EGREP_CMD} " (${ifip}|0.0.0.0):[0-9]+" | ${CUT_CMD} -d ':' -f 2 | ${CUT_CMD} -d ' ' -f 1 | ${SORT_CMD} -n | ${UNIQ_CMD}`
 			do
 				if [ -f "udp/${x}" ]
 				then
