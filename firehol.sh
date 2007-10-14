@@ -10,7 +10,7 @@
 #
 # config: /etc/firehol/firehol.conf
 #
-# $Id: firehol.sh,v 1.263 2007/08/20 02:03:28 ktsaou Exp $
+# $Id: firehol.sh,v 1.264 2007/10/14 23:00:41 ktsaou Exp $
 #
 
 # Make sure only root can run us.
@@ -173,7 +173,7 @@ ${RENICE_CMD} 10 $$ >/dev/null 2>/dev/null
 # Find our minor version
 firehol_minor_version() {
 ${CAT_CMD} <<"EOF" | ${CUT_CMD} -d ' ' -f 3 | ${CUT_CMD} -d '.' -f 2
-$Id: firehol.sh,v 1.263 2007/08/20 02:03:28 ktsaou Exp $
+$Id: firehol.sh,v 1.264 2007/10/14 23:00:41 ktsaou Exp $
 EOF
 }
 
@@ -417,7 +417,7 @@ load_ips() {
 # Optimized (CIDR) by Marc 'HE' Brockschmidt <marc@marcbrockschmidt.de>
 # Further optimized and reduced by http://www.vergenet.net/linux/aggregate/
 # The supplied get-iana.sh uses 'aggregate-flim' if it finds it in the path.
-RESERVED_IPS="0.0.0.0/7 2.0.0.0/8 5.0.0.0/8 7.0.0.0/8 23.0.0.0/8 27.0.0.0/8 31.0.0.0/8 36.0.0.0/7 39.0.0.0/8 42.0.0.0/8 46.0.0.0/8 49.0.0.0/8 50.0.0.0/8 100.0.0.0/6 104.0.0.0/5 112.0.0.0/6 127.0.0.0/8 173.0.0.0/8 174.0.0.0/7 176.0.0.0/5 184.0.0.0/6 197.0.0.0/8 223.0.0.0/8 240.0.0.0/4 "
+RESERVED_IPS="0.0.0.0/7 2.0.0.0/8 5.0.0.0/8 7.0.0.0/8 23.0.0.0/8 27.0.0.0/8 31.0.0.0/8 36.0.0.0/7 39.0.0.0/8 42.0.0.0/8 46.0.0.0/8 49.0.0.0/8 50.0.0.0/8 100.0.0.0/6 104.0.0.0/5 112.0.0.0/6 127.0.0.0/8 173.0.0.0/8 174.0.0.0/7 176.0.0.0/5 184.0.0.0/7 197.0.0.0/8 223.0.0.0/8 240.0.0.0/4 "
 load_ips RESERVED_IPS "${RESERVED_IPS}" 90 "Run the supplied get-iana.sh script to generate this file." require-file
 
 # Private IPv4 address space
@@ -5579,7 +5579,7 @@ case "${arg}" in
 		else
 		
 		${CAT_CMD} <<EOF
-$Id: firehol.sh,v 1.263 2007/08/20 02:03:28 ktsaou Exp $
+$Id: firehol.sh,v 1.264 2007/10/14 23:00:41 ktsaou Exp $
 (C) Copyright 2002-2007, Costa Tsaousis <costa@tsaousis.gr>
 FireHOL is distributed under GPL.
 
@@ -5765,7 +5765,7 @@ then
 	
 	${CAT_CMD} <<EOF
 
-$Id: firehol.sh,v 1.263 2007/08/20 02:03:28 ktsaou Exp $
+$Id: firehol.sh,v 1.264 2007/10/14 23:00:41 ktsaou Exp $
 (C) Copyright 2003, Costa Tsaousis <costa@tsaousis.gr>
 FireHOL is distributed under GPL.
 Home Page: http://firehol.sourceforge.net
@@ -6070,7 +6070,7 @@ then
 	
 	"${CAT_CMD}" >&2 <<EOF
 
-$Id: firehol.sh,v 1.263 2007/08/20 02:03:28 ktsaou Exp $
+$Id: firehol.sh,v 1.264 2007/10/14 23:00:41 ktsaou Exp $
 (C) Copyright 2003, Costa Tsaousis <costa@tsaousis.gr>
 FireHOL is distributed under GPL.
 Home Page: http://firehol.sourceforge.net
@@ -6148,7 +6148,7 @@ EOF
 	
 	${CAT_CMD} <<EOF
 #!${FIREHOL_FILE}
-# $Id: firehol.sh,v 1.263 2007/08/20 02:03:28 ktsaou Exp $
+# $Id: firehol.sh,v 1.264 2007/10/14 23:00:41 ktsaou Exp $
 # 
 # This config will have the same effect as NO PROTECTION!
 # Everything that found to be running, is allowed.

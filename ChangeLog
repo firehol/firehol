@@ -1,7 +1,7 @@
 
 RCS file: /cvsroot/firehol/firehol/firehol.sh,v
 Working file: firehol.sh
-head: 1.255
+head: 1.263
 branch:
 locks: strict
 access list:
@@ -9,8 +9,115 @@ symbolic names:
 	start: 1.1.1.1
 	vendor: 1.1.1
 keyword substitution: kv
-total revisions: 256;	selected revisions: 256
+total revisions: 264;	selected revisions: 264
 description:
+----------------------------
+revision 1.263
+date: 2007/08/20 02:03:28;  author: ktsaou;  state: Exp;  lines: +8 -8
+Made the helpme wizard correctly recognize services listening on the IPv6
+equivalent of 0.0.0.0 (::).
+----------------------------
+revision 1.262
+date: 2007/08/20 00:53:22;  author: ktsaou;  state: Exp;  lines: +8 -8
+Changed the protections to activate the 'invalid' match last, after all
+other protections.
+----------------------------
+revision 1.261
+date: 2007/07/30 22:52:48;  author: ktsaou;  state: Exp;  lines: +39 -39
+Various updates in 'helpme' mode.
+There is still one issue unsolved: When there are routes to specific nets
+befind a gateway, FireHOL checks if the IP of the host or the gateway are
+inside the networks routed through the gateway. This is wrong. In several
+cases, the network behind a gateway will not include the IP of the gateway
+or the IP of the interface the firehol host routes this traffic via.
+
+However, there seems to be no easy solution to this. For PPP interfaces the
+IP of the PPP concentrator is included in the IPs that are reported by
+'ip route show dev ppp0' as the networks behind this device.
+
+May be the 'scope' paramater of the routing table should be used to exclude
+'scope link' routes. If 'scope link' routes are ommitted, the resulting set
+could be used to identify the routes behind a router.
+----------------------------
+revision 1.260
+date: 2007/07/26 21:39:50;  author: ktsaou;  state: Exp;  lines: +7 -7
+Updated RESERVED_IPS.
+----------------------------
+revision 1.259
+date: 2007/07/20 21:28:13;  author: ktsaou;  state: Exp;  lines: +11 -8
+Service multicast has been changed to match dst 224.0.0.0/4 proto IGMP and
+UDP.
+----------------------------
+revision 1.258
+date: 2007/07/20 21:16:59;  author: ktsaou;  state: Exp;  lines: +49 -18
+Various minor fixed.
+
+firehol 'save' now saves also the required kernel modules to restore the
+firewall at /var/spool/firehol/last_save_modules.sh.
+This is executable already and can be called from boot scripts to load
+the kernel modules required when restoring the firewall with:
+
+iptables-restore
+----------------------------
+revision 1.257
+date: 2007/07/20 19:58:38;  author: ktsaou;  state: Exp;  lines: +55 -7
+Added helper action:
+
+action [chain <name> <action>]
+The action helper creates an iptables chain which can be used to control the
+action of other firewall rules during runtime.
+
+For example, you can setup the custom action ACT1, which by default is ACCEPT,
+but under certain cases it can be changed to DROP, REJECT or RETURN without
+restarting the firewall.
+
+The first argument must always be the word 'chain', for the moment.
+
+        name    can be any chain name accepted by iptables.
+                It is suggested to keep it between 5 to 10 letters.
+
+        action  can be any action supported by FireHOL, although ony ACCEPT,
+                REJECT, DROP, RETURN may have any meaning under this use.
+
+Example 1:
+At the top of firehol.conf, create the action ACT1:
+
+action chain ACT1 accept
+
+later, in interfaces and routers, create rules that use the ACT1 action:
+
+server smtp ACT1
+client imap ACT1
+
+Please note that actions created this way are case sensitive.
+At some point, and while the firewall is running, the action ACT1 can be
+changed to DROP, with this linux command (this is not FireHOL specific):
+
+iptables -t filter -I ACT1 -j DROP
+
+The above command inserts (-I) the new action DROP above the default
+action ACCEPT, and therefore all the traffic matching the FireHOL rules that
+have the action ACT1 will now be dropped.
+To return to the default action (ACCEPT), run the following linux command:
+
+iptables -t filter -D ACT1 -j DROP
+
+This command deletes (-D) the DROP action that was inserted above the
+default action. If you delete all actions in the chain ACT1, the default
+action will be RETURN, in which case all rules with action ACT1 will be
+nutralized (it will be the same as they were not specified at all in
+firehol.conf).
+
+Example 2:
+
+action chain "ACT1 ACT2 ACT3" accept chain "ACT4 ACT5 ACT6" drop
+
+will create 6 actions, ACT1, ACT2, ACT3 with ACCEPT, and
+ACT4, ACT5, ACT6 with DROP.
+----------------------------
+revision 1.256
+date: 2007/05/22 22:52:53;  author: ktsaou;  state: Exp;  lines: +7 -7
+Updated IANA RESERVED_IPS.
 ----------------------------
 revision 1.255
 date: 2007/05/06 14:42:43;  author: ktsaou;  state: Exp;  lines: +23 -11
