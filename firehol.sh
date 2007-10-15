@@ -10,7 +10,7 @@
 #
 # config: /etc/firehol/firehol.conf
 #
-# $Id: firehol.sh,v 1.265 2007/10/14 23:02:39 ktsaou Exp $
+# $Id: firehol.sh,v 1.266 2007/10/15 00:43:17 ktsaou Exp $
 #
 
 # Make sure only root can run us.
@@ -84,7 +84,7 @@ require_cmd() {
 	fi
 	
 	# if one is found, return success
-	for x in $1
+	for x in "${@}"
 	do
 		eval var=`echo ${x} | tr 'a-z' 'A-Z'`_CMD
 		eval val=\$\{${var}\}
@@ -98,9 +98,9 @@ require_cmd() {
 	if [ $block -eq 1 ]
 	then
 		echo >&2
-		echo >&2 "ERROR:	THE REQUESTED FEATURE REQUIRES THESE PROGRAMS:"
+		echo >&2 "ERROR:	FIREHOL REQUIRES THESE COMMANDS:"
 		echo >&2
-		echo >&2 "	$*"
+		echo >&2 "	${@}"
 		echo >&2
 		echo >&2 "	You have requested the use of an optional FireHOL"
 		echo >&2 "	feature that requires certain external programs"
@@ -114,7 +114,7 @@ require_cmd() {
 		echo >&2 "	for FireHOL to find all the external programs it"
 		echo >&2 "	needs. Check it yourself. Run:"
 		echo >&2
-		for x in $1
+		for x in "${@}"
 		do
 			echo >&2 "	which $x"
 		done
@@ -129,7 +129,8 @@ require_cmd() {
 # (i.e. Command on Demand)
 #
 # wget or curl (either is fine)
-# zcat
+# zcat or gzcat or gzip (either or none is fine)
+# less or more (either or none is fine)
 # ip
 # netstat
 # date
@@ -149,7 +150,6 @@ which_cmd GREP_CMD grep
 which_cmd HEAD_CMD head
 which_cmd IPTABLES_CMD iptables
 which_cmd IPTABLES_SAVE_CMD iptables-save
-which_cmd LESS_CMD less
 which_cmd LSMOD_CMD lsmod
 which_cmd MKDIR_CMD mkdir
 which_cmd MV_CMD mv
@@ -164,6 +164,42 @@ which_cmd TR_CMD tr
 which_cmd UNAME_CMD uname
 which_cmd UNIQ_CMD uniq
 
+# Special commands
+pager_cmd() {
+	if [ -z "${LESS_CMD}" ]
+	then
+		require_cmd -n less more
+		test -z "${LESS_CMD}" && LESS_CMD="${MORE_CMD}"
+		test -z "${LESS_CMD}" && LESS_CMD="${CAT_CMD}"
+	fi
+	
+	"${LESS_CMD}" "${@}"
+}
+
+zcat_cmd() {
+	require_cmd -n zcat gzcat gzip
+	test -z "${ZCAT_CMD}" && ZCAT_CMD="${GZCAT_CMD}"
+	
+	if [ ! -z "${ZCAT_CMD}" ]
+	then
+		"${ZCAT_CMD}" "${@}"
+		return $?
+	elif [ ! -z "${GZIP_CMD}" ]
+	then
+		"${CAT_CMD}" "${@}" | "${GZIP_CMD}" -dc
+		return $?
+	fi
+	
+	echo >&2 " "
+	echo >&2 " IMPORTANT WARNING:"
+	echo >&2 " ------------------"
+	echo >&2 " FireHOL cannot find any of the commands: zcat, gzcat, gzip."
+	echo >&2 " Make sure you have one of these available in the system path."
+	echo >&2 " "
+	
+	return 1
+}
+
 # Make sure our generated files cannot be accessed by anyone else.
 umask 077
 
@@ -173,7 +209,7 @@ ${RENICE_CMD} 10 $$ >/dev/null 2>/dev/null
 # Find our minor version
 firehol_minor_version() {
 ${CAT_CMD} <<"EOF" | ${CUT_CMD} -d ' ' -f 3 | ${CUT_CMD} -d '.' -f 2
-$Id: firehol.sh,v 1.265 2007/10/14 23:02:39 ktsaou Exp $
+$Id: firehol.sh,v 1.266 2007/10/15 00:43:17 ktsaou Exp $
 EOF
 }
 
@@ -2809,41 +2845,58 @@ protection() {
 # Manage kernel modules
 # WHY:
 # We need to load a set of kernel modules during postprocessing, and after the
-# new firewall has been activated. Here we just keep a list of the required
-# kernel modules.
+# new firewall has been activated.
+# The whole point of the following code, is not to attempt loading modules when
+# they are compiled into the kernel.
 
-# optionaly require command zcat
-require_cmd -n zcat
-
+# Try to find the current kernel configuration
 KERNEL_CONFIG=
 if [ -f "/proc/config" ]
 then
 	KERNEL_CONFIG="/proc/config"
-	${CAT_CMD} /proc/config >${FIREHOL_DIR}/kcfg
-	source ${FIREHOL_DIR}/kcfg
-	${RM_CMD} -f ${FIREHOL_DIR}/kcfg	
-elif [ -f "/proc/config.gz" -a ! -z "${ZCAT_CMD}" ]
+	${CAT_CMD} /proc/config >"${FIREHOL_DIR}/kcfg" || KERNEL_CONFIG=
+fi
+
+if [ -z "${KERNEL_CONFIG}" -a -f "/proc/config.gz" ]
 then
 	KERNEL_CONFIG="/proc/config.gz"
-	${ZCAT_CMD} /proc/config.gz >${FIREHOL_DIR}/kcfg
-	source ${FIREHOL_DIR}/kcfg
-	${RM_CMD} -f ${FIREHOL_DIR}/kcfg
-	
-elif [ -f "/lib/modules/`${UNAME_CMD} -r`/build/.config" ]
+	zcat_cmd /proc/config.gz >"${FIREHOL_DIR}/kcfg" || KERNEL_CONFIG=
+fi
+
+if [ -z "${KERNEL_CONFIG}" -a -f "/lib/modules/`${UNAME_CMD} -r`/build/.config" ]
 then
 	KERNEL_CONFIG="/lib/modules/`${UNAME_CMD} -r`/build/.config"
-	. "${KERNEL_CONFIG}"
-	
-elif [ -f "/boot/config-`${UNAME_CMD} -r`" ]
+	"${CAT_CMD}" "${KERNEL_CONFIG}" >"${FIREHOL_DIR}/kcfg" || KERNEL_CONFIG=
+fi
+
+if [ -z "${KERNEL_CONFIG}" -a -f "/boot/config-`${UNAME_CMD} -r`" ]
 then
 	KERNEL_CONFIG="/boot/config-`${UNAME_CMD} -r`"
-	. "${KERNEL_CONFIG}"
-	
-elif [ -f "/usr/src/linux/.config" ]
+	"${CAT_CMD}" "${KERNEL_CONFIG}" >"${FIREHOL_DIR}/kcfg" || KERNEL_CONFIG=
+fi
+
+if [ -z "${KERNEL_CONFIG}" -a -f "/usr/src/linux/.config" ]
 then
 	KERNEL_CONFIG="/usr/src/linux/.config"
-	. "${KERNEL_CONFIG}"
+	"${CAT_CMD}" "${KERNEL_CONFIG}" >"${FIREHOL_DIR}/kcfg" || KERNEL_CONFIG=
+fi
+
+# Did we managed to find the kernel configuration?
+if [ ! -z "{$KERNEL_CONFIG}" -a -s "${FIREHOL_DIR}/kcfg" ]
+then
+	# We found a kernel configuration
+	
+	# Load all the definitions for CONFIG_*_NF_* variables
+	# We grep what we care for, to make sure there is no garbage or malicious code
+	# in the file we will run.
+	"${CAT_CMD}" "${FIREHOL_DIR}/kcfg" | ${GREP_CMD} -e "^CONFIG_[A-Z0-9_]\+_NF_[A-Z0-9_]\+=[ynm]$" >"${FIREHOL_DIR}/kcfg.nf"
+	
+	# run it to get the variables
+	source "${FIREHOL_DIR}/kcfg.nf"
 else
+	# We could not find a kernel configuration
+	
+	KERNEL_CONFIG=
 	echo >&2 " "
 	echo >&2 " IMPORTANT WARNING:"
 	echo >&2 " ------------------"
@@ -2865,13 +2918,13 @@ fi
 # 1 = module can be loaded with modprobe
 # 2 = no info about this module in the kernel
 check_kernel_config() {
-	# In kernel 2.6.20+ _IP_ was removed from kernel iptables config names.
+	# In kernels 2.6.20+ _IP_ was removed from kernel iptables config names.
 	# Try both versions.
 	local t=`echo ${1} | sed "s/_IP_//g"`
 	eval local kcfg1="\$${1}"
 	eval local kcfg2="\$${t}"
 	
-	# prefer the kernel 2.6.20 way
+	# prefer the kernel 2.6.20+ way
 	if [ ! -z "${kcfg2}" ]
 	then
 		kcfg="${kcfg2}"
@@ -5488,7 +5541,7 @@ case "${arg}" in
 			echo "--- FILTER ---------------------------------------------------------------------"
 			echo 
 			${IPTABLES_CMD} -nxvL
-		) | ${LESS_CMD}
+		) | pager_cmd
 		exit $?
 		;;
 	
@@ -5579,7 +5632,7 @@ case "${arg}" in
 		else
 		
 		${CAT_CMD} <<EOF
-$Id: firehol.sh,v 1.265 2007/10/14 23:02:39 ktsaou Exp $
+$Id: firehol.sh,v 1.266 2007/10/15 00:43:17 ktsaou Exp $
 (C) Copyright 2002-2007, Costa Tsaousis <costa@tsaousis.gr>
 FireHOL is distributed under GPL.
 
@@ -5608,7 +5661,7 @@ FireHOL supports the following command line arguments (only one of them):
 			configuration file.
 	
 	status		will show the running firewall, as in:
-			${IPTABLES_CMD} -nxvL | ${LESS_CMD}
+			${IPTABLES_CMD} -nxvL
 			
 	panic		will block all IP communication.
 	
@@ -5765,7 +5818,7 @@ then
 	
 	${CAT_CMD} <<EOF
 
-$Id: firehol.sh,v 1.265 2007/10/14 23:02:39 ktsaou Exp $
+$Id: firehol.sh,v 1.266 2007/10/15 00:43:17 ktsaou Exp $
 (C) Copyright 2003, Costa Tsaousis <costa@tsaousis.gr>
 FireHOL is distributed under GPL.
 Home Page: http://firehol.sourceforge.net
@@ -6070,7 +6123,7 @@ then
 	
 	"${CAT_CMD}" >&2 <<EOF
 
-$Id: firehol.sh,v 1.265 2007/10/14 23:02:39 ktsaou Exp $
+$Id: firehol.sh,v 1.266 2007/10/15 00:43:17 ktsaou Exp $
 (C) Copyright 2003, Costa Tsaousis <costa@tsaousis.gr>
 FireHOL is distributed under GPL.
 Home Page: http://firehol.sourceforge.net
@@ -6148,7 +6201,7 @@ EOF
 	
 	${CAT_CMD} <<EOF
 #!${FIREHOL_FILE}
-# $Id: firehol.sh,v 1.265 2007/10/14 23:02:39 ktsaou Exp $
+# $Id: firehol.sh,v 1.266 2007/10/15 00:43:17 ktsaou Exp $
 # 
 # This config will have the same effect as NO PROTECTION!
 # Everything that found to be running, is allowed.
@@ -6663,10 +6716,13 @@ ret=0
 # These line numbers will be used for debugging the configuration script.
 
 ${CAT_CMD} >"${FIREHOL_TMP}.awk" <<"EOF"
+/^[[:space:]]*action[[:space:]]/ { printf "FIREHOL_LINEID=${LINENO} " }
 /^[[:space:]]*blacklist[[:space:]]/ { printf "FIREHOL_LINEID=${LINENO} " }
 /^[[:space:]]*client[[:space:]]/ { printf "FIREHOL_LINEID=${LINENO} " }
 /^[[:space:]]*dnat[[:space:]]/ { printf "FIREHOL_LINEID=${LINENO} " }
 /^[[:space:]]*dscp[[:space:]]/ { printf "FIREHOL_LINEID=${LINENO} " }
+/^[[:space:]]*ecn_shame[[:space:]]/ { printf "FIREHOL_LINEID=${LINENO} " }
+/^[[:space:]]*group[[:space:]]/ { printf "FIREHOL_LINEID=${LINENO} " }
 /^[[:space:]]*interface[[:space:]]/ { printf "FIREHOL_LINEID=${LINENO} " }
 /^[[:space:]]*iptables[[:space:]]/ { printf "FIREHOL_LINEID=${LINENO} " }
 /^[[:space:]]*mac[[:space:]]/ { printf "FIREHOL_LINEID=${LINENO} " }
@@ -6677,6 +6733,7 @@ ${CAT_CMD} >"${FIREHOL_TMP}.awk" <<"EOF"
 /^[[:space:]]*postprocess[[:space:]]/ { printf "FIREHOL_LINEID=${LINENO} " }
 /^[[:space:]]*protection[[:space:]]/ { printf "FIREHOL_LINEID=${LINENO} " }
 /^[[:space:]]*redirect[[:space:]]/ { printf "FIREHOL_LINEID=${LINENO} " }
+/^[[:space:]]*require_kernel_module[[:space:]]/ { printf "FIREHOL_LINEID=${LINENO} " }
 /^[[:space:]]*router[[:space:]]/ { printf "FIREHOL_LINEID=${LINENO} " }
 /^[[:space:]]*route[[:space:]]/ { printf "FIREHOL_LINEID=${LINENO} " }
 /^[[:space:]]*server[[:space:]]/ { printf "FIREHOL_LINEID=${LINENO} " }
@@ -6685,6 +6742,7 @@ ${CAT_CMD} >"${FIREHOL_TMP}.awk" <<"EOF"
 /^[[:space:]]*tos[[:space:]]/ { printf "FIREHOL_LINEID=${LINENO} " }
 /^[[:space:]]*transparent_squid[[:space:]]/ { printf "FIREHOL_LINEID=${LINENO} " }
 /^[[:space:]]*transparent_proxy[[:space:]]/ { printf "FIREHOL_LINEID=${LINENO} " }
+/^[[:space:]]*version[[:space:]]/ { printf "FIREHOL_LINEID=${LINENO} " }
 { print }
 EOF
 
