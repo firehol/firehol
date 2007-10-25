@@ -10,7 +10,7 @@
 #
 # config: /etc/firehol/firehol.conf
 #
-# $Id: firehol.sh,v 1.266 2007/10/15 00:43:17 ktsaou Exp $
+# $Id: firehol.sh,v 1.267 2007/10/25 12:34:06 ktsaou Exp $
 #
 
 # Make sure only root can run us.
@@ -209,7 +209,7 @@ ${RENICE_CMD} 10 $$ >/dev/null 2>/dev/null
 # Find our minor version
 firehol_minor_version() {
 ${CAT_CMD} <<"EOF" | ${CUT_CMD} -d ' ' -f 3 | ${CUT_CMD} -d '.' -f 2
-$Id: firehol.sh,v 1.266 2007/10/15 00:43:17 ktsaou Exp $
+$Id: firehol.sh,v 1.267 2007/10/25 12:34:06 ktsaou Exp $
 EOF
 }
 
@@ -675,7 +675,7 @@ server_asterisk_ports="tcp/5038"
 client_asterisk_ports="default"
 
 server_cups_ports="tcp/631 udp/631"
-client_cups_ports="default 631"
+client_cups_ports="any"
 
 server_cvspserver_ports="tcp/2401"
 client_cvspserver_ports="default"
@@ -784,7 +784,7 @@ ALL_SHOULD_ALSO_RUN="${ALL_SHOULD_ALSO_RUN} irc"
 
 # for IPSec Key negotiation
 server_isakmp_ports="udp/500"
-client_isakmp_ports="500"
+client_isakmp_ports="any"
 
 server_jabber_ports="tcp/5222 tcp/5223"
 client_jabber_ports="default"
@@ -799,7 +799,7 @@ server_ldaps_ports="tcp/636"
 client_ldaps_ports="default"
 
 server_lpd_ports="tcp/515"
-client_lpd_ports="721:731 default"
+client_lpd_ports="any"
 
 server_microsoft_ds_ports="tcp/445"
 client_microsoft_ds_ports="default"
@@ -826,10 +826,10 @@ server_netbackup_ports="tcp/13701 tcp/13711 tcp/13720 tcp/13721 tcp/13724 tcp/13
 client_netbackup_ports="any"
 
 server_netbios_ns_ports="udp/137"
-client_netbios_ns_ports="default 137"
+client_netbios_ns_ports="any"
 
 server_netbios_dgm_ports="udp/138"
-client_netbios_dgm_ports="default 138"
+client_netbios_dgm_ports="any"
 
 server_netbios_ssn_ports="tcp/139"
 client_netbios_ssn_ports="default"
@@ -841,7 +841,7 @@ server_nntps_ports="tcp/563"
 client_nntps_ports="default"
 
 server_ntp_ports="udp/123 tcp/123"
-client_ntp_ports="123 default"
+client_ntp_ports="any"
 
 # Network UPS Tools
 server_nut_ports="tcp/3493 udp/3493"
@@ -866,7 +866,7 @@ client_pop3s_ports="default"
 
 # Portmap clients appear to use ports bellow 1024
 server_portmap_ports="udp/111 tcp/111"
-client_portmap_ports="500:65535"
+client_portmap_ports="any"
 
 server_postgres_ports="tcp/5432"
 client_postgres_ports="default"
@@ -5632,7 +5632,7 @@ case "${arg}" in
 		else
 		
 		${CAT_CMD} <<EOF
-$Id: firehol.sh,v 1.266 2007/10/15 00:43:17 ktsaou Exp $
+$Id: firehol.sh,v 1.267 2007/10/25 12:34:06 ktsaou Exp $
 (C) Copyright 2002-2007, Costa Tsaousis <costa@tsaousis.gr>
 FireHOL is distributed under GPL.
 
@@ -5818,7 +5818,7 @@ then
 	
 	${CAT_CMD} <<EOF
 
-$Id: firehol.sh,v 1.266 2007/10/15 00:43:17 ktsaou Exp $
+$Id: firehol.sh,v 1.267 2007/10/25 12:34:06 ktsaou Exp $
 (C) Copyright 2003, Costa Tsaousis <costa@tsaousis.gr>
 FireHOL is distributed under GPL.
 Home Page: http://firehol.sourceforge.net
@@ -6123,7 +6123,7 @@ then
 	
 	"${CAT_CMD}" >&2 <<EOF
 
-$Id: firehol.sh,v 1.266 2007/10/15 00:43:17 ktsaou Exp $
+$Id: firehol.sh,v 1.267 2007/10/25 12:34:06 ktsaou Exp $
 (C) Copyright 2003, Costa Tsaousis <costa@tsaousis.gr>
 FireHOL is distributed under GPL.
 Home Page: http://firehol.sourceforge.net
@@ -6201,7 +6201,7 @@ EOF
 	
 	${CAT_CMD} <<EOF
 #!${FIREHOL_FILE}
-# $Id: firehol.sh,v 1.266 2007/10/15 00:43:17 ktsaou Exp $
+# $Id: firehol.sh,v 1.267 2007/10/25 12:34:06 ktsaou Exp $
 # 
 # This config will have the same effect as NO PROTECTION!
 # Everything that found to be running, is allowed.

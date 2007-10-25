@@ -1,7 +1,7 @@
 
 RCS file: /cvsroot/firehol/firehol/firehol.sh,v
 Working file: firehol.sh
-head: 1.263
+head: 1.266
 branch:
 locks: strict
 access list:
@@ -9,8 +9,34 @@ symbolic names:
 	start: 1.1.1.1
 	vendor: 1.1.1
 keyword substitution: kv
-total revisions: 264;	selected revisions: 264
+total revisions: 267;	selected revisions: 267
 description:
+----------------------------
+revision 1.266
+date: 2007/10/15 00:43:17;  author: ktsaou;  state: Exp;  lines: +95 -37
+'less' is no more required. Now FireHOL can use 'less', 'more' or 'cat'
+in that order, for a pager.
+
+FireHOL will now correctly use 'zcat', 'gzcat' or 'gzip' for uncompressing
+/proc/config.gz, and it will ignore /proc/config.gz if it cannot
+find any of these commands (with a warning).
+
+There was a case, where an attacker could use firehol to execute a custom
+script, if it was saved at a location where the kernel config file is
+expected by firehol, and /proc/config, /proc/config.gz did not exist.
+FireHOL now greps the kernel config file for the information it needs, so
+this threat has been eliminated.
+
+Updated the line number management of the configuration file, using the
+latest user commands offered by firehol.
+----------------------------
+revision 1.265
+date: 2007/10/14 23:02:39;  author: ktsaou;  state: Exp;  lines: +11 -11
+Replace gzcat with zcat.
+----------------------------
+revision 1.264
+date: 2007/10/14 23:00:41;  author: ktsaou;  state: Exp;  lines: +7 -7
+Updated RESERVED_IPS to latest IANA reservations.
 ----------------------------
 revision 1.263
 date: 2007/08/20 02:03:28;  author: ktsaou;  state: Exp;  lines: +8 -8
