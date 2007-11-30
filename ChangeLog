@@ -1,7 +1,7 @@
 
 RCS file: /cvsroot/firehol/firehol/firehol.sh,v
 Working file: firehol.sh
-head: 1.266
+head: 1.267
 branch:
 locks: strict
 access list:
@@ -9,8 +9,15 @@ symbolic names:
 	start: 1.1.1.1
 	vendor: 1.1.1
 keyword substitution: kv
-total revisions: 267;	selected revisions: 267
+total revisions: 268;	selected revisions: 268
 description:
+----------------------------
+revision 1.267
+date: 2007/10/25 12:34:06;  author: ktsaou;  state: Exp;  lines: +13 -13
+Changed all service definitions which can use client ports bellow 1024 to
+allow client connections from any possible port, because when natted, these
+services will me remapped to client ports bellow 1024 without any
+restriction on the port range.
 ----------------------------
 revision 1.266
 date: 2007/10/15 00:43:17;  author: ktsaou;  state: Exp;  lines: +95 -37
