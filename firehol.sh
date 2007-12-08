@@ -10,7 +10,7 @@
 #
 # config: /etc/firehol/firehol.conf
 #
-# $Id: firehol.sh,v 1.268 2007/11/30 19:22:36 ktsaou Exp $
+# $Id: firehol.sh,v 1.269 2007/12/08 10:39:06 ktsaou Exp $
 #
 
 # Make sure only root can run us.
@@ -209,7 +209,7 @@ ${RENICE_CMD} 10 $$ >/dev/null 2>/dev/null
 # Find our minor version
 firehol_minor_version() {
 ${CAT_CMD} <<"EOF" | ${CUT_CMD} -d ' ' -f 3 | ${CUT_CMD} -d '.' -f 2
-$Id: firehol.sh,v 1.268 2007/11/30 19:22:36 ktsaou Exp $
+$Id: firehol.sh,v 1.269 2007/12/08 10:39:06 ktsaou Exp $
 EOF
 }
 
@@ -3148,17 +3148,17 @@ close_interface() {
 			;;
 		
 		*)	
+			if [ "${FIREHOL_DROP_ORPHAN_TCP_ACK_FIN}" = "1" ]
+			then
+				# Silently drop orphan TCP/ACK FIN packets
+				rule chain "in_${work_name}" proto tcp custom "--tcp-flags ALL ACK,FIN" action DROP || return 1
+				rule reverse chain "out_${work_name}" proto tcp custom "--tcp-flags ALL ACK,FIN" action DROP || return 1
+			fi
+			
 			local -a inlog=(loglimit "'IN-${work_name}'")
 			local -a outlog=(loglimit "'OUT-${work_name}'")
 			;;
 	esac
-	
-	if [ "${FIREHOL_DROP_ORPHAN_TCP_ACK_FIN}" = "1" ]
-	then
-		# Silently drop orphan TCP/ACK FIN packets
-		rule chain "in_${work_name}" state NEW proto tcp custom "--tcp-flags ALL ACK,FIN" action DROP || return 1
-		rule reverse chain "out_${work_name}" state NEW proto tcp custom "--tcp-flags ALL ACK,FIN" action DROP || return 1
-	fi
 	
 	rule chain "in_${work_name}" "${inlog[@]}" action ${work_policy} || return 1
 	rule reverse chain "out_${work_name}" "${outlog[@]}" action ${work_policy} || return 1
@@ -3194,17 +3194,17 @@ close_router() {
 			;;
 		
 		*)	
+			if [ "${FIREHOL_DROP_ORPHAN_TCP_ACK_FIN}" = "1" ]
+			then
+				# Silently drop orphan TCP/ACK FIN packets
+				rule chain "in_${work_name}" proto tcp custom "--tcp-flags ALL ACK,FIN" action DROP || return 1
+				rule reverse chain "out_${work_name}" proto tcp custom "--tcp-flags ALL ACK,FIN" action DROP || return 1
+			fi
+			
 			local -a inlog=(loglimit "'PASS-${work_name}'")
 			local -a outlog=(loglimit "'PASS-${work_name}'")
 			;;
 	esac
-	
-	if [ "${FIREHOL_DROP_ORPHAN_TCP_ACK_FIN}" = "1" ]
-	then
-		# Silently drop orphan TCP/ACK FIN packets
-		rule chain "in_${work_name}" state NEW proto tcp custom "--tcp-flags ALL ACK,FIN" action DROP || return 1
-		rule reverse chain "out_${work_name}" state NEW proto tcp custom "--tcp-flags ALL ACK,FIN" action DROP || return 1
-	fi
 	
 	rule chain "in_${work_name}" "${inlog[@]}" action ${work_policy} || return 1
 	rule reverse chain "out_${work_name}" "${outlog[@]}" action ${work_policy} || return 1
@@ -3230,9 +3230,9 @@ close_master() {
 	if [ "${FIREHOL_DROP_ORPHAN_TCP_ACK_FIN}" = "1" ]
 	then
 		# Silently drop orphan TCP/ACK FIN packets
-		rule chain INPUT state NEW proto tcp custom "--tcp-flags ALL ACK,FIN" action DROP || return 1
-		rule chain OUTPUT state NEW proto tcp custom "--tcp-flags ALL ACK,FIN" action DROP || return 1
-		rule chain FORWARD state NEW proto tcp custom "--tcp-flags ALL ACK,FIN" action DROP || return 1
+		rule chain INPUT proto tcp custom "--tcp-flags ALL ACK,FIN" action DROP || return 1
+		rule chain OUTPUT proto tcp custom "--tcp-flags ALL ACK,FIN" action DROP || return 1
+		rule chain FORWARD proto tcp custom "--tcp-flags ALL ACK,FIN" action DROP || return 1
 	fi
 	
 	rule chain INPUT loglimit "IN-unknown" action ${UNMATCHED_INPUT_POLICY} || return 1
@@ -5632,7 +5632,7 @@ case "${arg}" in
 		else
 		
 		${CAT_CMD} <<EOF
-$Id: firehol.sh,v 1.268 2007/11/30 19:22:36 ktsaou Exp $
+$Id: firehol.sh,v 1.269 2007/12/08 10:39:06 ktsaou Exp $
 (C) Copyright 2002-2007, Costa Tsaousis <costa@tsaousis.gr>
 FireHOL is distributed under GPL.
 
@@ -5818,7 +5818,7 @@ then
 	
 	${CAT_CMD} <<EOF
 
-$Id: firehol.sh,v 1.268 2007/11/30 19:22:36 ktsaou Exp $
+$Id: firehol.sh,v 1.269 2007/12/08 10:39:06 ktsaou Exp $
 (C) Copyright 2003, Costa Tsaousis <costa@tsaousis.gr>
 FireHOL is distributed under GPL.
 Home Page: http://firehol.sourceforge.net
@@ -6123,7 +6123,7 @@ then
 	
 	"${CAT_CMD}" >&2 <<EOF
 
-$Id: firehol.sh,v 1.268 2007/11/30 19:22:36 ktsaou Exp $
+$Id: firehol.sh,v 1.269 2007/12/08 10:39:06 ktsaou Exp $
 (C) Copyright 2003, Costa Tsaousis <costa@tsaousis.gr>
 FireHOL is distributed under GPL.
 Home Page: http://firehol.sourceforge.net
@@ -6201,7 +6201,7 @@ EOF
 	
 	${CAT_CMD} <<EOF
 #!${FIREHOL_FILE}
-# $Id: firehol.sh,v 1.268 2007/11/30 19:22:36 ktsaou Exp $
+# $Id: firehol.sh,v 1.269 2007/12/08 10:39:06 ktsaou Exp $
 # 
 # This config will have the same effect as NO PROTECTION!
 # Everything that found to be running, is allowed.

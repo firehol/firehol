@@ -1,7 +1,7 @@
 
 RCS file: /cvsroot/firehol/firehol/firehol.sh,v
 Working file: firehol.sh
-head: 1.267
+head: 1.268
 branch:
 locks: strict
 access list:
@@ -9,8 +9,12 @@ symbolic names:
 	start: 1.1.1.1
 	vendor: 1.1.1
 keyword substitution: kv
-total revisions: 268;	selected revisions: 268
+total revisions: 269;	selected revisions: 269
 description:
+----------------------------
+revision 1.268
+date: 2007/11/30 19:22:36;  author: ktsaou;  state: Exp;  lines: +7 -7
+Updated RESERVED_IPS
 ----------------------------
 revision 1.267
 date: 2007/10/25 12:34:06;  author: ktsaou;  state: Exp;  lines: +13 -13
