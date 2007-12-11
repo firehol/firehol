@@ -10,7 +10,7 @@
 #
 # config: /etc/firehol/firehol.conf
 #
-# $Id: firehol.sh,v 1.269 2007/12/08 10:39:06 ktsaou Exp $
+# $Id: firehol.sh,v 1.270 2007/12/11 22:05:24 ktsaou Exp $
 #
 
 # Make sure only root can run us.
@@ -209,7 +209,7 @@ ${RENICE_CMD} 10 $$ >/dev/null 2>/dev/null
 # Find our minor version
 firehol_minor_version() {
 ${CAT_CMD} <<"EOF" | ${CUT_CMD} -d ' ' -f 3 | ${CUT_CMD} -d '.' -f 2
-$Id: firehol.sh,v 1.269 2007/12/08 10:39:06 ktsaou Exp $
+$Id: firehol.sh,v 1.270 2007/12/11 22:05:24 ktsaou Exp $
 EOF
 }
 
@@ -1004,6 +1004,47 @@ client_xdmcp_ports="default"
 #    inface/outface, src/dst, sport/dport
 # b) The output rules use ${out}_${mychain} instead of ${in}_${mychain}
 # c) The state rules match the client operation, not the server.
+
+# --- XBOX ---------------------------------------------------------------------
+
+# Contributed by andrex@alumni.utexas.net
+# Following is the (complex) service definition function for xbox, the Xbox live
+# service.  With this definition our Xbox connects and plays from behind a NAT
+# firewall with no trouble.  Andrew.
+
+rules_xbox() {
+	local mychain="${1}"; shift
+	local type="${1}"; shift
+	
+	local in=in
+	local out=out
+	if [ "${type}" = "client" ]
+	then
+		in=out
+		out=in
+	fi
+	
+	local client_ports="${DEFAULT_CLIENT_PORTS}"
+	if [ "${type}" = "client" -a "${work_cmd}" = "interface" ]
+	then
+		client_ports="${LOCAL_CLIENT_PORTS}"
+	fi
+	
+	# ----------------------------------------------------------------------
+	
+	set_work_function "Setting up rules for Xbox live"
+	
+	rule ${in}          action "$@" chain "${in}_${mychain}"  proto udp dport "88 3074" sport "${client_ports}" state NEW,ESTABLISHED || return 1
+	rule ${out} reverse action "$@" chain "${out}_${mychain}" proto udp dport "88 3074" sport "${client_ports}" state     ESTABLISHED || return 1
+	
+	rule ${in}          action "$@" chain "${in}_${mychain}"  proto tcp dport 3074 sport "${client_ports}" state NEW,ESTABLISHED || return 1
+	rule ${out} reverse action "$@" chain "${out}_${mychain}" proto tcp dport 3074 sport "${client_ports}" state     ESTABLISHED || return 1
+	
+	rule ${in}          action "$@" chain "${in}_${mychain}"  proto udp sport 3074 dport "${client_ports}" state NEW,ESTABLISHED || return 1
+	rule ${out} reverse action "$@" chain "${out}_${mychain}" proto udp sport 3074 dport "${client_ports}" state     ESTABLISHED || return 1
+	
+	return 0
+}
 
 
 # --- DHCP --------------------------------------------------------------------
@@ -5632,7 +5673,7 @@ case "${arg}" in
 		else
 		
 		${CAT_CMD} <<EOF
-$Id: firehol.sh,v 1.269 2007/12/08 10:39:06 ktsaou Exp $
+$Id: firehol.sh,v 1.270 2007/12/11 22:05:24 ktsaou Exp $
 (C) Copyright 2002-2007, Costa Tsaousis <costa@tsaousis.gr>
 FireHOL is distributed under GPL.
 
@@ -5818,7 +5859,7 @@ then
 	
 	${CAT_CMD} <<EOF
 
-$Id: firehol.sh,v 1.269 2007/12/08 10:39:06 ktsaou Exp $
+$Id: firehol.sh,v 1.270 2007/12/11 22:05:24 ktsaou Exp $
 (C) Copyright 2003, Costa Tsaousis <costa@tsaousis.gr>
 FireHOL is distributed under GPL.
 Home Page: http://firehol.sourceforge.net
@@ -6123,7 +6164,7 @@ then
 	
 	"${CAT_CMD}" >&2 <<EOF
 
-$Id: firehol.sh,v 1.269 2007/12/08 10:39:06 ktsaou Exp $
+$Id: firehol.sh,v 1.270 2007/12/11 22:05:24 ktsaou Exp $
 (C) Copyright 2003, Costa Tsaousis <costa@tsaousis.gr>
 FireHOL is distributed under GPL.
 Home Page: http://firehol.sourceforge.net
@@ -6201,7 +6242,7 @@ EOF
 	
 	${CAT_CMD} <<EOF
 #!${FIREHOL_FILE}
-# $Id: firehol.sh,v 1.269 2007/12/08 10:39:06 ktsaou Exp $
+# $Id: firehol.sh,v 1.270 2007/12/11 22:05:24 ktsaou Exp $
 # 
 # This config will have the same effect as NO PROTECTION!
 # Everything that found to be running, is allowed.
