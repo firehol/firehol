@@ -1,8 +1,11 @@
 #!/bin/bash
 
-# $Id: get-iana.sh,v 1.11 2007/06/13 14:40:04 ktsaou Exp $
+# $Id: get-iana.sh,v 1.12 2008/03/17 22:08:43 ktsaou Exp $
 #
 # $Log: get-iana.sh,v $
+# Revision 1.12  2008/03/17 22:08:43  ktsaou
+# Updated for latest IANA reservations format.
+#
 # Revision 1.11  2007/06/13 14:40:04  ktsaou
 # *** empty log message ***
 #
@@ -54,7 +57,16 @@
 #
 
 IPV4_ADDRESS_SPACE_URL="http://www.iana.org/assignments/ipv4-address-space"
-IANA_RESERVED="IANA - Reserved"
+
+# The program will match all rows in the file which start with a number, have a slash,
+# followed by another number, for which the following pattern will also match on the
+# same rows
+IANA_RESERVED="(RESERVED|UNALLOCATED)"
+
+# which rows that are matched by the above, to ignore
+# (i.e. not include them in RESERVED_IPS)?
+#IANA_IGNORE="(Multicast|Private use|Loopback|Local Identification)"
+IANA_IGNORE="Multicast"
 
 tempfile="/tmp/iana.$$.$RANDOM"
 
@@ -80,7 +92,8 @@ echo >&2 "${IPV4_ADDRESS_SPACE_URL}"
 echo >&2
 
 wget -O - --proxy=off "${IPV4_ADDRESS_SPACE_URL}"	|\
-	grep "${IANA_RESERVED}"				|\
+	egrep "^[0-9]+/[0-9]+.*${IANA_RESERVED}"	|\
+	egrep -vi "${IANA_IGNORE}"			|\
 	cut -d ' ' -f 1					|\
 (
 	

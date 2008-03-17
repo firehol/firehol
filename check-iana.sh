@@ -1,5 +1,5 @@
 #!/bin/sh
-# $Id: check-iana.sh,v 1.1 2007/05/22 23:26:37 ktsaou Exp $
+# $Id: check-iana.sh,v 1.2 2008/03/17 22:08:43 ktsaou Exp $
 
 MYMAIL="$1"
 if [ -z "${MYMAIL}" ]
@@ -9,7 +9,6 @@ then
 fi
 
 IPV4_ADDRESS_SPACE_URL="http://www.iana.org/assignments/ipv4-address-space"
-IANA_RESERVED="IANA - Reserved"
 
 ianafile=iana-reserved.txt
 spooldir=/var/spool/firehol
