@@ -10,7 +10,7 @@
 #
 # config: /etc/firehol/firehol.conf
 #
-# $Id: firehol.sh,v 1.273 2008/07/31 00:46:41 ktsaou Exp $
+# $Id: firehol.sh,v 1.274 2008/08/09 21:48:02 ktsaou Exp $
 #
 
 # Make sure only root can run us.
@@ -209,7 +209,7 @@ ${RENICE_CMD} 10 $$ >/dev/null 2>/dev/null
 # Find our minor version
 firehol_minor_version() {
 ${CAT_CMD} <<"EOF" | ${CUT_CMD} -d ' ' -f 3 | ${CUT_CMD} -d '.' -f 2
-$Id: firehol.sh,v 1.273 2008/07/31 00:46:41 ktsaou Exp $
+$Id: firehol.sh,v 1.274 2008/08/09 21:48:02 ktsaou Exp $
 EOF
 }
 
@@ -2479,23 +2479,55 @@ tcpmss() {
 	
 	set_work_function -ne "Initializing $FUNCNAME"
 	
+	local what_to_do=error
+	if [ "${work_cmd}" = "router" ]
+	then
+		if [ -z "${work_outface}" ]
+		then
+			local what_to_do=public
+		else
+			local what_to_do=interface
+		fi
+	elif [ -z "${work_cmd}" ]
+	then
+		local what_to_do=public
+	else
+		local what_to_do=error
+	fi
+	
 	# work only if this helper is called before any primary command
 	# or within routers.
-	if [ -z "${work_cmd}" -o "${work_cmd}" = "router" ]
+	if [ "${what_to_do}" = "public" ]
 	then
-		local chains="FORWARD"
+		set_work_function "Initializing tcpmss for all interfaces"
 		
-		test ! -z "${work_cmd}" && chains="in_${work_name} out_${work_name}"
+		case $1 in
+			auto)
+				iptables -t mangle -A POSTROUTING -p tcp --tcp-flags SYN,RST SYN -j TCPMSS --clamp-mss-to-pmtu
+				;;
+			
+			[0-9]*)
+				iptables -t mangle -A POSTROUTING -p tcp --tcp-flags SYN,RST SYN -j TCPMSS --set-mss $1
+				;;
 		
-		for tcmpmss_chain in ${chains}
+			*)
+				error "$FUNCNAME requires either the word 'auto' or a numeric argument."
+				return 1
+				;;
+		esac
+	elif [ "${what_to_do}" = "interface" ]
+	then
+		local f=
+		for f in ${work_outface}
 		do
+			set_work_function "Initializing tcpmss for interface '${f}'"
 			case $1 in
 				auto)
-					iptables -A "${tcmpmss_chain}" -p tcp --tcp-flags SYN,RST SYN -j TCPMSS --clamp-mss-to-pmtu
+					iptables -t mangle -A POSTROUTING -o ${f} -p tcp --tcp-flags SYN,RST SYN -j TCPMSS --clamp-mss-to-pmtu
 					;;
 					
 				[0-9]*)
-					iptables -A "${tcmpmss_chain}" -p tcp --tcp-flags SYN,RST SYN -j TCPMSS --set-mss $1
+					iptables -t mangle -A POSTROUTING -o ${f} -p tcp --tcp-flags SYN,RST SYN -j TCPMSS --set-mss $1
 					;;
 				
 				*)
@@ -5673,7 +5705,7 @@ case "${arg}" in
 		else
 		
 		${CAT_CMD} <<EOF
-$Id: firehol.sh,v 1.273 2008/07/31 00:46:41 ktsaou Exp $
+$Id: firehol.sh,v 1.274 2008/08/09 21:48:02 ktsaou Exp $
 (C) Copyright 2002-2007, Costa Tsaousis <costa@tsaousis.gr>
 FireHOL is distributed under GPL.
 
@@ -5859,7 +5891,7 @@ then
 	
 	${CAT_CMD} <<EOF
 
-$Id: firehol.sh,v 1.273 2008/07/31 00:46:41 ktsaou Exp $
+$Id: firehol.sh,v 1.274 2008/08/09 21:48:02 ktsaou Exp $
 (C) Copyright 2003, Costa Tsaousis <costa@tsaousis.gr>
 FireHOL is distributed under GPL.
 Home Page: http://firehol.sourceforge.net
@@ -6164,7 +6196,7 @@ then
 	
 	"${CAT_CMD}" >&2 <<EOF
 
-$Id: firehol.sh,v 1.273 2008/07/31 00:46:41 ktsaou Exp $
+$Id: firehol.sh,v 1.274 2008/08/09 21:48:02 ktsaou Exp $
 (C) Copyright 2003, Costa Tsaousis <costa@tsaousis.gr>
 FireHOL is distributed under GPL.
 Home Page: http://firehol.sourceforge.net
@@ -6242,7 +6274,7 @@ EOF
 	
 	${CAT_CMD} <<EOF
 #!${FIREHOL_FILE}
-# $Id: firehol.sh,v 1.273 2008/07/31 00:46:41 ktsaou Exp $
+# $Id: firehol.sh,v 1.274 2008/08/09 21:48:02 ktsaou Exp $
 # 
 # This config will have the same effect as NO PROTECTION!
 # Everything that found to be running, is allowed.
