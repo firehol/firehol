@@ -76,7 +76,7 @@ google_color_text = "000000";
 			<li><a href="#dnat">dnat</a>, setup a Destination NAT rule for routed traffic</li>
 			<li><a href="#dscp">dscp</a>, set the DSCP field in the packet header, to a raw value or a DiffServ class</li>
 			<li><a href="#ecn_shame">ecn_shame</a>, disable ECN for all hosts in the ECN Shame list</li>
-			<li><a href="#iptables">iptables</a>, add some custom iptables commands to the firewall
+			<li><a href="#iptables">iptables</a>, add some custom iptables commands to the firewall</li>
 			<li><a href="#mac">mac</a>, setup a source mac address with IP match</li>
 			<li><a href="#mark">mark</a>, mark traffic for traffic shapping tools</li>
 			<li><a href="#masquerade">masquerade</a>, setup masquerading (NAT) to the output of a network interface</li>
@@ -85,6 +85,7 @@ google_color_text = "000000";
 			<li><a href="#snat">snat</a>, setup a Source NAT rule for routed traffic</li>
 			<li><a href="#tcpmss">tcpmss</a>, set the MSS of TCP SYN packets for routers</li>
 			<li><a href="#tos">tos</a>, set the Type of Service (TOS) field in the packet header</li>
+			<li><a href="#tosfix">tosfix</a>, fix the TOS value of packets</li>
 			<li><a href="#transparent_proxy">transparent_proxy</a>, setup a transparent TCP proxy running on the firewall host</li>
 			<li><a href="#transparent_squid">transparent_squid</a>, setup a transparent web proxy running on the firewall host</li>
 			<li><a href="#version">version</a>, require a specific version of FireHOL
@@ -828,6 +829,22 @@ Subcommands must be given within <a href="#primary_commands">Primary commands</a
 	<br>Example 2: <b>tos 0x10 FORWARD</b>, will set TOS to 0x10 (16) for all packets passing through the local machine.
 	<br>Example 3: <b>tos Maximize-Throughput FORWARD proto tcp dport 25 dst 1.1.1.1 src 2.2.2.2</b>, will set TOS to Maximize-Throughput (8)
 	for all packets sent by 2.2.2.2, passing through the local machine and targeting port TCP/25 of host 1.1.1.1.
+	<p>
+
+<hr noshade size=1 width="100%">
+	
+	<a name="tosfix"><h3><b>tosfix</b></h3></a>
+	The <b>tosfix</b> helper is based on the suggestions given by Erik Hensema for iptables and tc shapping tricks (check the source <a href="http://www.docum.org/docum.org/faq/cache/49.html">here</a>).
+	It does:
+	<ul>
+		<li>	All TCP ACK packets with length less than 128 bytes are assigned the Minimize-Delay TOS, while bigger ones are assigned the Maximize-Throughput.
+			<br>&nbsp;
+			</li>
+			
+		<li>	All packets with TOS Minimize-Delay, that are bigger than 512 bytes are set to Maximize-Throughput, except for short bursts of 2 packets per second.
+			<br>&nbsp;
+			</li>
+		</ul>
 	<p>
 
 <hr noshade size=1 width="100%">
@@ -1811,7 +1828,7 @@ about optional rule parameters that should not be used in certain commands.
 <tr><td align=center valign=middle>
 	<A href="http://sourceforge.net"><IMG src="http://sourceforge.net/sflogo.php?group_id=58425&amp;type=5" width="210" height="62" border="0" alt="SourceForge Logo"></A>
 </td><td align=center valign=middle>
-	<small>$Id: commands.html,v 1.71 2008/08/09 21:48:02 ktsaou Exp $</small>
+	<small>$Id: commands.html,v 1.72 2008/12/02 20:28:02 ktsaou Exp $</small>
 	<p>
 	<b>FireHOL</b>, a firewall for humans...<br>
 	&copy; Copyright 2004
