@@ -10,7 +10,7 @@
 #
 # config: /etc/firehol/firehol.conf
 #
-# $Id: firehol.sh,v 1.274 2008/08/09 21:48:02 ktsaou Exp $
+# $Id: firehol.sh,v 1.275 2008/12/02 20:01:11 ktsaou Exp $
 #
 
 # Make sure only root can run us.
@@ -209,7 +209,7 @@ ${RENICE_CMD} 10 $$ >/dev/null 2>/dev/null
 # Find our minor version
 firehol_minor_version() {
 ${CAT_CMD} <<"EOF" | ${CUT_CMD} -d ' ' -f 3 | ${CUT_CMD} -d '.' -f 2
-$Id: firehol.sh,v 1.274 2008/08/09 21:48:02 ktsaou Exp $
+$Id: firehol.sh,v 1.275 2008/12/02 20:01:11 ktsaou Exp $
 EOF
 }
 
@@ -2434,6 +2434,35 @@ tos() {
 	
 	create_chain mangle "tos.${tos_count}" "${where}" "$@" || return 1
 	iptables -t mangle -A "tos.${tos_count}" -j TOS --set-tos ${num}
+	
+	return 0
+}
+
+# from http://blog.edseek.com/~jasonb/articles/traffic_shaping/scenarios.html
+fixtos() {
+	work_realcmd=($FUNCNAME "$@")
+	
+	set_work_function -ne "Initializing $FUNCNAME"
+	
+	require_work clear || ( error "$FUNCNAME cannot be used in '${work_cmd}'. Put it before any '${work_cmd}' definition."; return 1 )
+	
+	set_work_function "Fixing TOS for Minimize-Delay packets"
+	
+	iptables -t mangle -N tosfix
+	iptables -t mangle -A tosfix -p tcp -m length --length 0:512 -j RETURN
+	iptables -t mangle -A tosfix -m limit --limit 2/s --limit-burst 10 -j RETURN
+	iptables -t mangle -A tosfix -j TOS --set-tos Maximize-Throughput
+	iptables -t mangle -A tosfix -j RETURN
+	iptables -t mangle -I POSTROUTING -p tcp -m tos --tos Minimize-Delay -j tosfix
+	
+	set_work_function "Fixing TOS for TCP ACK packets"
+	
+	iptables -t mangle -N ackfix
+	iptables -t mangle -A ackfix -m tos ! --tos Normal-Service -j RETURN
+	iptables -t mangle -A ackfix -p tcp -m length --length 0:128 -j TOS --set-tos Minimize-Delay
+	iptables -t mangle -A ackfix -p tcp -m length --length 128: -j TOS --set-tos Maximize-Throughput
+	iptables -t mangle -A ackfix -j RETURN
+	iptables -t mangle -I POSTROUTING -p tcp -m tcp --tcp-flags SYN,RST,ACK ACK -j ackfix
 	
 	return 0
 }
@@ -5705,7 +5734,7 @@ case "${arg}" in
 		else
 		
 		${CAT_CMD} <<EOF
-$Id: firehol.sh,v 1.274 2008/08/09 21:48:02 ktsaou Exp $
+$Id: firehol.sh,v 1.275 2008/12/02 20:01:11 ktsaou Exp $
 (C) Copyright 2002-2007, Costa Tsaousis <costa@tsaousis.gr>
 FireHOL is distributed under GPL.
 
@@ -5891,7 +5920,7 @@ then
 	
 	${CAT_CMD} <<EOF
 
-$Id: firehol.sh,v 1.274 2008/08/09 21:48:02 ktsaou Exp $
+$Id: firehol.sh,v 1.275 2008/12/02 20:01:11 ktsaou Exp $
 (C) Copyright 2003, Costa Tsaousis <costa@tsaousis.gr>
 FireHOL is distributed under GPL.
 Home Page: http://firehol.sourceforge.net
@@ -6196,7 +6225,7 @@ then
 	
 	"${CAT_CMD}" >&2 <<EOF
 
-$Id: firehol.sh,v 1.274 2008/08/09 21:48:02 ktsaou Exp $
+$Id: firehol.sh,v 1.275 2008/12/02 20:01:11 ktsaou Exp $
 (C) Copyright 2003, Costa Tsaousis <costa@tsaousis.gr>
 FireHOL is distributed under GPL.
 Home Page: http://firehol.sourceforge.net
@@ -6274,7 +6303,7 @@ EOF
 	
 	${CAT_CMD} <<EOF
 #!${FIREHOL_FILE}
-# $Id: firehol.sh,v 1.274 2008/08/09 21:48:02 ktsaou Exp $
+# $Id: firehol.sh,v 1.275 2008/12/02 20:01:11 ktsaou Exp $
 # 
 # This config will have the same effect as NO PROTECTION!
 # Everything that found to be running, is allowed.
