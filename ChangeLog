@@ -1,7 +1,7 @@
 
 RCS file: /cvsroot/firehol/firehol/firehol.sh,v
 Working file: firehol.sh
-head: 1.268
+head: 1.276
 branch:
 locks: strict
 access list:
@@ -9,8 +9,43 @@ symbolic names:
 	start: 1.1.1.1
 	vendor: 1.1.1
 keyword substitution: kv
-total revisions: 269;	selected revisions: 269
+total revisions: 277;	selected revisions: 277
 description:
+----------------------------
+revision 1.276
+date: 2008/12/02 20:28:02;  author: ktsaou;  state: Exp;  lines: +16 -16
+Renamed fixtos to tosfix, optimize it a bit, and added documentation about it.
+----------------------------
+revision 1.275
+date: 2008/12/02 20:01:11;  author: ktsaou;  state: Exp;  lines: +35 -6
+Added fixtos helper to mangle packets that may have invalid TOS
+----------------------------
+revision 1.274
+date: 2008/08/09 21:48:02;  author: ktsaou;  state: Exp;  lines: +44 -12
+fixed tcpmss issue described in bug 2043915.
+It seems that LARTC is very old for this.
+----------------------------
+revision 1.273
+date: 2008/07/31 00:46:41;  author: ktsaou;  state: Exp;  lines: +7 -7
+update RESERVED_IPS according to latest IANA reservations.
+----------------------------
+revision 1.272
+date: 2008/04/09 21:03:13;  author: ktsaou;  state: Exp;  lines: +7 -7
+Updated IANA reservations.
+----------------------------
+revision 1.271
+date: 2008/03/17 22:08:43;  author: ktsaou;  state: Exp;  lines: +7 -7
+Updated for latest IANA reservations format.
+----------------------------
+revision 1.270
+date: 2007/12/11 22:05:24;  author: ktsaou;  state: Exp;  lines: +47 -6
+Added service xbox.
+This is not final, as it opens all unprivileged UDP ports to anyone from source port UDP 3074.
+----------------------------
+revision 1.269
+date: 2007/12/08 10:39:06;  author: ktsaou;  state: Exp;  lines: +23 -23
+Fixed the operation of FIREHOL_DROP_ORPHAN_TCP_ACK_FIN. It did not work
+because it was also checking for a NEW state (which is not the case).
 ----------------------------
 revision 1.268
 date: 2007/11/30 19:22:36;  author: ktsaou;  state: Exp;  lines: +7 -7

@@ -73,6 +73,8 @@ google_color_text = "000000";
 		<ul>
 			<li><a href="#action">action</a>, setup custom filtering actions</li>
 			<li><a href="#blacklist">blacklist</a>, setup a unidirectional or bidirectional blacklist</li>
+			<li><a href="#classify">classify</a>, classify traffic for traffic shapping tools</li>
+			<li><a href="#connmark">connmark</a>, set a statefull mark on a connection</li>
 			<li><a href="#dnat">dnat</a>, setup a Destination NAT rule for routed traffic</li>
 			<li><a href="#dscp">dscp</a>, set the DSCP field in the packet header, to a raw value or a DiffServ class</li>
 			<li><a href="#ecn_shame">ecn_shame</a>, disable ECN for all hosts in the ECN Shame list</li>
@@ -526,6 +528,67 @@ Subcommands must be given within <a href="#primary_commands">Primary commands</a
 	Example 2: <b>blacklist full 195.97.5.202 10.1.1.1</b> # please note the absence of quotes<br>
 	<p>
 	
+<hr noshade size=1 width="100%">
+	
+	<a name="classify"><h3><b>classify</b> <font color="red">&lt;CLASS&gt;</font> [optional rule parameters]</h3></a>
+	The <b>classify</b> helper classifies the traffic into a specific traffic shapping class.
+	
+	<H4>Parameters</H4>
+	<ul>
+		<li>	<b>CLASS</b> is a class, as accepted by iptables (i.e. MAJOR:MINOR).
+			<br>&nbsp;
+			</li>
+
+		<li>	<b>optional rule parameters</b> is a set of rules that allow further restriction of the traffic that
+			gets matched by this rule. See <a href="#parameters">Optional Rules Parameters</a> for more information.
+			<br>&nbsp;
+			</li>
+		</ul>
+	<br>Example 1: <b>classify 1:1 outface eth1 proto tcp dport 25</b>, will send all smtp traffic going out via eth1 to class 1:1.
+	<p>
+
+<hr noshade size=1 width="100%">
+	
+	<a name="connmark"><h3><b>connmark</b> <font color="red">&lt;VALUE&gt;</font> <font color="red">&lt;WHERE&gt;</font> [optional rule parameters]</h3></a>
+	The <b>connmark</b> helper is used to set a mark on a whole connection in both directions of the traffic automatically. The difference with <a href="#mark">mark</a> is that the later just marks the packets matched by the optional rule parameters, while connmark marks the whole statefull connection.
+	
+	<H4>Parameters</H4>
+	<ul>
+		<li>	<b>VALUE</b> can be a mark value to set, or the words <b>save</b> to convert the existing mark of the packets to connmark, or <b>restore</b> to convert the existing connmark of the connection to a mark on the packets.
+			<br>&nbsp;
+			</li>
+
+		<li>	<b>WHERE</b> tells FireHOL where to search for the specific traffic to be marked.
+			<br>Currently, WHERE can be one of the build-in iptables chains attached to table <b>mangle</b>.
+			(for example: INPUT, FORWARD, OUTPUT, PREROUTING, POSTROUTING - case does matter here).
+			<br>&nbsp;
+			</li>
+			
+		<li>	<b>optional rule parameters</b> is a set of rules that allow further restriction of the traffic that
+			gets matched by this rule. See <a href="#parameters">Optional Rules Parameters</a> for more information.
+			<br>&nbsp;
+			</li>
+		</ul>
+	
+	<p>
+	Example 1: Let's say that you have 3 ethernet interfaces: eth0, eth1 and eth2. eth0 connects you to the LAN, while eth1 and eth2 connect you to the internet via 2 different service providers.
+	You want to guarrantee that when a connection is coming from provider 1 (eth1) will go back through this provider and the same for provider 2 (eth2).
+	
+	<p>	Step 1: You mark the connections when they enter the firewall host from the provider interfaces:
+	<br>	connmark 1 PREROUTING state NEW inface eth1
+	<br>	connmark 2 PREROUTING state NEW inface eth2
+	
+	<p>	Step 2: You restore the mark (from the connmark) when the packets come in from the LAN:
+	<br>	connmark restore OUTPUT
+	<br>	connmark restore PREROUTING inface eth0
+	
+	<p>	Now you can use iproute2 to pick the right routing table (eth1 or eth2 and the default gateway) based on the MARK of the packets.
+	
+	<br>
+	<br>Example 2: <b>connmark 1 PREROUTING inface eth1</b>, Set the CONNMARK 1 to all packets coming in from eth1.
+	<br>Example 3: <b>connmark save PREROUTING inface eth1</b>, Save the MARK value to the CONNMARK value on all packets coming in from eth1.
+	<p>
+
 <hr noshade size=1 width="100%">
 	
 	<a name="dnat"><h3><b>dnat</b> [to] <font color="red">&lt;target&gt;</font> [optional rule parameters]</h3></a>
@@ -1828,7 +1891,7 @@ about optional rule parameters that should not be used in certain commands.
 <tr><td align=center valign=middle>
 	<A href="http://sourceforge.net"><IMG src="http://sourceforge.net/sflogo.php?group_id=58425&amp;type=5" width="210" height="62" border="0" alt="SourceForge Logo"></A>
 </td><td align=center valign=middle>
-	<small>$Id: commands.html,v 1.72 2008/12/02 20:28:02 ktsaou Exp $</small>
+	<small>$Id: commands.html,v 1.73 2009/02/05 02:03:07 ktsaou Exp $</small>
 	<p>
 	<b>FireHOL</b>, a firewall for humans...<br>
 	&copy; Copyright 2004

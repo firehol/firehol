@@ -10,7 +10,7 @@
 #
 # config: /etc/firehol/firehol.conf
 #
-# $Id: firehol.sh,v 1.276 2008/12/02 20:28:02 ktsaou Exp $
+# $Id: firehol.sh,v 1.277 2009/02/05 02:03:07 ktsaou Exp $
 #
 
 # Make sure only root can run us.
@@ -209,7 +209,7 @@ ${RENICE_CMD} 10 $$ >/dev/null 2>/dev/null
 # Find our minor version
 firehol_minor_version() {
 ${CAT_CMD} <<"EOF" | ${CUT_CMD} -d ' ' -f 3 | ${CUT_CMD} -d '.' -f 2
-$Id: firehol.sh,v 1.276 2008/12/02 20:28:02 ktsaou Exp $
+$Id: firehol.sh,v 1.277 2009/02/05 02:03:07 ktsaou Exp $
 EOF
 }
 
@@ -453,7 +453,7 @@ load_ips() {
 # Optimized (CIDR) by Marc 'HE' Brockschmidt <marc@marcbrockschmidt.de>
 # Further optimized and reduced by http://www.vergenet.net/linux/aggregate/
 # The supplied get-iana.sh uses 'aggregate-flim' if it finds it in the path.
-RESERVED_IPS="0.0.0.0/7 2.0.0.0/8 5.0.0.0/8 10.0.0.0/8 14.0.0.0/8 23.0.0.0/8 27.0.0.0/8 31.0.0.0/8 36.0.0.0/7 39.0.0.0/8 42.0.0.0/8 46.0.0.0/8 49.0.0.0/8 50.0.0.0/8 100.0.0.0/6 104.0.0.0/5 127.0.0.0/8 175.0.0.0/8 176.0.0.0/5 184.0.0.0/7 197.0.0.0/8 223.0.0.0/8 240.0.0.0/4 "
+RESERVED_IPS="0.0.0.0/7 2.0.0.0/8 5.0.0.0/8 10.0.0.0/8 14.0.0.0/8 23.0.0.0/8 27.0.0.0/8 31.0.0.0/8 36.0.0.0/7 39.0.0.0/8 42.0.0.0/8 46.0.0.0/8 49.0.0.0/8 50.0.0.0/8 100.0.0.0/6 104.0.0.0/6 127.0.0.0/8 175.0.0.0/8 176.0.0.0/7 179.0.0.0/8 180.0.0.0/6 185.0.0.0/8 223.0.0.0/8 240.0.0.0/4 "
 load_ips RESERVED_IPS "${RESERVED_IPS}" 90 "Run the supplied get-iana.sh script to generate this file." require-file
 
 # Private IPv4 address space
@@ -2390,6 +2390,60 @@ blacklist() {
 			fi
 		done
 	done
+	
+	return 0
+}
+
+classify_count=0
+classify() {
+	work_realcmd_helper $FUNCNAME "$@"
+	
+	set_work_function -ne "Initializing $FUNCNAME"
+	
+	require_work clear || ( error "$FUNCNAME cannot be used in '${work_cmd}'. Put it before any '${work_cmd}' definition."; return 1 )
+	
+	local class="${1}"; shift
+	classify_count=$[classify_count + 1]
+	
+	set_work_function "Setting up rules for CLASSIFY"
+	
+	create_chain mangle "classify.${classify_count}" POSTROUTING "$@" || return 1
+	iptables -t mangle -A "classify.${classify_count}" -j CLASSIFY --set-class ${class}
+	
+	return 0
+}
+
+connmark_count=0
+connmark() {
+	work_realcmd_helper $FUNCNAME "$@"
+	
+	set_work_function -ne "Initializing $FUNCNAME"
+	
+	require_work clear || ( error "$FUNCNAME cannot be used in '${work_cmd}'. Put it before any '${work_cmd}' definition."; return 1 )
+	
+	local num="${1}"; shift
+	local where="${1}"; shift
+	test -z "${where}" && where=OUTPUT
+	
+	connmark_count=$[connmark_count + 1]
+	
+	set_work_function "Setting up rules for CONNMARK"
+	
+	create_chain mangle "connmark.${connmark_count}" "${where}" "$@" || return 1
+	
+	case "${num}" in
+		save)
+			iptables -t mangle -A "connmark.${connmark_count}" -j MARK --save-mark
+			;;
+		
+		restore)
+			iptables -t mangle -A "connmark.${connmark_count}" -j MARK --restore-mark
+			;;
+			
+		*)
+			iptables -t mangle -A "connmark.${connmark_count}" -j MARK --set-mark ${num}
+			;;
+	esac
 	
 	return 0
 }
@@ -5734,7 +5788,7 @@ case "${arg}" in
 		else
 		
 		${CAT_CMD} <<EOF
-$Id: firehol.sh,v 1.276 2008/12/02 20:28:02 ktsaou Exp $
+$Id: firehol.sh,v 1.277 2009/02/05 02:03:07 ktsaou Exp $
 (C) Copyright 2002-2007, Costa Tsaousis <costa@tsaousis.gr>
 FireHOL is distributed under GPL.
 
@@ -5920,7 +5974,7 @@ then
 	
 	${CAT_CMD} <<EOF
 
-$Id: firehol.sh,v 1.276 2008/12/02 20:28:02 ktsaou Exp $
+$Id: firehol.sh,v 1.277 2009/02/05 02:03:07 ktsaou Exp $
 (C) Copyright 2003, Costa Tsaousis <costa@tsaousis.gr>
 FireHOL is distributed under GPL.
 Home Page: http://firehol.sourceforge.net
@@ -6225,7 +6279,7 @@ then
 	
 	"${CAT_CMD}" >&2 <<EOF
 
-$Id: firehol.sh,v 1.276 2008/12/02 20:28:02 ktsaou Exp $
+$Id: firehol.sh,v 1.277 2009/02/05 02:03:07 ktsaou Exp $
 (C) Copyright 2003, Costa Tsaousis <costa@tsaousis.gr>
 FireHOL is distributed under GPL.
 Home Page: http://firehol.sourceforge.net
@@ -6303,7 +6357,7 @@ EOF
 	
 	${CAT_CMD} <<EOF
 #!${FIREHOL_FILE}
-# $Id: firehol.sh,v 1.276 2008/12/02 20:28:02 ktsaou Exp $
+# $Id: firehol.sh,v 1.277 2009/02/05 02:03:07 ktsaou Exp $
 # 
 # This config will have the same effect as NO PROTECTION!
 # Everything that found to be running, is allowed.
@@ -6820,7 +6874,9 @@ ret=0
 ${CAT_CMD} >"${FIREHOL_TMP}.awk" <<"EOF"
 /^[[:space:]]*action[[:space:]]/ { printf "FIREHOL_LINEID=${LINENO} " }
 /^[[:space:]]*blacklist[[:space:]]/ { printf "FIREHOL_LINEID=${LINENO} " }
+/^[[:space:]]*classify[[:space:]]/ { printf "FIREHOL_LINEID=${LINENO} " }
 /^[[:space:]]*client[[:space:]]/ { printf "FIREHOL_LINEID=${LINENO} " }
+/^[[:space:]]*connmark[[:space:]]/ { printf "FIREHOL_LINEID=${LINENO} " }
 /^[[:space:]]*dnat[[:space:]]/ { printf "FIREHOL_LINEID=${LINENO} " }
 /^[[:space:]]*dscp[[:space:]]/ { printf "FIREHOL_LINEID=${LINENO} " }
 /^[[:space:]]*ecn_shame[[:space:]]/ { printf "FIREHOL_LINEID=${LINENO} " }
