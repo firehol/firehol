@@ -10,7 +10,7 @@
 #
 # config: /etc/firehol/firehol.conf
 #
-# $Id: firehol.sh,v 1.277 2009/02/05 02:03:07 ktsaou Exp $
+# $Id: firehol.sh,v 1.278 2009/02/05 02:45:00 ktsaou Exp $
 #
 
 # Make sure only root can run us.
@@ -209,7 +209,7 @@ ${RENICE_CMD} 10 $$ >/dev/null 2>/dev/null
 # Find our minor version
 firehol_minor_version() {
 ${CAT_CMD} <<"EOF" | ${CUT_CMD} -d ' ' -f 3 | ${CUT_CMD} -d '.' -f 2
-$Id: firehol.sh,v 1.277 2009/02/05 02:03:07 ktsaou Exp $
+$Id: firehol.sh,v 1.278 2009/02/05 02:45:00 ktsaou Exp $
 EOF
 }
 
@@ -2433,15 +2433,15 @@ connmark() {
 	
 	case "${num}" in
 		save)
-			iptables -t mangle -A "connmark.${connmark_count}" -j MARK --save-mark
+			iptables -t mangle -A "connmark.${connmark_count}" -j CONNMARK --save-mark
 			;;
 		
 		restore)
-			iptables -t mangle -A "connmark.${connmark_count}" -j MARK --restore-mark
+			iptables -t mangle -A "connmark.${connmark_count}" -j CONNMARK --restore-mark
 			;;
 			
 		*)
-			iptables -t mangle -A "connmark.${connmark_count}" -j MARK --set-mark ${num}
+			iptables -t mangle -A "connmark.${connmark_count}" -j CONNMARK --set-mark ${num}
 			;;
 	esac
 	
@@ -5788,7 +5788,7 @@ case "${arg}" in
 		else
 		
 		${CAT_CMD} <<EOF
-$Id: firehol.sh,v 1.277 2009/02/05 02:03:07 ktsaou Exp $
+$Id: firehol.sh,v 1.278 2009/02/05 02:45:00 ktsaou Exp $
 (C) Copyright 2002-2007, Costa Tsaousis <costa@tsaousis.gr>
 FireHOL is distributed under GPL.
 
@@ -5974,7 +5974,7 @@ then
 	
 	${CAT_CMD} <<EOF
 
-$Id: firehol.sh,v 1.277 2009/02/05 02:03:07 ktsaou Exp $
+$Id: firehol.sh,v 1.278 2009/02/05 02:45:00 ktsaou Exp $
 (C) Copyright 2003, Costa Tsaousis <costa@tsaousis.gr>
 FireHOL is distributed under GPL.
 Home Page: http://firehol.sourceforge.net
@@ -6279,7 +6279,7 @@ then
 	
 	"${CAT_CMD}" >&2 <<EOF
 
-$Id: firehol.sh,v 1.277 2009/02/05 02:03:07 ktsaou Exp $
+$Id: firehol.sh,v 1.278 2009/02/05 02:45:00 ktsaou Exp $
 (C) Copyright 2003, Costa Tsaousis <costa@tsaousis.gr>
 FireHOL is distributed under GPL.
 Home Page: http://firehol.sourceforge.net
@@ -6357,7 +6357,7 @@ EOF
 	
 	${CAT_CMD} <<EOF
 #!${FIREHOL_FILE}
-# $Id: firehol.sh,v 1.277 2009/02/05 02:03:07 ktsaou Exp $
+# $Id: firehol.sh,v 1.278 2009/02/05 02:45:00 ktsaou Exp $
 # 
 # This config will have the same effect as NO PROTECTION!
 # Everything that found to be running, is allowed.

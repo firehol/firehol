@@ -575,8 +575,8 @@ Subcommands must be given within <a href="#primary_commands">Primary commands</a
 	You want to guarrantee that when a connection is coming from provider 1 (eth1) will go back through this provider and the same for provider 2 (eth2).
 	
 	<p>	Step 1: You mark the connections when they enter the firewall host from the provider interfaces:
-	<br>	connmark 1 PREROUTING state NEW inface eth1
-	<br>	connmark 2 PREROUTING state NEW inface eth2
+	<br>	connmark 1 PREROUTING inface eth1
+	<br>	connmark 2 PREROUTING inface eth2
 	
 	<p>	Step 2: You restore the mark (from the connmark) when the packets come in from the LAN:
 	<br>	connmark restore OUTPUT
@@ -1891,7 +1891,7 @@ about optional rule parameters that should not be used in certain commands.
 <tr><td align=center valign=middle>
 	<A href="http://sourceforge.net"><IMG src="http://sourceforge.net/sflogo.php?group_id=58425&amp;type=5" width="210" height="62" border="0" alt="SourceForge Logo"></A>
 </td><td align=center valign=middle>
-	<small>$Id: commands.html,v 1.73 2009/02/05 02:03:07 ktsaou Exp $</small>
+	<small>$Id: commands.html,v 1.74 2009/02/05 02:45:00 ktsaou Exp $</small>
 	<p>
 	<b>FireHOL</b>, a firewall for humans...<br>
 	&copy; Copyright 2004
