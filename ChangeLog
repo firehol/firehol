@@ -1,7 +1,7 @@
 
 RCS file: /cvsroot/firehol/firehol/firehol.sh,v
 Working file: firehol.sh
-head: 1.276
+head: 1.277
 branch:
 locks: strict
 access list:
@@ -9,8 +9,16 @@ symbolic names:
 	start: 1.1.1.1
 	vendor: 1.1.1
 keyword substitution: kv
-total revisions: 277;	selected revisions: 277
+total revisions: 278;	selected revisions: 278
 description:
+----------------------------
+revision 1.277
+date: 2009/02/05 02:03:07;  author: ktsaou;  state: Exp;  lines: +63 -7
+Updated RESERVED_IPS for the latest IANA reservations.
+
+Added classify helper for traffic shapping without marks.
+Added connmark helper for statefull connection marking to assist the
+routing decision (i.e. multiple upstream providers).
 ----------------------------
 revision 1.276
 date: 2008/12/02 20:28:02;  author: ktsaou;  state: Exp;  lines: +16 -16
