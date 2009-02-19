@@ -10,7 +10,7 @@
 #
 # config: /etc/firehol/firehol.conf
 #
-# $Id: firehol.sh,v 1.281 2009/02/19 02:47:36 ktsaou Exp $
+# $Id: firehol.sh,v 1.282 2009/02/19 05:27:49 ktsaou Exp $
 #
 
 # Make sure only root can run us.
@@ -209,7 +209,7 @@ ${RENICE_CMD} 10 $$ >/dev/null 2>/dev/null
 # Find our minor version
 firehol_minor_version() {
 ${CAT_CMD} <<"EOF" | ${CUT_CMD} -d ' ' -f 3 | ${CUT_CMD} -d '.' -f 2
-$Id: firehol.sh,v 1.281 2009/02/19 02:47:36 ktsaou Exp $
+$Id: firehol.sh,v 1.282 2009/02/19 05:27:49 ktsaou Exp $
 EOF
 }
 
@@ -547,7 +547,6 @@ FIREHOL_LINEID="INIT"
 # Suggested by Fco.Felix Belmonte <ffelix@gescosoft.com>
 # Note that each of the complex services
 # may add to this variable the kernel modules it requires.
-# See rules_ftp() bellow for an example.
 FIREHOL_KERNEL_MODULES=""
 #
 # In the configuration file you can write:
@@ -659,6 +658,11 @@ FIREHOL_SERVICES_API="1"
 server_AH_ports="51/any"
 client_AH_ports="any"
 
+# Check http://wiki.zmanda.com/index.php/Configuration_with_iptables
+server_amanda_ports="udp/10080"
+client_amanda_ports="default"
+helper_amanda="amanda"
+
 # Debian package proxy
 server_aptproxy_ports="tcp/9999"
 client_aptproxy_ports="default"
@@ -719,6 +723,11 @@ client_echo_ports="default"
 server_finger_ports="tcp/79"
 client_finger_ports="default"
 
+server_ftp_ports="tcp/21"
+client_ftp_ports="default"
+helper_ftp="ftp"
+ALL_SHOULD_ALSO_RUN="${ALL_SHOULD_ALSO_RUN} ftp"
+
 # giFT modules' ports
 # Gnutella  = tcp/4302
 # FastTrack = tcp/1214
@@ -736,9 +745,11 @@ client_gkrellmd_ports="default"
 
 server_GRE_ports="47/any"
 client_GRE_ports="any"
+helper_GRE="proto_gre"
 
-server_h323_ports="tcp/1720 tcp/1731"
+server_h323_ports="tcp/1720"
 client_h323_ports="default"
+helper_h323="h323"
 
 # We assume heartbeat uses ports in the range 690 to 699
 server_heartbeat_ports="udp/690:699"
@@ -778,8 +789,9 @@ client_imaps_ports="default"
 
 server_irc_ports="tcp/6667"
 client_irc_ports="default"
-require_irc_modules="ip_conntrack_irc"
-require_irc_nat_modules="ip_nat_irc"
+# require_irc_modules="ip_conntrack_irc"
+# require_irc_nat_modules="ip_nat_irc"
+helper_irc="irc"
 ALL_SHOULD_ALSO_RUN="${ALL_SHOULD_ALSO_RUN} irc"
 
 # for IPSec Key negotiation
@@ -811,6 +823,7 @@ server_mms_ports="tcp/1755 udp/1755"
 client_mms_ports="default"
 require_mms_modules="ip_conntrack_mms"
 require_mms_nat_modules="ip_nat_mms"
+helper_mms="mms"
 # this will produce warnings on most distribution
 # because the mms module is not there:
 # ALL_SHOULD_ALSO_RUN="${ALL_SHOULD_ALSO_RUN} mms"
@@ -871,6 +884,11 @@ client_portmap_ports="any"
 server_postgres_ports="tcp/5432"
 client_postgres_ports="default"
 
+server_pptp_ports="tcp/1723"
+client_pptp_ports="default"
+helper_pptp="pptp proto_gre"
+# ALL_SHOULD_ALSO_RUN="${ALL_SHOULD_ALSO_RUN} pptp"
+
 # Privacy Proxy
 server_privoxy_ports="tcp/8118"
 client_privoxy_ports="default"
@@ -901,8 +919,7 @@ client_rtp_ports="any"
 
 server_sip_ports="udp/5060"
 client_sip_ports="5060 default"
-require_sip_modules="ip_conntrack_sip"
-require_sip_nat_modules="ip_nat_sip"
+helper_sip="sip"
 
 server_socks_ports="tcp/1080 udp/1080"
 client_socks_ports="default"
@@ -944,6 +961,10 @@ client_syslog_ports="syslog default"
 
 server_telnet_ports="tcp/23"
 client_telnet_ports="default"
+
+server_tftp_ports="udp/69"
+client_tftp_ports="default"
+helper_tftp="tftp"
 
 server_time_ports="tcp/37 udp/37"
 client_time_ports="default"
@@ -1230,37 +1251,39 @@ rules_samba() {
 
 
 # --- PPTP --------------------------------------------------------------------
-
-rules_pptp() {
-        local mychain="${1}"; shift
-	local type="${1}"; shift
-	
-	local in=in
-	local out=out
-	if [ "${type}" = "client" ]
-	then
-		in=out
-		out=in
-	fi
-	
-	local client_ports="${DEFAULT_CLIENT_PORTS}"
-	if [ "${type}" = "client" -a "${work_cmd}" = "interface" ]
-	then
-		client_ports="${LOCAL_CLIENT_PORTS}"
-	fi
-	
-	# ----------------------------------------------------------------------
-	
-	set_work_function "Setting up rules for PPTP/initial connection (${type})"
-	rule ${in}          action "$@" chain "${in}_${mychain}"  proto "tcp" sport "${client_ports}" dport "1723" state NEW,ESTABLISHED || return 1
-	rule ${out} reverse action "$@" chain "${out}_${mychain}" proto "tcp" sport "${client_ports}" dport "1723" state ESTABLISHED     || return 1
-	
-	set_work_function "Setting up rules for PPTP/tunnel GRE traffic (${type})"
-	rule ${in}          action "$@" chain "${in}_${mychain}"  proto "47"	|| return 1
-	rule ${out} reverse action "$@" chain "${out}_${mychain}" proto "47"	|| return 1
-	
-	return 0
-}
+# THIS IS OLD
+# THE NEW ONE USES THE KERNEL HELPER TO DO IT, AND THEREFORE IS A SIMPLE SERVICE
+#
+#rules_pptp() {
+#        local mychain="${1}"; shift
+#	local type="${1}"; shift
+#	
+#	local in=in
+#	local out=out
+#	if [ "${type}" = "client" ]
+#	then
+#		in=out
+#		out=in
+#	fi
+#	
+#	local client_ports="${DEFAULT_CLIENT_PORTS}"
+#	if [ "${type}" = "client" -a "${work_cmd}" = "interface" ]
+#	then
+#		client_ports="${LOCAL_CLIENT_PORTS}"
+#	fi
+#	
+#	# ----------------------------------------------------------------------
+#	
+#	set_work_function "Setting up rules for PPTP/initial connection (${type})"
+#	rule ${in}          action "$@" chain "${in}_${mychain}"  proto "tcp" sport "${client_ports}" dport "1723" state NEW,ESTABLISHED || return 1
+#	rule ${out} reverse action "$@" chain "${out}_${mychain}" proto "tcp" sport "${client_ports}" dport "1723" state ESTABLISHED     || return 1
+#	
+#	set_work_function "Setting up rules for PPTP/tunnel GRE traffic (${type})"
+#	rule ${in}          action "$@" chain "${in}_${mychain}"  proto "47"	|| return 1
+#	rule ${out} reverse action "$@" chain "${out}_${mychain}" proto "47"	|| return 1
+#	
+#	return 0
+#}
 
 
 # --- NFS ----------------------------------------------------------------------
@@ -1474,80 +1497,85 @@ rules_nis() {
 
 
 # --- AMANDA -------------------------------------------------------------------
-FIREHOL_AMANDA_PORTS="850:859"
-
-rules_amanda() {
-        local mychain="${1}"; shift
-	local type="${1}"; shift
-	
-	local in=in
-	local out=out
-	if [ "${type}" = "client" ]
-	then
-		in=out
-		out=in
-	fi
-	
-	local client_ports="${DEFAULT_CLIENT_PORTS}"
-	if [ "${type}" = "client" -a "${work_cmd}" = "interface" ]
-	then
-		client_ports="${LOCAL_CLIENT_PORTS}"
-	fi
-	
-	# ----------------------------------------------------------------------
-	
-	set_work_function "*** AMANDA: See http://amanda.sourceforge.net/fom-serve/cache/139.html"
-	
-	
-	set_work_function "Setting up rules for initial amanda server-to-client connection"
-	rule ${out}        action "$@" chain "${out}_${mychain}" proto "udp" dport 10080 state NEW,ESTABLISHED || return 1
-	rule ${in} reverse action "$@" chain "${in}_${mychain}"  proto "udp" dport 10080 state ESTABLISHED     || return 1
-	
-	
-	set_work_function "Setting up rules for amanda data exchange client-to-server"
-	rule ${in}          action "$@" chain "${in}_${mychain}"  proto "tcp udp" dport "${FIREHOL_AMANDA_PORTS}" state NEW,ESTABLISHED || return 1
-	rule ${out} reverse action "$@" chain "${out}_${mychain}" proto "tcp udp" dport "${FIREHOL_AMANDA_PORTS}" state ESTABLISHED     || return 1
-	
-	return 0
-}
+# THIS IS OLD
+# THE NEW ONE USES THE KERNEL HELPER TO DO IT, AND THEREFORE IS A SIMPLE SERVICE
+#
+#FIREHOL_AMANDA_PORTS="850:859"
+#
+#rules_amanda() {
+#	local mychain="${1}"; shift
+#	local type="${1}"; shift
+#	
+#	local in=in
+#	local out=out
+#	if [ "${type}" = "client" ]
+#	then
+#		in=out
+#		out=in
+#	fi
+#	
+#	local client_ports="${DEFAULT_CLIENT_PORTS}"
+#	if [ "${type}" = "client" -a "${work_cmd}" = "interface" ]
+#	then
+#		client_ports="${LOCAL_CLIENT_PORTS}"
+#	fi
+#	
+#	# ----------------------------------------------------------------------
+#	
+#	set_work_function "*** AMANDA: See http://amanda.sourceforge.net/fom-serve/cache/139.html"
+#	
+#	
+#	set_work_function "Setting up rules for initial amanda server-to-client connection"
+#	rule ${out}        action "$@" chain "${out}_${mychain}" proto "udp" dport 10080 state NEW,ESTABLISHED || return 1
+#	rule ${in} reverse action "$@" chain "${in}_${mychain}"  proto "udp" dport 10080 state ESTABLISHED     || return 1
+#	
+#	
+#	set_work_function "Setting up rules for amanda data exchange client-to-server"
+#	rule ${in}          action "$@" chain "${in}_${mychain}"  proto "tcp udp" dport "${FIREHOL_AMANDA_PORTS}" state NEW,ESTABLISHED || return 1
+#	rule ${out} reverse action "$@" chain "${out}_${mychain}" proto "tcp udp" dport "${FIREHOL_AMANDA_PORTS}" state ESTABLISHED     || return 1
+#	
+#	return 0
+#}
 
 # --- FTP ----------------------------------------------------------------------
-
-ALL_SHOULD_ALSO_RUN="${ALL_SHOULD_ALSO_RUN} ftp"
-
-rules_ftp() {
-        local mychain="${1}"; shift
-	local type="${1}"; shift
-	
-	local in=in
-	local out=out
-	if [ "${type}" = "client" ]
-	then
-		in=out
-		out=in
-	fi
-	
-	local client_ports="${DEFAULT_CLIENT_PORTS}"
-	if [ "${type}" = "client" -a "${work_cmd}" = "interface" ]
-	then
-		client_ports="${LOCAL_CLIENT_PORTS}"
-	fi
-	
-	# For an explanation of how FTP connections work, see
-	# http://slacksite.com/other/ftp.html
-	
-	# ----------------------------------------------------------------------
-	
-	# allow new and established incoming, and established outgoing
-	# accept port ftp new connections
-	set_work_function "Setting up rules for initial FTP connection ${type}"
-	rule ${in}          action "$@" chain "${in}_${mychain}"  proto tcp sport "${client_ports}" dport ftp state NEW,ESTABLISHED || return 1
-	rule ${out} reverse action "$@" chain "${out}_${mychain}" proto tcp sport "${client_ports}" dport ftp state ESTABLISHED     || return 1
-	
-	set_work_function "Match anything related to the kernel ftp helper"
-	rule ${in}          action "$@" chain "${in}_${mychain}"  custom "-m helper --helper ftp" state ESTABLISHED,RELATED || return 1
-	rule ${out} reverse action "$@" chain "${out}_${mychain}" custom "-m helper --helper ftp" state ESTABLISHED,RELATED || return 1
-	
+# THIS IS OLD
+# THE NEW ONE USES THE KERNEL HELPER TO DO IT, AND THEREFORE IS A SIMPLE SERVICE
+#
+#ALL_SHOULD_ALSO_RUN="${ALL_SHOULD_ALSO_RUN} ftp"
+#
+#rules_ftp() {
+#        local mychain="${1}"; shift
+#	local type="${1}"; shift
+#	
+#	local in=in
+#	local out=out
+#	if [ "${type}" = "client" ]
+#	then
+#		in=out
+#		out=in
+#	fi
+#	
+#	local client_ports="${DEFAULT_CLIENT_PORTS}"
+#	if [ "${type}" = "client" -a "${work_cmd}" = "interface" ]
+#	then
+#		client_ports="${LOCAL_CLIENT_PORTS}"
+#	fi
+#	
+#	# For an explanation of how FTP connections work, see
+#	# http://slacksite.com/other/ftp.html
+#	
+#	# ----------------------------------------------------------------------
+#	
+#	# allow new and established incoming, and established outgoing
+#	# accept port ftp new connections
+#	set_work_function "Setting up rules for initial FTP connection ${type}"
+#	rule ${in}          action "$@" chain "${in}_${mychain}"  proto tcp sport "${client_ports}" dport ftp state NEW,ESTABLISHED || return 1
+#	rule ${out} reverse action "$@" chain "${out}_${mychain}" proto tcp sport "${client_ports}" dport ftp state ESTABLISHED     || return 1
+#	
+#	set_work_function "Match anything related to the kernel ftp helper"
+#	rule ${in}          action "$@" chain "${in}_${mychain}"  custom "-m helper --helper ftp" state ESTABLISHED,RELATED || return 1
+#	rule ${out} reverse action "$@" chain "${out}_${mychain}" custom "-m helper --helper ftp" state ESTABLISHED,RELATED || return 1
+#	
 # this is old code - replaced by the two helper statements above
 #	# Active FTP
 #	# send port ftp-data related connections
@@ -1574,76 +1602,79 @@ rules_ftp() {
 #	set_work_function "Setting up rules for Passive FTP ${type}"
 #	rule ${in}          action "$@" chain "${in}_${mychain}"  proto tcp sport "${c_client_ports}" dport "${s_client_ports}" state ESTABLISHED,RELATED || return 1
 #	rule ${out} reverse action "$@" chain "${out}_${mychain}" proto tcp sport "${c_client_ports}" dport "${s_client_ports}" state ESTABLISHED         || return 1
-	
-	require_kernel_module ip_conntrack_ftp
-	test ${FIREHOL_NAT} -eq 1 && require_kernel_module ip_nat_ftp
-	
-	return 0
-}
+#	
+#	require_kernel_module ip_conntrack_ftp
+#	test ${FIREHOL_NAT} -eq 1 && require_kernel_module ip_nat_ftp
+#	
+#	return 0
+#}
 
 
 # --- TFTP ---------------------------------------------------------------------
+# THIS IS OLD
+# THE NEW ONE USES THE KERNEL HELPER TO DO IT, AND THEREFORE IS A SIMPLE SERVICE
+#
 # Written by: Goetz Bock <bock@blacknet.de>
-
-rules_tftp() {
-	local mychain="${1}"; shift
-	local type="${1}"; shift
-	
-	local in=in
-	local out=out
-	if [ "${type}" = "client" ]
-	then
-		in=out
-		out=in
-	fi
-	
-	local client_ports="${DEFAULT_CLIENT_PORTS}"
-	if [ "${type}" = "client" -a "${work_cmd}" = "interface" ]
-	then
-		client_ports="${LOCAL_CLIENT_PORTS}"
-	fi
-	
-	# ---------------------------------------------------------------------
-	# TFTP is a broken protokol. It works like this:
-	#
-	# 1. The client sends from a high port (a) to the server's tftp port an
-	#    udp packet with "give me file 'bla'".
-	#
-	# 2. The server replies from a high port (b) to the highport the client
-	#    used (a) with "this is part 0 if your file"
-	#
-	# 3. The client now has to send a reply (from his highport a) to the
-	#    servers high port (b): "got part 0, send next part 1".
-	#
-	# 4. repeat 2. and 3. till file transmitted
-	
-	# allow the initial TFTP connection
-	set_work_function "Setting up rules for initial TFTP connection (${type})"
-	rule ${in}          action "$@" chain "${in}_${mychain}"  proto "udp" sport "${client_ports}" dport tftp state NEW,ESTABLISHED || return 1
-#	rule ${out} reverse action "$@" chain "${out}_${mychain}" proto "udp" sport "${client_ports}" dport tftp state ESTABLISHED     || return 1
-	
-	# We now need both server and client port ranges
-	local s_client_ports="${DEFAULT_CLIENT_PORTS}"
-	local c_client_ports="${DEFAULT_CLIENT_PORTS}"
-	
-	if [ "${type}" = "client" -a "${work_cmd}" = "interface" ]
-	then
-		c_client_ports="${LOCAL_CLIENT_PORTS}"
-	elif [ "${type}" = "server" -a "${work_cmd}" = "interface" ]
-	then
-		s_client_ports="${LOCAL_CLIENT_PORTS}"
-	fi
-	
-	# allow the TFTP server to establish a new connection to the client
-	set_work_function "Setting up rules for server-to-client TFTP connection (${type})"
-	rule ${out} reverse action "$@" chain "${out}_${mychain}" proto "udp" sport "${c_client_ports}" dport "${s_client_ports}" state RELATED,ESTABLISHED || return 1
-	rule ${in}          action "$@" chain "${in}_${mychain}"  proto "udp" sport "${c_client_ports}" dport "${s_client_ports}" state ESTABLISHED         || return 1
-	
-	require_kernel_module ip_conntrack_tftp
-	test ${FIREHOL_NAT} -eq 1 && require_kernel_module ip_nat_tftp
-	
-	return 0
-}
+#
+#rules_tftp() {
+#	local mychain="${1}"; shift
+#	local type="${1}"; shift
+#	
+#	local in=in
+#	local out=out
+#	if [ "${type}" = "client" ]
+#	then
+#		in=out
+#		out=in
+#	fi
+#	
+#	local client_ports="${DEFAULT_CLIENT_PORTS}"
+#	if [ "${type}" = "client" -a "${work_cmd}" = "interface" ]
+#	then
+#		client_ports="${LOCAL_CLIENT_PORTS}"
+#	fi
+#	
+#	# ---------------------------------------------------------------------
+#	# TFTP is a broken protokol. It works like this:
+#	#
+#	# 1. The client sends from a high port (a) to the server's tftp port an
+#	#    udp packet with "give me file 'bla'".
+#	#
+#	# 2. The server replies from a high port (b) to the highport the client
+#	#    used (a) with "this is part 0 if your file"
+#	#
+#	# 3. The client now has to send a reply (from his highport a) to the
+#	#    servers high port (b): "got part 0, send next part 1".
+#	#
+#	# 4. repeat 2. and 3. till file transmitted
+#	
+#	# allow the initial TFTP connection
+#	set_work_function "Setting up rules for initial TFTP connection (${type})"
+#	rule ${in}          action "$@" chain "${in}_${mychain}"  proto "udp" sport "${client_ports}" dport tftp state NEW,ESTABLISHED || return 1
+##	rule ${out} reverse action "$@" chain "${out}_${mychain}" proto "udp" sport "${client_ports}" dport tftp state ESTABLISHED     || return 1
+#	
+#	# We now need both server and client port ranges
+#	local s_client_ports="${DEFAULT_CLIENT_PORTS}"
+#	local c_client_ports="${DEFAULT_CLIENT_PORTS}"
+#	
+#	if [ "${type}" = "client" -a "${work_cmd}" = "interface" ]
+#	then
+#		c_client_ports="${LOCAL_CLIENT_PORTS}"
+#	elif [ "${type}" = "server" -a "${work_cmd}" = "interface" ]
+#	then
+#		s_client_ports="${LOCAL_CLIENT_PORTS}"
+#	fi
+#	
+#	# allow the TFTP server to establish a new connection to the client
+#	set_work_function "Setting up rules for server-to-client TFTP connection (${type})"
+#	rule ${out} reverse action "$@" chain "${out}_${mychain}" proto "udp" sport "${c_client_ports}" dport "${s_client_ports}" state RELATED,ESTABLISHED || return 1
+#	rule ${in}          action "$@" chain "${in}_${mychain}"  proto "udp" sport "${c_client_ports}" dport "${s_client_ports}" state ESTABLISHED         || return 1
+#	
+#	require_kernel_module ip_conntrack_tftp
+#	test ${FIREHOL_NAT} -eq 1 && require_kernel_module ip_nat_tftp
+#	
+#	return 0
+#}
 
 
 # --- PING ---------------------------------------------------------------------
@@ -1856,6 +1887,13 @@ rules_custom() {
 	local my_server_ports="${1}"; shift
 	local my_client_ports="${1}"; shift
 	
+	local helpers=
+	if [ "$1" = "helpers" ]
+	then
+		local helpers="$2"
+		shift 2
+	fi
+	
 	local in=in
 	local out=out
 	if [ "${type}" = "client" ]
@@ -1895,12 +1933,23 @@ EOF
 					;;
 			esac
 			
+			set_work_function "Rules for ${server} ${type}, with server port(s) '${sp}' and client port(s) '${cp}'"
+			
 			# allow new and established incoming packets
 			rule ${in} action "$@" chain "${in}_${mychain}" proto "${proto}" sport "${cport}" dport "${sport}" state NEW,ESTABLISHED || return 1
 			
 			# allow outgoing established packets
 			rule ${out} reverse action "$@" chain "${out}_${mychain}" proto "${proto}" sport "${cport}" dport "${sport}" state ESTABLISHED || return 1
 		done
+	done
+	
+	local x=
+	for x in ${helpers}
+	do
+		set_work_function "Rules for ${server} ${type}, with helper '${x}'"
+		
+		rule ${in}          action "$@" chain "${in}_${mychain}"  custom "-m helper --helper ${x}" state ESTABLISHED,RELATED || return 1
+		rule ${out} reverse action "$@" chain "${out}_${mychain}" custom "-m helper --helper ${x}" state ESTABLISHED,RELATED || return 1
 	done
 	
 	return 0
@@ -3118,6 +3167,7 @@ require_kernel_module() {
 		test "${m}" = "${new}" && return 0
 	done
 	
+	set_work_function "Adding kernel module '${new}' in the list of kernel modules to load"
 	FIREHOL_KERNEL_MODULES="${FIREHOL_KERNEL_MODULES} ${new}"
 	
 	return 0
@@ -5440,6 +5490,9 @@ simple_service() {
 	
 	test -z "${server_ports}" -o -z "${client_ports}" && return 127
 	
+	local varname="helper_${server}"
+	eval local helpers="\$${varname}"
+	
 	local x=
 	local varname="require_${server}_modules"
 	eval local value="\$${varname}"
@@ -5458,9 +5511,33 @@ simple_service() {
 		done
 	fi
 	
-	set_work_function "Running simple rules for  ${type} '${service}'"
+	# load the helper modules
+	for x in ${helpers}
+	do
+		case "${x}" in
+			snmp_basic)	# this does not exist in conntrack
+					;;
+					
+			*)		require_kernel_module ip_conntrack_$x
+					;;
+		esac
+		
+		if [ ${FIREHOL_NAT} -eq 1 ]
+		then
+			case "${x}" in
+				netbios_ns|netlink|sane)
+					# these do not exist in nat
+					;;
+					
+				*)	require_kernel_module ip_nat_$x
+					;;
+			esac
+		fi
+	done
 	
-	rules_custom "${mychain}" "${type}" "${server}" "${server_ports}" "${client_ports}" "$@"
+	set_work_function "Running simple rules for  ${type} '${service}'"
+	rules_custom "${mychain}" "${type}" "${server}" "${server_ports}" "${client_ports}" helpers "${helpers}" "$@"
+	
 	return $?
 }
 
@@ -5736,7 +5813,7 @@ case "${arg}" in
 		else
 		
 		${CAT_CMD} <<EOF
-$Id: firehol.sh,v 1.281 2009/02/19 02:47:36 ktsaou Exp $
+$Id: firehol.sh,v 1.282 2009/02/19 05:27:49 ktsaou Exp $
 (C) Copyright 2002-2007, Costa Tsaousis <costa@tsaousis.gr>
 FireHOL is distributed under GPL.
 
@@ -5922,7 +5999,7 @@ then
 	
 	${CAT_CMD} <<EOF
 
-$Id: firehol.sh,v 1.281 2009/02/19 02:47:36 ktsaou Exp $
+$Id: firehol.sh,v 1.282 2009/02/19 05:27:49 ktsaou Exp $
 (C) Copyright 2003, Costa Tsaousis <costa@tsaousis.gr>
 FireHOL is distributed under GPL.
 Home Page: http://firehol.sourceforge.net
@@ -6227,7 +6304,7 @@ then
 	
 	"${CAT_CMD}" >&2 <<EOF
 
-$Id: firehol.sh,v 1.281 2009/02/19 02:47:36 ktsaou Exp $
+$Id: firehol.sh,v 1.282 2009/02/19 05:27:49 ktsaou Exp $
 (C) Copyright 2003, Costa Tsaousis <costa@tsaousis.gr>
 FireHOL is distributed under GPL.
 Home Page: http://firehol.sourceforge.net
@@ -6305,7 +6382,7 @@ EOF
 	
 	${CAT_CMD} <<EOF
 #!${FIREHOL_FILE}
-# $Id: firehol.sh,v 1.281 2009/02/19 02:47:36 ktsaou Exp $
+# $Id: firehol.sh,v 1.282 2009/02/19 05:27:49 ktsaou Exp $
 # 
 # This config will have the same effect as NO PROTECTION!
 # Everything that found to be running, is allowed.
