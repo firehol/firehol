@@ -10,7 +10,7 @@
 #
 # config: /etc/firehol/firehol.conf
 #
-# $Id: firehol.sh,v 1.279 2009/02/06 04:18:31 ktsaou Exp $
+# $Id: firehol.sh,v 1.280 2009/02/19 02:33:08 ktsaou Exp $
 #
 
 # Make sure only root can run us.
@@ -209,7 +209,7 @@ ${RENICE_CMD} 10 $$ >/dev/null 2>/dev/null
 # Find our minor version
 firehol_minor_version() {
 ${CAT_CMD} <<"EOF" | ${CUT_CMD} -d ' ' -f 3 | ${CUT_CMD} -d '.' -f 2
-$Id: firehol.sh,v 1.279 2009/02/06 04:18:31 ktsaou Exp $
+$Id: firehol.sh,v 1.280 2009/02/19 02:33:08 ktsaou Exp $
 EOF
 }
 
@@ -1544,31 +1544,36 @@ rules_ftp() {
 	rule ${in}          action "$@" chain "${in}_${mychain}"  proto tcp sport "${client_ports}" dport ftp state NEW,ESTABLISHED || return 1
 	rule ${out} reverse action "$@" chain "${out}_${mychain}" proto tcp sport "${client_ports}" dport ftp state ESTABLISHED     || return 1
 	
-	# Active FTP
-	# send port ftp-data related connections
-	set_work_function "Setting up rules for Active FTP ${type}"
-	rule ${out} reverse action "$@" chain "${out}_${mychain}" proto tcp sport "${client_ports}" dport ftp-data state ESTABLISHED,RELATED || return 1
-	rule ${in}          action "$@" chain "${in}_${mychain}"  proto tcp sport "${client_ports}" dport ftp-data state ESTABLISHED         || return 1
+	set_work_function "Match anything related to the kernel ftp helper"
+	rule ${in}          action "$@" chain "${in}_${mychain}"  custom "-m helper --helper ftp" || return 1
+	rule ${out} reverse action "$@" chain "${out}_${mychain}" custom "-m helper --helper ftp" || return 1
 	
-	# ----------------------------------------------------------------------
-	
-	# A hack for Passive FTP only
-	local s_client_ports="${DEFAULT_CLIENT_PORTS}"
-	local c_client_ports="${DEFAULT_CLIENT_PORTS}"
-	
-	if [ "${type}" = "client" -a "${work_cmd}" = "interface" ]
-	then
-		c_client_ports="${LOCAL_CLIENT_PORTS}"
-	elif [ "${type}" = "server" -a "${work_cmd}" = "interface" ]
-	then
-		s_client_ports="${LOCAL_CLIENT_PORTS}"
-	fi
-	
-	# Passive FTP
-	# accept high-ports related connections
-	set_work_function "Setting up rules for Passive FTP ${type}"
-	rule ${in}          action "$@" chain "${in}_${mychain}"  proto tcp sport "${c_client_ports}" dport "${s_client_ports}" state ESTABLISHED,RELATED || return 1
-	rule ${out} reverse action "$@" chain "${out}_${mychain}" proto tcp sport "${c_client_ports}" dport "${s_client_ports}" state ESTABLISHED         || return 1
+# this is old code - replaced by the two helper statements above
+#	# Active FTP
+#	# send port ftp-data related connections
+#	set_work_function "Setting up rules for Active FTP ${type}"
+#	rule ${out} reverse action "$@" chain "${out}_${mychain}" proto tcp sport "${client_ports}" dport ftp-data state ESTABLISHED,RELATED || return 1
+#	rule ${in}          action "$@" chain "${in}_${mychain}"  proto tcp sport "${client_ports}" dport ftp-data state ESTABLISHED         || return 1
+#	
+#	# ----------------------------------------------------------------------
+#	
+#	# A hack for Passive FTP only
+#	local s_client_ports="${DEFAULT_CLIENT_PORTS}"
+#	local c_client_ports="${DEFAULT_CLIENT_PORTS}"
+#	
+#	if [ "${type}" = "client" -a "${work_cmd}" = "interface" ]
+#	then
+#		c_client_ports="${LOCAL_CLIENT_PORTS}"
+#	elif [ "${type}" = "server" -a "${work_cmd}" = "interface" ]
+#	then
+#		s_client_ports="${LOCAL_CLIENT_PORTS}"
+#	fi
+#	
+#	# Passive FTP
+#	# accept high-ports related connections
+#	set_work_function "Setting up rules for Passive FTP ${type}"
+#	rule ${in}          action "$@" chain "${in}_${mychain}"  proto tcp sport "${c_client_ports}" dport "${s_client_ports}" state ESTABLISHED,RELATED || return 1
+#	rule ${out} reverse action "$@" chain "${out}_${mychain}" proto tcp sport "${c_client_ports}" dport "${s_client_ports}" state ESTABLISHED         || return 1
 	
 	require_kernel_module ip_conntrack_ftp
 	test ${FIREHOL_NAT} -eq 1 && require_kernel_module ip_nat_ftp
@@ -1699,65 +1704,6 @@ rules_timestamp() {
 	
 	# allow outgoing established packets
 	rule ${out} reverse action "$@" chain "${out}_${mychain}" proto icmp custom "--icmp-type timestamp-reply" state ESTABLISHED || return 1
-	
-	return 0
-}
-
-
-# --- P2P ----------------------------------------------------------------------
-
-rules_p2p() {
-        local mychain="${1}"; shift
-	local type="${1}"; shift
-	
-	local in=in
-	local out=out
-	if [ "${type}" = "client" ]
-	then
-		in=out
-		out=in
-	fi
-	
-	local client_ports="${DEFAULT_CLIENT_PORTS}"
-	if [ "${type}" = "client" -a "${work_cmd}" = "interface" ]
-	then
-		client_ports="${LOCAL_CLIENT_PORTS}"
-	fi
-	
-	# ----------------------------------------------------------------------
-	
-	# Remove the action from the arguments.
-	shift
-	
-	do_in() {
-		# allow new and established incoming packets
-		rule ${in} action "$@" chain "${in}_${mychain}" state NEW,ESTABLISHED || return 1
-	}
-	
-	do_out() {
-		# allow outgoing established packets
-		rule ${out} reverse action "$@" chain "${out}_${mychain}" state NEW,ESTABLISHED || return 1
-	}
-	
-	# Kazaa
-	# Check: http://www.derkeiler.com/Mailing-Lists/Firewall-Wizards/2003-06/0152.html
-	# New clients will try to use port 80 - use a proxy to filter this too.
-	set_work_function "Setting up rules for Kazaa (${type})"
-	do_in  drop "$@" proto "tcp udp" sport 1214
-	do_in  drop "$@" proto "tcp udp" dport 1214
-	do_out drop "$@" proto "tcp udp" dport 1214
-	do_out drop "$@" proto "tcp udp" sport 1214
-	
-	# Gnutella
-	
-	# Mldonkey
-	
-	# Emule
-	
-	# audiogalaxy
-	
-	# hotline
-	
 	
 	return 0
 }
@@ -5580,7 +5526,7 @@ failure() {
 test -f /etc/init.d/functions && . /etc/init.d/functions
 
 if [ -z "${IPTABLES_CMD}" -o ! -x "${IPTABLES_CMD}" ]; then
-	echo >&2 "Cannot find an executables iptables command."
+	echo >&2 "Cannot find an executable iptables command."
 	exit 0
 fi
 
@@ -5790,7 +5736,7 @@ case "${arg}" in
 		else
 		
 		${CAT_CMD} <<EOF
-$Id: firehol.sh,v 1.279 2009/02/06 04:18:31 ktsaou Exp $
+$Id: firehol.sh,v 1.280 2009/02/19 02:33:08 ktsaou Exp $
 (C) Copyright 2002-2007, Costa Tsaousis <costa@tsaousis.gr>
 FireHOL is distributed under GPL.
 
@@ -5976,7 +5922,7 @@ then
 	
 	${CAT_CMD} <<EOF
 
-$Id: firehol.sh,v 1.279 2009/02/06 04:18:31 ktsaou Exp $
+$Id: firehol.sh,v 1.280 2009/02/19 02:33:08 ktsaou Exp $
 (C) Copyright 2003, Costa Tsaousis <costa@tsaousis.gr>
 FireHOL is distributed under GPL.
 Home Page: http://firehol.sourceforge.net
@@ -6281,7 +6227,7 @@ then
 	
 	"${CAT_CMD}" >&2 <<EOF
 
-$Id: firehol.sh,v 1.279 2009/02/06 04:18:31 ktsaou Exp $
+$Id: firehol.sh,v 1.280 2009/02/19 02:33:08 ktsaou Exp $
 (C) Copyright 2003, Costa Tsaousis <costa@tsaousis.gr>
 FireHOL is distributed under GPL.
 Home Page: http://firehol.sourceforge.net
@@ -6359,7 +6305,7 @@ EOF
 	
 	${CAT_CMD} <<EOF
 #!${FIREHOL_FILE}
-# $Id: firehol.sh,v 1.279 2009/02/06 04:18:31 ktsaou Exp $
+# $Id: firehol.sh,v 1.280 2009/02/19 02:33:08 ktsaou Exp $
 # 
 # This config will have the same effect as NO PROTECTION!
 # Everything that found to be running, is allowed.
