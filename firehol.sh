@@ -10,7 +10,7 @@
 #
 # config: /etc/firehol/firehol.conf
 #
-# $Id: firehol.sh,v 1.282 2009/02/19 05:27:49 ktsaou Exp $
+# $Id: firehol.sh,v 1.283 2009/02/21 21:42:07 ktsaou Exp $
 #
 
 # Make sure only root can run us.
@@ -209,7 +209,7 @@ ${RENICE_CMD} 10 $$ >/dev/null 2>/dev/null
 # Find our minor version
 firehol_minor_version() {
 ${CAT_CMD} <<"EOF" | ${CUT_CMD} -d ' ' -f 3 | ${CUT_CMD} -d '.' -f 2
-$Id: firehol.sh,v 1.282 2009/02/19 05:27:49 ktsaou Exp $
+$Id: firehol.sh,v 1.283 2009/02/21 21:42:07 ktsaou Exp $
 EOF
 }
 
@@ -789,8 +789,6 @@ client_imaps_ports="default"
 
 server_irc_ports="tcp/6667"
 client_irc_ports="default"
-# require_irc_modules="ip_conntrack_irc"
-# require_irc_nat_modules="ip_nat_irc"
 helper_irc="irc"
 ALL_SHOULD_ALSO_RUN="${ALL_SHOULD_ALSO_RUN} irc"
 
@@ -821,8 +819,6 @@ client_ms_ds_ports="default"
 
 server_mms_ports="tcp/1755 udp/1755"
 client_mms_ports="default"
-require_mms_modules="ip_conntrack_mms"
-require_mms_nat_modules="ip_nat_mms"
 helper_mms="mms"
 # this will produce warnings on most distribution
 # because the mms module is not there:
@@ -1603,8 +1599,8 @@ rules_nis() {
 #	rule ${in}          action "$@" chain "${in}_${mychain}"  proto tcp sport "${c_client_ports}" dport "${s_client_ports}" state ESTABLISHED,RELATED || return 1
 #	rule ${out} reverse action "$@" chain "${out}_${mychain}" proto tcp sport "${c_client_ports}" dport "${s_client_ports}" state ESTABLISHED         || return 1
 #	
-#	require_kernel_module ip_conntrack_ftp
-#	test ${FIREHOL_NAT} -eq 1 && require_kernel_module ip_nat_ftp
+#	require_kernel_module nf_conntrack_ftp
+#	test ${FIREHOL_NAT} -eq 1 && require_kernel_module nf_nat_ftp
 #	
 #	return 0
 #}
@@ -1670,8 +1666,8 @@ rules_nis() {
 #	rule ${out} reverse action "$@" chain "${out}_${mychain}" proto "udp" sport "${c_client_ports}" dport "${s_client_ports}" state RELATED,ESTABLISHED || return 1
 #	rule ${in}          action "$@" chain "${in}_${mychain}"  proto "udp" sport "${c_client_ports}" dport "${s_client_ports}" state ESTABLISHED         || return 1
 #	
-#	require_kernel_module ip_conntrack_tftp
-#	test ${FIREHOL_NAT} -eq 1 && require_kernel_module ip_nat_tftp
+#	require_kernel_module nf_conntrack_tftp
+#	test ${FIREHOL_NAT} -eq 1 && require_kernel_module nf_nat_tftp
 #	
 #	return 0
 #}
@@ -3072,15 +3068,28 @@ fi
 # 2 = no info about this module in the kernel
 check_kernel_config() {
 	# In kernels 2.6.20+ _IP_ was removed from kernel iptables config names.
-	# Try both versions.
-	local t=`echo ${1} | sed "s/_IP_//g"`
+	# A few kernels have _CONNTRACT_ replaced with _CT_ for certain modules.
+	# Try all versions.
+	
+	# the original way
 	eval local kcfg1="\$${1}"
+	
+	# without _IP_
+	local t=`echo ${1} | sed "s/_IP_//g"`
 	eval local kcfg2="\$${t}"
+	
+	# _CONNTRACK_ as _CT_
+	local t=`echo ${1} | sed "s/_CONNTRACK_/_CT_/g"`
+	eval local kcfg3="\$${t}"
 	
 	# prefer the kernel 2.6.20+ way
 	if [ ! -z "${kcfg2}" ]
 	then
 		kcfg="${kcfg2}"
+	
+	elif [ ! -z "${kcfg3}" ]
+	then
+		kcfg="${kcfg3}"
 	else
 		kcfg="${kcfg1}"
 	fi
@@ -5518,7 +5527,7 @@ simple_service() {
 			snmp_basic)	# this does not exist in conntrack
 					;;
 					
-			*)		require_kernel_module ip_conntrack_$x
+			*)		require_kernel_module nf_conntrack_$x
 					;;
 		esac
 		
@@ -5529,7 +5538,7 @@ simple_service() {
 					# these do not exist in nat
 					;;
 					
-				*)	require_kernel_module ip_nat_$x
+				*)	require_kernel_module nf_nat_$x
 					;;
 			esac
 		fi
@@ -5813,7 +5822,7 @@ case "${arg}" in
 		else
 		
 		${CAT_CMD} <<EOF
-$Id: firehol.sh,v 1.282 2009/02/19 05:27:49 ktsaou Exp $
+$Id: firehol.sh,v 1.283 2009/02/21 21:42:07 ktsaou Exp $
 (C) Copyright 2002-2007, Costa Tsaousis <costa@tsaousis.gr>
 FireHOL is distributed under GPL.
 
@@ -5999,7 +6008,7 @@ then
 	
 	${CAT_CMD} <<EOF
 
-$Id: firehol.sh,v 1.282 2009/02/19 05:27:49 ktsaou Exp $
+$Id: firehol.sh,v 1.283 2009/02/21 21:42:07 ktsaou Exp $
 (C) Copyright 2003, Costa Tsaousis <costa@tsaousis.gr>
 FireHOL is distributed under GPL.
 Home Page: http://firehol.sourceforge.net
@@ -6304,7 +6313,7 @@ then
 	
 	"${CAT_CMD}" >&2 <<EOF
 
-$Id: firehol.sh,v 1.282 2009/02/19 05:27:49 ktsaou Exp $
+$Id: firehol.sh,v 1.283 2009/02/21 21:42:07 ktsaou Exp $
 (C) Copyright 2003, Costa Tsaousis <costa@tsaousis.gr>
 FireHOL is distributed under GPL.
 Home Page: http://firehol.sourceforge.net
@@ -6382,7 +6391,7 @@ EOF
 	
 	${CAT_CMD} <<EOF
 #!${FIREHOL_FILE}
-# $Id: firehol.sh,v 1.282 2009/02/19 05:27:49 ktsaou Exp $
+# $Id: firehol.sh,v 1.283 2009/02/21 21:42:07 ktsaou Exp $
 # 
 # This config will have the same effect as NO PROTECTION!
 # Everything that found to be running, is allowed.
@@ -6828,7 +6837,7 @@ ${CAT_CMD} >"${FIREHOL_OUTPUT}" <<EOF
 #!/bin/sh
 
 load_kernel_module ip_tables
-load_kernel_module ip_conntrack
+load_kernel_module nf_conntrack
 
 # Find all tables supported
 tables=\`${CAT_CMD} /proc/net/ip_tables_names\`
