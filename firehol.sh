@@ -10,7 +10,7 @@
 #
 # config: /etc/firehol/firehol.conf
 #
-# $Id: firehol.sh,v 1.283 2009/02/21 21:42:07 ktsaou Exp $
+# $Id: firehol.sh,v 1.284 2009/02/22 00:35:16 ktsaou Exp $
 #
 
 # Make sure only root can run us.
@@ -209,7 +209,7 @@ ${RENICE_CMD} 10 $$ >/dev/null 2>/dev/null
 # Find our minor version
 firehol_minor_version() {
 ${CAT_CMD} <<"EOF" | ${CUT_CMD} -d ' ' -f 3 | ${CUT_CMD} -d '.' -f 2
-$Id: firehol.sh,v 1.283 2009/02/21 21:42:07 ktsaou Exp $
+$Id: firehol.sh,v 1.284 2009/02/22 00:35:16 ktsaou Exp $
 EOF
 }
 
@@ -5822,7 +5822,7 @@ case "${arg}" in
 		else
 		
 		${CAT_CMD} <<EOF
-$Id: firehol.sh,v 1.283 2009/02/21 21:42:07 ktsaou Exp $
+$Id: firehol.sh,v 1.284 2009/02/22 00:35:16 ktsaou Exp $
 (C) Copyright 2002-2007, Costa Tsaousis <costa@tsaousis.gr>
 FireHOL is distributed under GPL.
 
@@ -6008,7 +6008,7 @@ then
 	
 	${CAT_CMD} <<EOF
 
-$Id: firehol.sh,v 1.283 2009/02/21 21:42:07 ktsaou Exp $
+$Id: firehol.sh,v 1.284 2009/02/22 00:35:16 ktsaou Exp $
 (C) Copyright 2003, Costa Tsaousis <costa@tsaousis.gr>
 FireHOL is distributed under GPL.
 Home Page: http://firehol.sourceforge.net
@@ -6313,7 +6313,7 @@ then
 	
 	"${CAT_CMD}" >&2 <<EOF
 
-$Id: firehol.sh,v 1.283 2009/02/21 21:42:07 ktsaou Exp $
+$Id: firehol.sh,v 1.284 2009/02/22 00:35:16 ktsaou Exp $
 (C) Copyright 2003, Costa Tsaousis <costa@tsaousis.gr>
 FireHOL is distributed under GPL.
 Home Page: http://firehol.sourceforge.net
@@ -6391,7 +6391,7 @@ EOF
 	
 	${CAT_CMD} <<EOF
 #!${FIREHOL_FILE}
-# $Id: firehol.sh,v 1.283 2009/02/21 21:42:07 ktsaou Exp $
+# $Id: firehol.sh,v 1.284 2009/02/22 00:35:16 ktsaou Exp $
 # 
 # This config will have the same effect as NO PROTECTION!
 # Everything that found to be running, is allowed.
@@ -6447,10 +6447,10 @@ EOF
 			echo "# on the ${iface} interface with IP ${ifip} (net: ${ifnets})."
 		fi
 		
-		echo "# TODO: Change \"interface${i}\" to something with meaning to you."
+		echo "# TODO: Change \"if${i}\" to something with meaning to you."
 		echo "# TODO: Check the optional rule parameters (src/dst)."
-		echo "# TODO: Remove 'dst ${ifip}' if this is dynamically assigned."
-		echo "interface ${iface} interface${i} src ${ifnets} dst ${ifip}"
+		echo "#       Remove 'dst ${ifip}' if this is dynamically assigned."
+		echo "interface ${iface} if${i} src ${ifnets} dst ${ifip}"
 		echo
 		echo "	# The default policy is DROP. You can be more polite with REJECT."
 		echo "	# Prefer to be polite on your own clients to prevent timeouts."
@@ -6499,9 +6499,11 @@ EOF
 		echo
 		echo "	# Custom service definitions for the above unknown services."
 		local ts=
+		local tscount=0
 		for ts in `${CAT_CMD} unknown.ports`
 		do
-			echo "	server custom `echo "if$i/$ts" | tr "/" "_"` $ts any accept"
+			local tscount=$[tscount + 1]
+			echo "	server custom if${i}_${tscount} ${ts} any accept"
 		done
 		
 		echo
