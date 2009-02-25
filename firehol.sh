@@ -10,7 +10,7 @@
 #
 # config: /etc/firehol/firehol.conf
 #
-# $Id: firehol.sh,v 1.284 2009/02/22 00:35:16 ktsaou Exp $
+# $Id: firehol.sh,v 1.285 2009/02/25 23:30:14 ktsaou Exp $
 #
 
 # Make sure only root can run us.
@@ -209,7 +209,7 @@ ${RENICE_CMD} 10 $$ >/dev/null 2>/dev/null
 # Find our minor version
 firehol_minor_version() {
 ${CAT_CMD} <<"EOF" | ${CUT_CMD} -d ' ' -f 3 | ${CUT_CMD} -d '.' -f 2
-$Id: firehol.sh,v 1.284 2009/02/22 00:35:16 ktsaou Exp $
+$Id: firehol.sh,v 1.285 2009/02/25 23:30:14 ktsaou Exp $
 EOF
 }
 
@@ -5497,7 +5497,19 @@ simple_service() {
 	local client_varname="client_${server}_ports"
 	eval local client_ports="\$${client_varname}"
 	
-	test -z "${server_ports}" -o -z "${client_ports}" && return 127
+	if [ ! -z "${server_ports}" -a -z "${client_ports}" ]
+	then
+		error "Simple service '${service}' has server ports, but no client ports defined."
+		return 1
+	elif [ -z "${server_ports}" -a ! -z "${client_ports}" ]
+	then
+		error "Simple service '${service}' has client ports, but no server ports defined."
+		return 1
+	elif [ -z "${server_ports}" -a -z "${client_ports}" ]
+	then
+		# this will make the caller attempt to find a complex service
+		return 127
+	fi
 	
 	local varname="helper_${server}"
 	eval local helpers="\$${varname}"
@@ -5822,7 +5834,7 @@ case "${arg}" in
 		else
 		
 		${CAT_CMD} <<EOF
-$Id: firehol.sh,v 1.284 2009/02/22 00:35:16 ktsaou Exp $
+$Id: firehol.sh,v 1.285 2009/02/25 23:30:14 ktsaou Exp $
 (C) Copyright 2002-2007, Costa Tsaousis <costa@tsaousis.gr>
 FireHOL is distributed under GPL.
 
@@ -6008,7 +6020,7 @@ then
 	
 	${CAT_CMD} <<EOF
 
-$Id: firehol.sh,v 1.284 2009/02/22 00:35:16 ktsaou Exp $
+$Id: firehol.sh,v 1.285 2009/02/25 23:30:14 ktsaou Exp $
 (C) Copyright 2003, Costa Tsaousis <costa@tsaousis.gr>
 FireHOL is distributed under GPL.
 Home Page: http://firehol.sourceforge.net
@@ -6313,7 +6325,7 @@ then
 	
 	"${CAT_CMD}" >&2 <<EOF
 
-$Id: firehol.sh,v 1.284 2009/02/22 00:35:16 ktsaou Exp $
+$Id: firehol.sh,v 1.285 2009/02/25 23:30:14 ktsaou Exp $
 (C) Copyright 2003, Costa Tsaousis <costa@tsaousis.gr>
 FireHOL is distributed under GPL.
 Home Page: http://firehol.sourceforge.net
@@ -6391,7 +6403,7 @@ EOF
 	
 	${CAT_CMD} <<EOF
 #!${FIREHOL_FILE}
-# $Id: firehol.sh,v 1.284 2009/02/22 00:35:16 ktsaou Exp $
+# $Id: firehol.sh,v 1.285 2009/02/25 23:30:14 ktsaou Exp $
 # 
 # This config will have the same effect as NO PROTECTION!
 # Everything that found to be running, is allowed.
