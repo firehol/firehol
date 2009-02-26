@@ -10,7 +10,7 @@
 #
 # config: /etc/firehol/firehol.conf
 #
-# $Id: firehol.sh,v 1.285 2009/02/25 23:30:14 ktsaou Exp $
+# $Id: firehol.sh,v 1.286 2009/02/26 02:13:54 ktsaou Exp $
 #
 
 # Make sure only root can run us.
@@ -163,6 +163,7 @@ which_cmd TOUCH_CMD touch
 which_cmd TR_CMD tr
 which_cmd UNAME_CMD uname
 which_cmd UNIQ_CMD uniq
+which_cmd LOGGER_CMD logger
 
 # Special commands
 pager_cmd() {
@@ -209,7 +210,7 @@ ${RENICE_CMD} 10 $$ >/dev/null 2>/dev/null
 # Find our minor version
 firehol_minor_version() {
 ${CAT_CMD} <<"EOF" | ${CUT_CMD} -d ' ' -f 3 | ${CUT_CMD} -d '.' -f 2
-$Id: firehol.sh,v 1.285 2009/02/25 23:30:14 ktsaou Exp $
+$Id: firehol.sh,v 1.286 2009/02/26 02:13:54 ktsaou Exp $
 EOF
 }
 
@@ -265,23 +266,76 @@ FIREHOL_AUTOSAVE=
 # WHY:
 # Even a CTRL-C will call this and we will not leave temp files.
 # Also, if a configuration file breaks, we will detect this too.
+FIREHOL_ACTIVATED_SUCCESSFULLY=0
+FIREHOL_SYSLOG_FACILITY="daemon"
+FIREHOL_NOTIFICATION_PROGRAM=""
+
+syslog() {
+	local p="$1"; shift
+	
+	"${LOGGER_CMD}" -p ${FIREHOL_SYSLOG_FACILITY}.$p -t "FireHOL[$$]" "${@}"
+	return 0
+}
 
 firehol_exit() {
-	if [ -f "${FIREHOL_SAVED}" ]
+	local restored="NO"
+	if [ -f "${FIREHOL_SAVED}" -a "${FIREHOL_MODE}" = "START" ]
 	then
 		echo
 		echo -n $"FireHOL: Restoring old firewall:"
 		iptables-restore <"${FIREHOL_SAVED}"
 		if [ $? -eq 0 ]
 		then
+			local restored="OK"
 			success $"FireHOL: Restoring old firewall:"
 		else
+			local restored="FAILED"
 			failure $"FireHOL: Restoring old firewall:"
 		fi
 		echo
 	fi
 	
+	# remove the temporary directory created for this session
 	test -d "${FIREHOL_DIR}" && ${RM_CMD} -rf "${FIREHOL_DIR}"
+	
+	# syslog
+	local result=
+	local notify=0
+	case "${FIREHOL_MODE}" in
+		START)	if [ ${FIREHOL_ACTIVATED_SUCCESSFULLY} -eq 0 ]
+			then
+				syslog emerg "FAILED to activate the firewall from ${FIREHOL_CONFIG}. Last good firewall restoration: ${restored}."
+				local result="FAILED"
+			else
+				syslog info "Successfully activated new firewall from ${FIREHOL_CONFIG}."
+				local result="OK"
+			fi
+			local notify=1
+			;;
+		
+		STOP)	syslog emerg "Firewall has been stopped. Policy is ACCEPT EVERYTHING!"
+			local notify=1
+			;;
+			
+		PANIC)	syslog emerg "PANIC! Machine has been locked. Policy is DROP EVERYTHING!"
+			local notify=1
+			;;
+		
+		*)	# do nothing for the rest
+			local notify=0
+			;;
+	esac
+	
+	# do we have to run a program?
+	if [ ${notify} -eq 1 ]
+	then
+		if [ ! -z "${FIREHOL_NOTIFICATION_PROGRAM}" -a -x "${FIREHOL_NOTIFICATION_PROGRAM}" ]
+		then
+			# we just fork it, so that it will not depend on terminal conditions
+			"${FIREHOL_NOTIFICATION_PROGRAM}" "${FIREHOL_CONFIG}" "${result}" "${restored}" "${work_error}" "${work_runtime_error}" >/dev/null 2>&1 </dev/null &
+		fi
+	fi
+	
 	return 0
 }
 
@@ -572,26 +626,17 @@ ALL_SHOULD_ALSO_RUN=
 # ------------------------------------------------------------------------------
 # Various Defaults
 
-# If set to 1, we are just going to present the resulting firewall instead of
-# installing it.
-# It can be changed on the command line
-FIREHOL_DEBUG=0
+# Valid modes:
+# START, DEBUG, EXPLAIN, WIZARD, STOP, PANIC
+FIREHOL_MODE="NONE"
 
 # If set to 1, the firewall will be saved for normal iptables processing.
-# It can be changed on the command line
+# Valid only for FIREHOL_MODE="START"
 FIREHOL_SAVE=0
 
 # If set to 1, the firewall will be restored if you don't commit it.
-# It can be changed on the command line
+# Valid only for FIREHOL_MODE="START"
 FIREHOL_TRY=1
-
-# If set to 1, FireHOL enters interactive mode to answer questions.
-# It can be changed on the command line
-FIREHOL_EXPLAIN=0
-
-# If set to 1, FireHOL enters a wizard mode to help the user build a firewall.
-# It can be changed on the command line
-FIREHOL_WIZARD=0
 
 # If set to 0, FireHOL will not try to load the required kernel modules.
 # It can be set in the configuration file.
@@ -620,8 +665,8 @@ work_function="Initializing"
 # ------------------------------------------------------------------------------
 # Keep status information
 
-# 0 = no errors, 1 = there were errors in the script
-work_final_status=0
+# 0 = no errors, >0 = there were errors in the script
+work_runtime_error=0
 
 # This variable is used for generating dynamic chains when needed for
 # combined negative statements (AND) implied by the "not" parameter
@@ -2737,8 +2782,8 @@ postprocess() {
 	test "A${1}" = "A-ne"   && shift && local check="none"
 	test "A${1}" = "A-warn" && shift && local check="warn"
 	
-	test ${FIREHOL_DEBUG}   -eq 1 && local check="none"
-	test ${FIREHOL_EXPLAIN} -eq 1 && local check="none"
+	test "${FIREHOL_MODE}" = "DEBUG"   && local check="none"
+	test "${FIREHOL_MODE}" = "EXPLAIN" && local check="none"
 	
 	if [ ! ${check} = "none" ]
 	then
@@ -2748,7 +2793,7 @@ postprocess() {
 	printf "%q " "$@" >>${FIREHOL_OUTPUT}
 	printf "\n" >>${FIREHOL_OUTPUT}
 	
-	if [ ${FIREHOL_EXPLAIN} -eq 1 ]
+	if [ "${FIREHOL_MODE}" = "EXPLAIN" ]
 	then
 		${CAT_CMD} ${FIREHOL_OUTPUT}
 		${RM_CMD} -f ${FIREHOL_OUTPUT}
@@ -3200,7 +3245,7 @@ set_work_function() {
 	
 	work_function="$*"
 	
-	if [ ${FIREHOL_EXPLAIN} -eq 1 ]
+	if [ "${FIREHOL_MODE}" = "EXPLAIN" ]
 	then
 		test ${show_explain} -eq 1 && printf "\n# %s\n" "$*"
 	elif [ ${FIREHOL_CONF_SHOW} -eq 1 ]
@@ -5277,6 +5322,8 @@ softwarning() {
 # This command is directly called by other functions of FireHOL.
 
 error() {
+	test "${FIREHOL_MODE}" = "START" && syslog err "Error '${@}' when '${work_function}' at ${FIREHOL_CONFIG} line ${FIREHOL_LINEID}"
+	
 	work_error=$[work_error + 1]
 	echo >&2
 	echo >&2 "--------------------------------------------------------------------------------"
@@ -5305,8 +5352,8 @@ runtime_error() {
 	case "${1}" in
 		error)
 			local type="ERROR  "
-			work_final_status=$[work_final_status + 1]
-			local id="# ${work_final_status}."
+			work_runtime_error=$[work_runtime_error + 1]
+			local id="# ${work_runtime_error}."
 			;;
 			
 		warn)
@@ -5315,8 +5362,8 @@ runtime_error() {
 			;;
 		
 		*)
-			work_final_status=$[work_final_status + 1]
-			local id="# ${work_final_status}."
+			work_runtime_error=$[work_runtime_error + 1]
+			local id="# ${work_runtime_error}."
 			
 			echo >&2
 			echo >&2
@@ -5329,6 +5376,8 @@ runtime_error() {
 	
 	local ret="${1}"; shift
 	local line="${1}"; shift
+	
+	syslog err "Runtime ${type} '${id}'. Source ${FIREHOL_CONFIG} line ${line}"
 	
 	echo >&2
 	echo >&2
@@ -5563,7 +5612,7 @@ simple_service() {
 }
 
 show_work_realcmd() {
-	test ${FIREHOL_EXPLAIN} -eq 1 && return 0
+	test "${FIREHOL_MODE}" = "EXPLAIN" && return 0
 	
 	(
 		printf "\n\n"
@@ -5664,25 +5713,27 @@ shift
 case "${arg}" in
 	explain)
 		test ! -z "${1}" && softwarning "Arguments after parameter '${arg}' are ignored."
-		FIREHOL_EXPLAIN=1
+		FIREHOL_MODE="EXPLAIN"
 		;;
 	
 	helpme|wizard)
 		test ! -z "${1}" && softwarning "Arguments after parameter '${arg}' are ignored."
-		FIREHOL_WIZARD=1
+		FIREHOL_MODE="WIZARD"
 		;;
 	
 	try)
 		test ! -z "${1}" && softwarning "Arguments after parameter '${arg}' are ignored."
+		FIREHOL_MODE="START"
 		FIREHOL_TRY=1
 		;;
 	
 	start)
 		test ! -z "${1}" && softwarning "Arguments after parameter '${arg}' are ignored."
-		FIREHOL_TRY=0
+		FIREHOL_MODE="START"
 		;;
 	
 	stop)
+		FIREHOL_MODE="STOP"
 		test ! -z "${1}" && softwarning "Arguments after parameter '${arg}' are ignored."
 		
 		test -f "${FIREHOL_LOCK_DIR}/firehol" && ${RM_CMD} -f "${FIREHOL_LOCK_DIR}/firehol"
@@ -5712,16 +5763,13 @@ case "${arg}" in
 	
 	restart|force-reload)
 		test ! -z "${1}" && softwarning "Arguments after parameter '${arg}' are ignored."
-		FIREHOL_TRY=0
+		FIREHOL_MODE="START"
 		;;
 	
 	condrestart)
 		test ! -z "${1}" && softwarning "Arguments after parameter '${arg}' are ignored."
-		FIREHOL_TRY=0
-		if [ -f "${FIREHOL_LOCK_DIR}/firehol" ]
-		then
-			exit 0
-		fi
+		test -f "${FIREHOL_LOCK_DIR}/firehol" && exit 0
+		FIREHOL_MODE="START"
 		;;
 	
 	status)
@@ -5748,6 +5796,7 @@ case "${arg}" in
 		;;
 	
 	panic)
+		FIREHOL_MODE="PANIC"
 		ssh_src=
 		ssh_sport="0:65535"
 		ssh_dport="0:65535"
@@ -5762,6 +5811,7 @@ case "${arg}" in
 			ssh_src="${1}"
 		fi
 		
+		syslog info "Starting PANIC mode (SSH SOURCE_IP=${ssh_src} SOURCE_PORTS=${ssh_sport} DESTINATION_PORTS=${ssh_dport})"
 		echo -n $"FireHOL: Blocking all communications:"
 		load_kernel_module ip_tables
 		tables=`${CAT_CMD} /proc/net/ip_tables_names`
@@ -5793,18 +5843,19 @@ case "${arg}" in
 	
 	save)
 		test ! -z "${1}" && softwarning "Arguments after parameter '${arg}' are ignored."
-		FIREHOL_TRY=0
+		FIREHOL_MODE="START"
 		FIREHOL_SAVE=1
 		;;
 		
 	debug)
 		test ! -z "${1}" && softwarning "Arguments after parameter '${arg}' are ignored."
-		FIREHOL_TRY=0
-		FIREHOL_DEBUG=1
+		FIREHOL_MODE="DEBUG"
 		;;
 	
 	*)	if [ ! -z "${arg}" -a -f "${arg}" ]
 		then
+			FIREHOL_MODE="START"
+			FIREHOL_TRY=1
 			FIREHOL_CONFIG="${arg}"
 			arg="${1}"
 			test "${arg}" = "--" && arg="" && shift
@@ -5813,17 +5864,15 @@ case "${arg}" in
 			case "${arg}" in
 				start)
 					FIREHOL_TRY=0
-					FIREHOL_DEBUG=0
 					;;
 					
 				try)
 					FIREHOL_TRY=1
-					FIREHOL_DEBUG=0
 					;;
 					
 				debug)
+					FIREHOL_MODE="DEBUG"
 					FIREHOL_TRY=0
-					FIREHOL_DEBUG=1
 					;;
 				
 				*)
@@ -5832,9 +5881,8 @@ case "${arg}" in
 					;;
 			esac
 		else
-		
 		${CAT_CMD} <<EOF
-$Id: firehol.sh,v 1.285 2009/02/25 23:30:14 ktsaou Exp $
+$Id: firehol.sh,v 1.286 2009/02/26 02:13:54 ktsaou Exp $
 (C) Copyright 2002-2007, Costa Tsaousis <costa@tsaousis.gr>
 FireHOL is distributed under GPL.
 
@@ -5989,12 +6037,15 @@ esac
 # Remove the next arg if it is --
 test "${1}" = "--" && shift
 
-if [ ${FIREHOL_EXPLAIN} -eq 0 -a ${FIREHOL_WIZARD} -eq 0 -a ! -f "${FIREHOL_CONFIG}" ]
+if [ "${FIREHOL_MODE}" = "START" -o "${FIREHOL_MODE}" = "DEBUG" ]
 then
-	echo -n $"FireHOL config ${FIREHOL_CONFIG} not found:"
-	failure $"FireHOL config ${FIREHOL_CONFIG} not found:"
-	echo
-	exit 1
+	if [ ! -f "${FIREHOL_CONFIG}" ]
+	then
+		echo -n $"FireHOL config ${FIREHOL_CONFIG} not found:"
+		failure $"FireHOL config ${FIREHOL_CONFIG} not found:"
+		echo
+		exit 1
+	fi
 fi
 
 
@@ -6008,7 +6059,7 @@ fi
 # XXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXX
 # ------------------------------------------------------------------------------
 
-if [ ${FIREHOL_EXPLAIN} -eq 1 ]
+if [ "${FIREHOL_MODE}" = "EXPLAIN" ]
 then
 	FIREHOL_CONFIG="Interactive User Input"
 	FIREHOL_LINEID="1"
@@ -6020,7 +6071,7 @@ then
 	
 	${CAT_CMD} <<EOF
 
-$Id: firehol.sh,v 1.285 2009/02/25 23:30:14 ktsaou Exp $
+$Id: firehol.sh,v 1.286 2009/02/26 02:13:54 ktsaou Exp $
 (C) Copyright 2003, Costa Tsaousis <costa@tsaousis.gr>
 FireHOL is distributed under GPL.
 Home Page: http://firehol.sourceforge.net
@@ -6137,7 +6188,7 @@ fi
 # XXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXX
 # ------------------------------------------------------------------------------
 
-if [ ${FIREHOL_WIZARD} -eq 1 ]
+if [ "${FIREHOL_MODE}" = "WIZARD" ]
 then
 	# require commands for wizard mode
 	require_cmd ip
@@ -6325,7 +6376,7 @@ then
 	
 	"${CAT_CMD}" >&2 <<EOF
 
-$Id: firehol.sh,v 1.285 2009/02/25 23:30:14 ktsaou Exp $
+$Id: firehol.sh,v 1.286 2009/02/26 02:13:54 ktsaou Exp $
 (C) Copyright 2003, Costa Tsaousis <costa@tsaousis.gr>
 FireHOL is distributed under GPL.
 Home Page: http://firehol.sourceforge.net
@@ -6403,7 +6454,7 @@ EOF
 	
 	${CAT_CMD} <<EOF
 #!${FIREHOL_FILE}
-# $Id: firehol.sh,v 1.285 2009/02/25 23:30:14 ktsaou Exp $
+# $Id: firehol.sh,v 1.286 2009/02/26 02:13:54 ktsaou Exp $
 # 
 # This config will have the same effect as NO PROTECTION!
 # Everything that found to be running, is allowed.
@@ -6952,7 +7003,9 @@ ${CAT_CMD} >"${FIREHOL_TMP}.awk" <<"EOF"
 { print }
 EOF
 
-${CAT_CMD} ${FIREHOL_CONFIG} | ${GAWK_CMD} -f "${FIREHOL_TMP}.awk" >${FIREHOL_TMP}
+# at the same time, replace all ${IPTABLES_CMD} references with just
+# the word 'iptables' to protect the currently running firewall
+${CAT_CMD} ${FIREHOL_CONFIG} | ${SED_CMD} "s|${IPTABLES_CMD}|iptables|g" | ${GAWK_CMD} -f "${FIREHOL_TMP}.awk" >${FIREHOL_TMP}
 ${RM_CMD} -f "${FIREHOL_TMP}.awk"
 
 # ------------------------------------------------------------------------------
@@ -6965,10 +7018,12 @@ FIREHOL_LINEID="FIN"
 enable trap			# Enable the trap buildin shell command.
 enable exit			# Enable the exit buildin shell command.
 
+close_cmd	|| ret=$[ret + 1]
+close_master	|| ret=$[ret + 1]
 
-close_cmd					|| ret=$[ret + 1]
-close_master					|| ret=$[ret + 1]
 
+# ------------------------------------------------------------------------------
+# append commands to close the firewall according to policies
 ${CAT_CMD} >>"${FIREHOL_OUTPUT}" <<EOF
 
 # Make it drop everything on table 'filter'.
@@ -6994,6 +7049,7 @@ echo
 
 
 # XXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXX
+# append commands to load the kernel modules
 
 for m in ${FIREHOL_KERNEL_MODULES}
 do
@@ -7001,6 +7057,7 @@ do
 done
 
 # XXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXX
+# append command to activate routing
 
 if [ $FIREHOL_ROUTING -eq 1 ]
 then
@@ -7008,8 +7065,9 @@ then
 fi
 
 # XXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXX
+# if we just debugging things, do not proceed further
 
-if [ ${FIREHOL_DEBUG} -eq 1 ]
+if [ "${FIREHOL_MODE}" = "DEBUG" ]
 then
 	${CAT_CMD} ${FIREHOL_OUTPUT}
 	
@@ -7019,39 +7077,46 @@ fi
 
 # XXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXX
 
+syslog info "Activating new firewall from ${FIREHOL_CONFIG} (translated to ${FIREHOL_COMMAND_COUNTER} iptables rules)."
 echo -n $"FireHOL: Activating new firewall (${FIREHOL_COMMAND_COUNTER} rules):"
 
 source ${FIREHOL_OUTPUT} "$@"
 
-if [ ${work_final_status} -gt 0 ]
+if [ ${work_runtime_error} -gt 0 ]
 then
 	failure $"FireHOL: Activating new firewall:"
 	echo
 	
-	# The trap will restore the firewall.
+	syslog err "Activation of new firewall failed."
+	# The trap will restore the firewall we saved above.
 	
 	exit 1
 fi
 success $"FireHOL: Activating new firewall (${FIREHOL_COMMAND_COUNTER} rules):"
 echo
+syslog info "Activation of new firewall succeeded."
 
 if [ ${FIREHOL_TRY} -eq 1 ]
 then
+	syslog info "Waiting user to commit the new firewall."
 	read -p "Keep the firewall? (type 'commit' to accept - 30 seconds timeout) : " -t 30 -e
 	ret=$?
 	echo
 	if [ ! $ret -eq 0 -o ! "${REPLY}" = "commit" ]
 	then
+		syslog err "User did not confirm the new firewall."
 		# The trap will restore the firewall.
 		
 		exit 1
 	else
 		echo "Successfull activation of FireHOL firewall."
+		syslog info "User committed new firewall."
 	fi
 fi
 
 # Remove the saved firewall, so that the trap will not restore it.
 ${RM_CMD} -f "${FIREHOL_SAVED}"
+FIREHOL_ACTIVATED_SUCCESSFULLY=1
 
 # Startup service locking.
 if [ -d "${FIREHOL_LOCK_DIR}" ]
@@ -7100,11 +7165,13 @@ then
 	
 	if [ ! $? -eq 0 ]
 	then
+		syslog err "Failed to save new firewall to '${FIREHOL_AUTOSAVE}'."
 		failure $"FireHOL: Saving firewall to ${FIREHOL_AUTOSAVE}:"
 		echo
 		exit 1
 	fi
 	
+	syslog info "New firewall saved to '${FIREHOL_AUTOSAVE}'."
 	success $"FireHOL: Saving firewall to ${FIREHOL_AUTOSAVE}:"
 	echo
 	
