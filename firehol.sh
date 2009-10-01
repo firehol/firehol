@@ -10,7 +10,7 @@
 #
 # config: /etc/firehol/firehol.conf
 #
-# $Id: firehol.sh,v 1.286 2009/02/26 02:13:54 ktsaou Exp $
+# $Id: firehol.sh,v 1.287 2009/10/01 10:25:23 ktsaou Exp $
 #
 
 # Make sure only root can run us.
@@ -210,7 +210,7 @@ ${RENICE_CMD} 10 $$ >/dev/null 2>/dev/null
 # Find our minor version
 firehol_minor_version() {
 ${CAT_CMD} <<"EOF" | ${CUT_CMD} -d ' ' -f 3 | ${CUT_CMD} -d '.' -f 2
-$Id: firehol.sh,v 1.286 2009/02/26 02:13:54 ktsaou Exp $
+$Id: firehol.sh,v 1.287 2009/10/01 10:25:23 ktsaou Exp $
 EOF
 }
 
@@ -636,7 +636,7 @@ FIREHOL_SAVE=0
 
 # If set to 1, the firewall will be restored if you don't commit it.
 # Valid only for FIREHOL_MODE="START"
-FIREHOL_TRY=1
+FIREHOL_TRY=0
 
 # If set to 0, FireHOL will not try to load the required kernel modules.
 # It can be set in the configuration file.
@@ -5730,6 +5730,7 @@ case "${arg}" in
 	start)
 		test ! -z "${1}" && softwarning "Arguments after parameter '${arg}' are ignored."
 		FIREHOL_MODE="START"
+		FIREHOL_TRY=0
 		;;
 	
 	stop)
@@ -5882,7 +5883,7 @@ case "${arg}" in
 			esac
 		else
 		${CAT_CMD} <<EOF
-$Id: firehol.sh,v 1.286 2009/02/26 02:13:54 ktsaou Exp $
+$Id: firehol.sh,v 1.287 2009/10/01 10:25:23 ktsaou Exp $
 (C) Copyright 2002-2007, Costa Tsaousis <costa@tsaousis.gr>
 FireHOL is distributed under GPL.
 
@@ -6071,7 +6072,7 @@ then
 	
 	${CAT_CMD} <<EOF
 
-$Id: firehol.sh,v 1.286 2009/02/26 02:13:54 ktsaou Exp $
+$Id: firehol.sh,v 1.287 2009/10/01 10:25:23 ktsaou Exp $
 (C) Copyright 2003, Costa Tsaousis <costa@tsaousis.gr>
 FireHOL is distributed under GPL.
 Home Page: http://firehol.sourceforge.net
@@ -6376,7 +6377,7 @@ then
 	
 	"${CAT_CMD}" >&2 <<EOF
 
-$Id: firehol.sh,v 1.286 2009/02/26 02:13:54 ktsaou Exp $
+$Id: firehol.sh,v 1.287 2009/10/01 10:25:23 ktsaou Exp $
 (C) Copyright 2003, Costa Tsaousis <costa@tsaousis.gr>
 FireHOL is distributed under GPL.
 Home Page: http://firehol.sourceforge.net
@@ -6454,7 +6455,7 @@ EOF
 	
 	${CAT_CMD} <<EOF
 #!${FIREHOL_FILE}
-# $Id: firehol.sh,v 1.286 2009/02/26 02:13:54 ktsaou Exp $
+# $Id: firehol.sh,v 1.287 2009/10/01 10:25:23 ktsaou Exp $
 # 
 # This config will have the same effect as NO PROTECTION!
 # Everything that found to be running, is allowed.
