@@ -10,7 +10,7 @@
 #
 # config: /etc/firehol/firehol.conf
 #
-# $Id: firehol.sh,v 1.287 2009/10/01 10:25:23 ktsaou Exp $
+# $Id: firehol.sh,v 1.288 2010/04/06 22:23:16 ktsaou Exp $
 #
 
 # Make sure only root can run us.
@@ -201,6 +201,39 @@ zcat_cmd() {
 	return 1
 }
 
+# Concurrent run control
+FIREHOL_LOCK_FILE="/var/run/firehol.lck"
+
+# Time in secs to consider a lock stale
+FIREHOL_LOCK_FILE_TIMEOUT=600
+
+firehol_concurrent_run_lock() {
+	require_cmd -n lockfile
+	
+	if [ -f "${FIREHOL_LOCK_FILE}" ]
+	then
+		echo >&2 "FireHOL is already running. Waiting for the other process to exit..."
+	fi
+	
+	if [ -z "${LOCKFILE_CMD}" ]
+	then
+		local c=0
+		while [ -f "${FIREHOL_LOCK_FILE}" ]
+		do
+			c=$[c + 1]
+			test $c -gt ${FIREHOL_LOCK_FILE_TIMEOUT} && break
+			sleep 1
+		done
+		
+		touch "${FIREHOL_LOCK_FILE}"
+		
+	else
+		${LOCKFILE_CMD} -1 -r ${FIREHOL_LOCK_FILE_TIMEOUT} -l ${FIREHOL_LOCK_FILE_TIMEOUT} "${FIREHOL_LOCK_FILE}"
+	fi
+	
+	return 0
+}
+
 # Make sure our generated files cannot be accessed by anyone else.
 umask 077
 
@@ -210,7 +243,7 @@ ${RENICE_CMD} 10 $$ >/dev/null 2>/dev/null
 # Find our minor version
 firehol_minor_version() {
 ${CAT_CMD} <<"EOF" | ${CUT_CMD} -d ' ' -f 3 | ${CUT_CMD} -d '.' -f 2
-$Id: firehol.sh,v 1.287 2009/10/01 10:25:23 ktsaou Exp $
+$Id: firehol.sh,v 1.288 2010/04/06 22:23:16 ktsaou Exp $
 EOF
 }
 
@@ -246,6 +279,7 @@ FIREHOL_OUTPUT="${FIREHOL_DIR}/firehol-out.sh"
 FIREHOL_SAVED="${FIREHOL_DIR}/firehol-save.sh"
 FIREHOL_TMP="${FIREHOL_DIR}/firehol-tmp.sh"
 
+# Redhat like status info for startup script
 FIREHOL_LOCK_DIR="/var/lock/subsys"
 test ! -d "${FIREHOL_LOCK_DIR}" && FIREHOL_LOCK_DIR="/var/lock"
 
@@ -335,6 +369,9 @@ firehol_exit() {
 			"${FIREHOL_NOTIFICATION_PROGRAM}" "${FIREHOL_CONFIG}" "${result}" "${restored}" "${work_error}" "${work_runtime_error}" >/dev/null 2>&1 </dev/null &
 		fi
 	fi
+	
+	# remove the lock
+	test -f "${FIREHOL_LOCK_FILE}" && rm -f "${FIREHOL_LOCK_FILE}"
 	
 	return 0
 }
@@ -5883,7 +5920,7 @@ case "${arg}" in
 			esac
 		else
 		${CAT_CMD} <<EOF
-$Id: firehol.sh,v 1.287 2009/10/01 10:25:23 ktsaou Exp $
+$Id: firehol.sh,v 1.288 2010/04/06 22:23:16 ktsaou Exp $
 (C) Copyright 2002-2007, Costa Tsaousis <costa@tsaousis.gr>
 FireHOL is distributed under GPL.
 
@@ -6072,7 +6109,7 @@ then
 	
 	${CAT_CMD} <<EOF
 
-$Id: firehol.sh,v 1.287 2009/10/01 10:25:23 ktsaou Exp $
+$Id: firehol.sh,v 1.288 2010/04/06 22:23:16 ktsaou Exp $
 (C) Copyright 2003, Costa Tsaousis <costa@tsaousis.gr>
 FireHOL is distributed under GPL.
 Home Page: http://firehol.sourceforge.net
@@ -6377,7 +6414,7 @@ then
 	
 	"${CAT_CMD}" >&2 <<EOF
 
-$Id: firehol.sh,v 1.287 2009/10/01 10:25:23 ktsaou Exp $
+$Id: firehol.sh,v 1.288 2010/04/06 22:23:16 ktsaou Exp $
 (C) Copyright 2003, Costa Tsaousis <costa@tsaousis.gr>
 FireHOL is distributed under GPL.
 Home Page: http://firehol.sourceforge.net
@@ -6455,7 +6492,7 @@ EOF
 	
 	${CAT_CMD} <<EOF
 #!${FIREHOL_FILE}
-# $Id: firehol.sh,v 1.287 2009/10/01 10:25:23 ktsaou Exp $
+# $Id: firehol.sh,v 1.288 2010/04/06 22:23:16 ktsaou Exp $
 # 
 # This config will have the same effect as NO PROTECTION!
 # Everything that found to be running, is allowed.
@@ -6853,6 +6890,10 @@ fi
 # ------------------------------------------------------------------------------
 # XXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXX
 # ------------------------------------------------------------------------------
+
+# make sure we are alone
+firehol_concurrent_run_lock
+
 
 # --- Initialization -----------------------------------------------------------
 
