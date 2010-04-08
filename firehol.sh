@@ -10,7 +10,7 @@
 #
 # config: /etc/firehol/firehol.conf
 #
-# $Id: firehol.sh,v 1.289 2010/04/08 21:51:26 ktsaou Exp $
+# $Id: firehol.sh,v 1.290 2010/04/08 21:55:07 ktsaou Exp $
 #
 
 # Make sure only root can run us.
@@ -243,7 +243,7 @@ ${RENICE_CMD} 10 $$ >/dev/null 2>/dev/null
 # Find our minor version
 firehol_minor_version() {
 ${CAT_CMD} <<"EOF" | ${CUT_CMD} -d ' ' -f 3 | ${CUT_CMD} -d '.' -f 2
-$Id: firehol.sh,v 1.289 2010/04/08 21:51:26 ktsaou Exp $
+$Id: firehol.sh,v 1.290 2010/04/08 21:55:07 ktsaou Exp $
 EOF
 }
 
@@ -1553,7 +1553,7 @@ rules_nis() {
 			dst="dst ${x}"
 		fi
 		
-		if [ ! -z "${server_yppasswd_ports}" ]
+		if [ ! -z "${server_yppasswdd_ports}" ]
 		then
 			set_work_function "Processing yppasswd rules for server '${x}'"
 			rules_custom "${mychain}" "${type}" nis-yppasswd "${server_yppasswdd_ports}" "500:65535" "${action}" $dst "$@"
@@ -5926,7 +5926,7 @@ case "${arg}" in
 			esac
 		else
 		${CAT_CMD} <<EOF
-$Id: firehol.sh,v 1.289 2010/04/08 21:51:26 ktsaou Exp $
+$Id: firehol.sh,v 1.290 2010/04/08 21:55:07 ktsaou Exp $
 (C) Copyright 2002-2007, Costa Tsaousis <costa@tsaousis.gr>
 FireHOL is distributed under GPL.
 
@@ -6115,7 +6115,7 @@ then
 	
 	${CAT_CMD} <<EOF
 
-$Id: firehol.sh,v 1.289 2010/04/08 21:51:26 ktsaou Exp $
+$Id: firehol.sh,v 1.290 2010/04/08 21:55:07 ktsaou Exp $
 (C) Copyright 2003, Costa Tsaousis <costa@tsaousis.gr>
 FireHOL is distributed under GPL.
 Home Page: http://firehol.sourceforge.net
@@ -6420,7 +6420,7 @@ then
 	
 	"${CAT_CMD}" >&2 <<EOF
 
-$Id: firehol.sh,v 1.289 2010/04/08 21:51:26 ktsaou Exp $
+$Id: firehol.sh,v 1.290 2010/04/08 21:55:07 ktsaou Exp $
 (C) Copyright 2003, Costa Tsaousis <costa@tsaousis.gr>
 FireHOL is distributed under GPL.
 Home Page: http://firehol.sourceforge.net
@@ -6498,7 +6498,7 @@ EOF
 	
 	${CAT_CMD} <<EOF
 #!${FIREHOL_FILE}
-# $Id: firehol.sh,v 1.289 2010/04/08 21:51:26 ktsaou Exp $
+# $Id: firehol.sh,v 1.290 2010/04/08 21:55:07 ktsaou Exp $
 # 
 # This config will have the same effect as NO PROTECTION!
 # Everything that found to be running, is allowed.
