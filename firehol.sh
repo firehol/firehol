@@ -10,7 +10,7 @@
 #
 # config: /etc/firehol/firehol.conf
 #
-# $Id: firehol.sh,v 1.288 2010/04/06 22:23:16 ktsaou Exp $
+# $Id: firehol.sh,v 1.289 2010/04/08 21:51:26 ktsaou Exp $
 #
 
 # Make sure only root can run us.
@@ -243,7 +243,7 @@ ${RENICE_CMD} 10 $$ >/dev/null 2>/dev/null
 # Find our minor version
 firehol_minor_version() {
 ${CAT_CMD} <<"EOF" | ${CUT_CMD} -d ' ' -f 3 | ${CUT_CMD} -d '.' -f 2
-$Id: firehol.sh,v 1.288 2010/04/06 22:23:16 ktsaou Exp $
+$Id: firehol.sh,v 1.289 2010/04/08 21:51:26 ktsaou Exp $
 EOF
 }
 
@@ -3656,6 +3656,9 @@ rule_action_param() {
 								if [ "${FIREHOL_LOG_MODE}" = "ULOG" ]
 								then
 									local -a logopts_arg=("--ulog-prefix='${FIREHOL_LOG_PREFIX}LIMIT_OVERFLOW:'")
+								elif [ "${FIREHOL_LOG_MODE}" = "NFLOG" ]
+								then
+									local -a logopts_arg=("--nflog-prefix='${FIREHOL_LOG_PREFIX}LIMIT_OVERFLOW:'")
 								else
 									local -a logopts_arg=("--log-level" "${FIREHOL_LOG_LEVEL}" "--log-prefix='${FIREHOL_LOG_PREFIX}LIMIT_OVERFLOW:'")
 								fi
@@ -5289,6 +5292,9 @@ rule() {
 	if [ "${FIREHOL_LOG_MODE}" = "ULOG" ]
 	then
 		local -a logopts_arg=("--ulog-prefix='${FIREHOL_LOG_PREFIX}${logtxt}:'")
+	elif [ "${FIREHOL_LOG_MODE}" = "NFLOG" ]
+	then
+		local -a logopts_arg=("--nflog-prefix='${FIREHOL_LOG_PREFIX}${logtxt}:'")
 	else
 		local -a logopts_arg=("--log-level" "${loglevel}" "--log-prefix='${FIREHOL_LOG_PREFIX}${logtxt}:'")
 	fi
@@ -5920,7 +5926,7 @@ case "${arg}" in
 			esac
 		else
 		${CAT_CMD} <<EOF
-$Id: firehol.sh,v 1.288 2010/04/06 22:23:16 ktsaou Exp $
+$Id: firehol.sh,v 1.289 2010/04/08 21:51:26 ktsaou Exp $
 (C) Copyright 2002-2007, Costa Tsaousis <costa@tsaousis.gr>
 FireHOL is distributed under GPL.
 
@@ -6109,7 +6115,7 @@ then
 	
 	${CAT_CMD} <<EOF
 
-$Id: firehol.sh,v 1.288 2010/04/06 22:23:16 ktsaou Exp $
+$Id: firehol.sh,v 1.289 2010/04/08 21:51:26 ktsaou Exp $
 (C) Copyright 2003, Costa Tsaousis <costa@tsaousis.gr>
 FireHOL is distributed under GPL.
 Home Page: http://firehol.sourceforge.net
@@ -6414,7 +6420,7 @@ then
 	
 	"${CAT_CMD}" >&2 <<EOF
 
-$Id: firehol.sh,v 1.288 2010/04/06 22:23:16 ktsaou Exp $
+$Id: firehol.sh,v 1.289 2010/04/08 21:51:26 ktsaou Exp $
 (C) Copyright 2003, Costa Tsaousis <costa@tsaousis.gr>
 FireHOL is distributed under GPL.
 Home Page: http://firehol.sourceforge.net
@@ -6492,7 +6498,7 @@ EOF
 	
 	${CAT_CMD} <<EOF
 #!${FIREHOL_FILE}
-# $Id: firehol.sh,v 1.288 2010/04/06 22:23:16 ktsaou Exp $
+# $Id: firehol.sh,v 1.289 2010/04/08 21:51:26 ktsaou Exp $
 # 
 # This config will have the same effect as NO PROTECTION!
 # Everything that found to be running, is allowed.
