@@ -1,8 +1,11 @@
 #!/bin/bash
 
-# $Id: get-iana.sh,v 1.12 2008/03/17 22:08:43 ktsaou Exp $
+# $Id: get-iana.sh,v 1.13 2010/04/08 22:03:08 ktsaou Exp $
 #
 # $Log: get-iana.sh,v $
+# Revision 1.13  2010/04/08 22:03:08  ktsaou
+# Removed --proxy=off for wget.
+#
 # Revision 1.12  2008/03/17 22:08:43  ktsaou
 # Updated for latest IANA reservations format.
 #
@@ -91,7 +94,7 @@ echo >&2 "Fetching IANA IPv4 Address Space, from:"
 echo >&2 "${IPV4_ADDRESS_SPACE_URL}"
 echo >&2
 
-wget -O - --proxy=off "${IPV4_ADDRESS_SPACE_URL}"	|\
+wget -O - "${IPV4_ADDRESS_SPACE_URL}"	|\
 	egrep "^[0-9]+/[0-9]+.*${IANA_RESERVED}"	|\
 	egrep -vi "${IANA_IGNORE}"			|\
 	cut -d ' ' -f 1					|\
