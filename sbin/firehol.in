@@ -187,6 +187,9 @@ require_cmd() {
 # netstat
 # date
 # hostname
+# modprobe or insmod
+# gawk or awk
+# nice (none is fine)
 
 # Commands that are mandatory for FireHOL operation:
 which_cmd CAT_CMD cat
@@ -197,7 +200,6 @@ which_cmd EGREP_CMD egrep
 which_cmd EXPR_CMD expr
 which_cmd FIND_CMD find
 which_cmd FOLD_CMD fold
-which_cmd GAWK_CMD gawk
 which_cmd GREP_CMD grep
 which_cmd HEAD_CMD head
 which_cmd IPTABLES_CMD iptables
@@ -206,8 +208,6 @@ which_cmd IPTABLES_RESTORE_CMD iptables-restore
 which_cmd LSMOD_CMD lsmod
 which_cmd MKDIR_CMD mkdir
 which_cmd MV_CMD mv
-which_cmd MODPROBE_CMD modprobe
-which_cmd RENICE_CMD renice
 which_cmd RM_CMD rm
 which_cmd SED_CMD sed
 which_cmd SORT_CMD sort
@@ -274,11 +274,62 @@ wget_cmd() {
 	return 1
 }
 
-# Make sure our generated files cannot be accessed by anyone else.
-umask 077
+gawk_cmd() {
+	require_cmd -n gawk awk
+	test -z "${GAWK_CMD}" && GAWK_CMD="${AWK_CMD}"
+	
+	if [ ! -z "${GAWK_CMD}" ]
+	then
+		"${GAWK_CMD}" "${@}"
+		return $?
+	fi
+	
+	echo >&2 " "
+	echo >&2 " IMPORTANT WARNING:"
+	echo >&2 " ------------------"
+	echo >&2 " FireHOL cannot find any of the commands: gawk, awk."
+	echo >&2 " Make sure you have one of these available in the system path."
+	echo >&2 " "
+	
+	return 1
+}
 
-# Be nice on production environments
-${RENICE_CMD} 10 $$ >/dev/null 2>/dev/null
+modprobe_cmd() {
+	require_cmd -n modprobe insmod
+	test -z "${MODPROBE_CMD}" && MODPROBE_CMD="${INSMOD_CMD}"
+	
+	if [ ! -z "${MODPROBE_CMD}" ]
+	then
+		"${MODPROBE_CMD}" "${@}"
+		status=$?
+		if [ $status -eq 17 ]
+		then
+			# insmod: module already loaded - not a problem
+			return 0
+		else
+			return $status
+		fi
+	fi
+	
+	echo >&2 " "
+	echo >&2 " IMPORTANT WARNING:"
+	echo >&2 " ------------------"
+	echo >&2 " FireHOL cannot find any of the commands: modprobe, insmod."
+	echo >&2 " Make sure you have one of these available in the system path."
+	echo >&2 " "
+	
+	return 1
+}
+
+renice_cmd() {
+	if [ -z "${RENICE_CMD}" ]
+	then
+		require_cmd -n renice
+		test -z "${RENICE_CMD}" && RENICE_CMD=":"
+	fi
+	
+	"${RENICE_CMD}" "${@}"
+}
 
 # Concurrent run control
 FIREHOL_LOCK_FILE="/var/run/firehol.lck"
@@ -317,7 +368,7 @@ firehol_concurrent_run_lock() {
 umask 077
 
 # Be nice on production environments
-${RENICE_CMD} 10 $$ >/dev/null 2>/dev/null
+renice_cmd 10 $$ >/dev/null 2>/dev/null
 
 # Initialize iptables
 ${IPTABLES_CMD} -nxvL >/dev/null 2>&1
@@ -347,7 +398,12 @@ FIREHOL_TMP="${FIREHOL_DIR}/firehol-tmp.sh"
 FIREHOL_LOCK_DIR="/var/lock/subsys"
 test ! -d "${FIREHOL_LOCK_DIR}" && FIREHOL_LOCK_DIR="/var/lock"
 
-FIREHOL_SPOOL_DIR="/var/spool/firehol"
+if [ -d "/var/spool" ]
+then
+	FIREHOL_SPOOL_DIR="/var/spool/firehol"
+else
+	FIREHOL_SPOOL_DIR="/tmp/firehol"
+fi
 
 # The default configuration file
 # It can be changed on the command line
@@ -3358,8 +3414,8 @@ load_kernel_module() {
 		check_kernel_module ${mod}
 		if [ $? -gt 0 ]
 		then
+			runcmd warn ${FIREHOL_LINEID} modprobe_cmd ${mod} -q
 			echo >>"${FIREHOL_DIR}/modules_to_load.sh" "${MODPROBE_CMD} ${mod} -q"
-			runcmd warn ${FIREHOL_LINEID} ${MODPROBE_CMD} ${mod} -q
 		fi
 	fi
 	return 0
@@ -7197,7 +7253,7 @@ EOF
 
 # at the same time, replace all ${IPTABLES_CMD} references with just
 # the word 'iptables' to protect the currently running firewall
-${CAT_CMD} ${FIREHOL_CONFIG} | ${SED_CMD} "s|${IPTABLES_CMD}|iptables|g" | ${GAWK_CMD} -f "${FIREHOL_TMP}.awk" >${FIREHOL_TMP}
+${CAT_CMD} ${FIREHOL_CONFIG} | ${SED_CMD} "s|${IPTABLES_CMD}|iptables|g" | gawk_cmd -f "${FIREHOL_TMP}.awk" >${FIREHOL_TMP}
 ${RM_CMD} -f "${FIREHOL_TMP}.awk"
 
 # ------------------------------------------------------------------------------
