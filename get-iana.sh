@@ -1,8 +1,11 @@
 #!/bin/bash
 
-# $Id: get-iana.sh,v 1.13 2010/04/08 22:03:08 ktsaou Exp $
+# $Id: get-iana.sh,v 1.14 2010/06/07 15:44:09 ktsaou Exp $
 #
 # $Log: get-iana.sh,v $
+# Revision 1.14  2010/06/07 15:44:09  ktsaou
+# Made get-iana.sh support the latest IANA format.
+#
 # Revision 1.13  2010/04/08 22:03:08  ktsaou
 # Removed --proxy=off for wget.
 #
@@ -59,7 +62,8 @@
 # and creates a list with all reserved address spaces.
 #
 
-IPV4_ADDRESS_SPACE_URL="http://www.iana.org/assignments/ipv4-address-space"
+# IPV4_ADDRESS_SPACE_URL="http://www.iana.org/assignments/ipv4-address-space"
+IPV4_ADDRESS_SPACE_URL="http://www.iana.org/assignments/ipv4-address-space/ipv4-address-space.txt"
 
 # The program will match all rows in the file which start with a number, have a slash,
 # followed by another number, for which the following pattern will also match on the
@@ -95,13 +99,15 @@ echo >&2 "${IPV4_ADDRESS_SPACE_URL}"
 echo >&2
 
 wget -O - "${IPV4_ADDRESS_SPACE_URL}"	|\
-	egrep "^[0-9]+/[0-9]+.*${IANA_RESERVED}"	|\
+	egrep "^ *[0-9]+/[0-9]+.*${IANA_RESERVED}"	|\
 	egrep -vi "${IANA_IGNORE}"			|\
+	sed "s/^ \+//g"					|\
 	cut -d ' ' -f 1					|\
 (
-	
 	while IFS="/" read range net
 	do
+		# echo >&2 "$range/$net"
+		
 		if [ ! $net -eq 8 ]
 		then
 			echo >&2 "Cannot handle network masks of $net bits ($range/$net)"
