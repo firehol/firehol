@@ -1,7 +1,32 @@
-$Id: WhatIsNew,v 1.11 2007/05/20 16:53:22 ktsaou Exp $
+$Id: WhatIsNew,v 1.12 2010/10/05 21:10:08 ktsaou Exp $
 
 What Is New in public releases.
 -------------------------------
+
+R5 v1.294, October 6, 2010
+Added support for traffic shapping without marks (using marks already exists)
+using classify.
+Added support for stateful connection marking to assist the routing decision
+(e.g. when there are multiple upstream providers).
+Added more services: sane, ipsecnatt, l2tp.
+The services: amanda, ftp, pptp, tftp, h323, GRE, sip have been modified to
+use their respective netfilter kernel modules for matching the related
+traffic.
+Added support for NFLOG support for logging packet drops and syslog support
+for logging important administration events.
+Added tosfix, a helper that detects invalid TOS values and fixes them.
+Finally, updated get-iana to use the updated IANA page for IP reservations,
+fixed several minor bugs and issues reported.
+
+
+R5 v1.273, July 31, 2008
+Updated to parse the latest format of the IANA reservations page.
+
+Added support for custom actions for services. This opens a way for allowing
+actions that can be controlled externally without restarting the firewall.
+Fixed several minor issues (better NAT support for all services, handling for
+external pager command, kernel config parsing, config wizard, etc). 
+
 
 R5 v1.255, May 20, 2007
 Fixed kernel 2.6.20+ compatibility issues.

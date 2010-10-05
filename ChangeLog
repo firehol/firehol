@@ -1,7 +1,7 @@
 
 RCS file: /cvsroot/firehol/firehol/firehol.sh,v
 Working file: firehol.sh
-head: 1.282
+head: 1.293
 branch:
 locks: strict
 access list:
@@ -9,8 +9,69 @@ symbolic names:
 	start: 1.1.1.1
 	vendor: 1.1.1
 keyword substitution: kv
-total revisions: 283;	selected revisions: 283
+total revisions: 294;	selected revisions: 294
 description:
+----------------------------
+revision 1.293
+date: 2010/04/08 22:27:18;  author: ktsaou;  state: Exp;  lines: +16 -16
+Removed unnecessary quotes from logs.
+----------------------------
+revision 1.292
+date: 2010/04/08 22:16:03;  author: ktsaou;  state: Exp;  lines: +10 -6
+Added service:
+
+sane
+----------------------------
+revision 1.291
+date: 2010/04/08 22:12:35;  author: ktsaou;  state: Exp;  lines: +13 -6
+Added services:
+
+ipsecnatt
+l2tp
+----------------------------
+revision 1.290
+date: 2010/04/08 21:55:07;  author: ktsaou;  state: Exp;  lines: +7 -7
+Fixed bug: 2873689
+Mispelled server_yppasswdd.
+----------------------------
+revision 1.289
+date: 2010/04/08 21:51:26;  author: ktsaou;  state: Exp;  lines: +12 -6
+Added support for NFLOG as requested per patch 2954470.
+----------------------------
+revision 1.288
+date: 2010/04/06 22:23:16;  author: ktsaou;  state: Exp;  lines: +47 -6
+Added support to block concurrent running of FireHOL by multiple admins.
+
+FireHOL uses the lockfile command, if it finds it, allowing to detect
+stale locks if 600 seconds have been passed since the last lock.
+
+The lock file is /var/run/firehol.lck
+----------------------------
+revision 1.287
+date: 2009/10/01 10:25:23;  author: ktsaou;  state: Exp;  lines: +8 -7
+Fixed issue with TRY and START.
+----------------------------
+revision 1.286
+date: 2009/02/26 02:13:54;  author: ktsaou;  state: Exp;  lines: +128 -61
+Added syslog support. FireHOL now logs to syslog all important events.
+Variable for the user:
+
+FIREHOL_SYSLOG_FACILITY="daemon"
+
+Default is shown. User can set it in config file.
+----------------------------
+revision 1.285
+date: 2009/02/25 23:30:14;  author: ktsaou;  state: Exp;  lines: +19 -7
+Made it detect when the simple services have either server or client ports
+defined, but not both.
+----------------------------
+revision 1.284
+date: 2009/02/22 00:35:16;  author: ktsaou;  state: Exp;  lines: +12 -10
+Fixed an issue where the wizard/helpme generated too long names.
+----------------------------
+revision 1.283
+date: 2009/02/21 21:42:07;  author: ktsaou;  state: Exp;  lines: +28 -19
+Updated the kernel module handling for certain helpers.
 ----------------------------
 revision 1.282
 date: 2009/02/19 05:27:49;  author: ktsaou;  state: Exp;  lines: +259 -182
