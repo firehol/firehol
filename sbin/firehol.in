@@ -5871,8 +5871,16 @@ if [ -z "${IPTABLES_CMD}" -o ! -x "${IPTABLES_CMD}" ]; then
 	exit 0
 fi
 
-KERNELMAJ=`${UNAME_CMD} -r | ${SED_CMD}                   -e 's,\..*,,'`
-KERNELMIN=`${UNAME_CMD} -r | ${SED_CMD} -e 's,[^\.]*\.,,' -e 's,\..*,,'`
+kernel_maj_min() {
+	local kmaj kmin IFS=.-
+
+	kmaj=$1
+	kmin=$2
+
+	set -- $(uname -r)
+	eval $kmaj=\$1 $kmin=\$2
+}
+kernel_maj_min KERNELMAJ KERNELMIN
 
 if [ "$KERNELMAJ" -lt 2 ] ; then
 	echo >&2 "FireHOL requires a kernel version higher than 2.3."
