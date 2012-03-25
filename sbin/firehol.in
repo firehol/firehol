@@ -2,15 +2,46 @@
 #
 # Startup script to implement /etc/firehol/firehol.conf pre-defined rules.
 #
-# chkconfig: 2345 99 92
+#   Copyright
 #
-# description: creates stateful iptables packet filtering firewalls.
+#       Copyright (C) 2003-2013 Costa Tsaousis <costa@tsaousis.gr>
+#       Copyright (C) 2012-2013 Phil Whineray <phil@sanewall.org>
 #
-# by Costa Tsaousis <costa@tsaousis.gr>
+#   License
 #
-# config: /etc/firehol/firehol.conf
+#       This program is free software; you can redistribute it and/or modify
+#       it under the terms of the GNU General Public License as published by
+#       the Free Software Foundation; either version 2 of the License, or
+#       (at your option) any later version.
+#
+#       This program is distributed in the hope that it will be useful,
+#       but WITHOUT ANY WARRANTY; without even the implied warranty of
+#       MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE. See the
+#       GNU General Public License for more details.
+#
+#       You should have received a copy of the GNU General Public License
+#       along with this program. If not, see <http://www.gnu.org/licenses/>.
+#
+#       See the file COPYING for details.
 #
 FIREHOL_SCRIPT_VERSION=2.0.0-pre1
+
+emit_version() {
+	${CAT_CMD} <<EOF
+
+FireHOL version $FIREHOL_SCRIPT_VERSION
+(C) Copyright 2003-2013 Costa Tsaousis <costa@tsaousis.gr>
+(C) Copyright 2012-2013 Phil Whineray <philfirehol.org>
+FireHOL is distributed under the GPL v2+.
+Home Page: http://firehol.org
+
+-------------------------------------------------------------------------
+Get notified of new FireHOL releases by subscribing to the mailing list:
+    http://lists.firehol.org/mailman/listinfo/firehol-support/
+-------------------------------------------------------------------------
+
+EOF
+}
 
 # Make sure only root can run us.
 if [ ! "${UID}" = 0 ]
@@ -5975,12 +6006,8 @@ case "${arg}" in
 					;;
 			esac
 		else
-		${CAT_CMD} <<EOF
-$Id$
-(C) Copyright 2002-2007, Costa Tsaousis <costa@tsaousis.gr>
-FireHOL is distributed under GPL.
 
-EOF
+		emit_version
 
 		${CAT_CMD} <<EOF
 FireHOL supports the following command line arguments (only one of them):
@@ -6102,16 +6129,6 @@ Please note that the service:
 		
 		server custom imap tcp/143 default accept
 
-
-For more information about FireHOL, please refer to:
-
-		http://firehol.sourceforge.net
-
--------------------------------------------------------------------------
-FireHOL controls your firewall. You should want to get updates quickly.
-Subscribe (at the home page) to get notified of new releases.
--------------------------------------------------------------------------
-
 YOU DO NOT KNOW WHAT TO DO? FireHOL can help you! Just run it with the
 argument 'helpme' and it will generate its configuration file for this
 machine. Your running firewall will not be altered or stopped, and no
@@ -6157,25 +6174,16 @@ if [ "${FIREHOL_MODE}" = "EXPLAIN" ]
 then
 	FIREHOL_CONFIG="Interactive User Input"
 	FIREHOL_LINEID="1"
-	
+
 	FIREHOL_TEMP_CONFIG="${FIREHOL_DIR}/firehol.conf"
-	
+
 	echo "version ${FIREHOL_VERSION}" >"${FIREHOL_TEMP_CONFIG}"
 	version ${FIREHOL_VERSION}
-	
+
+	emit_version
+
 	${CAT_CMD} <<EOF
-
-$Id$
-(C) Copyright 2003, Costa Tsaousis <costa@tsaousis.gr>
-FireHOL is distributed under GPL.
-Home Page: http://firehol.sourceforge.net
-
---------------------------------------------------------------------------------
-FireHOL controls your firewall. You should want to get updates quickly.
-Subscribe (at the home page) to get notified of new releases.
---------------------------------------------------------------------------------
-
-You can now start typing FireHOL configuration directives.
+You can now start typing firehol configuration directives.
 Special interactive commands: help, show, quit
 
 EOF
@@ -6467,19 +6475,10 @@ then
 	cd ports
 	"${MKDIR_CMD}" tcp
 	"${MKDIR_CMD}" udp
-	
+
+	emit_version >&2
+
 	"${CAT_CMD}" >&2 <<EOF
-
-$Id$
-(C) Copyright 2003, Costa Tsaousis <costa@tsaousis.gr>
-FireHOL is distributed under GPL.
-Home Page: http://firehol.sourceforge.net
-
---------------------------------------------------------------------------------
-FireHOL controls your firewall. You should want to get updates quickly.
-Subscribe (at the home page) to get notified of new releases.
---------------------------------------------------------------------------------
-
 FireHOL will now try to figure out its configuration file on this system.
 Please have all the services and network interfaces on this system running.
 
