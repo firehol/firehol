@@ -184,7 +184,7 @@ require_cmd() {
 # zcat or gzcat or gzip (either or none is fine)
 # less or more (either or none is fine)
 # ip
-# netstat
+# ss
 # date
 # hostname
 # modprobe or insmod
@@ -6394,7 +6394,7 @@ if [ "${FIREHOL_MODE}" = "WIZARD" ]
 then
 	# require commands for wizard mode
 	require_cmd ip
-	require_cmd netstat
+	require_cmd ss
 	require_cmd date
 	require_cmd hostname
 	
@@ -6722,7 +6722,7 @@ EOF
 		(
 			local x=
 			local ports=
-			for x in `${NETSTAT_CMD} -an | ${EGREP_CMD} "^tcp" | ${SED_CMD} "s|:::|0.0.0.0:|g" | ${GREP_CMD} "0.0.0.0:*" | ${EGREP_CMD} " (${ifip}|0.0.0.0):[0-9]+" | ${CUT_CMD} -d ':' -f 2 | ${CUT_CMD} -d ' ' -f 1 | ${SORT_CMD} -n | ${UNIQ_CMD}`
+			for x in `${SS_CMD} -tln | ${SED_CMD} "s|:::|\*:|g" | ${SED_CMD} "s|::ffff:||g" | ${EGREP_CMD} " (${ifip}|\*):[0-9]+" | ${CUT_CMD} -d ':' -f 2 | ${CUT_CMD} -d ' ' -f 1 | ${SORT_CMD} -n | ${UNIQ_CMD}`
 			do
 				if [ -f "tcp/${x}" ]
 				then
@@ -6732,7 +6732,7 @@ EOF
 				fi
 			done
 			
-			for x in `${NETSTAT_CMD} -an | ${EGREP_CMD} "^udp" | ${SED_CMD} "s|:::|0.0.0.0:|g" | ${GREP_CMD} "0.0.0.0:*" | ${EGREP_CMD} " (${ifip}|0.0.0.0):[0-9]+" | ${CUT_CMD} -d ':' -f 2 | ${CUT_CMD} -d ' ' -f 1 | ${SORT_CMD} -n | ${UNIQ_CMD}`
+			for x in `${SS_CMD} -uln | ${SED_CMD} "s|:::|\*:|g" | ${SED_CMD} "s|::ffff:||g" | ${EGREP_CMD} " (${ifip}|\*):[0-9]+" | ${CUT_CMD} -d ':' -f 2 | ${CUT_CMD} -d ' ' -f 1 | ${SORT_CMD} -n | ${UNIQ_CMD}`
 			do
 				if [ -f "udp/${x}" ]
 				then
