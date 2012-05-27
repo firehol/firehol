@@ -7170,6 +7170,20 @@ initialize_firewall() {
 			${IPTABLES_CMD} -t "${t}" -P "${c}" $policy || exit 1
 		done
 	done
+
+	# Allow existing traffic to continue:
+	#   insert as the first rule in each chain, making it easy to undo
+	#   once the firewall is completely established
+	if [ ${FIREHOL_FAST_ACTIVATION} -ne 1 -a \
+	     "${FIREHOL_ESTABLISHED_ACTIVATION_ACCEPT}" = "1" ]
+	then
+		${IPTABLES_CMD} -I INPUT 1 \
+			-m conntrack --ctstate ESTABLISHED,RELATED -j ACCEPT
+		${IPTABLES_CMD} -I OUTPUT 1 \
+			-m conntrack --ctstate ESTABLISHED,RELATED -j ACCEPT
+		${IPTABLES_CMD} -I FORWARD 1 \
+			-m conntrack --ctstate ESTABLISHED,RELATED -j ACCEPT
+	fi
 }
 
 # drop everything
@@ -7180,6 +7194,16 @@ finalize_firewall() {
 	do
 		${IPTABLES_CMD} -t filter -P "${c}" DROP || exit 1
 	done
+
+	# Remove rules inserted which were to keep existing traffic alive
+	# during activation
+	if [ ${FIREHOL_FAST_ACTIVATION} -ne 1 -a \
+	     "${FIREHOL_ESTABLISHED_ACTIVATION_ACCEPT}" = "1" ]
+	then
+		${IPTABLES_CMD} -D INPUT 1
+		${IPTABLES_CMD} -D OUTPUT 1
+		${IPTABLES_CMD} -D FORWARD 1
+	fi
 }
 
 # this will be run when the first iptables command get executed in pre-process mode.
