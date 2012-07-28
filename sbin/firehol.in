@@ -5608,7 +5608,7 @@ runtime_error() {
 	printf >&2 "\n"
 	echo >&2 "OUTPUT  : "
 	echo >&2
-	${CAT_CMD} ${FIREHOL_OUTPUT}.log
+	${CAT_CMD} ${FIREHOL_OUTPUT}.log >&2
 	echo >&2
 	
 	return 0
