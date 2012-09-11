@@ -5987,13 +5987,13 @@ case "${arg}" in
 		;;
 	
 	try)
-		test ! -z "${1}" && softwarning "Arguments after parameter '${arg}' are ignored."
+		test ! -z "${1}" && test ${1} != "--" && softwarning "Arguments after parameter '${arg}' are ignored."
 		FIREHOL_MODE="START"
 		FIREHOL_TRY=1
 		;;
 	
 	start)
-		test ! -z "${1}" && softwarning "Arguments after parameter '${arg}' are ignored."
+		test ! -z "${1}" && test ${1} != "--" && softwarning "Arguments after parameter '${arg}' are ignored."
 		FIREHOL_MODE="START"
 		FIREHOL_TRY=0
 		;;
@@ -6028,12 +6028,12 @@ case "${arg}" in
 		;;
 	
 	restart|force-reload)
-		test ! -z "${1}" && softwarning "Arguments after parameter '${arg}' are ignored."
+		test ! -z "${1}" && test ${1} != "--" && softwarning "Arguments after parameter '${arg}' are ignored."
 		FIREHOL_MODE="START"
 		;;
 	
 	condrestart)
-		test ! -z "${1}" && softwarning "Arguments after parameter '${arg}' are ignored."
+		test ! -z "${1}" && test ${1} != "--" && softwarning "Arguments after parameter '${arg}' are ignored."
 		test -f "${FIREHOL_LOCK_DIR}/firehol" && exit 0
 		FIREHOL_MODE="START"
 		;;
@@ -6108,13 +6108,13 @@ case "${arg}" in
 		;;
 	
 	save)
-		test ! -z "${1}" && softwarning "Arguments after parameter '${arg}' are ignored."
+		test ! -z "${1}" && test ${1} != "--" && softwarning "Arguments after parameter '${arg}' are ignored."
 		FIREHOL_MODE="START"
 		FIREHOL_SAVE=1
 		;;
 		
 	debug)
-		test ! -z "${1}" && softwarning "Arguments after parameter '${arg}' are ignored."
+		test ! -z "${1}" && test ${1} != "--" && softwarning "Arguments after parameter '${arg}' are ignored."
 		FIREHOL_MODE="DEBUG"
 		;;
 	
