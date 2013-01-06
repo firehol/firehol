@@ -1,7 +1,7 @@
 
 RCS file: /cvsroot/firehol/firehol/firehol.sh,v
 Working file: firehol.sh
-head: 1.293
+head: 1.295
 branch:
 locks: strict
 access list:
@@ -9,8 +9,16 @@ symbolic names:
 	start: 1.1.1.1
 	vendor: 1.1.1
 keyword substitution: kv
-total revisions: 294;	selected revisions: 294
+total revisions: 296;	selected revisions: 296
 description:
+----------------------------
+revision 1.295
+date: 2013/01/06 23:26:04;  author: ktsaou;  state: Exp;  lines: +11 -8
+Updated blackist command so that it does not lead to timeouts when an internal host is trying to reach a blacklisted host.
+----------------------------
+revision 1.294
+date: 2010/10/05 21:10:08;  author: ktsaou;  state: Exp;  lines: +7 -7
+Updated RESERVED_IPS
 ----------------------------
 revision 1.293
 date: 2010/04/08 22:27:18;  author: ktsaou;  state: Exp;  lines: +16 -16

@@ -1,7 +1,7 @@
-$Id: README,v 1.7 2004/10/31 20:28:02 ktsaou Exp $
+$Id: README,v 1.8 2013/01/06 23:49:08 ktsaou Exp $
 
 FireHOL, an iptables stateful packet filtering firewall for humans!
-Copyright (C) 2003 Costa Tsaousis <costa@tsaousis.gr>
+Copyright (C) 2003 - 2013 Costa Tsaousis <costa@tsaousis.gr>
 
 
 LICENSE
@@ -35,19 +35,6 @@ In any case, you can also find the documentation online, at:
 
 INSTALLATION
 ------------
-
-RPM
-~~~
-RPM distributions automatically install the program. After a RPM
-installation, FireHOL should be available at /etc/init.d/firehol
-and its default configuration at /etc/firehol/firehol.conf.
-Please use the chkconfig system utility to enable/disable
-firehol's activity at boot time.
-
-TAR.BZ2
-~~~~~~~
-This type of distribution includes all the files in the directory
-where you uncompress it.
 To make FireHOL start at boot time you have to add it to the startup
 procedure of your operating system.
 
@@ -65,13 +52,6 @@ Three things are needed to start FireHOL properly:
 
 This is it.
 
-Note, that the .tar.bz2 releases can also be used to build an .rpm
-using:
-
-rpmbuild -tb firehol-XX-YY.tar.bz2
-
-However, CVS versions - firehol.tar.gz - should not be used this way.
-
 
 IMPORTANT NOTES
 ---------------
@@ -85,19 +65,4 @@ under this project or to monitor FireHOL's file releases at
 sourceforge.net. Both of these services will keep you anonymous
 (to me) but will update you if and when new releases become available.
 
-
-CONTRIBUTING
-------------
-I'll be glad to receive your ideas, patches, case studies, service
-definitions, etc.
-
-Here is my e-mail: costa@tsaousis.gr
-
-Please note however that this is my personal e-mail that I read
-just once per day and in some cases, once every a few days. If you
-want some faster response, you can always use the mailing lists
-and forums under this project at sourceforge.
-
-Kind Regards
-Costa Tsaousis
 

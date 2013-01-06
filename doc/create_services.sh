@@ -7,17 +7,24 @@ then
 	exit 1
 fi
 
-service_AH_notes="IPSec Authentication Header (AH).
-<p>
+title_AH="IPSec Authentication Header (AH)"
+wikipedia_AH="http://en.wikipedia.org/wiki/IPsec#Authentication_Header"
+service_AH_notes="
 For more information see the <a href=\"http://www.freeswan.org/freeswan_trees/freeswan-1.99/doc/ipsec.html#AH.ipsec\">FreeS/WAN documentation</a>
-and RFC <a href=\"http://www.ietf.org/rfc/rfc2402.txt?number=2402\">RFC 2402</a>.
+and <a href=\"http://www.ietf.org/rfc/rfc2402.txt?number=2402\">RFC 2402</a>.
 "
 
-service_aptproxy_notes="Debian package proxy."
+home_amanda="http://www.amanda.org/"
+title_amanda="Advanced Maryland Automatic Network Disk Archiver"
+wikipedia_amanda="http://en.wikipedia.org/wiki/Advanced_Maryland_Automatic_Network_Disk_Archiver"
 
+title_aptproxy="Advanced Packaging Tool"
+wikipedia_aptproxy="http://en.wikipedia.org/wiki/Apt-proxy"
 
-service_apcupsd_notes="<a href=\"http://www.apcupsd.com/\">APC UPS Deamon</a> ports. This service must be defined as <b>server apcupsd accept</b> on all machines
-not directly connected to the UPS (i.e. slaves).
+title_apcupsd="APC UPS Daemon"
+home_apcupsd="http://www.apcupsd.com"
+wikipedia_apcupsd="http://en.wikipedia.org/wiki/Apcupsd"
+service_apcupsd_notes="This service must be defined as <b>server apcupsd accept</b> on all machines not directly connected to the UPS (i.e. slaves).
 <p>
 Note that the port defined here is not the default port (6666) used if you download and compile
 APCUPSD, since the default is conflicting with IRC and many distributions (like Debian) have
@@ -28,11 +35,12 @@ or overwrite this FireHOL service definition using the procedures described in
 <a href=\"adding.html\">Adding Services</a>.
 "
 
-
+title_apcupsdnis="APC UPS Daemon"
+home_apcupsdnis="http://www.apcupsd.com"
+wikipedia_apcupsdnis="http://en.wikipedia.org/wiki/Apcupsd"
 service_apcupsdnis_notes="APC UPS Network Information Server. This service allows the remote WEB interfaces
 <a href=\"http://www.apcupsd.com/\">APCUPSD</a> has, to connect and get information from the server directly connected to the UPS device.
 "
-
 
 server_all_ports="all"
 client_all_ports="all"
@@ -42,46 +50,6 @@ Matches all traffic (all protocols, ports, etc) while ensuring that required ker
 <br>This service may indirectly setup a set of other services, if they are required by the kernel modules to be loaded.
 Currently it activates also <a href=\"#ftp\">ftp</a>, <a href=\"#irc\">irc</a> and <a href=\"#icmp\">icmp</a>.
 "
-
-server_amanda_ports="see&nbsp;notes"
-client_amanda_ports="see&nbsp;notes"
-service_amanda_type="complex"
-service_amanda_example="server amanda accept <u>src</u> <u>1.2.3.4</u>"
-service_amanda_notes="
-This implementation of <a href=\"http://amanda.sf.net\">AMANDA, the Advanced Maryland Automatic Network Disk Archiver</a>
-is based on the <a href=\"http://amanda.sourceforge.net/cgi-bin/fom?_highlightWords=firewall&file=139\">notes posted at Amanda's Faq-O-Matic</a>.
-<p>
-Based on this, FireHOL allows:<br>
-<ul>
-	<li>a connection from the server to the client at <b>udp 10080</b></li>
-	<li>connections from the client to the server at <b>tcp & udp</b> ports
-	controlled by the variable <b>FIREHOL_AMANDA_PORTS</b>.
-	<p>
-	Default: <b>FIREHOL_AMANDA_PORTS=\"850:859\"</b>
-	<p>It has been written in amanda mailing lists that by default amanda
-	chooses ports in the range of 600 to 950. If you don't compile amanda
-	yourself you may have to change the variable FIREHOL_AMANDA_PORTS to
-	accept a wider match (but consider the trust relationship you are
-	building with this).
-	</li>
-</ul>
-I <b>strongly suggest</b> to use this service in your firewall like:
-<p>
-<b><a href=\"commands.html#server\">server</a> amanda accept <a href=\"commands.html#src\">src</a> 1.2.3.4</b>, or <br>
-<b><a href=\"commands.html#client\">client</a> amanda accept <a href=\"commands.html#dst\">dst</a> 5.6.7.8</b>
-<p>
-in order to limit the hosts
-that have access to the ports controlled by the variable <b>FIREHOL_AMANDA_PORTS</b>.
-<p>
-This complex service handles correctly the multi-socket bi-directional environment required.
-Use the FireHOL <b>server</b> directive on the Amanda server, and FireHOL's <b>client</b> on the Amanda client.
-<p>
-The <b>amanda</b> service will break if it is NATed (to work it would require a bi-directional NAT and
-a modification in the amanda code to allow connections from/to high ports).
-<p>
-<b>USE THIS WITH CARE. MISUSE OF THIS SERVICE MAY LEAD TO OPENING PRIVILEGED PORTS TO ANYONE.</b>
-"
-
 
 server_any_ports="all"
 client_any_ports="all"
@@ -103,15 +71,21 @@ Also, this service is exactly the same with service <a href=\"#any\">any</a>, bu
 "
 service_anystateless_example="server anystateless <u>myname</u> accept proto 47"
 
+wikipedia_asterisk="http://en.wikipedia.org/wiki/Asterisk_PBX"
+home_asterisk="http://www.asterisk.org"
 service_asterisk_notes="
-<a href=\"http://www.asterisk.org\">Asterisk</a> is an open source PABX and the Swiss knife of VoIP.<p>
 This service refers only to the <b>manager</b> interface of asterisk.
 You should normally need to enable <a href=\"#sip\">sip</a>, <a href=\"#h323\">h323</a>,
 <a href=\"#rtp\">rtp</a>, etc at the firewall level, if you enable the relative channel drivers
 of asterisk."
 
+title_cups="Common UNIX Printing System"
+home_cups="http://www.cups.org"
+wikipedia_cups="http://en.wikipedia.org/wiki/Common_Unix_Printing_System"
 
-service_cups_notes="<a href=\"http://www.cups.org\">Common UNIX Printing System</a>"
+title_cvspserver="Concurrent Versions System"
+home_cvspserver="http://www.nongnu.org/cvs/"
+wikipedia_cvspserver="http://en.wikipedia.org/wiki/Concurrent_Versions_System"
 
 server_custom_ports="defined&nbsp;in&nbsp;the&nbsp;command"
 client_custom_ports="defined&nbsp;in&nbsp;the&nbsp;command"
@@ -122,27 +96,33 @@ To find more about this service please check the <a href=\"adding.html\">Adding 
 "
 service_custom_example="server custom <u>myimap</u> <u>tcp/143</u> <u>default</u> accept"
 
-service_distcc_notes="
-<a href=\"http://distcc.samba.org/\">distcc</a> is a program to distribute builds of C,
-C++, Objective C or Objective C++ code across several machines on a network.<p>
-For distcc security, please check the <a href=\"http://distcc.samba.org/security.html\">distcc security design</a>.
-"
-
+home_darkstat="http://dmr.ath.cx/net/darkstat/"
 service_darkstat_notes="
-<a href=\"http://purl.org/net/darkstat\">Darkstat</a> is a network traffic analyzer.
+Darkstat is a network traffic analyzer.
 It's basically a packet sniffer which runs as a background process on a cable/DSL router
 and gathers all sorts of useless but interesting statistics.
 "
 
+title_daytime="Daytime Protocol"
+wikipedia_daytime="http://en.wikipedia.org/wiki/Daytime_Protocol"
+
+home_distcc="http://distcc.samba.org/"
+wikipedia_distcc="http://en.wikipedia.org/wiki/Distcc"
+service_distcc_notes="
+For distcc security, please check the <a href=\"http://distcc.samba.org/security.html\">distcc security design</a>.
+"
+
+title_dcc="Distributed Checksum Clearinghouses"
+wikipedia_dcc="http://en.wikipedia.org/wiki/Distributed_Checksum_Clearinghouse"
 service_dcc_notes="
-Distributed Checksum Clearinghouses. See <a href=\"http://spamassassin.taint.org/faq/index.cgi?req=show&file=faq02.007.htp\">http://spamassassin.taint.org/faq/index.cgi?req=show&file=faq02.007.htp</a> and
-<a href=\"http://www.rhyolite.com/anti-spam/dcc/FAQ.html#firewall-ports\">http://www.rhyolite.com/anti-spam/dcc/FAQ.html#firewall-ports</a>.
+See <a href=\"http://www.rhyolite.com/anti-spam/dcc/FAQ.html#firewall-ports\">http://www.rhyolite.com/anti-spam/dcc/FAQ.html#firewall-ports</a>.
 "
 
-service_dcpp_notes="
-Direct Connect++ P2P, can be found <a href=\"http://dcplusplus.sourceforge.net\">here</a>.
-"
+title_dcpp="Direct Connect++"
+home_dcpp="http://dcplusplus.sourceforge.net"
 
+title_dhcp="Dynamic Host Configuration Protocol"
+wikipedia_dhcp="http://en.wikipedia.org/wiki/Dhcp"
 server_dhcp_ports="udp/67"
 client_dhcp_ports="68"
 service_dhcp_notes="
@@ -188,10 +168,22 @@ and section 4 of
 <a href=\"http://www.ietf.org/rfc/rfc1542.txt?number=1542\">RFC 1542</a>
 "
 
+title_dict="Dictionary Server Protocol"
+wikipedia_dict="http://en.wikipedia.org/wiki/DICT"
 service_dict_notes="
-The Dictionary Server Protocol (DICT) is a TCP transaction based query/response protocol that allows a client to access dictionary definitions from a set of natural language dictionary databases.
 See <a href=\"http://www.ietf.org/rfc/rfc2229.txt?number=2229\">RFC2229</a>.
 "
+
+title_dns="Domain Name System"
+wikipedia_dns="http://en.wikipedia.org/wiki/Domain_Name_System"
+service_dns_notes="
+On very busy DNS servers you may see a few dropped DNS packets in your logs.
+This is normal. The iptables connection tracker will timeout the session and leave unmatched DNS packets that arrive too late to be any usefull.
+"
+
+title_echo="Echo Protocol"
+wikipedia_echo="http://en.wikipedia.org/wiki/Echo_Protocol"
+
 
 service_ESP_notes="IPSec Encapsulated Security Payload (ESP).
 <p>
@@ -199,13 +191,14 @@ For more information see the <a href=\"http://www.freeswan.org/freeswan_trees/fr
 and RFC <a href=\"http://www.ietf.org/rfc/rfc2406.txt?number=2406\">RFC 2406</a>.
 "
 
+title_emule="eMule (Donkey network client)"
+home_emule="http://www.emule-project.com"
 server_emule_ports="many"
 client_emule_ports="many"
 service_emule_example="client emule accept src 1.1.1.1"
 service_emule_type="complex"
-service_emule_notes="<a href=\"http://www.emule-project.com\">eMule</a> (Donkey network client).
-<p>
-According to <a href=\"http://www.emule-project.net/faq/ports.htm\">eMule Port Definitions</a>, FireHOL defines:
+service_emule_notes="
+FireHOL defines:
 <ul>
 	<li>Connection from any client port to the server at tcp/4661<br>&nbsp;</li>
 	<li>Connection from any client port to the server at tcp/4662<br>&nbsp;</li>
@@ -216,28 +209,23 @@ According to <a href=\"http://www.emule-project.net/faq/ports.htm\">eMule Port D
 </ul>
 Use the FireHOL <a href=\"commands.html#client\">client</a> command to match the eMule client.
 <p>
-Please note that the <a href=\"http://www.emule-project.com\">eMule</a> client is an HTTP client also.
+Please note that the eMule client is an HTTP client also.
 "
 
-service_eserver_notes="
-<a href=\"http://lugdunum2k.free.fr/kiten.html\">eserver</a> is the emule/edonkey server.
-"
+title_eserver="eDonkey network server"
+wikipedia_eserver="http://en.wikipedia.org/wiki/Eserver"
 
-service_finger_notes="See: <a href=\"http://www.busan.edu/~nic/networking/firewall/ch08_08.htm\">O'Reilly's Building Internet Firewalls book</a> about finger and firewalls."
+title_finger="Finger Protocol"
+wikipedia_finger="http://en.wikipedia.org/wiki/Finger_protocol"
 
-server_ftp_ports="many"
-client_ftp_ports="many"
-service_ftp_type="complex"
-require_ftp_modules="ip_conntrack_ftp"
-require_ftp_nat_modules="ip_nat_ftp"
-service_ftp_notes="
-The FTP service matches both active and passive FTP connections by utilizing the FTP connection tracker kernel module.
-"
+title_ftp="File Transfer Protocol"
+wikipedia_ftp="http://en.wikipedia.org/wiki/Ftp"
+service_ftp_notes="FireHOL uses the netfilter module to match both active and passive ftp connections."
 
+title_gift="giFT Internet File Transfer"
+home_gift="http://gift.sourceforge.net"
+wikipedia_gift="http://en.wikipedia.org/wiki/GiFT"
 service_gift_notes="
-<a href=\"http://gift.sourceforge.net\">GiFT</a> is a collection of various software components
-geared towards improving the overall usability of a multitude of peer-to-peer file-sharing networks.<p>
-
 The <b>gift</b> FireHOL service supports:<br>
 <ul>
 <li>Gnutella listening at tcp/4302</li>
@@ -249,38 +237,37 @@ The above ports are the defaults given for the coresponding GiFT modules.<p>
 To allow access to the user interface ports of GiFT, use the <a href=\"#giftui\">giftui</a> FireHOL service.
 "
 
+title_giftui="giFT Internet File Transfer"
+home_giftui="http://gift.sourceforge.net"
+wikipedia_giftui="http://en.wikipedia.org/wiki/GiFT"
 service_giftui_notes="
-<a href=\"http://gift.sourceforge.net\">GiFT</a> is a collection of various software components
-geared towards improving the overall usability of a multitude of peer-to-peer file-sharing networks.<p>
-
 This service refers only to the user interface ports offered by GiFT.
 To allow gift accept P2P requests, use the <a href=\"#gift\">gift</a> FireHOL service.
 "
 
-server_tftp_ports="many"
-client_tftp_ports="many"
-service_tftp_type="complex"
-require_tftp_modules="ip_conntrack_tftp"
-require_tftp_nat_modules="ip_nat_tftp"
-service_tftp_notes="
-The TFTP service matches UDP TFTP connections by utilizing the TFTP connection tracker kernel module.
-"
+home_gkrellmd="http://members.dslextreme.com/users/billw/gkrellm/gkrellm.html"
+wikipedia_gkrellmd="http://en.wikipedia.org/wiki/Gkrellm"
 
-service_GRE_notes="Generic Routing Encapsulation (protocol No 47).
-<p>
-For more information see RFC <a href=\"http://www.ietf.org/rfc/rfc2784.txt?number=2784\">RFC 2784</a>.
-"
+title_GRE="Generic Routing Encapsulation"
+wikipedia_GRE="http://en.wikipedia.org/wiki/Generic_Routing_Encapsulation"
+service_GRE_notes="
+This service matches just the protocol. For full VPN functionality additional services may be needed (such as <a href=\"#pptp\">pptp</a>)"
 
-service_h323_notes="
-<a href=\"http://www.voip-info.org/wiki-H.323\">H.323</a> is much more complicated than this firewall implementation.
-Check <a href=\"http://erris.med.virginia.edu/tech/FIREWALL.HTM\">this document</a> for an explanation.
-"
-
+home_heartbeat="http://www.linux-ha.org/"
 service_heartbeat_notes="
-HeartBeat is the Linux clustering solution available <a href="http://www.linux-ha.org/">http://www.linux-ha.org/</a>.
 This FireHOL service has been designed such a way that it will allow multiple heartbeat clusters on the same LAN.
 "
 
+wikipedia_h323="http://en.wikipedia.org/wiki/H323"
+
+title_http="Hypertext Transfer Protocol"
+wikipedia_http="http://en.wikipedia.org/wiki/Http"
+
+title_https="Secure Hypertext Transfer Protocol"
+wikipedia_https="http://en.wikipedia.org/wiki/Https"
+
+home_hylafax="http://www.hylafax.org"
+wikipedia_hylafax="http://en.wikipedia.org/wiki/Hylafax"
 server_hylafax_ports="many"
 client_hylafax_ports="many"
 service_hylafax_type="complex"
@@ -292,46 +279,81 @@ This complex service allows incomming requests to server port tcp/4559 and outgo
 <b>USE THIS WITH CARE. A HYLAFAX CLIENT MAY OPEN ALL TCP UNPRIVILEGED PORTS TO ANYONE</b> (from port tcp/4558).
 "
 
-service_iax_ports="
+title_iax="Inter-Asterisk eXchange"
+wikipedia_iax="http://en.wikipedia.org/wiki/Iax"
+home_iax="http://www.asterisk.org"
+service_iax_notes="
 This service refers to IAX version 1. There is also the <a href=\"#iax2\">iax2</a> service.<p>
-IAX stands for Inter-Asterisk eXchange, a protocol developed by the open source <a href=\"http://www.asterisk.org\">Asterisk</a> PABX.
 "
 
-service_iax2_ports="
+title_iax2="Inter-Asterisk eXchange"
+wikipedia_iax2="http://en.wikipedia.org/wiki/Iax"
+home_iax2="http://www.asterisk.org"
+service_iax2_notes="
 This service refers to IAX version 2. There is also the <a href=\"#iax\">iax</a> service.<p>
-IAX stands for Inter-Asterisk eXchange, a protocol developed by the open source <a href=\"http://www.asterisk.org\">Asterisk</a> PABX.
 "
 
-service_icp_ports="
-ICP is the protocol used for the communication between <a href=\"www.squid-cache.org\">squid</a> web caches.
-"
+title_ICMP="Internet Control Message Protocol"
+wikipedia_ICMP="http://en.wikipedia.org/wiki/Internet_Control_Message_Protocol"
 
+title_icmp="${title_ICMP}"
+wikipedia_icmp="${wikipedia_ICMP}"
+
+title_icp="Internet Cache Protocol"
+wikipedia_icp="http://en.wikipedia.org/wiki/Internet_Cache_Protocol"
+
+wikipedia_ident="http://en.wikipedia.org/wiki/Ident"
 service_ident_example="server ident reject with tcp-reset"
 
+title_imap="Internet Message Access Protocol"
+wikipedia_imap="http://en.wikipedia.org/wiki/Imap"
 
+title_imaps="Secure Internet Message Access Protocol"
+wikipedia_imaps="http://en.wikipedia.org/wiki/Imap"
+
+title_ipsecnatt="NAT traversal and IPsec"
+wikipedia_ipsecnatt="http://en.wikipedia.org/wiki/NAT_traversal#NAT_traversal_and_IPsec"
+
+title_irc="Internet Relay Chat"
+wikipedia_irc="http://en.wikipedia.org/wiki/Internet_Relay_Chat"
+
+title_isakmp="Internet Security Association and Key Management Protocol"
+wikipedia_isakmp="http://en.wikipedia.org/wiki/ISAKMP"
 service_isakmp_notes="IPSec key negotiation (IKE on UDP port 500).
 <p>
 For more information see the <a href=\"http://www.freeswan.org/freeswan_trees/freeswan-1.99/doc/quickstart-firewall.html#quick_firewall\">FreeS/WAN documentation</a>.
 "
 
-service_jabber_notes="<a href=\"http://www.jabber.org\">Jabber</a> Instant Messenger
-<p>
-This definition allows both clear and SSL jabber client - to - jabber server connections, as given in this <a href=\"http://www.jabber.org/user/userfaq.html#id2781037\">Jabber FAQ</a>.
+title_jabber="Extensible Messaging and Presence Protocol"
+wikipedia_jabber="http://en.wikipedia.org/wiki/Jabber"
+service_jabber_notes="
+Clear and SSL client-to-server connections.
 "
 
-service_jabberd_notes="<a href=\"http://www.jabber.org\">Jabberd</a> Instant Messenger Server
-<p>
-This definition allows both clear and SSL jabber client - to - jabber server and jabber server - to - server connections, as given in this <a href=\"http://www.jabber.org/admin/adminguide.html#requirements-ports\">Jabberd FAQ</a>.
+title_jabberd="Extensible Messaging and Presence Protocol"
+wikipedia_jabberd="http://en.wikipedia.org/wiki/Jabber"
+service_jabberd_notes="
+Clear and SSL jabber client-to-server and server-to-server connections.
 <p>
 Use this service for a jabberd server. In all other cases, use the <a href=\"#jabber\">jabber</a> service.
 "
 
-service_lpd_notes="Line Printer Deamon Protocol (LPD)
-<p>
+title_l2tp="Layer 2 Tunneling Protocol"
+wikipedia_l2tp="http://en.wikipedia.org/wiki/L2tp"
+
+title_ldap="Lightweight Directory Access Protocol"
+wikipedia_ldap="http://en.wikipedia.org/wiki/Ldap"
+
+title_ldaps="Lightweight Directory Access Protocol"
+wikipedia_ldaps="http://en.wikipedia.org/wiki/Ldap"
+
+title_lpd="Line Printer Daemon protocol"
+wikipedia_lpd="http://en.wikipedia.org/wiki/Line_Printer_Daemon_protocol"
+service_lpd_notes="
 LPD is documented in <a href=\"http://www.ietf.org/rfc/rfc1179.txt?number=1179\">RFC 1179</a>.
 <p>
-Since many operating systems are incorrectly using the default client ports for LPD access, this
-definition allows the default client ports to access the service (additionally to the RFC defined 721 to 731 inclusive)."
+Since many operating systems are incorrectly using non-default client ports for LPD access, this
+definition allows any client port to access the service (additionally to the RFC defined 721 to 731 inclusive)."
 
 
 service_microsoft_ds_notes="
@@ -345,6 +367,12 @@ It seems that samba supports transparently this protocol on the <a href=\"#netbi
 so that either direct hosted or traditional SMB can be served simultaneously.
 <p>
 Please refer to the <a href=\"#netbios_ssn\">netbios_ssn</a> service for more information.
+"
+
+title_mms="Microsoft Media Server"
+wikipedia_mms="http://en.wikipedia.org/wiki/Microsoft_Media_Server"
+service_mms_notes="
+Microsoft's proprietary network streaming protocol used to transfer unicast data in Windows Media Services (previously called NetShow Services). MMS can be transported via UDP or TCP. The MMS default port is UDP/TCP 1755.
 "
 
 service_ms_ds_notes="
@@ -366,6 +394,7 @@ For a discussion about what works and what is not, please take a look at
 <A HREF=\"http://www.microsoft.com/technet/treeview/default.asp?url=/technet/prodtechnol/winxppro/evaluate/worki01.asp\">this technet note</A>.
 "
 
+wikipedia_multicast="http://en.wikipedia.org/wiki/Multicast"
 server_multicast_ports="N/A"
 client_multicast_ports="N/A"
 service_multicast_type="complex"
@@ -374,28 +403,34 @@ The multicast service matches all packets send to 224.0.0.0/4 using IGMP or UDP.
 "
 service_multicast_example="server multicast reject with proto-unreach"
 
+home_mysql="http://www.mysql.com/"
+wikipedia_mysql="http://en.wikipedia.org/wiki/Mysql"
+
+wikipedia_netbackup="http://en.wikipedia.org/wiki/Netbackup"
 service_netbackup_notes="
 This is the Veritas NetBackup service. To use this service you must define it
 as both client and server in NetBackup clients and NetBackup servers."
 service_netbackup_example="server netbackup accept<br>client netbackup accept"
 
+title_netbios_ns="NETBIOS Name Service"
+wikipedia_netbios_ns="http://en.wikipedia.org/wiki/Netbios#Name_service"
 service_netbios_ns_notes="
-NETBIOS Name Service
-<p>
 See also the <a href=\"#samba\">samba</a> service.
 "
+
+title_netbios_dgm="NETBIOS Datagram Distribution Service"
+wikipedia_netbios_dgm="http://en.wikipedia.org/wiki/Netbios#Datagram_distribution_service"
 service_netbios_dgm_notes="
-NETBIOS Datagram Service
-<p>
 See also the <a href=\"#samba\">samba</a> service.
 <p>
 Keep in mind that this service broadcasts (to the broadcast address of your LAN) UDP packets.
 If you place this service within an interface that has a <b>dst</b> parameter, remember to
 include (in the <b>dst</b> parameter) the broadcast address of your LAN too.
 "
+
+title_netbios_ssn="NETBIOS Session Service"
+wikipedia_netbios_ssn="http://en.wikipedia.org/wiki/Netbios#Session_service"
 service_netbios_ssn_notes="
-NETBIOS Session Service
-<p>
 See also the <a href=\"#samba\">samba</a> service.
 <p>
 Please keep in mind that newer NETBIOS clients prefer to use port 445 (<a href=\"#microsoft_ds\">microsoft_ds</a>)
@@ -429,7 +464,8 @@ where:
 </ul>
 "
 
-
+title_nfs="Network File System"
+wikipedia_nfs="http://en.wikipedia.org/wiki/Network_File_System_%28protocol%29"
 server_nfs_ports="many"
 client_nfs_ports="500:65535"
 service_nfs_type="complex"
@@ -449,11 +485,13 @@ when FireHOL tries to query the RPC server. So you might have to setup NFS in tw
 service and activate the firewall, then add the NFS service and restart the firewall.
 <p>
 To avoid this you can setup your NFS server to listen on pre-defined ports, as it is well documented in
-<a href=\"http://nfs.sourceforge.net/nfs-howto/security.html#FIREWALLS\">http://nfs.sourceforge.net/nfs-howto/security.html#FIREWALLS</a>.
+<a href=\"http://nfs.sourceforge.net/nfs-howto/ar01s06.html#srv_security_nfsd_mountd\">http://nfs.sourceforge.net/nfs-howto/ar01s06.html#srv_security_nfsd_mountd</a>.
 If you do this then you will have to define the the ports using the procedure described in <a href=\"adding.html\">Adding Services</a>.
 "
 service_nfs_example="client nfs accept <u>dst</u> <u>1.2.3.4</u>"
 
+title_nis="Network Information Service"
+wikipedia_nis="http://en.wikipedia.org/wiki/Network_Information_Service"
 server_nis_ports="many"
 client_nis_ports="500:65535"
 service_nis_type="complex"
@@ -488,16 +526,35 @@ master server is the most common, and recommended, way to replicate maps.
 "
 service_nis_example="client nis accept <u>dst</u> <u>1.2.3.4</u>"
 
+title_nntp="Network News Transfer Protocol"
+wikipedia_nntp="http://en.wikipedia.org/wiki/Nntp"
+
+title_nntps="Secure Network News Transfer Protocol"
+wikipedia_nntps="http://en.wikipedia.org/wiki/Nntp"
+
+title_ntp="Network Time Protocol"
+wikipedia_ntp="http://en.wikipedia.org/wiki/Network_Time_Protocol"
+
+title_nut="Network UPS Tools"
+home_nut="http://networkupstools.org/"
+
+wikipedia_nxserver="http://en.wikipedia.org/wiki/NX_Server"
 service_nxserver_notes="
 Default ports used by NX server for connections without encryption.<br>
 Note that nxserver also needs the <a href=\"#ssh\">ssh</a> service to be enabled.<p>
-This information has been extracted from <a href=\"http://www.nomachine.com/developers/archives/nxusers/0022.php\">this document</a>.
-As stated there, the TCP ports used by nxserver is 4000 + DISPLAY_BASE to 4000 + DISPLAY_BASE + DISPLAY_LIMIT.
+The TCP ports used by nxserver is 4000 + DISPLAY_BASE to 4000 + DISPLAY_BASE + DISPLAY_LIMIT.
 DISPLAY_BASE and DISPLAY_LIMIT are set in /usr/NX/etc/node.conf and the defaults are DISPLAY_BASE=1000
 and DISPLAY_LIMIT=200.<p>
 For encrypted nxserver sessions, only <a href=\"#ssh\">ssh</a> is needed.
 "
 
+title_oracle="Oracle Database"
+wikipedia_oracle="http://en.wikipedia.org/wiki/Oracle_db"
+
+title_ospf="Open Shortest Path First"
+wikipedia_ospf="http://en.wikipedia.org/wiki/Ospf"
+
+wikipedia_ping="http://en.wikipedia.org/wiki/Ping"
 server_ping_ports="N/A"
 client_ping_ports="N/A"
 service_ping_type="complex"
@@ -508,24 +565,48 @@ and their replies of type <b>echo-reply</b> (TYPE=0).
 The <b>ping</b> service is stateful.
 "
 
-server_pptp_ports="tcp/1723"
-client_pptp_ports="default"
-service_pptp_type="complex"
-service_pptp_notes="
-Additionally to the above the PPTP service allows stateful GRE traffic (protocol 47) to flow between the PPTP server and the client.
-"
+title_pop3="Post Office Protocol"
+wikipedia_pop3="http://en.wikipedia.org/wiki/Pop3"
 
-service_rdp_notes="
-<b>Remote Desktop Protocol</b> is the protocol used for Windows Remote Desktop Connections (known also as Terminal Services).<p>
-For more information see <a href=\"http://www.microsoft.com/windows2000/community/centers/terminal/terminal_faq.mspx\">this FAQ</a>.
-"
+title_pop3s="Secure Post Office Protocol"
+wikipedia_pop3s="http://en.wikipedia.org/wiki/Pop3"
 
+title_portmap="Open Network Computing Remote Procedure Call - Port Mapper"
+wikipedia_portmap="http://en.wikipedia.org/wiki/Portmap"
+
+title_postgres="PostgreSQL"
+wikipedia_postgres="http://en.wikipedia.org/wiki/Postgres"
+
+title_pptp="Point-to-Point Tunneling Protocol"
+wikipedia_pptp="http://en.wikipedia.org/wiki/Pptp"
+
+home_privoxy="http://www.privoxy.org/"
+
+title_radius="Remote Authentication Dial In User Service (RADIUS)"
+wikipedia_radius="http://en.wikipedia.org/wiki/RADIUS"
+
+title_radiusold="Remote Authentication Dial In User Service (RADIUS)"
+wikipedia_radiusold="http://en.wikipedia.org/wiki/RADIUS"
+
+title_radiusoldproxy="Remote Authentication Dial In User Service (RADIUS)"
+wikipedia_radiusoldproxy="http://en.wikipedia.org/wiki/RADIUS"
+
+title_radiusproxy="Remote Authentication Dial In User Service (RADIUS)"
+wikipedia_radiusproxy="http://en.wikipedia.org/wiki/RADIUS"
+
+title_rdp="Remote Desktop Protocol (also known as Terminal Services)"
+wikipedia_rdp="http://en.wikipedia.org/wiki/Remote_Desktop_Protocol"
+
+title_rndc="Remote Name Daemon Control"
+wikipedia_rndc="http://en.wikipedia.org/wiki/Rndc"
+
+home_rsync="http://rsync.samba.org/"
+wikipedia_rsync="http://en.wikipedia.org/wiki/Rsync"
+
+title_rtp="Real-time Transport Protocol"
+wikipedia_rtp="http://en.wikipedia.org/wiki/Real-time_Transport_Protocol"
 service_rtp_notes="
-<a href=\"http://www.voip-info.org/wiki-RTP\">RTP</a> is the internet standard protocol for the transport of real-time data,
-including audio and video. RTP is used in virtually all voice-over-IP architectures,
-for videoconferencing, media-on-demand, and other applications.<p>
-
-RTP ports are generally all the UDP ports.
+RTP ports are generally all the UDP ports. This definition narrows down RTP ports to UDP 10000 to 20000.
 "
 
 server_samba_ports="many"
@@ -596,25 +677,26 @@ print_service() {
 		color=""
 	fi
 	
-	service="${1}";	shift
-	type="${1}";	shift
-	sports="${1}";	shift
-	dports="${1}";	shift
-	mods="${1}";	shift
-	nmods="${1}";	shift
-	example="${1}";	shift
-	notes="${*}"
-	
+	local service="${1}";	shift
+	local type="${1}";	shift
+	local sports="${1}";	shift
+	local dports="${1}";	shift
+	local mods="${1}";	shift
+	local title="${1}";	shift
+	local home="${1}";	shift
+	local wiki="${1}";	shift
+	local example="${1}";	shift
+	local notes="${*}"
 	
 cat <<EOF
 <tr ${color}>
 	<td align="center" valign="top"><a name="${service}"><b>${service}</b></a></td>
 	<td align="center" valign="top">${type}</td>
 	<td>
-		<table cellspacing=0 cellpadding=2 border=0>
+		<table cellspacing=0 cellpadding=5 border=0>
 		<tr>
 EOF
-	echo "<td align=right valign=top nowrap><small><font color="gray">Server Ports</td><td>&nbsp;"
+	echo "<td align=right valign=middle nowrap width=150><small><font color="gray">Server Ports</td><td>"
 	c=0
 	for x in ${sports}
 	do
@@ -627,7 +709,7 @@ EOF
 		c=$[c + 1]
 	done
 	
-	echo "</td></tr><tr><td align=right valign=top nowrap><small><font color="gray">Client Ports</td><td>&nbsp;"
+	echo "</td></tr><tr><td align=right valign=middle nowrap><small><font color="gray">Client Ports</td><td>"
 	c=0
 	for x in ${dports}
 	do
@@ -640,36 +722,62 @@ EOF
 		c=$[c + 1]
 	done
 	
-	echo "</td></tr><tr><td align=right valign=top nowrap><small><font color="gray">Netfilter Modules</td><td>&nbsp;"
-	c=0
-	for x in ${mods}
-	do
-		if [ $c -ne 0 ]
-		then
-			echo ", "
-		fi
-		
-		echo "<font color=red><b>${x}</b></font> (CONFIG_IP_NF_`echo ${x} | cut -d '_' -f 3- | tr [a-z] [A-Z]`)"
-		c=$[c + 1]
-	done
+	if [ ! -z "${mods}" ]
+	then
 	
-	echo "</td></tr><tr><td align=right valign=top nowrap><small><font color="gray">Netfilter NAT Modules</td><td>&nbsp;"
-	c=0
-	for x in ${nmods}
-	do
-		if [ $c -ne 0 ]
-		then
-			echo ", "
-		fi
+		echo "</td></tr><tr><td align=right valign=middle nowrap><small><font color="gray">Netfilter Modules</td><td>"
+		c=0
+		for x in ${mods}
+		do
+			if [ $c -ne 0 ]
+			then
+				echo ",<br> "
+			fi
 		
-		echo "<font color=red><b>${x}</b></font> (CONFIG_IP_NF_NAT_`echo ${x} | cut -d '_' -f 3- | tr [a-z] [A-Z]`)"
-		c=$[c + 1]
-	done
+			local kv="NF_CONNTRACK_`echo ${x} | tr [a-z] [A-Z]`"
+			test "${kv}" = "NF_CONNTRACK_PROTO_GRE" && local kv="NF_CT_PROTO_GRE"
+			
+			echo "<font color=red><b>${x}</b></font> (<a href=\"http://cateee.net/lkddb/web-lkddb/${kv}.html\">CONFIG_${kv}</a>)"
+			c=$[c + 1]
+		done
 	
-	echo "</td>"
+		echo "</td></tr><tr><td align=right valign=middle nowrap><small><font color="gray">Netfilter NAT Modules</td><td>"
+		c=0
+		for x in ${mods}
+		do
+			case "${x}" in
+				netbios_ns|netlink|sane)
+					# these do not exist in nat
+					continue
+					;;
+			esac
+			
+			if [ $c -ne 0 ]
+			then
+				echo ",<br>"
+			fi
+		
+			local kv="NF_NAT_`echo ${x} | tr [a-z] [A-Z]`"
+			echo "<font color=red><b>${x}</b></font> (<a href=\"http://cateee.net/lkddb/web-lkddb/${kv}.html\">CONFIG_${kv}</a>)"
+			c=$[c + 1]
+		done
+	
+		echo "</td></tr>"
+	fi
+	
+	if [ ! -z "${home}" ]
+	then
+		echo "<tr><td align=right valign=middle nowrap><small><font color=\"gray\">Official Site</td><td><a href=\"${home}\">${title} Home</a></td></tr>"
+	fi
+	
+	if [ ! -z "${wiki}" ]
+	then
+		echo "<tr><td align=right valign=middle nowrap><small><font color=\"gray\">Wikipedia</td><td><a href=\"${wiki}\">${title} in Wikipedia</a></td></tr>"
+	fi
+	
+	# echo "<tr><td align=right valign=middle nowrap><small><font color=\"gray\">Google Search</td><td><a href=\"http://www.google.com/search?q=${service}+iptables+firewall+ports&hl=en&num=10&lr=&ft=i&tbs=qdr:y&cr=&safe=off\">${title} in Google</a></td></tr>"
 	
 cat <<EOF
-	</tr>
 	<tr><td align=right valign=top nowrap><small><font color="gray">Notes</td><td>${notes}<br>&nbsp;</td></tr>
 	<tr><td align=right valign=top nowrap><small><font color="gray">Example</td><td><b>${example}</b></td></tr>
 	</table>
@@ -687,17 +795,28 @@ smart_print_service() {
 	local client_varname="client_${server}_ports"
 	local client_ports="`eval echo \\\$${client_varname}`"
 	
-	local mods_varname="require_${server}_modules"
+	local mods_varname="helper_${server}"
 	local require_modules="`eval echo \\\$${mods_varname}`"
-	
-	local mods_nat_varname="require_${server}_nat_modules"
-	local require_nat_modules="`eval echo \\\$${mods_nat_varname}`"
 	
 	local notes_varname="service_${server}_notes"
 	local notes="`eval echo \\\$${notes_varname}`"
 	
 	local type_varname="service_${server}_type"
 	local type="`eval echo \\\$${type_varname}`"
+	
+	local title_varname="title_${server}"
+	local title="`eval echo \\\$${title_varname}`"
+	
+	local wiki_varname="wikipedia_${server}"
+	local wiki="`eval echo \\\$${wiki_varname}`"
+	
+	local home_varname="home_${server}"
+	local home="`eval echo \\\$${home_varname}`"
+	
+	if [ -z "${title}" ]
+	then
+		title="${server}"
+	fi
 	
 	if [ -z "${type}" ]
 	then
@@ -712,7 +831,7 @@ smart_print_service() {
 		local example="server ${server} accept"
 	fi
 	
-	print_service "${server}" "${type}" "${server_ports}" "${client_ports}" "${require_modules}" "${require_nat_modules}" "${example}" "${notes}"
+	print_service "${server}" "${type}" "${server_ports}" "${client_ports}" "${require_modules}" "${title}" "${home}" "${wiki}" "${example}" "${notes}"
 }
 
 
@@ -730,7 +849,7 @@ cat "../firehol.sh"			|\
 	grep -e "^service_.*_notes=" >>"${tmp}"
 
 cat "../firehol.sh"			|\
-	grep -e "^require_.*_modules=" >>"${tmp}"
+	grep -e "^helper_.*=" >>"${tmp}"
 
 . "${tmp}"
 rm -f "${tmp}"
@@ -836,7 +955,7 @@ do_letter() {
 		
 		echo "
 <td width=\"25%\" align=left valign=top>
-	<table border=0 cellpadding=2 cellspacing=2 width=\"100%\">
+	<table border=0 cellpadding=10 cellspacing=5 width=\"100%\">
 	<tr><td align=left valign=top><font color=\"gray\" size=+1><b>${last_letter}</td></tr>
 	<tr><td align=left valign=top><small>
 "
@@ -976,7 +1095,7 @@ cat <<"EOF"
 <tr><td align=center valign=middle>
 	<A href="http://sourceforge.net"><IMG src="http://sourceforge.net/sflogo.php?group_id=58425&amp;type=5" width="210" height="62" border="0" alt="SourceForge Logo"></A>
 </td><td align=center valign=middle>
-	<small>$Id: create_services.sh,v 1.57 2007/07/20 21:28:14 ktsaou Exp $</small>
+	<small>$Id: create_services.sh,v 1.58 2013/01/06 23:49:08 ktsaou Exp $</small>
 	<p>
 	<b>FireHOL</b>, a firewall for humans...<br>
 	&copy; Copyright 2004

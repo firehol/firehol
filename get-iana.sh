@@ -1,8 +1,12 @@
 #!/bin/bash
 
-# $Id: get-iana.sh,v 1.14 2010/06/07 15:44:09 ktsaou Exp $
+# $Id: get-iana.sh,v 1.15 2013/01/06 23:49:08 ktsaou Exp $
 #
 # $Log: get-iana.sh,v $
+# Revision 1.15  2013/01/06 23:49:08  ktsaou
+# Removed depedency to get-iana.sh
+# It is not usefull any more.
+#
 # Revision 1.14  2010/06/07 15:44:09  ktsaou
 # Made get-iana.sh support the latest IANA format.
 #
@@ -170,6 +174,7 @@ diff /etc/firehol/RESERVED_IPS ${tempfile}
 
 if [ $? -eq 0 ]
 then
+	touch /etc/firehol/RESERVED_IPS
 	echo >&2
 	echo >&2 "No differences found."
 	echo >&2
