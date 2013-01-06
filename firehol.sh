@@ -10,7 +10,7 @@
 #
 # config: /etc/firehol/firehol.conf
 #
-# $Id: firehol.sh,v 1.294 2010/10/05 21:10:08 ktsaou Exp $
+# $Id: firehol.sh,v 1.295 2013/01/06 23:26:04 ktsaou Exp $
 #
 
 # Make sure only root can run us.
@@ -243,7 +243,7 @@ ${RENICE_CMD} 10 $$ >/dev/null 2>/dev/null
 # Find our minor version
 firehol_minor_version() {
 ${CAT_CMD} <<"EOF" | ${CUT_CMD} -d ' ' -f 3 | ${CUT_CMD} -d '.' -f 2
-$Id: firehol.sh,v 1.294 2010/10/05 21:10:08 ktsaou Exp $
+$Id: firehol.sh,v 1.295 2013/01/06 23:26:04 ktsaou Exp $
 EOF
 }
 
@@ -2438,17 +2438,20 @@ blacklist() {
 		# Blacklist INPUT unidirectional
 		iptables -t filter -N BL_IN_UNI	# INPUT
 		iptables -A BL_IN_UNI -m state --state NEW -j DROP
+		iptables -A BL_IN_UNI -j DROP
 		
 		# No need for OUTPUT/FORWARD unidirectional
 		
 		# Blacklist INPUT bidirectional
 		iptables -t filter -N BL_IN_BI	# INPUT
+		iptables -A BL_IN_BI -m state --state NEW -j DROP
 		iptables -A BL_IN_BI -j DROP
 		
 		# Blacklist OUTPUT/FORWARD bidirectional
 		iptables -t filter -N BL_OUT_BI	# OUTPUT and FORWARD
-		iptables -A BL_OUT_BI -p tcp -j REJECT --reject-with tcp-reset
-		iptables -A BL_OUT_BI -j REJECT --reject-with icmp-host-unreachable
+		iptables -A BL_OUT_BI -m state --state NEW -p tcp -j REJECT #--reject-with tcp-reset
+		iptables -A BL_OUT_BI -m state --state NEW -j REJECT --reject-with icmp-host-unreachable
+		iptables -A BL_OUT_BI -j REJECT
 		
 		blacklist_chain=1
 	fi
@@ -5937,7 +5940,7 @@ case "${arg}" in
 			esac
 		else
 		${CAT_CMD} <<EOF
-$Id: firehol.sh,v 1.294 2010/10/05 21:10:08 ktsaou Exp $
+$Id: firehol.sh,v 1.295 2013/01/06 23:26:04 ktsaou Exp $
 (C) Copyright 2002-2007, Costa Tsaousis <costa@tsaousis.gr>
 FireHOL is distributed under GPL.
 
@@ -6126,7 +6129,7 @@ then
 	
 	${CAT_CMD} <<EOF
 
-$Id: firehol.sh,v 1.294 2010/10/05 21:10:08 ktsaou Exp $
+$Id: firehol.sh,v 1.295 2013/01/06 23:26:04 ktsaou Exp $
 (C) Copyright 2003, Costa Tsaousis <costa@tsaousis.gr>
 FireHOL is distributed under GPL.
 Home Page: http://firehol.sourceforge.net
@@ -6431,7 +6434,7 @@ then
 	
 	"${CAT_CMD}" >&2 <<EOF
 
-$Id: firehol.sh,v 1.294 2010/10/05 21:10:08 ktsaou Exp $
+$Id: firehol.sh,v 1.295 2013/01/06 23:26:04 ktsaou Exp $
 (C) Copyright 2003, Costa Tsaousis <costa@tsaousis.gr>
 FireHOL is distributed under GPL.
 Home Page: http://firehol.sourceforge.net
@@ -6509,7 +6512,7 @@ EOF
 	
 	${CAT_CMD} <<EOF
 #!${FIREHOL_FILE}
-# $Id: firehol.sh,v 1.294 2010/10/05 21:10:08 ktsaou Exp $
+# $Id: firehol.sh,v 1.295 2013/01/06 23:26:04 ktsaou Exp $
 # 
 # This config will have the same effect as NO PROTECTION!
 # Everything that found to be running, is allowed.
