@@ -1,7 +1,7 @@
 
 RCS file: /cvsroot/firehol/firehol/firehol.sh,v
 Working file: firehol.sh
-head: 1.295
+head: 1.296
 branch:
 locks: strict
 access list:
@@ -9,8 +9,13 @@ symbolic names:
 	start: 1.1.1.1
 	vendor: 1.1.1
 keyword substitution: kv
-total revisions: 296;	selected revisions: 296
+total revisions: 297;	selected revisions: 297
 description:
+----------------------------
+revision 1.296
+date: 2013/01/06 23:49:08;  author: ktsaou;  state: Exp;  lines: +9 -8
+Removed depedency to get-iana.sh
+It is not usefull any more.
 ----------------------------
 revision 1.295
 date: 2013/01/06 23:26:04;  author: ktsaou;  state: Exp;  lines: +11 -8
