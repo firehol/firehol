@@ -1185,6 +1185,9 @@ server_tftp_ports="udp/69"
 client_tftp_ports="default"
 helper_tftp="tftp"
 
+server_tomcat_ports="${server_httpalt_ports}"
+client_tomcat_ports="${client_httpalt_ports}"
+
 server_time_ports="tcp/37 udp/37"
 client_time_ports="default"
 
