@@ -6057,7 +6057,9 @@ case "${arg}" in
 					${IPTABLES_CMD} -t "${t}" -A "${c}" -p tcp -s "${ssh_src}" --sport "${ssh_sport}" --dport "${ssh_dport}" -m conntrack --ctstate ESTABLISHED -j ACCEPT
 					${IPTABLES_CMD} -t "${t}" -A "${c}" -p tcp -d "${ssh_src}" --dport "${ssh_sport}" --sport "${ssh_dport}" -m conntrack --ctstate ESTABLISHED -j ACCEPT
 				fi
-				${IPTABLES_CMD} -t "${t}" -A "${c}" -j DROP
+				if [ "${t}" != "nat" ] ; then
+					${IPTABLES_CMD} -t "${t}" -A "${c}" -j DROP
+				fi
 			done
 		done
 		success $"FireHOL: Blocking all communications:"
