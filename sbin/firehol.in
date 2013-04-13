@@ -417,10 +417,6 @@ fi
 FIREHOL_CONFIG_DIR="/etc/firehol"
 FIREHOL_CONFIG="${FIREHOL_CONFIG_DIR}/firehol.conf"
 
-# Where /etc/init.d/iptables expects its configuration?
-# Leave it empty for automatic detection
-FIREHOL_AUTOSAVE=
-
 
 # ------------------------------------------------------------------------------
 # Make sure we automatically cleanup when we exit.
@@ -706,6 +702,50 @@ UNROUTABLE_IPS="${RESERVED_IPS} ${PRIVATE_IPS}"
 load_ips UNROUTABLE_IPS "${UNROUTABLE_IPS}" 0
 
 # ----------------------------------------------------------------------
+# Runtime control variables
+#  These do not affect the final firewall output and will honour the
+#  environment variable of the same name if it is set. They can also
+#  be set in the configuration file.
+
+# Which is the filter table chains policy during firewall activation?
+test -z "$FIREHOL_INPUT_ACTIVATION_POLICY" && \
+	FIREHOL_INPUT_ACTIVATION_POLICY="ACCEPT"
+test -z "$FIREHOL_OUTPUT_ACTIVATION_POLICY" && \
+	FIREHOL_OUTPUT_ACTIVATION_POLICY="ACCEPT"
+test -z "$FIREHOL_FORWARD_ACTIVATION_POLICY" && \
+	FIREHOL_FORWARD_ACTIVATION_POLICY="ACCEPT"
+
+# Do we allow pre-existing connections to continue during activation?
+test -z "$FIREHOL_ESTABLISHED_ACTIVATION_ACCEPT" && \
+	FIREHOL_ESTABLISHED_ACTIVATION_ACCEPT=1
+
+# If set to 0, firehol will not try to load the required kernel modules
+test -z "$FIREHOL_LOAD_KERNEL_MODULES" && \
+	FIREHOL_LOAD_KERNEL_MODULES=1
+
+# Set this to 1 have firehol load NAT kernel modules
+# It will generally be set automatically at an appropriate time
+test -z "$FIREHOL_NAT" && \
+	FIREHOL_NAT=0
+
+# Set this to 1 routing should be enabled in the kernel
+# It will generally be set automatically at an appropriate time
+test -z "$FIREHOL_ROUTING" && \
+	FIREHOL_ROUTING=0
+
+# Where /etc/init.d/iptables expects its configuration?
+# Leave it empty for automatic detection
+test -z "$FIREHOL_AUTOSAVE" && \
+	FIREHOL_AUTOSAVE=
+
+# Set to non-empty to wait (max 60 seconds) for a network interface
+test -z "$WAIT_FOR_IFACE" && \
+	WAIT_FOR_IFACE=
+
+# ----------------------------------------------------------------------
+# Firewall configuration variables
+#  These affect the final output firewall. They can be set in the
+#  configuration file.
 
 # The default policy for the interface commands of the firewall.
 # This can be controlled on a per interface basis using the
@@ -716,11 +756,6 @@ DEFAULT_INTERFACE_POLICY="DROP"
 # This can be controlled on a per interface basis using the
 # policy interface subscommand. 
 DEFAULT_ROUTER_POLICY="RETURN"
-
-# Which is the filter table chains policy during firewall activation?
-FIREHOL_INPUT_ACTIVATION_POLICY="ACCEPT"
-FIREHOL_OUTPUT_ACTIVATION_POLICY="ACCEPT"
-FIREHOL_FORWARD_ACTIVATION_POLICY="ACCEPT"
 
 # Should we drop all INVALID packets always?
 FIREHOL_DROP_INVALID=0
@@ -784,14 +819,6 @@ FIREHOL_KERNEL_MODULES=""
 # 
 # to have FireHOL require a specific module for the configurarion.
 
-# Set this to 1 in the configuration file to have FireHOL complex
-# services' rules load NAT kernel modules too.
-FIREHOL_NAT=0
-
-# Set this to 1 in the configuration file if routing should be enabled
-# in the kernel.
-FIREHOL_ROUTING=0
-
 # Services may add themeselves to this variable so that the service "all" will
 # also call them.
 # By default it is empty - only rules programmers should change this.
@@ -813,11 +840,7 @@ FIREHOL_SAVE=0
 # Valid only for FIREHOL_MODE="START"
 FIREHOL_TRY=0
 
-# If set to 0, FireHOL will not try to load the required kernel modules.
-# It can be set in the configuration file.
-FIREHOL_LOAD_KERNEL_MODULES=1
-
-# If set to 1, FireHOL will output the commands of the configuration file
+# If set to 1, firehol will output the commands of the configuration file
 # with variables expanded.
 FIREHOL_CONF_SHOW=1
 
