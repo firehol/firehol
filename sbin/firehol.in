@@ -2517,10 +2517,10 @@ mac() {
 	fi
 	
 	set_work_function "If the source IP ${1} does not match MAC ${2}, drop the packet"
-	
-	iptables -t filter -A INPUT   -s "${1}" -m mac --mac-source ! "${2}" -j WRONGMAC
-	iptables -t filter -A FORWARD -s "${1}" -m mac --mac-source ! "${2}" -j WRONGMAC
-	
+
+	iptables -t filter -A INPUT   -s "${1}" -m mac ! --mac-source "${2}" -j WRONGMAC
+	iptables -t filter -A FORWARD -s "${1}" -m mac ! --mac-source "${2}" -j WRONGMAC
+
 	return 0
 }
 
