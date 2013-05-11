@@ -47,6 +47,8 @@ get_version() {
 }
 VERSION=$(get_version)
 
+if [ "$FIREHOL_DEBUGGING" ]; then set -v; set -x; fi
+
 emit_version() {
 	${CAT_CMD} <<EOF
 
@@ -2961,8 +2963,12 @@ runcmd() {
 	local check="${1}"; shift
 	local line="${1}"; shift
 	local cmd="${1}"; shift
-	
+
 	"${cmd}" "$@" >${FIREHOL_OUTPUT}.log 2>&1
+	if [ "$FIREHOL_DEBUGGING" ]
+	then
+		"${CAT_CMD}" ${FIREHOL_OUTPUT}.log 1>&2
+	fi
 	local r=$?
 	test ${r} -gt 0 && runtime_error ${check} ${r} ${line} "${cmd}" "$@"
 	

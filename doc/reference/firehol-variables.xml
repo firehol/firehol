@@ -551,7 +551,6 @@ FIREHOL_DROP_ORPHAN_TCP_ACK_FIN="1"
         </para>
       </listitem>
     </varlistentry>
-<!--
     <varlistentry><term><envar>FIREHOL_DEBUGGING</envar></term>
       <listitem>
         <para>
@@ -576,7 +575,6 @@ FIREHOL_DEBUGGING="Y"
         </para>
       </listitem>
     </varlistentry>
--->
     <varlistentry><term><envar>WAIT_FOR_IFACE</envar></term>
       <listitem>
         <para>
