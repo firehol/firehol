@@ -26,6 +26,7 @@ fi
 FIREHOL_FILE="${0}"
 FIREHOL_DEFAULT_WORKING_DIRECTORY="${PWD}"
 
+
 # ------------------------------------------------------------------------------
 # XXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXX
 # ------------------------------------------------------------------------------
@@ -201,6 +202,32 @@ zcat_cmd() {
 	return 1
 }
 
+# Fetch a URL and output it to the standard output.
+wget_cmd() {
+	local url="${1}"
+	
+	require_cmd wget curl
+	
+	if [ ! -z "${WGET_CMD}" ]
+	then
+		${WGET_CMD} -O - "${url}" 2>/dev/null
+		return $?
+	elif [ ! -z "${CURL_CMD}" ]
+	then
+		${CURL_CMD} -s "${url}"
+		return $?
+	fi
+	
+	error "Cannot use either 'wget' or 'curl' to fetch '${url}'."
+	return 1
+}
+
+# Make sure our generated files cannot be accessed by anyone else.
+umask 077
+
+# Be nice on production environments
+${RENICE_CMD} 10 $$ >/dev/null 2>/dev/null
+
 # Concurrent run control
 FIREHOL_LOCK_FILE="/var/run/firehol.lck"
 
@@ -234,12 +261,6 @@ firehol_concurrent_run_lock() {
 	return 0
 }
 
-# Make sure our generated files cannot be accessed by anyone else.
-umask 077
-
-# Be nice on production environments
-${RENICE_CMD} 10 $$ >/dev/null 2>/dev/null
-
 # Find our minor version
 firehol_minor_version() {
 ${CAT_CMD} <<"EOF" | ${CUT_CMD} -d ' ' -f 3 | ${CUT_CMD} -d '.' -f 2
@@ -253,7 +274,6 @@ if [ $? -ne 0 ]
 then
 	FIREHOL_MINOR_VERSION=257
 fi
-
 
 # Initialize iptables
 ${IPTABLES_CMD} -nxvL >/dev/null 2>&1
@@ -433,8 +453,11 @@ then
 		exit 1
 	fi
 fi
-"${MKDIR_CMD}" "${FIREHOL_DIR}"				|| exit 1
+"${MKDIR_CMD}" "${FIREHOL_DIR}"					|| exit 1
 "${MKDIR_CMD}" "${FIREHOL_CHAINS_DIR}"			|| exit 1
+"${MKDIR_CMD}" "${FIREHOL_DIR}/fast"			|| exit 1
+"${MKDIR_CMD}" "${FIREHOL_DIR}/fast/tables"		|| exit 1
+
 
 # prepare the file that will hold all modules to be loaded.
 # this is needed only when we are going to save the firewall
@@ -683,6 +706,10 @@ FIREHOL_LOAD_KERNEL_MODULES=1
 # If set to 1, FireHOL will output the commands of the configuration file
 # with variables expanded.
 FIREHOL_CONF_SHOW=1
+
+# If set to 1, FireHOL will attempt to load the firewall with
+# iptables-restore. This is beta.
+FIREHOL_FAST_ACTIVATION=0
 
 
 # ------------------------------------------------------------------------------
@@ -2047,16 +2074,6 @@ EOF
 
 
 # ------------------------------------------------------------------------------
-
-# The caller may need just our services definitions
-if [ "$1" = "gimme-the-services-defs" ]
-then
-	return 0
-	exit 1
-fi
-
-
-# ------------------------------------------------------------------------------
 # XXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXX
 # ------------------------------------------------------------------------------
 #
@@ -2111,6 +2128,16 @@ do
 done
 cd "${FIREHOL_DEFAULT_WORKING_DIRECTORY}" || exit 1
 
+# ------------------------------------------------------------------------------
+
+# The caller may need just our services definitions
+if [ "$1" = "gimme-the-services-defs" ]
+then
+	return 0
+	exit 1
+fi
+
+
 
 # ------------------------------------------------------------------------------
 # XXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXX
@@ -2121,26 +2148,6 @@ cd "${FIREHOL_DEFAULT_WORKING_DIRECTORY}" || exit 1
 # ------------------------------------------------------------------------------
 # XXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXX
 # ------------------------------------------------------------------------------
-
-# Fetch a URL and output it to the standard output.
-firehol_wget() {
-	local url="${1}"
-	
-	require_cmd wget curl
-	
-	if [ ! -z "${WGET_CMD}" ]
-	then
-		${WGET_CMD} -O - "${url}" 2>/dev/null
-		return $?
-	elif [ ! -z "${CURL_CMD}" ]
-	then
-		${CURL_CMD} -s "${url}"
-		return $?
-	fi
-	
-	error "Cannot use either 'wget' or 'curl' to fetch '${url}'."
-	return 1
-}
 
 FIREHOL_ECN_SHAME_URL="http://urchin.earth.li/cgi-bin/ecn.pl?output=ip"
 ecn_shame() {
@@ -2160,7 +2167,7 @@ ecn_shame() {
 		
 		local tmp="${FIREHOL_DIR}/ecn_shame.ips"
 		
-		firehol_wget "${FIREHOL_ECN_SHAME_URL}" | ${SORT_CMD} | ${UNIQ_CMD} >"${tmp}"
+		wget_cmd "${FIREHOL_ECN_SHAME_URL}" | ${SORT_CMD} | ${UNIQ_CMD} >"${tmp}"
 		if [ $? -ne 0 -o ! -s "${tmp}" ]
 		then
 			softwarning "Cannot fetch '${FIREHOL_ECN_SHAME_URL}'."
@@ -2984,7 +2991,7 @@ protection() {
 				;;
 				
 			invalid|INVALID)
-				iptables -A "${in}_${work_name}" -m state --state INVALID -j DROP				|| return 1
+				iptables -A "${in}_${work_name}" -m conntrack --ctstate INVALID -j DROP				|| return 1
 				;;
 				
 			fragments|FRAGMENTS)
@@ -4565,7 +4572,7 @@ rule() {
 				then
 					test ${softwarnings} -eq 1 -a ! -z "${log}" && softwarning "Overwritting param: log '${log}/${logtxt}' becomes 'normal/${2}'"
 					log=normal
-					logtxt="${2}"
+					logtxt="`echo ${2} | ${TR_CMD} " " "_"`"
 				fi
 				shift 2
 				if [ "${1}" = "level" ]
@@ -4582,7 +4589,7 @@ rule() {
 				then
 					test ${softwarnings} -eq 1 -a ! -z "${log}" && softwarning "Overwritting param: log '${log}/${logtxt}' becomes 'limit/${2}'"
 					log=limit
-					logtxt="${2}"
+					logtxt="`echo ${2} | ${TR_CMD} " " "_"`"
 				fi
 				shift 2
 				if [ "${1}" = "level" ]
@@ -5282,7 +5289,8 @@ rule() {
 	local -a state_arg=()
 	if [ ! -z "${state}" ]
 	then
-		local -a state_arg=("-m" "state" ${statenot} "--state" "${state}")
+		# local -a state_arg=("-m" "state" ${statenot} "--state" "${state}")
+		local -a state_arg=("-m" "conntrack" ${statenot} "--ctstate" "${state}")
 	fi
 	
 	# limit
@@ -7139,11 +7147,110 @@ fi
 
 
 # XXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXX
+# fast activation
+# in fast activation mode we catch all /sbin/iptables commands and instead of
+# executing them, we generate an iptables-restore compatible file.
 
-syslog info "Activating new firewall from ${FIREHOL_CONFIG} (translated to ${FIREHOL_COMMAND_COUNTER} iptables rules)."
-echo -n $"FireHOL: Activating new firewall (${FIREHOL_COMMAND_COUNTER} rules):"
+firehol_fast_iptables() {
+	local t=filter
+	
+	if [ "z$1" = "z-t" ]
+	then
+		local t="$2"
+		shift 2
+	fi
+	
+	case "$1" in
+		-P)	echo ":$2 $3 [0:0]" >>$FIREHOL_DIR/fast/table.${t}.policy
+			;;
+		
+		-N)	echo ":$2 - [0:0]" >>$FIREHOL_DIR/fast/table.${t}.chains
+			;;
+		
+		-A)	${CAT_CMD} <<EOFA >>$FIREHOL_DIR/fast/table.${t}.rules
+${@}
+EOFA
+			;;
+			
+		-I)	${CAT_CMD} <<EOFI >>$FIREHOL_DIR/fast/table.${t}.rules
+${@}
+EOFI
+			;;
+		
+		# if it is none of the above, we execute it normally.
+		*)	${IPTABLES_CMD} -t ${t} "${@}"
+			return $?
+			;;
+	esac
+	
+	test ! -f $FIREHOL_DIR/fast/tables/${t} && ${TOUCH_CMD} $FIREHOL_DIR/fast/tables/${t}
+	return 0
+}
 
-source ${FIREHOL_OUTPUT} "$@"
+# XXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXX
+
+
+if [ ${FIREHOL_FAST_ACTIVATION} -eq 1 ]
+then
+	# fast activation is needed
+	
+	${MV_CMD} ${FIREHOL_OUTPUT} ${FIREHOL_OUTPUT}.slow
+	
+	# replace /sbin/iptables with firehol_fast_activation calls
+	${CAT_CMD} ${FIREHOL_OUTPUT}.slow | ${SED_CMD} "s|${IPTABLES_CMD}|firehol_fast_iptables|g" >${FIREHOL_OUTPUT}
+
+	echo -n $"FireHOL: Preparing fast activation (${FIREHOL_COMMAND_COUNTER} rules):"
+	
+	source ${FIREHOL_OUTPUT} "$@"
+	
+	if [ ${work_runtime_error} -gt 0 ]
+	then
+		failure $"FireHOL: Preparing fast activation:"
+		echo
+		
+		syslog err "Activation of new firewall failed."
+		# The trap will restore the firewall we saved above.
+		
+		exit 1
+	fi
+	success $"FireHOL: Preparing fast activation:"
+	echo
+	
+	# construct the iptables-restore file from the splitted ones.
+	cd $FIREHOL_DIR/fast/tables || exit 1
+	for firehol_table in `ls`
+	do
+		(
+			echo "*${firehol_table}"
+			test -f $FIREHOL_DIR/fast/table.${firehol_table}.policy && ${CAT_CMD} $FIREHOL_DIR/fast/table.${firehol_table}.policy
+			test -f $FIREHOL_DIR/fast/table.${firehol_table}.chains && ${CAT_CMD} $FIREHOL_DIR/fast/table.${firehol_table}.chains
+			test -f $FIREHOL_DIR/fast/table.${firehol_table}.rules  && ${CAT_CMD} $FIREHOL_DIR/fast/table.${firehol_table}.rules
+			echo "COMMIT"
+		) >>${FIREHOL_OUTPUT}.fast
+	done
+	
+	syslog info "Activating new firewall from ${FIREHOL_CONFIG} (translated to ${FIREHOL_COMMAND_COUNTER} iptables rules)."
+	echo -n $"FireHOL: Activating new firewall:"
+	
+	# attempt to restore this firewall
+	iptables-restore <${FIREHOL_OUTPUT}.fast >${FIREHOL_OUTPUT}.log 2>&1
+	if [ $? -ne 0 ]
+	then
+		# it failed
+		runtime_error error "CANNOT APPLY IN FAST MODE" FIN "iptables-restore" "<${FIREHOL_OUTPUT}.fast"
+		
+		# the rest of the script will restore the original firewall
+	fi
+	
+else
+	
+	syslog info "Activating new firewall from ${FIREHOL_CONFIG} (translated to ${FIREHOL_COMMAND_COUNTER} iptables rules)."
+	echo -n $"FireHOL: Activating new firewall (${FIREHOL_COMMAND_COUNTER} rules):"
+	
+	source ${FIREHOL_OUTPUT} "$@"
+	
+fi
+
 
 if [ ${work_runtime_error} -gt 0 ]
 then
