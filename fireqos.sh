@@ -636,9 +636,16 @@ class() {
 	[ ! -z "$class_cburst" ]	&& local cburst="cburst $class_cburst"
 	[ ! -z "$class_quantum" ]	&& local quantum="quantum $class_quantum"
 	
+	case "$class_qdisc" in
+		sfq)	local qdisc="sfq perturb 10"
+			;;
+		
+		*)	local qdisc="$class_qdisc"
+			;;
+	esac
 	
 	tc class add dev $interface_realdev parent $interface_id:1 classid $cid htb $rate $ceil $burst $cburst prio $prio $quantum
-	tc qdisc add dev $interface_realdev parent $cid handle $handle: $class_qdisc
+	tc qdisc add dev $interface_realdev parent $cid handle $handle: $qdisc
 	
 	# if this is the default, make sure we don't added again
 	[ "$name" = "default" ] && interface_default_added=1
