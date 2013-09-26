@@ -27,6 +27,12 @@ FIREQOS_DEBUG=0
 # of the interface bandwidth
 FIREQOS_MIN_RATE_DIVISOR=100
 
+# By default, we give every interface a different id
+# this means the first interface, has classes 1:x, 
+# the second one, classes 2:x, etc
+# If we set this to NO, all classed will be 1:x
+FIREQOS_ID_PER_INTERFACE=YES
+
 FIREQOS_COMPLETED=
 fireqos_exit() {
 	if [ "$FIREQOS_COMPLETED" = "0" ]
@@ -439,8 +445,13 @@ interface() {
 	interface_name="$1"; shift
 	interface_inout="$1"; shift
 	
-	# increase the interface id
-	interface_id=$((interface_id + 1))
+	if [ "$FIREQOS_ID_PER_INTERFACE" = "YES" ]
+	then
+		# increase the interface id
+		interface_id=$((interface_id + 1))
+	else
+		interface_id=1
+	fi
 	
 	if [ "$interface_inout" = "input" ]
 	then
@@ -534,12 +545,8 @@ interface() {
 	echo
 	echo ": Setting up $interface_inout on interface '$interface_dev' (real device '$interface_realdev'):"
 	
-	# remove old root qdisc
-	# *** NO NEED TO DO IT *** our startup clears everything
-	# tc ignore-error qdisc del dev $interface_realdev root
-	
 	# Add root qdisc with proper linklayer and overheads
-	tc qdisc add dev $interface_realdev $stab root handle $interface_id: htb default 9999 $r2q
+	tc qdisc add dev $interface_realdev $stab root handle $interface_id: htb default 1999 $r2q
 	
 	# redirect all incoming traffic to ifb
 	if [ $interface_inout = input ]
@@ -556,11 +563,6 @@ interface() {
 	
 	# Add the root class for the interface
 	tc class add dev $interface_realdev parent $interface_id: classid $interface_id:1 htb $rate $ceil $burst $cburst $quantum
-	
-	# The fallback class that will get all unclassified packets in this interface
-	# ** NO NEED TO DO IT HERE ** It is dynamically added at interface close
-	#tc class add dev $interface_realdev parent $interface_id:1 classid $interface_id:9999 htb $minrate $ceil $burst $cburst prio 9999 $quantum
-	#tc qdisc add dev $interface_realdev parent $interface_id:9999 handle 9999: $interface_qdisc
 	
 	[ -f "${FIREQOS_DIR}/${interface_name}.conf" ] && rm "${FIREQOS_DIR}/${interface_name}.conf"
 	cat >"${FIREQOS_DIR}/${interface_name}.conf" <<EOF
@@ -597,49 +599,60 @@ EOF
 class() {
 	local name="$1"; shift
 	
+	# increase the id of this class
 	interface_classid=$((interface_classid + 1))
+	
+	# if this is the default class, use the pre-defined
+	# id, otherwise use the classid we just increased
 	if [ "$name" = "default" ]
 	then
-		local pid=
-		local id=9999
+		local id=1999
 	else
-		local pid=1
-		local id=$interface_classid
+		local id=1$interface_classid
 	fi
 	
-	echo ":	processing class $interface_id:$pid$id '$name' "
+	# the tc classid that we will create
+	local cid="$interface_id:$id"
+	local ncid="$interface_id$id"
 	
+	# the handle of the new qdisc we will create
+	local handle=$id
+	
+	echo ":	processing class $cid '$name' "
 	parse_class_params class interface "${@}"
 	
+	# the priority of this class, compared to the others in the same interface
+	local prio=$interface_classid
+	
 	# if not specified, set the minimum rate
-	[ -z "$class_rate" ]					&& class_rate=$interface_minrate
+	[ -z "$class_rate" ]		&& class_rate=$interface_minrate
 	
 	# class rate cannot go bellow 1/100 of the interface rate
 	[ $class_rate -lt $interface_minrate ]	&& class_rate=$interface_minrate
 	
-	[ ! -z "$class_rate" ]					&& local rate="rate $((class_rate * 8 / 1000))kbit"
-	[ ! -z "$class_ceil" ]					&& local ceil="ceil $((class_ceil * 8 / 1000))kbit"
-	[ ! -z "$class_burst" ]					&& local burst="burst $class_burst"
-	[ ! -z "$class_cburst" ]				&& local cburst="cburst $class_cburst"
-	[ ! -z "$class_quantum" ]				&& local quantum="quantum $class_quantum"
+	[ ! -z "$class_rate" ]		&& local rate="rate $((class_rate * 8 / 1000))kbit"
+	[ ! -z "$class_ceil" ]		&& local ceil="ceil $((class_ceil * 8 / 1000))kbit"
+	[ ! -z "$class_burst" ]		&& local burst="burst $class_burst"
+	[ ! -z "$class_cburst" ]	&& local cburst="cburst $class_cburst"
+	[ ! -z "$class_quantum" ]	&& local quantum="quantum $class_quantum"
 	
 	
-	tc class add dev $interface_realdev parent $interface_id:1 classid $interface_id:$pid$id htb $rate $ceil $burst $cburst prio $interface_classid $quantum
-	tc qdisc add dev $interface_realdev parent $interface_id:$pid$id handle $pid$id: $class_qdisc
+	tc class add dev $interface_realdev parent $interface_id:1 classid $cid htb $rate $ceil $burst $cburst prio $prio $quantum
+	tc qdisc add dev $interface_realdev parent $cid handle $handle: $class_qdisc
 	
 	# if this is the default, make sure we don't added again
 	[ "$name" = "default" ] && interface_default_added=1
 	
 	# save the configuration
 	cat >>"${FIREQOS_DIR}/${interface_name}.conf" <<EOF
-class_$interface_id$pid${id}_name=$name
-class_$interface_id$pid${id}_priority=$interface_classid
-class_$interface_id$pid${id}_rate=$class_rate
-class_$interface_id$pid${id}_ceil=$class_ceil
-class_$interface_id$pid${id}_burst=$class_burst
-class_$interface_id$pid${id}_cburst=$class_cburst
-class_$interface_id$pid${id}_quantum=$class_quantum
-class_$interface_id$pid${id}_qdisc=$class_qdisc
+class_${ncid}_name=$name
+class_${ncid}_priority=$prio
+class_${ncid}_rate=$class_rate
+class_${ncid}_ceil=$class_ceil
+class_${ncid}_burst=$class_burst
+class_${ncid}_cburst=$class_cburst
+class_${ncid}_quantum=$class_quantum
+class_${ncid}_qdisc=$class_qdisc
 EOF
 }
 
