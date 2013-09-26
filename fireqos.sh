@@ -5,6 +5,8 @@
 # (C) Copyright 2013, Costa Tsaousis
 # GPL
 
+me="$0"
+
 shopt -s extglob
 
 FIREQOS_SYSLOG_FACILITY="daemon"
@@ -108,54 +110,55 @@ rate2bps() {
 	
 	# calculate it in bits per second (highest resolution)
 	case "$r" in
-			+([0-9])kbps)
-					local label="Kilobytes per second"
-					local identifier="kbps"
-					local multiplier=$[8 * 1024]
-					;;
+		+([0-9])kbps)
+			local label="Kilobytes per second"
+			local identifier="kbps"
+			local multiplier=$[8 * 1024]
+			;;
 
-			+([0-9])mbps)
-					local label="Megabytes per second"
-					local identifier="mbps"
-					local multiplier=$[8 * 1024 * 1024]
-					;;
+		+([0-9])mbps)
+			local label="Megabytes per second"
+			local identifier="mbps"
+			local multiplier=$[8 * 1024 * 1024]
+			;;
 
-			+([0-9])kbit)
-					local label="Kilobits per second"
-					local identifier="kbit"
-					local multiplier=1000
-					;;
+		+([0-9])kbit)
+			local label="Kilobits per second"
+			local identifier="kbit"
+			local multiplier=1000
+			;;
 
-			+([0-9])mbit)
-					local label="Megabits per second"
-					local identifier="mbit"
-					local multiplier=1000000
-					;;
+		+([0-9])mbit)
+			local label="Megabits per second"
+			local identifier="mbit"
+			local multiplier=1000000
+			;;
 
-			+([0-9])bps)
-					local label="Bytes per second"
-					local identifier="bps"
-					local multiplier=8
-					;;
+		+([0-9])bps)
+			local label="Bytes per second"
+			local identifier="bps"
+			local multiplier=8
+			;;
 
-			+([0-9])%)
-					local label="Percent"
-					local identifier="bps"
-					local multiplier=8
-					r=$[p * multiplier * `echo $r | sed "s/%//g"` / 100]
-					;;
+		+([0-9])%)
+			local label="Percent"
+			local identifier="bps"
+			local multiplier=8
+			r=$[p * multiplier * `echo $r | sed "s/%//g"` / 100]
+			;;
 
-			+([0-9]))
-					local label="Bytes per second"
-					local identifier="bps"
-					local multiplier=8
-					r=$[r * multiplier]
-					;;
+		+([0-9]))
+			local label="Bytes per second"
+			local identifier="bps"
+			local multiplier=8
+			r=$[r * multiplier]
+			;;
 
-			*)      echo >&2 "Invalid rate '${r}' given."
-					return 1
-					;;
-        esac
+		*)		
+			echo >&2 "Invalid rate '${r}' given."
+			return 1
+			;;
+	esac
 	
         local n="`echo "$r" | sed "s|$identifier| * $multiplier|g"`"
 	
@@ -1054,24 +1057,53 @@ htb_stats() {
 	done
 }
 
+cat <<EOF
+FireQOS v1.0 DEVELOPMENT
+(C) 2013 Costa Tsaousis, GPL
+
+EOF
+
+show_usage() {
+cat <<USAGE
+
+$me start|stop|status <name>
+
+	start	activates traffic shapping rules
+		according to rules given in ${FIREQOS_CONFIG}
+		
+	stop	stops all traffic shapping, on all interfaces
+	
+	debug	same as 'start', but shows also the generated tc commands
+	
+	status <name>
+		shows live usage for the interface <name>
+		the name given mathes the name of an interface statement
+		given in the config.
+
+USAGE
+
+}
+
 case "$1" in
 
 	stop)	clear_everything
-			echo "Cleared all QOS on all interfaces."
-			syslog info "Cleared all QoS on all interfaces"
-			exit 0
-			;;
+		echo "Cleared all QOS on all interfaces."
+		syslog info "Cleared all QoS on all interfaces"
+		exit 0
+		;;
 	
 	status) shift
-			htb_stats "$@"
-			;;
+		htb_stats "$@"
+		;;
 	
 	debug)	FIREQOS_DEBUG=1
-			;;
+		;;
 	
 	start)	;;
 	
-	*)	;;
+	*)	show_usage
+		exit 1
+		;;
 esac
 
 
