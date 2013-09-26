@@ -146,6 +146,12 @@ rate2bps() {
 			local multiplier=$[8 * 1024 * 1024 * 1024]
 			;;
 
+		+([0-9])bit)
+			local label="bits per second"
+			local identifier="bit"
+			local multiplier=1
+			;;
+
 		+([0-9])kbit)
 			local label="Kilobits per second"
 			local identifier="kbit"
@@ -173,13 +179,13 @@ rate2bps() {
 		+([0-9])gbit)
 			local label="Gigabits per second"
 			local identifier="gbit"
-			local multiplier=1000000
+			local multiplier=1000000000
 			;;
 
 		+([0-9])Gbit)
 			local label="Gigabits per second"
 			local identifier="Gbit"
-			local multiplier=1000000
+			local multiplier=1000000000
 			;;
 
 		+([0-9])bps)
@@ -253,13 +259,13 @@ parse_class_params() {
 	while [ ! -z "$1" ]
 	do
 		case "$1" in
-			governor)	
-					local governor="$2"
+			qdisc)	
+					local qdisc="$2"
 					shift 2
 					;;
 			
-			sfq|pfifo|bfifo)
-					local governor="$1"
+			sfq|pfifo|bfifo|pfifo_fast)
+					local qdisc="$1"
 					shift
 					;;
 					
@@ -377,7 +383,7 @@ parse_class_params() {
 	# export our parameters for the caller
 	# for every parameter not set, use the parent value
 	# for every one set, use the set value
-	for x in ceil burst cburst quantum governor
+	for x in ceil burst cburst quantum qdisc
 	do
 		eval local value="\$$x"
 		if [ -z "$value" ]
@@ -501,8 +507,8 @@ interface() {
 	[ -z "$interface_mtu" ] && interface_mtu=`device_mtu $interface_realdev`
 	[ -z "$interface_mtu" ] && interface_mtu=1500
 	
-	# set the default governor for all classes
-	[ -z "$interface_governor" ] && interface_governor="sfq"
+	# set the default qdisc for all classes
+	[ -z "$interface_qdisc" ] && interface_qdisc="sfq"
 	
 	# the desired minimum rate
 	interface_minrate=$((interface_rate / FIREQOS_MIN_RATE_DIVISOR))
@@ -554,7 +560,7 @@ interface() {
 	# The fallback class that will get all unclassified packets in this interface
 	# ** NO NEED TO DO IT HERE ** It is dynamically added at interface close
 	#tc class add dev $interface_realdev parent $interface_id:1 classid $interface_id:9999 htb $minrate $ceil $burst $cburst prio 9999 $quantum
-	#tc qdisc add dev $interface_realdev parent $interface_id:9999 handle 9999: $interface_governor
+	#tc qdisc add dev $interface_realdev parent $interface_id:9999 handle 9999: $interface_qdisc
 	
 	[ -f "${FIREQOS_DIR}/${interface_name}.conf" ] && rm "${FIREQOS_DIR}/${interface_name}.conf"
 	cat >"${FIREQOS_DIR}/${interface_name}.conf" <<EOF
@@ -575,7 +581,7 @@ interface_quantum=$interface_quantum
 interface_mtu=$interface_mtu
 interface_mpu=$interface_mpu
 interface_tsize=$interface_tsize
-interface_governor=$interface_governor
+interface_qdisc=$interface_qdisc
 class_${interface_id}1_name=TOTAL
 class_${interface_id}1_priority=PRIORITY
 class_${interface_id}1_rate=COMMIT
@@ -583,7 +589,7 @@ class_${interface_id}1_ceil=MAX
 class_${interface_id}1_burst=BURST
 class_${interface_id}1_cburst=CBURST
 class_${interface_id}1_quantum=QUANTUM
-class_${interface_id}1_governor=GOVERNOR
+class_${interface_id}1_qdisc=QDISC
 EOF
 }
 
@@ -619,7 +625,7 @@ class() {
 	
 	
 	tc class add dev $interface_realdev parent $interface_id:1 classid $interface_id:$pid$id htb $rate $ceil $burst $cburst prio $interface_classid $quantum
-	tc qdisc add dev $interface_realdev parent $interface_id:$pid$id handle $pid$id: $class_governor
+	tc qdisc add dev $interface_realdev parent $interface_id:$pid$id handle $pid$id: $class_qdisc
 	
 	# if this is the default, make sure we don't added again
 	[ "$name" = "default" ] && interface_default_added=1
@@ -633,7 +639,7 @@ class_$interface_id$pid${id}_ceil=$class_ceil
 class_$interface_id$pid${id}_burst=$class_burst
 class_$interface_id$pid${id}_cburst=$class_cburst
 class_$interface_id$pid${id}_quantum=$class_quantum
-class_$interface_id$pid${id}_governor=$class_governor
+class_$interface_id$pid${id}_qdisc=$class_qdisc
 EOF
 }
 
@@ -747,15 +753,15 @@ match() {
 	local p=`echo $sport | tr "," " "`; local sport=`expand_ports $p`
 	local p=`echo $dport | tr "," " "`; local dport=`expand_ports $p`
 	
-	[ -z "$proto" ]	&& error "Cannot accept empty protocol."			&& return 1
-	[ -z "$port" ]	&& error "Cannot accept empty ports."				&& return 1
+	[ -z "$proto" ]	&& error "Cannot accept empty protocol."		&& return 1
+	[ -z "$port" ]	&& error "Cannot accept empty ports."			&& return 1
 	[ -z "$sport" ]	&& error "Cannot accept empty source ports."		&& return 1
 	[ -z "$dport" ]	&& error "Cannot accept empty destination ports."	&& return 1
-	[ -z "$src" ]	&& error "Cannot accept empty source IPs."			&& return 1
+	[ -z "$src" ]	&& error "Cannot accept empty source IPs."		&& return 1
 	[ -z "$dst" ]	&& error "Cannot accept empty destination IPs."		&& return 1
-	[ -z "$ip" ]	&& error "Cannot accept empty IPs."					&& return 1
-	[ -z "$tos" ]	&& error "Cannot accept empty TOS."					&& return 1
-	[ -z "$mark" ]	&& error "Cannot accept empty MARK."				&& return 1
+	[ -z "$ip" ]	&& error "Cannot accept empty IPs."			&& return 1
+	[ -z "$tos" ]	&& error "Cannot accept empty TOS."			&& return 1
+	[ -z "$mark" ]	&& error "Cannot accept empty MARK."			&& return 1
 	
 	[ ! "$port" = "any" -a ! "$sport" = "any" ]	&& error "Cannot match 'port' and 'sport'." && exit 1
 	[ ! "$port" = "any" -a ! "$dport" = "any" ]	&& error "Cannot match 'port' and 'dport'." && exit 1
@@ -832,7 +838,7 @@ match() {
 						*)		local ip_arg="match ip dst $tdst"
 								;;
 					esac
-				
+					
 					local tport=
 					local mtport=sport
 					local otherport="dport $port"
