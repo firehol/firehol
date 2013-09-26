@@ -116,10 +116,34 @@ rate2bps() {
 			local multiplier=$[8 * 1024]
 			;;
 
+		+([0-9])Kbps)
+			local label="Kilobytes per second"
+			local identifier="Kbps"
+			local multiplier=$[8 * 1024]
+			;;
+
 		+([0-9])mbps)
 			local label="Megabytes per second"
 			local identifier="mbps"
 			local multiplier=$[8 * 1024 * 1024]
+			;;
+
+		+([0-9])Mbps)
+			local label="Megabytes per second"
+			local identifier="Mbps"
+			local multiplier=$[8 * 1024 * 1024]
+			;;
+
+		+([0-9])gbps)
+			local label="Gigabytes per second"
+			local identifier="gbps"
+			local multiplier=$[8 * 1024 * 1024 * 1024]
+			;;
+
+		+([0-9])Gbps)
+			local label="Gigabytes per second"
+			local identifier="Gbps"
+			local multiplier=$[8 * 1024 * 1024 * 1024]
 			;;
 
 		+([0-9])kbit)
@@ -128,9 +152,33 @@ rate2bps() {
 			local multiplier=1000
 			;;
 
+		+([0-9])Kbit)
+			local label="Kilobits per second"
+			local identifier="Kbit"
+			local multiplier=1000
+			;;
+
 		+([0-9])mbit)
 			local label="Megabits per second"
 			local identifier="mbit"
+			local multiplier=1000000
+			;;
+
+		+([0-9])Mbit)
+			local label="Megabits per second"
+			local identifier="Mbit"
+			local multiplier=1000000
+			;;
+
+		+([0-9])gbit)
+			local label="Gigabits per second"
+			local identifier="gbit"
+			local multiplier=1000000
+			;;
+
+		+([0-9])Gbit)
+			local label="Gigabits per second"
+			local identifier="Gbit"
 			local multiplier=1000000
 			;;
 
