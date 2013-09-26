@@ -21,3 +21,14 @@ Put your configuration in /etc/firehol/fireqos.conf and start it.
 
 In the examples directory, you can find examples for both programs.
 
+
+To checkout the development version do this:
+
+# cd /tmp/
+# git clone https://github.com/ktsaou/firehol.git firehol.git
+# cd firehol.git
+# git checkout development
+
+Now you should have the development version of firehol.sh and
+fireqos.sh in the current directory.
+
