@@ -3179,11 +3179,11 @@ check_kernel_config() {
 	eval local kcfg1="\$${1}"
 	
 	# without _IP_
-	local t=`echo ${1} | sed "s/_IP_//g"`
+	local t=`echo ${1} | ${SED_CMD} "s/_IP_//g"`
 	eval local kcfg2="\$${t}"
 	
 	# _CONNTRACK_ as _CT_
-	local t=`echo ${1} | sed "s/_CONNTRACK_/_CT_/g"`
+	local t=`echo ${1} | ${SED_CMD} "s/_CONNTRACK_/_CT_/g"`
 	eval local kcfg3="\$${t}"
 	
 	# prefer the kernel 2.6.20+ way
@@ -4132,7 +4132,7 @@ rule() {
 						srctypenot="!"
 					fi
 					test ${softwarnings} -eq 1 -a ! "${srctype}" = "" && softwarning "Overwritting param: srctype '${srctype}' becomes '${1}'"
-					srctype="`echo ${1} | sed "s|^ \+||" | sed "s| \+\$||" | sed "s| \+|,|g" | tr a-z A-Z`"
+					srctype="`echo ${1} | ${SED_CMD} -e "s|^ \+||" -e "s| \+\$||" -e "s| \+|,|g" | ${TR_CMD} a-z A-Z`"
 				else
 					dsttypenot=
 					if [ "${1}" = "not" -o "${1}" = "NOT" ]
@@ -4141,7 +4141,7 @@ rule() {
 						dsttypenot="!"
 					fi
 					test ${softwarnings} -eq 1 -a ! "${dsttype}" = "" && softwarning "Overwritting param: dsttype '${dsttype}' becomes '${1}'"
-					dsttype="`echo ${1} | sed "s|^ \+||" | sed "s| \+\$||" | sed "s| \+|,|g" | tr a-z A-Z`"
+					dsttype="`echo ${1} | ${SED_CMD} -e "s|^ \+||" -e "s| \+\$||" -e "s| \+|,|g" | ${TR_CMD} a-z A-Z`"
 				fi
 				shift
 				;;
@@ -4157,7 +4157,7 @@ rule() {
 						dsttypenot="!"
 					fi
 					test ${softwarnings} -eq 1 -a ! "${dsttype}" = "" && softwarning "Overwritting param: dsttype '${dsttype}' becomes '${1}'"
-					dsttype="`echo ${1} | sed "s|^ \+||" | sed "s| \+\$||" | sed "s| \+|,|g" | tr a-z A-Z`"
+					dsttype="`echo ${1} | ${SED_CMD} -e "s|^ \+||" -e "s| \+\$||" -e "s| \+|,|g" | ${TR_CMD} a-z A-Z`"
 				else
 					srctypenot=
 					if [ "${1}" = "not" -o "${1}" = "NOT" ]
@@ -4166,7 +4166,7 @@ rule() {
 						srctypenot="!"
 					fi
 					test ${softwarnings} -eq 1 -a ! "${srctype}" = "" && softwarning "Overwritting param: srctype '${srctype}' becomes '${1}'"
-					srctype="`echo ${1} | sed "s|^ \+||" | sed "s| \+\$||" | sed "s| \+|,|g" | tr a-z A-Z`"
+					srctype="`echo ${1} | ${SED_CMD} -e "s|^ \+||" -e "s| \+\$||" -e "s| \+|,|g" | ${TR_CMD} a-z A-Z`"
 				fi
 				shift
 				;;
