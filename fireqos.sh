@@ -119,37 +119,37 @@ rate2bps() {
 		+([0-9])kbps)
 			local label="Kilobytes per second"
 			local identifier="kbps"
-			local multiplier=$[8 * 1024]
+			local multiplier=$((8 * 1024))
 			;;
 
 		+([0-9])Kbps)
 			local label="Kilobytes per second"
 			local identifier="Kbps"
-			local multiplier=$[8 * 1024]
+			local multiplier=$((8 * 1024))
 			;;
 
 		+([0-9])mbps)
 			local label="Megabytes per second"
 			local identifier="mbps"
-			local multiplier=$[8 * 1024 * 1024]
+			local multiplier=$((8 * 1024 * 1024))
 			;;
 
 		+([0-9])Mbps)
 			local label="Megabytes per second"
 			local identifier="Mbps"
-			local multiplier=$[8 * 1024 * 1024]
+			local multiplier=$((8 * 1024 * 1024))
 			;;
 
 		+([0-9])gbps)
 			local label="Gigabytes per second"
 			local identifier="gbps"
-			local multiplier=$[8 * 1024 * 1024 * 1024]
+			local multiplier=$((8 * 1024 * 1024 * 1024))
 			;;
 
 		+([0-9])Gbps)
 			local label="Gigabytes per second"
 			local identifier="Gbps"
-			local multiplier=$[8 * 1024 * 1024 * 1024]
+			local multiplier=$((8 * 1024 * 1024 * 1024))
 			;;
 
 		+([0-9])bit)
@@ -204,14 +204,14 @@ rate2bps() {
 			local label="Percent"
 			local identifier="bps"
 			local multiplier=8
-			r=$[p * multiplier * `echo $r | sed "s/%//g"` / 100]
+			r=$((p * multiplier * `echo $r | sed "s/%//g"` / 100))
 			;;
 
 		+([0-9]))
 			local label="Bytes per second"
 			local identifier="bps"
 			local multiplier=8
-			r=$[r * multiplier]
+			r=$((r * multiplier))
 			;;
 
 		*)		
@@ -223,7 +223,7 @@ rate2bps() {
         local n="`echo "$r" | sed "s|$identifier| * $multiplier|g"`"
 	
 	# evaluate it in bytes per second (the default for a rate in tc)
-        eval "local o=\$[$n / 8]"
+        eval "local o=\$(($n / 8))"
 	
 	echo "$o"
 	return 0
@@ -1004,8 +1004,8 @@ htb_stats() {
 					if ( $4 == "parent" ) value = $19
 					else value = $14
 					
-					print "TCSTATS_" $2 "_" $3 "=\$[(" value "*8) - OLD_TCSTATS_" $2 "_" $3 "];"
-					print "OLD_TCSTATS_" $2 "_" $3 "=\$[" value "*8];"
+					print "TCSTATS_" $2 "_" $3 "=\$(( (" value "*8) - OLD_TCSTATS_" $2 "_" $3 "));"
+					print "OLD_TCSTATS_" $2 "_" $3 "=\$((" value "*8));"
 				}
 				else {
 					print "# Cannot parse " $2 " class " $3;
@@ -1034,12 +1034,12 @@ htb_stats() {
 	sleepms() {
 		local timetosleep="$1"
 		
-		local diffms=$[endedms - startedms]
+		local diffms=$((endedms - startedms))
 		[ $diffms -gt $timetosleep ] && return 0
 		
-		local sleepms=$[timetosleep - diffms]
-		local secs=$[sleepms / 1000]
-		local ms=$[sleepms - (secs * 1000)]
+		local sleepms=$((timetosleep - diffms))
+		local secs=$((sleepms / 1000))
+		local ms=$((sleepms - (secs * 1000)))
 		
 		# echo "Sleeping for ${secs}.${ms} (started ${startedms}, ended ${endedms}, diffms ${diffms})"
 		sleep "${secs}.${ms}"
@@ -1093,10 +1093,10 @@ htb_stats() {
 	
 	# the main loop
 	starttime
-	local c=$[banner_every_lines - 1]
+	local c=$((banner_every_lines - 1))
 	while [ 1 = 1 ]
 	do
-		local c=$[c+1]
+		local c=$((c+1))
 		getdata $interface_realdev
 		
 		if [ $c -eq ${banner_every_lines} ]
