@@ -31,7 +31,7 @@ FIREQOS_MIN_RATE_DIVISOR=100
 # this means the first interface, has classes 1:x, 
 # the second one, classes 2:x, etc
 # If we set this to NO, all classed will be 1:x
-FIREQOS_ID_PER_INTERFACE=YES
+FIREQOS_ID_PER_INTERFACE=NO
 
 FIREQOS_COMPLETED=
 fireqos_exit() {
