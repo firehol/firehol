@@ -882,7 +882,7 @@ match() {
 							case "$tsport" in
 								any)	;;
 								
-								*)		local ip_arg="match ip sport $tsport"
+								*)		local ip_arg="match ip sport $tsport 0xffff"
 										;;
 							esac
 						
@@ -893,7 +893,7 @@ match() {
 								case "$tdport" in
 									any)	;;
 									
-									*)		local ip_arg="match ip dport $tdport"
+									*)		local ip_arg="match ip dport $tdport 0xffff"
 											;;
 								esac
 							
