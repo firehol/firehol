@@ -250,7 +250,7 @@ calc_r2q() {
 	local r2q=$(( rate / mtu ))
 	
 	[ $r2q -lt 1 ] && local r2q=1
-	[ $r2q -gt 10 ] && local r2q=10
+	# [ $r2q -gt 10 ] && local r2q=10
 	
 	echo $r2q
 }
@@ -1047,7 +1047,7 @@ htb_stats() {
 	
 	echo
 	echo "$interface_name: $interface_dev $interface_inout => $interface_realdev, type: $interface_linklayer, overhead: $interface_overhead"
-	echo "Rate: $((((interface_rate*8)+round)/resolution))$unit, min: $((((interface_minrate*8)+round)/resolution))$unit, R2Q: $interface_r2q (min rate $((((interface_minrate*8)+round)/resolution))$unit)"
+	echo "Rate: $((((interface_rate*8)+round)/resolution))$unit, min: $((((interface_minrate*8)+round)/resolution))$unit, r2q: $interface_r2q"
 	echo "Values in $unit"
 	echo
 	
