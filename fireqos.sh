@@ -1208,8 +1208,12 @@ trap fireqos_exit SIGHUP
 
 # Run the configuration
 enable -n trap					# Disable the trap buildin shell command.
-source ${FIREQOS_CONFIG} "$@"	# Run the configuration as a normal script.
-enable trap						# Enable the trap buildin shell command.
+source ${FIREQOS_CONFIG} "$@"			# Run the configuration as a normal script.
+if [ $? -ne 0 ]
+then
+	exit 1
+fi
+enable trap					# Enable the trap buildin shell command.
 
 interface_close					# close the last interface.
 
