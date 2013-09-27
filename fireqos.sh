@@ -543,7 +543,7 @@ interface() {
 	[ ! -z "$interface_r2q" ]			&& local r2q="r2q $interface_r2q"
 	
 	echo
-	echo ": Setting up $interface_inout on interface '$interface_dev' (real device '$interface_realdev'):"
+	echo ": Setting up $interface_name on the $interface_inout of '$interface_dev' (real device '$interface_realdev'):"
 	
 	# Add root qdisc with proper linklayer and overheads
 	tc qdisc add dev $interface_realdev $stab root handle $interface_id: htb default 1999 $r2q
@@ -618,7 +618,6 @@ class() {
 	# the handle of the new qdisc we will create
 	local handle=$id
 	
-	echo ":	processing class $cid '$name' "
 	parse_class_params class interface "${@}"
 	
 	# the priority of this class, compared to the others in the same interface
@@ -643,6 +642,8 @@ class() {
 		*)	local qdisc="$class_qdisc"
 			;;
 	esac
+	
+	echo ":	activating class $cid, prioty $prio: '$name'"
 	
 	tc class add dev $interface_realdev parent $interface_id:1 classid $cid htb $rate $ceil $burst $cburst prio $prio $quantum
 	tc qdisc add dev $interface_realdev parent $cid handle $handle: $qdisc
@@ -765,7 +766,7 @@ match() {
 	
 	if [ -z "$prio" ]
 	then
-		local prio=$class_matchid
+		local prio=$((class_matchid * 10))
 		class_matchid=$((class_matchid + 1))
 	fi
 	
