@@ -7013,6 +7013,7 @@ fi
 
 # XXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXX
 
+# clear all chains
 firehol_filter_chains=
 initialize_firewall() {
 	load_kernel_module ip_tables
@@ -7054,6 +7055,18 @@ initialize_firewall() {
 	done
 }
 
+# drop everything
+finalize_firewall() {
+	# Make it drop everything on table 'filter'.
+	local c=
+	for c in ${firehol_filter_chains}
+	do
+		${IPTABLES_CMD} -t filter -P "${c}" DROP || exit 1
+	done
+}
+
+# this will be run when the first iptables command get executed in pre-process mode.
+# so that its commands are prepended to the other iptables commands of the firewall
 firewall_policy_applied=0
 firewall_policy() {
 	firewall_policy_applied=1
@@ -7079,14 +7092,6 @@ firewall_policy() {
 	fi
 }
 
-finalize_firewall() {
-	# Make it drop everything on table 'filter'.
-	local c=
-	for c in ${firehol_filter_chains}
-	do
-		${IPTABLES_CMD} -t filter -P "${c}" DROP || exit 1
-	done
-}
 
 # XXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXX
 
@@ -7163,16 +7168,6 @@ success $"FireHOL: Processing file ${FIREHOL_CONFIG}:"
 echo
 
 # XXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXX
-# if we just debugging things, do not proceed further
-
-if [ "${FIREHOL_MODE}" = "DEBUG" ]
-then
-	${CAT_CMD} ${FIREHOL_OUTPUT}
-	
-	exit 1
-fi
-
-# XXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXX
 
 
 if [ ${FIREHOL_FAST_ACTIVATION} -eq 1 ]
@@ -7189,6 +7184,12 @@ then
 			echo "COMMIT"
 		) >>${FIREHOL_OUTPUT}.fast
 	done
+	
+	if [ "${FIREHOL_MODE}" = "DEBUG" ]
+	then
+		${CAT_CMD} ${FIREHOL_OUTPUT}.fast
+		exit 1
+	fi
 	
 	syslog info "Activating new firewall from ${FIREHOL_CONFIG} (translated to ${FIREHOL_COMMAND_COUNTER} iptables rules)."
 	echo -n $"FireHOL: Fast activating new firewall:"
@@ -7208,6 +7209,12 @@ then
 	fi
 	
 else
+	
+	if [ "${FIREHOL_MODE}" = "DEBUG" ]
+	then
+		${CAT_CMD} ${FIREHOL_OUTPUT}
+		exit 1
+	fi
 	
 	syslog info "Activating new firewall from ${FIREHOL_CONFIG} (translated to ${FIREHOL_COMMAND_COUNTER} iptables rules)."
 	echo -n $"FireHOL: Activating new firewall (${FIREHOL_COMMAND_COUNTER} rules):"
