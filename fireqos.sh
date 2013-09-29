@@ -713,7 +713,7 @@ match() {
 				shift 2
 				;;
 				
-			mark)
+			mark|marks)
 				local mark="$2"
 				shift 2
 				;;
@@ -773,6 +773,13 @@ match() {
 	local p=`echo $port | tr "," " "`; local port=`expand_ports $p`
 	local p=`echo $sport | tr "," " "`; local sport=`expand_ports $p`
 	local p=`echo $dport | tr "," " "`; local dport=`expand_ports $p`
+	
+	local proto=`echo $proto | tr "," " "`;
+	local ip=`echo $ip | tr "," " "`;
+	local src=`echo $src | tr "," " "`;
+	local dst=`echo $dst | tr "," " "`;
+	local mark=`echo $mark | tr "," " "`;
+	local tos=`echo $tos | tr "," " "`;
 	
 	[ -z "$proto" ]	&& error "Cannot accept empty protocol."		&& return 1
 	[ -z "$port" ]	&& error "Cannot accept empty ports."			&& return 1
