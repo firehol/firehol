@@ -719,7 +719,7 @@ expand_ports() {
 }
 
 match() {
-	[ $FIREQOS_DEBUG -eq 1 -o $FIREQOS_SHOW_MATCHES -eq 1 ] && echo ":		${FUNCNAME} %s" "$*"
+	[ $FIREQOS_DEBUG -eq 1 -o $FIREQOS_SHOW_MATCHES -eq 1 ] && echo ":		${FUNCNAME} $*"
 	
 	local proto=any
 	local port=any
