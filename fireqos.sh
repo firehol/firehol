@@ -33,6 +33,9 @@ FIREQOS_MIN_RATE_DIVISOR=100
 # If we set this to NO, all classed will be 1:x
 FIREQOS_ID_PER_INTERFACE=NO
 
+# if set to 1, it will print a line per match statement
+FIREQOS_SHOW_MATCHES=0
+
 FIREQOS_COMPLETED=
 fireqos_exit() {
 	if [ "$FIREQOS_COMPLETED" = "0" ]
@@ -84,8 +87,9 @@ tc() {
 	
 	if [ $FIREQOS_DEBUG -eq 1 ]
 	then
-		printf "%q " ":" tc "${@}"
-		echo
+		echo -e -n "#\e[33m"
+		printf " %q" tc "${@}"
+		echo -e "\e[0m"
 	fi
 	
 	if [ $noerror -eq 1 ]
@@ -421,6 +425,7 @@ ifb_counter=
 class_matchid=1
 
 interface_close() {
+	echo
 	
 	if [ $interface_default_added -eq 0 ]
 	then
@@ -435,12 +440,16 @@ interface_close() {
 	interface_classid=0
 	interface_default_added=0
 	class_matchid=1
+	
+	return 0
 }
 
 FIREQOS_LOADED_IFBS=0
 interface() {
 	class_close
 	interface_close
+	
+	printf ": ${FUNCNAME} %s" "$*"
 	
 	interface_dev="$1"; shift
 	interface_name="$1"; shift
@@ -543,8 +552,7 @@ interface() {
 	[ ! -z "$interface_quantum" ]			&& local quantum="quantum $interface_quantum"
 	[ ! -z "$interface_r2q" ]			&& local r2q="r2q $interface_r2q"
 	
-	echo
-	echo ": Setting up $interface_name on the $interface_inout of '$interface_dev' (real device '$interface_realdev'):"
+	echo -e "\e[1;34m real device '$interface_realdev'\e[0m"
 	
 	# Add root qdisc with proper linklayer and overheads
 	tc qdisc add dev $interface_realdev $stab root handle $interface_id: htb default 1999 $r2q
@@ -594,6 +602,8 @@ class_${interface_id}1_cburst=CBURST
 class_${interface_id}1_quantum=QUANTUM
 class_${interface_id}1_qdisc=QDISC
 EOF
+
+	return 0
 }
 
 class_flows=
@@ -606,6 +616,8 @@ class_close() {
 
 class() {
 	class_close
+	
+	printf ":	${FUNCNAME} %s" "$*"
 	
 	local name="$1"; shift
 	
@@ -655,7 +667,7 @@ class() {
 			;;
 	esac
 	
-	echo ":	activating class $cid, prioty $prio: '$name'"
+	echo -e "\e[1;34m class $cid, priority $prio\e[0m"
 	
 	class_flowid=$cid
 	class_flows="$class_flows $name/$cid"
@@ -677,6 +689,8 @@ class_${ncid}_cburst=$class_cburst
 class_${ncid}_quantum=$class_quantum
 class_${ncid}_qdisc=$class_qdisc
 EOF
+	
+	return 0
 }
 
 expand_port_range() {
@@ -691,6 +705,7 @@ expand_port_range() {
 	do
 		echo $x
 	done
+	return 0
 }
 
 expand_ports() {
@@ -700,9 +715,12 @@ expand_ports() {
 		expand_port_range $p
 		shift
 	done
+	return 0
 }
 
 match() {
+	[ $FIREQOS_DEBUG -eq 1 -o $FIREQOS_SHOW_MATCHES -eq 1 ] && echo ":		${FUNCNAME} %s" "$*"
+	
 	local proto=any
 	local port=any
 	local sport=any
@@ -713,7 +731,6 @@ match() {
 	local tos=any
 	local mark=any
 	local class=$class_name
-	
 	local prio=
 	
 	while [ ! -z "$1" ]
@@ -993,6 +1010,8 @@ match() {
 		done # ip
 		
 	done # proto
+	
+	return 0
 }
 
 clear_everything() {
@@ -1005,6 +1024,8 @@ clear_everything() {
 	done
 	
 	rmmod ifb 2>/dev/null
+	
+	return 0
 }
 
 htb_stats() {
