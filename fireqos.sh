@@ -439,6 +439,7 @@ interface_close() {
 
 FIREQOS_LOADED_IFBS=0
 interface() {
+	class_close
 	interface_close
 	
 	interface_dev="$1"; shift
@@ -595,9 +596,20 @@ class_${interface_id}1_qdisc=QDISC
 EOF
 }
 
+class_flows=
+class_name=
+class_flowid=
+class_close() {
+	class_name=
+	class_flowid=
+}
 
 class() {
+	class_close
+	
 	local name="$1"; shift
+	
+	class_name="$name"
 	
 	# increase the id of this class
 	interface_classid=$((interface_classid + 1))
@@ -645,6 +657,8 @@ class() {
 	
 	echo ":	activating class $cid, prioty $prio: '$name'"
 	
+	class_flowid=$cid
+	class_flows="$class_flows $name/$cid"
 	tc class add dev $interface_realdev parent $interface_id:1 classid $cid htb $rate $ceil $burst $cburst prio $prio $quantum
 	tc qdisc add dev $interface_realdev parent $cid handle $handle: $qdisc
 	
@@ -654,6 +668,7 @@ class() {
 	# save the configuration
 	cat >>"${FIREQOS_DIR}/${interface_name}.conf" <<EOF
 class_${ncid}_name=$name
+class_${ncid}_flowid=$cid
 class_${ncid}_priority=$prio
 class_${ncid}_rate=$class_rate
 class_${ncid}_ceil=$class_ceil
@@ -697,6 +712,7 @@ match() {
 	local ip=any
 	local tos=any
 	local mark=any
+	local class=$class_name
 	
 	local prio=
 	
@@ -755,6 +771,11 @@ match() {
 			
 			ip|ips|net|nets|host|hosts)
 				local ip="$2"
+				shift 2
+				;;
+			
+			class)
+				local class="$2"
 				shift 2
 				;;
 			
@@ -930,6 +951,33 @@ match() {
 										local u32="u32"
 										[ -z "$proto_arg$ip_arg$src_arg$dst_arg$port_arg$sport_arg$dport_arg$tos_arg" ] && local u32=
 										[ ! -z "$u32" -a ! -z "$mark_arg" ] && local mark_arg="and $mark_arg"
+										
+										local flowid=$class_flowid
+										if [ -z "$class" ]
+										then
+											error "No class name given for match with priority $prio."
+											exit 1
+										elif [ ! "$class" = "$class_name" ]
+										then
+											local c=
+											for c in $class_flows
+											do
+												local cn="`echo $c | cut -d '/' -f 1`"
+												local cf="`echo $c | cut -d '/' -f 2`"
+												
+												if [ "$class" = "$cn" ]
+												then
+													local flowid=$cf
+													break
+												fi
+											done
+											
+											if [ -z "$flowid" ]
+											then
+												error "Cannot find class '$class'"
+												exit 1
+											fi
+										fi
 										
 										tc filter add dev $interface_realdev parent $interface_id: protocol all prio $prio $u32 $proto_arg $ip_arg $src_arg $dst_arg $port_arg $sport_arg $dport_arg $tos_arg $mark_arg flowid $interface_id:1$interface_classid
 										
