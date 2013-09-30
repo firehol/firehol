@@ -413,6 +413,37 @@ parse_class_params() {
 	return 0
 }
 
+parent_stack_size=0
+parent_push() {
+	local prefix="$1"; shift
+	
+	parent_stack_size=$((parent_stack_size + 1))
+	
+	eval "parent_stack_${parent_stack_size}="
+	for x in handle ceil burst cburst quantum qdisc rate mtu mpu tsize overhead linklayer r2q
+	do
+		eval "parent_$x=\$${prefix}_$x"
+		eval "parent_stack_${parent_stack_size}=\"\${parent_stack_${parent_stack_size}}parent_$x=\$${prefix}_$x;\""
+	done
+	# set | grep ^parent
+}
+
+parent_pull() {
+	if [ $parent_stack_size -lt 1 ]
+	then
+		error "Cannot pull a not pushed set of values from stack."
+		exit 1
+	fi
+	
+	eval "eval \${parent_stack_${parent_stack_size}}"
+	parent_stack_size=$((parent_stack_size - 1))
+	# set | grep ^parent
+}
+parent_clear() {
+	parent_stack_size=0
+}
+
+
 interface_id=0
 interface_dev=
 interface_name=
@@ -423,6 +454,7 @@ interface_classid=0
 interface_default_added=1
 interface_classes=
 interface_sumrate=0
+interface_handle=
 ifb_counter=
 class_matchid=1
 
@@ -434,6 +466,8 @@ interface_close() {
 		class default
 	fi
 	
+	parent_clear
+	
 	interface_dev=
 	interface_name=
 	interface_inout=
@@ -443,7 +477,9 @@ interface_close() {
 	interface_default_added=0
 	interface_classes=
 	interface_sumrate=0
+	interface_handle=
 	class_matchid=1
+	parent_stack_size=0
 	
 	return 0
 }
@@ -564,18 +600,20 @@ interface() {
 	# redirect all incoming traffic to ifb
 	if [ $interface_inout = input ]
 	then
-		# remove old ingress qdisc
-		# *** NO NEED TO DO IT *** our startup clears everything
-		# tc ignore-error qdisc del dev $interface_dev ingress
-		
 		# Redirect all incoming traffic to ifbX
 		# We then shape the traffic in the output of ifbX
 		tc qdisc add dev $interface_dev ingress
 		tc filter add dev $interface_dev parent ffff: protocol ip prio 1 u32 match u32 0 0 action mirred egress redirect dev $interface_realdev
 	fi
 	
+	interface_handle="$interface_id:1"
+	
 	# Add the root class for the interface
-	tc class add dev $interface_realdev parent $interface_id: classid $interface_id:1 htb $rate $ceil $burst $cburst $quantum
+	tc class add dev $interface_realdev parent $interface_id: classid $interface_handle htb $rate $ceil $burst $cburst $quantum
+	
+	
+	parent_push interface
+	parent_pull
 	
 	[ -f "${FIREQOS_DIR}/${interface_name}.conf" ] && rm "${FIREQOS_DIR}/${interface_name}.conf"
 	cat >"${FIREQOS_DIR}/${interface_name}.conf" <<EOF
@@ -611,10 +649,10 @@ EOF
 }
 
 class_name=
-class_flowid=
+class_handle=
 class_close() {
 	class_name=
-	class_flowid=
+	class_handle=
 }
 
 class() {
@@ -639,11 +677,11 @@ class() {
 	fi
 	
 	# the tc classid that we will create
-	local cid="$interface_id:$id"
+	class_handle="$interface_id:$id"
 	local ncid="$interface_id$id"
 	
 	# the handle of the new qdisc we will create
-	local handle=$id
+	local qdisc_handle=$id
 	
 	parse_class_params class interface "${@}"
 	
@@ -670,18 +708,17 @@ class() {
 			;;
 	esac
 	
-	echo -e "\e[1;34m class $cid, priority $prio\e[0m"
+	echo -e "\e[1;34m class $class_handle, priority $prio\e[0m"
 	
-	class_flowid=$cid
-	interface_classes="$interface_classes $name/$cid"
+	interface_classes="$interface_classes $name|$class_handle"
 	interface_sumrate=$((interface_sumrate + $class_rate))
 	if [ $interface_sumrate -gt $interface_rate ]
 	then
 		echo -e ":	\e[1;31mWARNING! The classes commit more bandwidth (+$(( (interface_sumrate - interface_rate) * 8 / 1000 ))kbit) that the available rate.\e[0m"
 	fi
 	
-	tc class add dev $interface_realdev parent $interface_id:1 classid $cid htb $rate $ceil $burst $cburst prio $prio $quantum
-	tc qdisc add dev $interface_realdev parent $cid handle $handle: $qdisc
+	tc class add dev $interface_realdev parent $interface_handle classid $class_handle htb $rate $ceil $burst $cburst prio $prio $quantum
+	tc qdisc add dev $interface_realdev parent $class_handle handle $qdisc_handle: $qdisc
 	
 	# if this is the default, make sure we don't added again
 	[ "$name" = "default" ] && interface_default_added=1
@@ -689,7 +726,7 @@ class() {
 	# save the configuration
 	cat >>"${FIREQOS_DIR}/${interface_name}.conf" <<EOF
 class_${ncid}_name=$name
-class_${ncid}_flowid=$cid
+class_${ncid}_handle=$class_handle
 class_${ncid}_priority=$prio
 class_${ncid}_rate=$class_rate
 class_${ncid}_ceil=$class_ceil
@@ -844,7 +881,7 @@ match() {
 	[ ! "$ip" = "any" -a ! "$dst" = "any" ]		&& error "Cannot match 'ip' and 'dst'." && exit 1
 	
 	# find our class
-	local flowid=$class_flowid
+	local flowid=$class_handle
 	if [ -z "$class" ]
 	then
 		error "No class name given for match with priority $prio."
@@ -854,8 +891,8 @@ match() {
 		local c=
 		for c in $interface_classes
 		do
-			local cn="`echo $c | cut -d '/' -f 1`"
-			local cf="`echo $c | cut -d '/' -f 2`"
+			local cn="`echo $c | cut -d '|' -f 1`"
+			local cf="`echo $c | cut -d '|' -f 2`"
 			
 			if [ "$class" = "$cn" ]
 			then
@@ -1007,7 +1044,7 @@ match() {
 										[ -z "$proto_arg$ip_arg$src_arg$dst_arg$port_arg$sport_arg$dport_arg$tos_arg" ] && local u32=
 										[ ! -z "$u32" -a ! -z "$mark_arg" ] && local mark_arg="and $mark_arg"
 										
-										tc filter add dev $interface_realdev parent $interface_id: protocol all prio $prio $u32 $proto_arg $ip_arg $src_arg $dst_arg $port_arg $sport_arg $dport_arg $tos_arg $mark_arg flowid $interface_id:1$interface_classid
+										tc filter add dev $interface_realdev parent $interface_id: protocol all prio $prio $u32 $proto_arg $ip_arg $src_arg $dst_arg $port_arg $sport_arg $dport_arg $tos_arg $mark_arg flowid $flowid
 										
 									done # mark
 								done # tos
