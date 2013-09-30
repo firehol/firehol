@@ -421,6 +421,8 @@ interface_realdev=
 interface_minrate=
 interface_classid=0
 interface_default_added=1
+interface_classes=
+interface_sumrate=0
 ifb_counter=
 class_matchid=1
 
@@ -439,8 +441,9 @@ interface_close() {
 	interface_minrate=
 	interface_classid=0
 	interface_default_added=0
+	interface_classes=
+	interface_sumrate=0
 	class_matchid=1
-	class_flows=
 	
 	return 0
 }
@@ -607,7 +610,6 @@ EOF
 	return 0
 }
 
-class_flows=
 class_name=
 class_flowid=
 class_close() {
@@ -671,7 +673,13 @@ class() {
 	echo -e "\e[1;34m class $cid, priority $prio\e[0m"
 	
 	class_flowid=$cid
-	class_flows="$class_flows $name/$cid"
+	interface_classes="$interface_classes $name/$cid"
+	interface_sumrate=$((interface_sumrate + $class_rate))
+	if [ $interface_sumrate -gt $interface_rate ]
+	then
+		echo -e ":	\e[1;31mWARNING! The classes commit more bandwidth (+$(( (interface_sumrate - interface_rate) * 8 / 1000 ))kbit) that the available rate.\e[0m"
+	fi
+	
 	tc class add dev $interface_realdev parent $interface_id:1 classid $cid htb $rate $ceil $burst $cburst prio $prio $quantum
 	tc qdisc add dev $interface_realdev parent $cid handle $handle: $qdisc
 	
@@ -844,7 +852,7 @@ match() {
 	elif [ ! "$class" = "$class_name" ]
 	then
 		local c=
-		for c in $class_flows
+		for c in $interface_classes
 		do
 			local cn="`echo $c | cut -d '/' -f 1`"
 			local cf="`echo $c | cut -d '/' -f 2`"
