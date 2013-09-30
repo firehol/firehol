@@ -440,6 +440,7 @@ interface_close() {
 	interface_classid=0
 	interface_default_added=0
 	class_matchid=1
+	class_flows=
 	
 	return 0
 }
@@ -834,6 +835,35 @@ match() {
 	[ ! "$ip" = "any" -a ! "$src" = "any" ]		&& error "Cannot match 'ip' and 'src'." && exit 1
 	[ ! "$ip" = "any" -a ! "$dst" = "any" ]		&& error "Cannot match 'ip' and 'dst'." && exit 1
 	
+	# find our class
+	local flowid=$class_flowid
+	if [ -z "$class" ]
+	then
+		error "No class name given for match with priority $prio."
+		exit 1
+	elif [ ! "$class" = "$class_name" ]
+	then
+		local c=
+		for c in $class_flows
+		do
+			local cn="`echo $c | cut -d '/' -f 1`"
+			local cf="`echo $c | cut -d '/' -f 2`"
+			
+			if [ "$class" = "$cn" ]
+			then
+				local flowid=$cf
+				break
+			fi
+		done
+		
+		if [ -z "$flowid" ]
+		then
+			error "Cannot find class '$class'"
+			exit 1
+		fi
+	fi
+	
+	# create all tc filter statements
 	local tproto=
 	for tproto in $proto
 	do
@@ -968,33 +998,6 @@ match() {
 										local u32="u32"
 										[ -z "$proto_arg$ip_arg$src_arg$dst_arg$port_arg$sport_arg$dport_arg$tos_arg" ] && local u32=
 										[ ! -z "$u32" -a ! -z "$mark_arg" ] && local mark_arg="and $mark_arg"
-										
-										local flowid=$class_flowid
-										if [ -z "$class" ]
-										then
-											error "No class name given for match with priority $prio."
-											exit 1
-										elif [ ! "$class" = "$class_name" ]
-										then
-											local c=
-											for c in $class_flows
-											do
-												local cn="`echo $c | cut -d '/' -f 1`"
-												local cf="`echo $c | cut -d '/' -f 2`"
-												
-												if [ "$class" = "$cn" ]
-												then
-													local flowid=$cf
-													break
-												fi
-											done
-											
-											if [ -z "$flowid" ]
-											then
-												error "Cannot find class '$class'"
-												exit 1
-											fi
-										fi
 										
 										tc filter add dev $interface_realdev parent $interface_id: protocol all prio $prio $u32 $proto_arg $ip_arg $src_arg $dst_arg $port_arg $sport_arg $dport_arg $tos_arg $mark_arg flowid $interface_id:1$interface_classid
 										
