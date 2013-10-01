@@ -67,6 +67,7 @@ syslog() {
 }
 
 error() {
+	echo >&2
 	echo >&2 "FAILED: $@"
 	exit 1
 }
@@ -410,16 +411,30 @@ parse_class_params() {
 parent_stack_size=0
 parent_push() {
 	local prefix="$1"; shift
+	local vars="classid major sumrate default_class default_added ceil burst cburst quantum qdisc rate mtu mpu tsize overhead linklayer r2q"
 	
-	parent_stack_size=$((parent_stack_size + 1))
-	
+	# refresh the existing parent_* values to stack
+	#-- eval "local before=\$parent_stack_${parent_stack_size}"
+	#-- echo "BEFORE(${parent_stack_size}): $before"
 	eval "parent_stack_${parent_stack_size}="
-	for x in classid major sumrate ceil burst cburst quantum qdisc rate mtu mpu tsize overhead linklayer r2q
+	for x in $vars
+	do
+		eval "parent_stack_${parent_stack_size}=\"\${parent_stack_${parent_stack_size}}parent_$x=\$parent_$x;\""
+	done
+	#-- eval "local after=\$parent_stack_${parent_stack_size}"
+	#-- echo "AFTER(${parent_stack_size}): $after"
+	
+	# now push the new values into the stack
+	parent_stack_size=$((parent_stack_size + 1))
+	eval "parent_stack_${parent_stack_size}="
+	for x in $vars
 	do
 		eval "parent_$x=\$${prefix}_$x"
 		eval "parent_stack_${parent_stack_size}=\"\${parent_stack_${parent_stack_size}}parent_$x=\$${prefix}_$x;\""
 	done
-	# set | grep ^parent
+	eval "local push=\$parent_stack_${parent_stack_size}"
+	#-- echo "PUSH(${parent_stack_size}): $push"
+	#-- set | grep ^parent
 }
 
 parent_pull() {
@@ -429,29 +444,36 @@ parent_pull() {
 		exit 1
 	fi
 	
-	eval "eval \${parent_stack_${parent_stack_size}}"
 	parent_stack_size=$((parent_stack_size - 1))
-	# set | grep ^parent
+	
+	#-- eval "local pull=\$parent_stack_${parent_stack_size}"
+	#-- echo "PULL(${parent_stack_size}): $pull"
+	
+	eval "eval \${parent_stack_${parent_stack_size}}"
+	
+	#-- set | grep ^parent
 }
 parent_clear() {
 	parent_stack_size=0
 }
 
 
-interface_major=1
+interface_major=
 interface_dev=
 interface_name=
 interface_inout=
 interface_realdev=
 interface_minrate=
-interface_class_counter=10
-interface_qdisc_counter=10
-interface_default_added=1
+interface_class_counter=
+interface_qdisc_counter=
+interface_default_added=
+interface_default_class=
 interface_classes=
 interface_sumrate=0
 interface_classid=
+class_matchid=
+
 ifb_counter=
-class_matchid=1
 
 # required for first interface, when the parent_* variables are uninitialized
 parent_default_added=1
@@ -462,6 +484,7 @@ interface_close() {
 	if [ $parent_default_added -eq 0 ]
 	then
 		class default
+		parent_default_added=1
 	fi
 	
 	parent_clear
@@ -475,6 +498,7 @@ interface_close() {
 	interface_class_counter=10
 	interface_qdisc_counter=10
 	interface_default_added=0
+	interface_default_class=5000
 	interface_classes=
 	interface_sumrate=0
 	interface_classid=
@@ -587,7 +611,7 @@ interface() {
 	echo -e "\e[1;34m real device '$interface_realdev'\e[0m"
 	
 	# Add root qdisc with proper linklayer and overheads
-	tc qdisc add dev $interface_realdev $stab root handle $interface_major: htb default 9999 $r2q
+	tc qdisc add dev $interface_realdev $stab root handle $interface_major: htb default $interface_default_class $r2q
 	
 	# redirect all incoming traffic to ifb
 	if [ $interface_inout = input ]
@@ -604,7 +628,6 @@ interface() {
 	tc class add dev $interface_realdev parent $interface_major: classid $interface_classid htb $rate $ceil $burst $cburst $quantum
 	
 	parent_push interface
-	parent_pull
 	
 	[ -f "${FIREQOS_DIR}/${interface_name}.conf" ] && rm "${FIREQOS_DIR}/${interface_name}.conf"
 	cat >"${FIREQOS_DIR}/${interface_name}.conf" <<EOF
@@ -642,29 +665,60 @@ EOF
 class_name=
 class_classid=
 class_major=
+class_group=0
 class_close() {
-	class_name=
-	class_classid=
-	class_major=
+	while [ $parent_stack_size -gt 1 ]
+	do
+		class group end
+	done
 }
 
 class() {
-	class_close
+	class_name=
+	class_classid=
+	class_major=
+	class_group=0
 	
 	printf ":	${FUNCNAME} %s" "$*"
 	
-	local name="$1"; shift
+	class_group=0
+	if [ "$1" = "group" ]
+	then
+		shift
+		
+		if [ "$1" = "end" ]
+		then
+			shift
+			
+			if [ $parent_stack_size -le 1 ]
+			then
+				error "No open class group to end."
+				exit 1
+			fi
+			
+			echo
+			if [ $parent_default_added -eq 0 ]
+			then
+				class default
+			fi
+			
+			parent_pull
+			return 0
+		fi
+		
+		class_group=1
+	fi
 	
-	class_name="$name"
+	class_name="$1"; shift
 	
 	# increase the id of this class
 	interface_class_counter=$((interface_class_counter + 1))
 	
 	# if this is the default class, use the pre-defined
 	# id, otherwise use the classid we just increased
-	if [ "$name" = "default" ]
+	if [ "$class_name" = "default" ]
 	then
-		local id=9999
+		local id=$parent_default_class
 	else
 		local id=$interface_class_counter
 	fi
@@ -694,7 +748,19 @@ class() {
 	[ ! -z "$class_cburst" ]	&& local cburst="cburst $class_cburst"
 	[ ! -z "$class_quantum" ]	&& local quantum="quantum $class_quantum"
 	
+	local default=
+	class_default_class=
+	if [ $class_group -eq 1 ]
+	then
+		class_qdisc="htb"
+		class_default_class="$((interface_default_class + interface_qdisc_counter))"
+		local default="default $class_default_class"
+	fi
+	
 	case "$class_qdisc" in
+		htb)	local qdisc="htb"
+			;;
+		
 		sfq)	local qdisc="sfq perturb 10"
 			;;
 		
@@ -704,7 +770,7 @@ class() {
 	
 	echo -e "\e[1;34m class $class_classid, priority $prio\e[0m"
 	
-	interface_classes="$interface_classes $name|$class_classid"
+	interface_classes="$interface_classes $class_name|$class_classid"
 	parent_sumrate=$((parent_sumrate + $class_rate))
 	if [ $parent_sumrate -gt $parent_rate ]
 	then
@@ -712,14 +778,22 @@ class() {
 	fi
 	
 	tc class add dev $interface_realdev parent $parent_classid classid $class_classid htb $rate $ceil $burst $cburst prio $prio $quantum
-	tc qdisc add dev $interface_realdev parent $class_classid handle $class_major: $qdisc
+	tc qdisc add dev $interface_realdev parent $class_classid handle $class_major: $qdisc $default
 	
 	# if this is the default, make sure we don't added again
-	[ "$name" = "default" ] && parent_default_added=1
+	[ "$class_name" = "default" ] && parent_default_added=1
+	
+	if [ $class_group -eq 1 ]
+	then
+		class_qdisc="$parent_qdisc"
+		class_default_added=0
+		parent_push class
+		class_group=0
+	fi
 	
 	# save the configuration
 	cat >>"${FIREQOS_DIR}/${interface_name}.conf" <<EOF
-class_${ncid}_name=$name
+class_${ncid}_name=$class_name
 class_${ncid}_classid=$class_classid
 class_${ncid}_priority=$prio
 class_${ncid}_rate=$class_rate
