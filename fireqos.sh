@@ -264,6 +264,10 @@ parse_class_params() {
 	while [ ! -z "$1" ]
 	do
 		case "$1" in
+			prio|priority)
+					local prio="$2"
+					shift 2
+					;;
 			qdisc)	
 					local qdisc="$2"
 					shift 2
@@ -400,7 +404,7 @@ parse_class_params() {
 	done
 	
 	# no inheritance for these parameters
-	for x in rate mtu mpu tsize overhead linklayer r2q
+	for x in rate mtu mpu tsize overhead linklayer r2q prio
 	do
 		eval export ${prefix}_${x}="\$$x"
 	done
@@ -411,7 +415,7 @@ parse_class_params() {
 parent_stack_size=0
 parent_push() {
 	local prefix="$1"; shift
-	local vars="classid major sumrate default_class default_added ceil burst cburst quantum qdisc rate mtu mpu tsize overhead linklayer r2q"
+	local vars="classid major sumrate default_class default_added name ceil burst cburst quantum qdisc rate mtu mpu tsize overhead linklayer r2q prio"
 	
 	# refresh the existing parent_* values to stack
 	#-- eval "local before=\$parent_stack_${parent_stack_size}"
@@ -435,6 +439,8 @@ parent_push() {
 	eval "local push=\$parent_stack_${parent_stack_size}"
 	#-- echo "PUSH(${parent_stack_size}): $push"
 	#-- set | grep ^parent
+	
+	set_tabs
 }
 
 parent_pull() {
@@ -452,11 +458,25 @@ parent_pull() {
 	eval "eval \${parent_stack_${parent_stack_size}}"
 	
 	#-- set | grep ^parent
-}
-parent_clear() {
-	parent_stack_size=0
+	
+	set_tabs
 }
 
+parent_clear() {
+	parent_stack_size=0
+
+	set_tabs
+}
+
+class_tabs=
+set_tabs() {
+	class_tabs=
+	local x=
+	for x in `seq 1 $parent_stack_size`
+	do
+		class_tabs="$class_tabs	"
+	done
+}
 
 interface_major=
 interface_dev=
@@ -679,7 +699,7 @@ class() {
 	class_major=
 	class_group=0
 	
-	printf ":	${FUNCNAME} %s" "$*"
+	printf ": $class_tabs${FUNCNAME} %s" "$*"
 	
 	class_group=0
 	if [ "$1" = "group" ]
@@ -734,7 +754,7 @@ class() {
 	parse_class_params class parent "${@}"
 	
 	# the priority of this class, compared to the others in the same interface
-	local prio=$((interface_class_counter - 10))
+	[ -z "$class_prio" ] && class_prio=$((interface_class_counter - 10))
 	
 	# if not specified, set the minimum rate
 	[ -z "$class_rate" ] && class_rate=$interface_minrate
@@ -748,15 +768,6 @@ class() {
 	[ ! -z "$class_cburst" ]	&& local cburst="cburst $class_cburst"
 	[ ! -z "$class_quantum" ]	&& local quantum="quantum $class_quantum"
 	
-	local default=
-	class_default_class=
-	if [ $class_group -eq 1 ]
-	then
-		class_qdisc="htb"
-		class_default_class="$((interface_default_class + interface_qdisc_counter))"
-		local default="default $class_default_class"
-	fi
-	
 	case "$class_qdisc" in
 		htb)	local qdisc="htb"
 			;;
@@ -768,7 +779,14 @@ class() {
 			;;
 	esac
 	
-	echo -e "\e[1;34m class $class_classid, priority $prio\e[0m"
+	class_default_class=
+	if [ $class_group -eq 1 ]
+	then
+		class_default_class="$((interface_default_class + interface_qdisc_counter))"
+		local qdisc="htb default $class_default_class"
+	fi
+	
+	echo -e "\e[1;34m class $class_classid, priority $class_prio\e[0m"
 	
 	interface_classes="$interface_classes $class_name|$class_classid"
 	parent_sumrate=$((parent_sumrate + $class_rate))
@@ -777,15 +795,17 @@ class() {
 		echo -e ":	\e[1;31mWARNING! The classes commit more bandwidth (+$(( (parent_sumrate - parent_rate) * 8 / 1000 ))kbit) that the available rate.\e[0m"
 	fi
 	
-	tc class add dev $interface_realdev parent $parent_classid classid $class_classid htb $rate $ceil $burst $cburst prio $prio $quantum
-	tc qdisc add dev $interface_realdev parent $class_classid handle $class_major: $qdisc $default
+	tc class add dev $interface_realdev parent $parent_classid classid $class_classid htb $rate $ceil $burst $cburst prio $class_prio $quantum
+	tc qdisc add dev $interface_realdev parent $class_classid handle $class_major: $qdisc
 	
 	# if this is the default, make sure we don't added again
 	[ "$class_name" = "default" ] && parent_default_added=1
 	
+	local name="$class_name"
+	[ $parent_stack_size -gt 1 ] && local name="$parent_name/$class_name"
+	
 	if [ $class_group -eq 1 ]
 	then
-		class_qdisc="$parent_qdisc"
 		class_default_added=0
 		parent_push class
 		class_group=0
@@ -793,9 +813,9 @@ class() {
 	
 	# save the configuration
 	cat >>"${FIREQOS_DIR}/${interface_name}.conf" <<EOF
-class_${ncid}_name=$class_name
+class_${ncid}_name=$name
 class_${ncid}_classid=$class_classid
-class_${ncid}_priority=$prio
+class_${ncid}_priority=$class_prio
 class_${ncid}_rate=$class_rate
 class_${ncid}_ceil=$class_ceil
 class_${ncid}_burst=$class_burst
@@ -845,7 +865,6 @@ match() {
 	local tos=any
 	local mark=any
 	local class=$class_name
-	local prio=
 	
 	while [ ! -z "$1" ]
 	do
