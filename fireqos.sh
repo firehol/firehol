@@ -865,10 +865,16 @@ match() {
 	local tos=any
 	local mark=any
 	local class=$class_name
+	local tacks=0
 	
 	while [ ! -z "$1" ]
 	do
 		case "$1" in
+			tcp-acks)
+				local tacks=1
+				shift
+				;;
+				
 			tcp|udp|icmp)
 				local proto="$1"
 				shift
@@ -993,6 +999,13 @@ match() {
 			error "Cannot find class '$class'"
 			exit 1
 		fi
+	fi
+	
+	if [ $tacks -eq 1 ]
+	then
+		local tacks="match ip protocol 6 0xff match u8 0x05 0x0f at 0 match u16 0x0000 0xffc0 at 2 match u8 0x10 0xff at 33"
+	else
+		local tacks=
 	fi
 	
 	# create all tc filter statements
@@ -1128,10 +1141,10 @@ match() {
 										esac
 										
 										local u32="u32"
-										[ -z "$proto_arg$ip_arg$src_arg$dst_arg$port_arg$sport_arg$dport_arg$tos_arg" ] && local u32=
+										[ -z "$proto_arg$ip_arg$src_arg$dst_arg$port_arg$sport_arg$dport_arg$tos_arg$tacks" ] && local u32=
 										[ ! -z "$u32" -a ! -z "$mark_arg" ] && local mark_arg="and $mark_arg"
 										
-										tc filter add dev $interface_realdev parent $interface_major: protocol all prio $prio $u32 $proto_arg $ip_arg $src_arg $dst_arg $port_arg $sport_arg $dport_arg $tos_arg $mark_arg flowid $flowid
+										tc filter add dev $interface_realdev parent $interface_major: protocol all prio $prio $u32 $proto_arg $ip_arg $src_arg $dst_arg $port_arg $sport_arg $dport_arg $tos_arg $tacks $mark_arg flowid $flowid
 										
 									done # mark
 								done # tos
