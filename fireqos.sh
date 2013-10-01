@@ -414,7 +414,7 @@ parent_push() {
 	parent_stack_size=$((parent_stack_size + 1))
 	
 	eval "parent_stack_${parent_stack_size}="
-	for x in handle major sumrate ceil burst cburst quantum qdisc rate mtu mpu tsize overhead linklayer r2q
+	for x in classid major sumrate ceil burst cburst quantum qdisc rate mtu mpu tsize overhead linklayer r2q
 	do
 		eval "parent_$x=\$${prefix}_$x"
 		eval "parent_stack_${parent_stack_size}=\"\${parent_stack_${parent_stack_size}}parent_$x=\$${prefix}_$x;\""
@@ -444,12 +444,12 @@ interface_name=
 interface_inout=
 interface_realdev=
 interface_minrate=
-interface_classid=10
-interface_qdiscid=10
+interface_class_counter=10
+interface_qdisc_counter=10
 interface_default_added=1
 interface_classes=
 interface_sumrate=0
-interface_handle=
+interface_classid=
 ifb_counter=
 class_matchid=1
 
@@ -472,12 +472,12 @@ interface_close() {
 	interface_inout=
 	interface_realdev=
 	interface_minrate=
-	interface_classid=10
-	interface_qdiscid=10
+	interface_class_counter=10
+	interface_qdisc_counter=10
 	interface_default_added=0
 	interface_classes=
 	interface_sumrate=0
-	interface_handle=
+	interface_classid=
 	class_matchid=1
 	parent_stack_size=0
 	
@@ -598,10 +598,10 @@ interface() {
 		tc filter add dev $interface_dev parent ffff: protocol ip prio 1 u32 match u32 0 0 action mirred egress redirect dev $interface_realdev
 	fi
 	
-	interface_handle="$interface_major:1"
+	interface_classid="$interface_major:1"
 	
 	# Add the root class for the interface
-	tc class add dev $interface_realdev parent $interface_major: classid $interface_handle htb $rate $ceil $burst $cburst $quantum
+	tc class add dev $interface_realdev parent $interface_major: classid $interface_classid htb $rate $ceil $burst $cburst $quantum
 	
 	parent_push interface
 	parent_pull
@@ -640,11 +640,11 @@ EOF
 }
 
 class_name=
-class_handle=
+class_classid=
 class_major=
 class_close() {
 	class_name=
-	class_handle=
+	class_classid=
 	class_major=
 }
 
@@ -658,7 +658,7 @@ class() {
 	class_name="$name"
 	
 	# increase the id of this class
-	interface_classid=$((interface_classid + 1))
+	interface_class_counter=$((interface_class_counter + 1))
 	
 	# if this is the default class, use the pre-defined
 	# id, otherwise use the classid we just increased
@@ -666,21 +666,21 @@ class() {
 	then
 		local id=9999
 	else
-		local id=$interface_classid
+		local id=$interface_class_counter
 	fi
 	
 	# the tc classid that we will create
-	class_handle="$interface_major:$id"
+	class_classid="$interface_major:$id"
 	local ncid="$interface_major$id"
 	
 	# the handle of the new qdisc we will create
-	interface_qdiscid=$((interface_qdiscid + 1))
-	local class_major=$interface_qdiscid
+	interface_qdisc_counter=$((interface_qdisc_counter + 1))
+	local class_major=$interface_qdisc_counter
 	
 	parse_class_params class parent "${@}"
 	
 	# the priority of this class, compared to the others in the same interface
-	local prio=$((interface_classid - 10))
+	local prio=$((interface_class_counter - 10))
 	
 	# if not specified, set the minimum rate
 	[ -z "$class_rate" ] && class_rate=$interface_minrate
@@ -702,17 +702,17 @@ class() {
 			;;
 	esac
 	
-	echo -e "\e[1;34m class $class_handle, priority $prio\e[0m"
+	echo -e "\e[1;34m class $class_classid, priority $prio\e[0m"
 	
-	interface_classes="$interface_classes $name|$class_handle"
+	interface_classes="$interface_classes $name|$class_classid"
 	parent_sumrate=$((parent_sumrate + $class_rate))
 	if [ $parent_sumrate -gt $parent_rate ]
 	then
 		echo -e ":	\e[1;31mWARNING! The classes commit more bandwidth (+$(( (parent_sumrate - parent_rate) * 8 / 1000 ))kbit) that the available rate.\e[0m"
 	fi
 	
-	tc class add dev $interface_realdev parent $parent_handle classid $class_handle htb $rate $ceil $burst $cburst prio $prio $quantum
-	tc qdisc add dev $interface_realdev parent $class_handle handle $class_major: $qdisc
+	tc class add dev $interface_realdev parent $parent_classid classid $class_classid htb $rate $ceil $burst $cburst prio $prio $quantum
+	tc qdisc add dev $interface_realdev parent $class_classid handle $class_major: $qdisc
 	
 	# if this is the default, make sure we don't added again
 	[ "$name" = "default" ] && parent_default_added=1
@@ -720,7 +720,7 @@ class() {
 	# save the configuration
 	cat >>"${FIREQOS_DIR}/${interface_name}.conf" <<EOF
 class_${ncid}_name=$name
-class_${ncid}_handle=$class_handle
+class_${ncid}_classid=$class_classid
 class_${ncid}_priority=$prio
 class_${ncid}_rate=$class_rate
 class_${ncid}_ceil=$class_ceil
@@ -875,7 +875,7 @@ match() {
 	[ ! "$ip" = "any" -a ! "$dst" = "any" ]		&& error "Cannot match 'ip' and 'dst'." && exit 1
 	
 	# find our class
-	local flowid=$class_handle
+	local flowid=$class_classid
 	if [ -z "$class" ]
 	then
 		error "No class name given for match with priority $prio."
