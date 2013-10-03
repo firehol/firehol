@@ -273,7 +273,7 @@ parse_class_params() {
 					shift 2
 					;;
 			
-			sfq|pfifo|bfifo|pfifo_fast)
+			sfq|pfifo|bfifo)
 					local qdisc="$1"
 					shift
 					;;
@@ -1003,6 +1003,8 @@ match() {
 	
 	if [ $tacks -eq 1 ]
 	then
+		# http://tldp.org/HOWTO/Adv-Routing-HOWTO/lartc.adv-filter.u32.html
+		# matches TCP, IP header length 0x5(32 bit words), IP Total length 0x34 (ACK + 12 bytes of TCP options), TCP ack set (bit 5, offset 33)
 		local tacks="match ip protocol 6 0xff match u8 0x05 0x0f at 0 match u16 0x0000 0xffc0 at 2 match u8 0x10 0xff at 33"
 	else
 		local tacks=
@@ -1218,6 +1220,8 @@ htb_stats() {
 			-e "s/ *| */|/g"		\
 			-e "s/||/\n/g"			\
 			-e "s/|/ /g"			\
+			-e "s/\([0-9]\+\)Mbit /\1000000 /g" \
+			-e "s/\([0-9]\+\)Kbit /\1000 /g" \
 			-e "s/\([0-9]\+\)bit /\1 /g"	\
 			-e "s/\([0-9]\+\)pps /\1 /g"	\
 			-e "s/\([0-9]\+\)b /\1 /g"	\
@@ -1226,48 +1230,17 @@ htb_stats() {
 			sort -n 			|\
 			awk '{
 				if( $2 == "htb" ) {
-					if ( $4 == "parent" ) value = $19
-					else value = $14
+					if ( $4 == "root" ) value = $25
+					else if ( $6 == "rate" ) value = $26
+					else value = $30
 					
-					print "TCSTATS_" $2 "_" $3 "=\$(( (" value "*8) - OLD_TCSTATS_" $2 "_" $3 "));"
-					print "OLD_TCSTATS_" $2 "_" $3 "=\$((" value "*8));"
+					print "TCSTATS_" $2 "_" $3 "=\$(( (" value "*1) ));"
 				}
 				else {
 					print "# Cannot parse " $2 " class " $3;
 					value = 0
 				}
 			}'`"
-	}
-	
-	getms() {
-		local d=`date +'%s.%N'`
-		local s=`echo $d | cut -d '.' -f 1`
-		local n=`echo $d | cut -d '.' -f 2 | cut -b 1-3`
-		echo "${s}${n}"
-	}
-
-	local startedms=0
-	starttime() {
-		startedms=`getms`
-	}
-	
-	local endedms=0
-	endtime() {
-		endedms=`getms`
-	}
-	
-	sleepms() {
-		local timetosleep="$1"
-		
-		local diffms=$((endedms - startedms))
-		[ $diffms -gt $timetosleep ] && return 0
-		
-		local sleepms=$((timetosleep - diffms))
-		local secs=$((sleepms / 1000))
-		local ms=$((sleepms - (secs * 1000)))
-		
-		# echo "Sleeping for ${secs}.${ms} (started ${startedms}, ended ${endedms}, diffms ${diffms})"
-		sleep "${secs}.${ms}"
 	}
 	
 	echo
@@ -1317,7 +1290,6 @@ htb_stats() {
 	sleep 1
 	
 	# the main loop
-	starttime
 	local c=$((banner_every_lines - 1))
 	while [ 1 = 1 ]
 	do
@@ -1350,9 +1322,7 @@ htb_stats() {
 		done
 		echo
 		
-		endtime
-		sleepms 1000
-		starttime
+		sleep 1
 	done
 }
 
