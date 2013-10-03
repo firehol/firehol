@@ -876,6 +876,7 @@ match() {
 	local mark=any
 	local class=$class_name
 	local tacks=0
+	local tsyn=0
 	local at=
 	
 	while [ ! -z "$1" ]
@@ -886,6 +887,11 @@ match() {
 				shift 2
 				;;
 			
+			tcp-syn)
+				local tsyn=1
+				shift
+				;;
+				
 			tcp-acks)
 				local tacks=1
 				shift
@@ -1060,6 +1066,13 @@ match() {
 		local tacks=
 	fi
 	
+	if [ $tsyn -eq 1 ]
+	then
+		local tsyn="match ip protocol 6 0xff match u8 0x02 0x02 at nexthdr+13 match u16 0x0000 0xffc0 at 2"
+	else
+		local tsyn=
+	fi
+	
 	# create all tc filter statements
 	local tproto=
 	for tproto in $proto
@@ -1193,10 +1206,10 @@ match() {
 										esac
 										
 										local u32="u32"
-										[ -z "$proto_arg$ip_arg$src_arg$dst_arg$port_arg$sport_arg$dport_arg$tos_arg$tacks" ] && local u32=
+										[ -z "$proto_arg$ip_arg$src_arg$dst_arg$port_arg$sport_arg$dport_arg$tos_arg$tacks$tsyn" ] && local u32=
 										[ ! -z "$u32" -a ! -z "$mark_arg" ] && local mark_arg="and $mark_arg"
 										
-										tc filter add dev $interface_realdev parent $parent protocol all prio $prio $u32 $proto_arg $ip_arg $src_arg $dst_arg $port_arg $sport_arg $dport_arg $tos_arg $tacks $mark_arg flowid $flowid
+										tc filter add dev $interface_realdev parent $parent protocol all prio $prio $u32 $proto_arg $ip_arg $src_arg $dst_arg $port_arg $sport_arg $dport_arg $tos_arg $tacks $tsyn $mark_arg flowid $flowid
 										
 									done # mark
 								done # tos
