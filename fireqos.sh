@@ -876,10 +876,16 @@ match() {
 	local mark=any
 	local class=$class_name
 	local tacks=0
+	local at=
 	
 	while [ ! -z "$1" ]
 	do
 		case "$1" in
+			at)
+				local at="$2"
+				shift 2
+				;;
+			
 			tcp-acks)
 				local tacks=1
 				shift
@@ -1009,6 +1015,37 @@ match() {
 			error "Cannot find class '$class'"
 			exit 1
 		fi
+	fi
+	
+	local parent="$parent_filters_to"
+	if [ ! -z "$at" ]
+	then
+		case "$at" in
+			root)
+				local parent="$interface_filters_to"
+				;;
+
+			*)
+				local c=
+				for c in $interface_classes
+				do
+					local cn="`echo $c | cut -d '|' -f 1`"
+					local cf="`echo $c | cut -d '|' -f 2`"
+					
+					if [ "$class" = "$cn" ]
+					then
+						local parent=$cf
+						break
+					fi
+				done
+				
+				if [ -z "$parent" ]
+				then
+					error "Cannot find class '$class'"
+					exit 1
+				fi
+				;;
+		esac
 	fi
 	
 	if [ $tacks -eq 1 ]
@@ -1159,7 +1196,7 @@ match() {
 										[ -z "$proto_arg$ip_arg$src_arg$dst_arg$port_arg$sport_arg$dport_arg$tos_arg$tacks" ] && local u32=
 										[ ! -z "$u32" -a ! -z "$mark_arg" ] && local mark_arg="and $mark_arg"
 										
-										tc filter add dev $interface_realdev parent $parent_filters_to protocol all prio $prio $u32 $proto_arg $ip_arg $src_arg $dst_arg $port_arg $sport_arg $dport_arg $tos_arg $tacks $mark_arg flowid $flowid
+										tc filter add dev $interface_realdev parent $parent protocol all prio $prio $u32 $proto_arg $ip_arg $src_arg $dst_arg $port_arg $sport_arg $dport_arg $tos_arg $tacks $mark_arg flowid $flowid
 										
 									done # mark
 								done # tos
