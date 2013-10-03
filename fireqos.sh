@@ -1280,17 +1280,49 @@ htb_stats() {
 			sort -n 			|\
 			awk '{
 				if( $2 == "htb" ) {
-					if ( $4 == "root" ) value = $25
-					else if ( $6 == "rate" ) value = $26
-					else value = $30
+					if ( $4 == "root" ) value = $14
+					else if ( $6 == "rate" ) value = $15
+					else value = $19
 					
-					print "TCSTATS_" $2 "_" $3 "=\$(( (" value "*1) ));"
+					print "TCSTATS_" $2 "_" $3 "=\$(( (" value "*8) - OLD_TCSTATS_" $2 "_" $3 "));"
+					print "OLD_TCSTATS_" $2 "_" $3 "=\$((" value "*8));"
 				}
 				else {
 					print "# Cannot parse " $2 " class " $3;
 					value = 0
 				}
 			}'`"
+	}
+	
+	getms() {
+		local d=`date +'%s.%N'`
+		local s=`echo $d | cut -d '.' -f 1`
+		local n=`echo $d | cut -d '.' -f 2 | cut -b 1-3`
+		echo "${s}${n}"
+	}
+	
+	local startedms=0
+	starttime() {
+		startedms=`getms`
+	}
+	
+	local endedms=0
+	endtime() {
+		endedms=`getms`
+	}
+	
+	sleepms() {
+		local timetosleep="$1"
+	
+		local diffms=$((endedms - startedms))
+		[ $diffms -gt $timetosleep ] && return 0
+	
+		local sleepms=$((timetosleep - diffms))
+		local secs=$((sleepms / 1000))
+		local ms=$((sleepms - (secs * 1000)))
+	
+		# echo "Sleeping for ${secs}.${ms} (started ${startedms}, ended ${endedms}, diffms ${diffms})"
+		sleep "${secs}.${ms}"
 	}
 	
 	echo
@@ -1336,6 +1368,7 @@ htb_stats() {
 	echo
 	
 	# the main loop
+	starttime
 	local c=$((banner_every_lines - 1))
 	while [ 1 = 1 ]
 	do
@@ -1368,7 +1401,9 @@ htb_stats() {
 		done
 		echo
 		
-		sleep 4
+		endtime
+		sleepms 1000
+		starttime
 	done
 }
 
