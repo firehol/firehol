@@ -817,7 +817,7 @@ class() {
 	[ "$class_name" = "default" ] && parent_default_added=1
 	
 	local name="$class_name"
-	[ $parent_stack_size -gt 1 ] && local name="$parent_name/$class_name"
+	[ $parent_stack_size -gt 1 ] && local name="${parent_name:0:2}/$class_name"
 	
 	class_filters_to="$class_classid"
 	
