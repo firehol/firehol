@@ -415,7 +415,7 @@ parse_class_params() {
 parent_stack_size=0
 parent_push() {
 	local prefix="$1"; shift
-	local vars="classid major sumrate default_class default_added name ceil burst cburst quantum qdisc rate mtu mpu tsize overhead linklayer r2q prio"
+	local vars="classid major sumrate default_class default_added filters_to name ceil burst cburst quantum qdisc rate mtu mpu tsize overhead linklayer r2q prio"
 	
 	# refresh the existing parent_* values to stack
 	#-- eval "local before=\$parent_stack_${parent_stack_size}"
@@ -647,6 +647,8 @@ interface() {
 	# Add the root class for the interface
 	tc class add dev $interface_realdev parent $interface_major: classid $interface_classid htb $rate $ceil $burst $cburst $quantum
 	
+	interface_filters_to="$interface_major:0"
+	
 	parent_push interface
 	
 	[ -f "${FIREQOS_DIR}/${interface_name}.conf" ] && rm "${FIREQOS_DIR}/${interface_name}.conf"
@@ -694,18 +696,31 @@ class_close() {
 }
 
 class() {
+	printf ": $class_tabs${FUNCNAME} %s" "$*"
+	
+	# check if the have to push into the stack the last class (if it was a group class)
+	if [ $class_group -eq 1 ]
+	then
+		# the last class was a group 
+		
+		class_default_added=0
+		parent_push class
+		
+		# the current command is the first child class
+	fi
+	
+	# reset the values of the current class
 	class_name=
 	class_classid=
 	class_major=
 	class_group=0
 	
-	printf ": $class_tabs${FUNCNAME} %s" "$*"
-	
-	class_group=0
+	# if this is a group class
 	if [ "$1" = "group" ]
 	then
 		shift
 		
+		# if this is the end of a group class
 		if [ "$1" = "end" ]
 		then
 			shift
@@ -792,7 +807,7 @@ class() {
 	parent_sumrate=$((parent_sumrate + $class_rate))
 	if [ $parent_sumrate -gt $parent_rate ]
 	then
-		echo -e ":	\e[1;31mWARNING! The classes commit more bandwidth (+$(( (parent_sumrate - parent_rate) * 8 / 1000 ))kbit) that the available rate.\e[0m"
+		echo -e ":	\e[1;31mWARNING! The classes under $parent_name commit more bandwidth (+$(( (parent_sumrate - parent_rate) * 8 / 1000 ))kbit) than the available rate.\e[0m"
 	fi
 	
 	tc class add dev $interface_realdev parent $parent_classid classid $class_classid htb $rate $ceil $burst $cburst prio $class_prio $quantum
@@ -804,12 +819,7 @@ class() {
 	local name="$class_name"
 	[ $parent_stack_size -gt 1 ] && local name="$parent_name/$class_name"
 	
-	if [ $class_group -eq 1 ]
-	then
-		class_default_added=0
-		parent_push class
-		class_group=0
-	fi
+	class_filters_to="$class_classid"
 	
 	# save the configuration
 	cat >>"${FIREQOS_DIR}/${interface_name}.conf" <<EOF
@@ -1005,7 +1015,10 @@ match() {
 	then
 		# http://tldp.org/HOWTO/Adv-Routing-HOWTO/lartc.adv-filter.u32.html
 		# matches TCP, IP header length 0x5(32 bit words), IP Total length 0x34 (ACK + 12 bytes of TCP options), TCP ack set (bit 5, offset 33)
-		local tacks="match ip protocol 6 0xff match u8 0x05 0x0f at 0 match u16 0x0000 0xffc0 at 2 match u8 0x10 0xff at 33"
+		# local tacks="match ip protocol 6 0xff match u8 0x05 0x0f at 0 match u16 0x0000 0xffc0 at 2 match u8 0x10 0xff at 33"
+		
+		# http://www.lartc.org/lartc.html#LARTC.ADV-FILTER
+		local tacks="match ip protocol 6 0xff match u8 0x10 0xff at nexthdr+13 match u16 0x0000 0xffc0 at 2"
 	else
 		local tacks=
 	fi
@@ -1146,7 +1159,7 @@ match() {
 										[ -z "$proto_arg$ip_arg$src_arg$dst_arg$port_arg$sport_arg$dport_arg$tos_arg$tacks" ] && local u32=
 										[ ! -z "$u32" -a ! -z "$mark_arg" ] && local mark_arg="and $mark_arg"
 										
-										tc filter add dev $interface_realdev parent $interface_major: protocol all prio $prio $u32 $proto_arg $ip_arg $src_arg $dst_arg $port_arg $sport_arg $dport_arg $tos_arg $tacks $mark_arg flowid $flowid
+										tc filter add dev $interface_realdev parent $parent_filters_to protocol all prio $prio $u32 $proto_arg $ip_arg $src_arg $dst_arg $port_arg $sport_arg $dport_arg $tos_arg $tacks $mark_arg flowid $flowid
 										
 									done # mark
 								done # tos
