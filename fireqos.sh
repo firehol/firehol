@@ -1249,7 +1249,6 @@ htb_stats() {
 	echo "Values in $unit"
 	echo
 	
-	# get one set of data
 	getdata $interface_realdev
 	
 	# render the configuration
@@ -1286,9 +1285,6 @@ htb_stats() {
 	echo
 	echo
 	
-	# wait for data to be collected
-	sleep 1
-	
 	# the main loop
 	local c=$((banner_every_lines - 1))
 	while [ 1 = 1 ]
@@ -1322,7 +1318,7 @@ htb_stats() {
 		done
 		echo
 		
-		sleep 1
+		sleep 4
 	done
 }
 
