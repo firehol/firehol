@@ -739,6 +739,10 @@ class() {
 			
 			parent_pull
 			return 0
+		elif [ "$1" = "default" ]
+		then
+			error "The default class cannot have subclasses."
+			exit 1
 		fi
 		
 		class_group=1
@@ -875,8 +879,8 @@ match() {
 	local tos=any
 	local mark=any
 	local class=$class_name
-	local tacks=0
-	local tsyn=0
+	local ack=0
+	local syn=0
 	local at=
 	
 	while [ ! -z "$1" ]
@@ -887,13 +891,13 @@ match() {
 				shift 2
 				;;
 			
-			tcp-syn)
-				local tsyn=1
+			syn|syns)
+				local syn=1
 				shift
 				;;
 				
-			tcp-acks)
-				local tacks=1
+			ack|acks)
+				local ack=1
 				shift
 				;;
 				
@@ -1054,29 +1058,12 @@ match() {
 		esac
 	fi
 	
-	if [ $tacks -eq 1 ]
-	then
-		# http://tldp.org/HOWTO/Adv-Routing-HOWTO/lartc.adv-filter.u32.html
-		# matches TCP, IP header length 0x5(32 bit words), IP Total length 0x34 (ACK + 12 bytes of TCP options), TCP ack set (bit 5, offset 33)
-		# local tacks="match ip protocol 6 0xff match u8 0x05 0x0f at 0 match u16 0x0000 0xffc0 at 2 match u8 0x10 0xff at 33"
-		
-		# http://www.lartc.org/lartc.html#LARTC.ADV-FILTER
-		local tacks="match ip protocol 6 0xff match u8 0x10 0xff at nexthdr+13 match u16 0x0000 0xffc0 at 2"
-	else
-		local tacks=
-	fi
-	
-	if [ $tsyn -eq 1 ]
-	then
-		local tsyn="match ip protocol 6 0xff match u8 0x02 0x02 at nexthdr+13 match u16 0x0000 0xffc0 at 2"
-	else
-		local tsyn=
-	fi
-	
 	# create all tc filter statements
 	local tproto=
 	for tproto in $proto
 	do
+		local ack_arg=
+		local syn_arg=
 		local proto_arg=
 		case $tproto in
 				any)	;;
@@ -1087,6 +1074,12 @@ match() {
 						
 				tcp|TCP)
 						local proto_arg="match ip protocol 6 0xff"
+						
+						# http://www.lartc.org/lartc.html#LARTC.ADV-FILTER
+						[ $ack -eq 1 ] && local ack_arg="match ip protocol 6 0xff match u8 0x10 0xff at nexthdr+13 match u16 0x0000 0xffc0 at 2"
+						
+						# I figured this out, based on the above - It seems to work
+						[ $syn -eq 1 ] && local syn_arg="match ip protocol 6 0xff match u8 0x02 0x02 at nexthdr+13 match u16 0x0000 0xffc0 at 2"
 						;;
 				
 				udp|UDP)
@@ -1206,10 +1199,10 @@ match() {
 										esac
 										
 										local u32="u32"
-										[ -z "$proto_arg$ip_arg$src_arg$dst_arg$port_arg$sport_arg$dport_arg$tos_arg$tacks$tsyn" ] && local u32=
+										[ -z "$proto_arg$ip_arg$src_arg$dst_arg$port_arg$sport_arg$dport_arg$tos_arg$ack_arg$syn_arg" ] && local u32=
 										[ ! -z "$u32" -a ! -z "$mark_arg" ] && local mark_arg="and $mark_arg"
 										
-										tc filter add dev $interface_realdev parent $parent protocol all prio $prio $u32 $proto_arg $ip_arg $src_arg $dst_arg $port_arg $sport_arg $dport_arg $tos_arg $tacks $tsyn $mark_arg flowid $flowid
+										tc filter add dev $interface_realdev parent $parent protocol all prio $prio $u32 $proto_arg $ip_arg $src_arg $dst_arg $port_arg $sport_arg $dport_arg $tos_arg $ack_arg $syn_arg $mark_arg flowid $flowid
 										
 									done # mark
 								done # tos
