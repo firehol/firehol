@@ -1075,7 +1075,7 @@ match() {
 						local proto_arg="match ip protocol 6 0xff"
 						
 						# http://www.lartc.org/lartc.html#LARTC.ADV-FILTER
-						[ $ack -eq 1 ] && local ack_arg="match u8 0x10 0xff at 33"
+						[ $ack -eq 1 ] && local ack_arg="match u8 0x10 0xff at 33 match u16 0x0000 0xffc0 at 2"
 						
 						# I figured this out, based on the above - It seems to work
 						[ $syn -eq 1 ] && local syn_arg="match u8 0x02 0x02 at 33"
