@@ -499,14 +499,13 @@ ifb_counter=
 parent_default_added=1
 
 interface_close() {
-	echo
-	
 	if [ $parent_default_added -eq 0 ]
 	then
 		class default
 		parent_default_added=1
 	fi
 	
+	echo
 	parent_clear
 	
 	interface_major=1
@@ -1076,7 +1075,7 @@ match() {
 						local proto_arg="match ip protocol 6 0xff"
 						
 						# http://www.lartc.org/lartc.html#LARTC.ADV-FILTER
-						[ $ack -eq 1 ] && local ack_arg="match ip protocol 6 0xff match u8 0x10 0xff at nexthdr+13 match u16 0x0000 0xffc0 at 2"
+						[ $ack -eq 1 ] && local ack_arg="match ip protocol 6 0xff match u8 0x10 0x10 at nexthdr+13 match u16 0x0000 0xffc0 at 2"
 						
 						# I figured this out, based on the above - It seems to work
 						[ $syn -eq 1 ] && local syn_arg="match ip protocol 6 0xff match u8 0x02 0x02 at nexthdr+13 match u16 0x0000 0xffc0 at 2"
@@ -1374,6 +1373,7 @@ htb_stats() {
 	echo
 	
 	# the main loop
+	sleep 1
 	starttime
 	local c=$((banner_every_lines - 1))
 	while [ 1 = 1 ]
