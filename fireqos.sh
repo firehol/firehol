@@ -4,6 +4,7 @@
 # A traffic shapper for humans...
 # (C) Copyright 2013, Costa Tsaousis
 # GPL
+# $Id$
 
 me="$0"
 
@@ -699,8 +700,6 @@ class_major=
 class_group=0
 
 class() {
-	printf ": $class_tabs${FUNCNAME} %s" "$*"
-	
 	# check if the have to push into the stack the last class (if it was a group class)
 	if [ $class_group -eq 1 ]
 	then
@@ -711,6 +710,8 @@ class() {
 		
 		# the current command is the first child class
 	fi
+	
+	printf ": $class_tabs${FUNCNAME} %s" "$*"
 	
 	# reset the values of the current class
 	class_name=
@@ -1460,6 +1461,7 @@ htb_stats() {
 cat <<EOF
 FireQOS v1.0 DEVELOPMENT
 (C) 2013 Costa Tsaousis, GPL
+$Id$
 
 EOF
 

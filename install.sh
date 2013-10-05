@@ -1,5 +1,7 @@
 #!/bin/bash
 
+# $Id$
+
 installto=/usr/sbin
 
 fh=`which firehol`	
