@@ -1461,7 +1461,7 @@ htb_stats() {
 cat <<EOF
 FireQOS v1.0 DEVELOPMENT
 (C) 2013 Costa Tsaousis, GPL
-$Id$
+\$Id$
 
 EOF
 
