@@ -682,6 +682,7 @@ interface_mpu=$interface_mpu
 interface_tsize=$interface_tsize
 interface_qdisc=$interface_qdisc
 class_${interface_major}1_name=TOTAL
+class_${interface_major}1_classid=CLASSID
 class_${interface_major}1_priority=PRIORITY
 class_${interface_major}1_rate=COMMIT
 class_${interface_major}1_ceil=MAX
@@ -849,18 +850,52 @@ EOF
 	return 0
 }
 
-expand_port_range() {
-	if [ -z "$2" ]
+find_port_masks() {
+	local from=$(($1))
+	local to=$(($2))
+	
+	if [ -z "$to" ]
 	then
-		echo "$1"
+		echo "$from/0xffff"
 		return 0
 	fi
 	
-	local x=
-	for x in `seq $1 $2`
+	if [ $from -ge $to ]
+	then
+		echo "$from/0xffff"
+		return 0
+	fi
+	
+	# find the biggest power of two that fits in the range
+	# starting from $from
+	local i=
+	for i in 1 2 3 4 5 6 7 8 9 10 11 12 13 14 15 16 17
 	do
-		echo $x
+		local base=$(( (from >> i) << i ))
+		local end=$(( base + (1 << i) - 1 ))
+
+		# printf ": >>> examine bit %d, from 0x%04x (%s) to 0x%04x (%s), " $i $base $base $end $end
+
+		[ $base -ne $from ] && break
+		[ $end -gt $to ] && break
+
+		# echo " ok"
 	done
+	# echo " failed"
+	
+	i=$[ i - 1 ]
+	local base=$(( (from >> i) << i ))
+	local end=$(( base + (1 << i) - 1 ))
+	local mask=$(( (0xffff >> i) << i ))
+	
+	# printf ": 0x%04x (%d) to 0x%04x (%d),  match 0x%04x (%d) to 0x%04x (%d) with mask 0x%04x \n" $from $from $to $to $base $base $end $$
+	printf "%d/0x%04x\n" $base $mask
+	if [ $end -lt $to ]
+	then
+		local next=$[end + 1]
+		# printf "\n: next range 0x%04x (%d) to 0x%04x (%d)\n" $next $next $to $to
+		find_port_masks $next $to
+	fi
 	return 0
 }
 
@@ -868,7 +903,14 @@ expand_ports() {
 	while [ ! -z "$1" ]
 	do
 		local p=`echo $1 | tr ":-" "  "`
-		expand_port_range $p
+		case $p in
+			any|all)
+				echo $p
+				;;
+			
+			*)	find_port_masks $p
+				;;
+		esac
 		shift
 	done
 	return 0
@@ -1185,7 +1227,8 @@ match() {
 							all)	local port_arg="match ip $mtport 0 0x0000"
 								;;
 							
-							*)	local port_arg="match ip $mtport $tport 0xffff"
+							*)	local mportmask=`echo $tport | tr "/" " "`
+								local port_arg="match ip $mtport $mportmask"
 								;;
 						esac
 						
@@ -1199,7 +1242,8 @@ match() {
 								all)	local ip_arg="match ip sport 0 0x0000"
 									;;
 								
-								*)	local ip_arg="match ip sport $tsport 0xffff"
+								*)	local mportmask=`echo $tsport | tr "/" " "`
+									local ip_arg="match ip sport $mportmask"
 									;;
 							esac
 						
@@ -1213,7 +1257,8 @@ match() {
 									all)	local ip_arg="match ip dport 0 0x0000"
 										;;
 									
-									*)	local ip_arg="match ip dport $tdport 0xffff"
+									*)	local mportmask=`echo $tdport | tr "/" " "`
+										local ip_arg="match ip dport $mportmask"
 										;;
 								esac
 							
@@ -1390,6 +1435,13 @@ htb_stats() {
 		eval local name="\${class_${x}_name}"
 		[ "$name" = "TOTAL" ] && local name="CLASS"
 		printf "% ${number_digits}.${number_digits}s " $name
+	done
+	echo
+	
+	for x in `set | grep ^TCSTATS_ | cut -d '=' -f 1 | cut -d '_' -f 3- | sed "s/_//g"`
+	do
+		eval local classid="\${class_${x}_classid}"
+		printf "% ${number_digits}.${number_digits}s " $classid
 	done
 	echo
 	
