@@ -495,14 +495,25 @@ class_matchid=
 
 ifb_counter=
 
-# required for first interface, when the parent_* variables are uninitialized
-parent_default_added=1
-
 interface_close() {
-	if [ $parent_default_added -eq 0 ]
+	if [ ! -z "$interface_dev" ]
 	then
-		class default
-		parent_default_added=1
+		# close all open class groups
+		while [ $parent_stack_size -gt 1 ]
+		do
+			class group end
+		done
+		
+		# if we have not added the default class
+		# for the interface, add it now
+		if [ $parent_default_added -eq 0 ]
+		then
+			class default
+			parent_default_added=1
+		fi
+		
+		# NOT NEEDED - the default for interfaces works via kernel.
+		# match all class default flowid $interface_major:$parent_default_class prio 0xffff
 	fi
 	
 	echo
@@ -529,7 +540,6 @@ interface_close() {
 
 FIREQOS_LOADED_IFBS=0
 interface() {
-	class_close
 	interface_close
 	
 	printf ": ${FUNCNAME} %s" "$*"
@@ -687,12 +697,6 @@ class_name=
 class_classid=
 class_major=
 class_group=0
-class_close() {
-	while [ $parent_stack_size -gt 1 ]
-	do
-		class group end
-	done
-}
 
 class() {
 	printf ": $class_tabs${FUNCNAME} %s" "$*"
@@ -735,6 +739,10 @@ class() {
 			then
 				class default
 			fi
+			
+			# In nested classes, the default of the parent class is not respected
+			# by the kernel. This rule, sends all remaining traffic to the inner default.
+			match all class default flowid $interface_major:$parent_default_class prio 0xffff
 			
 			parent_pull
 			return 0
@@ -878,6 +886,7 @@ match() {
 	local tos=any
 	local mark=any
 	local class=$class_name
+	local flowid=$class_classid
 	local ack=0
 	local syn=0
 	local at=
@@ -900,7 +909,7 @@ match() {
 				shift
 				;;
 				
-			tcp|udp|icmp)
+			tcp|udp|icmp|all)
 				local proto="$1"
 				shift
 				;;
@@ -960,6 +969,11 @@ match() {
 				shift 2
 				;;
 			
+			flowid)
+				local flowid="$2"
+				shift 2
+				;;
+			
 			*)	error "Cannot understand what the filter '${1}' is."
 				return 1
 				;;
@@ -998,11 +1012,13 @@ match() {
 	[ ! "$ip" = "any" -a ! "$src" = "any" ]		&& error "Cannot match 'ip' and 'src'." && exit 1
 	[ ! "$ip" = "any" -a ! "$dst" = "any" ]		&& error "Cannot match 'ip' and 'dst'." && exit 1
 	
-	# find our class
-	local flowid=$class_classid
 	if [ -z "$class" ]
 	then
 		error "No class name given for match with priority $prio."
+		exit 1
+	elif [ -z "$flowid" ]
+	then
+		error "No flowid given for match with priority $prio."
 		exit 1
 	elif [ ! "$class" = "$class_name" ]
 	then
@@ -1067,6 +1083,10 @@ match() {
 		case $tproto in
 				any)	;;
 				
+				all)
+						local proto_arg="match ip protocol 0 0x00"
+						;;
+				
 				icmp|ICMP)
 						local proto_arg="match ip protocol 1 0xff"
 						;;
@@ -1109,10 +1129,15 @@ match() {
 			
 			local ip_arg=
 			case "$tip" in
-				any)	;;
+				any)
+					;;
 				
-				*)		local ip_arg="match ip $mtip $tip"
-						;;
+				all)
+					local ip_arg="match ip $mtip 0.0.0.0/0"
+					;;
+				
+				*)	local ip_arg="match ip $mtip $tip"
+					;;
 			esac
 			
 			local tsrc=
@@ -1122,10 +1147,14 @@ match() {
 				case "$tsrc" in
 					any)	;;
 					
-					*)		local ip_arg="match ip src $tsrc"
-							;;
+					all)
+						local ip_arg="match ip src 0.0.0.0/0"
+						;;
+					
+					*)	local ip_arg="match ip src $tsrc"
+						;;
 				esac
-			
+				
 				local tdst=
 				for tdst in $dst
 				do
@@ -1133,8 +1162,11 @@ match() {
 					case "$tdst" in
 						any)	;;
 						
-						*)		local ip_arg="match ip dst $tdst"
-								;;
+						all)	local ip_arg="match ip dst 0.0.0.0/0"
+							;;
+							
+						*)	local ip_arg="match ip dst $tdst"
+							;;
 					esac
 					
 					local tport=
@@ -1149,8 +1181,11 @@ match() {
 						case "$tport" in
 							any)	;;
 							
-							*)		local port_arg="match ip $mtport $tport 0xffff"
-									;;
+							all)	local port_arg="match ip $mtport 0 0x0000"
+								;;
+							
+							*)	local port_arg="match ip $mtport $tport 0xffff"
+								;;
 						esac
 						
 						local tsport=
@@ -1160,8 +1195,11 @@ match() {
 							case "$tsport" in
 								any)	;;
 								
-								*)		local ip_arg="match ip sport $tsport 0xffff"
-										;;
+								all)	local ip_arg="match ip sport 0 0x0000"
+									;;
+								
+								*)	local ip_arg="match ip sport $tsport 0xffff"
+									;;
 							esac
 						
 							local tdport=
@@ -1171,8 +1209,11 @@ match() {
 								case "$tdport" in
 									any)	;;
 									
-									*)		local ip_arg="match ip dport $tdport 0xffff"
-											;;
+									all)	local ip_arg="match ip dport 0 0x0000"
+										;;
+									
+									*)	local ip_arg="match ip dport $tdport 0xffff"
+										;;
 								esac
 							
 								local ttos=
@@ -1182,8 +1223,11 @@ match() {
 									case "$ttos" in
 										any)	;;
 										
-										*)		local tos_arg="match ip tos $ttos 0xff"
-												;;
+										all)	local tos_arg="match ip tos 0 0x00"
+											;;
+										
+										*)	local tos_arg="match ip tos $ttos 0xff"
+											;;
 									esac
 									
 									local tmark=
@@ -1193,8 +1237,8 @@ match() {
 										case "$tmark" in
 											any)	;;
 											
-											*)		local mark_arg="handle $tmark fw"
-													;;
+											*)	local mark_arg="handle $tmark fw"
+												;;
 										esac
 										
 										local u32="u32"
@@ -1248,7 +1292,7 @@ htb_stats() {
 	# pick the right unit for this interface (bit/s, Kbit, Mbit)
 	local resolution=1
 	[ $((interface_rate * 8)) -gt $((100 * 1000)) ] && local resolution=1000
-	[ $((interface_rate * 8)) -gt $((100 * 1000000)) ] && local resolution=1000000
+	[ $((interface_rate * 8)) -gt $((200 * 1000000)) ] && local resolution=1000000
 	
 	local unit="bits/s"
 	[ $resolution = 1000 ] && local unit="Kbit/s"
