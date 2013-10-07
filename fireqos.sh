@@ -952,7 +952,7 @@ match() {
 				shift
 				;;
 				
-			tcp|udp|icmp|all)
+			tcp|TCP|udp|UDP|icmp|ICMP|gre|GRE|ipv6|IPv6|all)
 				local proto="$1"
 				shift
 				;;
@@ -1130,6 +1130,10 @@ match() {
 						local proto_arg="match ip protocol 0 0x00"
 						;;
 				
+				ipv6|IPv6)
+						local proto_arg="match ip protocol 41 0xff"
+						;;
+						
 				icmp|ICMP)
 						local proto_arg="match ip protocol 1 0xff"
 						;;
