@@ -258,8 +258,27 @@ calc_r2q() {
 parse_class_params() {
 	local prefix="$1"; shift
 	local parent="$1"; shift
+	local ipv4=
+	local ipv6=
 	
 	eval local base_rate="\$${parent}_rate"
+	
+	case "$force_ipv" in
+		4)
+			local ipv4=1
+			local ipv6=0
+			;;
+		
+		6)
+			local ipv4=0
+			local ipv6=1
+			;;
+			
+		46)
+			local ipv4=1
+			local ipv6=1
+			;;
+	esac
 	
 	# find all work_X arguments
 	while [ ! -z "$1" ]
@@ -393,7 +412,7 @@ parse_class_params() {
 	# export our parameters for the caller
 	# for every parameter not set, use the parent value
 	# for every one set, use the set value
-	for x in ceil burst cburst quantum qdisc
+	for x in ceil burst cburst quantum qdisc ipv4 ipv6
 	do
 		eval local value="\$$x"
 		if [ -z "$value" ]
@@ -416,7 +435,7 @@ parse_class_params() {
 parent_stack_size=0
 parent_push() {
 	local prefix="$1"; shift
-	local vars="classid major sumrate default_class default_added filters_to name ceil burst cburst quantum qdisc rate mtu mpu tsize overhead linklayer r2q prio"
+	local vars="classid major sumrate default_class default_added filters_to name ceil burst cburst quantum qdisc rate mtu mpu tsize overhead linklayer r2q prio ipv4 ipv6"
 	
 	# refresh the existing parent_* values to stack
 	#-- eval "local before=\$parent_stack_${parent_stack_size}"
@@ -495,6 +514,7 @@ interface_classid=
 class_matchid=
 
 ifb_counter=
+force_ipv=
 
 interface_close() {
 	if [ ! -z "$interface_dev" ]
@@ -540,6 +560,37 @@ interface_close() {
 }
 
 FIREQOS_LOADED_IFBS=0
+
+ipv4() {
+	force_ipv="4"
+	"${@}"
+	force_ipv=
+}
+
+ipv6() {
+	force_ipv="6"
+	"${@}"
+	force_ipv=
+}
+
+ipv46() {
+	force_ipv="46"
+	"${@}"
+	force_ipv=
+}
+
+interface4() {
+	ipv4 interface "${@}"
+}
+
+interface6() {
+	ipv6 interface "${@}"
+}
+
+interface46() {
+	ipv46 interface "${@}"
+}
+
 interface() {
 	interface_close
 	
@@ -586,6 +637,18 @@ interface() {
 	
 	# parse the parameters given
 	parse_class_params interface noparent "${@}"
+	
+	if [ -z "$interface_ipv4" -a -z "$interface_ipv6" ]
+	then
+		interface_ipv4=1
+		interface_ipv6=0
+	elif [ -z "$interface_ipv4" ]
+	then
+		interface_ipv4=0
+	elif [ -z "$interface_ipv6" ]
+	then
+		interface_ipv6=0
+	fi
 	
 	# check important arguments
 	if [ -z "$interface_rate" ]
@@ -649,7 +712,10 @@ interface() {
 		# Redirect all incoming traffic to ifbX
 		# We then shape the traffic in the output of ifbX
 		tc qdisc add dev $interface_dev ingress
-		tc filter add dev $interface_dev parent ffff: protocol ip prio 1 u32 match u32 0 0 action mirred egress redirect dev $interface_realdev
+		
+		# [ $interface_ipv4 -eq 1 ] && tc filter add dev $interface_dev parent ffff: protocol ip  prio 1 u32 match u32 0 0 action mirred egress redirect dev $interface_realdev
+		# [ $interface_ipv6 -eq 1 ] && tc filter add dev $interface_dev parent ffff: protocol ipv6 prio 1 u32 match u32 0 0 action mirred egress redirect dev $interface_realdev
+		tc filter add dev $interface_dev parent ffff: protocol all prio 1 u32 match u32 0 0 action mirred egress redirect dev $interface_realdev
 	fi
 	
 	interface_classid="$interface_major:1"
@@ -699,6 +765,18 @@ class_name=
 class_classid=
 class_major=
 class_group=0
+
+class4() {
+	ipv4 class "${@}"
+}
+
+class6() {
+	ipv6 class "${@}"
+}
+
+class46() {
+	ipv46 class "${@}"
+}
 
 class() {
 	# check if the have to push into the stack the last class (if it was a group class)
@@ -916,6 +994,18 @@ expand_ports() {
 	return 0
 }
 
+match4() {
+	ipv4 match "${@}"
+}
+
+match6() {
+	ipv6 match "${@}"
+}
+
+match46() {
+	ipv46 match "${@}"
+}
+
 match() {
 	[ $FIREQOS_DEBUG -eq 1 -o $FIREQOS_SHOW_MATCHES -eq 1 ] && echo ":		${FUNCNAME} $*"
 	
@@ -933,6 +1023,25 @@ match() {
 	local ack=0
 	local syn=0
 	local at=
+	local ipv4=$class_ipv4
+	local ipv6=$class_ipv6
+	
+	case "$force_ipv" in
+		4)
+			local ipv4=1
+			local ipv6=0
+			;;
+		
+		6)
+			local ipv4=0
+			local ipv6=1
+			;;
+			
+		46)
+			local ipv4=1
+			local ipv6=1
+			;;
+	esac
 	
 	while [ ! -z "$1" ]
 	do
@@ -957,7 +1066,7 @@ match() {
 				shift
 				;;
 				
-			tos)
+			tos|priority)
 				local tos="$2"
 				shift 2
 				;;
@@ -1116,199 +1225,233 @@ match() {
 		esac
 	fi
 	
+	local tcproto=
+	[ $ipv4 -eq 1 ] && local tcproto="$tcproto ip"
+	[ $ipv6 -eq 1 ] && local tcproto="$tcproto ipv6"
+	
 	# create all tc filter statements
-	local tproto=
-	for tproto in $proto
+	for tcproto_arg in $tcproto
 	do
-		local ack_arg=
-		local syn_arg=
-		local proto_arg=
-		case $tproto in
-				any)	;;
-				
-				all)
-						local proto_arg="match ip protocol 0 0x00"
-						;;
-				
-				ipv6|IPv6)
-						local proto_arg="match ip protocol 41 0xff"
-						;;
-						
-				icmp|ICMP)
-						local proto_arg="match ip protocol 1 0xff"
-						;;
-						
-				tcp|TCP)
-						local proto_arg="match ip protocol 6 0xff"
-						
-						# http://www.lartc.org/lartc.html#LARTC.ADV-FILTER
-						[ $ack -eq 1 ] && local ack_arg="match u8 0x10 0xff at 33 match u16 0x0000 0xffc0 at 2"
-						
-						# I figured this out, based on the above - It seems to work
-						[ $syn -eq 1 ] && local syn_arg="match u8 0x02 0x02 at 33"
-						;;
-				
-				udp|UDP)
-						local proto_arg="match ip protocol 17 0xff"
-						;;
-				
-				gre|GRE)
-						local proto_arg="match ip protocol 47 0xff"
-						;;
-				
-				*)		local pid=`cat /etc/protocols | egrep -i "^$tproto[[:space:]]" | tail -n 1 | sed "s/[[:space:]]\+/ /g" | cut -d ' ' -f 2`
-						if [ -z "$pid" ]
-						then
-							error "Cannot find protocol '$tproto' in /etc/protocols."
-							return 1
-						fi
-						local proto_arg="match ip protocol $pid 0xff"
-						;;
-		esac
+		local ipvx=
+		[ "$tcproto_arg" = "ipv6" ] && local ipvx="6"
 		
-		local tip=
-		local mtip=src
-		local otherip="dst $ip"
-		[ "$ip" = "any" ] && local otherip=
-		for tip in $ip $otherip
+		local tproto=
+		for tproto in $proto
 		do
-			[ "$tip" = "dst" ] && local mtip="dst" && continue
-			
-			local ip_arg=
-			case "$tip" in
-				any)
-					;;
-				
-				all)
-					local ip_arg="match ip $mtip 0.0.0.0/0"
-					;;
-				
-				*)	local ip_arg="match ip $mtip $tip"
-					;;
-			esac
-			
-			local tsrc=
-			for tsrc in $src
-			do
-				local src_arg=
-				case "$tsrc" in
+			local ack_arg=
+			local syn_arg=
+			local proto_arg=
+			case $tproto in
 					any)	;;
 					
 					all)
-						local ip_arg="match ip src 0.0.0.0/0"
+							local proto_arg="match ip$ipvx protocol 0 0x00"
+							;;
+					
+					ipv6|IPv6)
+							local proto_arg="match ip$ipvx protocol 41 0xff"
+							;;
+							
+					icmp|ICMP)
+							if [ "$ipvx" = "6" ]
+							then
+								local proto_arg="match ip$ipvx protocol 58 0xff"
+							else
+								local proto_arg="match ip$ipvx protocol 1 0xff"
+							fi
+							;;
+							
+					tcp|TCP)
+							local proto_arg="match ip$ipvx protocol 6 0xff"
+							
+							# http://www.lartc.org/lartc.html#LARTC.ADV-FILTER
+							[ $ack -eq 1 ] && local ack_arg="match u8 0x10 0xff at 33 match u16 0x0000 0xffc0 at 2"
+							
+							# I figured this out, based on the above - It seems to work
+							[ $syn -eq 1 ] && local syn_arg="match u8 0x02 0x02 at 33"
+							
+							if [ "$ipvx" = "6" -a ! -z "$ack_arg$syn_arg" ]
+							then
+								error "I don't know how to match SYN and ACK on IPv6 packets."
+								exit 1
+							fi
+							;;
+					
+					udp|UDP)
+							local proto_arg="match ip$ipvx protocol 17 0xff"
+							;;
+					
+					gre|GRE)
+							local proto_arg="match ip$ipvx protocol 47 0xff"
+							;;
+					
+					*)		local pid=`cat /etc/protocols | egrep -i "^$tproto[[:space:]]" | tail -n 1 | sed "s/[[:space:]]\+/ /g" | cut -d ' ' -f 2`
+							if [ -z "$pid" ]
+							then
+								error "Cannot find protocol '$tproto' in /etc/protocols."
+								return 1
+							fi
+							local proto_arg="match ip$ipvx protocol $pid 0xff"
+							;;
+			esac
+			
+			local tip=
+			local mtip=src
+			local otherip="dst $ip"
+			[ "$ip" = "any" ] && local otherip=
+			for tip in $ip $otherip
+			do
+				[ "$tip" = "dst" ] && local mtip="dst" && continue
+				
+				local ip_arg=
+				case "$tip" in
+					any)
 						;;
 					
-					*)	local ip_arg="match ip src $tsrc"
+					all)
+						local ip_arg="match ip$ipvx $mtip 0.0.0.0/0"
+						;;
+					
+					*)	local ip_arg="match ip$ipvx $mtip $tip"
 						;;
 				esac
 				
-				local tdst=
-				for tdst in $dst
+				local tsrc=
+				for tsrc in $src
 				do
-					local dst_arg=
-					case "$tdst" in
+					local src_arg=
+					case "$tsrc" in
 						any)	;;
 						
-						all)	local ip_arg="match ip dst 0.0.0.0/0"
+						all)
+							local ip_arg="match ip$ipvx src 0.0.0.0/0"
 							;;
-							
-						*)	local ip_arg="match ip dst $tdst"
+						
+						*)	local ip_arg="match ip$ipvx src $tsrc"
 							;;
 					esac
 					
-					local tport=
-					local mtport=sport
-					local otherport="dport $port"
-					[ "$port" = "any" ] && local otherport=
-					for tport in $port $otherport
+					local tdst=
+					for tdst in $dst
 					do
-						[ "$tport" = "dport" ] && local mtport="dport" && continue
-						
-						local port_arg=
-						case "$tport" in
+						local dst_arg=
+						case "$tdst" in
 							any)	;;
 							
-							all)	local port_arg="match ip $mtport 0 0x0000"
+							all)	local ip_arg="match ip$ipvx dst 0.0.0.0/0"
 								;;
-							
-							*)	local mportmask=`echo $tport | tr "/" " "`
-								local port_arg="match ip $mtport $mportmask"
+								
+							*)	local ip_arg="match ip$ipvx dst $tdst"
 								;;
 						esac
 						
-						local tsport=
-						for tsport in $sport
+						local tport=
+						local mtport=sport
+						local otherport="dport $port"
+						[ "$port" = "any" ] && local otherport=
+						for tport in $port $otherport
 						do
-							local sport_arg=
-							case "$tsport" in
+							[ "$tport" = "dport" ] && local mtport="dport" && continue
+							
+							local port_arg=
+							case "$tport" in
 								any)	;;
 								
-								all)	local ip_arg="match ip sport 0 0x0000"
+								all)	local port_arg="match ip$ipvx $mtport 0 0x0000"
 									;;
 								
-								*)	local mportmask=`echo $tsport | tr "/" " "`
-									local ip_arg="match ip sport $mportmask"
+								*)	local mportmask=`echo $tport | tr "/" " "`
+									local port_arg="match ip$ipvx $mtport $mportmask"
 									;;
 							esac
-						
-							local tdport=
-							for tdport in $dport
+							
+							local tsport=
+							for tsport in $sport
 							do
-								local dport_arg=
-								case "$tdport" in
+								local sport_arg=
+								case "$tsport" in
 									any)	;;
 									
-									all)	local ip_arg="match ip dport 0 0x0000"
+									all)	local ip_arg="match ip$ipvx sport 0 0x0000"
 										;;
 									
-									*)	local mportmask=`echo $tdport | tr "/" " "`
-										local ip_arg="match ip dport $mportmask"
+									*)	local mportmask=`echo $tsport | tr "/" " "`
+										local ip_arg="match ip$ipvx sport $mportmask"
 										;;
 								esac
 							
-								local ttos=
-								for ttos in $tos
+								local tdport=
+								for tdport in $dport
 								do
-									local tos_arg=
-									case "$ttos" in
+									local dport_arg=
+									case "$tdport" in
 										any)	;;
 										
-										all)	local tos_arg="match ip tos 0 0x00"
+										all)	local ip_arg="match ip$ipvx dport 0 0x0000"
 											;;
 										
-										*)	local tos_arg="match ip tos $ttos 0xff"
+										*)	local mportmask=`echo $tdport | tr "/" " "`
+											local ip_arg="match ip$ipvx dport $mportmask"
 											;;
 									esac
-									
-									local tmark=
-									for tmark in $mark
+								
+									local ttos=
+									for ttos in $tos
 									do
-										local mark_arg=
-										case "$tmark" in
+										local tos_arg=
+										case "$ttos" in
 											any)	;;
 											
-											*)	local mark_arg="handle $tmark fw"
+											all)	if [ "$ipvx" = "6" ]
+												then
+													local tos_arg="match ip6 priority 0 0x00"
+												else
+													local tos_arg="match ip tos 0 0x00"
+												fi
+												;;
+											
+											*)	if [ "$ipvx" = "6" ]
+												then
+													local tos_arg="match ip6 priority $ttos 0xff"
+												else
+													local tos_arg="match ip tos $ttos 0xff"
+												fi
 												;;
 										esac
 										
-										local u32="u32"
-										[ -z "$proto_arg$ip_arg$src_arg$dst_arg$port_arg$sport_arg$dport_arg$tos_arg$ack_arg$syn_arg" ] && local u32=
-										[ ! -z "$u32" -a ! -z "$mark_arg" ] && local mark_arg="and $mark_arg"
-										
-										tc filter add dev $interface_realdev parent $parent protocol all prio $prio $u32 $proto_arg $ip_arg $src_arg $dst_arg $port_arg $sport_arg $dport_arg $tos_arg $ack_arg $syn_arg $mark_arg flowid $flowid
-										
-									done # mark
-								done # tos
-							
-							done # dport
-						done # sport
-					done # port
-					
-				done # dst
-			done # src
-		done # ip
+										local tmark=
+										for tmark in $mark
+										do
+											local mark_arg=
+											case "$tmark" in
+												any)	;;
+												
+												*)	local mark_arg="handle $tmark fw"
+													;;
+											esac
+											
+											local u32="u32"
+											[ -z "$proto_arg$ip_arg$src_arg$dst_arg$port_arg$sport_arg$dport_arg$tos_arg$ack_arg$syn_arg" ] && local u32=
+											[ ! -z "$u32" -a ! -z "$mark_arg" ] && local mark_arg="and $mark_arg"
+											
+											tc filter add dev $interface_realdev parent $parent protocol $tcproto_arg prio $prio $u32 $proto_arg $ip_arg $src_arg $dst_arg $port_arg $sport_arg $dport_arg $tos_arg $ack_arg $syn_arg $mark_arg flowid $flowid
+											
+										done # mark
+									done # tos
+								
+								done # dport
+							done # sport
+						done # port
+						
+					done # dst
+				done # src
+			done # ip
+			
+		done # proto
 		
-	done # proto
+		# increase the counter between tc protocols
+		local prio=$((prio + 1))
+	done # tcproto (ipv4, ipv6)
 	
 	return 0
 }
