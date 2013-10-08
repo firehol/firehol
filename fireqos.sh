@@ -1023,6 +1023,7 @@ match() {
 	local ack=0
 	local syn=0
 	local at=
+	local custom=
 	local ipv4=$class_ipv4
 	local ipv6=$class_ipv6
 	
@@ -1126,6 +1127,11 @@ match() {
 				shift 2
 				;;
 			
+			custom)
+				local custom="$2"
+				shift 2
+				;;
+				
 			*)	error "Cannot understand what the filter '${1}' is."
 				return 1
 				;;
@@ -1265,15 +1271,31 @@ match() {
 							local proto_arg="match ip$ipvx protocol 6 0xff"
 							
 							# http://www.lartc.org/lartc.html#LARTC.ADV-FILTER
-							[ $ack -eq 1 ] && local ack_arg="match u8 0x10 0xff at 33 match u16 0x0000 0xffc0 at 2"
-							
-							# I figured this out, based on the above - It seems to work
-							[ $syn -eq 1 ] && local syn_arg="match u8 0x02 0x02 at 33"
-							
-							if [ "$ipvx" = "6" -a ! -z "$ack_arg$syn_arg" ]
+							if [ $ack -eq 1 ]
 							then
-								error "I don't know how to match SYN and ACK on IPv6 packets."
-								exit 1
+								if [ "$ipvx" = "6" ]
+								then
+									local ack_arg="match u8 0x10 0xff at nexthdr+13"
+									error "I don't know how to match ACKs in ipv6"
+									exit 1
+								else
+									local ack_arg="match u8 0x05 0x0f at 0 match u16 0x0000 0xffc0 at 2 match u8 0x10 0xff at 33"
+								fi
+							fi
+							
+							if [ $syn -eq 1 ]
+							then
+								if [ "$ipvx" = "6" ]
+								then
+									# I figured this out, based on the ACK match
+									local syn_arg="match u8 0x02 0x02 at nexthdr+13"
+									
+									error "I don't know how to match SYNs in ipv6"
+									exit 1
+								else
+									# I figured this out, based on the ACK match
+									local syn_arg="match u8 0x02 0x02 at 33"
+								fi
 							fi
 							;;
 					
@@ -1399,25 +1421,62 @@ match() {
 									for ttos in $tos
 									do
 										local tos_arg=
+										local tos_value=
+										local tos_mask=
 										case "$ttos" in
 											any)	;;
 											
-											all)	if [ "$ipvx" = "6" ]
-												then
-													local tos_arg="match ip6 priority 0 0x00"
-												else
-													local tos_arg="match ip tos 0 0x00"
-												fi
+											min-delay|minimize-delay|minimum-delay|low-delay|interactive)
+												local tos_value="0x10"
+												local tos_mask="0x10"
+												;;
+												
+											maximize-throughput|maximum-throughput|max-throughput|high-throughput|bulk)
+												local tos_value="0x08"
+												local tos_mask="0x08"
+												;;
+												
+											maximize-reliability|maximum-reliability|max-reliability|reliable)
+												local tos_value="0x04"
+												local tos_mask="0x04"
+												;;
+												
+											min-cost|minimize-cost|minimum-cost|low-cost|cheap)
+												local tos_value="0x02"
+												local tos_mask="0x02"
+												;;
+												
+											normal|normal-service)
+												local tos_value="0x00"
+												local tos_mask="0x1e"
+												;;
+												
+											all)
+												local tos_value="0x00"
+												local tos_mask="0x00"
 												;;
 											
-											*)	if [ "$ipvx" = "6" ]
+											*)
+												local tos_value="`echo "$ttos/" | cut -d '/' -f 1`"
+												local tos_mask="`echo "$ttos/" | cut -d '/' -f 2`"
+												[ -z "$tos_mask" ] && local tos_mask="0xff"
+												
+												if [ -z "$tos_value" ]
 												then
-													local tos_arg="match ip6 priority $ttos 0xff"
-												else
-													local tos_arg="match ip tos $ttos 0xff"
+													error "Empty TOS value is not allowed."
+													exit 1
 												fi
 												;;
 										esac
+										if [ ! -z "$tos_value" -a ! -z "$tos_mask" ]
+										then
+											if [ "$ipvx" = "6" ]
+											then
+												local tos_arg="match ip6 priority $tos_value $tos_mask"
+											else
+												local tos_arg="match ip tos $tos_value $tos_mask"
+											fi
+										fi
 										
 										local tmark=
 										for tmark in $mark
@@ -1434,7 +1493,7 @@ match() {
 											[ -z "$proto_arg$ip_arg$src_arg$dst_arg$port_arg$sport_arg$dport_arg$tos_arg$ack_arg$syn_arg" ] && local u32=
 											[ ! -z "$u32" -a ! -z "$mark_arg" ] && local mark_arg="and $mark_arg"
 											
-											tc filter add dev $interface_realdev parent $parent protocol $tcproto_arg prio $prio $u32 $proto_arg $ip_arg $src_arg $dst_arg $port_arg $sport_arg $dport_arg $tos_arg $ack_arg $syn_arg $mark_arg flowid $flowid
+											tc filter add dev $interface_realdev parent $parent protocol $tcproto_arg prio $prio $u32 $proto_arg $ip_arg $src_arg $dst_arg $port_arg $sport_arg $dport_arg $tos_arg $ack_arg $syn_arg $mark_arg $custom flowid $flowid
 											
 										done # mark
 									done # tos
