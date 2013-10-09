@@ -151,6 +151,7 @@ which_cmd GREP_CMD grep
 which_cmd HEAD_CMD head
 which_cmd IPTABLES_CMD iptables
 which_cmd IPTABLES_SAVE_CMD iptables-save
+which_cmd IPTABLES_RESTORE_CMD iptables-restore
 which_cmd LSMOD_CMD lsmod
 which_cmd MKDIR_CMD mkdir
 which_cmd MV_CMD mv
@@ -337,7 +338,7 @@ firehol_exit() {
 	then
 		echo
 		echo -n $"FireHOL: Restoring old firewall:"
-		iptables-restore <"${FIREHOL_SAVED}"
+		${IPTABLES_RESTORE_CMD} <"${FIREHOL_SAVED}"
 		if [ $? -eq 0 ]
 		then
 			local restored="OK"
@@ -7197,11 +7198,11 @@ then
 	initialize_firewall
 	
 	# attempt to restore this firewall
-	iptables-restore <${FIREHOL_OUTPUT}.fast >${FIREHOL_OUTPUT}.log 2>&1
+	${IPTABLES_RESTORE_CMD} <${FIREHOL_OUTPUT}.fast >${FIREHOL_OUTPUT}.log 2>&1
 	if [ $? -ne 0 ]
 	then
 		# it failed
-		runtime_error error "CANNOT APPLY IN FAST MODE" FIN "iptables-restore" "<${FIREHOL_OUTPUT}.fast"
+		runtime_error error "CANNOT APPLY IN FAST MODE" FIN "${IPTABLES_RESTORE_CMD}" "<${FIREHOL_OUTPUT}.fast"
 		
 		# the rest of the script will restore the original firewall
 	else
