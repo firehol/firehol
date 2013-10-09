@@ -1,11 +1,11 @@
 #!/bin/bash
 
-# $Id$
+# $Id: 97ffbaa174336db88c2de1d519aaff591838f534 $
 
 installto=/usr/sbin
 
 fh=`which firehol`	
-[ -z "$fw" ] && fh="$installto/firehol"
+[ -z "$fh" ] && fh="$installto/firehol"
 
 fq=`which fireqos`
 [ -z "$fq" ] && fq="$installto/fireqos"
