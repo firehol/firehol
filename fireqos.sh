@@ -1346,10 +1346,10 @@ match() {
 						any)	;;
 						
 						all)
-							local ip_arg="match ip$ipvx src 0.0.0.0/0"
+							local src_arg="match ip$ipvx src 0.0.0.0/0"
 							;;
 						
-						*)	local ip_arg="match ip$ipvx src $tsrc"
+						*)	local src_arg="match ip$ipvx src $tsrc"
 							;;
 					esac
 					
@@ -1360,10 +1360,10 @@ match() {
 						case "$tdst" in
 							any)	;;
 							
-							all)	local ip_arg="match ip$ipvx dst 0.0.0.0/0"
+							all)	local dst_arg="match ip$ipvx dst 0.0.0.0/0"
 								;;
 								
-							*)	local ip_arg="match ip$ipvx dst $tdst"
+							*)	local dst_arg="match ip$ipvx dst $tdst"
 								;;
 						esac
 						
@@ -1394,11 +1394,11 @@ match() {
 								case "$tsport" in
 									any)	;;
 									
-									all)	local ip_arg="match ip$ipvx sport 0 0x0000"
+									all)	local sport_arg="match ip$ipvx sport 0 0x0000"
 										;;
 									
 									*)	local mportmask=`echo $tsport | tr "/" " "`
-										local ip_arg="match ip$ipvx sport $mportmask"
+										local sport_arg="match ip$ipvx sport $mportmask"
 										;;
 								esac
 							
@@ -1409,11 +1409,11 @@ match() {
 									case "$tdport" in
 										any)	;;
 										
-										all)	local ip_arg="match ip$ipvx dport 0 0x0000"
+										all)	local dport_arg="match ip$ipvx dport 0 0x0000"
 											;;
 										
 										*)	local mportmask=`echo $tdport | tr "/" " "`
-											local ip_arg="match ip$ipvx dport $mportmask"
+											local dport_arg="match ip$ipvx dport $mportmask"
 											;;
 									esac
 								
