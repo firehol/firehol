@@ -209,13 +209,13 @@ rate2bps() {
 			;;
 
 		+([0-9]))
-			local label="Bytes per second"
-			local identifier="bps"
-			local multiplier=8
-			r=$((r * multiplier))
+			local label="Kilobits per second"
+			local identifier="Kbit"
+			local multiplier=1000
+			r=$(( r * multiplier ))
 			;;
 
-		*)		
+		*)	
 			echo >&2 "Invalid rate '${r}' given."
 			return 1
 			;;
@@ -1798,6 +1798,9 @@ htb_stats() {
 			if [ "$y" = "0" ]
 			then
 				printf "% ${number_digits}.${number_digits}s " "-"
+			elif [ "$y" -lt 0 ]
+			then
+				printf "% ${number_digits}.${number_digits}s " RESET
 			else
 				printf "% ${number_digits}d " $(( (y+round) / resolution ))
 			fi
