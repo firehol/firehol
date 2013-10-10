@@ -23,6 +23,8 @@ FIREQOS_IFBS=2
 # Set it to 1 to see the tc commands generated.
 # Set it in the config file to overwrite this default.
 FIREQOS_DEBUG=0
+FIREQOS_DEBUG_STACK=0
+FIREQOS_DEBUG_PORTS=0
 
 # The default and minimum rate for all classes is 1/100
 # of the interface bandwidth
@@ -91,7 +93,6 @@ tc() {
 	if [ $noerror -eq 1 ]
 	then
 		/sbin/tc "${@}" >/dev/null 2>&1
-		:
 	else
 		/sbin/tc "${@}"
 		local ret=$?
@@ -298,6 +299,13 @@ parse_class_params() {
 					shift
 					;;
 					
+			minrate)
+					[ "$prefix" = "class" ] && error "'$1' cannot be used in classes."
+					
+					local minrate="`rate2bps $2 $base_rate`"
+					shift 2
+					;;
+					
 			rate|min|commit)
 					local rate="`rate2bps $2 $base_rate`"
 					shift 2
@@ -309,6 +317,8 @@ parse_class_params() {
 					;;
 					
 			r2q)
+					[ "$prefix" = "class" ] && error "'$1' cannot be used in classes."
+					
 					local r2q="$2"
 					shift 2
 					;;
@@ -424,7 +434,7 @@ parse_class_params() {
 	done
 	
 	# no inheritance for these parameters
-	for x in rate mtu mpu tsize overhead linklayer r2q prio
+	for x in rate mtu mpu tsize overhead linklayer r2q prio minrate
 	do
 		eval export ${prefix}_${x}="\$$x"
 	done
@@ -435,18 +445,26 @@ parse_class_params() {
 parent_stack_size=0
 parent_push() {
 	local prefix="$1"; shift
-	local vars="classid major sumrate default_class default_added filters_to name ceil burst cburst quantum qdisc rate mtu mpu tsize overhead linklayer r2q prio ipv4 ipv6"
+	local vars="classid major sumrate default_class default_added filters_to name ceil burst cburst quantum qdisc rate mtu mpu tsize overhead linklayer r2q prio ipv4 ipv6 minrate"
+	
+	if [ $FIREQOS_DEBUG_STACK -eq 1 ]
+	then
+		eval "local before=\$parent_stack_${parent_stack_size}"
+		echo "PUSH $prefix: OLD(${parent_stack_size}): $before"
+	fi
 	
 	# refresh the existing parent_* values to stack
-	#-- eval "local before=\$parent_stack_${parent_stack_size}"
-	#-- echo "BEFORE(${parent_stack_size}): $before"
 	eval "parent_stack_${parent_stack_size}="
 	for x in $vars
 	do
 		eval "parent_stack_${parent_stack_size}=\"\${parent_stack_${parent_stack_size}}parent_$x=\$parent_$x;\""
 	done
-	#-- eval "local after=\$parent_stack_${parent_stack_size}"
-	#-- echo "AFTER(${parent_stack_size}): $after"
+	
+	if [ $FIREQOS_DEBUG_STACK -eq 1 ]
+	then
+		eval "local after=\$parent_stack_${parent_stack_size}"
+		echo "PUSH $prefix: REFRESHED(${parent_stack_size}): $after"
+	fi
 	
 	# now push the new values into the stack
 	parent_stack_size=$((parent_stack_size + 1))
@@ -456,9 +474,13 @@ parent_push() {
 		eval "parent_$x=\$${prefix}_$x"
 		eval "parent_stack_${parent_stack_size}=\"\${parent_stack_${parent_stack_size}}parent_$x=\$${prefix}_$x;\""
 	done
-	eval "local push=\$parent_stack_${parent_stack_size}"
-	#-- echo "PUSH(${parent_stack_size}): $push"
-	#-- set | grep ^parent
+	
+	if [ $FIREQOS_DEBUG_STACK -eq 1 ]
+	then
+		eval "local push=\$parent_stack_${parent_stack_size}"
+		echo "PUSH $prefix: NEW(${parent_stack_size}): $push"
+		#-- set | grep ^parent
+	fi
 	
 	set_tabs
 }
@@ -472,12 +494,14 @@ parent_pull() {
 	
 	parent_stack_size=$((parent_stack_size - 1))
 	
-	#-- eval "local pull=\$parent_stack_${parent_stack_size}"
-	#-- echo "PULL(${parent_stack_size}): $pull"
-	
 	eval "eval \${parent_stack_${parent_stack_size}}"
 	
-	#-- set | grep ^parent
+	if [ $FIREQOS_DEBUG_STACK -eq 1 ]
+	then
+		eval "local pull=\$parent_stack_${parent_stack_size}"
+		echo "PULL(${parent_stack_size}): $pull"
+		#-- set | grep ^parent
+	fi
 	
 	set_tabs
 }
@@ -509,6 +533,7 @@ interface_qdisc_counter=
 interface_default_added=
 interface_default_class=
 interface_classes=
+interface_classes_ids=
 interface_sumrate=0
 interface_classid=
 class_matchid=
@@ -537,6 +562,8 @@ interface_close() {
 		# match all class default flowid $interface_major:$parent_default_class prio 0xffff
 	fi
 	
+	echo "interface_classes='TOTAL|${interface_major}:1 $interface_classes'" >>"${FIREQOS_DIR}/${interface_name}.conf"
+	echo "interface_classes_ids='${interface_major}_1 $interface_classes_ids'" >>"${FIREQOS_DIR}/${interface_name}.conf"
 	echo
 	parent_clear
 	
@@ -551,6 +578,7 @@ interface_close() {
 	interface_default_added=0
 	interface_default_class=5000
 	interface_classes=
+	interface_classes_ids=
 	interface_sumrate=0
 	interface_classid=
 	class_matchid=1
@@ -663,11 +691,11 @@ interface() {
 	if [ ! -z "$interface_linklayer" -o ! -z "$interface_overhead" -o ! -z "$interface_mtu" -o ! -z "$interface_mpu" -o ! -z "$interface_overhead" ]
 	then
 		local stab="stab"
+		test ! -z "$interface_linklayer"	&& local stab="$stab linklayer $interface_linklayer"
+		test ! -z "$interface_overhead"		&& local stab="$stab overhead $interface_overhead"
+		test ! -z "$interface_tsize"		&& local stab="$stab tsize $interface_tsize"
 		test ! -z "$interface_mtu"		&& local stab="$stab mtu $interface_mtu"
 		test ! -z "$interface_mpu"		&& local stab="$stab mpu $interface_mpu"
-		test ! -z "$interface_tsize"		&& local stab="$stab tsize $interface_tsize"
-		test ! -z "$interface_overhead"		&& local stab="$stab overhead $interface_overhead"
-		test ! -z "$interface_linklayer"	&& local stab="$stab linklayer $interface_linklayer"
 	fi
 	
 	# the default ceiling for the interface, is the rate of the interface
@@ -681,7 +709,7 @@ interface() {
 	[ -z "$interface_qdisc" ] && interface_qdisc="sfq"
 	
 	# the desired minimum rate
-	interface_minrate=$((interface_rate / FIREQOS_MIN_RATE_DIVISOR))
+	[ -z "$interface_minrate" ] && interface_minrate=$((interface_rate / FIREQOS_MIN_RATE_DIVISOR))
 	
 	# calculate the default r2q for this interface
 	if [ -z "$interface_r2q" ]
@@ -747,15 +775,15 @@ interface_mtu=$interface_mtu
 interface_mpu=$interface_mpu
 interface_tsize=$interface_tsize
 interface_qdisc=$interface_qdisc
-class_${interface_major}1_name=TOTAL
-class_${interface_major}1_classid=CLASSID
-class_${interface_major}1_priority=PRIORITY
-class_${interface_major}1_rate=COMMIT
-class_${interface_major}1_ceil=MAX
-class_${interface_major}1_burst=BURST
-class_${interface_major}1_cburst=CBURST
-class_${interface_major}1_quantum=QUANTUM
-class_${interface_major}1_qdisc=QDISC
+class_${interface_major}_1_name=TOTAL
+class_${interface_major}_1_classid=CLASSID
+class_${interface_major}_1_priority=PRIORITY
+class_${interface_major}_1_rate=COMMIT
+class_${interface_major}_1_ceil=MAX
+class_${interface_major}_1_burst=BURST
+class_${interface_major}_1_cburst=CBURST
+class_${interface_major}_1_quantum=QUANTUM
+class_${interface_major}_1_qdisc=QDISC
 EOF
 
 	return 0
@@ -822,7 +850,7 @@ class() {
 			
 			# In nested classes, the default of the parent class is not respected
 			# by the kernel. This rule, sends all remaining traffic to the inner default.
-			match all class default flowid $interface_major:$parent_default_class prio 0xffff
+			match all class default flowid $parent_major:$parent_default_class prio 0xffff
 			
 			parent_pull
 			return 0
@@ -850,12 +878,18 @@ class() {
 	fi
 	
 	# the tc classid that we will create
-	class_classid="$interface_major:$id"
-	local ncid="$interface_major$id"
+	# this is used for the parent of all child classed
+	class_classid="$parent_major:$id"
+	
+	# the flowid the matches on this class will classify the packets
+	class_filters_flowid="$parent_major:$id"
+	
+	# the id of the class in the config, for getting status info about it
+	local ncid="${parent_major}_$id"
 	
 	# the handle of the new qdisc we will create
 	interface_qdisc_counter=$((interface_qdisc_counter + 1))
-	local class_major=$interface_qdisc_counter
+	class_major=$interface_qdisc_counter
 	
 	parse_class_params class parent "${@}"
 	
@@ -874,43 +908,101 @@ class() {
 	[ ! -z "$class_cburst" ]	&& local cburst="cburst $class_cburst"
 	[ ! -z "$class_quantum" ]	&& local quantum="quantum $class_quantum"
 	
-	case "$class_qdisc" in
-		htb)	local qdisc="htb"
-			;;
-		
-		sfq)	local qdisc="sfq perturb 10"
-			;;
-		
-		*)	local qdisc="$class_qdisc"
-			;;
-	esac
-	
-	class_default_class=
-	if [ $class_group -eq 1 ]
-	then
-		class_default_class="$((interface_default_class + interface_qdisc_counter))"
-		local qdisc="htb default $class_default_class"
-	fi
-	
 	echo -e "\e[1;34m class $class_classid, priority $class_prio\e[0m"
 	
-	interface_classes="$interface_classes $class_name|$class_classid"
+	# keep track of all classes in the interface, so that the matches can name them to get their flowid
+	interface_classes="$interface_classes $class_name|$class_filters_flowid"
+	interface_classes_ids="$interface_classes_ids $ncid"
+	
+	# check it the user overbooked the parent
 	parent_sumrate=$((parent_sumrate + $class_rate))
 	if [ $parent_sumrate -gt $parent_rate ]
 	then
 		echo -e ":	\e[1;31mWARNING! The classes under $parent_name commit more bandwidth (+$(( (parent_sumrate - parent_rate) * 8 / 1000 ))kbit) than the available rate.\e[0m"
 	fi
 	
+	# add the class
 	tc class add dev $interface_realdev parent $parent_classid classid $class_classid htb $rate $ceil $burst $cburst prio $class_prio $quantum
-	tc qdisc add dev $interface_realdev parent $class_classid handle $class_major: $qdisc
 	
-	# if this is the default, make sure we don't added again
-	[ "$class_name" = "default" ] && parent_default_added=1
+	# construct the stab for group class
+	# later we will check if this is accidentaly used in leaf classes
+	local stab=
+	if [ ! -z "$class_linklayer" -o ! -z "$class_overhead" -o ! -z "$class_mtu" -o ! -z "$class_mpu" -o ! -z "$class_overhead" ]
+	then
+		local stab="stab"
+		test ! -z "$class_linklayer"	&& local stab="$stab linklayer $class_linklayer"
+		test ! -z "$class_overhead"	&& local stab="$stab overhead $class_overhead"
+		test ! -z "$class_tsize"	&& local stab="$stab tsize $class_tsize"
+		test ! -z "$class_mtu"		&& local stab="$stab mtu $class_mtu"
+		test ! -z "$class_mpu"		&& local stab="$stab mpu $class_mpu"
+	fi
+	
+	class_default_class=
+	if [ $class_group -eq 1 ]
+	then
+		# this class will have subclasses
+		
+		# the default class that all unmatched traffic will be sent to
+		class_default_class="$((interface_default_class + interface_qdisc_counter))"
+		
+		# if the user added a stab, we need a slave class bellow the qdisc
+		if [ ! -z "$stab" ]
+		then
+			# this is a group class with a linklayer
+			# we add a qdisc with the stab, and an HTB class bellow it
+			
+			# attach a qdisc
+			tc qdisc add dev $interface_realdev $stab parent $class_classid handle $class_major: htb default $class_default_class
+			
+			# attach a class bellow the qdisc
+			tc class add dev $interface_realdev parent $class_major: classid $class_major:1 htb $rate $ceil $burst $cburst $quantum
+			
+			# the parent of the child classes
+			class_classid="$class_major:1"
+			
+			# the qdisc the filters of all child classes should be attached to
+			class_filters_to="$class_major:0"
+		else
+			# this is a group class without a linklayer
+			# there is no need for a qdisc (HTB class directly attached to an HTB class)
+			class_major=$parent_major
+			class_filters_to="$class_classid"
+		fi
+		
+		# this class will become a parent [parent_push()], as soon as we encounter the next class.
+		# we don't push it now as the parent, because we need to add filters to its parent, redirecting traffic to this class.
+		# so we add the filters and when we encounter the next class, we push it into the parents' stack, so that it becomes
+		# the parent for all classes following, until the next 'class group end'.
+		
+	else
+		# this is a leaf class (no child classes possible)
+		
+		if [ ! -z "$stab" ]
+		then
+			error "Linklayer can be used only in interfaces and group classes."
+			exit 1
+		fi
+		
+		case "$class_qdisc" in
+			htb)	local qdisc="htb"
+				;;
+			
+			sfq)	local qdisc="sfq perturb 10"
+				;;
+			
+			*)	local qdisc="$class_qdisc"
+				;;
+		esac
+		
+		# attach a qdisc to it for handling all traffic
+		tc qdisc add dev $interface_realdev $stab parent $class_classid handle $class_major: $qdisc
+		
+		# if this is the default, make sure we don't added again
+		[ "$class_name" = "default" ] && parent_default_added=1
+	fi
 	
 	local name="$class_name"
 	[ $parent_stack_size -gt 1 ] && local name="${parent_name:0:2}/$class_name"
-	
-	class_filters_to="$class_classid"
 	
 	# save the configuration
 	cat >>"${FIREQOS_DIR}/${interface_name}.conf" <<EOF
@@ -934,12 +1026,14 @@ find_port_masks() {
 	
 	if [ -z "$to" ]
 	then
+		[ $FIREQOS_DEBUG_PORTS -eq 1 ] && echo >&2 "$from/0xffff"
 		echo "$from/0xffff"
 		return 0
 	fi
 	
 	if [ $from -ge $to ]
 	then
+		[ $FIREQOS_DEBUG_PORTS -eq 1 ] && echo >&2 "$from/0xffff"
 		echo "$from/0xffff"
 		return 0
 	fi
@@ -952,26 +1046,26 @@ find_port_masks() {
 		local base=$(( (from >> i) << i ))
 		local end=$(( base + (1 << i) - 1 ))
 
-		# printf ": >>> examine bit %d, from 0x%04x (%s) to 0x%04x (%s), " $i $base $base $end $end
+		[ $FIREQOS_DEBUG_PORTS -eq 1 ] && printf >&2 ": >>> examine bit %d, from 0x%04x (%s) to 0x%04x (%s), " $i $base $base $end $end
 
 		[ $base -ne $from ] && break
 		[ $end -gt $to ] && break
 
-		# echo " ok"
+		[ $FIREQOS_DEBUG_PORTS -eq 1 ] && echo >&2 " ok"
 	done
-	# echo " failed"
+	[ $FIREQOS_DEBUG_PORTS -eq 1 ] && echo >&2 " failed"
 	
 	i=$[ i - 1 ]
 	local base=$(( (from >> i) << i ))
 	local end=$(( base + (1 << i) - 1 ))
 	local mask=$(( (0xffff >> i) << i ))
 	
-	# printf ": 0x%04x (%d) to 0x%04x (%d),  match 0x%04x (%d) to 0x%04x (%d) with mask 0x%04x \n" $from $from $to $to $base $base $end $$
+	[ $FIREQOS_DEBUG_PORTS -eq 1 ] && printf >&2 ": 0x%04x (%d) to 0x%04x (%d),  match 0x%04x (%d) to 0x%04x (%d) with mask 0x%04x \n" $from $from $to $to $base $base $end $$
 	printf "%d/0x%04x\n" $base $mask
 	if [ $end -lt $to ]
 	then
 		local next=$[end + 1]
-		# printf "\n: next range 0x%04x (%d) to 0x%04x (%d)\n" $next $next $to $to
+		[ $FIREQOS_DEBUG_PORTS -eq 1 ] && printf >&2 "\n: next range 0x%04x (%d) to 0x%04x (%d)\n" $next $next $to $to
 		find_port_masks $next $to
 	fi
 	return 0
@@ -1019,7 +1113,7 @@ match() {
 	local tos=any
 	local mark=any
 	local class=$class_name
-	local flowid=$class_classid
+	local flowid=$class_filters_flowid
 	local ack=0
 	local syn=0
 	local at=
@@ -1530,6 +1624,8 @@ clear_everything() {
 }
 
 htb_stats() {
+	local x=
+	
 	if [ -z "$1" -o ! -f "${FIREQOS_DIR}/$1.conf" ]
 	then
 		error "There is no interface named '$1' to show."
@@ -1554,8 +1650,8 @@ htb_stats() {
 	# find how many digits we need
 	local maxn="$(( interface_rate * 8 / resolution * 120 / 100))"
 	local number_digits=${#maxn}
-	local number_digits=$((number_digits + 2))
-	[ $number_digits -lt 7 ] && local number_digits=7
+	local number_digits=$((number_digits + 1))
+	[ $number_digits -lt 6 ] && local number_digits=6
 	
 	# find what number we have to add, to round to closest number
 	# instead of round down (the only available in shell).
@@ -1578,7 +1674,6 @@ htb_stats() {
 			-e "s/\([0-9]\+\)b /\1 /g"	\
 			-e "s/\([0-9]\+\)p /\1 /g" 	|\
 			tr ":" "_"			|\
-			sort -n 			|\
 			awk '{
 				if( $2 == "htb" ) {
 					if ( $4 == "root" ) value = $14
@@ -1636,7 +1731,7 @@ htb_stats() {
 	
 	# render the configuration
 	local x=
-	for x in `set | grep ^TCSTATS_ | cut -d '=' -f 1 | cut -d '_' -f 3- | sed "s/_//g"`
+	for x in $interface_classes_ids
 	do
 		eval local name="\${class_${x}_name}"
 		[ "$name" = "TOTAL" ] && local name="CLASS"
@@ -1644,29 +1739,29 @@ htb_stats() {
 	done
 	echo
 	
-	for x in `set | grep ^TCSTATS_ | cut -d '=' -f 1 | cut -d '_' -f 3- | sed "s/_//g"`
+	for x in $interface_classes_ids
 	do
 		eval local classid="\${class_${x}_classid}"
 		printf "% ${number_digits}.${number_digits}s " $classid
 	done
 	echo
 	
-	for x in `set | grep ^TCSTATS_ | cut -d '=' -f 1 | cut -d '_' -f 3- | sed "s/_//g"`
+	for x in $interface_classes_ids
 	do
 		eval local priority="\${class_${x}_priority}"
 		printf "% ${number_digits}.${number_digits}s " $priority
 	done
 	echo
 	
-	for x in `set | grep ^TCSTATS_ | cut -d '=' -f 1 | cut -d '_' -f 3- | sed "s/_//g"`
+	for x in $interface_classes_ids
 	do
 		eval local rate="\${class_${x}_rate}"
 		[ ! "${rate}" = "COMMIT" ] && local rate=$(( ((rate * 8) + round) / resolution ))
 		printf "% ${number_digits}.${number_digits}s " $rate
 	done
 	echo
-			
-	for x in `set | grep ^TCSTATS_ | cut -d '=' -f 1 | cut -d '_' -f 3- | sed "s/_//g"`
+	
+	for x in $interface_classes_ids
 	do
 		eval local ceil="\${class_${x}_ceil}"
 		[ ! "${ceil}" = "MAX" ] && local ceil=$(( ((ceil * 8) + round) / resolution ))
@@ -1688,8 +1783,7 @@ htb_stats() {
 		then
 			echo
 			echo "   $interface_name ($interface_dev $interface_inout => $interface_realdev) - values in $unit"
-			local x=
-			for x in `set | grep ^TCSTATS_ | cut -d '=' -f 1 | cut -d '_' -f 3- | sed "s/_//g"`
+			for x in $interface_classes_ids
 			do
 				eval local name="\${class_${x}_name}"
 				printf "% ${number_digits}.${number_digits}s " $name
@@ -1698,9 +1792,9 @@ htb_stats() {
 			local c=0
 		fi
 		
-		for x in `set | grep ^TCSTATS_ | cut -d '=' -f 1 | cut -d '_' -f 2-`
+		for x in $interface_classes_ids
 		do
-			eval "y=\$TCSTATS_${x}"
+			eval "local y=\$TCSTATS_htb_${x}"
 			if [ "$y" = "0" ]
 			then
 				printf "% ${number_digits}.${number_digits}s " "-"
