@@ -648,7 +648,7 @@ interface() {
 		interface_realdev=ifb$ifb_counter
 		
 		# check if we run out of IFB devices
-		if [ $ifb_counter -ge ${FIREQOS_IFBS} ]
+		if [ $ifb_counter -ge $((FIREQOS_IFBS + 1)) ]
 		then
 			error "You don't have enough IFB devices. Please add FIREQOS_IFBS=XX at the top of your config. Replace XX with a number high enough for the 'input' interfaces you define."
 			exit 1
