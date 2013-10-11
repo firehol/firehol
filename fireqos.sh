@@ -1132,6 +1132,7 @@ match() {
 	local syn=0
 	local at=
 	local custom=
+	local tcproto=
 	local ipv4=$class_ipv4
 	local ipv6=$class_ipv6
 	
@@ -1157,93 +1158,95 @@ match() {
 		case "$1" in
 			at)
 				local at="$2"
-				shift 2
+				shift
 				;;
 			
 			syn|syns)
 				local syn=1
-				shift
 				;;
 				
 			ack|acks)
 				local ack=1
-				shift
+				;;
+				
+			arp)
+				local tcproto="$1"
 				;;
 				
 			tcp|TCP|udp|UDP|icmp|ICMP|gre|GRE|ipv6|IPv6|all)
 				local proto="$1"
-				shift
 				;;
 				
 			tos|priority)
 				local tos="$2"
-				shift 2
+				shift
 				;;
 				
 			mark|marks)
 				local mark="$2"
-				shift 2
+				shift
 				;;
 				
 			proto|protocol|protocols)
 				local proto="$2"
-				shift 2
+				shift
 				;;
 			
 			port|ports)
 				local port="$2"
-				shift 2
+				shift
 				;;
 			
 			sport|sports)
 				local sport="$2"
-				shift 2
+				shift
 				;;
 			
 			dport|dports)
 				local dport="$2"
-				shift 2
+				shift
 				;;
 			
 			src)
 				local src="$2"
-				shift 2
+				shift
 				;;
 			
 			dst)
 				local dst="$2"
-				shift 2
+				shift
 				;;
 			
 			prio)
 				local prio="$2"
-				shift 2
+				shift
 				;;
 			
 			ip|ips|net|nets|host|hosts)
 				local ip="$2"
-				shift 2
+				shift
 				;;
 			
 			class)
 				local class="$2"
-				shift 2
+				shift
 				;;
 			
 			flowid)
 				local flowid="$2"
-				shift 2
+				shift
 				;;
 			
 			custom)
 				local custom="$2"
-				shift 2
+				shift
 				;;
 				
 			*)	error "Cannot understand what the filter '${1}' is."
 				return 1
 				;;
 		esac
+		shift
 	done
 	
 	if [ -z "$prio" ]
@@ -1339,9 +1342,11 @@ match() {
 		esac
 	fi
 	
-	local tcproto=
-	[ $ipv4 -eq 1 ] && local tcproto="$tcproto ip"
-	[ $ipv6 -eq 1 ] && local tcproto="$tcproto ipv6"
+	if [ -z "$tcproto" ]
+	then
+		[ $ipv4 -eq 1 ] && local tcproto="$tcproto ip"
+		[ $ipv6 -eq 1 ] && local tcproto="$tcproto ipv6"
+	fi
 	
 	# create all tc filter statements
 	for tcproto_arg in $tcproto
@@ -1597,8 +1602,14 @@ match() {
 													;;
 											esac
 											
-											local u32="u32"
-											[ -z "$proto_arg$ip_arg$src_arg$dst_arg$port_arg$sport_arg$dport_arg$tos_arg$ack_arg$syn_arg" ] && local u32=
+											if [ "$tcproto_arg" = "arp" ]
+											then
+												local u32="u32 match u32 0 0"
+											else
+												local u32="u32"
+												[ -z "$proto_arg$ip_arg$src_arg$dst_arg$port_arg$sport_arg$dport_arg$tos_arg$ack_arg$syn_arg" ] && local u32=
+											fi
+											
 											[ ! -z "$u32" -a ! -z "$mark_arg" ] && local mark_arg="and $mark_arg"
 											
 											tc filter add dev $interface_realdev parent $parent protocol $tcproto_arg prio $prio $u32 $proto_arg $ip_arg $src_arg $dst_arg $port_arg $sport_arg $dport_arg $tos_arg $ack_arg $syn_arg $mark_arg $custom flowid $flowid
