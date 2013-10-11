@@ -422,6 +422,7 @@ parse_class_params() {
 	# export our parameters for the caller
 	# for every parameter not set, use the parent value
 	# for every one set, use the set value
+	local x=
 	for x in ceil burst cburst quantum qdisc ipv4 ipv6
 	do
 		eval local value="\$$x"
@@ -444,6 +445,7 @@ parse_class_params() {
 
 parent_stack_size=0
 parent_push() {
+	local x=
 	local prefix="$1"; shift
 	local vars="classid major sumrate default_class default_added filters_to name ceil burst cburst quantum qdisc rate mtu mpu tsize overhead linklayer r2q prio ipv4 ipv6 minrate"
 	
