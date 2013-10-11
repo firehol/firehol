@@ -422,22 +422,23 @@ parse_class_params() {
 	# export our parameters for the caller
 	# for every parameter not set, use the parent value
 	# for every one set, use the set value
-	local x=
-	for x in ceil burst cburst quantum qdisc ipv4 ipv6
+	local param=
+	for param in ceil burst cburst quantum qdisc ipv4 ipv6
 	do
-		eval local value="\$$x"
+		eval local value="\$$param"
 		if [ -z "$value" ]
 		then
-			eval export ${prefix}_${x}="\${${parent}_${x}}"
+			eval export ${prefix}_${param}="\${${parent}_${param}}"
 		else
-			eval export ${prefix}_${x}="\$$x"
+			eval export ${prefix}_${param}="\$$param"
 		fi
 	done
 	
 	# no inheritance for these parameters
-	for x in rate mtu mpu tsize overhead linklayer r2q prio minrate
+	local param=
+	for param in rate mtu mpu tsize overhead linklayer r2q prio minrate
 	do
-		eval export ${prefix}_${x}="\$$x"
+		eval export ${prefix}_${param}="\$$param"
 	done
 	
 	return 0
@@ -445,7 +446,7 @@ parse_class_params() {
 
 parent_stack_size=0
 parent_push() {
-	local x=
+	local param=
 	local prefix="$1"; shift
 	local vars="classid major sumrate default_class default_added filters_to name ceil burst cburst quantum qdisc rate mtu mpu tsize overhead linklayer r2q prio ipv4 ipv6 minrate"
 	
@@ -457,9 +458,9 @@ parent_push() {
 	
 	# refresh the existing parent_* values to stack
 	eval "parent_stack_${parent_stack_size}="
-	for x in $vars
+	for param in $vars
 	do
-		eval "parent_stack_${parent_stack_size}=\"\${parent_stack_${parent_stack_size}}parent_$x=\$parent_$x;\""
+		eval "parent_stack_${parent_stack_size}=\"\${parent_stack_${parent_stack_size}}parent_$param=\$parent_$param;\""
 	done
 	
 	if [ $FIREQOS_DEBUG_STACK -eq 1 ]
@@ -471,10 +472,10 @@ parent_push() {
 	# now push the new values into the stack
 	parent_stack_size=$((parent_stack_size + 1))
 	eval "parent_stack_${parent_stack_size}="
-	for x in $vars
+	for param in $vars
 	do
-		eval "parent_$x=\$${prefix}_$x"
-		eval "parent_stack_${parent_stack_size}=\"\${parent_stack_${parent_stack_size}}parent_$x=\$${prefix}_$x;\""
+		eval "parent_$param=\$${prefix}_$param"
+		eval "parent_stack_${parent_stack_size}=\"\${parent_stack_${parent_stack_size}}parent_$param=\$${prefix}_$param;\""
 	done
 	
 	if [ $FIREQOS_DEBUG_STACK -eq 1 ]
@@ -1612,12 +1613,12 @@ match() {
 }
 
 clear_everything() {
-	local x=
-	for x in `cat /proc/net/dev | grep ':' |  cut -d ':' -f 1 | sed "s/ //g" | grep -v "^lo$"`
+	local qdisc=
+	for qdisc in `cat /proc/net/dev | grep ':' |  cut -d ':' -f 1 | sed "s/ //g" | grep -v "^lo$"`
 	do
 		# remove existing qdisc from all devices
-		tc ignore-error qdisc del dev $x ingress >/dev/null 2>&1
-		tc ignore-error qdisc del dev $x root	>/dev/null 2>&1
+		tc ignore-error qdisc del dev $qdisc ingress >/dev/null 2>&1
+		tc ignore-error qdisc del dev $qdisc root >/dev/null 2>&1
 	done
 	
 	rmmod ifb 2>/dev/null
