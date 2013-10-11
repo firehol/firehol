@@ -51,7 +51,7 @@ fireqos_exit() {
 	[ -f "${FIREQOS_LOCK_FILE}" ] && rm -f "${FIREQOS_LOCK_FILE}" >/dev/null 2>&1
 }
 
-firehol_concurrent_run_lock() {
+fireqos_concurrent_run_lock() {
 	if [ -f "${FIREQOS_LOCK_FILE}" ]
 	then
 		echo >&2 "FireQOS is already running. Waiting for the other process to exit..."
@@ -537,6 +537,7 @@ interface_default_added=
 interface_default_class=
 interface_classes=
 interface_classes_ids=
+interface_classes_monitor=
 interface_sumrate=0
 interface_classid=
 class_matchid=
@@ -567,6 +568,7 @@ interface_close() {
 	
 	echo "interface_classes='TOTAL|${interface_major}:1 $interface_classes'" >>"${FIREQOS_DIR}/${interface_name}.conf"
 	echo "interface_classes_ids='${interface_major}_1 $interface_classes_ids'" >>"${FIREQOS_DIR}/${interface_name}.conf"
+	echo "interface_classes_monitor='$interface_classes_monitor'" >>"${FIREQOS_DIR}/${interface_name}.conf"
 	echo
 	parent_clear
 	
@@ -582,6 +584,7 @@ interface_close() {
 	interface_default_class=5000
 	interface_classes=
 	interface_classes_ids=
+	interface_classes_monitor=
 	interface_sumrate=0
 	interface_classid=
 	class_matchid=1
@@ -636,7 +639,9 @@ interface() {
 		# Find an available IFB device to use.
 		if [ -z "$ifb_counter" ]
 		then
-			ifb_counter=0
+			# we start at 1
+			# we need ifb0 for live monitoring of traffic
+			ifb_counter=1
 		else
 			ifb_counter=$((ifb_counter + 1))
 		fi
@@ -651,7 +656,8 @@ interface() {
 		
 		if [ $FIREQOS_LOADED_IFBS -eq 0 ]
 		then
-			modprobe ifb numifbs=${FIREQOS_IFBS} || exit 1
+			# we open +1 IFBs to leave ifb0 for live monitoring of traffic
+			modprobe ifb numifbs=$((FIREQOS_IFBS + 1)) || exit 1
 			FIREQOS_LOADED_IFBS=1
 		fi
 		
@@ -788,7 +794,8 @@ class_${interface_major}_1_cburst=CBURST
 class_${interface_major}_1_quantum=QUANTUM
 class_${interface_major}_1_qdisc=QDISC
 EOF
-
+	
+	echo $interface_name >>$FIREQOS_DIR/interfaces
 	return 0
 }
 
@@ -814,6 +821,8 @@ class() {
 	if [ $class_group -eq 1 ]
 	then
 		# the last class was a group 
+		# filters have been added to it, and now we have reached its first child class
+		# we push the previous class, into the our parents stack
 		
 		class_default_added=0
 		parent_push class
@@ -948,7 +957,7 @@ class() {
 		# the default class that all unmatched traffic will be sent to
 		class_default_class="$((interface_default_class + interface_qdisc_counter))"
 		
-		# if the user added a stab, we need a slave class bellow the qdisc
+		# if the user added a stab, we need a qdisc and a slave class bellow the qdisc
 		if [ ! -z "$stab" ]
 		then
 			# this is a group class with a linklayer
@@ -975,7 +984,7 @@ class() {
 		# this class will become a parent [parent_push()], as soon as we encounter the next class.
 		# we don't push it now as the parent, because we need to add filters to its parent, redirecting traffic to this class.
 		# so we add the filters and when we encounter the next class, we push it into the parents' stack, so that it becomes
-		# the parent for all classes following, until the next 'class group end'.
+		# the parent for all classes following, until we encounter its matching 'class group end'.
 		
 	else
 		# this is a leaf class (no child classes possible)
@@ -999,6 +1008,8 @@ class() {
 		
 		# attach a qdisc to it for handling all traffic
 		tc qdisc add dev $interface_realdev $stab parent $class_classid handle $class_major: $qdisc
+		
+		interface_classes_monitor="$interface_classes_monitor $class_name|$parent_name/$class_name|$class_classid|$class_major:"
 		
 		# if this is the default, make sure we don't added again
 		[ "$class_name" = "default" ] && parent_default_added=1
@@ -1626,12 +1637,24 @@ clear_everything() {
 	return 0
 }
 
+show_interfaces() {
+	if [ -f $FIREQOS_DIR/interfaces ]
+	then
+		echo
+		echo "The following interfaces are available:"
+		cat $FIREQOS_DIR/interfaces
+	else
+		echo "No interfaces have been configured."
+	fi
+}
+
 htb_stats() {
 	local x=
 	
 	if [ -z "$1" -o ! -f "${FIREQOS_DIR}/$1.conf" ]
 	then
-		error "There is no interface named '$1' to show."
+		echo >&2 "There is no interface named '$1' to show."
+		show_interfaces
 		exit 1
 	fi
 	
@@ -1816,6 +1839,103 @@ htb_stats() {
 	done
 }
 
+FIREQOS_MONITOR_DEV=
+FIREQOS_MONITOR_HANDLE=
+remove_monitor() {
+	if [ ! -z "$FIREQOS_MONITOR_DEV" -a ! -z "$FIREQOS_MONITOR_HANDLE" ]
+	then
+		tc filter del dev $FIREQOS_MONITOR_DEV parent $FIREQOS_MONITOR_HANDLE protocol all prio 1 u32 match u32 0 0 action mirred egress redirect dev ifb0
+		ip link set dev ifb0 down
+		echo "FireQOS: monitor removed from device '$FIREQOS_MONITOR_DEV', qdisc '$FIREQOS_MONITOR_HANDLE'."
+		FIREQOS_MONITOR_DEV=
+		FIREQOS_MONITOR_HANDLE=
+	fi
+	
+	echo >&2 "bye..."
+	
+	[ -f "${FIREQOS_LOCK_FILE}" ] && rm -f "${FIREQOS_LOCK_FILE}" >/dev/null 2>&1
+}
+
+add_monitor() {
+	FIREQOS_MONITOR_DEV="$1"
+	FIREQOS_MONITOR_HANDLE="$2"
+	
+	if [ -z "$FIREQOS_MONITOR_DEV" -o -z "$FIREQOS_MONITOR_HANDLE" ]
+	then
+		echo "Cannot setup monitor on device '$1' for handle '$2'."
+		exit 1
+	fi
+	
+	FIREQOS_LOCK_FILE_TIMEOUT=$((86400 * 30))
+	fireqos_concurrent_run_lock
+	
+	ip link set dev ifb0 down >/dev/null 2>&1
+	ip link set dev ifb0 up || exit 1
+	
+	tc filter add dev $FIREQOS_MONITOR_DEV parent $FIREQOS_MONITOR_HANDLE protocol all prio 1 u32 match u32 0 0 action mirred egress redirect dev ifb0
+	
+	trap remove_monitor EXIT
+	trap remove_monitor SIGHUP
+	
+	echo "FireQOS: monitor added to device '$FIREQOS_MONITOR_DEV', qdisc '$FIREQOS_MONITOR_HANDLE'."
+}
+
+monitor() {
+	if [ -z "$1" -o ! -f "${FIREQOS_DIR}/$1.conf" ]
+	then
+		echo >&2 "There is no interface named '$1' to show."
+		show_interfaces
+		exit 1
+	fi
+	
+	# load the interface configuration
+	source "${FIREQOS_DIR}/$1.conf" || exit 1
+	
+	local x=
+	local foundname=
+	local foundflow=
+	for x in $interface_classes_monitor
+	do
+		local name=`echo "$x|" | cut -d '|' -f 1`
+		local name2=`echo "$x|" | cut -d '|' -f 2`
+		local flow=`echo "$x|" | cut -d '|' -f 3`
+		local monitor=`echo "$x|" | cut -d '|' -f 4`
+		
+		if [ "$name" = "$2" -o "$flow" = "$2" -o "$name2" = "$2" -o "$monitor" = "$2" ]
+		then
+			local foundname="$name"
+			local foundname2="$name2"
+			local foundflow="$flow"
+			local foundmonitor="$monitor"
+			break
+		fi
+	done
+	
+	if [ -z "$foundname" ]
+	then
+		echo
+		echo "No class found with name '$2' in interface '$1'."
+		echo
+		echo "Use one of the following names or class ids:"
+		echo "$interface_classes_monitor" | tr ' ' '\n' | grep -v "^$" | sed "s/|/ or /g"
+		exit 1
+	fi
+	
+	shift 2
+	
+	echo "Monitoring qdisc '$foundmonitor' for class '$foundname2' ($foundflow)..."
+	add_monitor "$interface_realdev" "$foundmonitor" || exit 1
+	
+	echo
+	printf "Running:\n: "
+	printf " %q" tcpdump -i ifb0 "${@}"
+	echo
+	echo
+	tcpdump -i ifb0 "${@}"
+	
+	# add_monitor() adds a trap that will remove the monitor on exit
+}
+
 cat <<EOF
 FireQOS v1.0 DEVELOPMENT
 (C) 2013 Costa Tsaousis, GPL
@@ -1854,6 +1974,13 @@ case "$1" in
 	
 	status) shift
 		htb_stats "$@"
+		exit $?
+		;;
+	
+	tcpdump|monitor)
+		shift
+		monitor "$@"
+		exit $?
 		;;
 	
 	debug)	FIREQOS_DEBUG=1
@@ -1882,10 +2009,13 @@ then
 fi
 
 # make sure we are not running in parallel
-firehol_concurrent_run_lock
+fireqos_concurrent_run_lock
 
 # clear all QoS on all interfaces
 clear_everything
+
+# remove the existing interfaces list
+[ -f $FIREQOS_DIR/interfaces ] && rm $FIREQOS_DIR/interfaces
 
 # enable cleanup in case of failure
 FIREQOS_COMPLETED=0
