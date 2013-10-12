@@ -33,6 +33,9 @@ FIREQOS_MIN_RATE_DIVISOR=100
 # if set to 1, it will print a line per match statement
 FIREQOS_SHOW_MATCHES=0
 
+# the classes priority in ballanced mode
+FIREQOS_BALLANCED_PRIO=100
+
 FIREQOS_COMPLETED=
 fireqos_exit() {
 	if [ "$FIREQOS_COMPLETED" = "0" ]
@@ -262,6 +265,21 @@ parse_class_params() {
 	local ipv4=
 	local ipv6=
 	
+	local priority_mode=
+	local prio=
+	local qdisc=
+	local minrate=
+	local rate=
+	local ceil=
+	local r2q=
+	local burst=
+	local cburst=
+	local quantum=
+	local mtu=
+	local mpu=
+	local tsize=
+	local linklayer=
+	
 	eval local base_rate="\$${parent}_rate"
 	
 	case "$force_ipv" in
@@ -285,78 +303,81 @@ parse_class_params() {
 	while [ ! -z "$1" ]
 	do
 		case "$1" in
-			prio|priority)
+			priority|ballanced)
+					local priority_mode="$1"
+					;;
+					
+			prio)
 					local prio="$2"
-					shift 2
+					shift
 					;;
 			qdisc)	
 					local qdisc="$2"
-					shift 2
+					shift
 					;;
 			
 			sfq|pfifo|bfifo)
 					local qdisc="$1"
-					shift
 					;;
 					
 			minrate)
 					[ "$prefix" = "class" ] && error "'$1' cannot be used in classes."
 					
 					local minrate="`rate2bps $2 $base_rate`"
-					shift 2
+					shift
 					;;
 					
 			rate|min|commit)
 					local rate="`rate2bps $2 $base_rate`"
-					shift 2
+					shift
 					;;
 					
 			ceil|max)
 					local ceil="`rate2bps $2 $base_rate`"
-					shift 2
+					shift
 					;;
 					
 			r2q)
 					[ "$prefix" = "class" ] && error "'$1' cannot be used in classes."
 					
 					local r2q="$2"
-					shift 2
+					shift
 					;;
 					
 			burst)
 					local burst="$2"
-					shift 2
+					shift
 					;;
 					
 			cburst)
 					local cburst="$2"
-					shift 2
+					shift
 					;;
 					
 			quantum)
 					# must be as small as possible, but larger than mtu
 					local quantum="$2"
-					shift 2
+					shift
 					;;
 					
 			mtu)
 					local mtu="$2"
-					shift 2
+					shift
 					;;
 			
 			mpu)
 					local mpu="$2"
-					shift 2
+					shift
 					;;
 			
 			tsize)
 					local tsize="$2"
-					shift 2
+					shift
 					;;
 			
 			overhead)
 					local overhead="$2"
-					shift 2
+					shift
 					;;
 			
 			adsl)
@@ -405,25 +426,26 @@ parse_class_params() {
 								return 1
 								;;
 					esac
-					shift 3
+					shift 2
 					;;
 					
 			atm|ethernet)
 					local linklayer="$1"
-					shift
 					;;
 					
 			*)		error "Cannot understand what '${1}' means."
 					return 1
 					;;
 		esac
+		
+		shift
 	done
 	
 	# export our parameters for the caller
 	# for every parameter not set, use the parent value
 	# for every one set, use the set value
 	local param=
-	for param in ceil burst cburst quantum qdisc ipv4 ipv6
+	for param in ceil burst cburst quantum qdisc ipv4 ipv6 priority_mode
 	do
 		eval local value="\$$param"
 		if [ -z "$value" ]
@@ -448,7 +470,7 @@ parent_stack_size=0
 parent_push() {
 	local param=
 	local prefix="$1"; shift
-	local vars="classid major sumrate default_class default_added filters_to name ceil burst cburst quantum qdisc rate mtu mpu tsize overhead linklayer r2q prio ipv4 ipv6 minrate"
+	local vars="classid major sumrate default_class default_added filters_to name ceil burst cburst quantum qdisc rate mtu mpu tsize overhead linklayer r2q prio ipv4 ipv6 minrate priority_mode"
 	
 	if [ $FIREQOS_DEBUG_STACK -eq 1 ]
 	then
@@ -674,6 +696,8 @@ interface() {
 	
 	# parse the parameters given
 	parse_class_params interface noparent "${@}"
+	
+	[ -z "$interface_priority_mode" ] && interface_priority_mode="priority"
 	
 	if [ -z "$interface_ipv4" -a -z "$interface_ipv6" ]
 	then
@@ -906,7 +930,11 @@ class() {
 	parse_class_params class parent "${@}"
 	
 	# the priority of this class, compared to the others in the same interface
-	[ -z "$class_prio" ] && class_prio=$((interface_class_counter - 10))
+	if [ -z "$class_prio" ]
+	then
+		[ "$parent_priority_mode" = "ballanced" ] && class_prio=$FIREQOS_BALLANCED_PRIO
+		[ -z "$class_prio" ] && class_prio=$((interface_class_counter - 10))
+	fi
 	
 	# if not specified, set the minimum rate
 	[ -z "$class_rate" ] && class_rate=$interface_minrate
