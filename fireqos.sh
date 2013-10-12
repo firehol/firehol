@@ -2003,35 +2003,70 @@ USAGE
 
 }
 
-case "$1" in
+FIREQOS_MODE=
+while [ ! -z "$1" ]
+do
+	case "$1" in
 
-	stop)	clear_everything
-		echo "Cleared all QOS on all interfaces."
-		syslog info "Cleared all QoS on all interfaces"
-		exit 0
-		;;
+		stop)	
+			clear_everything
+			echo "Cleared all QOS on all interfaces."
+			syslog info "Cleared all QoS on all interfaces"
+			exit 0
+			;;
+		
+		status) 
+			shift
+			if [ "$2" = "dump" -o "$2" = "tcpdump" ]
+			then
+				iface="$1"
+				shift 2
+				monitor $iface "$@"
+			else
+				htb_stats "$@"
+			fi
+			exit 0
+			;;
+		
+		dump|tcpdump)
+			shift
+			monitor "$@"
+			exit $?
+			;;
+		
+		debug)	
+			FIREQOS_MODE=START
+			FIREQOS_DEBUG=1
+			;;
+		
+		start)	
+			FIREQOS_MODE=START
+			;;
+		
+		--)
+			shift
+			break;
+			;;
+			
+		--help|-h)
+			FIREQOS_MODE=
+			break;
+			;;
+			
+		*)
+			echo >&2 "Using file '$1' for FireQOS configuration..."
+			FIREQOS_CONFIG="$1"
+			;;
+	esac
 	
-	status) shift
-		htb_stats "$@"
-		exit $?
-		;;
-	
-	tcpdump|monitor)
-		shift
-		monitor "$@"
-		exit $?
-		;;
-	
-	debug)	FIREQOS_DEBUG=1
-		;;
-	
-	start)	;;
-	
-	*)	show_usage
-		exit 1
-		;;
-esac
+	shift
+done
 
+if [ -z "$FIREQOS_MODE" ]
+then
+	show_usage
+	exit 1
+fi
 
 # ----------------------------------------------------------------------------
 # Normal startup
