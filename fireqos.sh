@@ -6,6 +6,9 @@
 # GPL
 # $Id$
 
+# let everyone read our status info
+umask 022
+
 me="$0"
 
 shopt -s extglob
@@ -466,6 +469,7 @@ parse_class_params() {
 	return 0
 }
 
+parent_path=
 parent_stack_size=0
 parent_push() {
 	local param=
@@ -507,6 +511,14 @@ parent_push() {
 		#-- set | grep ^parent
 	fi
 	
+	if [ "$prefix" = "interface" ]
+	then
+		parent_path=
+	else
+		parent_path="$parent_path$parent_name/"
+	fi
+	[ $FIREQOS_DEBUG_STACK -eq 1 ] && echo "PARENT_PATH=$parent_path"
+	
 	set_tabs
 }
 
@@ -527,6 +539,14 @@ parent_pull() {
 		echo "PULL(${parent_stack_size}): $pull"
 		#-- set | grep ^parent
 	fi
+	
+	if [ $parent_stack_size -gt 1 ]
+	then
+		parent_path="`echo $parent_path | cut -d '/' -f 1-$((parent_stack_size - 1))`/"
+	else
+		parent_path=
+	fi
+	[ $FIREQOS_DEBUG_STACK -eq 1 ] && echo "PARENT_PATH=$parent_path"
 	
 	set_tabs
 }
@@ -1037,10 +1057,14 @@ class() {
 		# attach a qdisc to it for handling all traffic
 		tc qdisc add dev $interface_realdev $stab parent $class_classid handle $class_major: $qdisc
 		
-		interface_classes_monitor="$interface_classes_monitor $class_name|$parent_name/$class_name|$class_classid|$class_major:"
-		
 		# if this is the default, make sure we don't added again
-		[ "$class_name" = "default" ] && parent_default_added=1
+		if [ "$class_name" = "default" ]
+		then
+			parent_default_added=1
+			interface_classes_monitor="$interface_classes_monitor $parent_path$class_name|$parent_path$class_name|$class_classid|$class_major:"
+		else
+			interface_classes_monitor="$interface_classes_monitor $class_name|$parent_path$class_name|$class_classid|$class_major:"
+		fi
 	fi
 	
 	local name="$class_name"
@@ -1676,6 +1700,18 @@ clear_everything() {
 	return 0
 }
 
+check_root() {
+	if [ ! "${UID}" = 0 ]
+	then
+		echo >&2
+		echo >&2
+		echo >&2 "Only user root can run FireQOS."
+		echo >&2
+		exit 1
+	fi
+}
+
+
 show_interfaces() {
 	if [ -f $FIREQOS_DIR/interfaces ]
 	then
@@ -1899,6 +1935,8 @@ add_monitor() {
 	FIREQOS_MONITOR_DEV="$1"
 	FIREQOS_MONITOR_HANDLE="$2"
 	
+	check_root
+	
 	if [ -z "$FIREQOS_MONITOR_DEV" -o -z "$FIREQOS_MONITOR_HANDLE" ]
 	then
 		echo "Cannot setup monitor on device '$1' for handle '$2'."
@@ -1955,8 +1993,25 @@ monitor() {
 		echo
 		echo "No class found with name '$2' in interface '$1'."
 		echo
-		echo "Use one of the following names or class ids:"
-		echo "$interface_classes_monitor" | tr ' ' '\n' | grep -v "^$" | sed "s/|/ or /g"
+		echo "Use one of the following names, class ids or qdisc handles:"
+		
+		local x=
+		for x in `echo "$interface_classes_monitor" | tr ' ' '\n' | grep -v "^$"`
+		do
+			echo "$x" | (
+				local name=
+				local name2=
+				local flow=
+				local monitor=
+				IFS="|" read name name2 flow monitor
+				if [ "$name" = "$name2" -o "$name" = "default" ]
+				then
+					echo -e "  \e[1;33m $name2 \e[0m or classid \e[1;33m $flow \e[0m or handle \e[1;33m $monitor \e[0m"
+				else
+					echo -e "  \e[1;33m $name \e[0m or \e[1;33m $name2 \e[0m or classid \e[1;33m $flow \e[0m or handle \e[1;33m $monitor \e[0m"
+				fi
+			)
+		done
 		exit 1
 	fi
 	
@@ -2067,6 +2122,8 @@ then
 	show_usage
 	exit 1
 fi
+
+check_root
 
 # ----------------------------------------------------------------------------
 # Normal startup
