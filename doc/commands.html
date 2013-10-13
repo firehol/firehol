@@ -847,25 +847,29 @@ Subcommands must be given within <a href="#primary_commands">Primary commands</a
 	
 <hr noshade size=1 width="100%">
 	
-	<a name="tcpmss"><h3><b>tcpmss</b> <font color="red">&lt;what&gt;</font></h3></a>
+	<a name="tcpmss"><h3><b>tcpmss</b> <font color="red">&lt;what&gt;</font> [<where>]</h3></a>
 	The <b>tcpmss</b> helper sets the MSS (Maximum Segment Size) of TCP SYN packets routed through the firewall.
 	Its purpose is to overcome situations where Path MTU Discovery is not working and packet
 	fragmentation is not possible.
 	<p>
 	Within FireHOL, it can be defined either before any primary command, in which case it is applied to all
-	traffic passing through the firewall, or to any <b>router</b>, in which case it is applied to traffic going out on the outfaces of the router.
+	traffic passing through the firewall (except if the <b>where</b> states a list of interfaces), or to any <b>interface</b> or <b>router</b>, in which case it is applied to traffic going out on these interfaces.
 	<p>
-	The argument can either be the word <b>auto</b> or a number:
+	<b>what</b> can either be the word <b>auto</b> or a number:
 	<ul>
 		<li>	The word <b>auto</b> will make the TCP connections have MSS equal to the MTU of the
 			outgoing intefrace minus 40 (clamp-mss-to-pmtu).</li>
 		<li>	A numeric argument will make the TCP connections have MSS equal to the number given.</li>
 	</ul>
 	<p>
+	<b>where</b> can be an interface, or a list of interfaces separated by space and enclosed in double quotes.
+	<p>
+	
 	See also <a href="http://iptables-tutorial.frozentux.net/iptables-tutorial.html#TCPMSSTARGET">TCPMSS target in iptables tutorial</a>.
 	<p>
 	Example 1: <b>tcpmss auto</b>
 	<br>Example 2: <b>tcpmss 500</b>
+	<br>Example 3: <b>tcpmss 500 "eth1 eth2 eth3"</b>
 	<p>
 
 <hr noshade size=1 width="100%">
