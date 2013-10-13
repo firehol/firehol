@@ -81,6 +81,10 @@ error() {
 	exit 1
 }
 
+warning() {
+	echo >&2 -e ":	\e[1;31mWARNING! $* \e[0m"
+}
+
 tc() {
 	local noerror=0
 	if [ "$1" = "ignore-error" ]
@@ -388,12 +392,14 @@ parse_class_params() {
 					local diff=0
 					case "$2" in
 						local)	local diff=0
-								;;
+							;;
+							
 						remote)	local diff=-14
-								;;
-						*)		error "Unknown adsl option '$2'."
-								return 1
-								;;
+							;;
+							
+						*)	error "Unknown adsl option '$2'."
+							return 1
+							;;
 					esac
 					
 					# default overhead values taken from http://ace-host.stuart.id.au/russell/files/tc/tc-atm/
@@ -412,7 +418,7 @@ parse_class_params() {
 								;;
 						PPPoA-VC/Mux|pppoa-vcmux|pppoa-vc|pppoa-mux)
 								local overhead=$((10 + diff))
-								local mtu=1478
+								[ "$2" = "remote" ] && local mtu=1478
 								;;
 						PPPoA-LLC/SNAP|pppoa-llcsnap|pppoa-llc|pppoa-snap)
 								local overhead=$((14 + diff))
@@ -422,7 +428,7 @@ parse_class_params() {
 								;;
 						PPPoE-LLC/SNAP|pppoe-llcsnap|pppoe-llc|pppoe-snap)
 								local overhead=$((40 + diff))
-								local mtu=1492
+								[ "$2" = "remote" ] && local mtu=1492
 								;;
 						*)
 								error "Cannot understand adsl protocol '$3'."
@@ -565,6 +571,80 @@ set_tabs() {
 	do
 		class_tabs="$class_tabs	"
 	done
+}
+
+check_constrains() {
+	local prefix="$1"
+	eval "local mtu=\$${prefix}_mtu"
+	eval "local burst=\$${prefix}_burst"
+	eval "local cburst=\$${prefix}_cburst"
+	eval "local quantum=\$${prefix}_quantum"
+	eval "local rate=\$${prefix}_rate"
+	eval "local ceil=\$${prefix}_ceil"
+	eval "local minrate=\$${prefix}_minrate"
+	
+	# check the constrains
+	if [ ! -z "$mtu" ]
+	then
+		if [ ! -z "$quantum" ]
+		then
+			if [ $quantum -lt $mtu ]
+			then
+				warning "quantum ($quantum bytes) is less that MTU ($mtu bytes). Fixed it by setting quantum to MTU."
+				eval "${prefix}_quantum=$mtu"
+			fi
+		fi
+		
+		if [ ! -z "$burst" ]
+		then
+			if [ $burst -lt $mtu ]
+			then
+				warning "burst ($burst bytes) is less that MTU ($mtu bytes). Fixed it by setting burst to MTU."
+				eval "${prefix}_burst=$mtu"
+			fi
+		fi
+		
+		if [ ! -z "$cburst" ]
+		then
+			if [ $cburst -lt $mtu ]
+			then
+				warning "cburst ($cburst bytes) is less that MTU ($mtu bytes). Fixed it by setting cburst to MTU."
+				eval "${prefix}_cburst=$mtu"
+			fi
+		fi
+		
+		if [ ! -z "$minrate" ]
+		then
+			if [ $minrate -lt $mtu ]
+			then
+				warning "minrate ($minrate bytes per second) is less that MTU ($mtu bytes). Fixed it by setting minrate to MTU."
+				eval "${prefix}_minrate=$mtu"
+			fi
+		fi
+	fi
+	
+	if [ ! -z "$ceil" ]
+	then
+		if [ $ceil -lt $rate ]
+		then
+			warning "ceil ($((ceil * 8 / 1000))kbit) is less that rate ($((rate * 8 / 1000))kbit). Fixed it by setting ceil to rate."
+			eval "${prefix}_ceil=$rate"
+		fi
+	fi
+	
+	[ "$prefix" = "interface" ] && return 0
+	
+	if [ ! -z "$ceil" ]
+	then
+		if [ $ceil -gt $parent_ceil ]
+		then
+			warning "ceil ($((ceil * 8 / 1000))kbit) is more that its parent's ceil ($((parent_ceil * 8 / 1000))kbit). Fixed it by settting ceil to parent's ceil."
+			eval "${prefix}_ceil=$parent_ceil"
+		fi
+	fi
+	
+	
+	return 0
 }
 
 interface_major=
@@ -738,8 +818,19 @@ interface() {
 		return 1
 	fi
 	
+	if [ -z "$interface_mtu" ]
+	then
+		# to find the mtu, we query the original device, not an ifb device
+		interface_mtu=`device_mtu $interface_dev`
+		
+		if [ -z "$interface_mtu" ]
+		then
+			interface_mtu=1500
+			warning "Device MTU cannot be detected. Setting it to 1500 bytes."
+		fi
+	fi
+	
 	# fix stab
-	# we do this before calculating mtu ourselves
 	local stab=
 	if [ ! -z "$interface_linklayer" -o ! -z "$interface_overhead" -o ! -z "$interface_mtu" -o ! -z "$interface_mpu" -o ! -z "$interface_overhead" ]
 	then
@@ -755,16 +846,14 @@ interface() {
 	# if we don't respect this, all unclassified traffic will get just 1kbit!
 	[ -z "$interface_ceil" ] && interface_ceil=$interface_rate
 	
-	[ -z "$interface_mtu" ] && interface_mtu=`device_mtu $interface_realdev`
-	[ -z "$interface_mtu" ] && interface_mtu=1500
-	
 	# set the default qdisc for all classes
 	[ -z "$interface_qdisc" ] && interface_qdisc="sfq"
 	
-	# the desired minimum rate
+	# the desired minimum rate for all classes
 	[ -z "$interface_minrate" ] && interface_minrate=$((interface_rate / FIREQOS_MIN_RATE_DIVISOR))
 	
 	# calculate the default r2q for this interface
+	# *** THIS MAY NOT BE NEEDED ANYMORE, SINCE WE ALWAYS SET QUANTUM ***
 	if [ -z "$interface_r2q" ]
 	then
 		interface_r2q=`calc_r2q $interface_minrate $interface_mtu`
@@ -774,6 +863,11 @@ interface() {
 	local r=$((interface_r2q * interface_mtu))
 	[ $r -gt $interface_minrate ] && interface_minrate=$r
 	
+	# set the default quantum
+	[ -z "$interface_quantum" ] && interface_quantum=$interface_mtu
+	
+	check_constrains interface
+	
 	local rate="rate $((interface_rate * 8 / 1000))kbit"
 	local minrate="rate $((interface_minrate * 8 / 1000))kbit"
 	[ ! -z "$interface_ceil" ]			&& local ceil="ceil $((interface_ceil * 8 / 1000))kbit"
@@ -782,7 +876,7 @@ interface() {
 	[ ! -z "$interface_quantum" ]			&& local quantum="quantum $interface_quantum"
 	[ ! -z "$interface_r2q" ]			&& local r2q="r2q $interface_r2q"
 	
-	echo -e "\e[1;34m real device '$interface_realdev'\e[0m"
+	echo -e " \e[1;34m($interface_realdev, MTU $interface_mtu, quantum $interface_quantum)\e[0m"
 	
 	# Add root qdisc with proper linklayer and overheads
 	tc qdisc add dev $interface_realdev $stab root handle $interface_major: htb default $interface_default_class $r2q
@@ -962,6 +1056,8 @@ class() {
 	# class rate cannot go bellow 1/100 of the interface rate
 	[ $class_rate -lt $interface_minrate ] && class_rate=$interface_minrate
 	
+	check_constrains class
+	
 	[ ! -z "$class_rate" ]		&& local rate="rate $((class_rate * 8 / 1000))kbit"
 	[ ! -z "$class_ceil" ]		&& local ceil="ceil $((class_ceil * 8 / 1000))kbit"
 	[ ! -z "$class_burst" ]		&& local burst="burst $class_burst"
@@ -978,7 +1074,7 @@ class() {
 	parent_sumrate=$((parent_sumrate + $class_rate))
 	if [ $parent_sumrate -gt $parent_rate ]
 	then
-		echo -e ":	\e[1;31mWARNING! The classes under $parent_name commit more bandwidth (+$(( (parent_sumrate - parent_rate) * 8 / 1000 ))kbit) than the available rate.\e[0m"
+		warning "The classes under $parent_name commit more bandwidth (+$(( (parent_sumrate - parent_rate) * 8 / 1000 ))kbit) than the available rate."
 	fi
 	
 	# add the class
