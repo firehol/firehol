@@ -590,7 +590,7 @@ check_constrains() {
 		then
 			if [ $quantum -lt $mtu ]
 			then
-				warning "quantum ($quantum bytes) is less that MTU ($mtu bytes). Fixed it by setting quantum to MTU."
+				warning "quantum ($quantum bytes) is less than MTU ($mtu bytes). Fixed it by setting quantum to MTU."
 				eval "${prefix}_quantum=$mtu"
 			fi
 		fi
@@ -599,7 +599,7 @@ check_constrains() {
 		then
 			if [ $burst -lt $mtu ]
 			then
-				warning "burst ($burst bytes) is less that MTU ($mtu bytes). Fixed it by setting burst to MTU."
+				warning "burst ($burst bytes) is less than MTU ($mtu bytes). Fixed it by setting burst to MTU."
 				eval "${prefix}_burst=$mtu"
 			fi
 		fi
@@ -608,7 +608,7 @@ check_constrains() {
 		then
 			if [ $cburst -lt $mtu ]
 			then
-				warning "cburst ($cburst bytes) is less that MTU ($mtu bytes). Fixed it by setting cburst to MTU."
+				warning "cburst ($cburst bytes) is less than MTU ($mtu bytes). Fixed it by setting cburst to MTU."
 				eval "${prefix}_cburst=$mtu"
 			fi
 		fi
@@ -617,7 +617,7 @@ check_constrains() {
 		then
 			if [ $minrate -lt $mtu ]
 			then
-				warning "minrate ($minrate bytes per second) is less that MTU ($mtu bytes). Fixed it by setting minrate to MTU."
+				warning "minrate ($minrate bytes per second) is less than MTU ($mtu bytes). Fixed it by setting minrate to MTU."
 				eval "${prefix}_minrate=$mtu"
 			fi
 		fi
@@ -627,7 +627,7 @@ check_constrains() {
 	then
 		if [ $ceil -lt $rate ]
 		then
-			warning "ceil ($((ceil * 8 / 1000))kbit) is less that rate ($((rate * 8 / 1000))kbit). Fixed it by setting ceil to rate."
+			warning "ceil ($((ceil * 8 / 1000))kbit) is less than rate ($((rate * 8 / 1000))kbit). Fixed it by setting ceil to rate."
 			eval "${prefix}_ceil=$rate"
 		fi
 	fi
@@ -638,11 +638,28 @@ check_constrains() {
 	then
 		if [ $ceil -gt $parent_ceil ]
 		then
-			warning "ceil ($((ceil * 8 / 1000))kbit) is more that its parent's ceil ($((parent_ceil * 8 / 1000))kbit). Fixed it by settting ceil to parent's ceil."
+			warning "ceil ($((ceil * 8 / 1000))kbit) is more than its parent's ceil ($((parent_ceil * 8 / 1000))kbit). Fixed it by settting ceil to parent's ceil."
 			eval "${prefix}_ceil=$parent_ceil"
 		fi
 	fi
 	
+	if [ ! -z "$burst" -a ! -z "$parent_burst" ]
+	then
+		if [ $burst -gt $parent_burst ]
+		then
+			warning "burst ($burst bytes) is less than its parent's burst ($parent_burst bytes). Fixed it by setting burst to parent's burst."
+			eval "${prefix}_burst=$parent_burst"
+		fi
+	fi
+	
+	if [ ! -z "$cburst" -a ! -z "$parent_cburst" ]
+	then
+		if [ $cburst -gt $parent_cburst ]
+		then
+			warning "cburst ($cburst bytes) is less than its parent's cburst ($parent_cburst bytes). Fixed it by setting cburst to parent's cburst."
+			eval "${prefix}_cburst=$parent_cburst"
+		fi
+	fi
 	
 	return 0
 }
