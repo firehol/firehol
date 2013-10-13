@@ -852,7 +852,7 @@ interface() {
 	
 	# fix stab
 	local stab=
-	if [ ! -z "$interface_linklayer" -o ! -z "$interface_overhead" -o ! -z "$interface_mtu" -o ! -z "$interface_mpu" -o ! -z "$interface_overhead" ]
+	if [ ! -z "$interface_linklayer" ]
 	then
 		local stab="stab"
 		test ! -z "$interface_linklayer"	&& local stab="$stab linklayer $interface_linklayer"
@@ -1097,9 +1097,9 @@ class() {
 	# construct the stab for group class
 	# later we will check if this is accidentaly used in leaf classes
 	local stab=
-	if [ ! -z "$class_linklayer" -o ! -z "$class_overhead" -o ! -z "$class_mtu" -o ! -z "$class_mpu" -o ! -z "$class_overhead" ]
+	if [ ! -z "$class_linklayer" ]
 	then
-		[ -z "$class_mtu" ] && class_mtu=$parent_mtu
+		[ -z "$class_mtu" ] && class_mtu="$parent_mtu"
 		
 		local stab="stab"
 		test ! -z "$class_linklayer"	&& local stab="$stab linklayer $class_linklayer"
@@ -1162,9 +1162,9 @@ class() {
 			class_filters_to="$class_classid"
 		fi
 		
-		# if the user didn't give an MTU, set it to our parent's ptu.
+		# if the user didn't give an mtu, set it to our parent's mtu.
 		# we do this, just for maintaining inheritance.
-		# (we don't use it for anything except using it as a reference in constrains checks)
+		# (we don't set it to this class - will only be used by the subclasses)
 		[ -z "$class_mtu" ] && class_mtu=$parent_mtu
 		
 		# this class will become a parent [parent_push()], as soon as we encounter the next class.
