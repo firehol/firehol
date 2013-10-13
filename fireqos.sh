@@ -583,6 +583,9 @@ check_constrains() {
 	eval "local ceil=\$${prefix}_ceil"
 	eval "local minrate=\$${prefix}_minrate"
 	
+	[ -z "$mtu" ] && eval "local mtu=$parent_mtu"
+	[ -z "$mtu" ] && eval "local mtu=$interface_mtu"
+	
 	# check the constrains
 	if [ ! -z "$mtu" ]
 	then
@@ -1141,6 +1144,11 @@ class() {
 			class_major=$parent_major
 			class_filters_to="$class_classid"
 		fi
+		
+		# if the user didn't give an MTU, set it to our parent's ptu.
+		# we do this, just for maintaining inheritance.
+		# (we don't use it for anything except using it as a reference in constrains checks)
+		[ -z "$class_mtu" ] && class_mtu=$parent_mtu
 		
 		# this class will become a parent [parent_push()], as soon as we encounter the next class.
 		# we don't push it now as the parent, because we need to add filters to its parent, redirecting traffic to this class.
