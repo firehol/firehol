@@ -1061,7 +1061,17 @@ class() {
 	interface_qdisc_counter=$((interface_qdisc_counter + 1))
 	class_major=$interface_qdisc_counter
 	
-	parse_class_params class parent "${@}"
+	parse_class_params class parent quantum "RESET" "${@}"
+	
+	if [ "$class_quantum" = "RESET" ]
+	then
+		if [ ! -z "$class_mtu" ]
+		then
+			class_quantum=$class_mtu
+		else
+			class_quantum=$parent_quantum
+		fi
+	fi
 	
 	# the priority of this class, compared to the others in the same interface
 	if [ -z "$class_prio" ]
@@ -1084,7 +1094,27 @@ class() {
 	[ ! -z "$class_cburst" ]	&& local cburst="cburst $class_cburst"
 	[ ! -z "$class_quantum" ]	&& local quantum="quantum $class_quantum"
 	
-	echo -e "\e[1;34m class $class_classid, priority $class_prio\e[0m"
+	# construct the stab for group class
+	# later we will check if this is accidentaly used in leaf classes
+	local stab=
+	if [ ! -z "$class_linklayer" -o ! -z "$class_overhead" -o ! -z "$class_mtu" -o ! -z "$class_mpu" -o ! -z "$class_overhead" ]
+	then
+		[ -z "$class_mtu" ] && class_mtu=$parent_mtu
+		
+		local stab="stab"
+		test ! -z "$class_linklayer"	&& local stab="$stab linklayer $class_linklayer"
+		test ! -z "$class_overhead"	&& local stab="$stab overhead $class_overhead"
+		test ! -z "$class_tsize"	&& local stab="$stab tsize $class_tsize"
+		test ! -z "$class_mtu"		&& local stab="$stab mtu $class_mtu"
+		test ! -z "$class_mpu"		&& local stab="$stab mpu $class_mpu"
+	fi
+	
+	if [ $class_group -eq 1 -a ! -z "$stab" ]
+	then
+		echo -e " \e[1;34m($class_classid, prio $class_prio, MTU $class_mtu, quantum $class_quantum)\e[0m"
+	else
+		echo -e " \e[1;34m($class_classid, prio $class_prio)\e[0m"
+	fi
 	
 	# keep track of all classes in the interface, so that the matches can name them to get their flowid
 	interface_classes="$interface_classes $class_name|$class_filters_flowid"
@@ -1099,19 +1129,6 @@ class() {
 	
 	# add the class
 	tc class add dev $interface_realdev parent $parent_classid classid $class_classid htb $rate $ceil $burst $cburst prio $class_prio $quantum
-	
-	# construct the stab for group class
-	# later we will check if this is accidentaly used in leaf classes
-	local stab=
-	if [ ! -z "$class_linklayer" -o ! -z "$class_overhead" -o ! -z "$class_mtu" -o ! -z "$class_mpu" -o ! -z "$class_overhead" ]
-	then
-		local stab="stab"
-		test ! -z "$class_linklayer"	&& local stab="$stab linklayer $class_linklayer"
-		test ! -z "$class_overhead"	&& local stab="$stab overhead $class_overhead"
-		test ! -z "$class_tsize"	&& local stab="$stab tsize $class_tsize"
-		test ! -z "$class_mtu"		&& local stab="$stab mtu $class_mtu"
-		test ! -z "$class_mpu"		&& local stab="$stab mpu $class_mpu"
-	fi
 	
 	class_default_class=
 	if [ $class_group -eq 1 ]
