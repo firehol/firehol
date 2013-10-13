@@ -2660,66 +2660,57 @@ tcpmss() {
 	
 	set_work_function -ne "Initializing $FUNCNAME"
 	
-	local what_to_do=error
-	if [ "${work_cmd}" = "router" ]
+	local value="$1"
+	local iface="$2"
+	
+	if [ -z "$iface" ]
 	then
-		if [ -z "${work_outface}" ]
+		if [ ! -z "${work_cmd}" ]
 		then
-			local what_to_do=public
+			local iface="${work_outface}"
+			if [ -z "$iface" ]
+			then
+				error "$FUNCNAME cannot find the interfaces to setup. Did you set an outface?"
+				return 1
+			fi
+			
 		else
-			local what_to_do=interface
+			local iface="all"
 		fi
-	elif [ -z "${work_cmd}" ]
-	then
-		local what_to_do=public
-	else
-		local what_to_do=error
 	fi
 	
-	# work only if this helper is called before any primary command
-	# or within routers.
-	if [ "${what_to_do}" = "public" ]
+	local target=
+	case "$value" in
+		auto)
+			local target="-j TCPMSS --clamp-mss-to-pmtu"
+			;;
+		
+		[0-9]*)
+			local target="-j TCPMSS --set-mss $value"
+			;;
+	
+		*)
+			;;
+	esac
+	
+	if [ -z "$target" ]
+	then
+		error "$FUNCNAME requires either the word 'auto' or a numeric argument for mss."
+		return 1
+	fi
+	
+	if [ "$iface" = "all" ]
 	then
 		set_work_function "Initializing tcpmss for all interfaces"
 		
-		case $1 in
-			auto)
-				iptables -t mangle -A POSTROUTING -p tcp --tcp-flags SYN,RST SYN -j TCPMSS --clamp-mss-to-pmtu
-				;;
-			
-			[0-9]*)
-				iptables -t mangle -A POSTROUTING -p tcp --tcp-flags SYN,RST SYN -j TCPMSS --set-mss $1
-				;;
-		
-			*)
-				error "$FUNCNAME requires either the word 'auto' or a numeric argument."
-				return 1
-				;;
-		esac
-	elif [ "${what_to_do}" = "interface" ]
-	then
+		iptables -t mangle -A POSTROUTING -p tcp --tcp-flags SYN,RST SYN $target
+	else
 		local f=
-		for f in ${work_outface}
+		for f in $iface
 		do
 			set_work_function "Initializing tcpmss for interface '${f}'"
-			case $1 in
-				auto)
-					iptables -t mangle -A POSTROUTING -o ${f} -p tcp --tcp-flags SYN,RST SYN -j TCPMSS --clamp-mss-to-pmtu
-					;;
-					
-				[0-9]*)
-					iptables -t mangle -A POSTROUTING -o ${f} -p tcp --tcp-flags SYN,RST SYN -j TCPMSS --set-mss $1
-					;;
-				
-				*)
-					error "$FUNCNAME requires either the word 'auto' or a numeric argument."
-					return 1
-					;;
-			esac
+			iptables -t mangle -A POSTROUTING -o ${f} -p tcp --tcp-flags SYN,RST SYN $target
 		done
-	else
-		error "$FUNCNAME cannot be used in '${work_cmd}'. Put it before any '${work_cmd}' definition or in 'router' definitions."
-		return 1
 	fi
 	
 	return 0
@@ -5825,6 +5816,7 @@ shift
 case "${arg}" in
 	explain)
 		test ! -z "${1}" && softwarning "Arguments after parameter '${arg}' are ignored."
+		firewall_policy_applied=1
 		FIREHOL_MODE="EXPLAIN"
 		;;
 	
