@@ -6,6 +6,8 @@
 # GPL
 # $Id$
 
+export LC_ALL=C
+
 # let everyone read our status info
 umask 022
 
@@ -26,8 +28,13 @@ FIREQOS_IFBS=2
 # Set it to 1 to see the tc commands generated.
 # Set it in the config file to overwrite this default.
 FIREQOS_DEBUG=0
+
+# These are finer debugging options.
 FIREQOS_DEBUG_STACK=0
 FIREQOS_DEBUG_PORTS=0
+FIREQOS_DEBUG_CLASS=0
+FIREQOS_DEBUG_QDISC=0
+FIREQOS_DEBUG_FILTER=0
 
 # The default and minimum rate for all classes is 1/100
 # of the interface bandwidth
@@ -93,7 +100,12 @@ tc() {
 		shift
 	fi
 	
-	if [ $FIREQOS_DEBUG -eq 1 ]
+	local debug=$FIREQOS_DEBUG
+	[ $FIREQOS_DEBUG_CLASS  -eq 1 -a "$1" = "class"  ] && local debug=1
+	[ $FIREQOS_DEBUG_QDISC  -eq 1 -a "$1" = "qdisc"  ] && local debug=1
+	[ $FIREQOS_DEBUG_FILTER -eq 1 -a "$1" = "filter" ] && local debug=1
+	
+	if [ $debug -eq 1 ]
 	then
 		echo -e -n "#\e[33m"
 		printf " %q" tc "${@}"
@@ -480,7 +492,7 @@ parent_stack_size=0
 parent_push() {
 	local param=
 	local prefix="$1"; shift
-	local vars="classid major sumrate default_class default_added filters_to name ceil burst cburst quantum qdisc rate mtu mpu tsize overhead linklayer r2q prio ipv4 ipv6 minrate priority_mode"
+	local vars="classid major sumrate default_class default_added filters_to name ceil burst cburst quantum qdisc rate mtu mpu tsize overhead linklayer r2q prio ipv4 ipv6 minrate priority_mode class_counter stab class_prio"
 	
 	if [ $FIREQOS_DEBUG_STACK -eq 1 ]
 	then
@@ -673,7 +685,9 @@ interface_name=
 interface_inout=
 interface_realdev=
 interface_minrate=
+interface_global_class_counter=
 interface_class_counter=
+interface_class_prio=
 interface_qdisc_counter=
 interface_default_added=
 interface_default_class=
@@ -682,6 +696,7 @@ interface_classes_ids=
 interface_classes_monitor=
 interface_sumrate=0
 interface_classid=
+interface_stab=
 class_matchid=
 
 ifb_counter=
@@ -720,7 +735,9 @@ interface_close() {
 	interface_inout=
 	interface_realdev=
 	interface_minrate=
+	interface_global_class_counter=1
 	interface_class_counter=10
+	interface_class_prio=0
 	interface_qdisc_counter=10
 	interface_default_added=0
 	interface_default_class=5000
@@ -729,6 +746,7 @@ interface_close() {
 	interface_classes_monitor=
 	interface_sumrate=0
 	interface_classid=
+	interface_stab=1
 	class_matchid=1
 	parent_stack_size=0
 	
@@ -899,7 +917,7 @@ interface() {
 	echo -e " \e[1;34m($interface_realdev, MTU $interface_mtu, quantum $interface_quantum)\e[0m"
 	
 	# Add root qdisc with proper linklayer and overheads
-	tc qdisc add dev $interface_realdev $stab root handle $interface_major: htb default $interface_default_class $r2q
+	tc qdisc add dev $interface_realdev root handle $interface_major: $stab htb default $interface_default_class $r2q
 	
 	# redirect all incoming traffic to ifb
 	if [ $interface_inout = input ]
@@ -988,8 +1006,6 @@ class() {
 		# the current command is the first child class
 	fi
 	
-	printf ": $class_tabs${FUNCNAME} %s" "$*"
-	
 	# reset the values of the current class
 	class_name=
 	class_classid=
@@ -1012,7 +1028,6 @@ class() {
 				exit 1
 			fi
 			
-			echo
 			if [ $parent_default_added -eq 0 ]
 			then
 				class default
@@ -1022,7 +1037,14 @@ class() {
 			# by the kernel. This rule, sends all remaining traffic to the inner default.
 			match all class default flowid $parent_major:$parent_default_class prio 0xffff
 			
-			parent_pull
+			if [ $parent_stab -eq 1 ]
+			then
+				parent_pull
+			else
+				local pc=$parent_class_counter
+				parent_pull
+				parent_class_counter=$pc
+			fi
 			return 0
 		elif [ "$1" = "default" ]
 		then
@@ -1033,10 +1055,18 @@ class() {
 		class_group=1
 	fi
 	
+	printf ": $class_tabs${FUNCNAME} %s" "$*"
+	
 	class_name="$1"; shift
 	
-	# increase the id of this class
-	interface_class_counter=$((interface_class_counter + 1))
+	# increase the global class counter
+	interface_global_class_counter=$((interface_global_class_counter + 1))
+	
+	# increase the parent's priority of subclasses
+	parent_class_counter=$((parent_class_counter + 1))
+	
+	# increase the parent's priority of subclasses
+	parent_class_prio=$((parent_class_prio + 1))
 	
 	# if this is the default class, use the pre-defined
 	# id, otherwise use the classid we just increased
@@ -1044,7 +1074,7 @@ class() {
 	then
 		local id=$parent_default_class
 	else
-		local id=$interface_class_counter
+		local id=$parent_class_counter
 	fi
 	
 	# the tc classid that we will create
@@ -1077,7 +1107,7 @@ class() {
 	if [ -z "$class_prio" ]
 	then
 		[ "$parent_priority_mode" = "ballanced" ] && class_prio=$FIREQOS_BALLANCED_PRIO
-		[ -z "$class_prio" ] && class_prio=$((interface_class_counter - 10))
+		[ -z "$class_prio" ] && class_prio=$parent_class_prio
 	fi
 	
 	# if not specified, set the minimum rate
@@ -1127,13 +1157,12 @@ class() {
 		warning "The classes under $parent_name commit more bandwidth (+$(( (parent_sumrate - parent_rate) * 8 / 1000 ))kbit) than the available rate."
 	fi
 	
-	# add the class
-	tc class add dev $interface_realdev parent $parent_classid classid $class_classid htb $rate $ceil $burst $cburst prio $class_prio $quantum
-	
 	class_default_class=
 	if [ $class_group -eq 1 ]
 	then
 		# this class will have subclasses
+		
+		class_class_prio=0
 		
 		# the default class that all unmatched traffic will be sent to
 		class_default_class="$((interface_default_class + interface_qdisc_counter))"
@@ -1144,8 +1173,11 @@ class() {
 			# this is a group class with a linklayer
 			# we add a qdisc with the stab, and an HTB class bellow it
 			
+			# add the class
+			tc class add dev $interface_realdev parent $parent_classid classid $class_classid htb $rate $ceil $burst $cburst prio $class_prio $quantum
+			
 			# attach a qdisc
-			tc qdisc add dev $interface_realdev $stab parent $class_classid handle $class_major: htb default $class_default_class
+			tc qdisc add dev $interface_realdev parent $class_classid handle $class_major: $stab htb default $class_default_class
 			
 			# attach a class bellow the qdisc
 			tc class add dev $interface_realdev parent $class_major: classid $class_major:1 htb $rate $ceil $burst $cburst $quantum
@@ -1155,11 +1187,22 @@ class() {
 			
 			# the qdisc the filters of all child classes should be attached to
 			class_filters_to="$class_major:0"
+			
+			class_class_counter=10
+			class_stab=1
 		else
 			# this is a group class without a linklayer
+			
+			# add the class
+			tc class add dev $interface_realdev parent $parent_classid classid $class_classid htb $rate $ceil $burst $cburst prio $class_prio $quantum
+			
 			# there is no need for a qdisc (HTB class directly attached to an HTB class)
+			
 			class_major=$parent_major
 			class_filters_to="$class_classid"
+			
+			class_class_counter=$parent_class_counter
+			class_stab=0
 		fi
 		
 		# if the user didn't give an mtu, set it to our parent's mtu.
@@ -1181,19 +1224,25 @@ class() {
 			exit 1
 		fi
 		
+		# add the class
+		tc class add dev $interface_realdev parent $parent_classid classid $class_classid htb $rate $ceil $burst $cburst prio $class_prio $quantum
+		
 		case "$class_qdisc" in
 			htb)	local qdisc="htb"
 				;;
 			
-			sfq)	local qdisc="sfq perturb 10"
+			sfq)	local qdisc="sfq perturb 10 quantum $class_quantum"
 				;;
 			
 			*)	local qdisc="$class_qdisc"
 				;;
 		esac
 		
-		# attach a qdisc to it for handling all traffic
-		tc qdisc add dev $interface_realdev $stab parent $class_classid handle $class_major: $qdisc
+		# attach a qdisc, if we have to
+		if [ ! -z "$qdisc" -a ! "$qdisc" = "none" ]
+		then
+			tc qdisc add dev $interface_realdev $stab parent $class_classid handle $class_major: $qdisc
+		fi
 		
 		# if this is the default, make sure we don't added again
 		if [ "$class_name" = "default" ]
