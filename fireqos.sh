@@ -1835,6 +1835,14 @@ clear_everything() {
 	
 	rmmod ifb 2>/dev/null
 	
+	if [ -d $FIREQOS_DIR ]
+	then
+		cd $FIREQOS_DIR
+		if [ $? -eq 0 ]
+		then
+			rm interfaces *.conf 2>/dev/null
+		fi
+	fi
 	return 0
 }
 
@@ -2083,14 +2091,13 @@ add_monitor() {
 	
 	FIREQOS_LOCK_FILE_TIMEOUT=$((86400 * 30))
 	fireqos_concurrent_run_lock
+	trap remove_monitor EXIT
+	trap remove_monitor SIGHUP
 	
 	ip link set dev ifb0 down >/dev/null 2>&1
 	ip link set dev ifb0 up || exit 1
 	
 	tc filter add dev $FIREQOS_MONITOR_DEV parent $FIREQOS_MONITOR_HANDLE protocol all prio 1 u32 match u32 0 0 action mirred egress redirect dev ifb0
-	
-	trap remove_monitor EXIT
-	trap remove_monitor SIGHUP
 	
 	echo "FireQOS: monitor added to device '$FIREQOS_MONITOR_DEV', qdisc '$FIREQOS_MONITOR_HANDLE'."
 }
@@ -2280,16 +2287,13 @@ fi
 # make sure we are not running in parallel
 fireqos_concurrent_run_lock
 
-# clear all QoS on all interfaces
-clear_everything
-
-# remove the existing interfaces list
-[ -f $FIREQOS_DIR/interfaces ] && rm $FIREQOS_DIR/interfaces
-
 # enable cleanup in case of failure
 FIREQOS_COMPLETED=0
 trap fireqos_exit EXIT
 trap fireqos_exit SIGHUP
+
+# clear all QoS on all interfaces
+clear_everything
 
 # Run the configuration
 enable -n trap					# Disable the trap buildin shell command.
