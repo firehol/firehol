@@ -577,7 +577,6 @@ FIREHOL_DEBUGGING="Y"
       </listitem>
     </varlistentry>
 -->
-<!--
     <varlistentry><term><envar>WAIT_FOR_IFACE</envar></term>
       <listitem>
         <para>
@@ -609,7 +608,6 @@ WAIT_FOR_IFACE="eth0"
         </para>
       </listitem>
     </varlistentry>
--->
   </variablelist>
 </refsect1>
 

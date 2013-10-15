@@ -580,6 +580,13 @@ load_ips() {
 		t2="${t2} ${x}"
 	done
 	
+	local t6=`${CAT_CMD} "${FIREHOL_CONFIG_DIR}/${v}" | ${EGREP_CMD} "^ *((([0-9A-Fa-f]{1,4}:){7}(([0-9A-Fa-f]{1,4})|:))|(([0-9A-Fa-f]{1,4}:){6}(:|((25[0-5]|2[0-4]\d|[01]?\d{1,2})(\.(25[0-5]|2[0-4]\d|[01]?\d{1,2})){3})|(:[0-9A-Fa-f]{1,4})))|(([0-9A-Fa-f]{1,4}:){5}((:((25[0-5]|2[0-4]\d|[01]?\d{1,2})(\.(25[0-5]|2[0-4]\d|[01]?\d{1,2})){3})?)|((:[0-9A-Fa-f]{1,4}){1,2})))|(([0-9A-Fa-f]{1,4}:){4}(:[0-9A-Fa-f]{1,4}){0,1}((:((25[0-5]|2[0-4]\d|[01]?\d{1,2})(\.(25[0-5]|2[0-4]\d|[01]?\d{1,2})){3})?)|((:[0-9A-Fa-f]{1,4}){1,2})))|(([0-9A-Fa-f]{1,4}:){3}(:[0-9A-Fa-f]{1,4}){0,2}((:((25[0-5]|2[0-4]\d|[01]?\d{1,2})(\.(25[0-5]|2[0-4]\d|[01]?\d{1,2})){3})?)|((:[0-9A-Fa-f]{1,4}){1,2})))|(([0-9A-Fa-f]{1,4}:){2}(:[0-9A-Fa-f]{1,4}){0,3}((:((25[0-5]|2[0-4]\d|[01]?\d{1,2})(\.(25[0-5]|2[0-4]\d|[01]?\d{1,2})){3})?)|((:[0-9A-Fa-f]{1,4}){1,2})))|(([0-9A-Fa-f]{1,4}:)(:[0-9A-Fa-f]{1,4}){0,4}((:((25[0-5]|2[0-4]\d|[01]?\d{1,2})(\.(25[0-5]|2[0-4]\d|[01]?\d{1,2})){3})?)|((:[0-9A-Fa-f]{1,4}){1,2})))|(:(:[0-9A-Fa-f]{1,4}){0,5}((:((25[0-5]|2[0-4]\d|[01]?\d{1,2})(\.(25[0-5]|2[0-4]\d|[01]?\d{1,2})){3})?)|((:[0-9A-Fa-f]{1,4}){1,2})))|(((25[0-5]|2[0-4]\d|[01]?\d{1,2})(\.(25[0-5]|2[0-4]\d|[01]?\d{1,2})){3})))(%.+)?/[0-9]+ *$"`
+	for x in ${t6}
+	do
+		i=$[i + 1]
+		t2="${t2} ${x}"
+	done
+	
 	if [ ${i} -eq 0 -o -z "${t2}" ]
 	then
 		echo >&2
@@ -988,7 +995,10 @@ helper_mms="mms"
 # because the mms module is not there:
 # ALL_SHOULD_ALSO_RUN="${ALL_SHOULD_ALSO_RUN} mms"
 
-server_msn_ports="tcp/6891"
+server_msnp_ports="tcp/6891"
+client_msnp_ports="default"
+
+server_msn_ports="tcp/1863 udp/1863"
 client_msn_ports="default"
 
 server_mysql_ports="tcp/3306"
@@ -1023,6 +1033,10 @@ client_nut_ports="default"
 # NoMachine's NX server
 server_nxserver_ports="tcp/5000:5200"
 client_nxserver_ports="default"
+
+# OpenVPN
+server_openvpn_ports="tcp/1194 udp/1194"
+client_openvpn_ports="default"
 
 # Oracle database
 server_oracle_ports="tcp/1521"
@@ -1102,6 +1116,10 @@ client_snmp_ports="default"
 
 server_snmptrap_ports="udp/162"
 client_snmptrap_ports="any"
+
+# Nagios NRPE
+server_nrpe_ports="tcp/5666"
+client_nrpe_ports="default"
 
 server_ssh_ports="tcp/22"
 client_ssh_ports="default"
@@ -5789,6 +5807,38 @@ work_realcmd_helper() {
 	test ${FIREHOL_CONF_SHOW} -eq 1 && show_work_realcmd 3
 }
 
+wait_for_interface() {
+	local iface=$1; shift
+	local timeout=60
+
+	if [ -n "$1" ]; then
+		timeout=$1
+	fi
+
+	local start=`date +%s`
+	local found=0
+
+	while [ "`date +%s`" -lt $(($start+$timeout)) -a $found -eq 0 ]
+	do
+		local addr=`ip addr show $iface 2> /dev/null | awk '$1 ~ /^inet$/ {print $2}'`
+		if [ -n "$addr" ]
+		then
+			found=1
+		fi
+		if [ $found -eq 0 ]
+		then
+			sleep 0.5
+		fi
+	done
+
+	if [ $found -eq 1 ]
+	then
+		# the interface is up
+		return 0
+	else
+		return 1
+	fi
+}
 
 
 # ------------------------------------------------------------------------------
@@ -5838,7 +5888,6 @@ if  ${LSMOD_CMD} 2>/dev/null | ${GREP_CMD} -q ipchains ; then
 	echo >&2 "ipchains is loaded in the kernel. Please remove ipchains to run iptables."
 	exit 0
 fi
-
 
 # ------------------------------------------------------------------------------
 # XXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXX
@@ -6691,7 +6740,7 @@ EOF
 		echo
 	}
 	
-	interfaces=`${IP_CMD} link show | ${EGREP_CMD} "^[0-9A-Za-z]+:" | ${CUT_CMD} -d ':' -f 2 | ${SED_CMD} "s/^ //" | ${GREP_CMD} -v "^lo$" | ${SORT_CMD} | ${UNIQ_CMD} | ${TR_CMD} "\n" " "`
+	interfaces=`${IP_CMD} link show | ${EGREP_CMD} "^[0-9A-Za-z]+:" | ${CUT_CMD} -d ':' -f 2 | ${SED_CMD} "s/^ //" | ${SED_CMD} "s/@[a-z0-9]*//" | ${GREP_CMD} -v "^lo$" | ${SORT_CMD} | ${UNIQ_CMD} | ${TR_CMD} "\n" " "`
 	gw_if=`${IP_CMD} route show | ${GREP_CMD} "^default" | ${SED_CMD} "s/dev /dev:/g" | ${TR_CMD} " " "\n" | ${GREP_CMD} "^dev:" | ${CUT_CMD} -d ':' -f 2`
 	gw_ip=`${IP_CMD} route show | ${GREP_CMD} "^default" | ${SED_CMD} "s/via /via:/g" | ${TR_CMD} " " "\n" | ${GREP_CMD} "^via:" | ${CUT_CMD} -d ':' -f 2 | ips2net -`
 	
@@ -7145,6 +7194,14 @@ ${RM_CMD} -f "${FIREHOL_TMP}.awk"
 
 # ------------------------------------------------------------------------------
 # Run the configuration file.
+
+if [ -n "$WAIT_FOR_IFACE" ]
+then
+	for i in "$WAIT_FOR_IFACE"
+	do
+		wait_for_interface $i
+	done
+fi
 
 enable -n trap			# Disable the trap buildin shell command.
 enable -n exit			# Disable the exit buildin shell command.

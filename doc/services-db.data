@@ -631,10 +631,10 @@ SERVICE msn
 		server msn accept
 	NOTES
 
-#SERVICE msnp
-#	NAME msnp
-#	EXAMPLE
-#		server msnp accept
+SERVICE msnp
+	NAME msnp
+	EXAMPLE
+		server msnp accept
 
 SERVICE multicast
 	NAME Multicast
@@ -804,9 +804,9 @@ SERVICE nntps
 	EXAMPLE
 		server nntps accept
 
-#SERVICE nrpe
-#	NAME Nagios NRPE
-#	WIKI http://en.wikipedia.org/wiki/Nagios#NRPE
+SERVICE nrpe
+	NAME Nagios NRPE
+	WIKI http://en.wikipedia.org/wiki/Nagios#NRPE
 
 SERVICE ntp
 	NAME Network Time Protocol
@@ -841,10 +841,10 @@ SERVICE nxserver
 		For encrypted nxserver sessions, only
 		<xref linkend="service-ssh"/> is needed.
 
-#SERVICE openvpn
-#	NAME OpenVPN
-#	HOME http://openvpn.net/
-#	WIKI http://en.wikipedia.org/wiki/OpenVPN
+SERVICE openvpn
+	NAME OpenVPN
+	HOME http://openvpn.net/
+	WIKI http://en.wikipedia.org/wiki/OpenVPN
 
 SERVICE oracle
 	NAME Oracle Database
