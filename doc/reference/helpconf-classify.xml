@@ -1,0 +1,62 @@
+<!DOCTYPE refentry PUBLIC "-//OASIS//DTD DocBook XML V4.5//EN"
+                 "http://www.oasis-open.org/docbook/xml/4.5/docbookx.dtd">
+<!-- For license information see firehol-manual-info.xml.in -->
+<refentry id="helpconf-classify">
+
+<refmeta>
+<refentrytitle>classify config helper: firehol-classify</refentrytitle>
+<manvolnum>5</manvolnum>
+</refmeta>
+
+<refnamediv>
+<refdescriptor>firehol-classify</refdescriptor>
+<refname>firehol-classify</refname>
+<refpurpose>classify traffic for traffic shapping tools</refpurpose>
+</refnamediv>
+
+<refsynopsisdiv>
+  <cmdsynopsis>
+    <command>classify</command>
+    <arg choice="plain"><replaceable>class</replaceable></arg>
+    <arg choice="opt"><replaceable>rule-params</replaceable></arg>
+  </cmdsynopsis>
+</refsynopsisdiv>
+
+<refsect1><title>Description</title>
+  <para>
+    The <command>classify</command> helper command puts matching
+    traffic into the specified traffic shaping class.
+  </para>
+  <para>
+    The <replaceable>class</replaceable> is a class as used by
+    <command>iptables</command> and <command>tc</command> (e.g. MAJOR:MINOR).
+  </para>
+  <para>
+    The <option><replaceable>rule-params</replaceable></option> define
+    a set of rule parameters to match the traffic that is to be classified.
+    See <xref linkend="rule-params"/> for more details.
+  </para>
+  <para>
+    Any <command>classify</command> commands will affect all traffic
+    matched. They must be declared before the first router or interface.
+  </para>
+</refsect1>
+
+<refsect1><title>Examples</title>
+    <programlisting>
+# Put all smtp traffic leaving via eth1 in class 1:1
+classify 1:1 outface eth1 proto tcp dport 25
+    </programlisting>
+</refsect1>
+
+<refsect1><title>See Also</title>
+  <simplelist type="vert">
+    <member><xref linkend="firehol"/></member>
+    <member><xref linkend="firehol.conf"/></member>
+    <member>administration tool for IPv4 firewalls: iptables(8)</member>
+    <member>show / manipulate traffic control settings: tc(8)</member>
+    <member><ulink url="http://www.lartc.org/lartc.html">Linux Advanced Routing &amp; Traffic Control HOWTO</ulink></member>
+  </simplelist>
+</refsect1>
+
+</refentry>

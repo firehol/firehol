@@ -1,0 +1,6 @@
+#FHVER: 1:213
+#
+# Add a "torrent" definition to that can be used in firehol.conf
+#
+server_torrent_ports="tcp/6881:6999"
+client_torrent_ports="default"

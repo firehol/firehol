@@ -1,0 +1,66 @@
+<!DOCTYPE refentry PUBLIC "-//OASIS//DTD DocBook XML V4.5//EN"
+                 "http://www.oasis-open.org/docbook/xml/4.5/docbookx.dtd">
+<!-- For license information see firehol-manual-info.xml.in -->
+<refentry id="cmd-policy">
+
+<refmeta>
+<refentrytitle>policy command: firehol-policy</refentrytitle>
+<manvolnum>5</manvolnum>
+</refmeta>
+
+<refnamediv>
+<refdescriptor>firehol-policy</refdescriptor>
+<refname>firehol-policy</refname>
+<refpurpose>set default action for a definition</refpurpose>
+</refnamediv>
+
+<refsynopsisdiv>
+  <cmdsynopsis>
+    <command>policy</command>
+    <arg choice="plain"><replaceable>action</replaceable></arg>
+  </cmdsynopsis>
+</refsynopsisdiv>
+
+<refsect1><title>Description</title>
+  <para>
+    The <command>policy</command> subcommand defines the default policy
+    for an interface or router.
+  </para>
+  <para>
+    The <replaceable>action</replaceable> can be any of the actions listed in
+    <xref linkend="ref-actions"/>.
+  </para>
+  <note>
+    <para>
+      Change the default policy of a router only if you understand
+      clearly what will be matched by the router statement whose policy
+      is being changed.
+    </para>
+    <para>
+      It is common to define overlapping router definitions. Changing the
+      policy to anything other than the default <option>return</option>
+      may cause strange results for your configuration.
+    </para>
+  </note>
+  <warning>
+    <para>
+      Do not set a policy to <option>accept</option> unless you fully
+      trust all hosts that can reach the interface.
+      <application>FireHOL</application> CANNOT create valid "accept by
+      default" firewalls. See this
+      <ulink url="http://sourceforge.net/tracker/index.php?func=detail&amp;aid=927532&amp;group_id=58425&amp;atid=487692">FireHOL bug report</ulink> for
+      some more information and history.
+    </para>
+  </warning>
+</refsect1>
+
+<refsect1><title>See Also</title>
+  <simplelist type="vert">
+    <member><xref linkend="firehol"/></member>
+    <member><xref linkend="firehol.conf"/></member>
+    <member><xref linkend="def-interface"/></member>
+    <member><xref linkend="ref-actions"/></member>
+  </simplelist>
+</refsect1>
+
+</refentry>

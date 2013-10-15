@@ -1,0 +1,79 @@
+<!DOCTYPE refentry PUBLIC "-//OASIS//DTD DocBook XML V4.5//EN"
+                 "http://www.oasis-open.org/docbook/xml/4.5/docbookx.dtd">
+<!-- For license information see firehol-manual-info.xml.in -->
+<refentry id="helpconf-blacklist">
+
+<refmeta>
+<refentrytitle>blacklist config helper: firehol-blacklist</refentrytitle>
+<manvolnum>5</manvolnum>
+</refmeta>
+
+<refnamediv>
+<refdescriptor>firehol-blacklist</refdescriptor>
+<refname>firehol-blacklist</refname>
+<refpurpose>set up a unidirectional or bidirectional blacklist</refpurpose>
+</refnamediv>
+
+<refsynopsisdiv>
+  <cmdsynopsis>
+    <command>blacklist</command>
+    <group choice="opt">
+      <arg choice="plain">full</arg>
+      <arg choice="plain">all</arg>
+    </group>
+    <arg rep="repeat" choice="plain"><replaceable>ip</replaceable></arg>
+  </cmdsynopsis>
+  <cmdsynopsis>
+    <command>blacklist</command>
+    <group choice="req">
+      <arg choice="plain">input</arg>
+      <arg choice="plain">them</arg>
+      <arg choice="plain">him</arg>
+      <arg choice="plain">her</arg>
+      <arg choice="plain">it</arg>
+      <arg choice="plain">this</arg>
+      <arg choice="plain">these</arg>
+    </group>
+    <arg rep="repeat" choice="plain"><replaceable>ip</replaceable></arg>
+  </cmdsynopsis>
+</refsynopsisdiv>
+
+<refsect1><title>Description</title>
+  <para>
+    The <command>blacklist</command> helper command creates a blacklist
+    for the <option><replaceable>ip</replaceable></option> list given
+    (which can be in quotes or not).
+  </para>
+  <para>
+    If the type <option>full</option> or one of its aliases is supplied,
+    or no type is given, a bidirectional stateless blacklist will be generated.
+    The firewall will REJECT all traffic going to the IP addresses and
+    DROP all traffic coming from them.
+  </para>
+  <para>
+    If the type <option>input</option> or one of its aliases is supplied,
+    a unidirectional stateful blacklist will be generated. Connections
+    can be initiated to such IP addresses, but the IP addresses will not
+    be able to connect to the firewall or hosts protected by it.
+  </para>
+  <para>
+    Any blacklists will affect all router and interface definitions. They
+    must be declared before the first router or interface.
+  </para>
+</refsect1>
+
+<refsect1><title>Examples</title>
+    <programlisting>
+blacklist full 192.0.2.1 192.0.2.2
+blacklist input "192.0.2.3 192.0.2.4"
+    </programlisting>
+</refsect1>
+
+<refsect1><title>See Also</title>
+  <simplelist type="vert">
+    <member><xref linkend="firehol"/></member>
+    <member><xref linkend="firehol.conf"/></member>
+  </simplelist>
+</refsect1>
+
+</refentry>

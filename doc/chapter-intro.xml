@@ -1,0 +1,34 @@
+<!DOCTYPE chapter PUBLIC "-//OASIS//DTD DocBook XML V4.5//EN"
+                 "http://www.oasis-open.org/docbook/xml/4.5/docbookx.dtd">
+<!-- For license information see firehol-manual-info.xml.in -->
+<chapter><title>Introduction</title>
+  <section><title>Latest version</title>
+    <para>The latest version of this document will always be available
+      <ulink url="http://firehol.org/manual/latest">here</ulink>.
+      There are PDF and HTML versions.
+    </para>
+  </section>
+  <section><title>Who should read this manual</title>
+    <para>This manual is aimed at those who wish to create and maintain
+           firewalls with <application>FireHOL</application>.
+    </para>
+    <para>There is a lack of basic and tutorial information in this
+          manual currently. For help getting started and to
+          learn the configuration language, see the
+      <ulink url="http://firehol.org/">FireHOL website</ulink>.
+    </para>
+  </section>
+  <section><title>Where to get help</title>
+    <para>
+      The <ulink url="http://firehol.org/">FireHOL website</ulink>.
+    </para>
+    <para>
+      The <ulink url="http://lists.firehol.org/">mailing lists and
+      archives</ulink>.
+    </para>
+    <para>
+      The package comes with a complete set of manpages, a README and a
+      brief INSTALL guide.
+    </para>
+  </section>
+</chapter>

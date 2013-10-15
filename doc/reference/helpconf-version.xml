@@ -1,0 +1,52 @@
+<!DOCTYPE refentry PUBLIC "-//OASIS//DTD DocBook XML V4.5//EN"
+                 "http://www.oasis-open.org/docbook/xml/4.5/docbookx.dtd">
+<!-- For license information see firehol-manual-info.xml.in -->
+<refentry id="helpconf-version">
+
+<refmeta>
+<refentrytitle>version config helper: firehol-version</refentrytitle>
+<manvolnum>5</manvolnum>
+</refmeta>
+
+<refnamediv>
+<refdescriptor>firehol-version</refdescriptor>
+<refname>firehol-version</refname>
+<refpurpose>set version number of configuration file</refpurpose>
+</refnamediv>
+
+<refsynopsisdiv>
+  <cmdsynopsis>
+    <command>version</command>
+    <arg choice="plain">5</arg>
+  </cmdsynopsis>
+</refsynopsisdiv>
+
+<refsect1><title>Description</title>
+  <para>
+    The <command>version</command> helper command states the configuration
+    file version.
+  </para>
+  <para>
+    If the value passed is newer than the running version of
+    <application>FireHOL</application> supports,
+    <application>FireHOL</application> will not run.
+  </para>
+  <para>
+    You do not have to specify a version number for a configuration
+    file, but by doing so you will prevent <application>FireHOL</application>
+    trying to process a file which it cannot handle.
+  </para>
+  <para>
+    The value that <application>FireHOL</application> expects is increased
+    every time that the configuration file format changes.
+  </para>
+</refsect1>
+
+<refsect1><title>See Also</title>
+  <simplelist type="vert">
+    <member><xref linkend="firehol"/></member>
+    <member><xref linkend="firehol.conf"/></member>
+  </simplelist>
+</refsect1>
+
+</refentry>

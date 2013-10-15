@@ -1,0 +1,295 @@
+<!DOCTYPE refentry PUBLIC "-//OASIS//DTD DocBook XML V4.5//EN"
+                 "http://www.oasis-open.org/docbook/xml/4.5/docbookx.dtd">
+<!-- For license information see firehol-manual-info.xml.in -->
+<refentry id="firehol">
+
+<refentryinfo>
+  <author>
+     <authorblurb>
+       <para>Original man page by Marc Brockschmidt</para>
+     </authorblurb>
+  </author>
+</refentryinfo>
+
+<refmeta>
+  <refentrytitle>FireHOL program: firehol</refentrytitle>
+  <manvolnum>1</manvolnum>
+</refmeta>
+
+<refnamediv>
+  <refdescriptor>firehol</refdescriptor>
+  <refname>firehol</refname>
+  <refpurpose>an easy to use but powerful iptables stateful firewall</refpurpose>
+</refnamediv>
+
+<refsynopsisdiv>
+  <cmdsynopsis>
+    <command>firehol</command>
+  </cmdsynopsis>
+  <cmdsynopsis>
+    <command>sudo -E firehol</command>
+    <arg choice="plain">panic</arg>
+    <arg choice="opt">
+      <option>IP</option>
+    </arg>
+  </cmdsynopsis>
+  <cmdsynopsis>
+    <command>firehol</command>
+    <arg choice="plain"><replaceable>command</replaceable></arg>
+    <arg choice="opt">
+      --
+      <arg rep="repeat" choice="plain"><replaceable>conf-arg</replaceable></arg>
+    </arg>
+  </cmdsynopsis>
+  <cmdsynopsis>
+    <command>firehol</command>
+    <arg choice="plain"><replaceable>CONFIGFILE</replaceable></arg>
+    <arg choice="plain">
+      <group choice="opt">
+        <arg choice="plain">start</arg>
+        <arg choice="plain">debug</arg>
+        <arg choice="plain">try</arg>
+      </group>
+    </arg>
+    <arg choice="opt">
+      --
+      <arg rep="repeat" choice="plain"><replaceable>conf-arg</replaceable></arg>
+    </arg>
+  </cmdsynopsis>
+</refsynopsisdiv>
+
+<refsect1><title>Description</title>
+  <para>
+    Running <command>firehol</command> invokes
+    <command>iptables(8)</command> to manipulate your firewall.
+  </para>
+
+  <para>
+    Run without any arguments, <command>firehol</command> will present
+    some help on usage.
+  </para>
+
+  <para>
+    When given <replaceable>CONFIGFILE</replaceable>,
+     <command>firehol</command> will use the named file instead of
+    <filename>/etc/firehol/firehol.conf</filename> as its configuration.
+    If no command is given, <command>firehol</command> assumes
+    <option>try</option>.
+  </para>
+
+  <para>
+    It is possible to pass arguments for use by the configuration file
+    separating any <replaceable>conf-arg</replaceable> values
+    from the rest of the arguments with <userinput>--</userinput>. The
+    arguments are accessible in the configuration using standard
+    <command>bash(1)</command> syntax e.g. $1, $2, etc.
+  </para>
+</refsect1>
+
+<refsect1><title>Panic</title>
+  <para>
+    To block all communication, invoke <command>firehol</command> with
+    the <option>panic</option> command.
+  </para>
+
+  <para>
+    <application>FireHOL</application> removes all rules from the running
+    firewall and then DROPs all traffic on all iptables tables (mangle,
+    nat, filter) and pre-defined chains (PREROUTING, INPUT, FORWARD, OUTPUT,
+    POSTROUTING).
+  </para>
+
+  <para>
+    DROPing is not done by changing the default policy to DROP, but by
+    adding one rule per table/chain to drop all traffic. This allows
+    systems which do not reset all the chains to ACCEPT when starting
+    to function correctly.
+  </para>
+
+  <para>
+    When activating panic mode, <application>FireHOL</application> checks
+    for the existence of the <envar>SSH_CLIENT</envar> shell environment
+    variable, which is set by <command>ssh</command>. If it finds this, then
+    panic mode will allow the established SSH connection specified in this
+    variable to operate.
+  </para>
+
+  <note><para>
+    In order for <application>FireHOL</application> to see the environment
+    variable you must ensure that it is preserved. For <command>sudo</command>
+    use the <option>-E</option> and for <command>su</command> omit the
+    <option>-</option> (minus sign).
+  </para></note>
+
+  <para>
+    If <envar>SSH_CLIENT</envar> is not set, the <option>IP</option> after
+    the panic argument allows you to give an IP address for which all
+    established connections between the IP address and the host in panic
+    will be allowed to continue.
+  </para>
+</refsect1>
+
+<refsect1><title>Commands</title>
+  <variablelist>
+    <varlistentry><term>start</term>
+                  <term>restart</term>
+      <listitem>
+        <para>
+          Activates the firewall configuration from
+          <filename>/etc/firehol/firehol.conf</filename>.
+        </para>
+        <para>
+          Use of the term <literal>restart</literal> is allowed for
+          compatibility with common init implementations.
+        </para>
+      </listitem>
+    </varlistentry>
+    <varlistentry><term>try</term>
+      <listitem>
+        <para>
+          Activates the firewall, waiting for the user to type the word
+          <userinput>commit</userinput>. If this word is not typed within
+          30 seconds, the previous firewall is restored.
+        </para>
+      </listitem>
+    </varlistentry>
+    <varlistentry><term>stop</term>
+      <listitem>
+        <para>
+          Stops a running iptables firewall by clearing all of the
+          tables and chains and setting the default policies to ACCEPT.
+          This will allow all traffic to pass unchecked.
+        </para>
+      </listitem>
+    </varlistentry>
+    <varlistentry><term>condrestart</term>
+      <listitem>
+        <para>
+          Restarts the <application>FireHOL</application> firewall only if
+          it is already active. This is the generally expected behaviour
+          (but opposite to <application>FireHOL</application> and
+          <application>FireHOL</application> prior to 1.0.3, 1.1.4).
+        </para>
+      </listitem>
+    </varlistentry>
+    <varlistentry><term>status</term>
+      <listitem>
+        <para>
+          Shows the running firewall, using
+          <command>/sbin/iptables -nxvL | less</command>.
+        </para>
+      </listitem>
+    </varlistentry>
+    <varlistentry><term>save</term>
+      <listitem>
+        <para>
+          Start the firewall and then save it using
+          <command>/sbin/iptables-save</command> to
+          <filename>/etc/sysconfig/iptables</filename>.
+        </para>
+        <para>
+          The required kernel modules are saved to an executable shell
+          script <filename>/var/spool/firehol/last_save_modules.sh</filename>,
+          which can be called during boot if a firewall is to be restored.
+        </para>
+        <note>
+          <para>
+            External changes may cause a firewall restored after a reboot
+            to not work as intended where starting the firewall with
+            <application>FireHOL</application> will work.
+          </para>
+          <para>
+            This is because as part of starting a firewall,
+            <application>FireHOL</application> checks some changeable values.
+            For instance the current kernel configuration is checked
+            (for client port ranges), and RPC servers are queried
+            (to allow correct functioning of the NFS service).
+          </para>
+        </note>
+      </listitem>
+    </varlistentry>
+    <varlistentry><term>debug</term>
+      <listitem>
+        <para>
+          Parses the configuration file but instead of activating it,
+          <application>FireHOL</application> shows the generated iptables
+          statements.
+        </para>
+      </listitem>
+    </varlistentry>
+    <varlistentry><term>explain</term>
+      <listitem>
+        <para>
+          Enters an interactive mode where <application>FireHOL</application>
+          accepts normal configuration commands and presents the generated
+          iptables commands for each of them, together with some reasoning
+          for its purpose.
+        </para>
+        <para>
+          Additionally, <application>FireHOL</application> automatically
+          generates a configuration script based on the successful commands
+          given.
+        </para>
+        <para>
+          Some extra commands are available in <option>explain</option> mode.
+          <variablelist><title>Special commands in explain mode</title>
+            <varlistentry><term>help</term>
+              <listitem>
+                <para>Present some help</para>
+              </listitem>
+            </varlistentry>
+            <varlistentry><term>show</term>
+              <listitem>
+                <para>Present the generated configuration</para>
+              </listitem>
+            </varlistentry>
+            <varlistentry><term>quit</term>
+              <listitem>
+                <para>Exit interactive mode and quit</para>
+              </listitem>
+            </varlistentry>
+          </variablelist>
+        </para>
+      </listitem>
+    </varlistentry>
+    <varlistentry><term>helpme</term>
+                  <term>wizard</term>
+      <listitem>
+        <para>
+          Tries to guess the <application>FireHOL</application> configuration
+          needed for the current machine.
+        </para>
+        <para>
+          <application>FireHOL</application> will not stop or alter the
+          running firewall. The configuration file is given in the standard
+          output of <command>firehol</command>, thus
+          <userinput>firehol helpme > /tmp/firehol.conf</userinput>
+          will produce the output in <filename>/tmp/firehol.conf</filename>.
+        </para>
+        <para>
+          The generated <application>FireHOL</application> configuration
+          <emphasis>must</emphasis> be edited before use on your systems.
+          You are required to take a number of decisions; the comments in
+          the generated file will instruct you in the choices you must make.
+        </para>
+      </listitem>
+    </varlistentry>
+  </variablelist>
+</refsect1>
+
+<refsect1><title>Files</title>
+  <simplelist type="vert">
+    <member><filename>/etc/firehol/firehol.conf</filename></member>
+  </simplelist>
+</refsect1>
+
+<refsect1><title>See Also</title>
+  <simplelist type="vert">
+    <member><xref linkend="firehol.conf"/></member>
+    <member><xref linkend="firehol-variables"/></member>
+    <member>FireHOL Manual: firehol-manual.pdf</member>
+    <member><ulink url="http://firehol.org/">FireHOL Online Documentation</ulink></member>
+  </simplelist>
+</refsect1>
+
+</refentry>

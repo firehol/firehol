@@ -1,6 +1,4 @@
 #
-# $Id: client-all.conf,v 1.2 2002/12/31 15:44:34 ktsaou Exp $
-#
 # This configuration file will allow all requests originating from the
 # local machine to be send through all network interfaces.
 #

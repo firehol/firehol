@@ -1,4 +1,0 @@
-#!/bin/sh
-
-export CVS_RSH=ssh 
-cvs -z3 -d:ext:ktsaou@firehol.cvs.sourceforge.net:/cvsroot/firehol "$@"

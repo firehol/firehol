@@ -1,0 +1,117 @@
+<!DOCTYPE refentry PUBLIC "-//OASIS//DTD DocBook XML V4.5//EN"
+                 "http://www.oasis-open.org/docbook/xml/4.5/docbookx.dtd">
+<!-- For license information see firehol-manual-info.xml.in -->
+<refentry id="helpcmd-masquerade">
+
+<refmeta>
+<refentrytitle>masquerade helper: firehol-masquerade</refentrytitle>
+<manvolnum>5</manvolnum>
+</refmeta>
+
+<refnamediv>
+<refdescriptor>firehol-masquerade</refdescriptor>
+<refname>firehol-masquerade</refname>
+<refpurpose>set up masquerading (NAT) on an interface</refpurpose>
+</refnamediv>
+
+<refsynopsisdiv>
+  <cmdsynopsis>
+    <command>masquerade</command>
+    <arg choice="plain"><replaceable>real-interface</replaceable></arg>
+    <arg choice="opt"><replaceable>rule-params</replaceable></arg>
+  </cmdsynopsis>
+  <cmdsynopsis>
+    <command>masquerade</command>
+    <arg choice="opt">reverse</arg>
+    <arg choice="opt"><replaceable>rule-params</replaceable></arg>
+  </cmdsynopsis>
+</refsynopsisdiv>
+
+<refsect1><title>Description</title>
+  <para>
+    The <command>masquerade</command> helper command sets up masquerading
+    on the output of a real network interface (as opposed to a
+    <application>FireHOL</application> interface definition).
+  </para>
+  <para>
+    If a <replaceable>real-interface</replaceable> is specified the command
+    should be used before any interface or router definitions. Multiple
+    values can be given separated by whitespace, so long as they are
+    enclosed in quotes.
+  </para>
+  <para>
+    If used within an interface definition the definition's
+    <replaceable>real-interface</replaceable> will be used.
+  </para>
+  <para>
+    If used within a router definition the definition's
+    <replaceable>outface</replaceable>(s) will be used if specified.
+    If the <option>reverse</option> option is gived, then the definition's
+    <replaceable>inface</replaceable>(s) will be used if specified.
+  </para>
+  <para>
+    Unlike most commands, <command>masquerade</command> does not
+    inherit its parent definition's <replaceable>rules-params</replaceable>,
+    it only honour's its own. The <option>inface</option> and
+    <option>outface</option> parameters should not be used
+    (iptables does not support inface in the POSTROUTING chain and outface
+    will be overwritten by <application>FireHOL</application> using the
+    rules above).
+  </para>
+  <note>
+    <para>
+      The masquerade always applies to the output of the chosen network
+      interfaces.
+    </para>
+    <para>
+      <envar>FIREHOL_NAT</envar> will be turned on automatically
+      (see <xref linkend="firehol-variables"/>) and
+      <application>FireHOL</application> will enable packet-forwarding
+      in the kernel.
+    </para>
+  </note>
+</refsect1>
+
+<refsect1><title>Masquerading and SNAT</title>
+  <para>
+    Masquerading is a special form of Source NAT (SNAT) that changes the
+    source of requests when they go out and replaces their original source
+    when they come in. This way a Linux host can become an Internet router
+    for a LAN of clients having unroutable IP addresses. Masquerading takes
+    care to re-map IP addresses and ports as required.
+  </para>
+  <para>
+    Masquerading is expensive compare to SNAT because it checks the IP
+    address of the outgoing interface every time for every packet. If your
+    host has a static IP address you should generally prefer SNAT.
+  </para>
+</refsect1>
+
+<refsect1><title>Examples</title>
+  <programlisting>
+# Before any interface or router
+masquerade eth0 src 192.0.2.0/24 dst not 192.0.2.0/24
+
+# In an interface definition to masquerade the output of its real-interface
+masquerade
+
+# In a router definition to masquerade the output of its outface
+masquerade
+
+# In a router definition to masquerade the output of its inface
+masquerade reverse
+  </programlisting>
+</refsect1>
+
+<refsect1><title>See Also</title>
+  <simplelist type="vert">
+    <member><xref linkend="firehol"/></member>
+    <member><xref linkend="firehol.conf"/></member>
+    <member><xref linkend="def-interface"/></member>
+    <member><xref linkend="def-router"/></member>
+    <member><xref linkend="rule-params"/></member>
+    <member><xref linkend="helpconf-nat"/></member>
+  </simplelist>
+</refsect1>
+
+</refentry>

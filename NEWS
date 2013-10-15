@@ -1,0 +1,7 @@
+2013/10/15:
+
+Release of version 2.0.0-pre1
+
+Project organisation moved to autotools: it is still possible to
+copy the single sbin/firehol.in to an appropriate place on an
+init-driven system.

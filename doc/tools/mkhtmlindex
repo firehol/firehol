@@ -1,0 +1,154 @@
+#!/usr/bin/perl -w
+
+my $debug = 0;
+
+use strict;
+use Data::Dumper;
+use Text::ParseWords;
+
+#
+# Simple line-oriented parser helper routines
+#
+
+my $filename;
+my $fh;
+my $line;
+my $lineno;
+
+sub getpos {
+  return "$filename:$lineno";
+}
+
+sub set {
+  $filename = shift;
+  $fh = shift;
+  $lineno = shift;
+  $line = undef;
+}
+
+sub curr_line {
+  return $line;
+}
+
+sub next_line_int {
+  $line = <$fh>;
+  $lineno++;
+  unless (defined($line)) {
+    close $fh;
+    return;
+  }
+
+  while ($line =~ /^[[:space:]]*#/) {
+    $line = <$fh>;
+    $lineno++;
+    return unless defined($line);
+  }
+
+  chomp $line;
+  $line =~ s/^[[:space:]]*#.*//;
+  $line =~ s/[[:space:]]+$//;
+}
+
+sub next_line {
+  next_line_int();
+  while (defined($line) and $line =~ /^$/) {
+    next_line_int();
+  }
+}
+
+sub err {
+  my $message = shift;
+  die getpos() . ": $message\n";
+}
+
+sub e_exp {
+  my $expected = shift;
+  my $actual = shift;
+  $actual = "<EOF>" unless defined($actual);
+  err("expected '$expected', got '$actual'");
+}
+
+sub open_file {
+  my $name = shift;
+  die "No name given\n" unless $name;
+
+  open my $fh, "<$name" or die "$name: Unable to open\n";
+  return $fh;
+}
+
+if (@ARGV != 2) {
+  print STDERR "Usage: mkhtmlindex output.html firehol-script\n";
+  exit 1;
+}
+
+$fh = open_file($ARGV[1]);
+
+# Extract service information from script
+my %services = ();
+my %all_run = ();
+
+while (<$fh>) {
+  if (/^(server|client)_([[:alnum:]_]+)_ports="?([^"]*)"?/) {
+    $services{$2}{$1} = $3;
+  }
+  if (/^rules_([[:alnum:]_]+)\(\) {/) {
+    $services{$1}{type} = "complex";
+  }
+}
+close $fh;
+
+open O, ">$ARGV[0]" or die;
+
+print O <<'!'
+<html>
+<head>
+  <META http-equiv="Content-Type" content="text/html; charset=ISO-8859-1">
+  <title>FireHOL Service Index</title>
+  <link href="firehol-manual.css" type="text/css" rel="stylesheet"></link>
+</head>
+<body>
+  <h2>FireHOL Service Index</h2>
+  <table width="80%">
+!
+;
+
+my @keys = sort { return uc($a) cmp uc($b) } keys(%services);
+
+sub format_entries {
+  my $fkeys = shift;
+  my $c = shift;
+  my @fkeys = @{$fkeys};
+  my @use = grep /^$c/i, @fkeys;
+  foreach my $k (@use) {
+    print O "        <a href=\"firehol-manual.html#service-$k\">$k</a>\n";
+  }
+}
+
+sub format_row {
+  my $keys = shift;
+
+  print O "    <tr>\n";
+  foreach my $c (@_) {
+    print O "      <th>$c</th>\n"
+  }
+  print O "    </tr>\n";
+  print O "    <tr>\n";
+  foreach my $c (@_) {
+    print O "      <td>\n";
+    format_entries($keys, $c);
+    print O "      </td>\n";
+  }
+  print O "    </tr>\n";
+}
+
+format_row \@keys, "A", "B", "C", "D";
+format_row \@keys, "E", "F", "G", "H";
+format_row \@keys, "I", "J", "K", "L";
+format_row \@keys, "M", "N", "O", "P";
+format_row \@keys, "Q", "R", "S", "T";
+format_row \@keys, "U", "V", "W", "X";
+format_row \@keys, "Y", "Z";
+
+print O "  </table>\n";
+print O "</body>\n";
+close O;

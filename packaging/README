@@ -1,0 +1,11 @@
+                            Packaging Scripts
+                            *****************
+
+check-log:
+   Checks the formatting of ChangeLog meets the debian packaging
+   standards and that all the versions in the files that contain
+   versions match up.
+
+pre-commit:
+   Copy to .git/hooks/pre-commit in order to have check-log and
+   any other style checks automatically run on commit

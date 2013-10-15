@@ -1,0 +1,69 @@
+<!DOCTYPE refentry PUBLIC "-//OASIS//DTD DocBook XML V4.5//EN"
+                 "http://www.oasis-open.org/docbook/xml/4.5/docbookx.dtd">
+<!-- For license information see firehol-manual-info.xml.in -->
+<refentry id="helpconf-mac">
+
+<refmeta>
+<refentrytitle>mac config helper: firehol-mac</refentrytitle>
+<manvolnum>5</manvolnum>
+</refmeta>
+
+<refnamediv>
+<refdescriptor>firehol-mac</refdescriptor>
+<refname>firehol-mac</refname>
+<refpurpose>ensure source IP and source MAC address match</refpurpose>
+</refnamediv>
+
+<refsynopsisdiv>
+  <cmdsynopsis>
+    <command>mac</command>
+    <arg choice="plain"><replaceable>IP</replaceable></arg>
+    <arg choice="plain"><replaceable>macaddr</replaceable></arg>
+  </cmdsynopsis>
+</refsynopsisdiv>
+
+<refsect1><title>Description</title>
+  <para>
+    Any <command>mac</command> commands will affect all traffic
+    destined for the firewall host, or to be forwarded by the host.
+    They must be declared before the first router or interface.
+  </para>
+  <note><para>
+     There is also a <command>mac</command> parameter
+     which allows matching MAC addresses within individual rules
+     (see <xref linkend="rule-params"/>).
+  </para></note>
+  <para>
+    The <command>mac</command> helper command DROPs traffic from
+    any <replaceable>IP</replaceable> address that was not sent
+    using the <replaceable>macaddr</replaceable> specified.
+  </para>
+  <para>
+    When packets are dropped, a log is produced with the label
+    "MAC MISSMATCH" (sic.). <command>mac</command> obeys the
+    default log limits (see <xref linkend="logging"/> in
+    <xref linkend="rule-params"/>).
+  </para>
+  <note><para>
+     This command restricts an IP to a particular
+     MAC address. The same MAC address is permitted send traffic with a
+     different IP.
+  </para></note>
+</refsect1>
+
+<refsect1><title>Examples</title>
+    <programlisting>
+mac 192.0.2.1    00:01:01:00:00:e6
+mac 198.51.100.1 00:01:01:02:aa:e8
+    </programlisting>
+</refsect1>
+
+<refsect1><title>See Also</title>
+  <simplelist type="vert">
+    <member><xref linkend="firehol"/></member>
+    <member><xref linkend="firehol.conf"/></member>
+    <member><xref linkend="rule-params"/></member>
+  </simplelist>
+</refsect1>
+
+</refentry>

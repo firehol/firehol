@@ -1,0 +1,72 @@
+<!DOCTYPE chapter PUBLIC "-//OASIS//DTD DocBook XML V4.5//EN"
+                 "http://www.oasis-open.org/docbook/xml/4.5/docbookx.dtd">
+<!-- For license information see firehol-manual-info.xml.in -->
+<chapter><title>Configuration</title>
+  <para>a para</para>
+  <section><title>Getting started</title>
+    <para>see installation on website</para>
+    <para>running the program</para>
+    <section><title>Your goals</title>
+      <para>references to security - inspecting and auditing</para>
+    </section>
+    <section><title>Configuration files</title>
+      <para>content</para>
+    </section>
+    <section><title>Creating a firewall</title>
+      <para>Website: tutorial</para>
+      <para>Website: recipies</para>
+      <para>Using the wizard</para>
+    </section>
+  </section>
+  <section><title>Language</title>
+    <para>content</para>
+    <section><title>Preamble</title>
+      <para>simplicity</para>
+      <para>4 main commands</para>
+      <para>matched to the domain</para>
+    </section>
+    <section><title>Use of bash</title>
+      <para>why</para>
+      <para>links to learning</para>
+      <section><title>What to avoid</title>
+        <para>traps and exit (disabled to avoid accidents)</para>
+        <para>variable names to avoid</para>
+        <para>function names to avoid</para>
+      </section>
+    </section>
+    <section><title>Interfaces</title>
+      <para>content</para>
+    </section>
+    <section><title>Routers</title>
+      <para>content</para>
+    </section>
+    <section><title>Helpers</title>
+      <para>By example / pointer to reference</para>
+    </section>
+    <section><title>Variables</title>
+      <para>content</para>
+    </section>
+  </section>
+  <section><title>Advanced features</title>
+    <para>content</para>
+    <section><title>Marking packets</title>
+      <para>content</para>
+    </section>
+    <section><title>Defining new actions</title>
+      <para>content</para>
+    </section>
+    <section><title>TOS</title>
+      <para>content</para>
+    </section>
+    <section><title>Adding new complex services</title>
+      <para>content</para>
+    </section>
+  </section>
+  <section><title>Limitations</title>
+    <para>inability to use service definitions in helpers (mainly NAT)</para>
+  </section>
+  <section><title>Where to learn more</title>
+    <para>bash guides</para>
+    <para>reference section</para>
+  </section>
+</chapter>

@@ -1,0 +1,70 @@
+<!DOCTYPE refentry PUBLIC "-//OASIS//DTD DocBook XML V4.5//EN"
+                 "http://www.oasis-open.org/docbook/xml/4.5/docbookx.dtd">
+<!-- For license information see firehol-manual-info.xml.in -->
+<refentry id="helpcmd-tcpmss">
+
+<refmeta>
+<refentrytitle>tcpmss helper: firehol-tcpmss</refentrytitle>
+<manvolnum>5</manvolnum>
+</refmeta>
+
+<refnamediv>
+<refdescriptor>firehol-tcpmss</refdescriptor>
+<refname>firehol-tcpmss</refname>
+<refpurpose>set the MSS of TCP SYN packets for routers</refpurpose>
+</refnamediv>
+
+<refsynopsisdiv>
+  <cmdsynopsis>
+    <command>tcpmss</command>
+    <group choice="req">
+       <arg choice="plain"><replaceable>mss</replaceable></arg>
+       <arg choice="plain">auto</arg>
+    </group>
+  </cmdsynopsis>
+</refsynopsisdiv>
+
+<refsect1><title>Description</title>
+  <para>
+    The <command>tcpmss</command> helper command sets the MSS
+    (Maximum Segment Size) of TCP SYN packets routed through the firewall.
+    This can be used to overcome situations where Path MTU Discovery
+    is not working and packet fragmentation is not possible.
+  </para>
+  <para>
+    A numeric <replaceable>mss</replaceable> will set MSS of TCP
+    connections to the value given. Using the word <option>auto</option>
+    will set the MSS to the MTU of the outgoing interface minus 40
+    (clamp-mss-to-pmtu).
+  </para>
+  <para>
+    If used within a router definition the MSS will be applied on the
+    <replaceable>outface</replaceable>(s) of the router. If used before
+    any router or interface definitions it will be applied to all traffic
+    passing through the firewall.
+  </para>
+  <note>
+    <para>
+      The <command>tcpmss</command> command cannot be used in an interface.
+    </para>
+  </note>
+</refsect1>
+
+<refsect1><title>Examples</title>
+  <programlisting>
+tcpmss auto
+
+tcpmss 500
+  </programlisting>
+</refsect1>
+
+<refsect1><title>See Also</title>
+  <simplelist type="vert">
+    <member><xref linkend="firehol"/></member>
+    <member><xref linkend="firehol.conf"/></member>
+    <member><xref linkend="def-router"/></member>
+    <member><ulink url="http://www.frozentux.net/iptables-tutorial/iptables-tutorial.html#TCPMSSTARGET">TCPMSS target in the iptables tutorial</ulink></member>
+  </simplelist>
+</refsect1>
+
+</refentry>

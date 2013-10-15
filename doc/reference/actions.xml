@@ -1,0 +1,499 @@
+<!DOCTYPE refentry PUBLIC "-//OASIS//DTD DocBook XML V4.5//EN"
+                 "http://www.oasis-open.org/docbook/xml/4.5/docbookx.dtd">
+<!-- For license information see firehol-manual-info.xml.in -->
+<refentry id="ref-actions">
+
+<refmeta>
+<refentrytitle>actions for rules: firehol-actions</refentrytitle>
+<manvolnum>5</manvolnum>
+</refmeta>
+
+<refnamediv>
+<refdescriptor>firehol-actions</refdescriptor>
+<refname>firehol-actions</refname>
+<refname>firehol-accept</refname>
+<refname>firehol-deny</refname>
+<refname>firehol-drop</refname>
+<refname>firehol-reject</refname>
+<refname>firehol-return</refname>
+<refname>firehol-tarpit</refname>
+<refpurpose>rule actions</refpurpose>
+</refnamediv>
+
+<refsynopsisdiv>
+  <cmdsynopsis><command>accept</command></cmdsynopsis>
+  <cmdsynopsis>
+    <command>accept with limit</command>
+    <arg choice="plain"><replaceable>requests/period</replaceable></arg>
+    <arg choice="plain"><replaceable>burst</replaceable></arg>
+    <arg choice="opt">
+      <arg choice="plain">overflow</arg>
+      <arg choice="plain"><replaceable>action</replaceable></arg>
+    </arg>
+  </cmdsynopsis>
+  <cmdsynopsis>
+    <command>accept with recent</command>
+    <arg choice="plain"><replaceable>name</replaceable></arg>
+    <arg choice="plain"><replaceable>seconds</replaceable></arg>
+    <arg choice="plain"><replaceable>hits</replaceable></arg>
+  </cmdsynopsis>
+  <cmdsynopsis>
+    <command>accept with knock</command>
+    <arg choice="plain"><replaceable>name</replaceable></arg>
+  </cmdsynopsis>
+  <cmdsynopsis>
+    <command>reject</command>
+    <arg choice="opt">
+      <arg choice="plain">with</arg>
+      <arg choice="plain"><replaceable>message</replaceable></arg>
+    </arg>
+  </cmdsynopsis>
+  <cmdsynopsis><command>drop</command></cmdsynopsis>
+  <cmdsynopsis><command>deny</command></cmdsynopsis>
+  <cmdsynopsis><command>return</command></cmdsynopsis>
+  <cmdsynopsis><command>tarpit</command></cmdsynopsis>
+</refsynopsisdiv>
+
+<refsect1><title>Description</title>
+  <para>
+    These actions are the actions to be taken on traffic that has
+    been matched by a particular rule.
+  </para>
+  <para>
+    <application>FireHOL</application> will also pass through
+    any actions that <command>iptables(8)</command> accepts, however
+    these definitions provide lowercase versions which accept arguments
+    where appropriate and which could otherwise not be passed through.
+  </para>
+  <note><para>
+    The <command>iptables(8)</command> LOG action is best used through
+    the optional rule parameter <option>log</option> since the latter
+    can be combined with one of these actions
+    (<application>FireHOL</application> will generate multiple firewall
+    rules to make this happen). For information on <option>log</option>
+    and <option>loglimit</option>, see <xref linkend="rule-params"/>.
+  </para></note>
+  <para>
+    The following actions are defined:
+    <variablelist>
+      <varlistentry><term>accept</term>
+        <listitem>
+          <para>
+             <command>accept</command> allows the traffic matching the
+             rules to reach its destination.
+          </para>
+          <para>
+             For example, to allow SMTP requests and their replies to
+             flow:
+            <programlisting>server smtp accept
+            </programlisting>
+          </para>
+        </listitem>
+      </varlistentry>
+      <varlistentry><term>accept with limit</term>
+        <listitem>
+          <para>
+             <command>accept with limit</command> allows the traffic,
+             with new connections limited to <option>requests/period</option>
+             with a maximum <option>burst</option>.
+             Run <userinput>iptables -m limit --help</userinput> for more
+             information.
+          </para>
+          <para>
+             The default <option>overflow</option> action is to REJECT
+             the excess connections (DROP would produce timeouts on otherwise
+             valid service clients).
+          </para>
+          <para>
+             Examples:
+            <programlisting>server smtp accept with limit 10/sec 100
+
+server smtp accept with limit 10/sec 100 overflow drop
+            </programlisting>
+          </para>
+        </listitem>
+      </varlistentry>
+      <varlistentry><term>accept with recent</term>
+        <listitem>
+          <para>
+             <command>accept with recent</command> allows the traffic
+             matching the rules to reach its destination, limited per
+             remote IP to <option>hits</option> per <option>seconds</option>.
+             Run <userinput>iptables -m recent --help</userinput> for
+             more information.
+          </para>
+<!--
+          <para>
+             If <option>hits</option> or <option>seconds</option> are
+             not needed, set them to empty ("").
+          </para>
+  -->
+          <para>
+             The <option>name</option> parameter is used to allow
+             multiple rules to share the same table of recent IPs.
+          </para>
+          <para>
+             For example, to allow only 2 connections every 60
+             seconds per remote IP, to the smtp server:
+          <programlisting>server smtp accept with recent mail 60 2
+          </programlisting>
+          </para>
+          <note><para>
+            When a new connection is not allowed, the traffic will
+            continue to be matched by the rest of the firewall. In
+            other words, if the traffic is not allowed due to the
+            limitations set here, it is not dropped, it is just not
+            matched by this rule.
+          </para></note>
+        </listitem>
+      </varlistentry>
+      <varlistentry><term>accept with knock</term>
+        <listitem>
+          <para>
+             <command>accept with knock</command> allows easy integration
+             with <ulink url="http://www.zeroflux.org/knock/">knockd</ulink>,
+             a server that allows you to control access to services by
+             sending certain packets to "knock" on the door, before the
+             door is opened for service.
+          </para>
+          <para>
+            The <option>name</option> is used to build a special chain
+            knock_&lt;<option>name</option>&gt; which contains rules to
+            allow established connections to work. If
+            <application>knockd</application> has not allowed new
+            connections any traffic entering this chain will just return
+            back and continue to match against the other rules until
+            the end of the firewall.
+          </para>
+          <para>
+            For example, to allow HTTPS requests based on a knock write:
+            <programlisting>server https accept with knock hidden
+            </programlisting>
+            then configure <application>knockd</application> to
+            enable the HTTPS service with:
+            <programlisting>iptables -A knock_hidden -s %IP% -j ACCEPT
+            </programlisting>
+            and disable it with:
+            <programlisting>iptables -D knock_hidden -s %IP% -j ACCEPT
+            </programlisting>
+          </para>
+          <para>
+            You can use the same knock <option>name</option> in more than
+            one FireHOL rule to enable/disable all the services based
+            on a single <application>knockd</application> configuration
+            entry.
+          </para>
+          <note><para>
+            There is no need to match anything other than the IP in
+            <application>knockd</application>.
+            FireHOL already matches everything else needed for its
+            rules to work.
+          </para></note>
+        </listitem>
+      </varlistentry>
+      <varlistentry><term>reject with <replaceable>message</replaceable></term>
+                    <term>reject</term>
+        <listitem>
+          <para>
+             <command>reject</command> discards the traffic matching the
+             rules and sends a rejecting message back to the sender.
+          </para>
+          <para>
+             When used with <option>with</option> the specific message
+             to return can be specified. Run
+             <userinput>iptables -j REJECT --help</userinput> for a
+             list of the <option>--reject-with</option> values which
+             can be used for <option>message</option>.
+             See <xref linkend="reject-messages"/> for some examples.
+          </para>
+          <para>
+             The default (no <option>message</option> specified) is to send
+             <option>tcp-reset</option> when dealing with TCP connections
+             and <option>icmp-port-unreachable</option> for all other
+             protocols.
+          </para>
+          <para>
+             For example:
+          <programlisting>UNMATCHED_INPUT_POLICY="reject with host-prohib"
+
+policy reject with host-unreach
+
+server ident reject with tcp-reset
+          </programlisting>
+          </para>
+        </listitem>
+      </varlistentry>
+      <varlistentry><term>drop</term>
+                    <term>deny</term>
+        <listitem>
+          <para>
+             <command>drop</command> discards the traffic matching the
+             rules. It does so silently and the sender will need to
+             timeout to conclude it cannot reach the service.
+          </para>
+          <para>
+             <command>deny</command> is a synonym for
+             <command>drop</command>. For example, either of these would
+             silently discard SMTP traffic:
+          </para>
+          <programlisting>server smtp drop
+
+server smtp deny
+          </programlisting>
+        </listitem>
+      </varlistentry>
+      <varlistentry><term>return</term>
+        <listitem>
+          <para>
+             <command>return</command> will return the flow of processing
+             to the parent of the current command.
+          </para>
+          <para>
+             Currently, the only time <command>return</command> can be
+             used meaningfully used is as a policy for an interface
+             definition. Unmatched traffic will continue being processed
+             with the possibility of being matched by a later definition.
+             For example:
+          </para>
+          <programlisting>policy return
+          </programlisting>
+        </listitem>
+      </varlistentry>
+      <varlistentry><term>tarpit</term>
+        <listitem>
+          <para>
+             <command>tarpit</command> captures and holds incoming TCP
+             connections open.
+          </para>
+          <para>
+            Connections are accepted and immediately switched to the persist
+            state (0 byte window), in which the remote side stops sending
+            data and asks to continue every 60-240 seconds.
+          </para>
+          <para>
+            Attempts to close the connection are ignored, forcing the remote
+            side to time out the connection after 12-24 minutes.
+          </para>
+          <para>
+            Example:
+            <programlisting>server smtp tarpit
+            </programlisting>
+          </para>
+          <note><para>
+             As the kernel conntrack modules are always loaded by
+             <application>FireHOL</application>, some per-connection
+             resources will be consumed. See this
+             <ulink url="http://bugs.firehol.org/firehol/issues/10">bug
+             report</ulink> for details.
+          </para></note>
+        </listitem>
+      </varlistentry>
+    </variablelist>
+  </para>
+  <para>
+    The following actions also exist but should not be used under normal
+    circumstances:
+    <variablelist>
+      <varlistentry><term>mirror</term>
+        <listitem>
+          <para>
+             <command>mirror</command> returns the traffic it receives
+             by switching the source and destination fields. REJECT will
+             be used for traffic generated by the local host.
+          </para>
+          <warning>
+            <para>
+              The MIRROR target was removed from the Linux kernel due to its
+              security implications.
+            </para>
+            <para>
+              MIRROR is dangerous; use it with care and only if you understand
+              what you are doing.
+            </para>
+          </warning>
+        </listitem>
+      </varlistentry>
+      <varlistentry><term>redirect</term>
+                    <term>redirect to-port <replaceable>port</replaceable></term>
+        <listitem>
+          <para>
+             <command>redirect</command> is used internally by
+             <application>FireHOL</application> helper commands.
+          </para>
+          <para>
+             Only <application>FireHOL</application> developers should
+             need to use this action directly.
+          </para>
+        </listitem>
+      </varlistentry>
+    </variablelist>
+  </para>
+</refsect1>
+
+<refsect1 id="reject-messages"><title>Reject With Messsages</title>
+  <para>
+    The following RFCs contain information relevant to these messages:
+    <simplelist type="vert">
+      <member>
+        <ulink url="http://www.ietf.org/rfc/rfc1812.txt">RFC 1812</ulink>
+      </member>
+      <member>
+        <ulink url="http://www.ietf.org/rfc/rfc1122.txt">RFC 1122</ulink>
+      </member>
+      <member>
+        <ulink url="http://www.ietf.org/rfc/rfc0792.txt">RFC 792</ulink>
+      </member>
+    </simplelist>
+  </para>
+  <variablelist>
+      <varlistentry><term>icmp-net-unreachable</term>
+                    <term>net-unreach</term>
+        <listitem>
+          <para>
+            ICMP network unreachable
+          </para>
+          <para>
+            Generated by a router if a forwarding path (route)
+            to the destination network is not available.
+          </para>
+          <para>
+            From RFC 1812, section 5.2.7.1. See RFC 1812 and RFC 792.
+          </para>
+          <note><para>
+            Use with care. The sender and the routers between
+            you and the sender may conclude that the whole
+            network your host resides in is unreachable,
+            and prevent other traffic from reaching you.
+          </para></note>
+        </listitem>
+      </varlistentry>
+      <varlistentry><term>icmp-host-unreachable</term>
+                    <term>host-unreach</term>
+        <listitem>
+          <para>
+            ICMP host unreachable
+          </para>
+          <para>
+            Generated by a router if a forwarding path (route) to the
+            destination host on a directly connected network is not
+            available (does not respond to ARP).
+          </para>
+          <para>
+            From RFC 1812, section 5.2.7.1. See RFC 1812 and RFC 792.
+          </para>
+          <note><para>
+            Use with care. The sender and the routers between
+            you and the sender may conclude that your host
+            is entirely unreachable, and prevent other traffic from
+            reaching you.
+          </para></note>
+        </listitem>
+      </varlistentry>
+      <varlistentry><term>icmp-proto-unreachable</term>
+                    <term>proto-unreach</term>
+        <listitem>
+          <para>
+            ICMP protocol unreachable
+          </para>
+          <para>
+            Generated if the transport protocol designated in a datagram
+            is not supported in the transport layer of the final destination.
+          </para>
+          <para>
+            From RFC 1812, section 5.2.7.1. See RFC 1812 and RFC 792.
+          </para>
+        </listitem>
+      </varlistentry>
+      <varlistentry><term>icmp-port-unreachable</term>
+                    <term>port-unreach</term>
+        <listitem>
+          <para>
+            ICMP port unreachable
+          </para>
+          <para>
+            Generated if the designated transport protocol (e.g. TCP, UDP,
+            etc.) is unable to demultiplex the datagram in the transport
+            layer of the final destination but has no protocol mechanism
+            to inform the sender.
+          </para>
+          <para>
+            From RFC 1812, section 5.2.7.1. See RFC 1812 and RFC 792.
+          </para>
+          <para>
+            Generated by hosts to indicate that the required port is
+            not active.
+          </para>
+        </listitem>
+      </varlistentry>
+      <varlistentry><term>icmp-net-prohibited</term>
+                    <term>net-prohib</term>
+        <listitem>
+          <para>
+            ICMP communication with destination network administratively prohibited
+          </para>
+          <para>
+            This code was intended for use by end-to-end encryption devices
+            used by U.S. military agencies. Routers SHOULD use the newly
+            defined Code 13 (Communication Administratively Prohibited)
+            if they administratively filter packets.
+          </para>
+          <para>
+            From RFC 1812, section 5.2.7.1. See RFC 1812 and RFC 1122.
+          </para>
+          <note><para>
+            This message may not be widely understood.
+          </para></note>
+        </listitem>
+      </varlistentry>
+      <varlistentry><term>icmp-host-prohibited</term>
+                    <term>host-prohib</term>
+        <listitem>
+          <para>
+            ICMP communication with destination host administratively prohibited
+          </para>
+          <para>
+            This code was intended for use by end-to-end encryption devices
+            used by U.S. military agencies. Routers SHOULD use the newly
+            defined Code 13 (Communication Administratively Prohibited)
+            if they administratively filter packets.
+          </para>
+          <para>
+            From RFC 1812, section 5.2.7.1. See RFC 1812 and RFC 1122.
+          </para>
+          <note><para>
+            This message may not be widely understood.
+          </para></note>
+        </listitem>
+      </varlistentry>
+      <varlistentry><term>tcp-reset</term>
+        <listitem>
+          <para>
+            TCP RST
+          </para>
+          <para>
+            The port unreachable message of the TCP stack.
+          </para>
+          <para>
+            See RFC 1122.
+          </para>
+          <note><para>
+             <option>tcp-reset</option> is useful when you want to prevent
+             timeouts on rejected TCP services where the client incorrectly
+             ignores ICMP port unreachable messages.
+          </para></note>
+        </listitem>
+      </varlistentry>
+  </variablelist>
+</refsect1>
+
+<refsect1><title>See Also</title>
+  <simplelist type="vert">
+    <member><xref linkend="firehol"/></member>
+    <member><xref linkend="firehol.conf"/></member>
+    <member><xref linkend="def-interface"/></member>
+    <member><xref linkend="def-router"/></member>
+    <member><xref linkend="rule-params"/></member>
+  </simplelist>
+</refsect1>
+
+</refentry>

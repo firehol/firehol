@@ -1,0 +1,106 @@
+<?xml version="1.0" encoding="UTF-8" standalone="no"?>
+<!DOCTYPE book [
+   <!ENTITY % myent SYSTEM "firehol.ent">
+   %myent;
+   <!ENTITY % DocBookDTD PUBLIC "-//OASIS//DTD DocBook XML V4.5//EN"
+                "http://www.oasis-open.org/docbook/xml/4.5/docbookx.dtd">
+   %DocBookDTD;
+               ]>
+<!-- For license information see firehol-manual-info.xml.in -->
+<book>
+  <bookinfo>
+    <title>FireHOL Manual</title>
+    <subtitle>Firewalling with FireHOL</subtitle>
+    <productname>FireHOL</productname>
+    <corpauthor>FireHOL Team</corpauthor>
+    <date>Built &PACKAGE_BUILT_DATE;</date>
+    <releaseinfo>&PACKAGE_VERSION;</releaseinfo>
+    <copyright>
+      <year>2012</year>
+      <year>2013</year>
+      <holder>Phil Whineray &lt;phil@sanewall.org&gt;</holder>
+    </copyright>
+    <copyright>
+      <year>2004</year>
+      <year>2013</year>
+      <holder>Costa Tsaousis &lt;costa@tsaousis.gr&gt;</holder>
+    </copyright>
+  </bookinfo>
+
+  <xi:include xmlns:xi="http://www.w3.org/2001/XInclude"
+                  href="chapter-intro.xml" />
+<!--
+  <xi:include xmlns:xi="http://www.w3.org/2001/XInclude"
+                  href="chapter-language.xml" />
+  <xi:include xmlns:xi="http://www.w3.org/2001/XInclude"
+                  href="chapter-security.xml" />
+  <xi:include xmlns:xi="http://www.w3.org/2001/XInclude"
+                  href="chapter-troubleshooting.xml" />
+  -->
+
+  <reference><title>FireHOL Reference</title>
+    <xi:include xmlns:xi="http://www.w3.org/2001/XInclude"
+                          href="reference/firehol.xml" />
+    <xi:include xmlns:xi="http://www.w3.org/2001/XInclude"
+                          href="reference/firehol-conf.xml" />
+    <xi:include xmlns:xi="http://www.w3.org/2001/XInclude"
+                          href="reference/firehol-variables.xml" />
+
+    <xi:include xmlns:xi="http://www.w3.org/2001/XInclude"
+                          href="reference/def-interface.xml" />
+    <xi:include xmlns:xi="http://www.w3.org/2001/XInclude"
+                          href="reference/def-router.xml" />
+
+    <xi:include xmlns:xi="http://www.w3.org/2001/XInclude"
+                          href="reference/cmd-policy.xml" />
+    <xi:include xmlns:xi="http://www.w3.org/2001/XInclude"
+                          href="reference/cmd-protection.xml" />
+    <xi:include xmlns:xi="http://www.w3.org/2001/XInclude"
+                          href="reference/cmd-server.xml" />
+    <xi:include xmlns:xi="http://www.w3.org/2001/XInclude"
+                          href="reference/cmd-client.xml" />
+    <xi:include xmlns:xi="http://www.w3.org/2001/XInclude"
+                          href="reference/cmd-group.xml" />
+
+    <xi:include xmlns:xi="http://www.w3.org/2001/XInclude"
+                          href="reference/helpconf-version.xml" />
+    <xi:include xmlns:xi="http://www.w3.org/2001/XInclude"
+                          href="reference/helpconf-action.xml" />
+    <xi:include xmlns:xi="http://www.w3.org/2001/XInclude"
+                          href="reference/helpconf-blacklist.xml" />
+    <xi:include xmlns:xi="http://www.w3.org/2001/XInclude"
+                          href="reference/helpconf-classify.xml" />
+    <xi:include xmlns:xi="http://www.w3.org/2001/XInclude"
+                          href="reference/helpconf-connmark.xml" />
+    <xi:include xmlns:xi="http://www.w3.org/2001/XInclude"
+                          href="reference/helpconf-dscp.xml" />
+    <xi:include xmlns:xi="http://www.w3.org/2001/XInclude"
+                          href="reference/helpconf-mac.xml" />
+    <xi:include xmlns:xi="http://www.w3.org/2001/XInclude"
+                          href="reference/helpconf-mark.xml" />
+    <xi:include xmlns:xi="http://www.w3.org/2001/XInclude"
+                          href="reference/helpconf-nat.xml" />
+    <xi:include xmlns:xi="http://www.w3.org/2001/XInclude"
+                          href="reference/helpconf-proxy.xml" />
+    <xi:include xmlns:xi="http://www.w3.org/2001/XInclude"
+                          href="reference/helpconf-tos.xml" />
+    <xi:include xmlns:xi="http://www.w3.org/2001/XInclude"
+                          href="reference/helpconf-tosfix.xml" />
+
+    <xi:include xmlns:xi="http://www.w3.org/2001/XInclude"
+                          href="reference/helpcmd-iptables.xml" />
+    <xi:include xmlns:xi="http://www.w3.org/2001/XInclude"
+                          href="reference/helpcmd-masquerade.xml" />
+    <xi:include xmlns:xi="http://www.w3.org/2001/XInclude"
+                          href="reference/helpcmd-tcpmss.xml" />
+
+    <xi:include xmlns:xi="http://www.w3.org/2001/XInclude"
+                          href="reference/rule-params.xml" />
+    <xi:include xmlns:xi="http://www.w3.org/2001/XInclude"
+                          href="reference/actions.xml" />
+    <xi:include xmlns:xi="http://www.w3.org/2001/XInclude"
+                          href="reference/services.xml" />
+  </reference>
+
+  <index/>
+</book>

@@ -1,0 +1,65 @@
+#!/bin/sh
+# Checks the ChangeLog
+
+if [ $# -eq 0 ]
+then
+  filename=ChangeLog
+else
+  filename=$1
+fi
+
+if [ ! -f $filename ]
+then
+  echo "$filename: not found"
+  exit 1
+fi
+
+version=`sed -ne '1s/.*(\(.*\)).*/\1/p' $filename`
+if [ "`echo $version | grep '[[:space:]]'`" != "" ]
+then
+  echo "ChangeLog contains whitespace! Fix it!"
+  exit 1
+fi
+
+d=`mktemp -d /tmp/firehol-XXXXXXX`
+cp $filename $d/ChangeLog
+cd $d || exit 1
+
+which dpkg-gencontrol > /dev/null 2>&1
+if [ $? -eq 0 ]
+then
+  mkdir -p debian/tmp
+  cat > debian/control <<!
+Source: firehol
+Section: net
+Priority: optional
+Homepage: http://firehol.org/
+Maintainer: firehol-dev@lists.firehol.org
+
+Package: firehol
+Architecture: all
+Depends: iptables
+Description: firewall for humans
+!
+  dpkg-gencontrol -O -pfirehol -is -ip -lChangeLog > /dev/null 2> debian/tmp/l
+  status=$?
+  if [ $status -eq 0 -a `cat debian/tmp/l | wc -c` -gt 0 ]
+  then
+    status=1
+  fi
+  if [ $status -eq 0 -a $# -eq 0 ]
+  then
+    echo OK
+  elif [ $status -ne 0 ]
+  then
+    cat debian/tmp/l
+  fi
+  rm -rf debian/tmp
+else
+  echo "dpkg-gencontrol not found to verify ChangeLog!"
+  status=0
+fi
+
+rm -rf $d
+
+exit $status

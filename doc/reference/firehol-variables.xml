@@ -1,0 +1,623 @@
+<!DOCTYPE refentry [
+   <!ENTITY % myent SYSTEM "../firehol.ent">
+   %myent;
+   <!ENTITY % DocBookDTD PUBLIC "-//OASIS//DTD DocBook XML V4.5//EN"
+                "http://www.oasis-open.org/docbook/xml/4.5/docbookx.dtd">
+   %DocBookDTD;
+               ]>
+<!-- For license information see firehol-manual-info.xml.in -->
+<refentry id="firehol-variables">
+
+<refmeta>
+<refentrytitle>control variables: firehol-variables</refentrytitle>
+<manvolnum>5</manvolnum>
+</refmeta>
+
+<refnamediv>
+<refdescriptor>firehol-variables</refdescriptor>
+<refname>firehol-variables</refname>
+<refpurpose>Variables controlling FireHOL</refpurpose>
+</refnamediv>
+
+<refsect1><title>Description</title>
+  <para>
+    There are a number of variables that control the behaviour of
+    <application>FireHOL</application>.
+  </para>
+  <para>
+    All variables may be set in the main <application>FireHOL</application>
+    configuration file <filename>/etc/firehol/firehol.conf</filename>.
+  </para>
+  <para>
+    Variables which affect the runtime but not the created firewall may also
+    be set as environment variables before running
+    <command>firehol</command>. These can change the default values but
+    will be overwritten by values set in the configuration file. If a
+    variable can be set by an environment variable it is specified below.
+  </para>
+  <para>
+    <application>FireHOL</application> also sets some variables before
+    processing the configuration file which you can use as part of
+    your configuration. These are described in
+    <xref linkend="firehol.conf"/>.
+  </para>
+</refsect1>
+
+<refsect1><title>Variables</title>
+  <variablelist>
+    <varlistentry><term><envar>DEFAULT_INTERFACE_POLICY</envar></term>
+      <listitem>
+        <para>
+          This variable controls the default action to be taken on
+          traffic not matched by any rule within an interface. It can
+          be overridden using <xref linkend="cmd-policy"/>.
+        </para>
+        <para>
+          Packets that reach the end of an interface without an
+          action of return or accept are logged. You can control the
+          frequency of this logging by altering
+          <envar>FIREHOL_LOG_FREQUENCY</envar>.
+        </para>
+        <para>
+          Default:
+          <programlisting>
+DEFAULT_INTERFACE_POLICY="DROP"
+          </programlisting>
+          Example:
+          <programlisting>
+DEFAULT_INTERFACE_POLICY="REJECT"
+          </programlisting>
+        </para>
+      </listitem>
+    </varlistentry>
+    <varlistentry><term><envar>DEFAULT_ROUTER_POLICY</envar></term>
+      <listitem>
+        <para>
+          This variable controls the default action to be taken on
+          traffic not matched by any rule within a router. It can
+          be overridden using <xref linkend="cmd-policy"/>.
+        </para>
+        <para>
+          Packets that reach the end of a router without an
+          action of return or accept are logged. You can control the
+          frequency of this logging by altering
+          <envar>FIREHOL_LOG_FREQUENCY</envar>.
+        </para>
+        <para>
+          Default:
+          <programlisting>
+DEFAULT_ROUTER_POLICY="RETURN"
+          </programlisting>
+          Example:
+          <programlisting>
+DEFAULT_ROUTER_POLICY="REJECT"
+          </programlisting>
+        </para>
+      </listitem>
+    </varlistentry>
+    <varlistentry><term><envar>UNMATCHED_INPUT_POLICY</envar></term>
+                  <term><envar>UNMATCHED_OUTPUT_POLICY</envar></term>
+                  <term><envar>UNMATCHED_FORWARD_POLICY</envar></term>
+      <listitem>
+        <para>
+          These variables control the default action to be taken on
+          traffic not matched by any interface or router definition that was
+          incoming, outgoing or for forwarding respectively. Any
+          supported value from <xref linkend='ref-actions'/> may be set.
+        </para>
+        <para>
+          All packets that reach the end of a chain are logged, regardless
+          of these settings. You can control the frequency of this logging
+          by altering <envar>FIREHOL_LOG_FREQUENCY</envar>.
+        </para>
+        <para>
+          Defaults:
+          <programlisting>
+UNMATCHED_INPUT_POLICY="DROP"
+UNMATCHED_OUTPUT_POLICY="DROP"
+UNMATCHED_FORWARD_POLICY="DROP"
+          </programlisting>
+          Example:
+          <programlisting>
+UNMATCHED_INPUT_POLICY="REJECT"
+UNMATCHED_OUTPUT_POLICY="REJECT"
+UNMATCHED_FORWARD_POLICY="REJECT"
+          </programlisting>
+        </para>
+      </listitem>
+    </varlistentry>
+    <varlistentry><term><envar>FIREHOL_INPUT_ACTIVATION_POLICY</envar></term>
+                  <term><envar>FIREHOL_OUTPUT_ACTIVATION_POLICY</envar></term>
+                  <term><envar>FIREHOL_FORWARD_ACTIVATION_POLICY</envar></term>
+      <listitem>
+        <para>
+          These variables control the default action to be taken on
+          traffic during firewall activation for incoming, outgoing and
+          forwarding respectively. Acceptable values are
+          <option>ACCEPT</option>, <option>DROP</option>
+          and <option>REJECT</option>. They may be set as environment
+          variables.
+        </para>
+        <para>
+          <command>FireHOL</command> defaults all values to
+          <option>ACCEPT</option> so that your communications
+          continue to work uninterrupted.
+        </para>
+        <para>
+          If you wish to prevent connections whilst the new firewall is
+          activating, set these values to <option>DROP</option>. This is
+          important to do if you are using <option>all</option> or
+          <option>any</option> to match traffic; connections established
+          during activation will continue even if they would not be allowed
+          once the firewall is established.
+        </para>
+        <para>
+          Defaults:
+          <programlisting>
+UNMATCHED_INPUT_POLICY="ACCEPT"
+UNMATCHED_OUTPUT_POLICY="ACCEPT"
+UNMATCHED_FORWARD_POLICY="ACCEPT"
+          </programlisting>
+          Example:
+          <programlisting>
+FIREHOL_INPUT_ACTIVATION_POLICY="DROP"
+FIREHOL_OUTPUT_ACTIVATION_POLICY="DROP"
+FIREHOL_FORWARD_ACTIVATION_POLICY="DROP"
+          </programlisting>
+        </para>
+      </listitem>
+    </varlistentry>
+    <varlistentry><term><envar>FIREHOL_LOG_MODE</envar></term>
+      <listitem>
+        <para>
+          This variable controls method that
+          <application>FireHOL</application>
+          uses for logging.
+        </para>
+        <para>
+           Acceptable values are <option>LOG</option> (normal syslog) and
+           <option>ULOG</option> (netfilter <application>ulogd</application>).
+           When <option>ULOG</option> is selected,
+          <envar>FIREHOL_LOG_LEVEL</envar> is ignored.
+        </para>
+        <para>
+          Default:
+          <programlisting>
+FIREHOL_LOG_MODE="LOG"
+          </programlisting>
+          Example:
+          <programlisting>
+FIREHOL_LOG_MODE="ULOG"
+          </programlisting>
+        </para>
+        <para>
+          To see the available options run:
+          <userinput>/sbin/iptables -j LOG --help</userinput>
+          or
+          <userinput>/sbin/iptables -j ULOG --help</userinput>
+        </para>
+      </listitem>
+    </varlistentry>
+    <varlistentry><term><envar>FIREHOL_LOG_LEVEL</envar></term>
+      <listitem>
+        <para>
+          This variable controls the level at which events will be
+          logged to syslog.
+        </para>
+        <para>
+          To avoid packet logs appearing on your console you should
+          ensure klogd only logs traffic that is more important than that
+          produced by <application>FireHOL</application>.
+        </para>
+        <para>
+          Use the following option to choose an iptables log level
+          (alpha or numeric) which is higher than the <option>-c</option>
+          of <application>klogd</application>.
+        </para>
+        <table frame='all'>
+          <title>iptables/klogd levels</title>
+          <tgroup cols='3' align='left' colsep='1' rowsep='1'>
+            <colspec colname='iptables' colwidth="2*"/>
+            <colspec colname='klogd' colwidth="1*" />
+            <colspec colname='description' colwidth="5*" />
+            <thead>
+              <row>
+                <entry>iptables</entry>
+                <entry>klogd</entry>
+                <entry>description</entry>
+              </row>
+            </thead>
+            <tbody>
+              <row>
+                <entry>emerg (0)</entry><entry>0</entry>
+                <entry><para>system is unusable</para></entry>
+              </row>
+              <row>
+                <entry>alert (1)</entry><entry>1</entry>
+                <entry><para>action must be taken immediately</para></entry>
+              </row>
+              <row>
+                <entry>crit (2)</entry><entry>2</entry>
+                <entry><para>critical conditions</para></entry>
+              </row>
+              <row>
+                <entry>error (3)</entry><entry>3</entry>
+                <entry><para>error conditions</para></entry>
+              </row>
+              <row>
+                <entry>warning (4)</entry><entry>4</entry>
+                <entry><para>warning conditions</para></entry>
+              </row>
+              <row>
+                <entry>notice (5)</entry><entry>5</entry>
+                <entry><para>normal but significant condition</para></entry>
+              </row>
+              <row>
+                <entry>info (6)</entry><entry>6</entry>
+                <entry><para>informational</para></entry>
+              </row>
+              <row>
+                <entry>debug (7)</entry><entry>7</entry>
+                <entry><para>debug-level messages</para></entry>
+              </row>
+            </tbody>
+          </tgroup>
+        </table>
+        <note><para>
+          The default for <application>klogd</application> is generally to
+          log everything (7 and lower) and the default level for iptables
+          is to log as warnings (4).
+        </para></note>
+      </listitem>
+    </varlistentry>
+    <varlistentry><term><envar>FIREHOL_LOG_OPTIONS</envar></term>
+      <listitem>
+        <para>
+          This variable controls the way in which events will be
+          logged to syslog.
+        </para>
+        <para>
+          Default:
+          <programlisting>
+FIREHOL_LOG_OPTIONS="--log-level warning"
+          </programlisting>
+          Example:
+          <programlisting>
+FIREHOL_LOG_OPTIONS="--log-level info \
+   --log-tcp-options --log-ip-options"
+          </programlisting>
+        </para>
+        <para>
+          To see the available options run:
+          <userinput>/sbin/iptables -j LOG --help</userinput>
+        </para>
+      </listitem>
+    </varlistentry>
+    <varlistentry><term><envar>FIREHOL_LOG_FREQUENCY</envar></term>
+                  <term><envar>FIREHOL_LOG_BURST</envar></term>
+      <listitem>
+        <para>
+          These variables control the frequency that each logging rule will
+          write events to syslog. <envar>FIREHOL_LOG_FREQUENCY</envar>
+          is set to the maximum average frequency and
+          <envar>FIREHOL_LOG_BURST</envar> specifies the maximum initial
+          number.
+        </para>
+        <para>
+          Default:
+          <programlisting>
+FIREHOL_LOG_FREQUENCY="1/second"
+FIREHOL_LOG_BURST="5"
+          </programlisting>
+          Example:
+          <programlisting>
+FIREHOL_LOG_FREQUENCY="30/minute"
+FIREHOL_LOG_BURST="2"
+          </programlisting>
+        </para>
+        <para>
+          To see the available options run:
+          <userinput>/sbin/iptables -m limit --help</userinput>
+        </para>
+      </listitem>
+    </varlistentry>
+    <varlistentry><term><envar>FIREHOL_LOG_PREFIX</envar></term>
+      <listitem>
+        <para>
+          This value is added to the contents of each logged line for
+          easy detection of <application>FireHOL</application> lines
+          in the system logs. By default it is empty.
+        </para>
+        <para>
+          Default:
+          <programlisting>
+FIREHOL_LOG_PREFIX=""
+          </programlisting>
+          Example:
+          <programlisting>
+FIREHOL_LOG_PREFIX="FIREHOL:"
+          </programlisting>
+        </para>
+      </listitem>
+    </varlistentry>
+    <varlistentry><term><envar>FIREHOL_DROP_INVALID</envar></term>
+      <listitem>
+        <para>
+          If set to 1, this variable causes <application>FireHOL</application>
+          to drop all packets matched as <option>INVALID</option>
+          in the <command>iptables(8)</command> connection tracker.
+          <note><para>
+            You can use <xref linkend="cmd-protection"/> to control matching
+            of <option>INVALID</option> packets and others on per-interface
+            and per-router basis.
+          </para></note>
+        </para>
+        <para>
+          Default:
+          <programlisting>
+FIREHOL_DROP_INVALID="0"
+          </programlisting>
+          Example:
+          <programlisting>
+FIREHOL_DROP_INVALID="1"
+          </programlisting>
+        </para>
+      </listitem>
+    </varlistentry>
+    <varlistentry><term><envar>DEFAULT_CLIENT_PORTS</envar></term>
+      <listitem>
+        <para>
+          This variable controls the port range that is used when a
+          remote client is specified. For clients on the local host,
+          <application>FireHOL</application> finds the exact client
+          ports by querying the kernel options.
+        </para>
+        <para>
+          Default:
+          <programlisting>
+DEFAULT_CLIENT_PORTS="1000:65535"
+          </programlisting>
+          Example:
+          <programlisting>
+DEFAULT_CLIENT_PORTS="0:65535"
+          </programlisting>
+        </para>
+      </listitem>
+    </varlistentry>
+    <varlistentry><term><envar>FIREHOL_NAT</envar></term>
+      <listitem>
+        <para>
+          If set to 1, this variable causes <application>FireHOL</application>
+          to load the NAT kernel modules. If you make use of the NAT
+          helper commands, the variable will be set to 1 automatically.
+          It may be set as an environment variable.
+        </para>
+        <para>
+          Default:
+          <programlisting>
+FIREHOL_NAT="0"
+          </programlisting>
+          Example:
+          <programlisting>
+FIREHOL_NAT="1"
+          </programlisting>
+        </para>
+      </listitem>
+    </varlistentry>
+    <varlistentry><term><envar>FIREHOL_ROUTING</envar></term>
+      <listitem>
+        <para>
+          If set to 1, this variable causes <application>FireHOL</application>
+          to enable routing in the kernel. If you make use of
+          <command>router</command> definitions or certain helper commands
+          the variable will be set to 1 automatically.
+          It may be set as an environment variable.
+        </para>
+        <para>
+          Default:
+          <programlisting>
+FIREHOL_ROUTING="0"
+          </programlisting>
+          Example:
+          <programlisting>
+FIREHOL_ROUTING="1"
+          </programlisting>
+        </para>
+      </listitem>
+    </varlistentry>
+    <varlistentry><term><envar>FIREHOL_AUTOSAVE</envar></term>
+      <listitem>
+        <para>
+          This variable specifies the file of (IPv4) rules that will be
+          created when <xref linkend="firehol"/> is called with
+          the <option>save</option> argument. It may be set as an
+          environment variable.
+        </para>
+        <para>
+          If the variable is not set, a system-specific value is used
+          which was defined at configure-time. If no value was chosen then
+          the save fails.
+        </para>
+        <para>
+          Default:
+          <programlisting>
+FIREHOL_AUTOSAVE="&FIREHOL_AUTOSAVE;"
+          </programlisting>
+          Example:
+          <programlisting>
+FIREHOL_AUTOSAVE="/tmp/firehol-saved-ipv4.txt"
+          </programlisting>
+        </para>
+      </listitem>
+    </varlistentry>
+<!--
+    <varlistentry><term><envar>FIREHOL_AUTOSAVE6</envar></term>
+      <listitem>
+        <para>
+          This variable specifies the file of (IPv6) rules that will be
+          created when <xref linkend="firehol"/> is called with
+          the <option>save</option> argument. It may be set as an
+          environment variable.
+        </para>
+        <para>
+          If the variable is not set, a system-specific value is used
+          which was defined at configure-time. If no value was chosen then
+          the save fails.
+        </para>
+        <para>
+          Default:
+          <programlisting>
+FIREHOL_AUTOSAVE6="&FIREHOL_AUTOSAVE6;"
+          </programlisting>
+          Example:
+          <programlisting>
+FIREHOL_AUTOSAVE6="/tmp/firehol-saved-ipv6.txt"
+          </programlisting>
+        </para>
+      </listitem>
+    </varlistentry>
+-->
+    <varlistentry><term><envar>FIREHOL_LOAD_KERNEL_MODULES</envar></term>
+      <listitem>
+        <para>
+          If set to 0, this variable forces <application>FireHOL</application>
+          to not load any kernel modules. It is needed only if the kernel
+          has modules statically included and in the rare event that
+          <application>FireHOL</application> cannot access the kernel
+          configuration. It may be set as an environment variable.
+        </para>
+        <para>
+          Default:
+          <programlisting>
+FIREHOL_LOAD_KERNEL_MODULES="1"
+          </programlisting>
+          Example:
+          <programlisting>
+FIREHOL_LOAD_KERNEL_MODULES="0"
+          </programlisting>
+        </para>
+      </listitem>
+    </varlistentry>
+    <varlistentry><term><envar>FIREHOL_TRUST_LOOPBACK</envar></term>
+      <listitem>
+        <para>
+          If set to 0, the loopback device "lo" will not be trusted and
+          you can write standard firewall rules for it.
+          <warning><para>
+            If you do not set up appropriate rules, local processes will
+            not be able to communicate with each other which can result
+            in serious breakages.
+          </para></warning>
+        </para>
+        <para>
+          By default "lo" is trusted and all <option>INPUT</option> and
+          <option>OUTPUT</option> traffic is accepted (forwarding is
+          not included).
+        </para>
+        <para>
+          Default:
+          <programlisting>
+FIREHOL_TRUST_LOOPBACK="1"
+          </programlisting>
+          Example:
+          <programlisting>
+FIREHOL_TRUST_LOOPBACK="0"
+          </programlisting>
+        </para>
+      </listitem>
+    </varlistentry>
+    <varlistentry><term><envar>FIREHOL_DROP_ORPHAN_TCP_ACK_FIN</envar></term>
+      <listitem>
+        <para>
+          If set to 1, <application>FireHOL</application>
+          will drop all TCP connections with ACK FIN set without logging them.
+        </para>
+        <para>
+          In busy environments the iptables connection
+          tracker removes connection tracking list entries as soon as it
+          receives a FIN. This makes the ACK FIN appear as an invalid packet
+          which will normally be logged by <application>FireHOL</application>.
+        </para>
+        <para>
+          Default:
+          <programlisting>
+FIREHOL_DROP_ORPHAN_TCP_ACK_FIN="0"
+          </programlisting>
+          Example:
+          <programlisting>
+FIREHOL_DROP_ORPHAN_TCP_ACK_FIN="1"
+          </programlisting>
+        </para>
+      </listitem>
+    </varlistentry>
+<!--
+    <varlistentry><term><envar>FIREHOL_DEBUGGING</envar></term>
+      <listitem>
+        <para>
+          If set to a non-empty value, switches on debug output so that
+          it is possible to see what processing FireHOL is doing.
+        </para>
+        <note>
+          <para>This variable can <emphasis>only</emphasis> be set
+          as an environment variable, since it is processed before any
+          configuration files are read.
+          </para>
+        </note>
+        <para>
+          Default:
+          <programlisting>
+FIREHOL_DEBUGGING=""
+          </programlisting>
+          Example:
+          <programlisting>
+FIREHOL_DEBUGGING="Y"
+          </programlisting>
+        </para>
+      </listitem>
+    </varlistentry>
+-->
+<!--
+    <varlistentry><term><envar>WAIT_FOR_IFACE</envar></term>
+      <listitem>
+        <para>
+          If set to the name of a network device (e.g. eth0),
+          <application>FireHOL</application> will wait until the device
+          is up (or until 60 seconds have elapsed) before continuing.
+        </para>
+        <note>
+          <para>This variable can <emphasis>only</emphasis> be set
+          as an environment variable, since it determines when the
+          main configuration file will be processed.
+          </para>
+        </note>
+        <para>
+          A device does not need to be up in order to have firewall rules
+          created for it, so this option should only be used if you have
+          a specific need to wait (e.g. the network must be queried to
+          determine the hosts or ports which will be firewalled).
+        </para>
+        <para>
+          Default:
+          <programlisting>
+WAIT_FOR_IFACE=""
+          </programlisting>
+          Example:
+          <programlisting>
+WAIT_FOR_IFACE="eth0"
+          </programlisting>
+        </para>
+      </listitem>
+    </varlistentry>
+-->
+  </variablelist>
+</refsect1>
+
+<refsect1><title>See also</title>
+  <simplelist type="vert">
+    <member><xref linkend="firehol"/></member>
+    <member><xref linkend="firehol.conf"/></member>
+    <member><xref linkend="helpconf-nat"/></member>
+    <member>administration tool for IPv4 firewalls: iptables(8)</member>
+  </simplelist>
+</refsect1>
+</refentry>

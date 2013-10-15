@@ -1,0 +1,399 @@
+<!DOCTYPE refentry PUBLIC "-//OASIS//DTD DocBook XML V4.5//EN"
+                 "http://www.oasis-open.org/docbook/xml/4.5/docbookx.dtd">
+<!-- For license information see firehol-manual-info.xml.in -->
+<refentry id="rule-params">
+
+<refmeta>
+<refentrytitle>optional rule parameters: firehol-rule-params</refentrytitle>
+<manvolnum>5</manvolnum>
+</refmeta>
+
+<refnamediv>
+<refdescriptor>firehol-rule-params</refdescriptor>
+<refname>firehol-rule-params</refname>
+<refname>firehol-src</refname>
+<refname>firehol-dst</refname>
+<refname>firehol-srctype</refname>
+<refname>firehol-dsttype</refname>
+<refname>firehol-inface</refname>
+<refname>firehol-outface</refname>
+<refname>firehol-physin</refname>
+<refname>firehol-physout</refname>
+<refname>firehol-custom</refname>
+<refname>firehol-log</refname>
+<refname>firehol-loglimit</refname>
+<refname>firehol-proto</refname>
+<refname>firehol-uid</refname>
+<refname>firehol-gid</refname>
+<refname>firehol-mac-param</refname>
+<refname>firehol-mark-param</refname>
+<refname>firehol-tos-param</refname>
+<refname>firehol-dscp-param</refname>
+<refpurpose>optional rule parameters</refpurpose>
+</refnamediv>
+
+<refsynopsisdiv>
+
+  <para>Common</para>
+  <cmdsynopsis>
+    <command>src</command>
+    <arg choice="opt">not</arg>
+    <arg choice="plain"><replaceable>host</replaceable></arg>
+  </cmdsynopsis>
+  <cmdsynopsis>
+    <command>dst</command>
+    <arg choice="opt">not</arg>
+    <arg choice="plain"><replaceable>host</replaceable></arg>
+  </cmdsynopsis>
+  <cmdsynopsis>
+    <command>srctype</command>
+    <arg choice="opt">not</arg>
+    <arg choice="plain"><replaceable>type</replaceable></arg>
+  </cmdsynopsis>
+  <cmdsynopsis>
+    <command>dsttype</command>
+    <arg choice="opt">not</arg>
+    <arg choice="plain"><replaceable>type</replaceable></arg>
+  </cmdsynopsis>
+  <cmdsynopsis>
+    <command>proto</command>
+    <arg choice="opt">not</arg>
+    <arg choice="plain"><replaceable>protocol</replaceable></arg>
+  </cmdsynopsis>
+  <cmdsynopsis>
+    <command>mac</command>
+    <arg choice="opt">not</arg>
+    <arg choice="plain"><replaceable>macaddr</replaceable></arg>
+  </cmdsynopsis>
+  <cmdsynopsis>
+    <command>dscp</command>
+    <arg choice="opt">not</arg>
+    <group choice="req">
+       <arg choice="plain"><replaceable>value</replaceable></arg>
+       <arg choice="plain">class <replaceable>classid</replaceable></arg>
+    </group>
+  </cmdsynopsis>
+  <cmdsynopsis>
+    <command>mark</command>
+    <arg choice="opt">not</arg>
+    <arg choice="plain"><replaceable>id</replaceable></arg>
+  </cmdsynopsis>
+  <cmdsynopsis>
+    <command>tos</command>
+    <arg choice="opt">not</arg>
+    <arg choice="plain"><replaceable>id</replaceable></arg>
+  </cmdsynopsis>
+  <cmdsynopsis>
+    <command>custom</command>
+    <arg choice="plain">"<replaceable>iptables-options...</replaceable>"</arg>
+  </cmdsynopsis>
+
+  <para>Router Only</para>
+  <cmdsynopsis>
+    <command>inface</command>
+    <arg choice="opt">not</arg>
+    <arg choice="plain"><replaceable>interface</replaceable></arg>
+  </cmdsynopsis>
+  <cmdsynopsis>
+    <command>outface</command>
+    <arg choice="opt">not</arg>
+    <arg choice="plain"><replaceable>interface</replaceable></arg>
+  </cmdsynopsis>
+  <cmdsynopsis>
+    <command>physin</command>
+    <arg choice="opt">not</arg>
+    <arg choice="plain"><replaceable>interface</replaceable></arg>
+  </cmdsynopsis>
+  <cmdsynopsis>
+    <command>physout</command>
+    <arg choice="opt">not</arg>
+    <arg choice="plain"><replaceable>interface</replaceable></arg>
+  </cmdsynopsis>
+
+  <para>Interface Only</para>
+  <cmdsynopsis>
+    <command>uid</command>
+    <arg choice="opt">not</arg>
+    <arg choice="plain"><replaceable>user</replaceable></arg>
+  </cmdsynopsis>
+  <cmdsynopsis>
+    <command>gid</command>
+    <arg choice="opt">not</arg>
+    <arg choice="plain"><replaceable>group</replaceable></arg>
+  </cmdsynopsis>
+
+  <para>Logging</para>
+  <cmdsynopsis>
+    <command>log</command>
+    <arg choice="plain">"<replaceable>log text</replaceable>"</arg>
+    <arg choice="opt">level <replaceable>loglevel</replaceable></arg>
+  </cmdsynopsis>
+  <cmdsynopsis>
+    <command>loglimit</command>
+    <arg choice="plain">"<replaceable>log text</replaceable>"</arg>
+    <arg choice="opt">level <replaceable>loglevel</replaceable></arg>
+  </cmdsynopsis>
+</refsynopsisdiv>
+
+<refsect1><title>Description</title>
+  <para>
+     Optional rule parameters are accepted by many commands to narrow
+     the match they make. Not all parameters are accepted by all commands
+     so you should check the individual commands for exclusions.
+  </para>
+  <para>
+     All matches are made against the REQUEST.
+     <application>FireHOL</application> automatically sets up the necessary
+     stateful rules to deal with replies in the reverse direction.
+  </para>
+  <para>
+    Use the option <option>not</option> to match any value other than the
+    one(s) specified.
+  </para>
+  <para>
+    The logging parameters are unusual in that they do not affect the
+    match, they just cause a log message to be emitted. Therefore, the
+    logging parameters don't support the <option>not</option> option.
+  </para>
+  <para>
+     <application>FireHOL</application> is designed so that if you specify
+     a parameter that is also used internally by the command then a warning
+     will be issued (and the internal version will be used).
+  </para>
+</refsect1>
+
+<refsect1><title>Common</title>
+  <para>
+    Use <command>src</command> and <command>dst</command> to define the
+    source and destination IP addresses of the request respectively.
+    <replaceable>host</replaceable> defines the IP or IPs to be matched.
+    Examples:
+    <programlisting>server smtp accept src not 192.0.2.1
+server smtp accept dst 198.51.100.1
+server smtp accept src not 192.0.2.1 dst 198.51.100.1
+    </programlisting>
+  </para>
+  <para>
+    Use <command>srctype</command> or <command>dsttype</command> to define
+    the source or destination IP address type of the request.
+    <replaceable>type</replaceable> is the address type category as used
+    in the kernel's network stack. It can be one of:
+    <variablelist>
+      <varlistentry><term>UNSPEC</term>
+        <listitem><para>an unspecified address (i.e. 0.0.0.0)</para></listitem>
+      </varlistentry>
+      <varlistentry><term>UNICAST</term>
+        <listitem><para>a unicast address</para></listitem>
+      </varlistentry>
+      <varlistentry><term>LOCAL</term>
+        <listitem><para>a local address</para></listitem>
+      </varlistentry>
+      <varlistentry><term>BROADCAST</term>
+        <listitem><para>a broadcast address</para></listitem>
+      </varlistentry>
+      <varlistentry><term>ANYCAST</term>
+        <listitem><para>an anycast address</para></listitem>
+      </varlistentry>
+      <varlistentry><term>MULTICAST</term>
+        <listitem><para>a multicast address</para></listitem>
+      </varlistentry>
+      <varlistentry><term>BLACKHOLE</term>
+        <listitem><para>a blackhole address</para></listitem>
+      </varlistentry>
+      <varlistentry><term>UNREACHABLE</term>
+        <listitem><para>an unreachable address</para></listitem>
+      </varlistentry>
+      <varlistentry><term>PROHIBIT</term>
+        <listitem><para>a prohibited address</para></listitem>
+      </varlistentry>
+      <varlistentry><term>THROW</term><term>NAT</term><term>XRESOLVE</term>
+        <listitem><para>undocumented</para></listitem>
+      </varlistentry>
+    </variablelist>
+    See <command>iptables(8)</command> or run
+    <userinput>iptables -m addrtype --help</userinput> for more information.
+    Examples:
+    <programlisting>server smtp accept srctype not "UNREACHABLE PROHIBIT"
+    </programlisting>
+  </para>
+  <para>
+    Use <command>proto</command> to match by protocol. The
+    <replaceable>protocol</replaceable> can be any accepted by iptables(8).
+  </para>
+  <para>
+    Use <command>mac</command> to match by MAC address. The
+    <replaceable>macaddr</replaceable> matches to the "remote" host.
+
+    In an <command>interface</command>, "remote" always means the non-local
+    host.
+
+    In a <command>router</command>, "remote" refers to the source of
+    requests for <option>server</option>s. It refers to the destination
+    of requests for <option>client</option>s.
+
+    Examples:
+    <programlisting># Only allow pop3 requests to the e6 host
+client pop3 accept mac 00:01:01:00:00:e6
+
+# Only allow hosts other than e7/e8 to access smtp
+server smtp accept mac not "00:01:01:00:00:e7 00:01:01:00:00:e8"
+    </programlisting>
+  </para>
+  <para>
+    Use <command>dscp</command> to match the DSCP field on packets. For details
+    on DSCP <replaceable>value</replaceable>s and
+    <replaceable>classid</replaceable>s, see <xref linkend="helpconf-dscp"/>.
+    <programlisting>server smtp accept dscp not "0x20 0x30"
+server smtp accept dscp not class "BE EF"
+    </programlisting>
+  </para>
+  <para>
+    Use <command>mark</command> to match marks set on packets. For details
+    on mark <replaceable>id</replaceable>s, see <xref linkend="helpconf-mark"/>.
+    <programlisting>server smtp accept mark not "20 55"
+    </programlisting>
+  </para>
+  <para>
+    Use <command>tos</command> to match the TOS field on packets. For details
+    on TOS <replaceable>id</replaceable>s, see <xref linkend="helpconf-tos"/>.
+    <programlisting>server smtp accept tos not "Maximize-Throughput 0x10"
+    </programlisting>
+  </para>
+  <para>
+    Use <command>custom</command> to pass arguments directly to iptables(8).
+    All of the parameters must be in a single quoted string. To pass an
+    option to iptables(8) that itself contains a space you need to
+    quote strings in the usual bash(1) manner. For example:
+    <programlisting>server smtp accept custom "--some-option some-value"
+server smtp accept custom "--some-option 'some-value second-value'"
+    </programlisting>
+  </para>
+</refsect1>
+
+<refsect1><title>Router Only</title>
+  <para>
+    Use <command>inface</command> and <command>outface</command> to
+    define the <replaceable>interface</replaceable> via which a request
+    is received and forwarded respectively.
+    Use the same format as <xref linkend="def-interface"/>.
+    Examples:
+    <programlisting>server smtp accept inface not eth0
+server smtp accept inface not "eth0 eth1"
+server smtp accept inface eth0 outface eth1
+    </programlisting>
+  </para>
+  <para>
+    Use <command>physin</command> and <command>physout</command> to
+    define the physical <replaceable>interface</replaceable> via which a
+    request is received or send in cases where the inface or outface
+    is known to be a virtual interface; e.g. a bridge.
+    Use the same format as <xref linkend="def-interface"/>.
+    Examples:
+    <programlisting>server smtp accept physin not eth0
+    </programlisting>
+  </para>
+</refsect1>
+
+<refsect1><title>Interface only</title>
+  <para>
+    These parameters match information related to information gathered
+    from the local host. They apply only to outgoing packets and are
+    silently ignored for incoming requests and requests that will be forwarded.
+  </para>
+  <para>
+    Use <command>uid</command> to match the operating system user sending
+    the traffic. The <replaceable>user</replaceable> is a username, uid number
+    or a quoted list of the two.
+  </para>
+  <para>
+    For example, to limit which users can access POP3 and IMAP by preventing
+    replies for certain users from being sent:
+    <programlisting>client "pop3 imap" accept user not "user1 user2 user3"
+    </programlisting>
+  </para>
+  <para>
+    Similarly, this will allow all requests to reach the server but
+    prevent replies unless the web server is running as apache:
+    <programlisting>server http accept user apache
+    </programlisting>
+  </para>
+  <para>
+    Use <command>gid</command> to match the operating system group sending
+    the traffic. The <replaceable>group</replaceable> is a group name, gid
+    number or a quoted list of the two.
+  </para>
+  <note><para>
+    The Linux kernel infrastructure to match PID/SID and executable names
+    with <command>pid</command>, <command>sid</command> and
+    <command>cmd</command> has been removed so these options can no
+    longer be used.
+  </para></note>
+</refsect1>
+
+<refsect1 id="logging"><title>Logging</title>
+  <para>
+    Use <command>log</command> or <command>loglimit</command>
+    to log matching packets to syslog. Unlike iptables(8) logging, this is
+    not an action: <application>FireHOL</application> will produce multiple
+    iptables commands to accomplish both the action for the rule and the
+    logging.
+  </para>
+  <para>
+    Logging is controlled using the <envar>FIREHOL_LOG_OPTIONS</envar>
+    and <envar>FIREHOL_LOG_LEVEL</envar> environment variables
+    (see <xref linkend="firehol-variables"/>). <command>loglimit</command>
+    additionally honours the <envar>FIREHOL_LOG_FREQUENCY</envar> and
+    <envar>FIREHOL_LOG_BURST</envar> variables.
+  </para>
+  <para>
+    Specifying <option>level</option> (which takes the same values as
+    <envar>FIREHOL_LOG_LEVEL</envar>) allows you to override the log level
+    for a single rule.
+  </para>
+</refsect1>
+
+<refsect1><title>Internal use</title>
+  <para>
+     In addition to the commands in the synopsis,
+     <application>FireHOL</application> provides <command>limit</command>,
+     <command>sport</command> and <command>dport</command> which are used
+     internally. These should not normally be used in configuration files
+     unless you really understand what you are doing.
+  </para>
+  <para>
+     <command>limit</command> requires the arguments
+     <replaceable>frequency</replaceable> and
+     <replaceable>burst</replaceable> and will limit
+     the matching of traffic in both directions.
+  </para>
+  <para>
+     <command>sport</command> requires an argument
+     <replaceable>port</replaceable> which can be a name, number, range
+     (FROM:TO) or a quoted list of ports. It specifies the source port
+     of a request.
+  </para>
+  <para>
+     <command>dport</command> requires an argument
+     <replaceable>port</replaceable> which can be a name, number, range
+     (FROM:TO) or a quoted list of ports. It specifies the destination port
+     of a request.
+  </para>
+</refsect1>
+
+<refsect1><title>See Also</title>
+  <simplelist type="vert">
+    <member><xref linkend="firehol"/></member>
+    <member><xref linkend="firehol.conf"/></member>
+    <member><xref linkend="cmd-client"/></member>
+    <member><xref linkend="cmd-server"/></member>
+    <member><xref linkend="def-interface"/></member>
+    <member><xref linkend="def-router"/></member>
+    <member><xref linkend="helpconf-mark"/></member>
+    <member><xref linkend="helpconf-tos"/></member>
+    <member><xref linkend="helpconf-dscp"/></member>
+    <member><xref linkend="firehol-variables"/></member>
+    <member>administration tool for IPv4 firewalls: iptables(8)</member>
+  </simplelist>
+</refsect1>
+
+</refentry>

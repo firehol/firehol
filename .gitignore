@@ -1,0 +1,26 @@
+# Lines that start with '#' are comments.
+*~
+autotool/install-sh
+autotool/missing
+configure
+Makefile.in
+Makefile
+aclocal.m4
+autom4te.cache/
+config.log
+config.status
+doc/db-valid
+doc/firehol.ent
+doc/man/man1/
+doc/man/man5/
+doc/firehol-manual-info.xml
+doc/firehol-manual.html
+doc/firehol-manual.pdf
+doc/firehol-services.html
+doc/services-list.xml
+sbin/firehol
+*.xz
+*.gz
+*.bz2
+firehol-*.*.*/
+INSTALL

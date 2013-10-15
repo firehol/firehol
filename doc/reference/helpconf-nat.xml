@@ -1,0 +1,216 @@
+<!DOCTYPE refentry PUBLIC "-//OASIS//DTD DocBook XML V4.5//EN"
+                 "http://www.oasis-open.org/docbook/xml/4.5/docbookx.dtd">
+<!-- For license information see firehol-manual-info.xml.in -->
+<refentry id="helpconf-nat">
+
+<refmeta>
+<refentrytitle>nat, snat, dnat, redirect config helpers: firehol-nat</refentrytitle>
+<manvolnum>5</manvolnum>
+</refmeta>
+
+<refnamediv>
+<refdescriptor>firehol-nat</refdescriptor>
+<refname>firehol-nat</refname>
+<refname>firehol-snat</refname>
+<refname>firehol-dnat</refname>
+<refname>firehol-redirect</refname>
+<refpurpose>set up NAT and port redirections</refpurpose>
+</refnamediv>
+
+<refsynopsisdiv>
+  <cmdsynopsis>
+    <command>snat</command>
+    <arg choice="opt">to</arg>
+    <arg choice="plain"><replaceable>target</replaceable></arg>
+    <arg choice="opt"><replaceable>rule-params</replaceable></arg>
+  </cmdsynopsis>
+  <cmdsynopsis>
+    <command>dnat</command>
+    <arg choice="opt">to</arg>
+    <arg choice="plain"><replaceable>target</replaceable></arg>
+    <arg choice="opt"><replaceable>rule-params</replaceable></arg>
+  </cmdsynopsis>
+  <cmdsynopsis>
+    <command>redirect</command>
+    <arg choice="opt">to</arg>
+    <arg choice="plain"><replaceable>portrange</replaceable></arg>
+    <arg choice="opt"><replaceable>rule-params</replaceable></arg>
+  </cmdsynopsis>
+  <cmdsynopsis>
+    <command>nat</command>
+    <group choice="req">
+      <arg choice="plain">to-source</arg>
+      <arg choice="plain">to-destination</arg>
+      <arg choice="plain">redirect-to</arg>
+    </group>
+    <arg choice="plain"><replaceable>target</replaceable></arg>
+    <arg choice="opt"><replaceable>rule-params</replaceable></arg>
+  </cmdsynopsis>
+  <cmdsynopsis>
+    <command>nat</command>
+    <arg choice="plain">redirect-to</arg>
+    <arg choice="plain"><replaceable>portrange</replaceable></arg>
+    <arg choice="opt"><replaceable>rule-params</replaceable></arg>
+  </cmdsynopsis>
+</refsynopsisdiv>
+
+<refsect1><title>Description</title>
+  <note>
+    <para>
+       The <option><replaceable>rule-params</replaceable></option> are
+       used only to determine the traffic that will be matched for NAT
+       in these commands.
+    </para>
+  </note>
+  <refsect2 id="nat-snat"><title>snat</title>
+  <para>
+    The <command>snat</command> helper sets up a Source NAT rule for
+    routed traffic by calling <command>nat to-source</command>. For
+    example:
+    <programlisting>
+snat to 192.0.2.1 outface eth0 src 198.51.100.1 dst 203.0.113.1
+    </programlisting>
+  </para>
+  </refsect2>
+  <refsect2 id="nat-dnat"><title>dnat</title>
+  <para>
+    The <command>dnat</command> helper sets up a Destination NAT rule for
+    routed traffic by calling <command>nat to-destination</command>. For
+    example:
+    <programlisting>
+dnat to 192.0.2.1 outface eth0 src 198.51.100.1 dst 203.0.113.1
+    </programlisting>
+  </para>
+  </refsect2>
+  <refsect2 id="nat-redirect"><title>redirect</title>
+  <para>
+    The <command>redirect</command> helper redirects matching traffic
+    to <replaceable>portrange</replaceable> on the local host
+    by calling <command>nat redirect-to</command>. For
+    example:
+    <programlisting>
+redirect-to 8080 inface eth0 src 198.51.100.0/24 proto tcp dport 80
+    </programlisting>
+  </para>
+  </refsect2>
+  <refsect2 id="nat-nat"><title>nat</title>
+  <para>
+    The <command>nat</command> helper takes one of the following
+    sub-commands:
+    <variablelist>
+      <varlistentry><term>to-source <replaceable>target</replaceable></term>
+        <listitem>
+          <para>
+            Defines a Source NAT (created in table NAT, chain POSTROUTING).
+          </para>
+          <para>
+            <replaceable>target</replaceable> is the source address to be
+            set in packets matching
+           <option><replaceable>rule-params</replaceable></option>.
+          </para>
+          <para>
+            If no rules are given, all forwarded traffic will be matched.
+            <option>inface</option> should not be used in SNAT since the
+            information is not available at the time the decision is made.
+          </para>
+          <para>
+            <replaceable>target</replaceable> accepts any
+            <option>--to-source</option> values that
+            <command>iptables(8)</command> accepts. Run
+            <userinput>iptables -j SNAT --help</userinput> to for more
+            information. Multiple <replaceable>targets</replaceable> may
+            be specified by separating with spaces and enclosing with
+            quotes.
+          </para>
+        </listitem>
+      </varlistentry>
+      <varlistentry><term>to-destination <replaceable>target</replaceable></term>
+        <listitem>
+          <para>
+            Defines a Destination NAT (created in table NAT, chain POSTROUTING).
+          </para>
+          <para>
+            <replaceable>target</replaceable> is the destination address to be
+            set in packets matching
+           <option><replaceable>rule-params</replaceable></option>.
+          </para>
+          <para>
+            If no rules are given, all forwarded traffic will be matched.
+            <option>outface</option> should not be used in DNAT since the
+            information is not available at the time the decision is made.
+          </para>
+          <para>
+            <replaceable>target</replaceable> accepts any
+            <option>--to-destination</option> values that
+            <command>iptables(8)</command> accepts. Run
+            <userinput>iptables -j DNAT --help</userinput> to for more
+            information. Multiple <replaceable>targets</replaceable> may
+            be specified by separating with spaces and enclosing with
+            quotes.
+          </para>
+        </listitem>
+      </varlistentry>
+      <varlistentry><term>redirect-to <replaceable>portrange</replaceable></term>
+        <listitem>
+          <para>
+            Redirect matching traffic to the local machine (created in table
+            NAT, chain PREROUTING).
+          </para>
+          <para>
+            <replaceable>portrange</replaceable> is the port range
+            (from-to) or single port that packets matching
+            <option><replaceable>rule-params</replaceable></option>
+            will be redirected to.
+          </para>
+          <para>
+            If no rules are given, all forwarded traffic will be matched.
+            <option>outface</option> should not be used in REDIRECT since the
+            information is not available at the time the decision is made.
+          </para>
+        </listitem>
+      </varlistentry>
+    </variablelist>
+  </para>
+  </refsect2>
+</refsect1>
+
+<refsect1><title>Examples</title>
+  <programlisting>
+# Send to 192.0.2.1
+#  - all traffic arriving at or passing through the firewall
+nat to-destination 192.0.2.1
+
+# Send to 192.0.2.1
+#  - all traffic arriving at or passing through the firewall
+#  - which WAS going to 203.0.113.1
+nat to-destination 192.0.2.1 dst 203.0.113.1
+
+# Send to 192.0.2.1
+#  - TCP traffic arriving at or passing through the firewall
+#  - which WAS going to 203.0.113.1
+nat to-destination 192.0.2.1 proto tcp dst 203.0.113.1
+
+# Send to 192.0.2.1
+#  - TCP traffic arriving at or passing through the firewall
+#  - which WAS going to 203.0.113.1, port 25
+nat to-destination 192.0.2.1 proto tcp dport 25 dst 203.0.113.1
+
+# Other examples
+nat to-source 192.0.2.1 outface eth0 src 198.51.100.1 dst 203.0.113.1
+nat to-destination 192.0.2.2 outface eth0 src 198.51.100.2 dst 203.0.113.2
+nat redirect-to 8080 inface eth0 src 198.51.100.0/24 proto tcp dport 80
+  </programlisting>
+</refsect1>
+
+<refsect1><title>See Also</title>
+  <simplelist type="vert">
+    <member><xref linkend="firehol"/></member>
+    <member><xref linkend="firehol.conf"/></member>
+    <member><xref linkend="def-interface"/></member>
+    <member><xref linkend="def-router"/></member>
+    <member><xref linkend="rule-params"/></member>
+    <member><xref linkend="helpcmd-masquerade"/></member>
+  </simplelist>
+</refsect1>
+
+</refentry>
