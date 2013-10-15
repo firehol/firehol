@@ -2091,7 +2091,10 @@ htb_stats() {
 		for x in $interface_classes_ids
 		do
 			eval "local y=\$TCSTATS_htb_${x}"
-			if [ "$y" = "0" ]
+			if [ -z "$y" ]
+			then
+				printf "% ${number_digits}.${number_digits}s " ERROR
+			elif [ "$y" = "0" ]
 			then
 				printf "% ${number_digits}.${number_digits}s " "-"
 			elif [ "$y" -lt 0 ]
