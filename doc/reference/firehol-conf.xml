@@ -242,14 +242,13 @@ router lan2lan inface eth0 outface eth1
       The first line must read:
       <programlisting>FHVER 1:213</programlisting>
       1 is the service definition API version. It will be changed if the
-      API is ever modified. 213 originally referred to a
-      <application>FireHOL</application> 1.x minor version.
+      API is ever modified. The 213 originally referred to a
+      <application>FireHOL</application> 1.x minor version but is
+      no longer checked.
     </para>
     <para>
       <application>FireHOL</application> will refuse to run if the
-       API version does not match the expected one. If the minor number
-       in the file is higher than the one <application>FireHOL</application>
-       expects, the individual service will be ignored.
+       API version does not match the expected one.
     </para>
   </note>
 </refsect1>

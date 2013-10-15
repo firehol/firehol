@@ -240,21 +240,6 @@ umask 077
 # Be nice on production environments
 ${RENICE_CMD} 10 $$ >/dev/null 2>/dev/null
 
-# Find our minor version
-firehol_minor_version() {
-${CAT_CMD} <<"EOF" | ${CUT_CMD} -d ' ' -f 3 | ${CUT_CMD} -d '.' -f 2
-$Id: firehol.sh,v 1.296 2013/01/06 23:49:08 ktsaou Exp $
-EOF
-}
-
-FIREHOL_MINOR_VERSION=`firehol_minor_version`
-${EXPR_CMD} ${FIREHOL_MINOR_VERSION} + 0 >/dev/null 2>&1
-if [ $? -ne 0 ]
-then
-	FIREHOL_MINOR_VERSION=257
-fi
-
-
 # Initialize iptables
 ${IPTABLES_CMD} -nxvL >/dev/null 2>&1
 
@@ -2097,17 +2082,12 @@ do
 		then
 			echo >&2 " >>> Ignoring service in '${FIREHOL_CONFIG_DIR}/services/${f}' due to malformed API minor number."
 		else
-			if [ ${n} -gt ${FIREHOL_MINOR_VERSION} ]
+			source ${f}
+			ret=$?
+			if [ ${ret} -ne 0 ]
 			then
-				echo >&2 " >>> Ignoring service in '${FIREHOL_CONFIG_DIR}/services/${f}' because the required MINOR version (${n}) is higher than the one provided by FireHOL (${FIREHOL_MINOR_VERSION})."
-			else
-				source ${f}
-				ret=$?
-				if [ ${ret} -ne 0 ]
-				then
-					echo >&2 " >>> Service in '${FIREHOL_CONFIG_DIR}/services/${f}' returned code ${ret}."
-					continue
-				fi
+				echo >&2 " >>> Service in '${FIREHOL_CONFIG_DIR}/services/${f}' returned code ${ret}."
+				continue
 			fi
 		fi
 	fi
