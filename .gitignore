@@ -10,6 +10,7 @@ autom4te.cache/
 config.log
 config.status
 doc/db-valid
+doc/services-generated
 doc/firehol.ent
 doc/man/man1/
 doc/man/man5/
@@ -17,7 +18,7 @@ doc/firehol-manual-info.xml
 doc/firehol-manual.html
 doc/firehol-manual.pdf
 doc/firehol-services.html
-doc/services-list.xml
+doc/services-?.xml
 sbin/firehol
 *.xz
 *.gz

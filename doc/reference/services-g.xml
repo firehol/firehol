@@ -1,0 +1,28 @@
+<!DOCTYPE refentry PUBLIC "-//OASIS//DTD DocBook XML V4.5//EN"
+                 "http://www.oasis-open.org/docbook/xml/4.5/docbookx.dtd">
+<!-- For license information see firehol-manual-info.xml.in -->
+<refentry id="ref-services-g">
+
+<refmeta>
+<refentrytitle>services list g: firehol-services-g</refentrytitle>
+<manvolnum>5</manvolnum>
+</refmeta>
+
+<refnamediv>
+<refdescriptor>firehol-services-g</refdescriptor>
+<refname>firehol-services-g</refname>
+<refpurpose>FireHOL service list g</refpurpose>
+</refnamediv>
+
+<xi:include xmlns:xi="http://www.w3.org/2001/XInclude"
+                href="../services-g.xml" />
+
+<refsect1><title>See Also</title>
+  <simplelist type="vert">
+    <member><xref linkend="ref-services"/></member>
+    <member><xref linkend="firehol"/></member>
+    <member><xref linkend="firehol.conf"/></member>
+  </simplelist>
+</refsect1>
+
+</refentry>

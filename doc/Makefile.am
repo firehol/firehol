@@ -47,7 +47,32 @@ FIREHOLMANUALXML_REFERENCES = \
 	reference/services.xml
 
 FIREHOLMANUALXML_GENERATED = \
-	services-list.xml
+	services-a.xml \
+	services-b.xml \
+	services-c.xml \
+	services-d.xml \
+	services-e.xml \
+	services-f.xml \
+	services-g.xml \
+	services-h.xml \
+	services-i.xml \
+	services-j.xml \
+	services-k.xml \
+	services-l.xml \
+	services-m.xml \
+	services-n.xml \
+	services-o.xml \
+	services-p.xml \
+	services-q.xml \
+	services-r.xml \
+	services-s.xml \
+	services-t.xml \
+	services-u.xml \
+	services-v.xml \
+	services-w.xml \
+	services-x.xml \
+	services-y.xml \
+	services-z.xml
 
 FIREHOLMANUALMAN_GENERATED = \
 	man/man1/firehol.1 \
@@ -152,8 +177,11 @@ export manpages_XSLTPROC_FLAGS = \
 	$(XSLTPROC_FLAGS) \
 	--param man.output.base.dir man
 
-services-list.xml: $(FIREHOLIN) services-db.data
-	$(MKSERVICELIST) $@ $+
+$(FIREHOLMANUALXML_GENERATED): services-generated
+
+services-generated: $(FIREHOLIN) services-db.data
+	$(MKSERVICELIST) services-a.xml $+
+	touch services-generated
 
 firehol-services.html:
 	$(MKHTMLINDEX) $@ $(FIREHOLIN)
@@ -204,6 +232,7 @@ MAINTAINERCLEANFILES = \
 	firehol.ent \
 	$(FIREHOLMANUALXML_GENERATED) \
 	db-valid \
+	services-generated \
 	$(FIREHOLMANUALMAN_GENERATED) \
 	$(FIREHOLMANUALHTML_GENERATED) \
 	$(FIREHOLMANUALPDF_GENERATED)

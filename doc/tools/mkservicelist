@@ -261,15 +261,9 @@ sub docmod {
   return $modlist;
 }
 
-open O, ">$ARGV[0]" or die;
-
-print O '<!DOCTYPE refsect1 PUBLIC "-//OASIS//DTD DocBook XML V4.1.2//EN"' . "\n";
-print O '        "http://www.oasis-open.org/docbook/xml/4.5/docbookx.dtd">'."\n";
-print O '<!-- For license information see firehol-manual-info.xml.in -->'."\n";
-print O "<refsect1><title>Services</title>\n";
-print O "  <para>\n";
-print O "    This <ulink url=\"http://en.wikipedia.org/wiki/List_of_TCP_and_UDP_port_numbers\">Wikipedia list of ports</ulink> may be helpful if you need to define a new service.\n";
-print O "  </para>\n";
+my $o = undef;
+my $curr_alpha = undef;
+my %alpha_used = ();
 my @keys = sort { return uc($a) cmp uc($b) } keys(%servs);
 foreach my $k (@keys) {
   my $name = $db{$k}{"name"};
@@ -286,60 +280,95 @@ foreach my $k (@keys) {
   my $example = coalesce($db{$k}{"example"}, $services{$k}{"example"});
   my $notes = coalesce($db{$k}{"notes"}, $services{$k}{"notes"});
   my $type = coalesce($services{$k}{"type"}, "simple");
-  print O "\n";
   if ($dbalias{$k}) {
     my $official = $dbalias{$k};
     $name = $db{$official}{"name"};
   }
 
-  print O "  <variablelist id=\"service-$k\">\n";
-  print O "    <title>$k - $name - $type service\n";
-  print O "      <indexterm>\n";
-  print O "        <primary>$k</primary>\n";
-  print O "        <secondary>$name</secondary>\n";
-  print O "      </indexterm>\n";
-  print O "    </title>\n";
+  my $alpha = uc(substr($k, 0, 1));
+  my $lcalpha = lc($alpha);
+  if (not $curr_alpha or $alpha ne $curr_alpha) {
+    $alpha_used{$lcalpha} = 1;
+    if ($o) {
+      print $o "</refsect1>\n";
+      close $o;
+    }
+    my $fn = $ARGV[0];
+    $fn =~ s/\ba\b/$lcalpha/;
+    open $o, ">$fn" or die;
+    $curr_alpha = $alpha;
+    print $o '<!DOCTYPE refsect1 PUBLIC "-//OASIS//DTD DocBook XML V4.1.2//EN"' . "\n";
+    print $o '        "http://www.oasis-open.org/docbook/xml/4.5/docbookx.dtd">'."\n";
+    print $o '<!-- For license information see firehol-manual-info.xml.in -->'."\n";
+    print $o "<refsect1><title>Services starting with $alpha</title>\n";
+
+    my $started = undef;
+    for my $xk (@keys) {
+      if (uc(substr($xk, 0, 1)) eq $alpha) {
+        if (not $started) {
+          print $o "  <simplelist type=\"vert\">\n";
+          $started = 1;
+        }
+        print $o "    <member><xref linkend=\"service-$xk\"/></member>\n";
+      }
+    }
+    if ($started) {
+      print $o "  </simplelist>\n";
+    }
+  }
+
+
+  print $o "  <variablelist id=\"service-$k\">\n";
+  print $o "    <title>$k - $name\n";
+  print $o "      <indexterm>\n";
+  print $o "        <primary>$k</primary>\n";
+  print $o "        <secondary>$name</secondary>\n";
+  print $o "      </indexterm>\n";
+  print $o "    </title>\n";
 
   if ($dbalias{$k}) {
-    print O "    <varlistentry><term>Alias</term>\n";
-    print O "      <listitem>\n";
-    print O "        <para>See <xref linkend=\"service-$dbalias{$k}\"/></para>\n";
-    print O "      </listitem>\n";
-    print O "    </varlistentry>\n";
-    print O "  </variablelist>\n";
+    print $o "    <varlistentry><term>Alias</term>\n";
+    print $o "      <listitem>\n";
+    print $o "        <para>See <xref linkend=\"service-$dbalias{$k}\"/></para>\n";
+    print $o "      </listitem>\n";
+    print $o "    </varlistentry>\n";
+    print $o "  </variablelist>\n";
     next;
   }
 
 
   if ($example) {
-    print O "    <varlistentry><term>Example</term>\n";
-    print O "      <listitem><para>Configuration sample:";
-    print O "        <programlisting>$example</programlisting>\n";
-    print O "      </para></listitem>\n";
-    print O "    </varlistentry>\n";
+    print $o "    <varlistentry><term>Example</term>\n";
+    print $o "      <listitem><para>Configuration sample:";
+    print $o "        <programlisting>$example</programlisting>\n";
+    print $o "      </para></listitem>\n";
+    print $o "    </varlistentry>\n";
   }
-  print O "    <varlistentry><term>Server Ports</term>\n";
-  print O "      <listitem><para>$sport</para></listitem>\n";
-  print O "    </varlistentry>\n";
-  print O "    <varlistentry><term>Client Ports</term>\n";
-  print O "      <listitem><para>$cport</para></listitem>\n";
-  print O "    </varlistentry>\n";
+  print $o "    <varlistentry><term>Service Type</term>\n";
+  print $o "      <listitem><para>$type</para></listitem>\n";
+  print $o "    </varlistentry>\n";
+  print $o "    <varlistentry><term>Server Ports</term>\n";
+  print $o "      <listitem><para>$sport</para></listitem>\n";
+  print $o "    </varlistentry>\n";
+  print $o "    <varlistentry><term>Client Ports</term>\n";
+  print $o "      <listitem><para>$cport</para></listitem>\n";
+  print $o "    </varlistentry>\n";
   if ($netmod) {
-    print O "    <varlistentry><term>Netfilter Modules</term>\n";
-    print O "      <listitem><para>" .docmod($netmod). "</para></listitem>\n";
-    print O "    </varlistentry>\n";
+    print $o "    <varlistentry><term>Netfilter Modules</term>\n";
+    print $o "      <listitem><para>" .docmod($netmod). "</para></listitem>\n";
+    print $o "    </varlistentry>\n";
   }
   if ($natmod) {
-    print O "    <varlistentry><term>Netfilter NAT Modules</term>\n";
-    print O "      <listitem><para>" .docmod($natmod). "</para></listitem>\n";
-    print O "    </varlistentry>\n";
+    print $o "    <varlistentry><term>Netfilter NAT Modules</term>\n";
+    print $o "      <listitem><para>" .docmod($natmod). "</para></listitem>\n";
+    print $o "    </varlistentry>\n";
   }
   if (@links) {
-    print O "    <varlistentry><term>Links</term>\n";
-    print O "      <listitem><para>\n";
-    print O "        " . join(", ", @links) . "\n";
-    print O "      </para></listitem>\n";
-    print O "    </varlistentry>\n";
+    print $o "    <varlistentry><term>Links</term>\n";
+    print $o "      <listitem><para>\n";
+    print $o "        " . join(", ", @links) . "\n";
+    print $o "      </para></listitem>\n";
+    print $o "    </varlistentry>\n";
   }
   if ($k eq "all") {
     my $xtra_notes = "The following complex services are activated:\n";
@@ -355,9 +384,9 @@ foreach my $k (@keys) {
     }
   }
   if ($notes) {
-    print O "    <varlistentry><term>Notes</term>\n";
-    print O "      <listitem>\n";
-    print O "        <para>\n";
+    print $o "    <varlistentry><term>Notes</term>\n";
+    print $o "      <listitem>\n";
+    print $o "        <para>\n";
     $notes =~ s/&/&amp;/g;
     $notes =~ s/&amp;nbsp;/&nbsp;/g;
     my @lines = split /\n/, $notes;
@@ -376,15 +405,35 @@ foreach my $k (@keys) {
         }
       }
     }
-    print O "          " .
+    print $o "          " .
         join("\n        </para>\n        <para>\n          ", @paras) . "\n";
-    print O "        </para>\n";
-    print O "      </listitem>\n";
-    print O "    </varlistentry>\n";
+    print $o "        </para>\n";
+    print $o "      </listitem>\n";
+    print $o "    </varlistentry>\n";
   }
-  print O "  </variablelist>\n";
+  print $o "  </variablelist>\n";
 }
-print O "\n</refsect1>\n";
+if ($o) {
+  print $o "</refsect1>\n";
+  close $o;
+}
+
+my @alphabet = qw/a b c d e f g h i j k l m n o p q r s t u v w x y z/;
+for my $lcalpha (@alphabet) {
+  my $alpha = uc($lcalpha);
+  next if $alpha_used{$lcalpha};
+  my $fn = $ARGV[0];
+  $fn =~ s/\ba\b/$lcalpha/;
+  open $o, ">$fn" or die;
+  print $o '<!DOCTYPE refsect1 PUBLIC "-//OASIS//DTD DocBook XML V4.1.2//EN"' . "\n";
+  print $o '        "http://www.oasis-open.org/docbook/xml/4.5/docbookx.dtd">'."\n";
+  print $o '<!-- For license information see firehol-manual-info.xml.in -->'."\n";
+  print $o "<refsect1><title>Services starting with $alpha</title>\n";
+  print $o "<para>Currently no services start with $alpha</para>\n";
+  print $o "</refsect1>\n";
+  close $o;
+}
+
 
 #print STDERR Dumper(\%services) . "\n";
 #print STDERR Dumper(\%db) . "\n";

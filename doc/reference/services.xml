@@ -14,11 +14,44 @@
 <refpurpose>FireHOL service list</refpurpose>
 </refnamediv>
 
-<xi:include xmlns:xi="http://www.w3.org/2001/XInclude"
-                href="../services-list.xml" />
+<refsect1><title>Services</title>
+  <para>
+    This <ulink url="http://en.wikipedia.org/wiki/List_of_TCP_and_UDP_port_numbers">Wikipedia list of ports</ulink> may be helpful if you need to define a new service.
+  </para>
+  <para>
+    There are too many services for one page, so they are broken
+    down alphabetically.
+  </para>
+</refsect1>
 
 <refsect1><title>See Also</title>
   <simplelist type="vert">
+    <member><xref linkend="ref-services-a"/></member>
+    <member><xref linkend="ref-services-b"/></member>
+    <member><xref linkend="ref-services-c"/></member>
+    <member><xref linkend="ref-services-d"/></member>
+    <member><xref linkend="ref-services-e"/></member>
+    <member><xref linkend="ref-services-f"/></member>
+    <member><xref linkend="ref-services-g"/></member>
+    <member><xref linkend="ref-services-h"/></member>
+    <member><xref linkend="ref-services-i"/></member>
+    <member><xref linkend="ref-services-j"/></member>
+    <member><xref linkend="ref-services-k"/></member>
+    <member><xref linkend="ref-services-l"/></member>
+    <member><xref linkend="ref-services-m"/></member>
+    <member><xref linkend="ref-services-n"/></member>
+    <member><xref linkend="ref-services-o"/></member>
+    <member><xref linkend="ref-services-p"/></member>
+    <member><xref linkend="ref-services-q"/></member>
+    <member><xref linkend="ref-services-r"/></member>
+    <member><xref linkend="ref-services-s"/></member>
+    <member><xref linkend="ref-services-t"/></member>
+    <member><xref linkend="ref-services-u"/></member>
+    <member><xref linkend="ref-services-v"/></member>
+    <member><xref linkend="ref-services-w"/></member>
+    <member><xref linkend="ref-services-x"/></member>
+    <member><xref linkend="ref-services-y"/></member>
+    <member><xref linkend="ref-services-z"/></member>
     <member><xref linkend="firehol"/></member>
     <member><xref linkend="firehol.conf"/></member>
   </simplelist>
