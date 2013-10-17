@@ -34,7 +34,7 @@ Source: firehol
 Section: net
 Priority: optional
 Homepage: http://firehol.org/
-Maintainer: firehol-dev@lists.firehol.org
+Maintainer: firehol-devs@lists.firehol.org
 
 Package: firehol
 Architecture: all
