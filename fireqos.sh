@@ -43,8 +43,8 @@ FIREQOS_MIN_RATE_DIVISOR=100
 # if set to 1, it will print a line per match statement
 FIREQOS_SHOW_MATCHES=0
 
-# the classes priority in ballanced mode
-FIREQOS_BALLANCED_PRIO=100
+# the classes priority in balanced mode
+FIREQOS_BALANCED_PRIO=100
 
 FIREQOS_COMPLETED=
 fireqos_exit() {
@@ -322,7 +322,7 @@ parse_class_params() {
 	while [ ! -z "$1" ]
 	do
 		case "$1" in
-			priority|ballanced)
+			priority|balanced)
 					local priority_mode="$1"
 					;;
 					
@@ -1106,7 +1106,7 @@ class() {
 	# the priority of this class, compared to the others in the same interface
 	if [ -z "$class_prio" ]
 	then
-		[ "$parent_priority_mode" = "ballanced" ] && class_prio=$FIREQOS_BALLANCED_PRIO
+		[ "$parent_priority_mode" = "balanced" ] && class_prio=$FIREQOS_BALANCED_PRIO
 		[ -z "$class_prio" ] && class_prio=$parent_class_prio
 	fi
 	
