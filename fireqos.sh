@@ -21,10 +21,6 @@ FIREQOS_LOCK_FILE=/var/run/fireqos.lock
 FIREQOS_LOCK_FILE_TIMEOUT=600
 FIREQOS_DIR=/var/run/fireqos
 
-# Set the number of IFB devices to load into the kernel
-# Set it in the config file to overwrite this default.
-FIREQOS_IFBS=2
-
 # Set it to 1 to see the tc commands generated.
 # Set it in the config file to overwrite this default.
 FIREQOS_DEBUG=0
@@ -697,9 +693,9 @@ interface_classes_monitor=
 interface_sumrate=0
 interface_classid=
 interface_stab=
-class_matchid=
 
-ifb_counter=
+ifb_interfaces=0
+class_matchid=
 force_ipv=
 
 interface_close() {
@@ -753,8 +749,6 @@ interface_close() {
 	return 0
 }
 
-FIREQOS_LOADED_IFBS=0
-
 ipv4() {
 	force_ipv="4"
 	"${@}"
@@ -796,29 +790,16 @@ interface() {
 	
 	if [ "$interface_inout" = "input" ]
 	then
-		# Find an available IFB device to use.
-		if [ -z "$ifb_counter" ]
-		then
-			# we start at 1
-			# we need ifb0 for live monitoring of traffic
-			ifb_counter=1
-		else
-			ifb_counter=$((ifb_counter + 1))
-		fi
-		interface_realdev=ifb$ifb_counter
+		ifb_interfaces=$((ifb_interfaces + 1))
 		
-		# check if we run out of IFB devices
-		if [ $ifb_counter -ge $((FIREQOS_IFBS + 1)) ]
+		interface_realdev=fireqos-ifb$ifb_interfaces
+		interface_realdev=${interface_realdev:0:15}
+		
+		ip link add dev $interface_realdev name $interface_realdev type ifb
+		if [ $? -ne 0 ]
 		then
-			error "You don't have enough IFB devices. Please add FIREQOS_IFBS=XX at the top of your config. Replace XX with a number high enough for the 'input' interfaces you define."
+			error "Cannot add IFB device $interface_realdev."
 			exit 1
-		fi
-		
-		if [ $FIREQOS_LOADED_IFBS -eq 0 ]
-		then
-			# we open +1 IFBs to leave ifb0 for live monitoring of traffic
-			modprobe ifb numifbs=$((FIREQOS_IFBS + 1)) || exit 1
-			FIREQOS_LOADED_IFBS=1
 		fi
 		
 		ip link set dev $interface_realdev up
@@ -922,12 +903,10 @@ interface() {
 	# redirect all incoming traffic to ifb
 	if [ $interface_inout = input ]
 	then
-		# Redirect all incoming traffic to ifbX
-		# We then shape the traffic in the output of ifbX
+		# Redirect all incoming traffic to ifb
+		# We then shape the traffic in the output of ifb
 		tc qdisc add dev $interface_dev ingress
 		
-		# [ $interface_ipv4 -eq 1 ] && tc filter add dev $interface_dev parent ffff: protocol ip  prio 1 u32 match u32 0 0 action mirred egress redirect dev $interface_realdev
-		# [ $interface_ipv6 -eq 1 ] && tc filter add dev $interface_dev parent ffff: protocol ipv6 prio 1 u32 match u32 0 0 action mirred egress redirect dev $interface_realdev
 		tc filter add dev $interface_dev parent ffff: protocol all prio 1 u32 match u32 0 0 action mirred egress redirect dev $interface_realdev
 	fi
 	
@@ -1882,7 +1861,12 @@ clear_everything() {
 		tc ignore-error qdisc del dev $qdisc root >/dev/null 2>&1
 	done
 	
-	rmmod ifb 2>/dev/null
+	# remove all FireQOS IFB devices
+	local iface=
+	for iface in `ip link show | grep fireqos-ifb | cut -d ':' -f 2 | sed "s/ //g"`
+	do
+		ip link del dev $iface name $iface type ifb >/dev/null 2>&1
+	done
 	
 	if [ -d $FIREQOS_DIR ]
 	then
@@ -2117,8 +2101,9 @@ FIREQOS_MONITOR_HANDLE=
 remove_monitor() {
 	if [ ! -z "$FIREQOS_MONITOR_DEV" -a ! -z "$FIREQOS_MONITOR_HANDLE" ]
 	then
-		tc filter del dev $FIREQOS_MONITOR_DEV parent $FIREQOS_MONITOR_HANDLE protocol all prio 1 u32 match u32 0 0 action mirred egress redirect dev ifb0
-		ip link set dev ifb0 down
+		tc ignore-error filter del dev $FIREQOS_MONITOR_DEV parent $FIREQOS_MONITOR_HANDLE protocol all prio 1 u32 match u32 0 0 action mirred egress mirror dev fireqos_monitor
+		ip link set dev fireqos_monitor down
+		ip link del dev fireqos_monitor name fireqos_monitor type dummy
 		echo "FireQOS: monitor removed from device '$FIREQOS_MONITOR_DEV', qdisc '$FIREQOS_MONITOR_HANDLE'."
 		FIREQOS_MONITOR_DEV=
 		FIREQOS_MONITOR_HANDLE=
@@ -2146,10 +2131,12 @@ add_monitor() {
 	trap remove_monitor EXIT
 	trap remove_monitor SIGHUP
 	
-	ip link set dev ifb0 down >/dev/null 2>&1
-	ip link set dev ifb0 up || exit 1
+	modprobe dummy numdummies=0 >/dev/null 2>&1
+	ip link del dev fireqos_monitor name fireqos_monitor type dummy >/dev/null 2>&1
+	ip link add dev fireqos_monitor name fireqos_monitor type dummy || exit 1
+	ip link set dev fireqos_monitor up || exit 1
 	
-	tc filter add dev $FIREQOS_MONITOR_DEV parent $FIREQOS_MONITOR_HANDLE protocol all prio 1 u32 match u32 0 0 action mirred egress redirect dev ifb0
+	tc filter add dev $FIREQOS_MONITOR_DEV parent $FIREQOS_MONITOR_HANDLE protocol all prio 1 u32 match u32 0 0 action mirred egress mirror dev fireqos_monitor
 	
 	echo "FireQOS: monitor added to device '$FIREQOS_MONITOR_DEV', qdisc '$FIREQOS_MONITOR_HANDLE'."
 }
@@ -2219,10 +2206,10 @@ monitor() {
 	
 	echo
 	printf "Running:\n: "
-	printf " %q" tcpdump -i ifb0 "${@}"
+	printf " %q" tcpdump -i fireqos_monitor "${@}"
 	echo
 	echo
-	tcpdump -i ifb0 "${@}"
+	tcpdump -i fireqos_monitor "${@}"
 	
 	# add_monitor() adds a trap that will remove the monitor on exit
 }
@@ -2346,6 +2333,9 @@ trap fireqos_exit SIGHUP
 
 # clear all QoS on all interfaces
 clear_everything
+
+# load the IFB kernel module
+modprobe ifb numifbs=0 >/dev/null 2>&1
 
 # Run the configuration
 enable -n trap					# Disable the trap buildin shell command.
