@@ -7189,18 +7189,28 @@ then
 	
 	initialize_firewall
 	
-	# attempt to restore this firewall
-	${IPTABLES_RESTORE_CMD} <${FIREHOL_OUTPUT}.fast >${FIREHOL_OUTPUT}.log 2>&1
+	# execute any postprocessing commands
+	# in FAST_ACTIVATION the output file does not have any iptables commands
+	# it might have kernel modules management, activation of routing, etc.
+	source ${FIREHOL_OUTPUT} "${@}"
 	if [ $? -ne 0 ]
 	then
-		# it failed
-		runtime_error error "CANNOT APPLY IN FAST MODE" FIN "${IPTABLES_RESTORE_CMD}" "<${FIREHOL_OUTPUT}.fast"
-		
-		# the rest of the script will restore the original firewall
+		work_runtime_error=$[work_runtime_error+1]
 	else
-		finalize_firewall
+		# attempt to restore this firewall from the generated commands
+		${IPTABLES_RESTORE_CMD} <${FIREHOL_OUTPUT}.fast >${FIREHOL_OUTPUT}.log 2>&1
+		if [ $? -ne 0 ]
+		then
+			# it failed
+			runtime_error error "CANNOT APPLY IN FAST MODE" FIN "${IPTABLES_RESTORE_CMD}" "<${FIREHOL_OUTPUT}.fast"
+			
+			work_runtime_error=$[work_runtime_error+1]
+			
+			# the rest of the script will restore the original firewall
+		else
+			finalize_firewall
+		fi
 	fi
-	
 else
 	
 	if [ "${FIREHOL_MODE}" = "DEBUG" ]
