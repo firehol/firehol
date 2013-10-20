@@ -31,6 +31,7 @@ FIREQOS_DEBUG_PORTS=0
 FIREQOS_DEBUG_CLASS=0
 FIREQOS_DEBUG_QDISC=0
 FIREQOS_DEBUG_FILTER=0
+FIREQOS_DEBUG_CMD=0
 
 # The default and minimum rate for all classes is 1/100
 # of the interface bandwidth
@@ -41,6 +42,187 @@ FIREQOS_SHOW_MATCHES=0
 
 # the classes priority in balanced mode
 FIREQOS_BALANCED_PRIO=100
+
+# service definitions
+# taken from firehol, with:
+#
+# cat firehol.sh | egrep "^server_.*_ports="
+#
+
+server_AH_ports="51/any"
+server_amanda_ports="udp/10080"
+server_aptproxy_ports="tcp/9999"
+server_apcupsd_ports="tcp/6544"
+server_apcupsdnis_ports="tcp/3551"
+server_asterisk_ports="tcp/5038"
+server_cups_ports="tcp/631 udp/631"
+server_cvspserver_ports="tcp/2401"
+server_darkstat_ports="tcp/666"
+server_daytime_ports="tcp/13"
+server_dcc_ports="udp/6277"
+server_dcpp_ports="tcp/1412 udp/1412"
+server_dns_ports="udp/53 tcp/53"
+server_dhcprelay_ports="udp/67"
+server_dict_ports="tcp/2628"
+server_distcc_ports="tcp/3632"
+server_eserver_ports="tcp/4661 udp/4661 udp/4665"
+server_ESP_ports="50/any"
+server_echo_ports="tcp/7"
+server_finger_ports="tcp/79"
+server_ftp_ports="tcp/21"
+server_gift_ports="tcp/4302 tcp/1214 tcp/2182 tcp/2472"
+server_giftui_ports="tcp/1213"
+server_gkrellmd_ports="tcp/19150"
+server_GRE_ports="47/any"
+server_h323_ports="tcp/1720"
+server_heartbeat_ports="udp/690:699"
+server_http_ports="tcp/80"
+server_https_ports="tcp/443"
+server_iax_ports="udp/5036"
+server_iax2_ports="udp/5469 udp/4569"
+server_ICMP_ports="icmp/any"
+server_icmp_ports="icmp/any"
+server_icp_ports="udp/3130"
+server_ident_ports="tcp/113"
+server_imap_ports="tcp/143"
+server_imaps_ports="tcp/993"
+server_irc_ports="tcp/6667"
+server_isakmp_ports="udp/500"
+server_ipsecnatt_ports="udp/4500"
+server_jabber_ports="tcp/5222 tcp/5223"
+server_jabberd_ports="tcp/5222 tcp/5223 tcp/5269"
+server_l2tp_ports="udp/1701"
+server_ldap_ports="tcp/389"
+server_ldaps_ports="tcp/636"
+server_lpd_ports="tcp/515"
+server_microsoft_ds_ports="tcp/445"
+server_ms_ds_ports="tcp/445"
+server_mms_ports="tcp/1755 udp/1755"
+server_msn_ports="tcp/6891"
+server_mysql_ports="tcp/3306"
+server_netbackup_ports="tcp/13701 tcp/13711 tcp/13720 tcp/13721 tcp/13724 tcp/13782 tcp/13783"
+server_netbios_ns_ports="udp/137"
+server_netbios_dgm_ports="udp/138"
+server_netbios_ssn_ports="tcp/139"
+server_nntp_ports="tcp/119"
+server_nntps_ports="tcp/563"
+server_ntp_ports="udp/123 tcp/123"
+server_nut_ports="tcp/3493 udp/3493"
+server_nxserver_ports="tcp/5000:5200"
+server_oracle_ports="tcp/1521"
+server_OSPF_ports="89/any"
+server_pop3_ports="tcp/110"
+server_pop3s_ports="tcp/995"
+server_portmap_ports="udp/111 tcp/111"
+server_postgres_ports="tcp/5432"
+server_pptp_ports="tcp/1723"
+server_privoxy_ports="tcp/8118"
+server_radius_ports="udp/1812 udp/1813"
+server_radiusproxy_ports="udp/1814"
+server_radiusold_ports="udp/1645 udp/1646"
+server_radiusoldproxy_ports="udp/1647"
+server_rdp_ports="tcp/3389"
+server_rndc_ports="tcp/953"
+server_rsync_ports="tcp/873 udp/873"
+server_rtp_ports="udp/10000:20000"
+server_sane_ports="tcp/6566"
+server_sip_ports="udp/5060"
+server_socks_ports="tcp/1080 udp/1080"
+server_squid_ports="tcp/3128"
+server_smtp_ports="tcp/25"
+server_smtps_ports="tcp/465"
+server_snmp_ports="udp/161"
+server_snmptrap_ports="udp/162"
+server_ssh_ports="tcp/22"
+server_stun_ports="udp/3478 udp/3479"
+server_submission_ports="tcp/587"
+server_sunrpc_ports="${server_portmap_ports}"
+server_swat_ports="tcp/901"
+server_syslog_ports="udp/514"
+server_telnet_ports="tcp/23"
+server_tftp_ports="udp/69"
+server_time_ports="tcp/37 udp/37"
+server_upnp_ports="udp/1900 tcp/2869"
+server_uucp_ports="tcp/540"
+server_whois_ports="tcp/43"
+server_vmware_ports="tcp/902"
+server_vmwareauth_ports="tcp/903"
+server_vmwareweb_ports="tcp/8222 tcp/8333"
+server_vnc_ports="tcp/5900:5903"
+server_webcache_ports="tcp/8080"
+server_webmin_ports="tcp/10000"
+server_xdmcp_ports="udp/177"
+
+# FireQOS only services
+server_facetime_ports="udp/3478:3497 udp/16384:16387 udp/16393:16402"
+server_gtalk_ports="tcp/5222 tcp/5228"
+server_teamviewer_ports="tcp/5938"
+server_ping_ports="icmp/any"
+server_tcp_ports="tcp/any"
+server_udp_ports="udp/any"
+server_surfing_ports="tcp/0:1023"
+
+simple_service() {
+	local direction="$1"; shift
+	local service="$1"; shift
+	
+	local s=
+	for s in $service
+	do
+		local ports=
+		eval "local ports=\$server_${s}_ports"
+		if [ -z "$ports" ]
+		then
+			error "Service '$s' is not defined."
+			exit 1
+		fi
+		
+		local pmatch="ports"
+		case $direction in
+			server)
+				pmatch="dports"
+				[ "$interface_inout" = "output" ] && pmatch="sports"
+				;;
+				
+			client)
+				pmatch="sports"
+				[ "$interface_inout" = "output" ] && pmatch="dports"
+				;;
+				
+			service)
+				pmatch="ports"
+				;;
+				
+			*)
+				error "Cannot understand service direction '$direction'."
+				exit 1
+				;;
+		esac
+		
+		local port=
+		for port in $ports
+		do
+			local proto=
+			local sport=
+			IFS="/" read proto sport <<EOF
+$port
+EOF
+			match proto $proto $pmatch $sport "${@}"
+		done
+	done
+}
+
+server() {
+	simple_service server "${@}"
+}
+
+client() {
+	simple_service client "${@}"
+}
+
+service() {
+	simple_service service "${@}"
+}
 
 FIREQOS_COMPLETED=
 fireqos_exit() {
@@ -86,6 +268,20 @@ error() {
 
 warning() {
 	echo >&2 -e ":	\e[1;31mWARNING! $* \e[0m"
+}
+
+runcmd() {
+	local debug=$FIREQOS_DEBUG
+	[ $FIREQOS_DEBUG_CMD -eq 1 ] && local debug=1
+
+	if [ $debug -eq 1 ]
+	then
+		echo -e -n "#\e[33m"
+		printf " %q" "${@}"
+		echo -e "\e[0m"
+	fi
+	
+	"${@}"
 }
 
 tc() {
@@ -795,14 +991,14 @@ interface() {
 		interface_realdev=fireqos-ifb$ifb_interfaces
 		interface_realdev=${interface_realdev:0:15}
 		
-		ip link add dev $interface_realdev name $interface_realdev type ifb
+		runcmd ip link add dev $interface_realdev name $interface_realdev type ifb
 		if [ $? -ne 0 ]
 		then
 			error "Cannot add IFB device $interface_realdev."
 			exit 1
 		fi
 		
-		ip link set dev $interface_realdev up
+		runcmd ip link set dev $interface_realdev up
 		if [ $? -ne 0 ]
 		then
 			error "Cannot bring device $interface_realdev UP."
@@ -1853,19 +2049,19 @@ match() {
 }
 
 clear_everything() {
-	local qdisc=
-	for qdisc in `cat /proc/net/dev | grep ':' |  cut -d ':' -f 1 | sed "s/ //g" | grep -v "^lo$"`
+	local iface=
+	for iface in `cat /proc/net/dev | grep ':' |  cut -d ':' -f 1 | sed "s/ //g" | grep -v "^lo$"`
 	do
 		# remove existing qdisc from all devices
-		tc ignore-error qdisc del dev $qdisc ingress >/dev/null 2>&1
-		tc ignore-error qdisc del dev $qdisc root >/dev/null 2>&1
+		tc ignore-error qdisc del dev $iface ingress >/dev/null 2>&1
+		tc ignore-error qdisc del dev $iface root >/dev/null 2>&1
 	done
 	
 	# remove all FireQOS IFB devices
 	local iface=
-	for iface in `ip link show | grep fireqos-ifb | cut -d ':' -f 2 | sed "s/ //g"`
+	for iface in `cat /proc/net/dev | grep ':' |  cut -d ':' -f 1 | sed "s/ //g" | grep "^fireqos-ifb"`
 	do
-		ip link del dev $iface name $iface type ifb >/dev/null 2>&1
+		runcmd ip link del dev $iface name $iface type ifb >/dev/null 2>&1
 	done
 	
 	if [ -d $FIREQOS_DIR ]
@@ -2101,9 +2297,9 @@ FIREQOS_MONITOR_HANDLE=
 remove_monitor() {
 	if [ ! -z "$FIREQOS_MONITOR_DEV" -a ! -z "$FIREQOS_MONITOR_HANDLE" ]
 	then
-		tc ignore-error filter del dev $FIREQOS_MONITOR_DEV parent $FIREQOS_MONITOR_HANDLE protocol all prio 1 u32 match u32 0 0 action mirred egress mirror dev fireqos_monitor
-		ip link set dev fireqos_monitor down
-		ip link del dev fireqos_monitor name fireqos_monitor type dummy
+		tc ignore-error filter del dev $FIREQOS_MONITOR_DEV parent $FIREQOS_MONITOR_HANDLE protocol all prio 1 u32 match u32 0 0 flowid 1:9999 action mirred egress mirror dev fireqos_monitor
+		runcmd ip link set dev fireqos_monitor down
+		runcmd ip link del dev fireqos_monitor name fireqos_monitor type dummy
 		echo "FireQOS: monitor removed from device '$FIREQOS_MONITOR_DEV', qdisc '$FIREQOS_MONITOR_HANDLE'."
 		FIREQOS_MONITOR_DEV=
 		FIREQOS_MONITOR_HANDLE=
@@ -2131,12 +2327,12 @@ add_monitor() {
 	trap remove_monitor EXIT
 	trap remove_monitor SIGHUP
 	
-	modprobe dummy numdummies=0 >/dev/null 2>&1
-	ip link del dev fireqos_monitor name fireqos_monitor type dummy >/dev/null 2>&1
-	ip link add dev fireqos_monitor name fireqos_monitor type dummy || exit 1
-	ip link set dev fireqos_monitor up || exit 1
+	runcmd modprobe dummy numdummies=0 >/dev/null 2>&1
+	runcmd ip link del dev fireqos_monitor name fireqos_monitor type dummy >/dev/null 2>&1
+	runcmd ip link add dev fireqos_monitor name fireqos_monitor type dummy || exit 1
+	runcmd ip link set dev fireqos_monitor up || exit 1
 	
-	tc filter add dev $FIREQOS_MONITOR_DEV parent $FIREQOS_MONITOR_HANDLE protocol all prio 1 u32 match u32 0 0 action mirred egress mirror dev fireqos_monitor
+	tc filter add dev $FIREQOS_MONITOR_DEV parent $FIREQOS_MONITOR_HANDLE protocol all prio 1 u32 match u32 0 0 flowid 1:9999 action mirred egress mirror dev fireqos_monitor
 	
 	echo "FireQOS: monitor added to device '$FIREQOS_MONITOR_DEV', qdisc '$FIREQOS_MONITOR_HANDLE'."
 }
@@ -2201,6 +2397,27 @@ monitor() {
 	
 	shift 2
 	
+	cat <<WARNING
+ IMPORTANT
+ Currently, tcpdump mode has 2 issues:
+ 
+ 1. The packets monitored get lost.
+    FireQOS sets up monitoring in a way that packets should not be lost.
+    However they are.
+ 
+ 2. When monitoring the packets sent by a PPPoE device, tcpdump sees
+    the packets encapsulated in something that is not PPPoE or Ethernet frames.
+    Therefore they cannot be decoded by tcpdump, wireshark or other tools.
+    
+ Until these issues get fixed, please do not use tcpdump mode.
+ 
+ If you still want to try it, ALTHOUGH PACKETS MOST PROBABLY WILL BE LOST,
+ press ENTER. Otherwise, Control-C to cancel.
+WARNING
+	
+	read
+	
+	FIREQOS_DEBUG=1
 	echo "Monitoring qdisc '$foundmonitor' for class '$foundname2' ($foundflow)..."
 	add_monitor "$interface_realdev" "$foundmonitor" || exit 1
 	
@@ -2335,7 +2552,7 @@ trap fireqos_exit SIGHUP
 clear_everything
 
 # load the IFB kernel module
-modprobe ifb numifbs=0 >/dev/null 2>&1
+runcmd modprobe ifb numifbs=0 >/dev/null 2>&1
 
 # Run the configuration
 enable -n trap					# Disable the trap buildin shell command.
