@@ -942,6 +942,12 @@ interface_close() {
 	class_matchid=1
 	parent_stack_size=0
 	
+	class_name=
+	class_filters_flowid=
+	class_classid=
+	class_major=
+	class_group=0
+	
 	return 0
 }
 
@@ -1103,7 +1109,7 @@ interface() {
 		# We then shape the traffic in the output of ifb
 		tc qdisc add dev $interface_dev ingress
 		
-		tc filter add dev $interface_dev parent ffff: protocol all prio 1 u32 match u32 0 0 action mirred egress redirect dev $interface_realdev
+		tc filter add dev $interface_dev parent ffff: protocol all prio 39999 u32 match u32 0 0 action mirred egress redirect dev $interface_realdev
 	fi
 	
 	interface_classid="$interface_major:1"
@@ -1114,6 +1120,10 @@ interface() {
 	interface_filters_to="$interface_major:0"
 	
 	parent_push interface
+	
+	class_ipv4=$interface_ipv4
+	class_ipv6=$interface_ipv6
+	class_name=root
 	
 	[ -f "${FIREQOS_DIR}/${interface_name}.conf" ] && rm "${FIREQOS_DIR}/${interface_name}.conf"
 	cat >"${FIREQOS_DIR}/${interface_name}.conf" <<EOF
@@ -1575,6 +1585,10 @@ match() {
 				shift
 				;;
 			
+			root)
+				local at="root"
+				;;
+			
 			syn|syns)
 				local syn=1
 				;;
@@ -1695,13 +1709,11 @@ match() {
 	[ ! "$ip" = "any" -a ! "$src" = "any" ]		&& error "Cannot match 'ip' and 'src'." && exit 1
 	[ ! "$ip" = "any" -a ! "$dst" = "any" ]		&& error "Cannot match 'ip' and 'dst'." && exit 1
 	
-	if [ -z "$class" ]
+	local device=$interface_realdev
+	local parent="$parent_filters_to"
+	if [ -z "$flowid" ]
 	then
-		error "No class name given for match with priority $prio."
-		exit 1
-	elif [ -z "$flowid" ]
-	then
-		error "No flowid given for match with priority $prio."
+		error "Please set 'flowid' for match statements above all classes."
 		exit 1
 	elif [ ! "$class" = "$class_name" ]
 	then
@@ -1725,7 +1737,6 @@ match() {
 		fi
 	fi
 	
-	local parent="$parent_filters_to"
 	if [ ! -z "$at" ]
 	then
 		case "$at" in
@@ -2026,7 +2037,7 @@ match() {
 											
 											[ ! -z "$u32" -a ! -z "$mark_arg" ] && local mark_arg="and $mark_arg"
 											
-											tc filter add dev $interface_realdev parent $parent protocol $tcproto_arg prio $prio $u32 $proto_arg $ip_arg $src_arg $dst_arg $port_arg $sport_arg $dport_arg $tos_arg $ack_arg $syn_arg $mark_arg $custom flowid $flowid
+											tc filter add dev $device parent $parent protocol $tcproto_arg prio $prio $u32 $proto_arg $ip_arg $src_arg $dst_arg $port_arg $sport_arg $dport_arg $tos_arg $ack_arg $syn_arg $mark_arg $custom flowid $flowid
 											
 										done # mark
 									done # tos
