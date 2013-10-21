@@ -208,7 +208,7 @@
         </note>
       </listitem>
     </varlistentry>
-    <varlistentry><term>debug</term>
+    <varlistentry id="firehol-opt-debug"><term>debug</term>
       <listitem>
         <para>
           Parses the configuration file but instead of activating it,
@@ -217,7 +217,7 @@
         </para>
       </listitem>
     </varlistentry>
-    <varlistentry><term>explain</term>
+    <varlistentry id="firehol-opt-explain"><term>explain</term>
       <listitem>
         <para>
           Enters an interactive mode where <application>FireHOL</application>
@@ -252,7 +252,7 @@
         </para>
       </listitem>
     </varlistentry>
-    <varlistentry><term>helpme</term>
+    <varlistentry id="firehol-opt-helpme"><term>helpme</term>
                   <term>wizard</term>
       <listitem>
         <para>

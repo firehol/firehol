@@ -253,7 +253,7 @@ router lan2lan inface eth0 outface eth1
   </note>
 </refsect1>
 
-<refsect1><title>Definitions</title>
+<refsect1 id="firehol.conf-commands"><title>Definitions</title>
   <simplelist type="vert">
     <member><xref linkend="def-interface"/></member>
     <member><xref linkend="def-router"/></member>

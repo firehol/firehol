@@ -35,12 +35,12 @@
 <refsynopsisdiv>
 
   <para>Common</para>
-  <cmdsynopsis>
+  <cmdsynopsis id="rule-params-src">
     <command>src</command>
     <arg choice="opt">not</arg>
     <arg choice="plain"><replaceable>host</replaceable></arg>
   </cmdsynopsis>
-  <cmdsynopsis>
+  <cmdsynopsis id="rule-params-dst">
     <command>dst</command>
     <arg choice="opt">not</arg>
     <arg choice="plain"><replaceable>host</replaceable></arg>
@@ -89,12 +89,12 @@
   </cmdsynopsis>
 
   <para>Router Only</para>
-  <cmdsynopsis>
+  <cmdsynopsis id="rule-params-inface">
     <command>inface</command>
     <arg choice="opt">not</arg>
     <arg choice="plain"><replaceable>interface</replaceable></arg>
   </cmdsynopsis>
-  <cmdsynopsis>
+  <cmdsynopsis id="rule-params-outface">
     <command>outface</command>
     <arg choice="opt">not</arg>
     <arg choice="plain"><replaceable>interface</replaceable></arg>
@@ -128,7 +128,7 @@
     <arg choice="plain">"<replaceable>log text</replaceable>"</arg>
     <arg choice="opt">level <replaceable>loglevel</replaceable></arg>
   </cmdsynopsis>
-  <cmdsynopsis>
+  <cmdsynopsis id="rule-params-loglimit">
     <command>loglimit</command>
     <arg choice="plain">"<replaceable>log text</replaceable>"</arg>
     <arg choice="opt">level <replaceable>loglevel</replaceable></arg>

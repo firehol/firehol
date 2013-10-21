@@ -126,7 +126,8 @@ UNMATCHED_FORWARD_POLICY="REJECT"
         </para>
       </listitem>
     </varlistentry>
-    <varlistentry><term><envar>FIREHOL_INPUT_ACTIVATION_POLICY</envar></term>
+    <varlistentry id="firehol-variables-activation">
+                  <term><envar>FIREHOL_INPUT_ACTIVATION_POLICY</envar></term>
                   <term><envar>FIREHOL_OUTPUT_ACTIVATION_POLICY</envar></term>
                   <term><envar>FIREHOL_FORWARD_ACTIVATION_POLICY</envar></term>
       <listitem>
