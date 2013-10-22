@@ -882,17 +882,13 @@ FIREHOL_SERVICES_API="1"
 server_AH_ports="51/any"
 client_AH_ports="any"
 
-# Check http://wiki.zmanda.com/index.php/Configuration_with_iptables
 server_amanda_ports="udp/10080"
 client_amanda_ports="default"
 helper_amanda="amanda"
 
-# Debian package proxy
 server_aptproxy_ports="tcp/9999"
 client_aptproxy_ports="default"
 
-# APC UPS Server (these ports have to be accessible on all machines NOT
-# directly connected to the UPS (e.g. the slaves)
 server_apcupsd_ports="tcp/6544"
 client_apcupsd_ports="default"
 
@@ -923,15 +919,12 @@ client_dcpp_ports="default"
 server_dns_ports="udp/53 tcp/53"
 client_dns_ports="any"
 
-# DHCP Relaying (server is the relay server which behaves like a client
-# towards the real DHCP Server); I'm not sure about this one...
 server_dhcprelay_ports="udp/67"
 client_dhcprelay_ports="67"
 
 server_dict_ports="tcp/2628"
 client_dict_ports="default"
 
-# DISTCC is the distributed gcc for Gentoo
 server_distcc_ports="tcp/3632"
 client_distcc_ports="default"
 
@@ -952,18 +945,12 @@ client_ftp_ports="default"
 helper_ftp="ftp"
 ALL_SHOULD_ALSO_RUN="${ALL_SHOULD_ALSO_RUN} ftp"
 
-# giFT modules' ports
-# Gnutella  = tcp/4302
-# FastTrack = tcp/1214
-# OpenFT    = tcp/2182 tcp/2472
 server_gift_ports="tcp/4302 tcp/1214 tcp/2182 tcp/2472"
 client_gift_ports="any"
 
-# giFT User Interface connections
 server_giftui_ports="tcp/1213"
 client_giftui_ports="default"
 
-# gkrellmd (from gkrellm.net)
 server_gkrellmd_ports="tcp/19150"
 client_gkrellmd_ports="default"
 
@@ -975,7 +962,6 @@ server_h323_ports="tcp/1720"
 client_h323_ports="default"
 helper_h323="h323"
 
-# We assume heartbeat uses ports in the range 690 to 699
 server_heartbeat_ports="udp/690:699"
 client_heartbeat_ports="default"
 
@@ -1001,7 +987,6 @@ server_icmp_ports="icmp/any"
 client_icmp_ports="any"
 # ALL_SHOULD_ALSO_RUN="${ALL_SHOULD_ALSO_RUN} icmp"
 
-# Squid' ICP port
 server_icp_ports="udp/3130"
 client_icp_ports="3130"
 
@@ -1019,11 +1004,9 @@ client_irc_ports="default"
 helper_irc="irc"
 ALL_SHOULD_ALSO_RUN="${ALL_SHOULD_ALSO_RUN} irc"
 
-# for IPSec Key negotiation
 server_isakmp_ports="udp/500"
 client_isakmp_ports="any"
 
-# IPSec Nat Traversal
 server_ipsecnatt_ports="udp/4500"
 client_ipsecnatt_ports="any" 
 
@@ -1048,15 +1031,15 @@ client_lpd_ports="any"
 server_microsoft_ds_ports="tcp/445"
 client_microsoft_ds_ports="default"
 
-server_ms_ds_ports="tcp/445"
-client_ms_ds_ports="default"
-
 server_mms_ports="tcp/1755 udp/1755"
 client_mms_ports="default"
 helper_mms="mms"
 # this will produce warnings on most distribution
 # because the mms module is not there:
 # ALL_SHOULD_ALSO_RUN="${ALL_SHOULD_ALSO_RUN} mms"
+
+server_ms_ds_ports="${server_microsoft_ds_ports}"
+client_ms_ds_ports="${client_microsoft_ds_ports}"
 
 server_msnp_ports="tcp/6891"
 client_msnp_ports="default"
@@ -1067,7 +1050,6 @@ client_msn_ports="default"
 server_mysql_ports="tcp/3306"
 client_mysql_ports="default"
 
-# Veritas NetBackup
 server_netbackup_ports="tcp/13701 tcp/13711 tcp/13720 tcp/13721 tcp/13724 tcp/13782 tcp/13783"
 client_netbackup_ports="any"
 
@@ -1089,19 +1071,15 @@ client_nntps_ports="default"
 server_ntp_ports="udp/123 tcp/123"
 client_ntp_ports="any"
 
-# Network UPS Tools
 server_nut_ports="tcp/3493 udp/3493"
 client_nut_ports="default"
 
-# NoMachine's NX server
 server_nxserver_ports="tcp/5000:5200"
 client_nxserver_ports="default"
 
-# OpenVPN
 server_openvpn_ports="tcp/1194 udp/1194"
 client_openvpn_ports="default"
 
-# Oracle database
 server_oracle_ports="tcp/1521"
 client_oracle_ports="default"
 
@@ -1126,7 +1104,6 @@ client_pptp_ports="default"
 helper_pptp="pptp proto_gre"
 # ALL_SHOULD_ALSO_RUN="${ALL_SHOULD_ALSO_RUN} pptp"
 
-# Privacy Proxy
 server_privoxy_ports="tcp/8118"
 client_privoxy_ports="default"
 
@@ -1180,7 +1157,6 @@ client_snmp_ports="default"
 server_snmptrap_ports="udp/162"
 client_snmptrap_ports="any"
 
-# Nagios NRPE
 server_nrpe_ports="tcp/5666"
 client_nrpe_ports="default"
 
@@ -1190,11 +1166,9 @@ client_ssh_ports="default"
 server_stun_ports="udp/3478 udp/3479"
 client_stun_ports="any"
 
-# SMTP over SSL/TLS submission
 server_submission_ports="tcp/587"
 client_submission_ports="default"
 
-# Sun RCP is an alias for service portmap
 server_sunrpc_ports="${server_portmap_ports}"
 client_sunrpc_ports="${client_portmap_ports}"
 
