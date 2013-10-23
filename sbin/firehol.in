@@ -10,7 +10,6 @@
 #
 # config: /etc/firehol/firehol.conf
 #
-#
 FIREHOL_SCRIPT_VERSION=2.0.0-pre1
 
 # Make sure only root can run us.
@@ -25,6 +24,7 @@ fi
 # Remember who you are.
 FIREHOL_FILE="${0}"
 FIREHOL_DEFAULT_WORKING_DIRECTORY="${PWD}"
+
 
 # ------------------------------------------------------------------------------
 # XXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXX
@@ -150,6 +150,7 @@ which_cmd GREP_CMD grep
 which_cmd HEAD_CMD head
 which_cmd IPTABLES_CMD iptables
 which_cmd IPTABLES_SAVE_CMD iptables-save
+which_cmd IPTABLES_RESTORE_CMD iptables-restore
 which_cmd LSMOD_CMD lsmod
 which_cmd MKDIR_CMD mkdir
 which_cmd MV_CMD mv
@@ -200,6 +201,32 @@ zcat_cmd() {
 	
 	return 1
 }
+
+# Fetch a URL and output it to the standard output.
+wget_cmd() {
+	local url="${1}"
+	
+	require_cmd wget curl
+	
+	if [ ! -z "${WGET_CMD}" ]
+	then
+		${WGET_CMD} -O - "${url}" 2>/dev/null
+		return $?
+	elif [ ! -z "${CURL_CMD}" ]
+	then
+		${CURL_CMD} -s "${url}"
+		return $?
+	fi
+	
+	error "Cannot use either 'wget' or 'curl' to fetch '${url}'."
+	return 1
+}
+
+# Make sure our generated files cannot be accessed by anyone else.
+umask 077
+
+# Be nice on production environments
+${RENICE_CMD} 10 $$ >/dev/null 2>/dev/null
 
 # Concurrent run control
 FIREHOL_LOCK_FILE="/var/run/firehol.lck"
@@ -302,7 +329,7 @@ firehol_exit() {
 	then
 		echo
 		echo -n $"FireHOL: Restoring old firewall:"
-		iptables-restore <"${FIREHOL_SAVED}"
+		${IPTABLES_RESTORE_CMD} <"${FIREHOL_SAVED}"
 		if [ $? -eq 0 ]
 		then
 			local restored="OK"
@@ -418,8 +445,11 @@ then
 		exit 1
 	fi
 fi
-"${MKDIR_CMD}" "${FIREHOL_DIR}"				|| exit 1
+"${MKDIR_CMD}" "${FIREHOL_DIR}"					|| exit 1
 "${MKDIR_CMD}" "${FIREHOL_CHAINS_DIR}"			|| exit 1
+"${MKDIR_CMD}" "${FIREHOL_DIR}/fast"			|| exit 1
+"${MKDIR_CMD}" "${FIREHOL_DIR}/fast/tables"		|| exit 1
+
 
 # prepare the file that will hold all modules to be loaded.
 # this is needed only when we are going to save the firewall
@@ -668,6 +698,10 @@ FIREHOL_LOAD_KERNEL_MODULES=1
 # If set to 1, FireHOL will output the commands of the configuration file
 # with variables expanded.
 FIREHOL_CONF_SHOW=1
+
+# If set to 1, FireHOL will attempt to load the firewall with
+# iptables-restore. This is beta.
+FIREHOL_FAST_ACTIVATION=0
 
 
 # ------------------------------------------------------------------------------
@@ -2035,16 +2069,6 @@ EOF
 
 
 # ------------------------------------------------------------------------------
-
-# The caller may need just our services definitions
-if [ "$1" = "gimme-the-services-defs" ]
-then
-	return 0
-	exit 1
-fi
-
-
-# ------------------------------------------------------------------------------
 # XXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXX
 # ------------------------------------------------------------------------------
 #
@@ -2094,6 +2118,16 @@ do
 done
 cd "${FIREHOL_DEFAULT_WORKING_DIRECTORY}" || exit 1
 
+# ------------------------------------------------------------------------------
+
+# The caller may need just our services definitions
+if [ "$1" = "gimme-the-services-defs" ]
+then
+	return 0
+	exit 1
+fi
+
+
 
 # ------------------------------------------------------------------------------
 # XXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXX
@@ -2104,26 +2138,6 @@ cd "${FIREHOL_DEFAULT_WORKING_DIRECTORY}" || exit 1
 # ------------------------------------------------------------------------------
 # XXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXX
 # ------------------------------------------------------------------------------
-
-# Fetch a URL and output it to the standard output.
-firehol_wget() {
-	local url="${1}"
-	
-	require_cmd wget curl
-	
-	if [ ! -z "${WGET_CMD}" ]
-	then
-		${WGET_CMD} -O - "${url}" 2>/dev/null
-		return $?
-	elif [ ! -z "${CURL_CMD}" ]
-	then
-		${CURL_CMD} -s "${url}"
-		return $?
-	fi
-	
-	error "Cannot use either 'wget' or 'curl' to fetch '${url}'."
-	return 1
-}
 
 FIREHOL_ECN_SHAME_URL="http://urchin.earth.li/cgi-bin/ecn.pl?output=ip"
 ecn_shame() {
@@ -2143,7 +2157,7 @@ ecn_shame() {
 		
 		local tmp="${FIREHOL_DIR}/ecn_shame.ips"
 		
-		firehol_wget "${FIREHOL_ECN_SHAME_URL}" | ${SORT_CMD} | ${UNIQ_CMD} >"${tmp}"
+		wget_cmd "${FIREHOL_ECN_SHAME_URL}" | ${SORT_CMD} | ${UNIQ_CMD} >"${tmp}"
 		if [ $? -ne 0 -o ! -s "${tmp}" ]
 		then
 			softwarning "Cannot fetch '${FIREHOL_ECN_SHAME_URL}'."
@@ -2421,20 +2435,20 @@ blacklist() {
 		
 		# Blacklist INPUT unidirectional
 		iptables -t filter -N BL_IN_UNI	# INPUT
-		iptables -A BL_IN_UNI -m state --state NEW -j DROP
+		iptables -A BL_IN_UNI -m conntrack --ctstate NEW -j DROP
 		iptables -A BL_IN_UNI -j DROP
 		
 		# No need for OUTPUT/FORWARD unidirectional
 		
 		# Blacklist INPUT bidirectional
 		iptables -t filter -N BL_IN_BI	# INPUT
-		iptables -A BL_IN_BI -m state --state NEW -j DROP
+		iptables -A BL_IN_BI -m conntrack --ctstate NEW -j DROP
 		iptables -A BL_IN_BI -j DROP
 		
 		# Blacklist OUTPUT/FORWARD bidirectional
 		iptables -t filter -N BL_OUT_BI	# OUTPUT and FORWARD
-		iptables -A BL_OUT_BI -m state --state NEW -p tcp -j REJECT #--reject-with tcp-reset
-		iptables -A BL_OUT_BI -m state --state NEW -j REJECT --reject-with icmp-host-unreachable
+		iptables -A BL_OUT_BI -m conntrack --ctstate NEW -p tcp -j REJECT #--reject-with tcp-reset
+		iptables -A BL_OUT_BI -m conntrack --ctstate NEW -j REJECT --reject-with icmp-host-unreachable
 		iptables -A BL_OUT_BI -j REJECT
 		
 		blacklist_chain=1
@@ -2635,66 +2649,57 @@ tcpmss() {
 	
 	set_work_function -ne "Initializing $FUNCNAME"
 	
-	local what_to_do=error
-	if [ "${work_cmd}" = "router" ]
+	local value="$1"
+	local iface="$2"
+	
+	if [ -z "$iface" ]
 	then
-		if [ -z "${work_outface}" ]
+		if [ ! -z "${work_cmd}" ]
 		then
-			local what_to_do=public
+			local iface="${work_outface}"
+			if [ -z "$iface" ]
+			then
+				error "$FUNCNAME cannot find the interfaces to setup. Did you set an outface?"
+				return 1
+			fi
+			
 		else
-			local what_to_do=interface
+			local iface="all"
 		fi
-	elif [ -z "${work_cmd}" ]
-	then
-		local what_to_do=public
-	else
-		local what_to_do=error
 	fi
 	
-	# work only if this helper is called before any primary command
-	# or within routers.
-	if [ "${what_to_do}" = "public" ]
+	local target=
+	case "$value" in
+		auto)
+			local target="-j TCPMSS --clamp-mss-to-pmtu"
+			;;
+		
+		[0-9]*)
+			local target="-j TCPMSS --set-mss $value"
+			;;
+	
+		*)
+			;;
+	esac
+	
+	if [ -z "$target" ]
+	then
+		error "$FUNCNAME requires either the word 'auto' or a numeric argument for mss."
+		return 1
+	fi
+	
+	if [ "$iface" = "all" ]
 	then
 		set_work_function "Initializing tcpmss for all interfaces"
 		
-		case $1 in
-			auto)
-				iptables -t mangle -A POSTROUTING -p tcp --tcp-flags SYN,RST SYN -j TCPMSS --clamp-mss-to-pmtu
-				;;
-			
-			[0-9]*)
-				iptables -t mangle -A POSTROUTING -p tcp --tcp-flags SYN,RST SYN -j TCPMSS --set-mss $1
-				;;
-		
-			*)
-				error "$FUNCNAME requires either the word 'auto' or a numeric argument."
-				return 1
-				;;
-		esac
-	elif [ "${what_to_do}" = "interface" ]
-	then
+		iptables -t mangle -A POSTROUTING -p tcp --tcp-flags SYN,RST SYN $target
+	else
 		local f=
-		for f in ${work_outface}
+		for f in $iface
 		do
 			set_work_function "Initializing tcpmss for interface '${f}'"
-			case $1 in
-				auto)
-					iptables -t mangle -A POSTROUTING -o ${f} -p tcp --tcp-flags SYN,RST SYN -j TCPMSS --clamp-mss-to-pmtu
-					;;
-					
-				[0-9]*)
-					iptables -t mangle -A POSTROUTING -o ${f} -p tcp --tcp-flags SYN,RST SYN -j TCPMSS --set-mss $1
-					;;
-				
-				*)
-					error "$FUNCNAME requires either the word 'auto' or a numeric argument."
-					return 1
-					;;
-			esac
+			iptables -t mangle -A POSTROUTING -o ${f} -p tcp --tcp-flags SYN,RST SYN $target
 		done
-	else
-		error "$FUNCNAME cannot be used in '${work_cmd}'. Put it before any '${work_cmd}' definition or in 'router' definitions."
-		return 1
 	fi
 	
 	return 0
@@ -2849,12 +2854,57 @@ runcmd() {
 	return 0
 }
 
+# XXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXX
+# fast activation
+# in fast activation mode we catch all /sbin/iptables commands and instead of
+# executing them, we generate an iptables-restore compatible file.
+
+iptables_fast() {
+	local t=filter
+	
+	if [ "z$1" = "z-t" ]
+	then
+		local t="$2"
+		shift 2
+	fi
+	
+	case "$1" in
+		-P)	echo ":$2 $3 [0:0]" >>$FIREHOL_DIR/fast/table.${t}.policy
+			;;
+		
+		-N)	echo ":$2 - [0:0]" >>$FIREHOL_DIR/fast/table.${t}.chains
+			;;
+		
+		-A)	${CAT_CMD} <<EOFA >>$FIREHOL_DIR/fast/table.${t}.rules
+${@}
+EOFA
+			;;
+			
+		-I)	${CAT_CMD} <<EOFI >>$FIREHOL_DIR/fast/table.${t}.rules
+${@}
+EOFI
+			;;
+		
+		# if it is none of the above, we execute it normally.
+		*)	echo "Ignoring command 'iptables -t ${t} ${@}'"
+			;;
+	esac
+	
+	test ! -f $FIREHOL_DIR/fast/tables/${t} && ${TOUCH_CMD} $FIREHOL_DIR/fast/tables/${t}
+	return 0
+}
+
 FIREHOL_COMMAND_COUNTER=0
 iptables() {
-#       work_realcmd_helper ${FUNCNAME} "$@"
+	[ $firewall_policy_applied -eq 0 ] && firewall_policy
 	
-	postprocess "${IPTABLES_CMD}" "$@"
-	FIREHOL_COMMAND_COUNTER=$[FIREHOL_COMMAND_COUNTER + 1]
+	if [ $FIREHOL_FAST_ACTIVATION -eq 1 ]
+	then
+		iptables_fast "${@}"
+	else
+		postprocess "${IPTABLES_CMD}" "$@"
+		FIREHOL_COMMAND_COUNTER=$[FIREHOL_COMMAND_COUNTER + 1]
+	fi
 	
 	return 0
 }
@@ -2967,7 +3017,7 @@ protection() {
 				;;
 				
 			invalid|INVALID)
-				iptables -A "${in}_${work_name}" -m state --state INVALID -j DROP				|| return 1
+				iptables -A "${in}_${work_name}" -m conntrack --ctstate INVALID -j DROP				|| return 1
 				;;
 				
 			fragments|FRAGMENTS)
@@ -3155,11 +3205,11 @@ check_kernel_config() {
 	eval local kcfg1="\$${1}"
 	
 	# without _IP_
-	local t=`echo ${1} | sed "s/_IP_//g"`
+	local t=`echo ${1} | ${SED_CMD} "s/_IP_//g"`
 	eval local kcfg2="\$${t}"
 	
 	# _CONNTRACK_ as _CT_
-	local t=`echo ${1} | sed "s/_CONNTRACK_/_CT_/g"`
+	local t=`echo ${1} | ${SED_CMD} "s/_CONNTRACK_/_CT_/g"`
 	eval local kcfg3="\$${t}"
 	
 	# prefer the kernel 2.6.20+ way
@@ -3644,7 +3694,7 @@ rule_action_param() {
 								
 								# first, if the traffic is not a NEW connection, allow it.
 								# doing this first will speed up normal traffic.
-								iptables ${table} -A "${accept_limit_chain}" -m state ! --state NEW -j ACCEPT
+								iptables ${table} -A "${accept_limit_chain}" -m conntrack ! --ctstate NEW -j ACCEPT
 								
 								# accept NEW connections within the given limits.
 								iptables ${table} -A "${accept_limit_chain}" -m limit --limit "${freq}" --limit-burst "${burst}" -j ACCEPT
@@ -3714,7 +3764,7 @@ rule_action_param() {
 								
 								# first, if the traffic is not a NEW connection, allow it.
 								# doing this first will speed up normal traffic.
-								iptables ${table} -A "${accept_recent_chain}" -m state ! --state NEW -j ACCEPT
+								iptables ${table} -A "${accept_recent_chain}" -m conntrack ! --ctstate NEW -j ACCEPT
 								
 								# accept NEW connections within the given limits.
 								iptables ${table} -A "${accept_recent_chain}" -m recent --set --name "${name}"
@@ -3748,7 +3798,7 @@ rule_action_param() {
 							iptables ${table} -N "${name}"
 							touch "${FIREHOL_CHAINS_DIR}/${name}"
 							
-							iptables -A "${name}" -m state --state ESTABLISHED -j ACCEPT
+							iptables -A "${name}" -m conntrack --ctstate ESTABLISHED -j ACCEPT
 							
 							# knockd (http://www.zeroflux.org/knock/)
 							# will create more rules inside this chain to match NEW packets.
@@ -4108,7 +4158,7 @@ rule() {
 						srctypenot="!"
 					fi
 					test ${softwarnings} -eq 1 -a ! "${srctype}" = "" && softwarning "Overwritting param: srctype '${srctype}' becomes '${1}'"
-					srctype="`echo ${1} | sed "s|^ \+||" | sed "s| \+\$||" | sed "s| \+|,|g" | tr a-z A-Z`"
+					srctype="`echo ${1} | ${SED_CMD} -e "s|^ \+||" -e "s| \+\$||" -e "s| \+|,|g" | ${TR_CMD} a-z A-Z`"
 				else
 					dsttypenot=
 					if [ "${1}" = "not" -o "${1}" = "NOT" ]
@@ -4117,7 +4167,7 @@ rule() {
 						dsttypenot="!"
 					fi
 					test ${softwarnings} -eq 1 -a ! "${dsttype}" = "" && softwarning "Overwritting param: dsttype '${dsttype}' becomes '${1}'"
-					dsttype="`echo ${1} | sed "s|^ \+||" | sed "s| \+\$||" | sed "s| \+|,|g" | tr a-z A-Z`"
+					dsttype="`echo ${1} | ${SED_CMD} -e "s|^ \+||" -e "s| \+\$||" -e "s| \+|,|g" | ${TR_CMD} a-z A-Z`"
 				fi
 				shift
 				;;
@@ -4133,7 +4183,7 @@ rule() {
 						dsttypenot="!"
 					fi
 					test ${softwarnings} -eq 1 -a ! "${dsttype}" = "" && softwarning "Overwritting param: dsttype '${dsttype}' becomes '${1}'"
-					dsttype="`echo ${1} | sed "s|^ \+||" | sed "s| \+\$||" | sed "s| \+|,|g" | tr a-z A-Z`"
+					dsttype="`echo ${1} | ${SED_CMD} -e "s|^ \+||" -e "s| \+\$||" -e "s| \+|,|g" | ${TR_CMD} a-z A-Z`"
 				else
 					srctypenot=
 					if [ "${1}" = "not" -o "${1}" = "NOT" ]
@@ -4142,7 +4192,7 @@ rule() {
 						srctypenot="!"
 					fi
 					test ${softwarnings} -eq 1 -a ! "${srctype}" = "" && softwarning "Overwritting param: srctype '${srctype}' becomes '${1}'"
-					srctype="`echo ${1} | sed "s|^ \+||" | sed "s| \+\$||" | sed "s| \+|,|g" | tr a-z A-Z`"
+					srctype="`echo ${1} | ${SED_CMD} -e "s|^ \+||" -e "s| \+\$||" -e "s| \+|,|g" | ${TR_CMD} a-z A-Z`"
 				fi
 				shift
 				;;
@@ -4548,7 +4598,7 @@ rule() {
 				then
 					test ${softwarnings} -eq 1 -a ! -z "${log}" && softwarning "Overwritting param: log '${log}/${logtxt}' becomes 'normal/${2}'"
 					log=normal
-					logtxt="${2}"
+					logtxt="`echo ${2} | ${TR_CMD} " " "_"`"
 				fi
 				shift 2
 				if [ "${1}" = "level" ]
@@ -4565,7 +4615,7 @@ rule() {
 				then
 					test ${softwarnings} -eq 1 -a ! -z "${log}" && softwarning "Overwritting param: log '${log}/${logtxt}' becomes 'limit/${2}'"
 					log=limit
-					logtxt="${2}"
+					logtxt="`echo ${2} | ${TR_CMD} " " "_"`"
 				fi
 				shift 2
 				if [ "${1}" = "level" ]
@@ -5265,7 +5315,8 @@ rule() {
 	local -a state_arg=()
 	if [ ! -z "${state}" ]
 	then
-		local -a state_arg=("-m" "state" ${statenot} "--state" "${state}")
+		# local -a state_arg=("-m" "state" ${statenot} "--state" "${state}")
+		local -a state_arg=("-m" "conntrack" ${statenot} "--ctstate" "${state}")
 	fi
 	
 	# limit
@@ -5754,6 +5805,7 @@ shift
 case "${arg}" in
 	explain)
 		test ! -z "${1}" && softwarning "Arguments after parameter '${arg}' are ignored."
+		firewall_policy_applied=1
 		FIREHOL_MODE="EXPLAIN"
 		;;
 	
@@ -5871,8 +5923,8 @@ case "${arg}" in
 				
 				if [ ! -z "${ssh_src}" ]
 				then
-					${IPTABLES_CMD} -t "${t}" -A "${c}" -p tcp -s "${ssh_src}" --sport "${ssh_sport}" --dport "${ssh_dport}" -m state --state ESTABLISHED -j ACCEPT
-					${IPTABLES_CMD} -t "${t}" -A "${c}" -p tcp -d "${ssh_src}" --dport "${ssh_sport}" --sport "${ssh_dport}" -m state --state ESTABLISHED -j ACCEPT
+					${IPTABLES_CMD} -t "${t}" -A "${c}" -p tcp -s "${ssh_src}" --sport "${ssh_sport}" --dport "${ssh_dport}" -m conntrack --ctstate ESTABLISHED -j ACCEPT
+					${IPTABLES_CMD} -t "${t}" -A "${c}" -p tcp -d "${ssh_src}" --dport "${ssh_sport}" --sport "${ssh_dport}" -m conntrack --ctstate ESTABLISHED -j ACCEPT
 				fi
 				${IPTABLES_CMD} -t "${t}" -A "${c}" -j DROP
 			done
@@ -5924,7 +5976,7 @@ case "${arg}" in
 			esac
 		else
 		${CAT_CMD} <<EOF
-$Id: firehol.sh,v 1.296 2013/01/06 23:49:08 ktsaou Exp $
+$Id$
 (C) Copyright 2002-2007, Costa Tsaousis <costa@tsaousis.gr>
 FireHOL is distributed under GPL.
 
@@ -6113,7 +6165,7 @@ then
 	
 	${CAT_CMD} <<EOF
 
-$Id: firehol.sh,v 1.296 2013/01/06 23:49:08 ktsaou Exp $
+$Id$
 (C) Copyright 2003, Costa Tsaousis <costa@tsaousis.gr>
 FireHOL is distributed under GPL.
 Home Page: http://firehol.sourceforge.net
@@ -6418,7 +6470,7 @@ then
 	
 	"${CAT_CMD}" >&2 <<EOF
 
-$Id: firehol.sh,v 1.296 2013/01/06 23:49:08 ktsaou Exp $
+$Id$
 (C) Copyright 2003, Costa Tsaousis <costa@tsaousis.gr>
 FireHOL is distributed under GPL.
 Home Page: http://firehol.sourceforge.net
@@ -6496,7 +6548,7 @@ EOF
 	
 	${CAT_CMD} <<EOF
 #!${FIREHOL_FILE}
-# $Id: firehol.sh,v 1.296 2013/01/06 23:49:08 ktsaou Exp $
+# $Id$
 # 
 # This config will have the same effect as NO PROTECTION!
 # Everything that found to be running, is allowed.
@@ -6943,68 +6995,85 @@ fi
 
 # XXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXX
 
-# Place all the statements bellow to the beginning of the final firewall script.
-${CAT_CMD} >"${FIREHOL_OUTPUT}" <<EOF
-#!/bin/sh
-
-load_kernel_module ip_tables
-load_kernel_module nf_conntrack
-
-# Find all tables supported
-tables=\`${CAT_CMD} /proc/net/ip_tables_names\`
-for t in \${tables}
-do
-	# Reset/empty this table.
-	${IPTABLES_CMD} -t "\${t}" -F >${FIREHOL_OUTPUT}.log 2>&1
-	r=\$?; test ! \${r} -eq 0 && runtime_error error \${r} INIT ${IPTABLES_CMD} -t "\${t}" -F
+# clear all chains
+firehol_filter_chains=
+initialize_firewall() {
+	load_kernel_module ip_tables
+	load_kernel_module nf_conntrack
 	
-	${IPTABLES_CMD} -t "\${t}" -X >${FIREHOL_OUTPUT}.log 2>&1
-	r=\$?; test ! \${r} -eq 0 && runtime_error error \${r} INIT ${IPTABLES_CMD} -t "\${t}" -X
-	
-	${IPTABLES_CMD} -t "\${t}" -Z >${FIREHOL_OUTPUT}.log 2>&1
-	r=\$?; test ! \${r} -eq 0 && runtime_error error \${r} INIT ${IPTABLES_CMD} -t "\${t}" -Z
-	
-	# Find all default chains in this table.
-	chains=\`${IPTABLES_CMD} -t "\${t}" -nL | ${GREP_CMD} "^Chain " | ${CUT_CMD} -d ' ' -f 2\`
-	
-	# If this is the 'filter' table, remember the default chains.
-	# This will be used at the end to make it DROP all packets.
-	test "\${t}" = "filter" && firehol_filter_chains="\${chains}"
-	
-	# Set the policy to ACCEPT on all default chains.
-	for c in \${chains}
+	for m in ${FIREHOL_KERNEL_MODULES}
 	do
-		${IPTABLES_CMD} -t "\${t}" -P "\${c}" ACCEPT >${FIREHOL_OUTPUT}.log 2>&1
-		r=\$?; test ! \${r} -eq 0 && runtime_error error \${r} INIT ${IPTABLES_CMD} -t "\${t}" -P "\${c}" ACCEPT
+		postprocess -ne load_kernel_module $m
 	done
-done
+	
+	if [ $FIREHOL_ROUTING -eq 1 ]
+	then
+		postprocess ${SYSCTL_CMD} -w "net.ipv4.ip_forward=1"
+	fi
+	
+	# Find all tables supported
+	local t=
+	local tables=`${CAT_CMD} /proc/net/ip_tables_names`
+	for t in ${tables}
+	do
+		# Reset/empty this table.
+		${IPTABLES_CMD} -t "${t}" -F || exit 1
+		${IPTABLES_CMD} -t "${t}" -X || exit 1
+		${IPTABLES_CMD} -t "${t}" -Z || exit 1
+		
+		# Find all default chains in this table.
+		local chains=`${IPTABLES_CMD} -t "${t}" -nL | ${GREP_CMD} "^Chain " | ${CUT_CMD} -d ' ' -f 2`
+		
+		# If this is the 'filter' table, remember the default chains.
+		# This will be used at the end to make it DROP all packets.
+		test "${t}" = "filter" && firehol_filter_chains="${chains}"
+		
+		# Set the policy to ACCEPT on all default chains.
+		local c=
+		for c in ${chains}
+		do
+			${IPTABLES_CMD} -t "${t}" -P "${c}" ACCEPT || exit 1
+		done
+	done
+}
 
-${IPTABLES_CMD} -t filter -P INPUT "\${FIREHOL_INPUT_ACTIVATION_POLICY}" >${FIREHOL_OUTPUT}.log 2>&1
-r=\$?; test ! \${r} -eq 0 && runtime_error error \${r} INIT ${IPTABLES_CMD} -t filter -P INPUT "\${FIREHOL_INPUT_ACTIVATION_POLICY}"
+# drop everything
+finalize_firewall() {
+	# Make it drop everything on table 'filter'.
+	local c=
+	for c in ${firehol_filter_chains}
+	do
+		${IPTABLES_CMD} -t filter -P "${c}" DROP || exit 1
+	done
+}
 
-${IPTABLES_CMD} -t filter -P OUTPUT "\${FIREHOL_OUTPUT_ACTIVATION_POLICY}" >${FIREHOL_OUTPUT}.log 2>&1
-r=\$?; test ! \${r} -eq 0 && runtime_error error \${r} INIT ${IPTABLES_CMD} -t filter -P OUTPUT "\${FIREHOL_OUTPUT_ACTIVATION_POLICY}"
+# this will be run when the first iptables command get executed in pre-process mode.
+# so that its commands are prepended to the other iptables commands of the firewall
+firewall_policy_applied=0
+firewall_policy() {
+	firewall_policy_applied=1
+	
+	iptables -t filter -P INPUT "${FIREHOL_INPUT_ACTIVATION_POLICY}"
+	iptables -t filter -P OUTPUT "${FIREHOL_OUTPUT_ACTIVATION_POLICY}"
+	iptables -t filter -P FORWARD "${FIREHOL_FORWARD_ACTIVATION_POLICY}"
 
-${IPTABLES_CMD} -t filter -P FORWARD "\${FIREHOL_FORWARD_ACTIVATION_POLICY}" >${FIREHOL_OUTPUT}.log 2>&1
-r=\$?; test ! \${r} -eq 0 && runtime_error error \${r} INIT ${IPTABLES_CMD} -t filter -P FORWARD "\${FIREHOL_FORWARD_ACTIVATION_POLICY}"
+	# Accept everything in/out the loopback device.
+	if [ "${FIREHOL_TRUST_LOOPBACK}" = "1" ]
+	then
+		iptables -A INPUT -i lo -j ACCEPT
+		iptables -A OUTPUT -o lo -j ACCEPT
+	fi
 
-# Accept everything in/out the loopback device.
-if [ "\${FIREHOL_TRUST_LOOPBACK}" = "1" ]
-then
-	${IPTABLES_CMD} -A INPUT -i lo -j ACCEPT
-	${IPTABLES_CMD} -A OUTPUT -o lo -j ACCEPT
-fi
+	# Drop all invalid packets.
+	# Netfilter HOWTO suggests to DROP all INVALID packets.
+	if [ "${FIREHOL_DROP_INVALID}" = "1" ]
+	then
+		iptables -A INPUT -m conntrack --ctstate INVALID -j DROP
+		iptables -A OUTPUT -m conntrack --ctstate INVALID -j DROP
+		iptables -A FORWARD -m conntrack --ctstate INVALID -j DROP
+	fi
+}
 
-# Drop all invalid packets.
-# Netfilter HOWTO suggests to DROP all INVALID packets.
-if [ "\${FIREHOL_DROP_INVALID}" = "1" ]
-then
-	${IPTABLES_CMD} -A INPUT -m state --state INVALID -j DROP
-	${IPTABLES_CMD} -A OUTPUT -m state --state INVALID -j DROP
-	${IPTABLES_CMD} -A FORWARD -m state --state INVALID -j DROP
-fi
-
-EOF
 
 # XXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXX
 
@@ -7060,26 +7129,13 @@ ${RM_CMD} -f "${FIREHOL_TMP}.awk"
 enable -n trap			# Disable the trap buildin shell command.
 enable -n exit			# Disable the exit buildin shell command.
 source ${FIREHOL_TMP} "$@"	# Run the configuration as a normal script.
+[ $? -ne 0 ] && ret=$[ret + 1]
 FIREHOL_LINEID="FIN"
 enable trap			# Enable the trap buildin shell command.
 enable exit			# Enable the exit buildin shell command.
 
-close_cmd	|| ret=$[ret + 1]
+close_cmd		|| ret=$[ret + 1]
 close_master	|| ret=$[ret + 1]
-
-
-# ------------------------------------------------------------------------------
-# append commands to close the firewall according to policies
-${CAT_CMD} >>"${FIREHOL_OUTPUT}" <<EOF
-
-# Make it drop everything on table 'filter'.
-for c in \${firehol_filter_chains}
-do
-	${IPTABLES_CMD} -t filter -P "\${c}" DROP >${FIREHOL_OUTPUT}.log 2>&1
-	r=\$?; test ! \${r} -eq 0 && runtime_error error \${r} INIT ${IPTABLES_CMD} -t filter -P "\${c}" DROP
-done
-
-EOF
 
 if [ ${work_error} -gt 0 -o $ret -gt 0 ]
 then
@@ -7093,40 +7149,79 @@ fi
 success $"FireHOL: Processing file ${FIREHOL_CONFIG}:"
 echo
 
-
 # XXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXX
-# append commands to load the kernel modules
 
-for m in ${FIREHOL_KERNEL_MODULES}
-do
-	postprocess -ne load_kernel_module $m
-done
 
-# XXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXX
-# append command to activate routing
-
-if [ $FIREHOL_ROUTING -eq 1 ]
+if [ ${FIREHOL_FAST_ACTIVATION} -eq 1 ]
 then
-	postprocess ${SYSCTL_CMD} -w "net.ipv4.ip_forward=1"
-fi
-
-# XXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXX
-# if we just debugging things, do not proceed further
-
-if [ "${FIREHOL_MODE}" = "DEBUG" ]
-then
-	${CAT_CMD} ${FIREHOL_OUTPUT}
+	# construct the iptables-restore file from the splitted ones.
+	cd $FIREHOL_DIR/fast/tables || exit 1
+	for firehol_table in `ls`
+	do
+		(
+			echo "*${firehol_table}"
+			test -f $FIREHOL_DIR/fast/table.${firehol_table}.policy && ${CAT_CMD} $FIREHOL_DIR/fast/table.${firehol_table}.policy
+			test -f $FIREHOL_DIR/fast/table.${firehol_table}.chains && ${CAT_CMD} $FIREHOL_DIR/fast/table.${firehol_table}.chains
+			test -f $FIREHOL_DIR/fast/table.${firehol_table}.rules  && ${CAT_CMD} $FIREHOL_DIR/fast/table.${firehol_table}.rules
+			echo "COMMIT"
+		) >>${FIREHOL_OUTPUT}.fast
+	done
 	
-	exit 1
+	if [ "${FIREHOL_MODE}" = "DEBUG" ]
+	then
+		${CAT_CMD} ${FIREHOL_OUTPUT}.fast
+		exit 1
+	fi
+	
+	syslog info "Activating new firewall from ${FIREHOL_CONFIG} (translated to ${FIREHOL_COMMAND_COUNTER} iptables rules)."
+	echo -n $"FireHOL: Fast activating new firewall:"
+	
+	initialize_firewall
+	
+	# execute any postprocessing commands
+	# in FAST_ACTIVATION the output file does not have any iptables commands
+	# it might have kernel modules management, activation of routing, etc.
+	source ${FIREHOL_OUTPUT} "${@}"
+	if [ $? -ne 0 ]
+	then
+		work_runtime_error=$[work_runtime_error+1]
+	else
+		# attempt to restore this firewall from the generated commands
+		${IPTABLES_RESTORE_CMD} <${FIREHOL_OUTPUT}.fast >${FIREHOL_OUTPUT}.log 2>&1
+		if [ $? -ne 0 ]
+		then
+			# it failed
+			runtime_error error "CANNOT APPLY IN FAST MODE" FIN "${IPTABLES_RESTORE_CMD}" "<${FIREHOL_OUTPUT}.fast"
+			
+			work_runtime_error=$[work_runtime_error+1]
+			
+			# the rest of the script will restore the original firewall
+		else
+			finalize_firewall
+		fi
+	fi
+else
+	
+	if [ "${FIREHOL_MODE}" = "DEBUG" ]
+	then
+		${CAT_CMD} ${FIREHOL_OUTPUT}
+		exit 1
+	fi
+	
+	syslog info "Activating new firewall from ${FIREHOL_CONFIG} (translated to ${FIREHOL_COMMAND_COUNTER} iptables rules)."
+	echo -n $"FireHOL: Activating new firewall (${FIREHOL_COMMAND_COUNTER} rules):"
+	
+	initialize_firewall
+	
+	source ${FIREHOL_OUTPUT} "$@"
+	if [ $? -ne 0 ]
+	then
+		work_runtime_error=$[work_runtime_error+1]
+	else
+		finalize_firewall
+	fi
 fi
 
-
-# XXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXX
-
-syslog info "Activating new firewall from ${FIREHOL_CONFIG} (translated to ${FIREHOL_COMMAND_COUNTER} iptables rules)."
-echo -n $"FireHOL: Activating new firewall (${FIREHOL_COMMAND_COUNTER} rules):"
-
-source ${FIREHOL_OUTPUT} "$@"
 
 if [ ${work_runtime_error} -gt 0 ]
 then

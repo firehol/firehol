@@ -21,6 +21,9 @@
        <arg choice="plain"><replaceable>mss</replaceable></arg>
        <arg choice="plain">auto</arg>
     </group>
+    <arg choice="opt">
+      <arg choice="plain"><replaceable>if-list</replaceable></arg>
+    </arg>
   </cmdsynopsis>
 </refsynopsisdiv>
 
@@ -38,16 +41,16 @@
     (clamp-mss-to-pmtu).
   </para>
   <para>
-    If used within a router definition the MSS will be applied on the
-    <replaceable>outface</replaceable>(s) of the router. If used before
-    any router or interface definitions it will be applied to all traffic
-    passing through the firewall.
+    If used within a router or interface definition the MSS will be applied
+    to outgoing traffic on the <replaceable>outface</replaceable>(s) of
+    the router or interface.
   </para>
-  <note>
-    <para>
-      The <command>tcpmss</command> command cannot be used in an interface.
-    </para>
-  </note>
+  <para>
+    If used before any router or interface definitions it will be
+    applied to all traffic passing through the firewall. If
+    <replaceable>if-list</replaceable> is given, the MSS will be applied
+    only to those interfaces.
+  </para>
 </refsect1>
 
 <refsect1><title>Examples</title>
@@ -55,6 +58,8 @@
 tcpmss auto
 
 tcpmss 500
+
+tcpmss 500 "eth1 eth2 eth3"
   </programlisting>
 </refsect1>
 

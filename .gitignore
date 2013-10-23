@@ -20,6 +20,7 @@ doc/firehol-manual.pdf
 doc/firehol-services.html
 doc/services-?.xml
 sbin/firehol
+sbin/fireqos
 *.xz
 *.gz
 *.bz2

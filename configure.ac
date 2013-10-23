@@ -5,6 +5,7 @@ AC_INIT([firehol],[2.0.0-pre1],[firehol-devs@lists.firehol.org])
 AC_CONFIG_MACRO_DIR([m4])
 AC_CONFIG_AUX_DIR([autotool])
 AC_CONFIG_SRCDIR([sbin/firehol.in])
+AC_CONFIG_SRCDIR([sbin/fireqos.in])
 AM_INIT_AUTOMAKE([gnu])
 AM_MAINTAINER_MODE([disable])
 
@@ -92,5 +93,6 @@ AC_CONFIG_FILES([
 	])
 
 AC_CONFIG_FILES([sbin/firehol], [chmod +x sbin/firehol])
+AC_CONFIG_FILES([sbin/fireqos], [chmod +x sbin/fireqos])
 
 AC_OUTPUT

@@ -1,0 +1,80 @@
+
+# How many IFB devices to enable in the kernel.
+# You need one for every interface you are going to shape its INCOMING traffic
+FIREQOS_IFBS=2
+
+
+# interface device name input/output ...
+#
+#	adsl sets the linktype and calculates the overhead.
+#	adsl local/remote technology
+#		local = ppp is attached to this linux
+#		remote = ethernet DSL router
+#		technology can be ipoa/bridged/pppoa/pppoe - vcmux/llcsnap
+#			for example: ipoa-vcmux, or pppoe-llcsnap, etc.
+#	if you know the mtu, append: mtu XXXX
+#
+
+# Note the 'input'. This is INCOMING traffic shapping!
+interface eth2 adsl-in input rate 10500kbit adsl remote pppoe-llcsnap
+	
+	# my VoIP class - you can name them anything you like
+	# commit means that if it needs to, it will take at least that bandwidth
+	class voip commit 100kbit pfifo
+	
+		# UDP to viva
+		match udp src 83.235.24.0/24
+		
+		# facetime
+		match udp ports 16393:16402
+		
+	
+	class realtime commit 10% # this means VoIP cannot get all the bandwidth
+ 		# this matches the same ports for both sport and dport
+		match tcp port 22,2222,1195:1198,1753
+		match udp port 53
+		match tcp src 83.235.24.0/24
+		match proto GRE
+		match icmp
+		match src 192.168.2.0/24
+	
+	
+	class clients commit 10%
+		match tcp port 20,21,25,80,143,443,465,873,993
+
+		
+	# unmatched traffic goes here ('default' is a special name)
+	# normally I don't have to define it, but I want my
+	# torrents to go bellow the default
+	class default max 90%
+	
+	class torrents max 90%
+		match port 51414
+
+
+
+# Now the outgoing traffic
+interface eth2 adsl-out output rate 750kbit adsl remote pppoe-llc
+	class voip commit 100kbit pfifo
+		# VoIP to viva
+		match udp dst 83.235.24.0/24
+		
+		# facetime
+		match udp ports 16393:16402
+		
+	class realtime commit 10%
+		match tcp port 22,2222,1195:1198,1753
+		match udp port 53
+		match tcp dst 83.235.24.0/24
+		match proto GRE
+		match icmp
+		match dst 192.168.2.0/24
+	
+	class clients commit 10%
+		match tcp port 20,21,25,80,143,443,465,873,993
+	
+	class default max 90% # unmatched traffic goes here ('default' is a special name)
+	
+	class torrents max 90%
+		match port 51414
+
