@@ -1,1 +1,2 @@
-
+sbin/*.in ident export-subst
+packaging/packver ident export-subst

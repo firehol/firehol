@@ -1,6 +1,6 @@
 #!/bin/bash
 #
-# Startup script to implement /etc/firehol/firehol.conf pre-defined rules.
+# FireHOL - A firewall for humans...
 #
 #   Copyright
 #
@@ -24,14 +24,35 @@
 #
 #       See the file COPYING for details.
 #
-FIREHOL_SCRIPT_VERSION=2.0.0-pre1
+
+get_version() {
+	GIT_REF='$Format:%d,commit-%h$'
+	local IFS=":(), "
+	set -- "$GIT_REF"
+	ver='$Id$'
+	for i in $@
+	do
+		case "$i" in
+			*[0-9].[0.9]*)
+				echo "$i" | sed -e 's/^v//'
+				return 0
+			;;
+			commit-[0-9a-zA-Z]*)
+				ver="$i"
+			;;
+		esac
+	done
+	echo "$ver"
+	return 0
+}
+VERSION=$(get_version)
 
 emit_version() {
 	${CAT_CMD} <<EOF
 
-FireHOL version $FIREHOL_SCRIPT_VERSION
+FireHOL $VERSION
 (C) Copyright 2003-2013 Costa Tsaousis <costa@tsaousis.gr>
-(C) Copyright 2012-2013 Phil Whineray <philfirehol.org>
+(C) Copyright 2012-2013 Phil Whineray <phil@firehol.org>
 FireHOL is distributed under the GPL v2+.
 Home Page: http://firehol.org
 
