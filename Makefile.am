@@ -14,7 +14,7 @@ AM_DISTCHECK_CONFIGURE_FLAGS = \
 
 SUBDIRS = sbin etc examples doc
 
-DIST_SUBDIRS = $(SUBDIRS) m4
+DIST_SUBDIRS = $(SUBDIRS) m4 packaging
 
 EXTRA_DIST = \
 	autogen.sh

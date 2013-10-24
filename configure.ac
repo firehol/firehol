@@ -1,7 +1,7 @@
 # Process this file with autoconf to produce a configure script.
 
 AC_PREREQ([2.63])
-AC_INIT([firehol],[2.0.0-pre1],[firehol-devs@lists.firehol.org])
+AC_INIT([firehol],[m4_esyscmd([./packaging/packver])],[firehol-devs@lists.firehol.org])
 AC_CONFIG_MACRO_DIR([m4])
 AC_CONFIG_AUX_DIR([autotool])
 AC_CONFIG_SRCDIR([sbin/firehol.in])
@@ -90,6 +90,7 @@ AC_CONFIG_FILES([
 	doc/man/Makefile
 	examples/Makefile
 	etc/Makefile
+	packaging/Makefile
 	])
 
 AC_CONFIG_FILES([sbin/firehol], [chmod +x sbin/firehol])

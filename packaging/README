@@ -3,9 +3,14 @@
 
 check-log:
    Checks the formatting of ChangeLog meets the debian packaging
-   standards and that all the versions in the files that contain
-   versions match up.
+   standards.
 
 pre-commit:
    Copy to .git/hooks/pre-commit in order to have check-log and
    any other style checks automatically run on commit
+
+packver:
+   Emits the package version using the same logic as the firehol
+   and fireqos scripts - used by the autoconf system to determine
+   the version number to put in documentation (and to check in NEWS
+   when doing a make dist).
