@@ -58,7 +58,7 @@ require_cmd() {
 require_cmd tc || exit 1
 require_cmd ip || exit 1
 require_cmd modprobe || exit 1
-require_cmd lockfile || exit 1
+require_cmd flock || exit 1
 require_cmd grep || exit 1
 require_cmd egrep || exit 1
 require_cmd cut || exit 1
@@ -314,12 +314,21 @@ fireqos_exit() {
 }
 
 fireqos_concurrent_run_lock() {
-	if [ -f "${FIREQOS_LOCK_FILE}" ]
+	# open the 200th file descriptor
+	exec 200>"${FIREQOS_LOCK_FILE}"
+	if [ $? -ne 0 ]
 	then
-		echo >&2 "FireQOS is already running. Waiting for the other process to exit..."
+		echo "Cannot setup file locking. Exiting..."
+		exit 1
 	fi
 	
-	$lockfile_cmd -1 -r ${FIREQOS_LOCK_FILE_TIMEOUT} -l ${FIREQOS_LOCK_FILE_TIMEOUT} "${FIREQOS_LOCK_FILE}" || exit 1
+	# open an exclusive lock on the 200th file descriptor
+	${flock_cmd} -n 200
+	if [ $? -ne 0 ]
+	then
+		echo >&2 "FireQOS is already running. Exiting..."
+		exit 1
+	fi
 	
 	return 0
 }
