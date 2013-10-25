@@ -41,7 +41,7 @@ FIREQOS_MIN_RATE_DIVISOR=100
 FIREQOS_SHOW_MATCHES=0
 
 # the classes priority in balanced mode
-FIREQOS_BALANCED_PRIO=100
+FIREQOS_BALANCED_PRIO=4
 
 COLOR_RESET="\e[0m"
 COLOR_BLACK="\e[30m"
@@ -1032,7 +1032,7 @@ interface_close() {
 	interface_minrate=
 	interface_global_class_counter=1
 	interface_class_counter=10
-	interface_class_prio=0
+	interface_class_prio=-1
 	interface_qdisc_counter=10
 	interface_default_added=0
 	interface_default_class=5000
@@ -1405,6 +1405,9 @@ class() {
 		[ -z "$class_prio" ] && class_prio=$parent_class_prio
 	fi
 	
+	[ $class_prio -lt 0 ] && class_prio=0
+	[ $class_prio -gt 7 ] && class_prio=7
+	
 	# if not specified, set the minimum rate
 	[ -z "$class_rate" ] && class_rate=$interface_minrate
 	
@@ -1457,7 +1460,7 @@ class() {
 	then
 		# this class will have subclasses
 		
-		class_class_prio=0
+		class_class_prio=-1
 		
 		# the default class that all unmatched traffic will be sent to
 		class_default_class="$((interface_default_class + interface_qdisc_counter))"
