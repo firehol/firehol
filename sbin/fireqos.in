@@ -2321,27 +2321,11 @@ htb_stats() {
 	cat >$FIREQOS_DIR/$FIREQOS_STATS_ID.stats.awk <<EOF || exit 1
 {
 	if( \$2 == "htb" ) {
-		if ( \$4 == "root" ) {
-			value = \$14;
-			drops = \$19;
-			overs = \$21;
-			requeues = \$23;
-			backlog = \$29;
-		}
-		else if ( \$6 == "rate" ) {
-			value = \$15;
-			drops = \$20;
-			overs = \$22;
-			requeues = \$24;
-			backlog = \$30;
-		}
-		else {
-			value = \$19;
-			drops = \$24;
-			overs = \$26;
-			requeues = \$28;
-			backlog = \$34;
-		}
+		value = \$13;
+		drops = \$18;
+		overs = \$20;
+		requeues = \$22;
+		backlog = \$28;
 		
 		print "TCSTATS_" \$2 "_" \$3 "=\$(( (" value "*8) - OLD_TCSTATS_" \$2 "_" \$3 "));"
 		print "OLD_TCSTATS_" \$2 "_" \$3 "=\$((" value "*8));"
@@ -2384,17 +2368,21 @@ EOF
 	
 	getdata() {
 		eval "`$tc_cmd -s class show dev $1 | $tr_cmd "\n,()" "|   " | $sed_cmd \
-			-e "s/ \+/ /g"			\
-			-e "s/ *| */|/g"		\
-			-e "s/||/\n/g"			\
-			-e "s/|/ /g"			\
-			-e "s/\([0-9]\+\)Mbit /\1000000 /g" \
-			-e "s/\([0-9]\+\)Kbit /\1000 /g" \
-			-e "s/\([0-9]\+\)bit /\1 /g"	\
-			-e "s/\([0-9]\+\)pps /\1 /g"	\
-			-e "s/\([0-9]\+\)b /\1 /g"	\
-			-e "s/\([0-9]\+\)p /\1 /g" 	|\
-			$tr_cmd ":" "_"			|\
+			-e "s/ \+/ /g"				\
+			-e "s/ *| */|/g"			\
+			-e "s/||/\n/g"				\
+			-e "s/|/ /g"				\
+			-e "s/\([0-9]\+\)Mbit /\1000000 /g"	\
+			-e "s/\([0-9]\+\)Kbit /\1000 /g"	\
+			-e "s/\([0-9]\+\)bit /\1 /g"		\
+			-e "s/\([0-9]\+\)pps /\1 /g"		\
+			-e "s/\([0-9]\+\)b /\1 /g"		\
+			-e "s/\([0-9]\+\)p /\1 /g" 		\
+			-e "s/:/_/g" 				\
+			-e "s/ prio [0-9]\+ / /g"		\
+			-e "s/ root / /g"			\
+			-e "s/ parent [0-9]*_[0-9]* / /g"	\
+			-e "s/ leaf [0-9]*_[0-9]* / /g"	|\
 			$awk_cmd "$awk_script"`"
 			# $awk_cmd -f $FIREQOS_DIR/$FIREQOS_STATS_ID.stats.awk`"
 	}
@@ -2494,7 +2482,7 @@ EOF
 		if [ $c -eq ${banner_every_lines} ]
 		then
 			echo
-			[ "$show" = "TCSTATS" ] && echo -e " color code: ${COLOR_BOLD}${COLOR_BGRED} packets dropped ${COLOR_RESET} | ${COLOR_BOLD}${COLOR_BGPURPLE}${COLOR_YELLOW} packets delayed ${COLOR_RESET} | ${COLOR_BOLD}${COLOR_BGBLUE} packets requeued ${COLOR_RESET}"
+			[ "$show" = "TCSTATS" ] && echo -e " color code (packets) ${COLOR_BOLD}${COLOR_YELLOW} backlog ${COLOR_RESET} | ${COLOR_BOLD}${COLOR_BGRED} dropped ${COLOR_RESET} | ${COLOR_BOLD}${COLOR_BGPURPLE}${COLOR_YELLOW} delayed ${COLOR_RESET} | ${COLOR_BOLD}${COLOR_BGBLUE} requeued ${COLOR_RESET}"
 			echo " $title on $interface_name ($interface_dev $interface_inout => $interface_realdev) - values in $unit"
 			for x in $interface_classes_ids
 			do
