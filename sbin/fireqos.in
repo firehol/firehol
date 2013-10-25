@@ -2213,33 +2213,108 @@ show_interfaces() {
 	fi
 }
 
+FIREQOS_STATS_ID="stats.$$.$RANDOM"
+cleanup_stats() {
+	local x=
+	for x in `ls $FIREQOS_DIR/$FIREQOS_STATS_ID.* 2>/dev/null`
+	do
+		rm $x
+	done
+}
+
 htb_stats() {
 	local x=
 	
-	if [ -z "$1" -o ! -f "${FIREQOS_DIR}/$1.conf" ]
+	require_cmd awk || exit 1
+	
+	trap cleanup_stats EXIT
+	trap cleanup_stats SIGHUP
+	
+	if [ -z "$2" -o ! -f "${FIREQOS_DIR}/$2.conf" ]
 	then
-		echo >&2 "There is no interface named '$1' to show."
+		echo >&2 "There is no interface named '$2' to show."
 		show_interfaces
 		exit 1
 	fi
 	
-	local banner_every_lines=20
-	
 	# load the interface configuration
-	source "${FIREQOS_DIR}/$1.conf" || exit 1
+	source "${FIREQOS_DIR}/$2.conf" || exit 1
 	
-	# pick the right unit for this interface (bit/s, Kbit, Mbit)
-	local resolution=1
-	[ $((interface_rate * 8)) -gt $((100 * 1000)) ] && local resolution=1000
-	[ $((interface_rate * 8)) -gt $((200 * 1000000)) ] && local resolution=1000000
+	# create the awk file to parse tc output
+	local diff=0
+	case "$1" in
+		drops|dropped)
+			local title="Packet Drops"
+			local resolution=1
+			local unit="packets/s"
+			local maxn=99999
+			local diff=5
+			local show_speeds=0
+			;;
+		
+		overlimits|over)
+			local title="Packet Overlimits"
+			local resolution=1
+			local unit="packets/s"
+			local maxn=99999
+			local diff=7
+			local show_speeds=0
+			;;
+		
+		requeues)
+			local title="Packet Requeues"
+			local resolution=1
+			local unit="packets/s"
+			local maxn=99999
+			local diff=9
+			local show_speeds=0
+			;;
+		
+		status)
+			local title="Class Utilization"
+			local diff=0
+			local show_speeds=0
+			
+			# pick the right unit for this interface (bit/s, Kbit, Mbit)
+			local resolution=1
+			[ $((interface_rate * 8)) -gt $((100 * 1000)) ] && local resolution=1000
+			[ $((interface_rate * 8)) -gt $((200 * 1000000)) ] && local resolution=1000000
+			
+			local unit="bits/s"
+			[ $resolution = 1000 ] && local unit="Kbit/s"
+			[ $resolution = 1000000 ] && local unit="Mbit/s"
+			
+			local maxn="$(( interface_rate * 8 / resolution * 120 / 100))"
+			;;
+		
+		*)
+			echo "Cannot understand what '$1' status is."
+			exit 1
+			;;
+	esac
+	shift
 	
-	local unit="bits/s"
-	[ $resolution = 1000 ] && local unit="Kbit/s"
-	[ $resolution = 1000000 ] && local unit="Mbit/s"
+	cat >$FIREQOS_DIR/$FIREQOS_STATS_ID.stats.awk <<EOF || exit 1
+{
+	if( \$2 == "htb" ) {
+		if ( \$4 == "root" ) value = \$$((14 + diff));
+		else if ( \$6 == "rate" ) value = \$$((15 + diff));
+		else value = \$$((19 + diff));
+		
+		print "TCSTATS_" \$2 "_" \$3 "=\$(( (" value "*8) - OLD_TCSTATS_" \$2 "_" \$3 "));"
+		print "OLD_TCSTATS_" \$2 "_" \$3 "=\$((" value "*8));"
+	}
+	else {
+		print "# Cannot parse " \$2 " class " \$3;
+		value = 0;
+	}
+}
+EOF
+	local awk_script="`cat $FIREQOS_DIR/$FIREQOS_STATS_ID.stats.awk`"
+	rm $FIREQOS_DIR/$FIREQOS_STATS_ID.stats.awk
 	
 	# attempt to shrink the list horizontally
 	# find how many digits we need
-	local maxn="$(( interface_rate * 8 / resolution * 120 / 100))"
 	local number_digits=${#maxn}
 	local number_digits=$((number_digits + 1))
 	[ $number_digits -lt 6 ] && local number_digits=6
@@ -2251,6 +2326,8 @@ htb_stats() {
 	then
 		local round=$((resolution / 2))
 	fi
+	
+	local banner_every_lines=20
 	
 	getdata() {
 		eval "`$tc_cmd -s class show dev $1 | $tr_cmd "\n,()" "|   " | $sed_cmd \
@@ -2265,20 +2342,8 @@ htb_stats() {
 			-e "s/\([0-9]\+\)b /\1 /g"	\
 			-e "s/\([0-9]\+\)p /\1 /g" 	|\
 			$tr_cmd ":" "_"			|\
-			awk '{
-				if( $2 == "htb" ) {
-					if ( $4 == "root" ) value = $14
-					else if ( $6 == "rate" ) value = $15
-					else value = $19
-					
-					print "TCSTATS_" $2 "_" $3 "=\$(( (" value "*8) - OLD_TCSTATS_" $2 "_" $3 "));"
-					print "OLD_TCSTATS_" $2 "_" $3 "=\$((" value "*8));"
-				}
-				else {
-					print "# Cannot parse " $2 " class " $3;
-					value = 0
-				}
-			}'`"
+			$awk_cmd "$awk_script"`"
+			# $awk_cmd -f $FIREQOS_DIR/$FIREQOS_STATS_ID.stats.awk`"
 	}
 	
 	getms() {
@@ -2314,7 +2379,7 @@ htb_stats() {
 	
 	echo
 	echo "$interface_name: $interface_dev $interface_inout => $interface_realdev, type: $interface_linklayer, overhead: $interface_overhead"
-	echo "Rate: $((((interface_rate*8)+round)/resolution))$unit, min: $((((interface_minrate*8)+round)/resolution))$unit, r2q: $interface_r2q"
+	[ $show_speeds -eq 1 ] && echo "Rate: $((((interface_rate*8)+round)/resolution))$unit, min: $((((interface_minrate*8)+round)/resolution))$unit"
 	echo "Values in $unit"
 	echo
 	
@@ -2344,21 +2409,24 @@ htb_stats() {
 	done
 	echo
 	
-	for x in $interface_classes_ids
-	do
-		eval local rate="\${class_${x}_rate}"
-		[ ! "${rate}" = "COMMIT" ] && local rate=$(( ((rate * 8) + round) / resolution ))
-		printf "% ${number_digits}.${number_digits}s " $rate
-	done
-	echo
-	
-	for x in $interface_classes_ids
-	do
-		eval local ceil="\${class_${x}_ceil}"
-		[ ! "${ceil}" = "MAX" ] && local ceil=$(( ((ceil * 8) + round) / resolution ))
-		printf "% ${number_digits}.${number_digits}s " $ceil
-	done
-	echo
+	if [ $show_speeds -eq 1 ]
+	then
+		for x in $interface_classes_ids
+		do
+			eval local rate="\${class_${x}_rate}"
+			[ ! "${rate}" = "COMMIT" ] && local rate=$(( ((rate * 8) + round) / resolution ))
+			printf "% ${number_digits}.${number_digits}s " $rate
+		done
+		echo
+		
+		for x in $interface_classes_ids
+		do
+			eval local ceil="\${class_${x}_ceil}"
+			[ ! "${ceil}" = "MAX" ] && local ceil=$(( ((ceil * 8) + round) / resolution ))
+			printf "% ${number_digits}.${number_digits}s " $ceil
+		done
+		echo
+	fi
 	echo
 	
 	# the main loop
@@ -2373,7 +2441,7 @@ htb_stats() {
 		if [ $c -eq ${banner_every_lines} ]
 		then
 			echo
-			echo "   $interface_name ($interface_dev $interface_inout => $interface_realdev) - values in $unit"
+			echo " $title on $interface_name ($interface_dev $interface_inout => $interface_realdev) - values in $unit"
 			for x in $interface_classes_ids
 			do
 				eval local name="\${class_${x}_name}"
@@ -2565,9 +2633,21 @@ $me start|stop|status <name>
 	debug	same as 'start', but shows also the generated tc commands
 	
 	status <name>
-		shows live usage for the interface <name>
+		shows live class utilization for the interface <name>
 		the name given mathes the name of an interface statement
 		given in the config.
+	
+	drops <name>
+		shows packets dropped per second, per class
+		for the interface <name>
+		
+	overlimits <name>
+		shows packets delayed per second, per class
+		for the interface <name>
+	
+	requeues <name>
+		shows packets requeued per second, per class
+		for the interface <name>
 
 USAGE
 
@@ -2592,8 +2672,13 @@ do
 				shift 2
 				monitor $iface "$@"
 			else
-				htb_stats "$@"
+				htb_stats status "$@"
 			fi
+			exit 0
+			;;
+		
+		drops|overlimits|requeues)
+			htb_stats "$@"
 			exit 0
 			;;
 		
