@@ -43,6 +43,25 @@ FIREQOS_SHOW_MATCHES=0
 # the classes priority in balanced mode
 FIREQOS_BALANCED_PRIO=100
 
+COLOR_RESET="\e[0m"
+COLOR_BLACK="\e[30m"
+COLOR_RED="\e[31m"
+COLOR_GREEN="\e[32m"
+COLOR_YELLOW="\e[33m"
+COLOR_BLUE="\e[34m"
+COLOR_PURPLE="\e[35m"
+COLOR_CYAN="\e[36m"
+COLOR_WHITE="\e[37m"
+COLOR_BGBLACK="\e[40m"
+COLOR_BGRED="\e[41m"
+COLOR_BGGREEN="\e[42m"
+COLOR_BGYELLOW="\e[43m"
+COLOR_BGBLUE="\e[44m"
+COLOR_BGPURPLE="\e[45m"
+COLOR_BGCYAN="\e[46m"
+COLOR_BGWHITE="\e[47m"
+COLOR_BOLD="\e[1m"
+
 # Check for external commands
 require_cmd() {
 	local c=`which $1 2>/dev/null`
@@ -52,7 +71,9 @@ require_cmd() {
 	if [ -z "$c" ]
 	then
 		echo >&2 "Command '$1' is not found in this system."
+		return 1
 	fi
+	return 0
 }
 
 require_cmd tc || exit 1
@@ -356,9 +377,9 @@ runcmd() {
 
 	if [ $debug -eq 1 ]
 	then
-		echo -e -n "#\e[33m"
+		echo -e -n "#$COLOR_YELLOW"
 		printf " %q" "${@}"
-		echo -e "\e[0m"
+		echo -e "$COLOR_RESET"
 	fi
 	
 	"${@}"
@@ -379,9 +400,9 @@ tc() {
 	
 	if [ $debug -eq 1 ]
 	then
-		echo -e -n "#\e[33m"
+		echo -e -n "#$COLOR_YELLOW"
 		printf " %q" $tc_cmd "${@}"
-		echo -e "\e[0m"
+		echo -e "$COLOR_RESET"
 	fi
 	
 	if [ $noerror -eq 1 ]
@@ -1182,7 +1203,7 @@ interface() {
 	[ ! -z "$interface_quantum" ]			&& local quantum="quantum $interface_quantum"
 	[ ! -z "$interface_r2q" ]			&& local r2q="r2q $interface_r2q"
 	
-	echo -e " \e[1;34m($interface_realdev, MTU $interface_mtu, quantum $interface_quantum)\e[0m"
+	echo -e " $COLOR_BOLD$COLOR_BLUE($interface_realdev, MTU $interface_mtu, quantum $interface_quantum)$COLOR_RESET"
 	
 	# remember we used this interface
 	$touch_cmd $FIREQOS_DIR/ifaces/$interface_realdev
@@ -1415,9 +1436,9 @@ class() {
 	
 	if [ $class_group -eq 1 -a ! -z "$stab" ]
 	then
-		echo -e " \e[1;34m($class_classid, prio $class_prio, MTU $class_mtu, quantum $class_quantum)\e[0m"
+		echo -e " $COLOR_BOLD$COLOR_BLUE($class_classid, prio $class_prio, MTU $class_mtu, quantum $class_quantum)$COLOR_RESET"
 	else
-		echo -e " \e[1;34m($class_classid, prio $class_prio)\e[0m"
+		echo -e " $COLOR_BOLD$COLOR_BLUE($class_classid, prio $class_prio)$COLOR_RESET"
 	fi
 	
 	# keep track of all classes in the interface, so that the matches can name them to get their flowid
@@ -2241,7 +2262,6 @@ htb_stats() {
 	source "${FIREQOS_DIR}/$2.conf" || exit 1
 	
 	# create the awk file to parse tc output
-	local diff=0
 	local title="UNSET"
 	local unit="Unknown/s"
 	local maxn="0"
@@ -2252,8 +2272,8 @@ htb_stats() {
 			local resolution=1
 			local unit="packets/s"
 			local maxn=99999
-			local diff=5
 			local show_speeds=0
+			local show=TCDROPS
 			;;
 		
 		overlimits|over)
@@ -2261,8 +2281,8 @@ htb_stats() {
 			local resolution=1
 			local unit="packets/s"
 			local maxn=99999
-			local diff=7
 			local show_speeds=0
+			local show=TCOVERS
 			;;
 		
 		requeues)
@@ -2270,14 +2290,14 @@ htb_stats() {
 			local resolution=1
 			local unit="packets/s"
 			local maxn=99999
-			local diff=9
 			local show_speeds=0
+			local show=TCREQUEUES
 			;;
 		
 		status)
 			local title="Class Utilization"
-			local diff=0
 			local show_speeds=1
+			local show=TCSTATS
 			
 			# pick the right unit for this interface (bit/s, Kbit, Mbit)
 			local resolution=1
@@ -2301,12 +2321,36 @@ htb_stats() {
 	cat >$FIREQOS_DIR/$FIREQOS_STATS_ID.stats.awk <<EOF || exit 1
 {
 	if( \$2 == "htb" ) {
-		if ( \$4 == "root" ) value = \$$((14 + diff));
-		else if ( \$6 == "rate" ) value = \$$((15 + diff));
-		else value = \$$((19 + diff));
+		if ( \$4 == "root" ) {
+			value = \$14;
+			drops = \$19;
+			overs = \$21;
+			requeues = \$23;
+		}
+		else if ( \$6 == "rate" ) {
+			value = \$15;
+			drops = \$20;
+			overs = \$22;
+			requeues = \$24;
+		}
+		else {
+			value = \$19;
+			drops = \$24;
+			overs = \$26;
+			requeues = \$28;
+		}
 		
 		print "TCSTATS_" \$2 "_" \$3 "=\$(( (" value "*8) - OLD_TCSTATS_" \$2 "_" \$3 "));"
 		print "OLD_TCSTATS_" \$2 "_" \$3 "=\$((" value "*8));"
+		
+		print "TCDROPS_" \$2 "_" \$3 "=\$(( (" drops ") - OLD_TCDROPS_" \$2 "_" \$3 "));"
+		print "OLD_TCDROPS_" \$2 "_" \$3 "=\$((" drops "));"
+		
+		print "TCOVERS_" \$2 "_" \$3 "=\$(( (" overs ") - OLD_TCOVERS_" \$2 "_" \$3 "));"
+		print "OLD_TCOVERS_" \$2 "_" \$3 "=\$((" overs "));"
+		
+		print "TCREQUEUES_" \$2 "_" \$3 "=\$(( (" requeues ") - OLD_TCREQUEUES_" \$2 "_" \$3 "));"
+		print "OLD_TCREQUEUES_" \$2 "_" \$3 "=\$((" requeues "));"
 	}
 	else {
 		print "# Cannot parse " \$2 " class " \$3;
@@ -2445,6 +2489,7 @@ EOF
 		if [ $c -eq ${banner_every_lines} ]
 		then
 			echo
+			[ "$show" = "TCSTATS" ] && echo -e " color code: ${COLOR_BOLD}${COLOR_BGRED} packets dropped ${COLOR_RESET} | ${COLOR_BOLD}${COLOR_BGPURPLE}${COLOR_YELLOW} packets delayed ${COLOR_RESET} | ${COLOR_BOLD}${COLOR_BGBLUE} packets requeued ${COLOR_RESET}"
 			echo " $title on $interface_name ($interface_dev $interface_inout => $interface_realdev) - values in $unit"
 			for x in $interface_classes_ids
 			do
@@ -2457,7 +2502,21 @@ EOF
 		
 		for x in $interface_classes_ids
 		do
-			eval "local y=\$TCSTATS_htb_${x}"
+			eval "local y=\$${show}_htb_${x}"
+			if [ "$show" = "TCSTATS" ]
+			then
+				eval "local drops=\$TCDROPS_htb_${x}"
+				eval "local overlimits=\$TCOVERS_htb_${x}"
+				eval "local requeues=\$TCREQUEUES_htb_${x}"
+				
+				local color="$COLOR_RESET"
+				[ $((requeues + 0))   -gt 0 ] && local color="${COLOR_BOLD}${COLOR_BGBLUE}${COLOR_WHITE}"
+				[ $((overlimits + 0)) -gt 0 ] && local color="${COLOR_BOLD}${COLOR_BGPURPLE}${COLOR_YELLOW}"
+				[ $((drops + 0))      -gt 0 ] && local color="${COLOR_BOLD}${COLOR_BGRED}"
+				
+				echo -e -n "$color"
+			fi
+			
 			if [ -z "$y" ]
 			then
 				printf "% ${number_digits}.${number_digits}s " ERROR
@@ -2470,6 +2529,8 @@ EOF
 			else
 				printf "% ${number_digits}d " $(( (y+round) / resolution ))
 			fi
+			
+			[ "$show" = "TCSTATS" ] && echo -e -n "$COLOR_RESET"
 		done
 		echo
 		
@@ -2575,9 +2636,9 @@ monitor() {
 				IFS="|" read name name2 flow monitor
 				if [ "$name" = "$name2" -o "$name" = "default" ]
 				then
-					echo -e "  \e[1;33m $name2 \e[0m or classid \e[1;33m $flow \e[0m or handle \e[1;33m $monitor \e[0m"
+					echo -e "  $COLOR_BOLD$COLOR_YELLOW $name2 $COLOR_RESET or classid $COLOR_BOLD$COLOR_YELLOW $flow $COLOR_RESET or handle $COLOR_BOLD$COLOR_YELLOW $monitor $COLOR_RESET"
 				else
-					echo -e "  \e[1;33m $name \e[0m or \e[1;33m $name2 \e[0m or classid \e[1;33m $flow \e[0m or handle \e[1;33m $monitor \e[0m"
+					echo -e "  $COLOR_BOLD$COLOR_YELLOW $name $COLOR_RESET or $COLOR_BOLD$COLOR_YELLOW $name2 $COLOR_RESET or classid $COLOR_BOLD$COLOR_YELLOW $flow $COLOR_RESET or handle $COLOR_BOLD$COLOR_YELLOW $monitor $COLOR_RESET"
 				fi
 			)
 		done
