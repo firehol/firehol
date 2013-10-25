@@ -2326,18 +2326,21 @@ htb_stats() {
 			drops = \$19;
 			overs = \$21;
 			requeues = \$23;
+			backlog = \$29;
 		}
 		else if ( \$6 == "rate" ) {
 			value = \$15;
 			drops = \$20;
 			overs = \$22;
 			requeues = \$24;
+			backlog = \$30;
 		}
 		else {
 			value = \$19;
 			drops = \$24;
 			overs = \$26;
 			requeues = \$28;
+			backlog = \$34;
 		}
 		
 		print "TCSTATS_" \$2 "_" \$3 "=\$(( (" value "*8) - OLD_TCSTATS_" \$2 "_" \$3 "));"
@@ -2351,6 +2354,8 @@ htb_stats() {
 		
 		print "TCREQUEUES_" \$2 "_" \$3 "=\$(( (" requeues ") - OLD_TCREQUEUES_" \$2 "_" \$3 "));"
 		print "OLD_TCREQUEUES_" \$2 "_" \$3 "=\$((" requeues "));"
+		
+		print "TCBACKLOG_" \$2 "_" \$3 "=\$((" backlog "));"
 	}
 	else {
 		print "# Cannot parse " \$2 " class " \$3;
@@ -2508,8 +2513,11 @@ EOF
 				eval "local drops=\$TCDROPS_htb_${x}"
 				eval "local overlimits=\$TCOVERS_htb_${x}"
 				eval "local requeues=\$TCREQUEUES_htb_${x}"
+				eval "local backlog=\$TCBACKLOG_htb_${x}"
 				
 				local color="$COLOR_RESET"
+				
+				[ $((backlog + 0))    -gt 0 ] && local color="${COLOR_BOLD}${COLOR_YELLOW}"
 				[ $((requeues + 0))   -gt 0 ] && local color="${COLOR_BOLD}${COLOR_BGBLUE}${COLOR_WHITE}"
 				[ $((overlimits + 0)) -gt 0 ] && local color="${COLOR_BOLD}${COLOR_BGPURPLE}${COLOR_YELLOW}"
 				[ $((drops + 0))      -gt 0 ] && local color="${COLOR_BOLD}${COLOR_BGRED}"
