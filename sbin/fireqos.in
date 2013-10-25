@@ -2242,6 +2242,10 @@ htb_stats() {
 	
 	# create the awk file to parse tc output
 	local diff=0
+	local title="UNSET"
+	local unit="Unknown/s"
+	local maxn="0"
+	local show_speeds=0
 	case "$1" in
 		drops|dropped)
 			local title="Packet Drops"
@@ -2273,7 +2277,7 @@ htb_stats() {
 		status)
 			local title="Class Utilization"
 			local diff=0
-			local show_speeds=0
+			local show_speeds=1
 			
 			# pick the right unit for this interface (bit/s, Kbit, Mbit)
 			local resolution=1
