@@ -2506,14 +2506,15 @@ EOF
 				eval "local requeues=\$TCREQUEUES_htb_${x}"
 				eval "local backlog=\$TCBACKLOG_htb_${x}"
 				
-				local color="$COLOR_RESET"
+				local fcolor=
+				local bcolor=
 				
-				[ $((backlog + 0))    -gt 0 ] && local color="${COLOR_BOLD}${COLOR_YELLOW}"
-				[ $((requeues + 0))   -gt 0 ] && local color="${COLOR_BOLD}${COLOR_BGBLUE}${COLOR_WHITE}"
-				[ $((overlimits + 0)) -gt 0 ] && local color="${COLOR_BOLD}${COLOR_BGPURPLE}${COLOR_YELLOW}"
-				[ $((drops + 0))      -gt 0 ] && local color="${COLOR_BOLD}${COLOR_BGRED}"
+				[ $((backlog))    -gt 0 ] && local fcolor="${COLOR_BOLD}${COLOR_YELLOW}"
+				[ $((requeues))   -gt 0 ] && local bcolor="${COLOR_BGBLUE}"
+				[ $((overlimits)) -gt 0 ] && local bcolor="${COLOR_BGPURPLE}"
+				[ $((drops))      -gt 0 ] && local bcolor="${COLOR_BGRED}"
 				
-				echo -e -n "$color"
+				echo -e -n "$fcolor$bcolor"
 			fi
 			
 			if [ -z "$y" ]
