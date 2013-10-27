@@ -711,6 +711,8 @@ parse_class_params() {
 			
 			adsl)
 					local linklayer="$1"
+					local linklayer_type="$2"
+					local linklayer_encoding="$3"
 					local diff=0
 					case "$2" in
 						local)	local diff=0
@@ -762,6 +764,15 @@ parse_class_params() {
 					
 			atm|ethernet)
 					local linklayer="$1"
+					local linklayer_type=
+					local linklayer_encoding=
+					;;
+			
+			linklayer)
+					local linklayer="$2"
+					local linklayer_type=
+					local linklayer_encoding=
+					shift
 					;;
 					
 			*)		error "Cannot understand what '${1}' means."
@@ -789,7 +800,7 @@ parse_class_params() {
 	
 	# no inheritance for these parameters
 	local param=
-	for param in rate mtu mpu tsize overhead linklayer r2q prio minrate
+	for param in rate mtu mpu tsize overhead linklayer linklayer_type linklayer_encoding r2q prio minrate
 	do
 		eval export ${prefix}_${param}="\$$param"
 	done
@@ -802,7 +813,7 @@ parent_stack_size=0
 parent_push() {
 	local param=
 	local prefix="$1"; shift
-	local vars="classid major sumrate default_class default_added filters_to name ceil burst cburst quantum qdisc rate mtu mpu tsize overhead linklayer r2q prio ipv4 ipv6 minrate priority_mode class_counter stab class_prio"
+	local vars="classid major sumrate default_class default_added filters_to name ceil burst cburst quantum qdisc rate mtu mpu tsize overhead linklayer linklayer_type linklayer_encoding r2q prio ipv4 ipv6 minrate priority_mode class_counter stab class_prio"
 	
 	if [ $FIREQOS_DEBUG_STACK -eq 1 ]
 	then
@@ -1269,6 +1280,8 @@ interface_realdev="$interface_realdev"
 interface_inout="$interface_inout"
 interface_minrate="$interface_minrate"
 interface_linklayer="$interface_linklayer"
+interface_linklayer_type="$interface_linklayer_type"
+interface_linklayer_encoding="$interface_linklayer_encoding"
 interface_overhead="$interface_overhead"
 interface_minrate="$interface_minrate"
 interface_r2q="$interface_r2q"
@@ -2737,22 +2750,35 @@ monitor() {
 		exit 1
 	fi
 	
-	$cat_cmd <<WARNING
- IMPORTANT
- 
- 1. To monitor the packets on class $class_monitor_path, FireQOS will replace
-    the existing '$class_monitor_qdisc' qdisc with and htb and then mirror its
-    packets from this htb qdisc to a dummy device. Once you stop the monitor,
-    the original qdisc will be restored.
- 
- 2. When monitoring the packets sent by a PPPoE device, tcpdump sees the
-    packets encapsulated in something that is not PPPoE or Ethernet frames.
-    Therefore they cannot be decoded by tcpdump, wireshark or other tools.
-    
- If you still want to try it, press ENTER. Otherwise, Control-C to cancel.
-WARNING
+	local warning=
+	case "$class_monitor_qdisc" in
+		none)
+				local warning="The class '$class_monitor_path' does not have a qdisc attached.\\nTo monitor its traffic, FireQOS will attach an 'htb' qdisc to this class.\\nThis qdisc will be removed once you stop monitoring the traffic."
+				;;
+		
+		htb)
+				;;
+				
+		*)
+				local warning="The class '$class_monitor_path' cannot be monitored directly.\\nFireQOS will REMOVE the existing '$class_monitor_qdisc' from the class\\nand temporarily attach an 'htb' qdisc, to allow monitoring the traffic\\nThe original qdisc will be restored once you stop monitoring the traffic."
+				;;
+				
+	esac
 	
-	read
+	if [ "$interface_linklayer" = "adsl" -a "$interface_linklayer_type" = "local" ]
+	then
+		[ ! -z "$warning" ] && warning="$warning\\n"
+		local warning="$warning\\nWhen monitoring the packets sent by a PPPoE device, tcpdump sees the\\npackets encapsulated in something that is not PPPoE or Ethernet frames.\\nTherefore they cannot be decoded by tcpdump, wireshark or other tools."
+ 	fi
+	
+	if [ ! -z "$warning" ]
+	then
+		echo -e "$COLOR_BOLD$COLOR_BGRED WARNING $COLOR_RESET"
+		echo -e "$warning"
+		echo
+		echo -n "Press ENTER to continue, or Control-C to stop now > "
+		read
+	fi
 	
 	FIREQOS_DEBUG=1
 	echo "Monitoring qdisc '$class_monitor_qdisc_handle' for class '$class_monitor_path' ($class_monitor_classid)..."
