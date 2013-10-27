@@ -7162,7 +7162,12 @@ initialize_firewall() {
 		local c=
 		for c in ${chains}
 		do
-			${IPTABLES_CMD} -t "${t}" -P "${c}" ACCEPT || exit 1
+			local policy=ACCEPT
+			if [ "${t}" = "filter" ]
+			then
+				eval "policy=\${FIREHOL_${c}_ACTIVATION_POLICY}"
+			fi
+			${IPTABLES_CMD} -t "${t}" -P "${c}" $policy || exit 1
 		done
 	done
 }
