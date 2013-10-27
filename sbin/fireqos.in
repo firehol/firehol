@@ -291,7 +291,7 @@ fireqos_exit() {
 			echo >&2 "Clearing failed interface: $interface_name ($interface_dev $interface_inout => $interface_realdev)..."
 			echo >&2
 			printf >&2 " %16.16s: " $interface_realdev
-			echo >&2 "cleared traffic control"
+			echo >&2 "cleared traffic control $(interface_inout)"
 			
 			if [ $interface_inout = input ]
 			then
@@ -314,10 +314,13 @@ fireqos_exit() {
 			if [ ! -z "$ifs" ]
 			then
 				local a="Traffic control on these interfaces is operational: $ifs"
-				echo >&2
-				echo >&2 "$a"
-				echo >&2
+			else
+				local a="No traffic control is operational by FireQOS"
 			fi
+			echo >&2
+			echo >&2 "$a"
+			echo >&2
+			
 			syslog error "FireQOS FAILED. Cleared all FireQOS changes on interface '$interface_realdev'. $a"
 			
 		else
@@ -1258,34 +1261,34 @@ interface() {
 	
 	[ -f "${FIREQOS_DIR}/${interface_name}.conf" ] && rm "${FIREQOS_DIR}/${interface_name}.conf"
 	$cat_cmd >"${FIREQOS_DIR}/${interface_name}.conf" <<EOF
-interface_name=$interface_name
-interface_rate=$interface_rate
-interface_ceil=$interface_ceil
-interface_dev=$interface_dev
-interface_realdev=$interface_realdev
-interface_inout=$interface_inout
-interface_minrate=$interface_minrate
-interface_linklayer=$interface_linklayer
-interface_overhead=$interface_overhead
-interface_minrate=$interface_minrate
-interface_r2q=$interface_r2q
-interface_burst=$interface_burst
-interface_cburst=$interface_cburst
-interface_quantum=$interface_quantum
-interface_mtu=$interface_mtu
-interface_mpu=$interface_mpu
-interface_tsize=$interface_tsize
-interface_qdisc=$interface_qdisc
-interface_qdisc_options=$interface_qdisc_options
-class_${interface_major}_1_name=TOTAL
-class_${interface_major}_1_classid=CLASSID
-class_${interface_major}_1_priority=PRIORITY
-class_${interface_major}_1_rate=COMMIT
-class_${interface_major}_1_ceil=MAX
-class_${interface_major}_1_burst=BURST
-class_${interface_major}_1_cburst=CBURST
-class_${interface_major}_1_quantum=QUANTUM
-class_${interface_major}_1_qdisc=QDISC
+interface_name="$interface_name"
+interface_rate="$interface_rate"
+interface_ceil="$interface_ceil"
+interface_dev="$interface_dev"
+interface_realdev="$interface_realdev"
+interface_inout="$interface_inout"
+interface_minrate="$interface_minrate"
+interface_linklayer="$interface_linklayer"
+interface_overhead="$interface_overhead"
+interface_minrate="$interface_minrate"
+interface_r2q="$interface_r2q"
+interface_burst="$interface_burst"
+interface_cburst="$interface_cburst"
+interface_quantum="$interface_quantum"
+interface_mtu="$interface_mtu"
+interface_mpu="$interface_mpu"
+interface_tsize="$interface_tsize"
+interface_qdisc="$interface_qdisc"
+interface_qdisc_options="$interface_qdisc_options"
+class_${interface_major}_1_name="TOTAL"
+class_${interface_major}_1_classid="CLASSID"
+class_${interface_major}_1_priority="PRIORITY"
+class_${interface_major}_1_rate="COMMIT"
+class_${interface_major}_1_ceil="MAX"
+class_${interface_major}_1_burst="BURST"
+class_${interface_major}_1_cburst="CBURST"
+class_${interface_major}_1_quantum="QUANTUM"
+class_${interface_major}_1_qdisc="QDISC"
 EOF
 	
 	return 0
@@ -1600,16 +1603,16 @@ class() {
 	
 	# save the configuration
 	$cat_cmd >>"${FIREQOS_DIR}/${interface_name}.conf" <<EOF
-class_${ncid}_name=$name
-class_${ncid}_classid=$class_classid
-class_${ncid}_priority=$class_prio
-class_${ncid}_rate=$class_rate
-class_${ncid}_ceil=$class_ceil
-class_${ncid}_burst=$class_burst
-class_${ncid}_cburst=$class_cburst
-class_${ncid}_quantum=$class_quantum
-class_${ncid}_qdisc=$class_qdisc
-class_${ncid}_qdisc_options=$qdisc_options
+class_${ncid}_name="$name"
+class_${ncid}_classid="$class_classid"
+class_${ncid}_priority="$class_prio"
+class_${ncid}_rate="$class_rate"
+class_${ncid}_ceil="$class_ceil"
+class_${ncid}_burst="$class_burst"
+class_${ncid}_cburst="$class_cburst"
+class_${ncid}_quantum="$class_quantum"
+class_${ncid}_qdisc="$class_qdisc"
+class_${ncid}_qdisc_options="$qdisc_options"
 EOF
 	
 	return 0
