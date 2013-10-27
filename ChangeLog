@@ -1,3 +1,11 @@
+firehol (2.0.0-pre2) unstable; urgency=low
+
+  * Inclusion of FireQOS
+  * Standardisation of version information suitable for Git
+  * Allow tcpmss usage in interfaces
+
+ -- Phil Whineray <phil@sanewall.org>  Mon, 27 Oct 2013 18:00:00 +0000
+
 firehol (2.0.0-pre1) unstable; urgency=low
 
   * Move to autotools
