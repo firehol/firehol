@@ -2753,27 +2753,26 @@ monitor() {
 	local warning=
 	case "$class_monitor_qdisc" in
 		none)
-				local warning="The class '$class_monitor_path' does not have a qdisc attached.\\nTo monitor its traffic, FireQOS will attach an 'htb' qdisc to this class.\\nThis qdisc will be removed once you stop monitoring the traffic."
+				local warning="$COLOR_BOLD$COLOR_BGRED WARNING $COLOR_RESET\\nThe class '$class_monitor_path' does not have a qdisc attached.\\nTo monitor its traffic, FireQOS will attach an 'htb' qdisc to this class.\\nThis qdisc will be removed once you stop monitoring the traffic."
 				;;
 		
 		htb)
 				;;
 				
 		*)
-				local warning="The class '$class_monitor_path' cannot be monitored directly.\\nFireQOS will REMOVE the existing '$class_monitor_qdisc' from the class\\nand temporarily attach an 'htb' qdisc, to allow monitoring the traffic\\nThe original qdisc will be restored once you stop monitoring the traffic."
+				local warning="$COLOR_BOLD$COLOR_BGRED WARNING $COLOR_RESET\\nThe class '$class_monitor_path' cannot be monitored directly.\\nFireQOS will REMOVE the existing '$class_monitor_qdisc' qdisc from the class\\nand temporarily attach an 'htb' qdisc, to allow monitoring the traffic.\\nThe original qdisc will be restored once you stop monitoring the traffic."
 				;;
-				
 	esac
 	
-	if [ "$interface_linklayer" = "adsl" -a "$interface_linklayer_type" = "local" ]
+	if [ "$interface_linklayer" = "adsl" -a "$interface_linklayer_type" = "local" -a "$interface_inout" = "output" ]
 	then
 		[ ! -z "$warning" ] && warning="$warning\\n"
-		local warning="$warning\\nWhen monitoring the packets sent by a PPPoE device, tcpdump sees the\\npackets encapsulated in something that is not PPPoE or Ethernet frames.\\nTherefore they cannot be decoded by tcpdump, wireshark or other tools."
+		local warning="$warning\\n$COLOR_BOLD$COLOR_BGRED WARNING $COLOR_RESET\\nWhen monitoring the packets sent by a PPPoE device, tcpdump sees the\\npackets encapsulated in something that is not PPPoE or Ethernet frames.\\nTherefore they cannot be decoded by tcpdump, wireshark or other tools."
  	fi
 	
 	if [ ! -z "$warning" ]
 	then
-		echo -e "$COLOR_BOLD$COLOR_BGRED WARNING $COLOR_RESET"
+		echo
 		echo -e "$warning"
 		echo
 		echo -n "Press ENTER to continue, or Control-C to stop now > "
