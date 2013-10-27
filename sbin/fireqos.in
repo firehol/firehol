@@ -1605,6 +1605,7 @@ class() {
 	# save the configuration
 	$cat_cmd >>"${FIREQOS_DIR}/${interface_name}.conf" <<EOF
 class_${ncid}_name="$name"
+class_${ncid}_path="$parent_path$class_name"
 class_${ncid}_dev="$interface_realdev"
 class_${ncid}_classid="$class_classid"
 class_${ncid}_priority="$class_prio"
@@ -2594,17 +2595,30 @@ EOF
 	done
 }
 
-FIREQOS_MONITOR_DEV=
-FIREQOS_MONITOR_HANDLE=
+FIREQOS_MONITOR_ADDED=0
 remove_monitor() {
-	if [ ! -z "$FIREQOS_MONITOR_DEV" -a ! -z "$FIREQOS_MONITOR_HANDLE" ]
+	if [ "$FIREQOS_MONITOR_ADDED" -eq 1 ]
 	then
-		runcmd $tc_cmd filter del dev $FIREQOS_MONITOR_DEV parent $FIREQOS_MONITOR_HANDLE protocol all prio 1 u32 match u32 0 0 action mirred egress mirror dev fireqos_monitor
+		runcmd $tc_cmd filter del dev $class_monitor_dev parent $class_monitor_qdisc_handle protocol all prio 1 u32 match u32 0 0 action mirred egress mirror dev fireqos_monitor
 		runcmd $ip_cmd link set dev fireqos_monitor down
 		runcmd $ip_cmd link del dev fireqos_monitor name fireqos_monitor type dummy
-		echo "FireQOS: monitor removed from device '$FIREQOS_MONITOR_DEV', qdisc '$FIREQOS_MONITOR_HANDLE'."
-		FIREQOS_MONITOR_DEV=
-		FIREQOS_MONITOR_HANDLE=
+		
+		case "$class_monitor_qdisc" in
+			none)	
+					runcmd $tc_cmd qdisc del dev $class_monitor_dev parent $class_monitor_qdisc_parent handle $class_monitor_qdisc_handle htb
+					;;
+			
+			htb)
+					;;
+			
+			*)
+					runcmd $tc_cmd qdisc del dev $class_monitor_dev parent $class_monitor_qdisc_parent handle $class_monitor_qdisc_handle htb
+					runcmd $tc_cmd qdisc add $class_monitor_qdisc_cmd
+					;;
+		esac
+		
+		echo "FireQOS: monitor removed from device '$class_monitor_dev', qdisc '$class_monitor_qdisc_handle'."
+		FIREQOS_MONITOR_ADDED=0
 	fi
 	
 	echo >&2 "bye..."
@@ -2612,15 +2626,12 @@ remove_monitor() {
 	[ -f "${FIREQOS_LOCK_FILE}" ] && rm -f "${FIREQOS_LOCK_FILE}" >/dev/null 2>&1
 }
 
-add_monitor() {
-	FIREQOS_MONITOR_DEV="$1"
-	FIREQOS_MONITOR_HANDLE="$2"
-	
+add_monitor() {	
 	check_root
 	
-	if [ -z "$FIREQOS_MONITOR_DEV" -o -z "$FIREQOS_MONITOR_HANDLE" ]
+	if [ -z "$class_monitor_dev" -o -z "$class_monitor_qdisc"  -o -z "$class_monitor_qdisc_handle" ]
 	then
-		echo "Cannot setup monitor on device '$1' for handle '$2'."
+		echo "Cannot setup monitor on device '$class_monitor_dev' for handle '$class_monitor_qdisc_handle'."
 		exit 1
 	fi
 	
@@ -2634,9 +2645,24 @@ add_monitor() {
 	runcmd $ip_cmd link add dev fireqos_monitor name fireqos_monitor type dummy || exit 1
 	runcmd $ip_cmd link set dev fireqos_monitor up || exit 1
 	
-	runcmd $tc_cmd filter add dev $FIREQOS_MONITOR_DEV parent $FIREQOS_MONITOR_HANDLE protocol all prio 1 u32 match u32 0 0 action mirred egress mirror dev fireqos_monitor || exit 1
+	case "$class_monitor_qdisc" in
+		none)	
+				runcmd $tc_cmd qdisc add dev $class_monitor_dev parent $class_monitor_qdisc_parent handle $class_monitor_qdisc_handle htb || exit 1
+ 				;;
+		
+		htb)
+				;;
+		
+		*)
+				runcmd $tc_cmd qdisc del $class_monitor_qdisc_cmd || exit 1
+				runcmd $tc_cmd qdisc add dev $class_monitor_dev parent $class_monitor_qdisc_parent handle $class_monitor_qdisc_handle htb || exit 1
+				;;
+	esac
+	FIREQOS_MONITOR_ADDED=1
 	
-	echo "FireQOS: monitor added to device '$FIREQOS_MONITOR_DEV', qdisc '$FIREQOS_MONITOR_HANDLE'."
+	runcmd $tc_cmd filter add dev $class_monitor_dev parent $class_monitor_qdisc_handle protocol all prio 1 u32 match u32 0 0 action mirred egress mirror dev fireqos_monitor || exit 1
+	
+	echo "FireQOS: monitor added to device '$class_monitor_dev', class '$class_monitor_classid', qdisc '$class_monitor_qdisc_handle'."
 }
 
 monitor() {
@@ -2700,38 +2726,37 @@ monitor() {
 		exit 1
 	fi
 	
-	eval "local group=\$((class_${foundncid}_group))"
-	if [ $group -eq 1 ]
+	shift 2
+	
+	# make all class variables available as class_monitor_*
+	eval "`set | grep "^class_${foundncid}_" | sed "s/^class_${foundncid}_/class_monitor_/g"`"
+	
+	if [ $class_monitor_group -eq 1 ]
 	then
-		echo "Class $foundname is a class group. Please give a leaf class."
+		echo "Class $class_monitor_path is a class group. Please give a leaf class."
 		exit 1
 	fi
 	
-	shift 2
-	
 	$cat_cmd <<WARNING
  IMPORTANT
- Currently, tcpdump mode has 2 issues:
  
- 1. The packets monitored get lost.
-    FireQOS sets up monitoring in a way that packets should not be lost.
-    However they are.
+ 1. To monitor the packets on class $class_monitor_path, FireQOS will replace
+    the existing '$class_monitor_qdisc' qdisc with and htb and then mirror its
+    packets from this htb qdisc to a dummy device. Once you stop the monitor,
+    the original qdisc will be restored.
  
- 2. When monitoring the packets sent by a PPPoE device, tcpdump sees
-    the packets encapsulated in something that is not PPPoE or Ethernet frames.
+ 2. When monitoring the packets sent by a PPPoE device, tcpdump sees the
+    packets encapsulated in something that is not PPPoE or Ethernet frames.
     Therefore they cannot be decoded by tcpdump, wireshark or other tools.
     
- Until these issues get fixed, please do not use tcpdump mode.
- 
- If you still want to try it, ALTHOUGH PACKETS MOST PROBABLY WILL BE LOST,
- press ENTER. Otherwise, Control-C to cancel.
+ If you still want to try it, press ENTER. Otherwise, Control-C to cancel.
 WARNING
 	
 	read
 	
 	FIREQOS_DEBUG=1
-	echo "Monitoring qdisc '$foundmonitor' for class '$foundname2' ($foundflow)..."
-	add_monitor "$interface_realdev" "$foundmonitor" || exit 1
+	echo "Monitoring qdisc '$class_monitor_qdisc_handle' for class '$class_monitor_path' ($class_monitor_classid)..."
+	add_monitor || exit 1
 	
 	echo
 	runcmd $tcpdump_cmd -i fireqos_monitor "${@}"
