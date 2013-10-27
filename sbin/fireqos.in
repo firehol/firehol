@@ -1585,7 +1585,8 @@ class() {
 		# attach a qdisc, if we have to
 		if [ ! "$class_qdisc" = "none" ]
 		then
-			tc qdisc add dev $interface_realdev $stab parent $class_classid handle $class_major: $qdisc
+			local qdisc_cmd="dev $interface_realdev $stab parent $class_classid handle $class_major: $qdisc"
+			tc qdisc add $qdisc_cmd
 		fi
 		
 		# if this is the default, make sure we don't added again
@@ -1604,6 +1605,7 @@ class() {
 	# save the configuration
 	$cat_cmd >>"${FIREQOS_DIR}/${interface_name}.conf" <<EOF
 class_${ncid}_name="$name"
+class_${ncid}_dev="$interface_realdev"
 class_${ncid}_classid="$class_classid"
 class_${ncid}_priority="$class_prio"
 class_${ncid}_rate="$class_rate"
@@ -1612,7 +1614,12 @@ class_${ncid}_burst="$class_burst"
 class_${ncid}_cburst="$class_cburst"
 class_${ncid}_quantum="$class_quantum"
 class_${ncid}_qdisc="$class_qdisc"
+class_${ncid}_qdisc_parent="$class_classid"
+class_${ncid}_qdisc_handle="$class_major:"
+class_${ncid}_qdisc_stab="$stab"
 class_${ncid}_qdisc_options="$qdisc_options"
+class_${ncid}_qdisc_cmd="$qdisc_cmd"
+class_${ncid}_group="$class_group"
 EOF
 	
 	return 0
@@ -2592,7 +2599,7 @@ FIREQOS_MONITOR_HANDLE=
 remove_monitor() {
 	if [ ! -z "$FIREQOS_MONITOR_DEV" -a ! -z "$FIREQOS_MONITOR_HANDLE" ]
 	then
-		runcmd $tc_cmd filter del dev $FIREQOS_MONITOR_DEV parent $FIREQOS_MONITOR_HANDLE protocol all prio 1 u32 match u32 0 0 flowid 1:9999 action mirred egress mirror dev fireqos_monitor
+		runcmd $tc_cmd filter del dev $FIREQOS_MONITOR_DEV parent $FIREQOS_MONITOR_HANDLE protocol all prio 1 u32 match u32 0 0 action mirred egress mirror dev fireqos_monitor
 		runcmd $ip_cmd link set dev fireqos_monitor down
 		runcmd $ip_cmd link del dev fireqos_monitor name fireqos_monitor type dummy
 		echo "FireQOS: monitor removed from device '$FIREQOS_MONITOR_DEV', qdisc '$FIREQOS_MONITOR_HANDLE'."
@@ -2627,7 +2634,7 @@ add_monitor() {
 	runcmd $ip_cmd link add dev fireqos_monitor name fireqos_monitor type dummy || exit 1
 	runcmd $ip_cmd link set dev fireqos_monitor up || exit 1
 	
-	runcmd $tc_cmd filter add dev $FIREQOS_MONITOR_DEV parent $FIREQOS_MONITOR_HANDLE protocol all prio 1 u32 match u32 0 0 flowid 1:9999 action mirred egress mirror dev fireqos_monitor || exit 1
+	runcmd $tc_cmd filter add dev $FIREQOS_MONITOR_DEV parent $FIREQOS_MONITOR_HANDLE protocol all prio 1 u32 match u32 0 0 action mirred egress mirror dev fireqos_monitor || exit 1
 	
 	echo "FireQOS: monitor added to device '$FIREQOS_MONITOR_DEV', qdisc '$FIREQOS_MONITOR_HANDLE'."
 }
@@ -2661,6 +2668,7 @@ monitor() {
 			local foundname2="$name2"
 			local foundflow="$flow"
 			local foundmonitor="$monitor"
+			local foundncid="`echo $foundflow | $tr_cmd ":" "_"`"
 			break
 		fi
 	done
@@ -2689,6 +2697,13 @@ monitor() {
 				fi
 			)
 		done
+		exit 1
+	fi
+	
+	eval "local group=\$((class_${foundncid}_group))"
+	if [ $group -eq 1 ]
+	then
+		echo "Class $foundname is a class group. Please give a leaf class."
 		exit 1
 	fi
 	
