@@ -580,6 +580,7 @@ parse_class_params() {
 	local priority_mode=
 	local prio=
 	local qdisc=
+	local qdisc_options=
 	local minrate=
 	local rate=
 	local ceil=
@@ -623,13 +624,26 @@ parse_class_params() {
 					local prio="$2"
 					shift
 					;;
+					
 			qdisc)	
 					local qdisc="$2"
+					local qdisc_options="default"
+					if [ "$3" = "options" ]
+					then
+						local qdisc_options="$4"
+						shift
+					fi
 					shift
 					;;
 			
-			sfq|pfifo|bfifo)
+			sfq|pfifo|bfifo|codel|none)
 					local qdisc="$1"
+					local qdisc_options="default"
+					if [ "$2" = "options" ]
+					then
+						local qdisc_options="$3"
+						shift
+					fi
 					;;
 					
 			minrate)
@@ -759,7 +773,7 @@ parse_class_params() {
 	# for every parameter not set, use the parent value
 	# for every one set, use the set value
 	local param=
-	for param in ceil burst cburst quantum qdisc ipv4 ipv6 priority_mode
+	for param in ceil burst cburst quantum qdisc qdisc_options ipv4 ipv6 priority_mode
 	do
 		eval local value="\$$param"
 		if [ -z "$value" ]
@@ -980,7 +994,7 @@ interface_realdev=
 interface_minrate=
 interface_global_class_counter=
 interface_class_counter=
-interface_class_prio=
+interface_class_prio=0
 interface_qdisc_counter=
 interface_default_added=
 interface_default_class=
@@ -1032,7 +1046,7 @@ interface_close() {
 	interface_minrate=
 	interface_global_class_counter=1
 	interface_class_counter=10
-	interface_class_prio=-1
+	interface_class_prio=0
 	interface_qdisc_counter=10
 	interface_default_added=0
 	interface_default_class=5000
@@ -1050,6 +1064,8 @@ interface_close() {
 	class_classid=
 	class_major=
 	class_group=0
+	
+	last_class_prio=0
 	
 	return 0
 }
@@ -1174,7 +1190,11 @@ interface() {
 	[ -z "$interface_ceil" ] && interface_ceil=$interface_rate
 	
 	# set the default qdisc for all classes
-	[ -z "$interface_qdisc" ] && interface_qdisc="sfq"
+	if [ -z "$interface_qdisc" ]
+	then
+		interface_qdisc="sfq"
+		interface_qdisc_options="default"
+	fi
 	
 	# the desired minimum rate for all classes
 	[ -z "$interface_minrate" ] && interface_minrate=$((interface_rate / FIREQOS_MIN_RATE_DIVISOR))
@@ -1256,6 +1276,7 @@ interface_mtu=$interface_mtu
 interface_mpu=$interface_mpu
 interface_tsize=$interface_tsize
 interface_qdisc=$interface_qdisc
+interface_qdisc_options=$interface_qdisc_options
 class_${interface_major}_1_name=TOTAL
 class_${interface_major}_1_classid=CLASSID
 class_${interface_major}_1_priority=PRIORITY
@@ -1357,11 +1378,9 @@ class() {
 	# increase the global class counter
 	interface_global_class_counter=$((interface_global_class_counter + 1))
 	
-	# increase the parent's priority of subclasses
+	# increase the parent's class counter
+	# this is used for determining the minor of the class
 	parent_class_counter=$((parent_class_counter + 1))
-	
-	# increase the parent's priority of subclasses
-	parent_class_prio=$((parent_class_prio + 1))
 	
 	# if this is the default class, use the pre-defined
 	# id, otherwise use the classid we just increased
@@ -1399,11 +1418,23 @@ class() {
 	fi
 	
 	# the priority of this class, compared to the others in the same interface
-	if [ -z "$class_prio" ]
+	if [ "$class_prio" = "keep" -o "$class_prio" = "last" ]
 	then
-		[ "$parent_priority_mode" = "balanced" ] && class_prio=$FIREQOS_BALANCED_PRIO
-		[ -z "$class_prio" ] && class_prio=$parent_class_prio
+		class_prio=$last_class_prio
+	elif [ -z "$class_prio" ]
+	then
+		if [ "$parent_priority_mode" = "balanced" ]
+		then
+			class_prio=$FIREQOS_BALANCED_PRIO
+		else
+			class_prio=$parent_class_prio
+			
+			# increase the parent's priority of subclasses
+			parent_class_prio=$((parent_class_prio + 1))
+		fi
 	fi
+	# remember this prio, in case we need it later
+	last_class_prio="$class_prio"
 	
 	[ $class_prio -lt 0 ] && class_prio=0
 	[ $class_prio -gt 7 ] && class_prio=7
@@ -1460,7 +1491,7 @@ class() {
 	then
 		# this class will have subclasses
 		
-		class_class_prio=-1
+		class_class_prio=0
 		
 		# the default class that all unmatched traffic will be sent to
 		class_default_class="$((interface_default_class + interface_qdisc_counter))"
@@ -1525,19 +1556,31 @@ class() {
 		# add the class
 		tc class add dev $interface_realdev parent $parent_classid classid $class_classid htb $rate $ceil $burst $cburst prio $class_prio $quantum
 		
-		case "$class_qdisc" in
-			htb)	local qdisc="htb"
-				;;
+		# default qdisc options
+		if [ -z "$class_qdisc_options" -o "$class_qdisc_options" = "default" ]
+		then
+			# the user didn't give options to this class' qdisc
+			# find the global qdisc default
 			
-			sfq)	local qdisc="sfq perturb 10 quantum $class_quantum"
-				;;
+			eval "local qdisc_options=\$FIREQOS_DEFAULT_QDISC_OPTIONS_$class_qdisc"
 			
-			*)	local qdisc="$class_qdisc"
-				;;
-		esac
+			if [ -z "$qdisc_options" ]
+			then
+				# there is no global default
+				# check if we have an internal default for it
+				
+				case "$class_qdisc" in
+					sfq)	qdisc_options="perturb 10 quantum $class_quantum"
+						;;
+				esac
+			fi
+		else
+			local qdisc_options="$class_qdisc_options"
+		fi
+		local qdisc="$class_qdisc $qdisc_options"
 		
 		# attach a qdisc, if we have to
-		if [ ! -z "$qdisc" -a ! "$qdisc" = "none" ]
+		if [ ! "$class_qdisc" = "none" ]
 		then
 			tc qdisc add dev $interface_realdev $stab parent $class_classid handle $class_major: $qdisc
 		fi
@@ -1566,6 +1609,7 @@ class_${ncid}_burst=$class_burst
 class_${ncid}_cburst=$class_cburst
 class_${ncid}_quantum=$class_quantum
 class_${ncid}_qdisc=$class_qdisc
+class_${ncid}_qdisc_options=$qdisc_options
 EOF
 	
 	return 0
