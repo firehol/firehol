@@ -1,3 +1,11 @@
+firehol (2.0.0-pre3) unstable; urgency=low
+
+  * FireQOS updates
+    - Fix for issue https://github.com/ktsaou/firehol/issues/6
+    - Fix for issue https://github.com/ktsaou/firehol/issues/9
+
+ -- Phil Whineray <phil@sanewall.org>  Mon, 28 Oct 2013 22:20:00 +0000
+
 firehol (2.0.0-pre2) unstable; urgency=low
 
   * Inclusion of FireQOS
