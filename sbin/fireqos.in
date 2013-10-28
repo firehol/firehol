@@ -2314,6 +2314,23 @@ cleanup_stats() {
 	done
 }
 
+stats_colors() {
+		local drops="$1"
+		local overlimits="$2"
+		local requeues="$3"
+		local backlog="$4"
+		
+		local fcolor=
+		local bcolor=
+		
+		[ $((backlog))    -gt 0 ] && local fcolor="${COLOR_BOLD}${COLOR_YELLOW}"
+		[ $((requeues))   -gt 0 ] && local bcolor="${COLOR_BGBLUE}"
+		[ $((overlimits)) -gt 0 ] && local bcolor="${COLOR_BGPURPLE}"
+		[ $((drops))      -gt 0 ] && local bcolor="${COLOR_BGRED}"
+		
+		echo -e -n "$fcolor$bcolor"
+}
+
 htb_stats() {
 	local x=
 	
@@ -2455,7 +2472,6 @@ EOF
 			-e "s/ parent [0-9]*_[0-9]* / /g"	\
 			-e "s/ leaf [0-9]*_[0-9]* / /g"	|\
 			$awk_cmd "$awk_script"`"
-			# $awk_cmd -f $FIREQOS_DIR/$FIREQOS_STATS_ID.stats.awk`"
 	}
 	
 	getms() {
@@ -2495,6 +2511,7 @@ EOF
 	echo "Values in $unit"
 	echo
 	
+	starttime
 	getdata $interface_realdev
 	
 	# render the configuration
@@ -2525,9 +2542,16 @@ EOF
 	then
 		for x in $interface_classes_ids
 		do
+			eval "local drops=\$TCDROPS_htb_${x}"
+			eval "local overlimits=\$TCOVERS_htb_${x}"
+			eval "local requeues=\$TCREQUEUES_htb_${x}"
+			stats_colors "$drops" "$overlimits" "$requeues" 0
+			
 			eval local rate="\${class_${x}_rate}"
 			[ ! "${rate}" = "COMMIT" ] && local rate=$(( ((rate * 8) + round) / resolution ))
 			printf "% ${number_digits}.${number_digits}s " $rate
+		
+			echo -e -n "$COLOR_RESET"
 		done
 		echo
 		
@@ -2542,7 +2566,8 @@ EOF
 	echo
 	
 	# the main loop
-	sleep 1
+	endtime
+	sleepms 1000
 	starttime
 	local c=$((banner_every_lines - 1))
 	while [ 1 = 1 ]
@@ -2553,7 +2578,19 @@ EOF
 		if [ $c -eq ${banner_every_lines} ]
 		then
 			echo
-			[ "$show" = "TCSTATS" ] && echo -e " color code (packets) ${COLOR_BOLD}${COLOR_YELLOW} backlog ${COLOR_RESET} | ${COLOR_BOLD}${COLOR_BGRED} dropped ${COLOR_RESET} | ${COLOR_BOLD}${COLOR_BGPURPLE}${COLOR_YELLOW} delayed ${COLOR_RESET} | ${COLOR_BOLD}${COLOR_BGBLUE} requeued ${COLOR_RESET}"
+			if [ "$show" = "TCSTATS" ]
+			then
+				echo -n " color code (packets): "
+				stats_colors 0 0 0 1
+				echo -e -n " backlog ${COLOR_RESET} | "
+				stats_colors 1 0 0 0
+				echo -e -n " dropped ${COLOR_RESET} | "
+				stats_colors 0 1 0 0
+				echo -e -n " delayed ${COLOR_RESET} | "
+				stats_colors 0 0 1 0
+				echo -e " requeued ${COLOR_RESET}"
+			fi
+			
 			echo " $title on $interface_name ($interface_dev $interface_inout => $interface_realdev) - values in $unit"
 			for x in $interface_classes_ids
 			do
@@ -2573,16 +2610,7 @@ EOF
 				eval "local overlimits=\$TCOVERS_htb_${x}"
 				eval "local requeues=\$TCREQUEUES_htb_${x}"
 				eval "local backlog=\$TCBACKLOG_htb_${x}"
-				
-				local fcolor=
-				local bcolor=
-				
-				[ $((backlog))    -gt 0 ] && local fcolor="${COLOR_BOLD}${COLOR_YELLOW}"
-				[ $((requeues))   -gt 0 ] && local bcolor="${COLOR_BGBLUE}"
-				[ $((overlimits)) -gt 0 ] && local bcolor="${COLOR_BGPURPLE}"
-				[ $((drops))      -gt 0 ] && local bcolor="${COLOR_BGRED}"
-				
-				echo -e -n "$fcolor$bcolor"
+				stats_colors "$drops" "$overlimits" "$requeues" "$backlog"
 			fi
 			
 			if [ -z "$y" ]
