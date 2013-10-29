@@ -2965,11 +2965,11 @@ runcmd() {
 	local cmd="${1}"; shift
 
 	"${cmd}" "$@" >${FIREHOL_OUTPUT}.log 2>&1
+	local r=$?
 	if [ "$FIREHOL_DEBUGGING" ]
 	then
 		"${CAT_CMD}" ${FIREHOL_OUTPUT}.log 1>&2
 	fi
-	local r=$?
 	test ${r} -gt 0 && runtime_error ${check} ${r} ${line} "${cmd}" "$@"
 	
 	return 0
