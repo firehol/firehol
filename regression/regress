@@ -1,0 +1,63 @@
+#!/bin/sh
+
+if [ ! -x tools/run-suite.sh ]
+then
+  echo "Executable tools/run-suite.sh script not found"
+  exit 1
+fi
+
+if [ "$1" != "-ok" ]
+then
+  echo "Do no run on a production system!"
+  echo ""
+  echo "This script will wreck your existing firewall, ultimately leaving"
+  echo "it empty."
+  echo ""
+  echo "If you are running remotely your session will get interrupted"
+  echo "Ensure you can re-establish control."
+  echo ""
+  echo "Re-run with '-ok' as a parameter to proceed"
+  exit 1
+fi
+
+shift
+
+if [ "`id -r -u`" != "0" ]
+then
+  echo "Must be root"
+  notroot="Y"
+fi
+
+if [ "$notroot" -o $# -lt 1 ]
+then
+  echo "Usage: sudo ./regress -ok current|git-version [...]"
+  exit 1
+fi
+
+for v in "$@"
+do
+  case $v in
+    current)
+     d=current
+     (cd .. && cat sbin/firehol.in) > /tmp/sw-$d.$$
+    ;;
+    *)
+     d=$v
+     f=/tmp/sw-$d.$$
+     (cd .. && git show $v:firehol.sh > $f 2> /dev/null)
+     test -s $f || (cd .. && git show $v:sbin/firehol.in > $f)
+     test -s $f || exit 1
+    ;;
+  esac
+  rm -rf output/$d
+  test -s /tmp/sw-$d.$$ || exit 1
+  chmod +x /tmp/sw-$d.$$
+  run="$run $d"
+done
+
+RUN_SUITE=OK export RUN_SUITE
+for d in $run
+do
+  ./tools/run-suite.sh /tmp/sw-$d.$$ output/$d
+  rm -f /tmp/sw-$d.$$
+done

@@ -40,3 +40,4 @@ sbin/fireqos
 *.bz2
 firehol-*.*.*/
 INSTALL
+regression/output/

@@ -1,0 +1,43 @@
+#!/usr/bin/perl -w
+
+use strict;
+
+my %tables = ();
+my $table = undef;
+
+my $skipnat = undef;
+if (@ARGV > 0 and $ARGV[0] eq "-n") {
+  $skipnat = 1;
+  shift @ARGV;
+}
+
+while (<>) {
+  # Remove comments
+  next if (/^#/);
+
+  # Set any packet counters to 0
+  s/\[[0-9][0-9]*:[0-9][0-9]*\]$/[0:0]/;
+
+  # Hide differences between icmpv6 and icmp
+  s/icmp6-/icmp-/;
+
+  # Hide IPv4/IPv6 differences
+  s/::([0-9][0-9]*\.[0-9][0-9]*\.[0-9][0-9]*\.[0-9][0-9]*)\/128/$1\/32/;
+
+  # Hide state/conntrack differences
+  s/-m state --state/-m conntrack --ctstate/g;
+
+  # New table starts
+  $table = $_ if (/^\*/);
+
+  die "No table for line $_" unless $table;
+  push @{$tables{$table}}, $_;
+}
+
+foreach $table (sort(keys(%tables))) {
+  next if $skipnat and $table =~ /^\* *nat\b/;
+  my @lines = @{$tables{$table}};
+  print "#\n";
+  print join('', @lines);
+  print "#\n";
+}

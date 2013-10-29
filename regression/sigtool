@@ -1,0 +1,114 @@
+#!/bin/sh
+
+set -e
+
+if [ $# -lt 1 ]
+then
+  echo "Usage: ./sigtool tests/..../test.conf [GPGID] [audited-version-no]"
+  echo ""
+  echo "  With no options, checks the signatures on a test"
+  echo "  With a GPG ID, adds signatures to a test"
+  echo "  With a GPG ID and version no adds audited output and signs a test"
+  echo ""
+  exit 1
+fi
+
+file=$1
+shift
+
+if [ ! -f "$file" ]
+then
+  echo "$file: No test file"
+  exit 1
+fi
+
+case "$file" in
+     *.conf)
+       :
+     ;;
+     *)
+       echo "$file: Not a .conf file"
+       exit 1
+     ;;
+esac
+
+sigs=`echo "$file" | sed -e 's/conf$/sigs/'`
+
+if grep -q "^==== IPv4 AUDITED OUTPUT ====" "$file"
+then
+  audited="Y"
+else
+  audited=""
+fi
+
+if [ "$audited" -a ! -f "$sigs" ]
+then
+  echo "$file: incomplete audit missing sigs"
+  exit 1
+fi
+
+if [ $# -eq 0 ]
+then
+  if [ ! "$audited"  ]
+  then
+    echo "$file: No audited output"
+    exit 1
+  fi
+
+  gpg --verify "$sigs" "$file"
+  exit 0
+fi
+
+if [ $# -eq 1 ]
+then
+  if [ ! "$audited"  ]
+  then
+    echo "$file: No audited output to sign"
+    exit 1
+  fi
+
+  gpg --local-user "$1" --armor --detach-sign --armor "$file"
+  cat "$file.asc" >> "$sigs"
+  echo "Signature appended to $sigs"
+  rm -f "$file.asc"
+  exit
+fi
+
+if [ "$audited"  ]
+then
+  echo "Cannot re-audit an audited file"
+  exit 1
+fi
+
+v4="output/$2/`echo $file | sed -e 's;/;-;g' -e s'/.conf$//'`".out
+v6="output/$2/ipv6/`echo $file | sed -e 's;/;-;g' -e s'/.conf$//'`".out
+
+if [ ! -f "$v4" ]
+then
+  echo "Missing $v4 to add to audit"
+  exit 1
+fi
+
+if [ ! -f "$v6" ]
+then
+  echo "Missing $v6 to add to audit"
+  exit 1
+fi
+
+cp -p "$file" "$file.tmp"
+
+echo "==== IPv4 AUDITED OUTPUT ====" >> "$file.tmp"
+cat "$v4" >> "$file.tmp"
+echo "==== IPv4 AUDITED END ====" >> "$file.tmp"
+
+echo "==== IPv6 AUDITED OUTPUT ====" >> "$file.tmp"
+cat "$v6" >> "$file.tmp"
+echo "==== IPv6 AUDITED END ====" >> "$file.tmp"
+
+echo "Please review $file.tmp"
+echo "Hit ENTER to sign or CTRL-C to abort"
+read REPLY
+
+mv "$file.tmp" "$file"
+gpg --local-user "$1" --armor --detach-sign --armor "$file"
+mv "$file.asc" "$sigs"

@@ -1,0 +1,103 @@
+#!/bin/bash
+
+if [ "$1" != "-ok" ]
+then
+  echo "Do no run on a production system!"
+  echo ""
+  echo "This script will wreck your existing firewall, ultimately leaving"
+  echo "it empty."
+  echo ""
+  echo "If you are running remotely your session will get interrupted"
+  echo "Ensure you can re-establish control."
+  echo ""
+  echo "Re-run with '-ok' as a parameter to proceed"
+  exit 1
+fi
+
+shift
+
+if [ "`id -r -u`" != "0" ]
+then
+  echo "Must be root"
+  notroot="Y"
+fi
+
+if [ "$notroot" -o $# -ne 1 ]
+then
+  echo "Usage: sudo ./basic-tests -ok current|git-version"
+  exit 1
+fi
+
+case $1 in
+  current)
+   d=current
+   (cd .. && cat sbin/firehol.in) > /tmp/fh-$d.$$
+  ;;
+  *)
+   d=$1
+   (cd .. && git show $1:sbin/firehol.in) > /tmp/fh-$d.$$ 2> /dev/null
+   test -s /tmp/$d.$$ || (cd .. && git show $1:firehol.sh) > /tmp/fh-$d.$$
+   test -s /tmp/$d.$$ || ( echo "Not in firehol/regression?"; exit 1 )
+  ;;
+esac
+
+myexit() {
+  rm -f /tmp/fh-$d.$$
+  rm -f /tmp/fh-res.$$
+  exit 0
+}
+
+trap myexit SIGINT
+trap myexit SIGHUP
+
+test -s /tmp/fh-$d.$$ || exit 1
+chmod +x /tmp/fh-$d.$$
+
+have_ipv6="`grep PRIVATE_IPV6 /tmp/fh-$d.$$`"
+if [ "$have_ipv6" ]
+then
+  # NAT does not allow DROP, hence all_drops is lower
+  all_accepts=20
+  all_drops=16
+else
+  all_accepts=12
+  all_drops=8
+fi
+
+/tmp/fh-$d.$$ stop || exit
+/tmp/fh-$d.$$ status > /tmp/fh-res.$$ || exit
+drops=`grep DROP /tmp/fh-res.$$ | wc -l`
+accepts=`grep ACCEPT /tmp/fh-res.$$ | wc -l`
+echo "$d stop ... accepts=$accepts drops=$drops"
+if [ $accepts -ne $all_accepts ]
+then
+  echo "ERROR: Status not functional!"
+  exit 1
+fi
+if [ $drops -ne 0 ]
+then
+  echo "ERROR: Firewall not stopped!"
+  exit 1
+fi
+
+/tmp/fh-$d.$$ panic || exit
+/tmp/fh-$d.$$ status > /tmp/fh-res.$$ || exit
+drops=`grep DROP /tmp/fh-res.$$ | wc -l`
+accepts=`grep ACCEPT /tmp/fh-res.$$ | wc -l`
+echo "$d panic ... accepts=$accepts drops=$drops"
+if [ $accepts -ne $all_accepts ]
+then
+  echo "ERROR: Panic not functional!"
+  exit 1
+fi
+if [ $drops -ne $all_drops ]
+then
+  echo "ERROR: Panic not complete!"
+  exit 1
+fi
+
+/tmp/fh-$d.$$ stop
+
+echo
+echo "All seems OK"
+myexit

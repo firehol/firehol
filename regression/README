@@ -1,0 +1,122 @@
+                         FireHOL Regression Tests
+                         ************************
+
+WARNING: your firewall is cleared out before starting and after finishing
+and will go through a number or arbitrary states. DO NOT RUN these tests
+unless you are protected by a firewall elsewhere on your network.
+
+Run tests as:
+  sudo ./regress -ok versions...
+
+e.g.:
+  sudo ./regress -ok current v1.296 v2.0.0-pre3
+
+To get comparisons between the current firehol.in in the working
+directory (including edits) and tagged versions 1.296 and 2.0.0-pre3
+
+Any number of versions may be specified.
+
+Any .conf files under the tests directory will be run one by one for each
+version.
+
+Output goes into output/<version> directories - old data will be removed
+before the new tests are run:
+  output/<version>/*.log             - stdout+stderr from run
+  output/<version>/*.out             - iptables-save output
+  output/<version>/ipv4-no-nat/*.out - iptables-save output with nat removed
+  output/<version>/ipv6/*.out        - ip6tables-save output
+
+Output is slightly munged to minimise the differences between runs and
+between iptables-save and ip6tables-save output. See tools/run-suite.sh
+for the details.
+
+
+Comparison examples
+===================
+Compare current edited version to last v1.x release behaviour:
+  diff -r output/v.1296 output/current
+
+Compare current master version to last v1.x release behaviour:
+  diff -r output/master output/current
+
+Compare IPv4 only to FireHOL with IPv6 behaviour:
+  diff output/v2.0.0-pre3 output/v2.0.0
+(no point in comparing subdirectories since IPv6 is different by definition)
+
+Compare IPv4 output to FireHOL IPv6 output in both-capable version:
+  diff output/v2.0.0/ipv4-no-nat output/v2.0.0/ipv6
+
+Compare IPv4 to IPv6 in current edit
+  diff output/current/ipv4-no-nat output/current/ipv6
+
+Compare effect of activation policy on final firewall:
+  diff output/current/tests-activation-policy-default.out \
+       output/current/tests-activation-policy-accept.out
+
+  diff output/current/tests-activation-policy-default.out \
+       output/current/tests-activation-policy-drop.out
+
+and so forth.
+
+
+Writing new test configurations
+===============================
+Take a look at this file:
+  tests/domain-names/ipv6-if-available.conf
+
+It is written in such a way as to allow for being run by FireHOL with
+or without IPv6 capability (i.e. post or pre 2.0.0).
+
+
+Auditing and signing test configurations
+========================================
+When the iptables output of a configuration is known to be good it
+can be appended to the configuration file and gpg-signed using the
+"sigtool" program.
+
+Multiple signatures can be accumulated to give extra confidence
+regarding the validity of output. If you understand iptables well
+but do not program, creating sample configurations, auditing and
+signing them is a great way to contribute.
+
+To first sign a configuration, run:
+  ./sigtool tests/..../test.conf <gpgid> <verno>
+
+Where <gpgid> is a string that gpg will recognise for the purpose of
+selecting your gpg key and <verno> is the version of the output that
+has been audited as correct for the test in question.
+
+The sigtool will append the iptables-save output to the configuration
+file tests/..../test.conf in a way that the regression suite will
+remove it before running and automatically compare the output. Please
+send this updated file along with the new tests/..../test.sigs file
+to the mailing list.
+
+To add a signature to a configuration that has already been audited, run:
+  ./sigtool tests/..../test.conf <gpgid>
+and just send the updated sigs file to the mailing list.
+
+Note that there can only ever be a single audited output. It is not
+unthinkable that changes in future will mean that a different output
+could achieve identical aims... if this happens the suite will need
+to be updated to cope.
+
+The regression tool will automatically list the signatures on a test
+or you can run:
+  ./sigtool tests/..../test.conf
+
+
+Recommended services for testing with
+=====================================
+All services fall into one of these criteria:
+   simple - single UDP port
+   simple - single TCP port
+   simple - multiple ports
+  complex - multiple ports
+
+Whilst technically all complex services are unique, these four services
+give a good broad coverage of overall behaviour:
+     tftp - udp 69
+      ssh - tcp 22
+  eserver - tcp/4661 udp/4661 udp/4665
+  hylafax - server listens on tcp/4559 + opens back to client tcp/4558
