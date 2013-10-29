@@ -1,3 +1,35 @@
+2013/10/29:
+
+Release of version 2.0.0-pre4
+
+Cleanups and minor improvements
+- Remove the blank line from wizard/helpme output
+- Remove the #! from wizard output - it cannot be executed directly
+- Cleaned up boilerplace information in script
+- "firehol condrestart" now follows official conventions by restarting
+   only if already running
+
+Fix kernel version detection so that it is more flexible and less error prone.
+
+Allow switching on of debug output by setting environment variable
+FIREHOL_DEBUGGING to a non-empty value.
+
+Fix "mac" helper command so that it works with iptables 1.4.12+
+- Previous behaviour was deprecated in 1.4.3 (Jul 2009)
+- Also prevent mac addresses being seen as IPv6 addresses
+
+Allow some config variables to be set as environment variables
+- FIREHOL_ESTABLISHED_ACTIVATION_ACCEPT,
+  FIREHOL_INPUT_ACTIVATION_POLICY, FIREHOL_FORWARD_ACTIVATION_POLICY,
+  FIREHOL_OUTPUT_ACTIVATION_POLICY, FIREHOL_LOAD_KERNEL_MODULES,
+  FIREHOL_NAT, FIREHOL_ROUTING, FIREHOL_AUTOSAVE
+
+Do not try to add DROP rules to NAT chains
+- See http://bugs.debian.org/cgi-bin/bugreport.cgi?bug=536675
+
+Use "ss" in place of "netstat"
+- As suggested here https://bugzilla.redhat.com/show_bug.cgi?id=784520
+
 2013/10/28:
 
 Release of version 2.0.0-pre3
