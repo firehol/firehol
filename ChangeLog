@@ -1,3 +1,10 @@
+firehol (2.0.0-pre5) unstable; urgency=low
+
+  * Fix error in new FIREHOL_DEBUGGING code which prevented errors
+    reported by iptables from being detected.
+
+ -- Phil Whineray <phil@sanewall.org>  Tue, 29 Oct 2013 21:29:00 +0000
+
 firehol (2.0.0-pre4) unstable; urgency=low
 
   * Cleanups and minor improvements
