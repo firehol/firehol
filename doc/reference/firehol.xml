@@ -167,8 +167,8 @@
         <para>
           Restarts the <application>FireHOL</application> firewall only if
           it is already active. This is the generally expected behaviour
-          (but opposite to <application>FireHOL</application> and
-          <application>FireHOL</application> prior to 1.0.3, 1.1.4).
+          (but opposite to <application>FireHOL</application> prior to
+          2.0.0-pre4).
         </para>
       </listitem>
     </varlistentry>
