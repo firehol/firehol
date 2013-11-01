@@ -219,6 +219,7 @@ which_cmd TR_CMD tr
 which_cmd UNAME_CMD uname
 which_cmd UNIQ_CMD uniq
 which_cmd LOGGER_CMD logger
+which_cmd FLOCK_CMD flock
 
 # Special commands
 pager_cmd() {
@@ -336,33 +337,15 @@ renice_cmd() {
 # Concurrent run control
 FIREHOL_LOCK_FILE="/var/run/firehol.lck"
 
-# Time in secs to consider a lock stale
-FIREHOL_LOCK_FILE_TIMEOUT=600
-
 firehol_concurrent_run_lock() {
-	require_cmd -n lockfile
-	
-	if [ -f "${FIREHOL_LOCK_FILE}" ]
+	exec 200>"${FIREHOL_LOCK_FILE}"
+	if [ $? -ne 0 ]; then exit; fi
+	${FLOCK_CMD} -n 200
+	if [ $? -ne 0 ]
 	then
-		echo >&2 "FireHOL is already running. Waiting for the other process to exit..."
+		echo >&2 "FireHOL is already running. Exiting..."
+		exit 1
 	fi
-	
-	if [ -z "${LOCKFILE_CMD}" ]
-	then
-		local c=0
-		while [ -f "${FIREHOL_LOCK_FILE}" ]
-		do
-			c=$[c + 1]
-			test $c -gt ${FIREHOL_LOCK_FILE_TIMEOUT} && break
-			sleep 1
-		done
-		
-		touch "${FIREHOL_LOCK_FILE}"
-		
-	else
-		${LOCKFILE_CMD} -1 -r ${FIREHOL_LOCK_FILE_TIMEOUT} -l ${FIREHOL_LOCK_FILE_TIMEOUT} "${FIREHOL_LOCK_FILE}"
-	fi
-	
 	return 0
 }
 
@@ -500,9 +483,6 @@ firehol_exit() {
 			"${FIREHOL_NOTIFICATION_PROGRAM}" "${FIREHOL_CONFIG}" "${result}" "${restored}" "${work_error}" "${work_runtime_error}" >/dev/null 2>&1 </dev/null &
 		fi
 	fi
-	
-	# remove the lock
-	test -f "${FIREHOL_LOCK_FILE}" && rm -f "${FIREHOL_LOCK_FILE}"
 	
 	return 0
 }
