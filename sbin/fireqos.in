@@ -331,7 +331,7 @@ fireqos_exit() {
 			echo >&2 "Clearing failed interface: $interface_name ($interface_dev $interface_inout => $interface_realdev)..."
 			echo >&2
 			printf >&2 " %16.16s: " $interface_realdev
-			echo >&2 "cleared traffic control $(interface_inout)"
+			echo >&2 "cleared traffic control ${interface_inout}"
 			
 			if [ $interface_inout = input ]
 			then
@@ -405,6 +405,7 @@ syslog() {
 }
 
 error() {
+	echo >&2
 	echo >&2
 	echo >&2 "FAILED: $@"
 	exit 1
@@ -1183,7 +1184,7 @@ interface() {
 		runcmd $ip_cmd link set dev $interface_realdev up
 		if [ $? -ne 0 ]
 		then
-			error "Cannot bring device $interface_realdev UP."
+			error "Cannot bring device $interface_realdev UP. Do you have 'ifb' enabled in the kernel?"
 			exit 1
 		fi
 	else
