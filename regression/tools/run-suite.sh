@@ -74,6 +74,7 @@ clear_all() {
 	COMMIT
 	!
   ip6tables-restore < /tmp/reset.$$
+  rm -f /var/run/firehol.lck
   rm -f /tmp/reset.$$
   st2=$?
 
