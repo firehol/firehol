@@ -730,6 +730,11 @@ test -z "$FIREHOL_AUTOSAVE" && \
 test -z "$WAIT_FOR_IFACE" && \
 	WAIT_FOR_IFACE=
 
+# If set to 1, FireHOL will attempt to load the firewall with
+# iptables-restore. This is beta.
+test -z "$FIREHOL_FAST_ACTIVATION" && \
+	FIREHOL_FAST_ACTIVATION=0
+
 # ----------------------------------------------------------------------
 # Firewall configuration variables
 #  These affect the final output firewall. They can be set in the
@@ -831,10 +836,6 @@ FIREHOL_TRY=0
 # If set to 1, firehol will output the commands of the configuration file
 # with variables expanded.
 FIREHOL_CONF_SHOW=1
-
-# If set to 1, FireHOL will attempt to load the firewall with
-# iptables-restore. This is beta.
-FIREHOL_FAST_ACTIVATION=0
 
 
 # ------------------------------------------------------------------------------
