@@ -32,11 +32,23 @@ case "$1" in
    ;;
 esac
 
+if ! MYTMP="`mktemp -d -t firehol-runsuite-XXXXXX`"
+then
+            echo >&2
+            echo >&2
+            echo >&2 "Cannot create temporary directory."
+            echo >&2
+            exit 1
+fi
+
+trap myexit SIGINT
+trap myexit SIGHUP
+
 here=`pwd`
 rm -rf $outdir
 
 clear_all() {
-  cat > /tmp/reset.$$ <<-!
+  cat > $MYTMP/reset <<-!
 	*nat
 	:PREROUTING ACCEPT [0:0]
 	:INPUT ACCEPT [0:0]
@@ -56,10 +68,10 @@ clear_all() {
 	:OUTPUT ACCEPT [0:0]
 	COMMIT
 	!
-  iptables-restore < /tmp/reset.$$
+  iptables-restore < $MYTMP/reset
   st1=$?
 
-  cat > /tmp/reset.$$ <<-!
+  cat > $MYTMP/reset <<-!
 	*mangle
 	:PREROUTING ACCEPT [0:0]
 	:INPUT ACCEPT [0:0]
@@ -73,9 +85,9 @@ clear_all() {
 	:OUTPUT ACCEPT [0:0]
 	COMMIT
 	!
-  ip6tables-restore < /tmp/reset.$$
+  ip6tables-restore < $MYTMP/reset
   rm -f /var/run/firehol.lck
-  rm -f /tmp/reset.$$
+  rm -f $MYTMP/reset
   st2=$?
 
   if [ $st1 -ne 0 -o  $st2 -ne 0 ]
@@ -85,13 +97,10 @@ clear_all() {
 }
 
 myexit() {
-  rm -f /tmp/firehol-tests-save.$$
-  rm -f /tmp/firehol-tests-save6.$$
-  rm -f /tmp/firehol-tests-list.$$
-
   cd $here
   test -n "${SUDO_USER}" && chown -R ${SUDO_USER} output
   clear_all
+  rm -rf $MYTMP
   exit 0
 }
 
@@ -105,20 +114,20 @@ progname=`basename $prog`
 prog=$progdir/$progname
 
 cd $here
-> /tmp/firehol-tests-list.$$
+> $MYTMP/list
 if [ $# -eq 0 ]
 then
-  find tests -type f -name '*.conf' >> /tmp/firehol-tests-list.$$
+  find tests -type f -name '*.conf' >> $MYTMP/list
 fi
 
 for i in "$@"
 do
   if [ -f "$1" ]
   then
-    echo "$i" >> /tmp/firehol-tests-list.$$
+    echo "$i" >> $MYTMP/list
   elif [ -d "$i" ]
   then
-    find "$i" -type f -name '*.conf' >> /tmp/firehol-tests-list.$$
+    find "$i" -type f -name '*.conf' >> $MYTMP/list
   else
     echo "$i: Not a file or directory"
   fi
@@ -127,11 +136,11 @@ done
 mkdir -p $outdir/ipv6 || myexit
 mkdir -p $outdir/ipv4-no-nat || myexit
 
-iptables-save > /tmp/firehol-tests-save.$$ || myexit
-ip6tables-save > /tmp/firehol-tests-save6.$$ || myexit
+iptables-save > $MYTMP/save || myexit
+ip6tables-save > $MYTMP/save6 || myexit
 
-sort -u /tmp/firehol-tests-list.$$ > /tmp/firehol-tests-list.$$.srt
-mv /tmp/firehol-tests-list.$$.srt /tmp/firehol-tests-list.$$
+sort -u $MYTMP/list > $MYTMP/list.srt
+mv $MYTMP/list.srt $MYTMP/list
 while read testfile
 do
   i=`echo $testfile | sed -e 's;/;-;g' -e s'/.conf$//'`
@@ -190,8 +199,8 @@ do
   then
     cmp "$v6out" "$v6aud" || echo "Warning: output differs from audited version"
   fi
-done < /tmp/firehol-tests-list.$$
+done < $MYTMP/list
 
-iptables-restore < /tmp/firehol-tests-save.$$
-ip6tables-restore < /tmp/firehol-tests-save6.$$
+iptables-restore < $MYTMP/save
+ip6tables-restore < $MYTMP/save6
 myexit

@@ -1,4 +1,4 @@
-#!/bin/sh
+#!/bin/bash
 
 if [ ! -x tools/run-suite.sh ]
 then
@@ -34,30 +34,48 @@ then
   exit 1
 fi
 
+if ! MYTMP="`mktemp -d -t firehol-regress-XXXXXX`"
+then
+            echo >&2
+            echo >&2
+            echo >&2 "Cannot create temporary directory."
+            echo >&2
+            exit 1
+fi
+
+myexit() {
+  rm -rf $MYTMP
+  exit 0
+}
+
+trap myexit SIGINT
+trap myexit SIGHUP
+
 for v in "$@"
 do
   case $v in
     current)
      d=current
-     (cd .. && cat sbin/firehol.in) > /tmp/sw-$d.$$
+     (cd .. && cat sbin/firehol.in) > $MYTMP/firehol-$d.in
     ;;
     *)
      d=$v
-     f=/tmp/sw-$d.$$
+     f=$MYTMP/firehol-$d.in
      (cd .. && git show $v:firehol.sh > $f 2> /dev/null)
      test -s $f || (cd .. && git show $v:sbin/firehol.in > $f)
      test -s $f || exit 1
     ;;
   esac
   rm -rf output/$d
-  test -s /tmp/sw-$d.$$ || exit 1
-  chmod +x /tmp/sw-$d.$$
+  test -s $MYTMP/firehol-$d.in || exit 1
+  chmod +x $MYTMP/firehol-$d.in
   run="$run $d"
 done
 
 RUN_SUITE=OK export RUN_SUITE
 for d in $run
 do
-  ./tools/run-suite.sh /tmp/sw-$d.$$ output/$d
-  rm -f /tmp/sw-$d.$$
+  ./tools/run-suite.sh $MYTMP/firehol-$d.in output/$d
 done
+
+myexit
