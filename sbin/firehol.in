@@ -207,6 +207,9 @@ which_cmd HEAD_CMD head
 which_cmd IPTABLES_CMD iptables
 which_cmd IPTABLES_SAVE_CMD iptables-save
 which_cmd IPTABLES_RESTORE_CMD iptables-restore
+which_cmd IP6TABLES_CMD ip6tables
+which_cmd IP6TABLES_SAVE_CMD ip6tables-save
+which_cmd IP6TABLES_RESTORE_CMD ip6tables-restore
 which_cmd LSMOD_CMD lsmod
 which_cmd MKDIR_CMD mkdir
 which_cmd MV_CMD mv
@@ -357,6 +360,7 @@ renice_cmd 10 $$ >/dev/null 2>/dev/null
 
 # Initialize iptables
 ${IPTABLES_CMD} -nxvL >/dev/null 2>&1
+${IP6TABLES_CMD} -nxvL >/dev/null 2>&1
 
 
 # ------------------------------------------------------------------------------
@@ -384,6 +388,7 @@ fi
 FIREHOL_CHAINS_DIR="${FIREHOL_DIR}/chains"
 FIREHOL_OUTPUT="${FIREHOL_DIR}/firehol-out.sh"
 FIREHOL_SAVED="${FIREHOL_DIR}/firehol-save.sh"
+FIREHOL_SAVED6="${FIREHOL_DIR}/firehol-save6.sh"
 FIREHOL_TMP="${FIREHOL_DIR}/firehol-tmp.sh"
 
 # Redhat like status info for startup script
@@ -427,7 +432,10 @@ firehol_exit() {
 		echo
 		echo -n $"FireHOL: Restoring old firewall:"
 		${IPTABLES_RESTORE_CMD} <"${FIREHOL_SAVED}"
-		if [ $? -eq 0 ]
+		local status4=$?
+		${IP6TABLES_RESTORE_CMD} <"${FIREHOL_SAVED6}"
+		local status6=$?
+		if [ $status4 -eq 0 -a $status6 -eq 0 ]
 		then
 			local restored="OK"
 			success $"FireHOL: Restoring old firewall:"
@@ -5909,6 +5917,11 @@ if [ -z "${IPTABLES_CMD}" -o ! -x "${IPTABLES_CMD}" ]; then
 	exit 0
 fi
 
+if [ -z "${IP6TABLES_CMD}" -o ! -x "${IP6TABLES_CMD}" ]; then
+	echo >&2 "Cannot find an executable ip6tables command."
+	exit 0
+fi
+
 kernel_maj_min() {
 	local kmaj kmin IFS=.-
 
@@ -5982,7 +5995,9 @@ case "${arg}" in
 		
 		echo -n $"FireHOL: Clearing Firewall:"
 		load_kernel_module ip_tables
+		load_kernel_module ip6_tables
 		tables=`${CAT_CMD} /proc/net/ip_tables_names`
+		tables6=`${CAT_CMD} /proc/net/ip6_tables_names`
 		for t in ${tables}
 		do
 			${IPTABLES_CMD} -t "${t}" -F
@@ -5994,6 +6009,19 @@ case "${arg}" in
 			for c in ${chains}
 			do
 				${IPTABLES_CMD} -t "${t}" -P "${c}" ACCEPT
+			done
+		done
+		for t in ${tables6}
+		do
+			${IP6TABLES_CMD} -t "${t}" -F
+			${IP6TABLES_CMD} -t "${t}" -X
+			${IP6TABLES_CMD} -t "${t}" -Z
+
+			# Find all default chains in this table.
+			chains=`${IP6TABLES_CMD} -t "${t}" -nL | ${GREP_CMD} "^Chain " | ${CUT_CMD} -d ' ' -f 2`
+			for c in ${chains}
+			do
+				${IP6TABLES_CMD} -t "${t}" -P "${c}" ACCEPT
 			done
 		done
 		success $"FireHOL: Clearing Firewall:"
@@ -6016,22 +6044,46 @@ case "${arg}" in
 	status)
 		test ! -z "${1}" && softwarning "Arguments after parameter '${arg}' are ignored."
 		(
-			echo 
-			echo "--- MANGLE ---------------------------------------------------------------------"
-			echo 
+			echo
+			echo
+			echo "--- MANGLE IPv4 ----------------------------------------------------------------"
+			echo
 			${IPTABLES_CMD} -t mangle -nxvL
-			
-			echo 
-			echo 
-			echo "--- NAT ------------------------------------------------------------------------"
-			echo 
+
+			echo
+			echo
+			echo "--- MANGLE IPv6 ----------------------------------------------------------------"
+			echo
+			${IP6TABLES_CMD} -t mangle -nxvL
+
+			echo
+			echo
+			echo "--- NAT IPv4 -------------------------------------------------------------------"
+			echo
 			${IPTABLES_CMD} -t nat -nxvL
-			
-			echo 
-			echo 
-			echo "--- FILTER ---------------------------------------------------------------------"
-			echo 
+
+			echo
+			echo
+			echo "--- NAT IPv6 -------------------------------------------------------------------"
+			if grep -q '^nat$' /proc/net/ip6_tables_names
+			then
+				${IP6TABLES_CMD} -t nat -nxvL
+			else
+				echo "IPv6 NAT not available"
+			fi
+			echo
+
+			echo
+			echo
+			echo "--- FILTER IPv4 ----------------------------------------------------------------"
+			echo
 			${IPTABLES_CMD} -nxvL
+
+			echo
+			echo
+			echo "--- FILTER IPv6 ----------------------------------------------------------------"
+			echo
+			${IP6TABLES_CMD} -nxvL
 		) | pager_cmd
 		exit $?
 		;;
@@ -6055,7 +6107,9 @@ case "${arg}" in
 		syslog info "Starting PANIC mode (SSH SOURCE_IP=${ssh_src} SOURCE_PORTS=${ssh_sport} DESTINATION_PORTS=${ssh_dport})"
 		echo -n $"FireHOL: Blocking all communications:"
 		load_kernel_module ip_tables
+		load_kernel_module ip6_tables
 		tables=`${CAT_CMD} /proc/net/ip_tables_names`
+		tables6=`${CAT_CMD} /proc/net/ip6_tables_names`
 		for t in ${tables}
 		do
 			${IPTABLES_CMD} -t "${t}" -F
@@ -6075,6 +6129,28 @@ case "${arg}" in
 				fi
 				if [ "${t}" != "nat" ] ; then
 					${IPTABLES_CMD} -t "${t}" -A "${c}" -j DROP
+				fi
+			done
+		done
+		for t in ${tables6}
+		do
+			${IP6TABLES_CMD} -t "${t}" -F
+			${IP6TABLES_CMD} -t "${t}" -X
+			${IP6TABLES_CMD} -t "${t}" -Z
+
+			# Find all default chains in this table.
+			chains=`${IP6TABLES_CMD} -t "${t}" -nL | ${GREP_CMD} "^Chain " | ${CUT_CMD} -d ' ' -f 2`
+			for c in ${chains}
+			do
+				${IP6TABLES_CMD} -t "${t}" -P "${c}" ACCEPT
+
+				if [ ! -z "${ssh_src}" ]
+				then
+					${IP6TABLES_CMD} -t "${t}" -A "${c}" -p tcp -s "${ssh_src}" --sport "${ssh_sport}" --dport "${ssh_dport}" -m conntrack --ctstate ESTABLISHED -j ACCEPT
+					${IP6TABLES_CMD} -t "${t}" -A "${c}" -p tcp -d "${ssh_src}" --dport "${ssh_sport}" --sport "${ssh_dport}" -m conntrack --ctstate ESTABLISHED -j ACCEPT
+				fi
+				if [ "${t}" != "nat" ] ; then
+					${IP6TABLES_CMD} -t "${t}" -A "${c}" -j DROP
 				fi
 			done
 		done
@@ -6150,7 +6226,9 @@ FireHOL supports the following command line arguments (only one of them):
 			configuration file.
 	
 	status		will show the running firewall, as in:
-			${IPTABLES_CMD} -nxvL
+				${IPTABLES_CMD} -nxvL
+			and
+				${IP6TABLES_CMD} -nxvL
 			
 	panic		will block all IP communication.
 	
@@ -7070,12 +7148,13 @@ firehol_concurrent_run_lock
 
 # --- Initialization -----------------------------------------------------------
 
-fixed_iptables_save() {
+fixed_save() {
+	local command="$1"
 	local tmp="${FIREHOL_DIR}/iptables-save-$$"
 	local err=
 	
 	load_kernel_module ip_tables
-	${IPTABLES_SAVE_CMD} -c >$tmp
+	${command} -c >$tmp
 	err=$?
 	if [ ! $err -eq 0 ]
 	then
@@ -7097,13 +7176,17 @@ fixed_iptables_save() {
 }
 
 echo -n $"FireHOL: Saving your old firewall to a temporary file:"
-fixed_iptables_save >${FIREHOL_SAVED}
-if [ $? -eq 0 ]
+fixed_save ${IPTABLES_SAVE_CMD} >${FIREHOL_SAVED}
+status4=$?
+fixed_save ${IP6TABLES_SAVE_CMD} >${FIREHOL_SAVED6}
+status6=$?
+
+if [ $status4 -eq 0 -a $status6 -eq 0 ]
 then
 	success $"FireHOL: Saving your old firewall to a temporary file:"
 	echo
 else
-	test -f "${FIREHOL_SAVED}" && ${RM_CMD} -f "${FIREHOL_SAVED}"
+	${RM_CMD} -f "${FIREHOL_SAVED}" "${FIREHOL_SAVED6}"
 	failure $"FireHOL: Saving your old firewall to a temporary file:"
 	echo
 	exit 1
@@ -7114,8 +7197,10 @@ fi
 
 # clear all chains
 firehol_filter_chains=
+firehol_filter6_chains=
 initialize_firewall() {
 	load_kernel_module ip_tables
+	load_kernel_module ip6_tables
 	load_kernel_module nf_conntrack
 	
 	for m in ${FIREHOL_KERNEL_MODULES}
@@ -7131,6 +7216,7 @@ initialize_firewall() {
 	# Find all tables supported
 	local t=
 	local tables=`${CAT_CMD} /proc/net/ip_tables_names`
+	local tables6=`${CAT_CMD} /proc/net/ip6_tables_names`
 	for t in ${tables}
 	do
 		# Reset/empty this table.
@@ -7158,6 +7244,33 @@ initialize_firewall() {
 		done
 	done
 
+	for t in ${tables6}
+	do
+		# Reset/empty this table.
+		${IP6TABLES_CMD} -t "${t}" -F || exit 1
+		${IP6TABLES_CMD} -t "${t}" -X || exit 1
+		${IP6TABLES_CMD} -t "${t}" -Z || exit 1
+
+		# Find all default chains in this table.
+		local chains=`${IP6TABLES_CMD} -t "${t}" -nL | ${GREP_CMD} "^Chain " | ${CUT_CMD} -d ' ' -f 2`
+
+		# If this is the 'filter' table, remember the default chains.
+		# This will be used at the end to make it DROP all packets.
+		test "${t}" = "filter" && firehol_filter6_chains="${chains}"
+
+		# Set the policy to ACCEPT on all default chains.
+		local c=
+		for c in ${chains}
+		do
+			local policy=ACCEPT
+			if [ "${t}" = "filter" ]
+			then
+				eval "policy=\${FIREHOL_${c}_ACTIVATION_POLICY}"
+			fi
+			${IP6TABLES_CMD} -t "${t}" -P "${c}" $policy || exit 1
+		done
+	done
+
 	# Allow existing traffic to continue:
 	#   insert as the first rule in each chain, making it easy to undo
 	#   once the firewall is completely established
@@ -7170,6 +7283,12 @@ initialize_firewall() {
 			-m conntrack --ctstate ESTABLISHED,RELATED -j ACCEPT
 		${IPTABLES_CMD} -I FORWARD 1 \
 			-m conntrack --ctstate ESTABLISHED,RELATED -j ACCEPT
+		${IP6TABLES_CMD} -I INPUT 1 \
+			-m conntrack --ctstate ESTABLISHED,RELATED -j ACCEPT
+		${IP6TABLES_CMD} -I OUTPUT 1 \
+			-m conntrack --ctstate ESTABLISHED,RELATED -j ACCEPT
+		${IP6TABLES_CMD} -I FORWARD 1 \
+			-m conntrack --ctstate ESTABLISHED,RELATED -j ACCEPT
 	fi
 }
 
@@ -7181,6 +7300,10 @@ finalize_firewall() {
 	do
 		${IPTABLES_CMD} -t filter -P "${c}" DROP || exit 1
 	done
+	for c in ${firehol_filter6_chains}
+	do
+		${IP6TABLES_CMD} -t filter -P "${c}" DROP || exit 1
+	done
 
 	# Remove rules inserted which were to keep existing traffic alive
 	# during activation
@@ -7190,6 +7313,9 @@ finalize_firewall() {
 		${IPTABLES_CMD} -D INPUT 1
 		${IPTABLES_CMD} -D OUTPUT 1
 		${IPTABLES_CMD} -D FORWARD 1
+		${IP6TABLES_CMD} -D INPUT 1
+		${IP6TABLES_CMD} -D OUTPUT 1
+		${IP6TABLES_CMD} -D FORWARD 1
 	fi
 }
 
@@ -7266,7 +7392,7 @@ EOF
 
 # at the same time, replace all ${IPTABLES_CMD} references with just
 # the word 'iptables' to protect the currently running firewall
-${CAT_CMD} ${FIREHOL_CONFIG} | ${SED_CMD} "s|${IPTABLES_CMD}|iptables|g" | gawk_cmd -f "${FIREHOL_TMP}.awk" >${FIREHOL_TMP}
+${CAT_CMD} ${FIREHOL_CONFIG} | ${SED_CMD} "s|${IPTABLES_CMD}|iptables|g" | ${SED_CMD} "s|${IP6TABLES_CMD}|ip6tables|g" | gawk_cmd -f "${FIREHOL_TMP}.awk" >${FIREHOL_TMP}
 ${RM_CMD} -f "${FIREHOL_TMP}.awk"
 
 # ------------------------------------------------------------------------------
@@ -7412,7 +7538,7 @@ then
 fi
 
 # Remove the saved firewall, so that the trap will not restore it.
-${RM_CMD} -f "${FIREHOL_SAVED}"
+${RM_CMD} -f "${FIREHOL_SAVED}" "${FIREHOL_SAVED6}"
 FIREHOL_ACTIVATED_SUCCESSFULLY=1
 
 # Startup service locking.
