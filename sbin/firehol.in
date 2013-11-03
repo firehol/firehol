@@ -922,11 +922,10 @@ work_policy=
 work_error=0
 work_function="Initializing"
 
-next_work_counter() {
+get_next_work_counter() {
+	local var="$1"
 	if running_both
 	then
-echo "Error"
-exit 1
 		if [ $work_counter4 -gt $work_counter6 ]
 		then
 			work_counter4=$[work_counter4 + 1]
@@ -935,14 +934,14 @@ exit 1
 			work_counter6=$[work_counter6 + 1]
 			work_counter4=$[work_counter6]
 		fi
-		echo $work_counter4
+		eval ${var}=${work_counter4}
 	elif running_ipv6
 	then
 		work_counter6=$[work_counter6 + 1]
-		echo $work_counter6
+		eval ${var}=${work_counter6}
 	else
 		work_counter4=$[work_counter4 + 1]
-		echo $work_counter4
+		eval ${var}=${work_counter4}
 	fi
 }
 
@@ -953,14 +952,38 @@ exit 1
 # 0 = no errors, >0 = there were errors in the script
 work_runtime_error=0
 
-# This variable is used for generating dynamic chains when needed for
+# This function is used for generating dynamic chains when needed for
 # combined negative statements (AND) implied by the "not" parameter
 # to many FireHOL directives.
 # What FireHOL is doing to accomplish this, is to produce dynamically
 # a linked list of iptables chains with just one condition each, making
 # the packets to traverse from chain to chain when matched, to reach
 # their final destination.
-FIREHOL_DYNAMIC_CHAIN_COUNTER=1
+dynamic_counter4=0
+dynamic_counter6=0
+
+get_next_dynamic_counter() {
+	local var="$1"
+	if running_both
+	then
+		if [ $dynamic_counter4 -gt $dynamic_counter6 ]
+		then
+			dynamic_counter4=$[dynamic_counter4 + 1]
+			dynamic_counter6=$[dynamic_counter4]
+		else
+			dynamic_counter6=$[dynamic_counter6 + 1]
+			dynamic_counter4=$[dynamic_counter6]
+		fi
+		eval ${var}=${dynamic_counter4}
+	elif running_ipv6
+	then
+		dynamic_counter6=$[dynamic_counter6 + 1]
+		eval ${var}=${dynamic_counter6}
+	else
+		dynamic_counter4=$[dynamic_counter4 + 1]
+		eval ${var}=${dynamic_counter4}
+	fi
+}
 
 # If set to 0, FireHOL will not trust interface lo for all traffic.
 # This means the admin could setup a firewall on lo.
@@ -4986,9 +5009,9 @@ rule() {
 			
 			# In this case, bellow we add after all negatives, the original
 			# action of the rule.
-			
-			local negative_chain="${chain}.${FIREHOL_DYNAMIC_CHAIN_COUNTER}"
-			FIREHOL_DYNAMIC_CHAIN_COUNTER="$[FIREHOL_DYNAMIC_CHAIN_COUNTER + 1]"
+			local DYNAMIC_CHAIN_COUNTER
+			get_next_dynamic_counter DYNAMIC_CHAIN_COUNTER
+			local negative_chain="${chain}.${DYNAMIC_CHAIN_COUNTER}"
 			
 			iptables_both ${table} -N "${negative_chain}"
 			local negative_action="${action}"
@@ -5786,7 +5809,8 @@ smart_function() {
 		
 		# Increase the command counter, to make all chains within a primary
 		# command, unique.
-		local work_counter=$(next_work_counter)
+		local work_counter
+		get_next_work_counter work_counter
 		
 		local suffix="u${work_counter}"
 		case "${type}" in
