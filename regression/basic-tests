@@ -28,32 +28,40 @@ then
   exit 1
 fi
 
-case $1 in
-  current)
-   d=current
-   (cd .. && cat sbin/firehol.in) > /tmp/fh-$d.$$
-  ;;
-  *)
-   d=$1
-   (cd .. && git show $1:sbin/firehol.in) > /tmp/fh-$d.$$ 2> /dev/null
-   test -s /tmp/$d.$$ || (cd .. && git show $1:firehol.sh) > /tmp/fh-$d.$$
-   test -s /tmp/$d.$$ || ( echo "Not in firehol/regression?"; exit 1 )
-  ;;
-esac
+if ! MYTMP="`mktemp -d -t firehol-regress-XXXXXX`"
+then
+            echo >&2
+            echo >&2
+            echo >&2 "Cannot create temporary directory."
+            echo >&2
+            exit 1
+fi
 
 myexit() {
-  rm -f /tmp/fh-$d.$$
-  rm -f /tmp/fh-res.$$
+  rm -rf $MYTMP
   exit 0
 }
 
 trap myexit SIGINT
 trap myexit SIGHUP
 
-test -s /tmp/fh-$d.$$ || exit 1
-chmod +x /tmp/fh-$d.$$
+case $1 in
+  current)
+   d=current
+   (cd .. && cat sbin/firehol.in) > $MYTMP/fh-$d.in
+  ;;
+  *)
+   d=$1
+   (cd .. && git show $1:sbin/firehol.in) > $MYTMP/fh-$d.in 2> /dev/null
+   test -s $MYTMP/fh-$d.in || (cd .. && git show $1:firehol.sh) > $MYTMP/fh-$d.in
+   test -s $MYTMP/fh-$d.in || ( echo "Not in firehol/regression?"; exit 1 )
+  ;;
+esac
 
-have_ipv6="`grep PRIVATE_IPV6 /tmp/fh-$d.$$`"
+test -s $MYTMP/fh-$d.in || exit 1
+chmod +x $MYTMP/fh-$d.in
+
+have_ipv6="`grep IP6TABLES_CMD $MYTMP/fh-$d.in`"
 if [ "$have_ipv6" ]
 then
   # NAT does not allow DROP, hence all_drops is lower
@@ -64,10 +72,10 @@ else
   all_drops=8
 fi
 
-/tmp/fh-$d.$$ stop || exit
-/tmp/fh-$d.$$ status > /tmp/fh-res.$$ || exit
-drops=`grep DROP /tmp/fh-res.$$ | wc -l`
-accepts=`grep ACCEPT /tmp/fh-res.$$ | wc -l`
+$MYTMP/fh-$d.in stop || exit
+$MYTMP/fh-$d.in status > $MYTMP/result || exit
+drops=`grep DROP $MYTMP/result | wc -l`
+accepts=`grep ACCEPT $MYTMP/result | wc -l`
 echo "$d stop ... accepts=$accepts drops=$drops"
 if [ $accepts -ne $all_accepts ]
 then
@@ -80,10 +88,10 @@ then
   exit 1
 fi
 
-/tmp/fh-$d.$$ panic || exit
-/tmp/fh-$d.$$ status > /tmp/fh-res.$$ || exit
-drops=`grep DROP /tmp/fh-res.$$ | wc -l`
-accepts=`grep ACCEPT /tmp/fh-res.$$ | wc -l`
+$MYTMP/fh-$d.in panic || exit
+$MYTMP/fh-$d.in status > $MYTMP/result || exit
+drops=`grep DROP $MYTMP/result | wc -l`
+accepts=`grep ACCEPT $MYTMP/result | wc -l`
 echo "$d panic ... accepts=$accepts drops=$drops"
 if [ $accepts -ne $all_accepts ]
 then
@@ -96,7 +104,7 @@ then
   exit 1
 fi
 
-/tmp/fh-$d.$$ stop
+$MYTMP/fh-$d.in stop
 
 echo
 echo "All seems OK"
