@@ -850,12 +850,69 @@ FIREHOL_TRY=0
 # with variables expanded.
 FIREHOL_CONF_SHOW=1
 
+# ------------------------------------------------------------------------------
+# Keep information about the current namespace: ipv4, ipv6 or both
+FIREHOL_NS_STACK=
+
+push_namespace() {
+	if [ "$1" != "ipv4" -a "$1" != "ipv6" -a "$1" != "both" ]
+	then
+		echo "Bad namespace: $1 (must be ipv4/ipv6/both)"
+		exit 1
+	fi
+	FIREHOL_NS_STACK="$1:$FIREHOL_NS_STACK"
+	return 0
+}
+
+pop_namespace() {
+	FIREHOL_NS_STACK=$(echo $FIREHOL_NS_STACK | cut -f2- -d:)
+	return 0
+}
+
+peek_namespace() {
+	echo $FIREHOL_NS_STACK | cut -f1 -d:
+}
+
+running_ipv4() {
+	local ns=$(peek_namespace)
+	if [ "$ns" = "ipv4" -o "$ns" = "both" -o "$ns" = "" ]; then return 0; fi
+	return 1
+}
+
+running_ipv6() {
+	local ns=$(peek_namespace)
+	if [ "$ns" = "ipv6" -o "$ns" = "both" -o "$ns" = "" ]; then return 0; fi
+	return 1
+}
+
+running_both() {
+	local ns=$(peek_namespace)
+	if [ "$ns" = "both" -o "$ns" = "" ]; then return 0; fi
+	return 1
+}
+
+ipv4() {
+	local command="$1"
+	shift
+	push_namespace ipv4
+	$command "$@"
+	pop_namespace
+}
+
+ipv6() {
+	local command="$1"
+	shift
+	push_namespace ipv6
+	$command "$@"
+	pop_namespace
+}
 
 # ------------------------------------------------------------------------------
 # Keep information about the current primary command
 # Primary commands are: interface, router
 
-work_counter=0
+work_counter4=0
+work_counter6=0
 work_cmd=
 work_realcmd=("(unset)")
 work_name=
@@ -864,6 +921,30 @@ work_outface=
 work_policy=
 work_error=0
 work_function="Initializing"
+
+next_work_counter() {
+	if running_both
+	then
+echo "Error"
+exit 1
+		if [ $work_counter4 -gt $work_counter6 ]
+		then
+			work_counter4=$[work_counter4 + 1]
+			work_counter6=$[work_counter4]
+		else
+			work_counter6=$[work_counter6 + 1]
+			work_counter4=$[work_counter6]
+		fi
+		echo $work_counter4
+	elif running_ipv6
+	then
+		work_counter6=$[work_counter6 + 1]
+		echo $work_counter6
+	else
+		work_counter4=$[work_counter4 + 1]
+		echo $work_counter4
+	fi
+}
 
 
 # ------------------------------------------------------------------------------
@@ -2512,16 +2593,18 @@ mac() {
 	then
 		set_work_function "Creating the MAC-MISSMATCH chain (only once)"
 		
-		iptables -t filter -N WRONGMAC
+		push_namespace both
+		iptables_both -t filter -N WRONGMAC
 		rule table filter chain WRONGMAC loglimit "MAC MISSMATCH" action DROP || return 1
+		pop_namespace
 		
 		wrongmac_chain=1
 	fi
 	
 	set_work_function "If the source IP ${1} does not match MAC ${2}, drop the packet"
 
-	iptables -t filter -A INPUT   -s "${1}" -m mac ! --mac-source "${2}" -j WRONGMAC
-	iptables -t filter -A FORWARD -s "${1}" -m mac ! --mac-source "${2}" -j WRONGMAC
+	iptables_both -t filter -A INPUT   -s "${1}" -m mac ! --mac-source "${2}" -j WRONGMAC
+	iptables_both -t filter -A FORWARD -s "${1}" -m mac ! --mac-source "${2}" -j WRONGMAC
 
 	return 0
 }
@@ -2551,22 +2634,22 @@ blacklist() {
 		set_work_function "Generating blacklist chains"
 		
 		# Blacklist INPUT unidirectional
-		iptables -t filter -N BL_IN_UNI	# INPUT
-		iptables -A BL_IN_UNI -m conntrack --ctstate NEW -j DROP
-		iptables -A BL_IN_UNI -j DROP
+		iptables_both -t filter -N BL_IN_UNI	# INPUT
+		iptables_both -A BL_IN_UNI -m conntrack --ctstate NEW -j DROP
+		iptables_both -A BL_IN_UNI -j DROP
 		
 		# No need for OUTPUT/FORWARD unidirectional
 		
 		# Blacklist INPUT bidirectional
-		iptables -t filter -N BL_IN_BI	# INPUT
-		iptables -A BL_IN_BI -m conntrack --ctstate NEW -j DROP
-		iptables -A BL_IN_BI -j DROP
+		iptables_both -t filter -N BL_IN_BI	# INPUT
+		iptables_both -A BL_IN_BI -m conntrack --ctstate NEW -j DROP
+		iptables_both -A BL_IN_BI -j DROP
 		
 		# Blacklist OUTPUT/FORWARD bidirectional
-		iptables -t filter -N BL_OUT_BI	# OUTPUT and FORWARD
-		iptables -A BL_OUT_BI -m conntrack --ctstate NEW -p tcp -j REJECT #--reject-with tcp-reset
-		iptables -A BL_OUT_BI -m conntrack --ctstate NEW -j REJECT --reject-with icmp-host-unreachable
-		iptables -A BL_OUT_BI -j REJECT
+		iptables_both -t filter -N BL_OUT_BI	# OUTPUT and FORWARD
+		iptables_both -A BL_OUT_BI -m conntrack --ctstate NEW -p tcp -j REJECT #--reject-with tcp-reset
+		iptables_both -A BL_OUT_BI -m conntrack --ctstate NEW -j REJECT --reject-with icmp-host-unreachable
+		iptables_both -A BL_OUT_BI -j REJECT
 		
 		blacklist_chain=1
 	fi
@@ -2583,14 +2666,14 @@ blacklist() {
 			
 			if [ ${full} -eq 1 ]
 			then
-				iptables -I INPUT   -s ${x} -j BL_IN_BI
-				iptables -I FORWARD -s ${x} -j BL_IN_BI
+				iptables_both -I INPUT   -s ${x} -j BL_IN_BI
+				iptables_both -I FORWARD -s ${x} -j BL_IN_BI
 				
-				iptables -I OUTPUT  -d ${x} -j BL_OUT_BI
-				iptables -I FORWARD -d ${x} -j BL_OUT_BI  
+				iptables_both -I OUTPUT  -d ${x} -j BL_OUT_BI
+				iptables_both -I FORWARD -d ${x} -j BL_OUT_BI  
 			else
-				iptables -I INPUT   -s ${x} -j BL_IN_UNI
-				iptables -I FORWARD -s ${x} -j BL_IN_UNI
+				iptables_both -I INPUT   -s ${x} -j BL_IN_UNI
+				iptables_both -I FORWARD -s ${x} -j BL_IN_UNI
 			fi
 		done
 	done
@@ -2612,7 +2695,7 @@ classify() {
 	set_work_function "Setting up rules for CLASSIFY"
 	
 	create_chain mangle "classify.${classify_count}" POSTROUTING "$@" || return 1
-	iptables -t mangle -A "classify.${classify_count}" -j CLASSIFY --set-class ${class}
+	iptables_both -t mangle -A "classify.${classify_count}" -j CLASSIFY --set-class ${class}
 	
 	return 0
 }
@@ -2637,15 +2720,15 @@ connmark() {
 	
 	case "${num}" in
 		save)
-			iptables -t mangle -A "connmark.${connmark_count}" -j CONNMARK --save-mark
+			iptables_both -t mangle -A "connmark.${connmark_count}" -j CONNMARK --save-mark
 			;;
 		
 		restore)
-			iptables -t mangle -A "connmark.${connmark_count}" -j CONNMARK --restore-mark
+			iptables_both -t mangle -A "connmark.${connmark_count}" -j CONNMARK --restore-mark
 			;;
 			
 		*)
-			iptables -t mangle -A "connmark.${connmark_count}" -j CONNMARK --set-mark ${num}
+			iptables_both -t mangle -A "connmark.${connmark_count}" -j CONNMARK --set-mark ${num}
 			;;
 	esac
 	
@@ -2669,7 +2752,7 @@ mark() {
 	set_work_function "Setting up rules for MARK"
 	
 	create_chain mangle "mark.${mark_count}" "${where}" "$@" || return 1
-	iptables -t mangle -A "mark.${mark_count}" -j MARK --set-mark ${num}
+	iptables_both -t mangle -A "mark.${mark_count}" -j MARK --set-mark ${num}
 	
 	return 0
 }
@@ -2691,7 +2774,7 @@ tos() {
 	set_work_function "Setting up rules for TOS"
 	
 	create_chain mangle "tos.${tos_count}" "${where}" "$@" || return 1
-	iptables -t mangle -A "tos.${tos_count}" -j TOS --set-tos ${num}
+	iptables_both -t mangle -A "tos.${tos_count}" -j TOS --set-tos ${num}
 	
 	return 0
 }
@@ -2706,21 +2789,21 @@ tosfix() {
 	
 	set_work_function "Fixing TOS for TCP ACK packets"
 	
-	iptables -t mangle -N ackfix
-	iptables -t mangle -A ackfix -m tos ! --tos Normal-Service -j RETURN
-	iptables -t mangle -A ackfix -p tcp -m length --length 0:128 -j TOS --set-tos Minimize-Delay
-	iptables -t mangle -A ackfix -p tcp -m length --length 128: -j TOS --set-tos Maximize-Throughput
-	iptables -t mangle -A ackfix -j RETURN
-	iptables -t mangle -I POSTROUTING -p tcp -m tcp --tcp-flags SYN,RST,ACK ACK -j ackfix
+	iptables_both -t mangle -N ackfix
+	iptables_both -t mangle -A ackfix -m tos ! --tos Normal-Service -j RETURN
+	iptables_both -t mangle -A ackfix -p tcp -m length --length 0:128 -j TOS --set-tos Minimize-Delay
+	iptables_both -t mangle -A ackfix -p tcp -m length --length 128: -j TOS --set-tos Maximize-Throughput
+	iptables_both -t mangle -A ackfix -j RETURN
+	iptables_both -t mangle -I POSTROUTING -p tcp -m tcp --tcp-flags SYN,RST,ACK ACK -j ackfix
 	
 	set_work_function "Fixing TOS for Minimize-Delay packets"
 	
-	iptables -t mangle -N tosfix
-	iptables -t mangle -A tosfix -p tcp -m length --length 0:512 -j RETURN
-	iptables -t mangle -A tosfix -m limit --limit 2/s --limit-burst 10 -j RETURN
-	iptables -t mangle -A tosfix -j TOS --set-tos Maximize-Throughput
-	iptables -t mangle -A tosfix -j RETURN
-	iptables -t mangle -I POSTROUTING -p tcp -m tos --tos Minimize-Delay -j tosfix
+	iptables_both -t mangle -N tosfix
+	iptables_both -t mangle -A tosfix -p tcp -m length --length 0:512 -j RETURN
+	iptables_both -t mangle -A tosfix -m limit --limit 2/s --limit-burst 10 -j RETURN
+	iptables_both -t mangle -A tosfix -j TOS --set-tos Maximize-Throughput
+	iptables_both -t mangle -A tosfix -j RETURN
+	iptables_both -t mangle -I POSTROUTING -p tcp -m tos --tos Minimize-Delay -j tosfix
 	
 	return 0
 }
@@ -2753,9 +2836,9 @@ dscp() {
 	
 	if [ ! -z "${class}" ]
 	then
-		iptables -t mangle -A "dscp.${dscp_count}" -j DSCP --set-dscp-class ${class}
+		iptables_both -t mangle -A "dscp.${dscp_count}" -j DSCP --set-dscp-class ${class}
 	else
-		iptables -t mangle -A "dscp.${dscp_count}" -j DSCP --set-dscp ${value}
+		iptables_both -t mangle -A "dscp.${dscp_count}" -j DSCP --set-dscp ${value}
 	fi
 	
 	return 0
@@ -2809,13 +2892,13 @@ tcpmss() {
 	then
 		set_work_function "Initializing tcpmss for all interfaces"
 		
-		iptables -t mangle -A POSTROUTING -p tcp --tcp-flags SYN,RST SYN $target
+		iptables_both -t mangle -A POSTROUTING -p tcp --tcp-flags SYN,RST SYN $target
 	else
 		local f=
 		for f in $iface
 		do
 			set_work_function "Initializing tcpmss for interface '${f}'"
-			iptables -t mangle -A POSTROUTING -o ${f} -p tcp --tcp-flags SYN,RST SYN $target
+			iptables_both -t mangle -A POSTROUTING -o ${f} -p tcp --tcp-flags SYN,RST SYN $target
 		done
 	fi
 	
@@ -3030,6 +3113,27 @@ iptables() {
 	return 0
 }
 
+FIREHOL_COMMAND6_COUNTER=0
+ip6tables() {
+	[ $firewall_policy6_applied -eq 0 ] && firewall_policy6
+	
+	if [ $FIREHOL_FAST_ACTIVATION -eq 1 ]
+	then
+		ip6tables_fast "${@}"
+	else
+		postprocess "${IP6TABLES_CMD}" "$@"
+		FIREHOL_COMMAND6_COUNTER=$[FIREHOL_COMMAND6_COUNTER + 1]
+	fi
+	
+	return 0
+}
+
+iptables_both() {
+	if running_ipv4; then iptables "${@}" || return; fi
+	if running_ipv6; then ip6tables "${@}" || return; fi
+	return 0
+}
+
 
 # ------------------------------------------------------------------------------
 # XXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXX
@@ -3138,7 +3242,7 @@ protection() {
 				;;
 				
 			invalid|INVALID)
-				iptables -A "${in}_${work_name}" -m conntrack --ctstate INVALID -j DROP				|| return 1
+				iptables_both -A "${in}_${work_name}" -m conntrack --ctstate INVALID -j DROP				|| return 1
 				;;
 				
 			fragments|FRAGMENTS)
@@ -3523,7 +3627,8 @@ close_cmd() {
 	esac
 	
 	# Reset the current status variables to empty/default
-	work_counter=0
+	work_counter4=0
+	work_counter6=0
 	work_cmd=
 	work_realcmd=("(unset)")
 	work_name=
@@ -3810,15 +3915,15 @@ rule_action_param() {
 							if [ ! -f "${FIREHOL_CHAINS_DIR}/${accept_limit_chain}" ]
 							then
 								# the chain does not exist. create it.
-								iptables ${table} -N "${accept_limit_chain}"
+								iptables_both ${table} -N "${accept_limit_chain}"
 								touch "${FIREHOL_CHAINS_DIR}/${accept_limit_chain}"
 								
 								# first, if the traffic is not a NEW connection, allow it.
 								# doing this first will speed up normal traffic.
-								iptables ${table} -A "${accept_limit_chain}" -m conntrack ! --ctstate NEW -j ACCEPT
+								iptables_both ${table} -A "${accept_limit_chain}" -m conntrack ! --ctstate NEW -j ACCEPT
 								
 								# accept NEW connections within the given limits.
-								iptables ${table} -A "${accept_limit_chain}" -m limit --limit "${freq}" --limit-burst "${burst}" -j ACCEPT
+								iptables_both ${table} -A "${accept_limit_chain}" -m limit --limit "${freq}" --limit-burst "${burst}" -j ACCEPT
 								
 								# log the overflow NEW connections reaching this step within the new chain
 								local -a logopts_arg=()
@@ -3831,16 +3936,16 @@ rule_action_param() {
 								else
 									local -a logopts_arg=("--log-level" "${FIREHOL_LOG_LEVEL}" "--log-prefix=${FIREHOL_LOG_PREFIX}LIMIT_OVERFLOW:")
 								fi
-								iptables ${table} -A "${accept_limit_chain}" -m limit --limit "${FIREHOL_LOG_FREQUENCY}" --limit-burst "${FIREHOL_LOG_BURST}" -j ${FIREHOL_LOG_MODE} ${FIREHOL_LOG_OPTIONS} "${logopts_arg[@]}"
+								iptables_both ${table} -A "${accept_limit_chain}" -m limit --limit "${FIREHOL_LOG_FREQUENCY}" --limit-burst "${FIREHOL_LOG_BURST}" -j ${FIREHOL_LOG_MODE} ${FIREHOL_LOG_OPTIONS} "${logopts_arg[@]}"
 								
 								# if the overflow is to be rejected is tcp, reject it with TCP-RESET
 								if [ "${overflow}" = "REJECT" ]
 								then
-									iptables ${table} -A "${accept_limit_chain}" -p tcp -j REJECT --reject-with tcp-reset
+									iptables_both ${table} -A "${accept_limit_chain}" -p tcp -j REJECT --reject-with tcp-reset
 								fi
 								
 								# do the specified action on the overflow
-								iptables ${table} -A "${accept_limit_chain}" -j ${overflow}
+								iptables_both ${table} -A "${accept_limit_chain}" -j ${overflow}
 							fi
 							
 							# send the rule to be generated to this chain
@@ -3880,23 +3985,23 @@ rule_action_param() {
 							if [ ! -f "${FIREHOL_CHAINS_DIR}/${accept_recent_chain}" ]
 							then
 								# the chain does not exist. create it.
-								iptables ${table} -N "${accept_recent_chain}"
+								iptables_both ${table} -N "${accept_recent_chain}"
 								touch "${FIREHOL_CHAINS_DIR}/${accept_recent_chain}"
 								
 								# first, if the traffic is not a NEW connection, allow it.
 								# doing this first will speed up normal traffic.
-								iptables ${table} -A "${accept_recent_chain}" -m conntrack ! --ctstate NEW -j ACCEPT
+								iptables_both ${table} -A "${accept_recent_chain}" -m conntrack ! --ctstate NEW -j ACCEPT
 								
 								# accept NEW connections within the given limits.
-								iptables ${table} -A "${accept_recent_chain}" -m recent --set --name "${name}"
+								iptables_both ${table} -A "${accept_recent_chain}" -m recent --set --name "${name}"
 								
 								local t1=
 								test ! -z $seconds && local t1="--seconds ${seconds}"
 								local t2=
 								test ! -z $hits && local t2="--hitcount ${hits}"
 								
-								iptables ${table} -A "${accept_recent_chain}" -m recent --update ${t1} ${t2} --name "${name}" -j RETURN
-								iptables ${table} -A "${accept_recent_chain}" -j ACCEPT
+								iptables_both ${table} -A "${accept_recent_chain}" -m recent --update ${t1} ${t2} --name "${name}" -j RETURN
+								iptables_both ${table} -A "${accept_recent_chain}" -j ACCEPT
 							fi
 							
 							# send the rule to be generated to this chain
@@ -3916,10 +4021,10 @@ rule_action_param() {
 						if [ ! -f "${FIREHOL_CHAINS_DIR}/${name}" ]
 						then
 							# the chain does not exist. create it.
-							iptables ${table} -N "${name}"
+							iptables_both ${table} -N "${name}"
 							touch "${FIREHOL_CHAINS_DIR}/${name}"
 							
-							iptables -A "${name}" -m conntrack --ctstate ESTABLISHED -j ACCEPT
+							iptables_both -A "${name}" -m conntrack --ctstate ESTABLISHED -j ACCEPT
 							
 							# knockd (http://www.zeroflux.org/knock/)
 							# will create more rules inside this chain to match NEW packets.
@@ -3950,7 +4055,7 @@ rule_action_param() {
 			;;
 	esac
 	
-	iptables "$@" -j "${action}" "${action_param[@]}"
+	iptables_both "$@" -j "${action}" "${action_param[@]}"
 	local ret=$?
 	
 	test $ret -gt 0 && failed=$[failed + 1]
@@ -4885,7 +4990,7 @@ rule() {
 			local negative_chain="${chain}.${FIREHOL_DYNAMIC_CHAIN_COUNTER}"
 			FIREHOL_DYNAMIC_CHAIN_COUNTER="$[FIREHOL_DYNAMIC_CHAIN_COUNTER + 1]"
 			
-			iptables ${table} -N "${negative_chain}"
+			iptables_both ${table} -N "${negative_chain}"
 			local negative_action="${action}"
 			local action="${negative_chain}"
 		fi
@@ -4896,7 +5001,7 @@ rule() {
 			local inf=
 			for inf in ${inface}
 			do
-				iptables ${table} -A "${negative_chain}" -i "${inf}" -j RETURN
+				iptables_both ${table} -A "${negative_chain}" -i "${inf}" -j RETURN
 			done
 			infacenot=
 			inface=any
@@ -4907,7 +5012,7 @@ rule() {
 			local outf=
 			for outf in ${outface}
 			do
-				iptables ${table} -A "${negative_chain}" -o "${outf}" -j RETURN
+				iptables_both ${table} -A "${negative_chain}" -o "${outf}" -j RETURN
 			done
 			outfacenot=
 			outface=any
@@ -4918,7 +5023,7 @@ rule() {
 			local inph=
 			for inph in ${physin}
 			do
-				iptables ${table} -A "${negative_chain}" -m physdev --physdev-in "${inph}" -j RETURN
+				iptables_both ${table} -A "${negative_chain}" -m physdev --physdev-in "${inph}" -j RETURN
 			done
 			physinnot=
 			physin=any
@@ -4929,7 +5034,7 @@ rule() {
 			local outph=
 			for outph in ${physout}
 			do
-				iptables ${table} -A "${negative_chain}" -m physdev --physdev-out "${outph}" -j RETURN
+				iptables_both ${table} -A "${negative_chain}" -m physdev --physdev-out "${outph}" -j RETURN
 			done
 			physoutnot=
 			physout=any
@@ -4940,7 +5045,7 @@ rule() {
 			local m=
 			for m in ${mac}
 			do
-				iptables ${table} -A "${negative_chain}" -m mac --mac-source "${m}" -j RETURN
+				iptables_both ${table} -A "${negative_chain}" -m mac --mac-source "${m}" -j RETURN
 			done
 			macnot=
 			mac=any
@@ -4951,7 +5056,7 @@ rule() {
 			local s=
 			for s in ${src}
 			do
-				iptables ${table} -A "${negative_chain}" -s "${s}" -j RETURN
+				iptables_both ${table} -A "${negative_chain}" -s "${s}" -j RETURN
 			done
 			srcnot=
 			src=any
@@ -4962,7 +5067,7 @@ rule() {
 			local d=
 			for d in ${dst}
 			do
-				iptables ${table} -A "${negative_chain}" -d "${d}" -j RETURN
+				iptables_both ${table} -A "${negative_chain}" -d "${d}" -j RETURN
 			done
 			dstnot=
 			dst=any
@@ -4979,7 +5084,7 @@ rule() {
 			local pr=
 			for pr in ${proto}
 			do
-				iptables ${table} -A "${negative_chain}" -p "${pr}" -j RETURN
+				iptables_both ${table} -A "${negative_chain}" -p "${pr}" -j RETURN
 			done
 			protonot=
 			proto=any
@@ -4999,7 +5104,7 @@ rule() {
 				local pr=
 				for pr in ${proto}
 				do
-					iptables ${table} -A "${negative_chain}" -p "${pr}" --sport "${sp}" -j RETURN
+					iptables_both ${table} -A "${negative_chain}" -p "${pr}" --sport "${sp}" -j RETURN
 				done
 			done
 			sportnot=
@@ -5020,7 +5125,7 @@ rule() {
 				local pr=
 				for pr in ${proto}
 				do
-					iptables ${table} -A "${negative_chain}" -p "${pr}" --dport "${dp}" -j RETURN
+					iptables_both ${table} -A "${negative_chain}" -p "${pr}" --dport "${dp}" -j RETURN
 				done
 			done
 			dportnot=
@@ -5032,7 +5137,7 @@ rule() {
 			local tuid=
 			for tuid in ${uid}
 			do
-				iptables ${table} -A "${negative_chain}" -m owner --uid-owner "${tuid}" -j RETURN
+				iptables_both ${table} -A "${negative_chain}" -m owner --uid-owner "${tuid}" -j RETURN
 			done
 			uidnot=
 			uid=any
@@ -5043,7 +5148,7 @@ rule() {
 			local tgid=
 			for tgid in ${gid}
 			do
-				iptables ${table} -A "${negative_chain}" -m owner --gid-owner "${tgid}" -j RETURN
+				iptables_both ${table} -A "${negative_chain}" -m owner --gid-owner "${tgid}" -j RETURN
 			done
 			gidnot=
 			gid=any
@@ -5054,7 +5159,7 @@ rule() {
 			local tpid=
 			for tpid in ${pid}
 			do
-				iptables ${table} -A "${negative_chain}" -m owner --pid-owner "${tpid}" -j RETURN
+				iptables_both ${table} -A "${negative_chain}" -m owner --pid-owner "${tpid}" -j RETURN
 			done
 			pidnot=
 			pid=any
@@ -5065,7 +5170,7 @@ rule() {
 			local tsid=
 			for tsid in ${sid}
 			do
-				iptables ${table} -A "${negative_chain}" -m owner --sid-owner "${tsid}" -j RETURN
+				iptables_both ${table} -A "${negative_chain}" -m owner --sid-owner "${tsid}" -j RETURN
 			done
 			sidnot=
 			sid=any
@@ -5076,7 +5181,7 @@ rule() {
 			local tcmd=
 			for tcmd in ${cmd}
 			do
-				iptables ${table} -A "${negative_chain}" -m owner --cmd-owner "${tcmd}" -j RETURN
+				iptables_both ${table} -A "${negative_chain}" -m owner --cmd-owner "${tcmd}" -j RETURN
 			done
 			cmdnot=
 			cmd=any
@@ -5087,7 +5192,7 @@ rule() {
 			local tmark=
 			for tmark in ${mark}
 			do
-				iptables ${table} -A "${negative_chain}" -m mark --mark "${tmark}" -j RETURN
+				iptables_both ${table} -A "${negative_chain}" -m mark --mark "${tmark}" -j RETURN
 			done
 			marknot=
 			mark=any
@@ -5098,7 +5203,7 @@ rule() {
 			local ttos=
 			for ttos in ${tos}
 			do
-				iptables ${table} -A "${negative_chain}" -m tos --tos "${ttos}" -j RETURN
+				iptables_both ${table} -A "${negative_chain}" -m tos --tos "${ttos}" -j RETURN
 			done
 			tosnot=
 			tos=any
@@ -5109,7 +5214,7 @@ rule() {
 			local tdscp=
 			for tdscp in ${dscp}
 			do
-				iptables ${table} -A "${negative_chain}" -m dscp --dscp${dscptype} "${tdscp}" -j RETURN
+				iptables_both ${table} -A "${negative_chain}" -m dscp --dscp${dscptype} "${tdscp}" -j RETURN
 			done
 			dscp=any
 			dscpnot=
@@ -5475,11 +5580,11 @@ rule() {
 			;;
 		
 		limit)
-			iptables ${table} -A "${chain}" "${basecmd[@]}" ${custom} -m limit --limit "${FIREHOL_LOG_FREQUENCY}" --limit-burst "${FIREHOL_LOG_BURST}" -j ${FIREHOL_LOG_MODE} ${FIREHOL_LOG_OPTIONS} "${logopts_arg[@]}"
+			iptables_both ${table} -A "${chain}" "${basecmd[@]}" ${custom} -m limit --limit "${FIREHOL_LOG_FREQUENCY}" --limit-burst "${FIREHOL_LOG_BURST}" -j ${FIREHOL_LOG_MODE} ${FIREHOL_LOG_OPTIONS} "${logopts_arg[@]}"
 			;;
 			
 		normal)
-			iptables ${table} -A "${chain}" "${basecmd[@]}" ${custom}  -j ${FIREHOL_LOG_MODE} ${FIREHOL_LOG_OPTIONS} "${logopts_arg[@]}"
+			iptables_both ${table} -A "${chain}" "${basecmd[@]}" ${custom}  -j ${FIREHOL_LOG_MODE} ${FIREHOL_LOG_OPTIONS} "${logopts_arg[@]}"
 			;;
 			
 		*)
@@ -5641,9 +5746,10 @@ create_chain() {
 	set_work_function "Creating chain '${newchain}' under '${oldchain}' in table '${table}'"
 	
 	chain_exists "${newchain}"
-	test $? -eq 1 && error "Chain '${newchain}' already exists." && return 1
+#TODO: verify ipv4/6 separately
+#	test $? -eq 1 && error "Chain '${newchain}' already exists." && return 1
 	
-	iptables -t ${table} -N "${newchain}" || return 1
+	iptables_both -t ${table} -N "${newchain}" || return 1
 	${TOUCH_CMD} "${FIREHOL_CHAINS_DIR}/${newchain}"
 	
 	if [ ! -z "${oldchain}" ]
@@ -5680,7 +5786,7 @@ smart_function() {
 		
 		# Increase the command counter, to make all chains within a primary
 		# command, unique.
-		work_counter=$[work_counter + 1]
+		local work_counter=$(next_work_counter)
 		
 		local suffix="u${work_counter}"
 		case "${type}" in
@@ -7348,6 +7454,31 @@ firewall_policy() {
 		iptables -A INPUT -m conntrack --ctstate INVALID -j DROP
 		iptables -A OUTPUT -m conntrack --ctstate INVALID -j DROP
 		iptables -A FORWARD -m conntrack --ctstate INVALID -j DROP
+	fi
+}
+
+firewall_policy6_applied=0
+firewall_policy6() {
+	firewall_policy6_applied=1
+	
+	ip6tables -t filter -P INPUT "${FIREHOL_INPUT_ACTIVATION_POLICY}"
+	ip6tables -t filter -P OUTPUT "${FIREHOL_OUTPUT_ACTIVATION_POLICY}"
+	ip6tables -t filter -P FORWARD "${FIREHOL_FORWARD_ACTIVATION_POLICY}"
+
+	# Accept everything in/out the loopback device.
+	if [ "${FIREHOL_TRUST_LOOPBACK}" = "1" ]
+	then
+		ip6tables -A INPUT -i lo -j ACCEPT
+		ip6tables -A OUTPUT -o lo -j ACCEPT
+	fi
+
+	# Drop all invalid packets.
+	# Netfilter HOWTO suggests to DROP all INVALID packets.
+	if [ "${FIREHOL_DROP_INVALID}" = "1" ]
+	then
+		ip6tables -A INPUT -m conntrack --ctstate INVALID -j DROP
+		ip6tables -A OUTPUT -m conntrack --ctstate INVALID -j DROP
+		ip6tables -A FORWARD -m conntrack --ctstate INVALID -j DROP
 	fi
 }
 
