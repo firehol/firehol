@@ -161,7 +161,7 @@ do
     sed -e '/^====/,$d' "$here/$testfile" > "$cfgfile"
     sed -e '1,/^==== IPv4 AUDITED O/d' \
         -e '/^==== IPv4 AUDITED END/,$d' "$here/$testfile" > "$v4aud"
-    if grep -q RESERVED_IPV6 "$prog"
+    if grep -q IP6TABLES_CMD "$prog"
     then
       audit6="Y"
       sed -e '1,/^==== IPv6 AUDITED O/d' \
