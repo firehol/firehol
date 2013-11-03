@@ -734,6 +734,11 @@ test -z "$FIREHOL_ROUTING" && \
 test -z "$FIREHOL_AUTOSAVE" && \
 	FIREHOL_AUTOSAVE=
 
+# Where /etc/init.d/ip6tables expects its configuration?
+# Leave it empty for automatic detection
+test -z "$FIREHOL_AUTOSAVE6" && \
+	FIREHOL_AUTOSAVE6=
+
 # Set to non-empty to wait (max 60 seconds) for a network interface
 test -z "$WAIT_FOR_IFACE" && \
 	WAIT_FOR_IFACE=
@@ -7369,6 +7374,7 @@ ${CAT_CMD} >"${FIREHOL_TMP}.awk" <<"EOF"
 /^[[:space:]]*group[[:space:]]/ { printf "FIREHOL_LINEID=${LINENO} " }
 /^[[:space:]]*interface[[:space:]]/ { printf "FIREHOL_LINEID=${LINENO} " }
 /^[[:space:]]*iptables[[:space:]]/ { printf "FIREHOL_LINEID=${LINENO} " }
+/^[[:space:]]*ip6tables[[:space:]]/ { printf "FIREHOL_LINEID=${LINENO} " }
 /^[[:space:]]*mac[[:space:]]/ { printf "FIREHOL_LINEID=${LINENO} " }
 /^[[:space:]]*mark[[:space:]]/ { printf "FIREHOL_LINEID=${LINENO} " }
 /^[[:space:]]*masquerade[[:space:]]/ { printf "FIREHOL_LINEID=${LINENO} " }
@@ -7581,10 +7587,16 @@ then
 			exit 1
 		fi
 	fi
+	if [ -z "${FIREHOL_AUTOSAVE6}" ]
+	then
+		error "Cannot find where to save ip6tables file. Please set FIREHOL_AUTOSAVE6."
+		echo
+		exit 1
+	fi
 	
 	echo -n $"FireHOL: Saving firewall to ${FIREHOL_AUTOSAVE}:"
 	
-	fixed_iptables_save >"${FIREHOL_AUTOSAVE}"
+	fixed_save ${IPTABLES_SAVE_CMD} >${FIREHOL_SAVED}
 	
 	if [ ! $? -eq 0 ]
 	then
@@ -7596,6 +7608,22 @@ then
 	
 	syslog info "New firewall saved to '${FIREHOL_AUTOSAVE}'."
 	success $"FireHOL: Saving firewall to ${FIREHOL_AUTOSAVE}:"
+	echo
+	
+	echo -n $"FireHOL: Saving IPv6 firewall to ${FIREHOL_AUTOSAVE6}:"
+	
+	fixed_save ${IP6TABLES_SAVE_CMD} >${FIREHOL_SAVED6}
+	
+	if [ ! $? -eq 0 ]
+	then
+		syslog err "Failed to save new IPv6 firewall to '${FIREHOL_AUTOSAVE6}'."
+		failure $"FireHOL: Saving IPv6 firewall to ${FIREHOL_AUTOSAVE6}:"
+		echo
+		exit 1
+	fi
+	
+	syslog info "New IPv6 firewall saved to '${FIREHOL_AUTOSAVE6}'."
+	success $"FireHOL: Saving IPv6 firewall to ${FIREHOL_AUTOSAVE6}:"
 	echo
 	
 	# Save the list of modules we need to run to restore the firewall.
