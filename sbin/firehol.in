@@ -6176,13 +6176,13 @@ case "${arg}" in
 			echo
 			echo
 			echo "--- NAT IPv6 -------------------------------------------------------------------"
+			echo
 			if grep -q '^nat$' /proc/net/ip6_tables_names
 			then
 				${IP6TABLES_CMD} -t nat -nxvL
 			else
 				echo "IPv6 NAT not available"
 			fi
-			echo
 
 			echo
 			echo
