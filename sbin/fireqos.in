@@ -1703,8 +1703,8 @@ find_port_masks() {
 	local i=
 	for i in 1 2 3 4 5 6 7 8 9 10 11 12 13 14 15 16 17
 	do
-		local base=$(( (from >> i) << i ))
-		local end=$(( base + (1 << i) - 1 ))
+		local base=$(( (from >> i) << $i ))
+		local end=$(( base + (1 << $i) - 1 ))
 
 		[ $FIREQOS_DEBUG_PORTS -eq 1 ] && printf >&2 ": >>> examine bit %d, from 0x%04x (%s) to 0x%04x (%s), " $i $base $base $end $end
 
@@ -1716,9 +1716,9 @@ find_port_masks() {
 	[ $FIREQOS_DEBUG_PORTS -eq 1 ] && echo >&2 " failed"
 	
 	i=$[ i - 1 ]
-	local base=$(( (from >> i) << i ))
-	local end=$(( base + (1 << i) - 1 ))
-	local mask=$(( (0xffff >> i) << i ))
+	local base=$(( (from >> i) << $i ))
+	local end=$(( base + (1 << $i) - 1 ))
+	local mask=$(( (0xffff >> $i) << $i ))
 	
 	[ $FIREQOS_DEBUG_PORTS -eq 1 ] && printf >&2 ": 0x%04x (%d) to 0x%04x (%d),  match 0x%04x (%d) to 0x%04x (%d) with mask 0x%04x \n" $from $from $to $to $base $base $end $$
 	printf "%d/0x%04x\n" $base $mask
