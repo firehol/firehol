@@ -219,6 +219,7 @@ which_cmd TR_CMD tr
 which_cmd UNAME_CMD uname
 which_cmd UNIQ_CMD uniq
 which_cmd LOGGER_CMD logger
+which_cmd FLOCK_CMD flock
 
 # Special commands
 pager_cmd() {
@@ -336,33 +337,15 @@ renice_cmd() {
 # Concurrent run control
 FIREHOL_LOCK_FILE="/var/run/firehol.lck"
 
-# Time in secs to consider a lock stale
-FIREHOL_LOCK_FILE_TIMEOUT=600
-
 firehol_concurrent_run_lock() {
-	require_cmd -n lockfile
-	
-	if [ -f "${FIREHOL_LOCK_FILE}" ]
+	exec 200>"${FIREHOL_LOCK_FILE}"
+	if [ $? -ne 0 ]; then exit; fi
+	${FLOCK_CMD} -n 200
+	if [ $? -ne 0 ]
 	then
-		echo >&2 "FireHOL is already running. Waiting for the other process to exit..."
+		echo >&2 "FireHOL is already running. Exiting..."
+		exit 1
 	fi
-	
-	if [ -z "${LOCKFILE_CMD}" ]
-	then
-		local c=0
-		while [ -f "${FIREHOL_LOCK_FILE}" ]
-		do
-			c=$[c + 1]
-			test $c -gt ${FIREHOL_LOCK_FILE_TIMEOUT} && break
-			sleep 1
-		done
-		
-		touch "${FIREHOL_LOCK_FILE}"
-		
-	else
-		${LOCKFILE_CMD} -1 -r ${FIREHOL_LOCK_FILE_TIMEOUT} -l ${FIREHOL_LOCK_FILE_TIMEOUT} "${FIREHOL_LOCK_FILE}"
-	fi
-	
 	return 0
 }
 
@@ -390,7 +373,7 @@ ${IPTABLES_CMD} -nxvL >/dev/null 2>&1
 # Directories and files
 
 # Create an empty temporary directory we need for this run.
-if ! FIREHOL_DIR="`mktemp -d -t .firehol-tmp-XXXXXX`"
+if ! FIREHOL_DIR="`mktemp -d -t firehol-XXXXXXXXXX`"
 then
             echo >&2
             echo >&2
@@ -425,6 +408,7 @@ FIREHOL_CONFIG="${FIREHOL_CONFIG_DIR}/firehol.conf"
 # WHY:
 # Even a CTRL-C will call this and we will not leave temp files.
 # Also, if a configuration file breaks, we will detect this too.
+FIREHOL_CLEAN_TMP=1
 FIREHOL_ACTIVATED_SUCCESSFULLY=0
 FIREHOL_SYSLOG_FACILITY="daemon"
 FIREHOL_NOTIFICATION_PROGRAM=""
@@ -455,7 +439,12 @@ firehol_exit() {
 	fi
 	
 	# remove the temporary directory created for this session
-	test -d "${FIREHOL_DIR}" && ${RM_CMD} -rf "${FIREHOL_DIR}"
+	if [ ${FIREHOL_ACTIVATED_SUCCESSFULLY} -eq 0 -a ${FIREHOL_CLEAN_TMP} -eq 0 ]
+	then
+		echo "FireHOL: temporary files left in ${FIREHOL_DIR}"
+	else
+		test -d "${FIREHOL_DIR}" && ${RM_CMD} -rf "${FIREHOL_DIR}"
+	fi
 	
 	# syslog
 	local result=
@@ -494,9 +483,6 @@ firehol_exit() {
 			"${FIREHOL_NOTIFICATION_PROGRAM}" "${FIREHOL_CONFIG}" "${result}" "${restored}" "${work_error}" "${work_runtime_error}" >/dev/null 2>&1 </dev/null &
 		fi
 	fi
-	
-	# remove the lock
-	test -f "${FIREHOL_LOCK_FILE}" && rm -f "${FIREHOL_LOCK_FILE}"
 	
 	return 0
 }
@@ -744,6 +730,11 @@ test -z "$FIREHOL_AUTOSAVE" && \
 test -z "$WAIT_FOR_IFACE" && \
 	WAIT_FOR_IFACE=
 
+# If set to 1, FireHOL will attempt to load the firewall with
+# iptables-restore. This is beta.
+test -z "$FIREHOL_FAST_ACTIVATION" && \
+	FIREHOL_FAST_ACTIVATION=0
+
 # ----------------------------------------------------------------------
 # Firewall configuration variables
 #  These affect the final output firewall. They can be set in the
@@ -845,10 +836,6 @@ FIREHOL_TRY=0
 # If set to 1, firehol will output the commands of the configuration file
 # with variables expanded.
 FIREHOL_CONF_SHOW=1
-
-# If set to 1, FireHOL will attempt to load the firewall with
-# iptables-restore. This is beta.
-FIREHOL_FAST_ACTIVATION=0
 
 
 # ------------------------------------------------------------------------------
@@ -7170,6 +7157,20 @@ initialize_firewall() {
 			${IPTABLES_CMD} -t "${t}" -P "${c}" $policy || exit 1
 		done
 	done
+
+	# Allow existing traffic to continue:
+	#   insert as the first rule in each chain, making it easy to undo
+	#   once the firewall is completely established
+	if [ ${FIREHOL_FAST_ACTIVATION} -ne 1 -a \
+	     "${FIREHOL_ESTABLISHED_ACTIVATION_ACCEPT}" = "1" ]
+	then
+		${IPTABLES_CMD} -I INPUT 1 \
+			-m conntrack --ctstate ESTABLISHED,RELATED -j ACCEPT
+		${IPTABLES_CMD} -I OUTPUT 1 \
+			-m conntrack --ctstate ESTABLISHED,RELATED -j ACCEPT
+		${IPTABLES_CMD} -I FORWARD 1 \
+			-m conntrack --ctstate ESTABLISHED,RELATED -j ACCEPT
+	fi
 }
 
 # drop everything
@@ -7180,6 +7181,16 @@ finalize_firewall() {
 	do
 		${IPTABLES_CMD} -t filter -P "${c}" DROP || exit 1
 	done
+
+	# Remove rules inserted which were to keep existing traffic alive
+	# during activation
+	if [ ${FIREHOL_FAST_ACTIVATION} -ne 1 -a \
+	     "${FIREHOL_ESTABLISHED_ACTIVATION_ACCEPT}" = "1" ]
+	then
+		${IPTABLES_CMD} -D INPUT 1
+		${IPTABLES_CMD} -D OUTPUT 1
+		${IPTABLES_CMD} -D FORWARD 1
+	fi
 }
 
 # this will be run when the first iptables command get executed in pre-process mode.
@@ -7271,13 +7282,15 @@ fi
 
 enable -n trap			# Disable the trap buildin shell command.
 enable -n exit			# Disable the exit buildin shell command.
-source ${FIREHOL_TMP} "$@"	# Run the configuration as a normal script.
-[ $? -ne 0 ] && ret=$[ret + 1]
+{ source ${FIREHOL_TMP} "$@"; }	# Run the configuration as a normal script.
+source_status=$?
+[ $source_status -ne 0 ] && ret=$[ret + 1]
+[ $source_status -ne 0 ] && FIREHOL_CLEAN_TMP=0
 FIREHOL_LINEID="FIN"
 enable trap			# Enable the trap buildin shell command.
 enable exit			# Enable the exit buildin shell command.
 
-close_cmd		|| ret=$[ret + 1]
+close_cmd	|| ret=$[ret + 1]
 close_master	|| ret=$[ret + 1]
 
 if [ ${work_error} -gt 0 -o $ret -gt 0 ]

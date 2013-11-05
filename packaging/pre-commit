@@ -48,57 +48,33 @@ fi
 
 status=0
 git show :ChangeLog > /tmp/staged-ChangeLog.$$
-#git show :configure.ac > /tmp/staged-config.$$
-#git show :NEWS > /tmp/staged-NEWS.$$
-#git show :sbin/firehol.in > /tmp/staged-firehol.$$
-#
-#configver=`sed -ne '/AC_INIT/s/.*,\[\(.*\)\],.*/\1/p' /tmp/staged-config.$$`
-#innews=`head -n 10 /tmp/staged-NEWS.$$ | grep -F "$configver"`
-#clogver=`sed -ne '1s/.*(\(.*\)).*/\1/p' /tmp/staged-ChangeLog.$$`
-#fhver=`sed -ne '/FIREHOL_SCRIPT_VERSION/s/.*=\(.*\)/\1/p' /tmp/staged-firehol.$$`
-#
-#if [ ! "$configver" ]
-#then
-#  echo "Could not get version from configure.ac"
-#  status=1
-#fi
-#
-#if [ ! "$innews" ]
-#then
-#  echo "Version '$configver' from configure.ac not in NEWS"
-#  status=1
-#fi
-#
-#if [ ! "$fhver" ]
-#then
-#  echo "Could not get version from sbin/firehol.in"
-#  status=1
-#fi
-#
-#if [ ! "$clogver" ]
-#then
-#  echo "Could not get version from ChangeLog"
-#  status=1
-#fi
-#
-#if [ "$fhver" != "$configver" ]
-#then
-#  echo "Version '$configver' from configure.ac != '$fhver' from sbin/firehol.in"
-#  status=1
-#fi
-#
-#if [ "$clogver" != "$configver" ]
-#then
-#  echo "Version '$configver' from configure.ac != '$clogver' from ChangeLog"
-#  status=1
-#fi
-#
+git show :NEWS > /tmp/staged-NEWS.$$
+
+clogver=`sed -ne '1s/.*(\(.*\)).*/\1/p' /tmp/staged-ChangeLog.$$`
+newsver=`head -n 10 /tmp/staged-NEWS.$$ | sed -ne 's/.*\<\([1-9][0-9]*\.[0-9][0-9]*[0-9A-Za-z.-]*\).*/\1/p' | head -n 1`
+
 ./packaging/check-log /tmp/staged-ChangeLog.$$
 status=$?
-#
-#rm -f /tmp/staged-ChangeLog.$$
-#rm -f /tmp/staged-config.ac.$$
-#rm -f /tmp/staged-NEWS.$$
+
+if [ $status -eq 0 -a ! "$clogver" ]
+then
+  echo "Could not get version from ChangeLog"
+  status=1
+fi
+
+if [ $status -eq 0 -a ! "$newsver" ]
+then
+  echo "Could not get version from NEWS"
+  status=1
+fi
+
+if [ $status -eq 0 -a "$newsver" != "$clogver" ]
+then
+  echo "Version in NEWS ($newsver) differs from ChangeLog ($clogver)"
+  status=1
+fi
+
+rm -f /tmp/staged-*.$$
 
 if [ $status -ne 0 ]
 then
