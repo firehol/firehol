@@ -83,8 +83,6 @@ FIREQOS_SHOW_MATCHES=0
 # the classes priority in balanced mode
 FIREQOS_BALANCED_PRIO=4
 
-FIREQOS_DEFAULT_QDISC="fq_codel"
-FIREQOS_DEFAULT_QDISC_OPTIONS="default"
 
 COLOR_RESET="\e[0m"
 COLOR_BLACK="\e[30m"
@@ -318,7 +316,8 @@ service() {
 fireqos_active_interfaces() {
 	ls $FIREQOS_DIR/ 2>/dev/null |\
 		$grep_cmd ".conf" |\
-		$sed_cmd "s/\.conf//g"
+		$tc_cmd "\n" " " |\
+		$sed_cmd -e "s/\.conf//g" -e "s/ \+/ /g"
 }
 
 FIREQOS_COMPLETED=
@@ -466,9 +465,15 @@ tc() {
 		
 		if [ $ret -ne 0 ]
 		then
-			echo >&2 "FAILED: tc failed with error $ret, while executing the command:"
+			echo >&2 -e "$COLOR_RED$COLOR_BOLD"
+			echo >&2
+			echo >&2
+			echo >&2 "ERROR:"
+			echo >&2 "tc failed with error $ret, while executing the command:"
 			printf "%q " $tc_cmd "${@}"
 			echo
+			echo >&2
+			echo >&2 -e "$COLOR_RESET"
 			exit 1
 		fi
 	fi
@@ -2598,13 +2603,6 @@ EOF
 	done
 	echo
 	
-	for x in $interface_classes_ids
-	do
-		eval local priority="\${class_${x}_priority}"
-		printf "% ${number_digits}.${number_digits}s " $priority
-	done
-	echo
-	
 	if [ $show_speeds -eq 1 ]
 	then
 		for x in $interface_classes_ids
@@ -2630,6 +2628,20 @@ EOF
 		done
 		echo
 	fi
+	echo
+	
+	for x in $interface_classes_ids
+	do
+		eval local priority="\${class_${x}_priority}"
+		printf "% ${number_digits}.${number_digits}s " $priority
+	done
+	echo
+	
+	for x in $interface_classes_ids
+	do
+		eval local qdisc="\${class_${x}_qdisc}"
+		printf "% ${number_digits}.${number_digits}s " $qdisc
+	done
 	echo
 	
 	# the main loop
@@ -3016,6 +3028,17 @@ if [ ! -d "${FIREQOS_DIR}/ifaces" ]
 then
 	mkdir -p "${FIREQOS_DIR}/ifaces" || exit 1
 fi
+
+FIREQOS_DEFAULT_QDISC="fq_codel"
+FIREQOS_DEFAULT_QDISC_OPTIONS="default"
+
+# check if this system has fq_codel
+runcmd $modprobe_cmd sch_$FIREQOS_DEFAULT_QDISC >/dev/null
+[ $? -ne 0 ] && FIREQOS_DEFAULT_QDISC="codel"
+
+# check if this system has codel
+runcmd $modprobe_cmd sch_$FIREQOS_DEFAULT_QDISC >/dev/null
+[ $? -ne 0 ] && FIREQOS_DEFAULT_QDISC="sfq"
 
 # make sure we are not running in parallel
 fireqos_concurrent_run_lock
