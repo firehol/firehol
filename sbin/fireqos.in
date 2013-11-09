@@ -3033,11 +3033,11 @@ FIREQOS_DEFAULT_QDISC="fq_codel"
 FIREQOS_DEFAULT_QDISC_OPTIONS="default"
 
 # check if this system has fq_codel
-runcmd $modprobe_cmd sch_$FIREQOS_DEFAULT_QDISC >/dev/null
+runcmd $modprobe_cmd sch_$FIREQOS_DEFAULT_QDISC >/dev/null 2>&1
 [ $? -ne 0 ] && FIREQOS_DEFAULT_QDISC="codel"
 
 # check if this system has codel
-runcmd $modprobe_cmd sch_$FIREQOS_DEFAULT_QDISC >/dev/null
+runcmd $modprobe_cmd sch_$FIREQOS_DEFAULT_QDISC >/dev/null 2>&1
 [ $? -ne 0 ] && FIREQOS_DEFAULT_QDISC="sfq"
 
 # make sure we are not running in parallel
