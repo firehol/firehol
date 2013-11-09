@@ -83,6 +83,9 @@ FIREQOS_SHOW_MATCHES=0
 # the classes priority in balanced mode
 FIREQOS_BALANCED_PRIO=4
 
+FIREQOS_DEFAULT_QDISC="fq_codel"
+FIREQOS_DEFAULT_QDISC_OPTIONS="default"
+
 COLOR_RESET="\e[0m"
 COLOR_BLACK="\e[30m"
 COLOR_RED="\e[31m"
@@ -680,7 +683,7 @@ parse_class_params() {
 					if [ "$3" = "options" ]
 					then
 						local qdisc_options="$4"
-						shift
+						shift 2
 					fi
 					shift
 					;;
@@ -691,7 +694,7 @@ parse_class_params() {
 					if [ "$2" = "options" ]
 					then
 						local qdisc_options="$3"
-						shift
+						shift 2
 					fi
 					;;
 					
@@ -1265,8 +1268,8 @@ interface() {
 	# set the default qdisc for all classes
 	if [ -z "$interface_qdisc" ]
 	then
-		interface_qdisc="sfq"
-		interface_qdisc_options="default"
+		interface_qdisc="$FIREQOS_DEFAULT_QDISC"
+		interface_qdisc_options="$FIREQOS_DEFAULT_QDISC_OPTIONS"
 	fi
 	
 	# the desired minimum rate for all classes
