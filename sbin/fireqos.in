@@ -358,7 +358,7 @@ fireqos_exit() {
 			then
 				local a="Traffic control on these interfaces is operational: $ifs"
 			else
-				local a="No traffic control is operational by FireQOS"
+				local a="No traffic control is operational by FireQOS."
 			fi
 			echo >&2
 			echo >&2 "$a"
@@ -2372,6 +2372,7 @@ show_interfaces() {
 		echo
 		echo "The following interfaces are available:"
 		fireqos_active_interfaces
+		echo
 	else
 		echo "No interfaces have been configured."
 	fi
