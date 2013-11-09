@@ -316,7 +316,7 @@ service() {
 fireqos_active_interfaces() {
 	ls $FIREQOS_DIR/ 2>/dev/null |\
 		$grep_cmd ".conf" |\
-		$tc_cmd "\n" " " |\
+		$tr_cmd "\n" " " |\
 		$sed_cmd -e "s/\.conf//g" -e "s/ \+/ /g"
 }
 
