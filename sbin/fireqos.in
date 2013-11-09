@@ -693,7 +693,7 @@ parse_class_params() {
 					shift
 					;;
 			
-			sfq|pfifo|bfifo|codel|none)
+			sfq|pfifo|bfifo|fq_codel|codel|none)
 					local qdisc="$1"
 					local qdisc_options="default"
 					if [ "$2" = "options" ]
