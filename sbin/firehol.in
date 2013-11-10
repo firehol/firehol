@@ -3866,6 +3866,7 @@ close_all_groups() {
 
 FIREHOL_ACCEPT_CHAIN_COUNT=0
 rule_action_param() {
+	local iptables_cmd="${1}"; shift
 	local action="${1}"; shift
 	local protocol="${1}"; shift
 	local statenot="${1}"; shift
@@ -3938,15 +3939,15 @@ rule_action_param() {
 							if [ ! -f "${FIREHOL_CHAINS_DIR}/${accept_limit_chain}" ]
 							then
 								# the chain does not exist. create it.
-								iptables_both ${table} -N "${accept_limit_chain}"
+								$iptables_cmd ${table} -N "${accept_limit_chain}"
 								touch "${FIREHOL_CHAINS_DIR}/${accept_limit_chain}"
 								
 								# first, if the traffic is not a NEW connection, allow it.
 								# doing this first will speed up normal traffic.
-								iptables_both ${table} -A "${accept_limit_chain}" -m conntrack ! --ctstate NEW -j ACCEPT
+								$iptables_cmd ${table} -A "${accept_limit_chain}" -m conntrack ! --ctstate NEW -j ACCEPT
 								
 								# accept NEW connections within the given limits.
-								iptables_both ${table} -A "${accept_limit_chain}" -m limit --limit "${freq}" --limit-burst "${burst}" -j ACCEPT
+								$iptables_cmd ${table} -A "${accept_limit_chain}" -m limit --limit "${freq}" --limit-burst "${burst}" -j ACCEPT
 								
 								# log the overflow NEW connections reaching this step within the new chain
 								local -a logopts_arg=()
@@ -3959,16 +3960,16 @@ rule_action_param() {
 								else
 									local -a logopts_arg=("--log-level" "${FIREHOL_LOG_LEVEL}" "--log-prefix=${FIREHOL_LOG_PREFIX}LIMIT_OVERFLOW:")
 								fi
-								iptables_both ${table} -A "${accept_limit_chain}" -m limit --limit "${FIREHOL_LOG_FREQUENCY}" --limit-burst "${FIREHOL_LOG_BURST}" -j ${FIREHOL_LOG_MODE} ${FIREHOL_LOG_OPTIONS} "${logopts_arg[@]}"
+								$iptables_cmd ${table} -A "${accept_limit_chain}" -m limit --limit "${FIREHOL_LOG_FREQUENCY}" --limit-burst "${FIREHOL_LOG_BURST}" -j ${FIREHOL_LOG_MODE} ${FIREHOL_LOG_OPTIONS} "${logopts_arg[@]}"
 								
 								# if the overflow is to be rejected is tcp, reject it with TCP-RESET
 								if [ "${overflow}" = "REJECT" ]
 								then
-									iptables_both ${table} -A "${accept_limit_chain}" -p tcp -j REJECT --reject-with tcp-reset
+									$iptables_cmd ${table} -A "${accept_limit_chain}" -p tcp -j REJECT --reject-with tcp-reset
 								fi
 								
 								# do the specified action on the overflow
-								iptables_both ${table} -A "${accept_limit_chain}" -j ${overflow}
+								$iptables_cmd ${table} -A "${accept_limit_chain}" -j ${overflow}
 							fi
 							
 							# send the rule to be generated to this chain
@@ -4008,23 +4009,23 @@ rule_action_param() {
 							if [ ! -f "${FIREHOL_CHAINS_DIR}/${accept_recent_chain}" ]
 							then
 								# the chain does not exist. create it.
-								iptables_both ${table} -N "${accept_recent_chain}"
+								$iptables_cmd ${table} -N "${accept_recent_chain}"
 								touch "${FIREHOL_CHAINS_DIR}/${accept_recent_chain}"
 								
 								# first, if the traffic is not a NEW connection, allow it.
 								# doing this first will speed up normal traffic.
-								iptables_both ${table} -A "${accept_recent_chain}" -m conntrack ! --ctstate NEW -j ACCEPT
+								$iptables_cmd ${table} -A "${accept_recent_chain}" -m conntrack ! --ctstate NEW -j ACCEPT
 								
 								# accept NEW connections within the given limits.
-								iptables_both ${table} -A "${accept_recent_chain}" -m recent --set --name "${name}"
+								$iptables_cmd ${table} -A "${accept_recent_chain}" -m recent --set --name "${name}"
 								
 								local t1=
 								test ! -z $seconds && local t1="--seconds ${seconds}"
 								local t2=
 								test ! -z $hits && local t2="--hitcount ${hits}"
 								
-								iptables_both ${table} -A "${accept_recent_chain}" -m recent --update ${t1} ${t2} --name "${name}" -j RETURN
-								iptables_both ${table} -A "${accept_recent_chain}" -j ACCEPT
+								$iptables_cmd ${table} -A "${accept_recent_chain}" -m recent --update ${t1} ${t2} --name "${name}" -j RETURN
+								$iptables_cmd ${table} -A "${accept_recent_chain}" -j ACCEPT
 							fi
 							
 							# send the rule to be generated to this chain
@@ -4044,10 +4045,10 @@ rule_action_param() {
 						if [ ! -f "${FIREHOL_CHAINS_DIR}/${name}" ]
 						then
 							# the chain does not exist. create it.
-							iptables_both ${table} -N "${name}"
+							$iptables_cmd ${table} -N "${name}"
 							touch "${FIREHOL_CHAINS_DIR}/${name}"
 							
-							iptables_both -A "${name}" -m conntrack --ctstate ESTABLISHED -j ACCEPT
+							$iptables_cmd -A "${name}" -m conntrack --ctstate ESTABLISHED -j ACCEPT
 							
 							# knockd (http://www.zeroflux.org/knock/)
 							# will create more rules inside this chain to match NEW packets.
@@ -4078,7 +4079,7 @@ rule_action_param() {
 			;;
 	esac
 	
-	iptables_both "$@" -j "${action}" "${action_param[@]}"
+	$iptables_cmd "$@" -j "${action}" "${action_param[@]}"
 	local ret=$?
 	
 	test $ret -gt 0 && failed=$[failed + 1]
@@ -5316,7 +5317,12 @@ rule() {
 						;;
 				esac
 				
-				rule_action_param "${negative_action}" "${pr}" "" "" "${table}" "${action_param[@]}" -- ${table} -A "${negative_chain}" "${proto_arg[@]}"
+				if running_ipv4; then
+					rule_action_param iptables "${negative_action}" "${pr}" "" "" "${table}" "${action_param[@]}" -- ${table} -A "${negative_chain}" "${proto_arg[@]}"
+				fi
+				if running_ipv6; then
+					rule_action_param ip6tables "${negative_action}" "${pr}" "" "" "${table}" "${action_param[@]}" -- ${table} -A "${negative_chain}" "${proto_arg[@]}"
+				fi
 				local -a action_param=()
 			done
 		fi
@@ -5681,7 +5687,7 @@ rule() {
 		fi
 
 		# do it!
-		ipv4 rule_action_param "${action}" "${pr}" "${statenot}" "${state}" "${table}" "${action_param[@]}" -- ${table} -A "${chain}" "${basecmd[@]}" ${custom}
+		rule_action_param iptables "${action}" "${pr}" "${statenot}" "${state}" "${table}" "${action_param[@]}" -- ${table} -A "${chain}" "${basecmd[@]}" ${custom}
 
 		done # dst4
 		done # src4
@@ -5728,7 +5734,7 @@ rule() {
 		fi
 
 		# do it!
-		ipv6 rule_action_param "${action}" "${pr}" "${statenot}" "${state}" "${table}" "${action_param[@]}" -- ${table} -A "${chain}" "${basecmd[@]}" ${custom}
+		rule_action_param ip6tables "${action}" "${pr}" "${statenot}" "${state}" "${table}" "${action_param[@]}" -- ${table} -A "${chain}" "${basecmd[@]}" ${custom}
 
 		done # dst6
 		done # src6
