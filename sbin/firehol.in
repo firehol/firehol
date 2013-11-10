@@ -857,6 +857,7 @@ FIREHOL_CONF_SHOW=1
 # Keep information about the current namespace: ipv4, ipv6 or both
 FIREHOL_NS_STACK=
 FIREHOL_NS_CURR=$FIREHOL_DEFAULT_NAMESPACE
+FIREHOL_NS_PREP=
 
 peek_namespace() {
 	local ns=$(echo $FIREHOL_NS_STACK | cut -f1 -d:)
@@ -871,13 +872,13 @@ peek_namespace() {
 push_namespace() {
 	if [ "$1" != "ipv4" -a "$1" != "ipv6" -a "$1" != "both" ]
 	then
-		echo "Bad namespace: $1 (must be ipv4/ipv6/both)"
-		exit 1
+		error "Bad namespace: $1 (must be ipv4/ipv6/both)"
+		return 1
 	fi
 	if [ "${FIREHOL_NS_CURR}" != "both" -a "$1" != "${FIREHOL_NS_CURR}" ]
 	then
-		echo "Cannot switch to namespace $1 within ${FIREHOL_NS_CURR}"
-		exit 1
+		error "Cannot use namespace $1 within ${FIREHOL_NS_CURR}"
+		return 1
 	fi
 	FIREHOL_NS_STACK="$1:$FIREHOL_NS_STACK"
 	FIREHOL_NS_CURR=$(peek_namespace)
@@ -917,17 +918,58 @@ running_both() {
 ipv4() {
 	local command="$1"
 	shift
-	push_namespace ipv4
-	$command "$@"
-	pop_namespace
+
+	if [ "${command}" = "interface" -o  "${command}" = "router" ]
+	then
+		# Old rules must be closed before these apply
+		FIREHOL_NS_PREP=ipv4
+		$command "$@"
+		status=$?
+	else
+		if ! push_namespace ipv4; then return 1; fi
+		$command "$@"
+		status=$?
+		pop_namespace
+	fi
+	return $status
 }
 
 ipv6() {
 	local command="$1"
 	shift
-	push_namespace ipv6
-	$command "$@"
-	pop_namespace
+
+	if [ "${command}" = "interface" -o  "${command}" = "router" ]
+	then
+		# Old rules must be closed before these apply
+		FIREHOL_NS_PREP=ipv6
+		$command "$@"
+		status=$?
+	else
+		if ! push_namespace ipv6; then return 1; fi
+		$command "$@"
+		status=$?
+		pop_namespace
+	fi
+	return $status
+}
+
+both() {
+	local command="$1"
+	shift
+
+	if [ "${command}" = "interface" -o  "${command}" = "router" ]
+	then
+		# Old rules must be closed before these apply
+		FIREHOL_NS_PREP=both
+		$command "$@"
+		status=$?
+	else
+		if ! push_namespace both; then return 1; fi
+		$command "$@"
+		status=$?
+		pop_namespace
+	fi
+	return $status
 }
 
 # ------------------------------------------------------------------------------
@@ -3003,8 +3045,18 @@ interface() {
 	# --- close any open command ---
 	
 	close_cmd || return 1
-	
-	
+
+	# --- reset namespace
+	if [ "${FIREHOL_NS_PREP}" != "" ]
+	then
+		FIREHOL_NS_STACK=${FIREHOL_NS_PREP}
+		FIREHOL_NS_CURR=${FIREHOL_NS_PREP}
+	else
+		FIREHOL_NS_STACK=${FIREHOL_DEFAULT_NAMESPACE}
+		FIREHOL_NS_CURR=${FIREHOL_DEFAULT_NAMESPACE}
+	fi
+	FIREHOL_NS_PREP=
+
 	# --- test prerequisites ---
 	
 	require_work clear || return 1
@@ -3044,7 +3096,17 @@ router() {
 	
 	close_cmd || return 1
 	
-	
+	# --- reset namespace
+	if [ "${FIREHOL_NS_PREP}" != "" ]
+	then
+		FIREHOL_NS_STACK=${FIREHOL_NS_PREP}
+		FIREHOL_NS_CURR=${FIREHOL_NS_PREP}
+	else
+		FIREHOL_NS_STACK=${FIREHOL_DEFAULT_NAMESPACE}
+		FIREHOL_NS_CURR=${FIREHOL_DEFAULT_NAMESPACE}
+	fi
+	FIREHOL_NS_PREP=
+
 	# --- test prerequisites ---
 	
 	require_work clear || return 1
@@ -4392,10 +4454,10 @@ rule() {
 			src|SRC|source|SOURCE|src4|src6)
 				if [ "${1}" = "src4" ]
 				then
-					push_namespace ipv4
+					if ! push_namespace ipv4; then return 1; fi
 				elif [ "${1}" = "src6" ]
 				then
-					push_namespace ipv6
+					if ! push_namespace ipv6; then return 1; fi
 				else
 					push_namespace "${FIREHOL_NS_CURR}"
 				fi
@@ -4459,10 +4521,10 @@ rule() {
 			dst|DST|destination|DESTINATION)
 				if [ "${1}" = "dst4" ]
 				then
-					push_namespace ipv4
+					if ! push_namespace ipv4; then return 1; fi
 				elif [ "${1}" = "dst6" ]
 				then
-					push_namespace ipv6
+					if ! push_namespace ipv6; then return 1; fi
 				else
 					push_namespace "${FIREHOL_NS_CURR}"
 				fi
@@ -5903,6 +5965,7 @@ softwarning() {
 	echo >&2 "WHAT   : ${work_function}"
 	echo >&2 "WHY    :" "$@"
 	printf >&2 "COMMAND: "; printf >&2 "%q " "${work_realcmd[@]}"; echo >&2
+	echo >&2 "MODE   :" "${FIREHOL_NS_CURR}"
 	echo >&2 "SOURCE : line ${FIREHOL_LINEID} of ${FIREHOL_CONFIG}"
 	echo >&2
 	
@@ -5926,6 +5989,7 @@ error() {
 	echo >&2 "WHAT   : ${work_function}"
 	echo >&2 "WHY    :" "$@"
 	printf >&2 "COMMAND: "; printf >&2 "%q " "${work_realcmd[@]}"; echo >&2
+	echo >&2 "MODE   :" "${FIREHOL_NS_CURR}"
 	echo >&2 "SOURCE : line ${FIREHOL_LINEID} of ${FIREHOL_CONFIG}"
 	echo >&2
 	
@@ -6001,8 +6065,14 @@ runtime_error() {
 
 chain_exists() {
 	local chain="${1}"
+
+	if running_ipv4; then
+		test -f "${FIREHOL_CHAINS_DIR}/${chain}.4" && return 1
+	fi
+	if running_ipv6; then
+		test -f "${FIREHOL_CHAINS_DIR}/${chain}.6" && return 1
+	fi
 	
-	test -f "${FIREHOL_CHAINS_DIR}/${chain}" && return 1
 	return 0
 }
 
@@ -6023,11 +6093,15 @@ create_chain() {
 	set_work_function "Creating chain '${newchain}' under '${oldchain}' in table '${table}'"
 	
 	chain_exists "${newchain}"
-#TODO: verify ipv4/6 separately
-#	test $? -eq 1 && error "Chain '${newchain}' already exists." && return 1
+	test $? -eq 1 && error "Chain '${newchain}' already exists." && return 1
 	
 	iptables_both -t ${table} -N "${newchain}" || return 1
-	${TOUCH_CMD} "${FIREHOL_CHAINS_DIR}/${newchain}"
+	if running_ipv4; then
+		${TOUCH_CMD} "${FIREHOL_CHAINS_DIR}/${newchain}.4"
+	fi
+	if running_ipv6; then
+		${TOUCH_CMD} "${FIREHOL_CHAINS_DIR}/${newchain}.6"
+	fi
 	
 	if [ ! -z "${oldchain}" ]
 	then
