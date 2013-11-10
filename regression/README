@@ -79,6 +79,46 @@ regarding the validity of output. If you understand iptables well
 but do not program, creating sample configurations, auditing and
 signing them is a great way to contribute.
 
+The audited output is attached to the configuration file but enclosed
+within bash functions so that FireHOL does not attempt to executed it.
+The functions have specific names to allow the output to be extracted
+for comparison later. The following two functions are used:
+
+audit_results_ipv4() {
+# iptables-save output goes here after processing with tools/reorg-save
+}
+
+audit_results_ipv6() {
+# ip6tables-save output goes here after processing with tools/reorg-save
+}
+
+An additional audit function may be provided which can test the output
+status and logfile contents. This is especially useful for tests that
+are expected to fail for some reason. The following script can be used
+to check for a successful load of the firewall:
+
+audit_results_script() {
+  local tmpdir="${1}"
+  local status="${2}"
+  local logfile="${3}"
+  shift; shift; shift;
+
+  local expected_status=0
+  if [ $status -ne $expected_status ]
+  then
+    echo "Unexpected status $status (expected $expected_status)"
+    return 1
+  fi
+
+  tail -n 1 "${logfile}" > $tmpdir/$$.log || return 1
+  if ! grep -q "^Activating new firewall ([0-9]* rules): OK$" $tmpdir/$$.log
+  then
+    echo "Log did not end as expected (with firewall activation)"
+    return 1
+  fi
+  return 0
+}
+
 To first sign a configuration, run:
   ./sigtool tests/..../test.conf <gpgid> <verno>
 

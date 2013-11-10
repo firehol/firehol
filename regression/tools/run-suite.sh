@@ -163,33 +163,42 @@ do
   v4aud="$outdir/ipv4/$d/$f.aud"
   v6aud="$outdir/ipv6/$d/$f.aud"
   v4nnaud="$outdir/ipv4-no-nat/$d/$f.aud"
+
   echo "  Running $cfgfile"
-  if grep -q "^====" "$here/tests/$testfile"
+  sed -e "s;\$REGRESSDIR;$REGRESSDIR;g" "$here/tests/$testfile" > "$cfgfile"
+
+  audit4=""
+  if grep -q "audit_results_ipv4" "$here/tests/$testfile"
   then
-    audit="Y"
+    audit4="Y"
     sigsfile=$(echo $testfile | sed -e 's/.conf$/.sigs/')
     test -f "$here/tests/$sigsfile" && gpg --verify "$here/tests/$sigsfile" "$here/tests/$testfile"
-    sed -e '/^====/,$d' "$here/tests/$testfile" > "$cfgfile"
-    sed -e '1,/^==== IPv4 AUDITED O/d' \
-        -e '/^==== IPv4 AUDITED END/,$d' "$here/tests/$testfile" \
-       | tools/reorg-save > "$v4aud"
+    sed -ne '/audit_results_ipv4()/,/^}/p' "$here/tests/$testfile" \
+         | sed -e '1d' -e '$d' \
+         | tools/reorg-save > "$v4aud"
     tools/reorg-save -n "$v4aud" > "$v4nnaud"
-    if grep -q IP6TABLES_CMD "$prog"
-    then
-      audit6="Y"
-      sed -e '1,/^==== IPv6 AUDITED O/d' \
-          -e '/^==== IPv6 AUDITED END/,$d' "$here/tests/$testfile" \
-       | tools/reorg-save > "$v6aud"
-    else
-      audit6=""
-    fi
-  else
-    audit=""
-    audit6=""
-    cp "$here/tests/$testfile" "$cfgfile"
   fi
+
+  audit6=""
+  if grep -q "audit_results_ipv6" "$here/tests/$testfile"
+  then
+    if grep -q IP6TABLES_CMD "$prog"; then
+      audit6="Y"
+      sed -ne '/audit_results_ipv6()/,/^}/p' "$here/tests/$testfile" \
+           | sed -e '1d' -e '$d' \
+           | tools/reorg-save > "$v6aud"
+    fi
+  fi
+
+  if grep -q "audit_results_script" "$here/tests/$testfile"; then
+    sed -ne '/audit_results_script()/,/^}/p' "$here/tests/$testfile" > $MYTMP/auditscript
+  else
+    rm -f $MYTMP/auditscript
+  fi
+
   clear_all
   $prog "$cfgfile" start >> "$logfile" 2>&1
+  fhstatus=$?
   iptables-save > "$v4out".tmp
   ip6tables-save > "$v6out".tmp
   sed -i -e 's/^FireHOL: //' "$logfile"
@@ -202,26 +211,39 @@ do
   tools/reorg-save -n "$v4out".tmp > "$v4nnout"
   tools/reorg-save "$v6out".tmp > "$v6out"
   rm -f "$v4out".tmp "$v6out".tmp
+  auditrun=0
   auditfail=0
-  if [ "$audit" ]; then
+  if [ "$audit4" ]; then
+    auditrun=$[auditrun+1]
     if ! cmp "$v4out" "$v4aud"; then
       echo "Warning: ipv4 output differs from audited version"
       echo " v4result $v4out"
       echo "  v4audit $v4out"
-      auditfail=1
+      auditfail=$[auditfail+1]
     fi
   fi
   if [ "$audit6" ]; then
+    auditrun=$[auditrun+1]
     if ! cmp "$v6out" "$v6aud"; then
       echo "Warning: ipv6 output differs from audited version"
       echo " v6result $v6out"
       echo "  v6audit $v6aud"
-      auditfail=1
+      auditfail=$[auditfail+1]
+    fi
+  fi
+  if [ -f $MYTMP/auditscript ]; then
+    auditrun=$[auditrun+1]
+    echo "audit_results_script $MYTMP $fhstatus $logfile" >> $MYTMP/auditscript
+    bash $MYTMP/auditscript
+    if [ $? -ne 0 ]; then
+      auditfail=$[auditfail+1]
     fi
   fi
   if [ $auditfail -gt 0 ]; then
     echo "      log $logfile"
     echo ""
+  elif [ $auditrun -gt 0 ]; then
+    echo "    audit passed $auditrun/$auditrun"
   fi
 done < $MYTMP/list
 
