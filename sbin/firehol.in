@@ -5271,6 +5271,79 @@ rule() {
 	
 	# ----------------------------------------------------------------------------------
 	# Process the positive rules
+
+	# addrtype (srctype, dsttype)
+	local -a addrtype_arg=()
+	local -a stp_arg=()
+	local -a dtp_arg=()
+	if [ ! -z "${srctype}${dsttype}" ]
+	then
+		local -a addrtype_arg=("-m" "addrtype")
+
+		if [ ! -z "${srctype}" ]
+		then
+			local -a stp_arg=(${srctypenot} "--src-type" "${srctype}")
+		fi
+
+		if [ ! -z "${dsttype}" ]
+		then
+			local -a dtp_arg=(${dsttypenot} "--dst-type" "${dsttype}")
+		fi
+	fi
+
+	# state
+	local -a state_arg=()
+	if [ ! -z "${state}" ]
+	then
+		# local -a state_arg=("-m" "state" ${statenot} "--state" "${state}")
+		local -a state_arg=("-m" "conntrack" ${statenot} "--ctstate" "${state}")
+	fi
+
+	# limit
+	local -a limit_arg=()
+	if [ ! -z "${limit}" ]
+	then
+		local -a limit_arg=("-m" "limit" "--limit" "${limit}" "--limit-burst" "${burst}")
+	fi
+
+	# iplimit
+	local -a iplimit_arg=()
+	if [ ! -z "${iplimit}" ]
+	then
+		local -a iplimit_arg=("-m" "iplimit" "--iplimit-above" "${iplimit}" "--iplimit-mask" "${iplimit_mask}")
+	fi
+
+	# log mode selection
+	local -a logopts_arg=()
+	if [ "${FIREHOL_LOG_MODE}" = "ULOG" ]
+	then
+		local -a logopts_arg=("--ulog-prefix=${FIREHOL_LOG_PREFIX}${logtxt}:")
+	elif [ "${FIREHOL_LOG_MODE}" = "NFLOG" ]
+	then
+		local -a logopts_arg=("--nflog-prefix=${FIREHOL_LOG_PREFIX}${logtxt}:")
+	else
+		local -a logopts_arg=("--log-level" "${loglevel}" "--log-prefix=${FIREHOL_LOG_PREFIX}${logtxt}:")
+	fi
+
+	# log / loglimit
+	local logrule=
+	case "${log}" in
+		'')
+			logrule=none
+			;;
+
+		limit)
+			logrule=limit
+			;;
+
+		normal)
+			logrule=normal
+			;;
+
+		*)
+			error "Unknown log value '${log}'."
+			;;
+	esac
 	
 	# uid
 	local tuid=
@@ -5541,79 +5614,16 @@ rule() {
 				;;
 		esac
 	
-	# addrtype (srctype, dsttype)
-	local -a addrtype_arg=()
-	local -a stp_arg=()
-	local -a dtp_arg=()
-	if [ ! -z "${srctype}${dsttype}" ]
-	then
-		local -a addrtype_arg=("-m" "addrtype")
-		
-		if [ ! -z "${srctype}" ]
-		then
-			local -a stp_arg=(${srctypenot} "--src-type" "${srctype}")
-		fi
-		
-		if [ ! -z "${dsttype}" ]
-		then
-			local -a dtp_arg=(${dsttypenot} "--dst-type" "${dsttype}")
-		fi
-	fi
-	
-	# state
-	local -a state_arg=()
-	if [ ! -z "${state}" ]
-	then
-		# local -a state_arg=("-m" "state" ${statenot} "--state" "${state}")
-		local -a state_arg=("-m" "conntrack" ${statenot} "--ctstate" "${state}")
-	fi
-	
-	# limit
-	local -a limit_arg=()
-	if [ ! -z "${limit}" ]
-	then
-		local -a limit_arg=("-m" "limit" "--limit" "${limit}" "--limit-burst" "${burst}")
-	fi
-	
-	# iplimit
-	local -a iplimit_arg=()
-	if [ ! -z "${iplimit}" ]
-	then
-		local -a iplimit_arg=("-m" "iplimit" "--iplimit-above" "${iplimit}" "--iplimit-mask" "${iplimit_mask}")
-	fi
-	
 	# build the command
 	declare -a basecmd=("${inf_arg[@]}" "${outf_arg[@]}" "${physdev_arg[@]}" "${inph_arg[@]}" "${outph_arg[@]}" "${limit_arg[@]}" "${iplimit_arg[@]}" "${proto_arg[@]}" "${s_arg[@]}" "${sp_arg[@]}" "${d_arg[@]}" "${dp_arg[@]}" "${owner_arg[@]}" "${uid_arg[@]}" "${gid_arg[@]}" "${pid_arg[@]}" "${sid_arg[@]}" "${cmd_arg[@]}" "${addrtype_arg[@]}" "${stp_arg[@]}" "${dtp_arg[@]}" "${state_arg[@]}" "${mc_arg[@]}" "${mark_arg[@]}" "${tos_arg[@]}" "${dscp_arg[@]}")
-	
-	# log mode selection
-	local -a logopts_arg=()
-	if [ "${FIREHOL_LOG_MODE}" = "ULOG" ]
+
+	if [ "$logrule" = "limit" ]
 	then
-		local -a logopts_arg=("--ulog-prefix=${FIREHOL_LOG_PREFIX}${logtxt}:")
-	elif [ "${FIREHOL_LOG_MODE}" = "NFLOG" ]
+		iptables_both ${table} -A "${chain}" "${basecmd[@]}" ${custom} -m limit --limit "${FIREHOL_LOG_FREQUENCY}" --limit-burst "${FIREHOL_LOG_BURST}" -j ${FIREHOL_LOG_MODE} ${FIREHOL_LOG_OPTIONS} "${logopts_arg[@]}"
+	elif [ "$logrule" = "normal" ]
 	then
-		local -a logopts_arg=("--nflog-prefix=${FIREHOL_LOG_PREFIX}${logtxt}:")
-	else
-		local -a logopts_arg=("--log-level" "${loglevel}" "--log-prefix=${FIREHOL_LOG_PREFIX}${logtxt}:")
+		iptables_both ${table} -A "${chain}" "${basecmd[@]}" ${custom}  -j ${FIREHOL_LOG_MODE} ${FIREHOL_LOG_OPTIONS} "${logopts_arg[@]}"
 	fi
-	
-	# log / loglimit
-	case "${log}" in
-		'')
-			;;
-		
-		limit)
-			iptables_both ${table} -A "${chain}" "${basecmd[@]}" ${custom} -m limit --limit "${FIREHOL_LOG_FREQUENCY}" --limit-burst "${FIREHOL_LOG_BURST}" -j ${FIREHOL_LOG_MODE} ${FIREHOL_LOG_OPTIONS} "${logopts_arg[@]}"
-			;;
-			
-		normal)
-			iptables_both ${table} -A "${chain}" "${basecmd[@]}" ${custom}  -j ${FIREHOL_LOG_MODE} ${FIREHOL_LOG_OPTIONS} "${logopts_arg[@]}"
-			;;
-			
-		*)
-			error "Unknown log value '${log}'."
-			;;
-	esac
 	
 	# do it!
 	rule_action_param "${action}" "${pr}" "${statenot}" "${state}" "${table}" "${action_param[@]}" -- ${table} -A "${chain}" "${basecmd[@]}" ${custom}
