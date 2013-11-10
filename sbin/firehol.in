@@ -4105,11 +4105,17 @@ rule() {
 	local mac=any
 	local macnot=
 	
-	local src=any
-	local srcnot=
-	
-	local dst=any
-	local dstnot=
+	local src4=any
+	local src4not=
+
+	local dst4=any
+	local dst4not=
+
+	local src6=any
+	local src6not=
+
+	local dst6=any
+	local dst6not=
 	
 	local srctype=
 	local srctypenot=
@@ -4350,23 +4356,31 @@ rule() {
 				shift
 				if [ ${reverse} -eq 0 ]
 				then
-					srcnot=
+					src4not=
+					src6not=
 					if [ "${1}" = "not" -o "${1}" = "NOT" ]
 					then
 						shift
-						srcnot="!"
+						src4not="!"
+						src6not="!"
 					fi
-					test ${softwarnings} -eq 1 -a ! "${src}" = "any" && softwarning "Overwritting param: src '${src}' becomes '${1}'"
-					src="${1}"
+					test ${softwarnings} -eq 1 -a ! "${src4}" = "any" && softwarning "Overwritting param: src4 '${src4}' becomes '${1}'"
+					test ${softwarnings} -eq 1 -a ! "${src6}" = "any" && softwarning "Overwritting param: src6 '${src6}' becomes '${1}'"
+					src4="${1}"
+					src6="${1}"
 				else
-					dstnot=
+					dst4not=
+					dst6not=
 					if [ "${1}" = "not" -o "${1}" = "NOT" ]
 					then
 						shift
-						dstnot="!"
+						dst4not="!"
+						dst6not="!"
 					fi
-					test ${softwarnings} -eq 1 -a ! "${dst}" = "any" && softwarning "Overwritting param: dst '${dst}' becomes '${1}'"
-					dst="${1}"
+					test ${softwarnings} -eq 1 -a ! "${dst4}" = "any" && softwarning "Overwritting param: dst4 '${dst4}' becomes '${1}'"
+					test ${softwarnings} -eq 1 -a ! "${dst6}" = "any" && softwarning "Overwritting param: dst6 '${dst6}' becomes '${1}'"
+					dst4="${1}"
+					dst6="${1}"
 				fi
 				shift
 				;;
@@ -4375,23 +4389,31 @@ rule() {
 				shift
 				if [ ${reverse} -eq 0 ]
 				then
-					dstnot=
+					dst4not=
+					dst6not=
 					if [ "${1}" = "not" -o "${1}" = "NOT" ]
 					then
 						shift
-						dstnot="!"
+						dst4not="!"
+						dst6not="!"
 					fi
-					test ${softwarnings} -eq 1 -a ! "${dst}" = "any" && softwarning "Overwritting param: dst '${dst}' becomes '${1}'"
-					dst="${1}"
+					test ${softwarnings} -eq 1 -a ! "${dst4}" = "any" && softwarning "Overwritting param: dst4 '${dst4}' becomes '${1}'"
+					test ${softwarnings} -eq 1 -a ! "${dst6}" = "any" && softwarning "Overwritting param: dst6 '${dst6}' becomes '${1}'"
+					dst4="${1}"
+					dst6="${1}"
 				else
-					srcnot=
+					src4not=
+					src6not=
 					if [ "${1}" = "not" -o "${1}" = "NOT" ]
 					then
 						shift
-						srcnot="!"
+						src4not="!"
+						src6not="!"
 					fi
-					test ${softwarnings} -eq 1 -a ! "${src}" = "any" && softwarning "Overwritting param: src '${src}' becomes '${1}'"
-					src="${1}"
+					test ${softwarnings} -eq 1 -a ! "${src4}" = "any" && softwarning "Overwritting param: src6 '${src4}' becomes '${1}'"
+					test ${softwarnings} -eq 1 -a ! "${src6}" = "any" && softwarning "Overwritting param: src6 '${src6}' becomes '${1}'"
+					src4="${1}"
+					src6="${1}"
 				fi
 				shift
 				;;
@@ -4964,8 +4986,10 @@ rule() {
 	test -z "${physin}"	&& error "Cannot accept an empty 'physin'."	&& return 1
 	test -z "${physout}"	&& error "Cannot accept an empty 'physout'."	&& return 1
 	test -z "${mac}"	&& error "Cannot accept an empty 'mac'."	&& return 1
-	test -z "${src}"	&& error "Cannot accept an empty 'src'."	&& return 1
-	test -z "${dst}"	&& error "Cannot accept an empty 'dst'."	&& return 1
+	test -z "${src4}"	&& error "Cannot accept an empty 'src4'."	&& return 1
+	test -z "${dst4}"	&& error "Cannot accept an empty 'dst4'."	&& return 1
+	test -z "${src6}"	&& error "Cannot accept an empty 'src6'."	&& return 1
+	test -z "${dst6}"	&& error "Cannot accept an empty 'dst6'."	&& return 1
 	test -z "${sport}"	&& error "Cannot accept an empty 'sport'."	&& return 1
 	test -z "${dport}"	&& error "Cannot accept an empty 'dport'."	&& return 1
 	test -z "${proto}"	&& error "Cannot accept an empty 'proto'."	&& return 1
@@ -4974,6 +4998,18 @@ rule() {
 	test -z "${pid}"	&& error "Cannot accept an empty 'pid'."	&& return 1
 	test -z "${sid}"	&& error "Cannot accept an empty 'sid'."	&& return 1
 	test -z "${cmd}"	&& error "Cannot accept an empty 'cmd'."	&& return 1
+
+	if [ "${src4not}" != "${src6not}" ]
+	then
+		error "Mixed use of 'not' with src4 and src6."	&& return 1
+	fi
+	local srcnot="${src4not}"
+
+	if [ "${dst4not}" != "${dst6not}" ]
+	then
+		error "Mixed use of 'not' with dst4 and dst6."	&& return 1
+	fi
+	local dstnot="${dst4not}"
 	
 	
 	# ----------------------------------------------------------------------------------
@@ -5077,23 +5113,41 @@ rule() {
 		if [ ! -z "${srcnot}" ]
 		then
 			local s=
-			for s in ${src}
-			do
-				iptables_both ${table} -A "${negative_chain}" -s "${s}" -j RETURN
-			done
+			if running_ipv4; then
+				for s in ${src4}
+				do
+					iptables ${table} -A "${negative_chain}" -s "${s}" -j RETURN
+				done
+			fi
+			if running_ipv6; then
+				for s in ${src6}
+				do
+					ip6tables ${table} -A "${negative_chain}" -s "${s}" -j RETURN
+				done
+			fi
 			srcnot=
-			src=any
+			src4=any
+			src6=any
 		fi
 		
 		if [ ! -z "${dstnot}" ]
 		then
 			local d=
-			for d in ${dst}
-			do
-				iptables_both ${table} -A "${negative_chain}" -d "${d}" -j RETURN
-			done
+			if running_ipv4; then
+				for d in ${dst4}
+				do
+					iptables ${table} -A "${negative_chain}" -d "${d}" -j RETURN
+				done
+			fi
+			if running_ipv6; then
+				for d in ${dst6}
+				do
+					ip6tables ${table} -A "${negative_chain}" -d "${d}" -j RETURN
+				done
+			fi
 			dstnot=
-			dst=any
+			dst4=any
+			dst6=any
 		fi
 		
 		if [ ! -z "${protonot}" ]
@@ -5586,50 +5640,100 @@ rule() {
 				;;
 		esac
 	
-	# src
-	local s=
-	for s in ${src}
-	do
-		local -a s_arg=()
-		case ${s} in
-			any|ANY)
-				;;
-			
-			*)
-				local -a s_arg=("-s" "${s}")
-				;;
-		esac
-	
-	# dst
-	local d=
-	for d in ${dst}
-	do
-		local -a d_arg=()
-		case ${d} in
-			any|ANY)
-				;;
-			
-			*)
-				local -a d_arg=("-d" "${d}")
-				;;
-		esac
-	
-	# build the command
-	declare -a basecmd=("${inf_arg[@]}" "${outf_arg[@]}" "${physdev_arg[@]}" "${inph_arg[@]}" "${outph_arg[@]}" "${limit_arg[@]}" "${iplimit_arg[@]}" "${proto_arg[@]}" "${s_arg[@]}" "${sp_arg[@]}" "${d_arg[@]}" "${dp_arg[@]}" "${owner_arg[@]}" "${uid_arg[@]}" "${gid_arg[@]}" "${pid_arg[@]}" "${sid_arg[@]}" "${cmd_arg[@]}" "${addrtype_arg[@]}" "${stp_arg[@]}" "${dtp_arg[@]}" "${state_arg[@]}" "${mc_arg[@]}" "${mark_arg[@]}" "${tos_arg[@]}" "${dscp_arg[@]}")
+	if running_ipv4; then
+		# src4
+		local s=
+		for s in ${src4}
+		do
+			local -a s_arg=()
+			case ${s} in
+				any|ANY)
+					;;
+
+				*)
+					local -a s_arg=("-s" "${s}")
+					;;
+			esac
+
+		# dst4
+		local d=
+		for d in ${dst4}
+		do
+			local -a d_arg=()
+			case ${d} in
+				any|ANY)
+					;;
+
+				*)
+					local -a d_arg=("-d" "${d}")
+					;;
+			esac
+
+		# build the command
+		declare -a basecmd=("${inf_arg[@]}" "${outf_arg[@]}" "${physdev_arg[@]}" "${inph_arg[@]}" "${outph_arg[@]}" "${limit_arg[@]}" "${iplimit_arg[@]}" "${proto_arg[@]}" "${s_arg[@]}" "${sp_arg[@]}" "${d_arg[@]}" "${dp_arg[@]}" "${owner_arg[@]}" "${uid_arg[@]}" "${gid_arg[@]}" "${pid_arg[@]}" "${sid_arg[@]}" "${cmd_arg[@]}" "${addrtype_arg[@]}" "${stp_arg[@]}" "${dtp_arg[@]}" "${state_arg[@]}" "${mc_arg[@]}" "${mark_arg[@]}" "${tos_arg[@]}" "${dscp_arg[@]}")
 
 	if [ "$logrule" = "limit" ]
-	then
-		iptables_both ${table} -A "${chain}" "${basecmd[@]}" ${custom} -m limit --limit "${FIREHOL_LOG_FREQUENCY}" --limit-burst "${FIREHOL_LOG_BURST}" -j ${FIREHOL_LOG_MODE} ${FIREHOL_LOG_OPTIONS} "${logopts_arg[@]}"
-	elif [ "$logrule" = "normal" ]
-	then
-		iptables_both ${table} -A "${chain}" "${basecmd[@]}" ${custom}  -j ${FIREHOL_LOG_MODE} ${FIREHOL_LOG_OPTIONS} "${logopts_arg[@]}"
+		then
+			iptables ${table} -A "${chain}" "${basecmd[@]}" ${custom} -m limit --limit "${FIREHOL_LOG_FREQUENCY}" --limit-burst "${FIREHOL_LOG_BURST}" -j ${FIREHOL_LOG_MODE} ${FIREHOL_LOG_OPTIONS} "${logopts_arg[@]}"
+		elif [ "$logrule" = "normal" ]
+		then
+			iptables ${table} -A "${chain}" "${basecmd[@]}" ${custom}  -j ${FIREHOL_LOG_MODE} ${FIREHOL_LOG_OPTIONS} "${logopts_arg[@]}"
+		fi
+
+		# do it!
+		ipv4 rule_action_param "${action}" "${pr}" "${statenot}" "${state}" "${table}" "${action_param[@]}" -- ${table} -A "${chain}" "${basecmd[@]}" ${custom}
+
+		done # dst4
+		done # src4
 	fi
-	
-	# do it!
-	rule_action_param "${action}" "${pr}" "${statenot}" "${state}" "${table}" "${action_param[@]}" -- ${table} -A "${chain}" "${basecmd[@]}" ${custom}
-	
-	done # dst
-	done # src
+
+	if running_ipv6; then
+		# src6
+		local s=
+		for s in ${src6}
+		do
+			local -a s_arg=()
+			case ${s} in
+				any|ANY)
+					;;
+
+				*)
+					local -a s_arg=("-s" "${s}")
+					;;
+			esac
+
+		# dst6
+		local d=
+		for d in ${dst6}
+		do
+			local -a d_arg=()
+			case ${d} in
+				any|ANY)
+					;;
+
+				*)
+					local -a d_arg=("-d" "${d}")
+					;;
+			esac
+
+		# build the command
+		declare -a basecmd=("${inf_arg[@]}" "${outf_arg[@]}" "${physdev_arg[@]}" "${inph_arg[@]}" "${outph_arg[@]}" "${limit_arg[@]}" "${iplimit_arg[@]}" "${proto_arg[@]}" "${s_arg[@]}" "${sp_arg[@]}" "${d_arg[@]}" "${dp_arg[@]}" "${owner_arg[@]}" "${uid_arg[@]}" "${gid_arg[@]}" "${pid_arg[@]}" "${sid_arg[@]}" "${cmd_arg[@]}" "${addrtype_arg[@]}" "${stp_arg[@]}" "${dtp_arg[@]}" "${state_arg[@]}" "${mc_arg[@]}" "${mark_arg[@]}" "${tos_arg[@]}" "${dscp_arg[@]}")
+
+	if [ "$logrule" = "limit" ]
+		then
+			ip6tables ${table} -A "${chain}" "${basecmd[@]}" ${custom} -m limit --limit "${FIREHOL_LOG_FREQUENCY}" --limit-burst "${FIREHOL_LOG_BURST}" -j ${FIREHOL_LOG_MODE} ${FIREHOL_LOG_OPTIONS} "${logopts_arg[@]}"
+		elif [ "$logrule" = "normal" ]
+		then
+			ip6tables ${table} -A "${chain}" "${basecmd[@]}" ${custom}  -j ${FIREHOL_LOG_MODE} ${FIREHOL_LOG_OPTIONS} "${logopts_arg[@]}"
+		fi
+
+		# do it!
+		ipv6 rule_action_param "${action}" "${pr}" "${statenot}" "${state}" "${table}" "${action_param[@]}" -- ${table} -A "${chain}" "${basecmd[@]}" ${custom}
+
+		done # dst6
+		done # src6
+	fi
+
 	done # mac
 	done # dport
 	done # sport
