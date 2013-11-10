@@ -748,6 +748,9 @@ test -z "$WAIT_FOR_IFACE" && \
 test -z "$FIREHOL_FAST_ACTIVATION" && \
 	FIREHOL_FAST_ACTIVATION=0
 
+test -z "$FIREHOL_DEFAULT_NAMESPACE" && \
+	FIREHOL_DEFAULT_NAMESPACE=both
+
 # ----------------------------------------------------------------------
 # Firewall configuration variables
 #  These affect the final output firewall. They can be set in the
@@ -853,6 +856,17 @@ FIREHOL_CONF_SHOW=1
 # ------------------------------------------------------------------------------
 # Keep information about the current namespace: ipv4, ipv6 or both
 FIREHOL_NS_STACK=
+FIREHOL_NS_CURR=$FIREHOL_DEFAULT_NAMESPACE
+
+peek_namespace() {
+	local ns=$(echo $FIREHOL_NS_STACK | cut -f1 -d:)
+	if [ "$ns" = "" ]
+	then
+		echo $FIREHOL_DEFAULT_NAMESPACE
+	else
+		echo $ns
+	fi
+}
 
 push_namespace() {
 	if [ "$1" != "ipv4" -a "$1" != "ipv6" -a "$1" != "both" ]
@@ -860,34 +874,43 @@ push_namespace() {
 		echo "Bad namespace: $1 (must be ipv4/ipv6/both)"
 		exit 1
 	fi
+	if [ "${FIREHOL_NS_CURR}" != "both" -a "$1" != "${FIREHOL_NS_CURR}" ]
+	then
+		echo "Cannot switch to namespace $1 within ${FIREHOL_NS_CURR}"
+		exit 1
+	fi
 	FIREHOL_NS_STACK="$1:$FIREHOL_NS_STACK"
+	FIREHOL_NS_CURR=$(peek_namespace)
 	return 0
 }
 
 pop_namespace() {
 	FIREHOL_NS_STACK=$(echo $FIREHOL_NS_STACK | cut -f2- -d:)
+	FIREHOL_NS_CURR=$(peek_namespace)
 	return 0
 }
 
-peek_namespace() {
-	echo $FIREHOL_NS_STACK | cut -f1 -d:
-}
-
 running_ipv4() {
-	local ns=$(peek_namespace)
-	if [ "$ns" = "ipv4" -o "$ns" = "both" -o "$ns" = "" ]; then return 0; fi
+	if [ "${FIREHOL_NS_CURR}" = "ipv4" -o "${FIREHOL_NS_CURR}" = "both" ]
+	then
+		return 0;
+	fi
 	return 1
 }
 
 running_ipv6() {
-	local ns=$(peek_namespace)
-	if [ "$ns" = "ipv6" -o "$ns" = "both" -o "$ns" = "" ]; then return 0; fi
+	if [ "${FIREHOL_NS_CURR}" = "ipv6" -o "${FIREHOL_NS_CURR}" = "both" ]
+	then
+		return 0;
+	fi
 	return 1
 }
 
 running_both() {
-	local ns=$(peek_namespace)
-	if [ "$ns" = "both" -o "$ns" = "" ]; then return 0; fi
+	if [ "${FIREHOL_NS_CURR}" = "both" ]
+	then
+		return 0;
+	fi
 	return 1
 }
 
@@ -2605,6 +2628,7 @@ redirect() {
 }
 
 wrongmac_chain=0
+wrongmac6_chain=0
 mac() {
 	work_realcmd_helper $FUNCNAME "$@"
 	
@@ -2612,18 +2636,30 @@ mac() {
 	
 	require_work clear || ( error "$FUNCNAME cannot be used in '${work_cmd}'. Put it before any '${work_cmd}' definition."; return 1 )
 	
-	if [ ${wrongmac_chain} -eq 0 ]
-	then
-		set_work_function "Creating the MAC-MISSMATCH chain (only once)"
+	if running_ipv4; then
+		if [ ${wrongmac_chain} -eq 0 ]
+		then
+			set_work_function "Creating the MAC-MISSMATCH chain (only once)"
 		
-		push_namespace both
-		iptables_both -t filter -N WRONGMAC
-		rule table filter chain WRONGMAC loglimit "MAC MISSMATCH" action DROP || return 1
-		pop_namespace
+			iptables -t filter -N WRONGMAC
+			rule table filter chain WRONGMAC loglimit "MAC MISSMATCH" action DROP || return 1
 		
-		wrongmac_chain=1
+			wrongmac_chain=1
+		fi
 	fi
-	
+
+	if running_ipv6; then
+		if [ ${wrongmac6_chain} -eq 0 ]
+		then
+			set_work_function "Creating the MAC-MISSMATCH chain (only once)"
+
+			ip6tables -t filter -N WRONGMAC
+			rule table filter chain WRONGMAC loglimit "MAC MISSMATCH" action DROP || return 1
+
+			wrongmac6_chain=1
+		fi
+	fi
+
 	set_work_function "If the source IP ${1} does not match MAC ${2}, drop the packet"
 
 	iptables_both -t filter -A INPUT   -s "${1}" -m mac ! --mac-source "${2}" -j WRONGMAC
