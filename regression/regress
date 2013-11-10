@@ -20,6 +20,9 @@ then
   exit 1
 fi
 
+REGRESSDIR=`pwd`
+export REGRESSDIR
+
 shift
 
 if [ "`id -r -u`" != "0" ]
