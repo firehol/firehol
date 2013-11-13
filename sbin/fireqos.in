@@ -319,6 +319,30 @@ client() {
 	simple_service client "${@}"
 }
 
+server4() {
+	ipv4 server "${@}"
+}
+
+server6() {
+	ipv6 server "${@}"
+}
+
+server46() {
+	ipv46 server "${@}"
+}
+
+client4() {
+	ipv4 client "${@}"
+}
+
+client6() {
+	ipv6 client "${@}"
+}
+
+client46() {
+	ipv46 client "${@}"
+}
+
 service() {
 	error "the 'service' match is no longer supported."
 	exit 1
