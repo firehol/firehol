@@ -258,45 +258,55 @@ simple_service() {
 	local s=
 	for s in $service
 	do
-		local ports=
-		eval "local ports=\$server_${s}_ports"
-		if [ -z "$ports" ]
+		local sports=
+		eval "local sports=\$server_${s}_ports"
+		if [ -z "$sports" ]
 		then
 			error "Service '$s' is not defined."
 			exit 1
 		fi
 		
-		local pmatch="ports"
+		# INPUT
+		# server_x_ports=tcp/SPORT
+		# server x src CLIENT dst SERVER ==>         dport SPORT, src CLIENT, dst SERVER ==> dport SPORT, src CLIENT, dst SERVER
+		# client x src CLIENT dst SERVER ==> reverse dport SPORT, src CLIENT, dst SERVER ==> sport SPORT, dst CLIENT, src SERVER
+
+		# OUTPUT
+		# server_x_ports=tcp/SPORT
+		# server x src CLIENT dst SERVER ==> reverse dport SPORT, src CLIENT, dst SERVER ==> sport SPORT, dst CLIENT, src SERVER
+		# client x src CLIENT dst SERVER ==>         dport SPORT, src CLIENT, dst SERVER ==> dport SPORT, src CLIENT, dst SERVER
+
+		# So:
+		# 1. use 'server' when you are the server
+		# 2. use 'client' when you are the client
+		# 3. use 'src' and 'dst' to match the REQUEST, i.e. src=CLIENT, dst=SERVER
+		# 4. forget about INPUT and OUTPUT interfaces, FireQOS will figure it out
+
+		local reverse=
 		case $direction in
 			server)
-				pmatch="dports"
-				[ "$interface_inout" = "output" ] && pmatch="sports"
+				[ "$interface_inout" = "output" ] && local reverse="reverse"
 				;;
 				
 			client)
-				pmatch="sports"
-				[ "$interface_inout" = "output" ] && pmatch="dports"
-				;;
-				
-			service)
-				pmatch="ports"
+				[ "$interface_inout" = "input" ] && local reverse="reverse"
 				;;
 				
 			*)
-				error "Cannot understand service direction '$direction'."
+				error "A service cannot be applied as '$direction'."
 				exit 1
 				;;
 		esac
 		
-		local port=
-		for port in $ports
+		local p=
+		for p in $sports
 		do
 			local proto=
-			local sport=
-			IFS="/" read proto sport <<EOF
-$port
+			local ports=
+			IFS="/" read proto ports <<EOF
+$p
 EOF
-			match proto $proto $pmatch $sport "${@}"
+			match $reverse proto $proto dports $ports "${@}"
 		done
 	done
 }
@@ -310,7 +320,8 @@ client() {
 }
 
 service() {
-	simple_service service "${@}"
+	error "the 'service' match is no longer supported."
+	exit 1
 }
 
 fireqos_active_interfaces() {
@@ -1812,6 +1823,7 @@ match() {
 	local tcproto=
 	local ipv4=$class_ipv4
 	local ipv6=$class_ipv6
+	local reverse=0
 	
 	case "$force_ipv" in
 		4)
@@ -1833,6 +1845,10 @@ match() {
 	while [ ! -z "$1" ]
 	do
 		case "$1" in
+			reverse)
+				local reverse=1
+				;;
+
 			at)
 				local at="$2"
 				shift
@@ -1879,22 +1895,42 @@ match() {
 				;;
 			
 			sport|sports)
-				local sport="$2"
+				if [ $reverse -eq 0 ]
+				then
+					local sport="$2"
+				else
+					local dport="$2"
+				fi
 				shift
 				;;
 			
 			dport|dports)
-				local dport="$2"
+				if [ $reverse -eq 0 ]
+				then
+					local dport="$2"
+				else
+					local sport="$2"
+				fi
 				shift
 				;;
 			
 			src)
-				local src="$2"
+				if [ $reverse -eq 0 ]
+				then
+					local src="$2"
+				else
+					local dst="$2"
+				fi
 				shift
 				;;
 			
 			dst)
-				local dst="$2"
+				if [ $reverse -eq 0 ]
+				then
+					local dst="$2"
+				else
+					local src="$2"
+				fi
 				shift
 				;;
 			
