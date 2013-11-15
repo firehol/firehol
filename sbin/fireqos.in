@@ -242,6 +242,7 @@ server_webmin_ports="tcp/10000"
 server_xdmcp_ports="udp/177"
 
 # FireQOS only services
+server_torrents_ports="tcp/6881:6999 udp/6881:6999"
 server_facetime_ports="udp/3478:3497 udp/16384:16387 udp/16393:16402"
 server_hangouts_ports="udp/19305:19309 tcp/19305:19309"
 server_gtalk_ports="tcp/5222 tcp/5228"
@@ -2157,6 +2158,10 @@ match() {
 					gre|GRE)
 							local proto_arg="match ip$ipvx protocol 47 0xff"
 							;;
+
+					+([0-9]))
+							local proto_arg="match ip$ipvx protocol $tproto 0xff"
+							;;
 					
 					*)		local pid=`$cat_cmd /etc/protocols | $egrep_cmd -i "^$tproto[[:space:]]" | tail -n 1 | $sed_cmd "s/[[:space:]]\+/ /g" | $cut_cmd -d ' ' -f 2`
 							if [ -z "$pid" ]
@@ -2413,6 +2418,38 @@ clear_everything() {
 	syslog error "Cleared all FireQOS changes on interface '$interface_realdev'"
 	
 	return 0
+}
+
+clear_all_qos_on_all_interfaces() {
+	echo >&2 
+	echo >&2 "Clearing all QoS on all interfaces..."
+	echo >&2 
+	
+    local dev=
+    for dev in `cat /proc/net/dev | grep ':' |  cut -d ':' -f 1 | sed "s/ //g" | grep -v "^lo$"`
+    do
+		printf >&2 " %16.16s: " $dev
+		echo >&2 "cleared traffic control"
+
+        # remove existing qdisc from all devices
+        tc ignore-error qdisc del dev $dev ingress >/dev/null 2>&1
+        tc ignore-error qdisc del dev $dev root >/dev/null 2>&1
+    done
+    
+	echo >&2
+    rmmod ifb 2>/dev/null
+	echo >&2 " - removed all IFB devices"
+    
+    if [ -d $FIREQOS_DIR ]
+    then
+            cd $FIREQOS_DIR
+            if [ $? -eq 0 ]
+            then
+                    rm interfaces *.conf 2>/dev/null
+            fi
+			echo >&2 " - cleared FireQOS status"
+    fi
+    return 0
 }
 
 check_root() {
@@ -2965,35 +3002,65 @@ FireQOS $VERSION
 EOF
 
 show_usage() {
-$cat_cmd <<USAGE
+local msg="
 
-$me start|stop|status <name>
+${COLOR_YELLOW}${COLOR_BOLD}$me${COLOR_RESET} ${COLOR_BLUE}${COLOR_BOLD}action${COLOR_RESET}
 
-	start	activates traffic shapping rules
-		according to rules given in ${FIREQOS_CONFIG}
+${COLOR_BLUE}${COLOR_BOLD}action${COLOR_RESET} can be one of:
+
+	${COLOR_YELLOW}${COLOR_BOLD}start${COLOR_RESET} [${COLOR_BLUE}${COLOR_BOLD}filename${COLOR_RESET}] [${COLOR_YELLOW}${COLOR_BOLD}--${COLOR_RESET} ${COLOR_BLUE}${COLOR_BOLD}options${COLOR_RESET}]
+		or
+	[${COLOR_BLUE}${COLOR_BOLD}filename${COLOR_RESET}] ${COLOR_YELLOW}${COLOR_BOLD}start${COLOR_RESET} [${COLOR_YELLOW}${COLOR_BOLD}--${COLOR_RESET} ${COLOR_BLUE}${COLOR_BOLD}options${COLOR_RESET}]
+		activates traffic shapping rules according to rules given in
+		${COLOR_BLUE}${COLOR_BOLD}${FIREQOS_CONFIG}${COLOR_RESET}
 		
-	stop	stops all traffic shapping, on all interfaces
-	
-	debug	same as 'start', but shows also the generated tc commands
-	
-	status <name>
-		shows live class utilization for the interface <name>
-		the name given mathes the name of an interface statement
-		given in the config.
-	
-	drops <name>
-		shows packets dropped per second, per class
-		for the interface <name>
-		
-	overlimits <name>
-		shows packets delayed per second, per class
-		for the interface <name>
-	
-	requeues <name>
-		shows packets requeued per second, per class
-		for the interface <name>
+		if ${COLOR_BLUE}${COLOR_BOLD}filename${COLOR_RESET} is given, it will be used instead of the
+		default ${COLOR_BLUE}${COLOR_BOLD}${FIREQOS_CONFIG}${COLOR_RESET}
 
-USAGE
+		all ${COLOR_BLUE}${COLOR_BOLD}options${COLOR_RESET} after ${COLOR_YELLOW}${COLOR_BOLD}--${COLOR_RESET} will be given as options to the config
+		file when it will be executed by FireQOS
+
+	${COLOR_YELLOW}${COLOR_BOLD}debug${COLOR_RESET} [${COLOR_BLUE}${COLOR_BOLD}filename${COLOR_RESET}] [${COLOR_YELLOW}${COLOR_BOLD}--${COLOR_RESET} ${COLOR_BLUE}${COLOR_BOLD}options${COLOR_RESET}]
+		or
+	[${COLOR_BLUE}${COLOR_BOLD}filename${COLOR_RESET}] ${COLOR_YELLOW}${COLOR_BOLD}debug${COLOR_RESET} [${COLOR_YELLOW}${COLOR_BOLD}--${COLOR_RESET} ${COLOR_BLUE}${COLOR_BOLD}options${COLOR_RESET}]
+		same as ${COLOR_YELLOW}${COLOR_BOLD}start${COLOR_RESET}, but shows also the generated tc commands
+	
+	${COLOR_YELLOW}${COLOR_BOLD}stop${COLOR_RESET}
+		stops all traffic shapping applied by FireQOS
+		(it does not touch QoS on other interfaces and IFBs used by
+			other tools)
+
+	${COLOR_YELLOW}${COLOR_BOLD}clear_all_qos${COLOR_RESET}
+		- stops all traffic shapping on all network interfaces
+		- removes all IFB devices from the system
+		(clears even QoS applied by other tools)
+	
+	${COLOR_YELLOW}${COLOR_BOLD}status${COLOR_RESET} [${COLOR_BLUE}${COLOR_BOLD}name${COLOR_RESET} [ ${COLOR_YELLOW}${COLOR_BOLD}dump${COLOR_RESET} [${COLOR_BLUE}${COLOR_BOLD}class${COLOR_RESET}] ] ]
+		shows live class utilization for the interface ${COLOR_BLUE}${COLOR_BOLD}name${COLOR_RESET} the
+		name given mathes the name of an interface statement given
+		in the config
+
+		if ${COLOR_YELLOW}${COLOR_BOLD}dump' is specified, it tcpdumps the traffic in the
+		${COLOR_BLUE}${COLOR_BOLD}class${COLOR_RESET} of interface ${COLOR_BLUE}${COLOR_BOLD}name${COLOR_RESET}
+	
+	${COLOR_YELLOW}${COLOR_BOLD}tcpdump${COLOR_RESET} ${COLOR_BLUE}${COLOR_BOLD}name${COLOR_RESET} ${COLOR_BLUE}${COLOR_BOLD}class${COLOR_RESET}
+		or
+	${COLOR_YELLOW}${COLOR_BOLD}dump${COLOR_RESET} ${COLOR_BLUE}${COLOR_BOLD}name${COLOR_RESET} ${COLOR_BLUE}${COLOR_BOLD}class${COLOR_RESET}
+		tcpdumps all traffic in the ${COLOR_BLUE}${COLOR_BOLD}class${COLOR_RESET} of interface ${COLOR_BLUE}${COLOR_BOLD}name${COLOR_RESET}
+
+	${COLOR_YELLOW}${COLOR_BOLD}drops${COLOR_RESET} ${COLOR_BLUE}${COLOR_BOLD}name${COLOR_RESET}
+		shows packets dropped per second, per class for the
+		interface ${COLOR_BLUE}${COLOR_BOLD}name${COLOR_RESET}
+		
+	${COLOR_YELLOW}${COLOR_BOLD}overlimits${COLOR_RESET} ${COLOR_BLUE}${COLOR_BOLD}name${COLOR_RESET}
+		shows packets delayed per second, per class for the
+		interface ${COLOR_BLUE}${COLOR_BOLD}name${COLOR_RESET}
+	
+	${COLOR_YELLOW}${COLOR_BOLD}requeues${COLOR_RESET} ${COLOR_BLUE}${COLOR_BOLD}name${COLOR_RESET}
+		shows packets requeued per second, per class for the
+		interface ${COLOR_BLUE}${COLOR_BOLD}name${COLOR_RESET}
+"
+echo -e "$msg"
 
 }
 
@@ -3002,7 +3069,13 @@ while [ ! -z "$1" ]
 do
 	case "$1" in
 
-		stop)	
+		clear_all_qos)
+			clear_all_qos_on_all_interfaces
+			syslog info "Cleared all QOS on all interfaces"
+			exit 0
+			;;
+
+		stop)
 			clear_everything
 			syslog info "Cleared all FireQOS changes"
 			exit 0
