@@ -1180,9 +1180,15 @@ client_iax2_ports="default"
 server_ICMP_ports="icmp/any"
 client_ICMP_ports="any"
 
-server_icmp_ports="icmp/any"
-client_icmp_ports="any"
+server_icmp_ports="${server_ICMP_ports}"
+client_icmp_ports="${client_ICMP_ports}"
 # ALL_SHOULD_ALSO_RUN="${ALL_SHOULD_ALSO_RUN} icmp"
+
+server_ICMPV6_ports="icmpv6/any"
+client_ICMPV6_ports="any"
+
+server_icmpv6_ports="${server_ICMPV6_ports}"
+client_icmpv6_ports="${client_ICMPV6_ports}"
 
 server_icp_ports="udp/3130"
 client_icp_ports="3130"

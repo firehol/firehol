@@ -498,6 +498,13 @@ SERVICE icmp
 	EXAMPLE
 		server icmp accept
 
+SERVICE icmpv6
+	ALIAS ICMPV6
+	NAME Internet Control Message Protocol v6
+	WIKI http://en.wikipedia.org/wiki/ICMPv6
+	EXAMPLE
+		server icmpv6 accept
+
 SERVICE icp
 	NAME Internet Cache Protocol
 	WIKI http://en.wikipedia.org/wiki/Internet_Cache_Protocol
