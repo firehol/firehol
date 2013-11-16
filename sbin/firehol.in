@@ -715,14 +715,31 @@ load_ips() {
 # ------------------------------------------------------------------------------
 # IP definitions
 
-# IANA Reserved IPv4 address space
-# Suggested by Fco.Felix Belmonte <ffelix@gescosoft.com>
-# Optimized (CIDR) by Marc 'HE' Brockschmidt <marc@marcbrockschmidt.de>
-# Further optimized and reduced by http://www.vergenet.net/linux/aggregate/
-# The supplied get-iana.sh uses 'aggregate-flim' if it finds it in the path.
+# IANA Reserved IPv4 address space.
 RESERVED_IPS="0.0.0.0/8 127.0.0.0/8 240.0.0.0/4 "
-#load_ips RESERVED_IPS "${RESERVED_IPS}" 90 "Run the supplied get-iana.sh script to generate this file." require-file
 load_ips RESERVED_IPS "${RESERVED_IPS}" 0
+
+# We load from the old file name for compatibility but give the variable a
+# new name so it can be referenced separately.
+RESERVED_IPV4="$RESERVED_IPS"
+
+RESERVED_IPV6="::/8 0100::/8 0200::/7 0400::/6 0800::/5 1000::/4 4000::/3 6000::/3 8000::/3 A000::/3 C000::/3 E000::/4 F000::/5 F800::/6 FE00::/9 FEC0::/10"
+load_ips RESERVED_IPV6 "${RESERVED_IPV6}" 0
+
+# Make the original name a context-dependent function
+RESERVED_IPS="reserved_ips()"
+reserved_ips() {
+	if running_both; then
+		error "Cannot be called in 'both' mode"
+		return 1
+	fi
+	if running_ipv6; then
+		echo "${RESERVED_IPV6}"
+	else
+		echo "${RESERVED_IPV4}"
+	fi
+	return 0
+}
 
 # Private IPv4 address space
 # Suggested by Fco.Felix Belmonte <ffelix@gescosoft.com>
@@ -732,17 +749,56 @@ load_ips RESERVED_IPS "${RESERVED_IPS}" 0
 # 192.0.2.0/24     => Test Net
 # 192.88.99.0/24   => RFC 3068: 6to4 anycast & RFC 2544: Benchmarking addresses
 # 192.168.0.0/16   => RFC 1918: Private use
-PRIVATE_IPS="10.0.0.0/8 169.254.0.0/16 172.16.0.0/12 192.0.2.0/24 192.88.99.0/24 192.168.0.0/16"
-load_ips PRIVATE_IPS "${PRIVATE_IPS}" 0
+PRIVATE_IPV4="10.0.0.0/8 169.254.0.0/16 172.16.0.0/12 192.0.2.0/24 192.88.99.0/24 192.168.0.0/16"
+load_ips PRIVATE_IPV4 "${PRIVATE_IPV4}" 0
+
+# Private IPv6 address space
+# FC00::/7         => Unique Local Unicast
+# FE80::/10        => Link Local Unicast
+PRIVATE_IPV6="FC00::/7 FE80::/10"
+
+PRIVATE_IPS="private_ips()"
+private_ips() {
+	if running_both; then
+		error "Cannot be called in 'both' mode"
+		return 1
+	fi
+	if running_ipv6; then
+		echo "${PRIVATE_IPV6}"
+	else
+		echo "${PRIVATE_IPV4}"
+	fi
+	return 0
+}
 
 # The multicast address space
-MULTICAST_IPS="224.0.0.0/4"
-load_ips MULTICAST_IPS "${MULTICAST_IPS}" 0
+MULTICAST_IPV4="224.0.0.0/4"
+load_ips MULTICAST_IPV4 "${MULTICAST_IPV4}" 0
+
+MULTICAST_IPV6="FF00::/16"
+load_ips MULTICAST_IPV6 "${MULTICAST_IPV6}" 0
 
 # A shortcut to have all the Internet unroutable addresses in one
 # variable
-UNROUTABLE_IPS="${RESERVED_IPS} ${PRIVATE_IPS}"
-load_ips UNROUTABLE_IPS "${UNROUTABLE_IPS}" 0
+UNROUTABLE_IPV4="${RESERVED_IPV4} ${PRIVATE_IPV4}"
+load_ips UNROUTABLE_IPV4 "${UNROUTABLE_IPV4}" 0
+
+UNROUTABLE_IPV6="${RESERVED_IPV6} ${PRIVATE_IPV6}"
+load_ips UNROUTABLE_IPV6 "${UNROUTABLE_IPV6}" 0
+
+UNROUTABLE_IPS="unroutable_ips()"
+unroutable_ips() {
+	if running_both; then
+		error "Cannot be called in 'both' mode"
+		return 1
+	fi
+	if running_ipv6; then
+		echo "${UNROUTABLE_IPV6}"
+	else
+		echo "${UNROUTABLE_IPV4}"
+	fi
+	return 0
+}
 
 # ----------------------------------------------------------------------
 # Runtime control variables
@@ -5343,6 +5399,33 @@ rule() {
 				;;
 		esac
 	done
+	if running_ipv4; then
+		case "$src4" in
+			*"("*)
+				src4=$(ipv4 $(echo "$src4" | tr '()' '  '))
+			;;
+		esac
+
+		case "$dst4" in
+			*"("*)
+				dst4=$(ipv4 $(echo "$dst4" | tr '()' '  '))
+			;;
+		esac
+	fi
+
+	if running_ipv6; then
+		case "$src6" in
+			*"("*)
+				src6=$(ipv6 $(echo "$src6" | tr '()' '  '))
+			;;
+		esac
+
+		case "$dst6" in
+			*"("*)
+				dst6=$(ipv6 $(echo "$dst6" | tr '()' '  '))
+		;;
+		esac
+	fi
 	
 	test -z "${table}" && table="-t filter"
 	
