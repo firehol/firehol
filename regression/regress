@@ -51,8 +51,9 @@ myexit() {
   exit 0
 }
 
-trap myexit SIGINT
-trap myexit SIGHUP
+trap myexit INT
+trap myexit HUP
+trap myexit 0
 
 for v in "$@"
 do
@@ -62,23 +63,29 @@ do
      (cd .. && cat sbin/firehol.in) > $MYTMP/firehol-$d.in
     ;;
     *)
-     d=$v
-     f=$MYTMP/firehol-$d.in
-     (cd .. && git show $v:firehol.sh > $f 2> /dev/null)
-     test -s $f || (cd .. && git show $v:sbin/firehol.in > $f)
-     test -s $f || exit 1
+     if [ -s $v ]; then
+        d=$(basename $v)
+        f=$MYTMP/firehol-$d.in
+        cat $v > $f
+     else
+       d=$v
+       f=$MYTMP/firehol-$d.in
+       (cd .. && git show $v:firehol.sh > $f 2> /dev/null)
+       test -s $f || (cd .. && git show $v:sbin/firehol.in > $f)
+     fi
     ;;
   esac
-  rm -rf output/$d
   test -s $MYTMP/firehol-$d.in || exit 1
+  rm -rf output/$d
   chmod +x $MYTMP/firehol-$d.in
   run="$run $d"
 done
 
+started=`date`
 RUN_SUITE=OK export RUN_SUITE
 for d in $run
 do
   ./tools/run-suite.sh $MYTMP/firehol-$d.in output/$d
 done
-
-myexit
+echo " Started: $started"
+echo "Finished: $(date)"

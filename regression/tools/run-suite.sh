@@ -41,11 +41,20 @@ then
             exit 1
 fi
 
-trap myexit SIGINT
-trap myexit SIGHUP
-
 here=`pwd`
 rm -rf $outdir
+
+myexit() {
+  cd $here
+  test -n "${SUDO_USER}" && chown -R ${SUDO_USER} output
+  clear_all
+  rm -rf $MYTMP
+  exit 0
+}
+
+trap myexit INT
+trap myexit HUP
+trap myexit 0
 
 clear_all() {
   cat > $MYTMP/reset <<-!
@@ -96,19 +105,8 @@ clear_all() {
   fi
 }
 
-myexit() {
-  cd $here
-  test -n "${SUDO_USER}" && chown -R ${SUDO_USER} output
-  clear_all
-  rm -rf $MYTMP
-  exit 0
-}
-
-trap myexit SIGINT
-trap myexit SIGHUP
-
 cd $here
-cd `dirname $prog` || myexit
+cd `dirname $prog` || exit
 progdir=`pwd`
 progname=`basename $prog`
 prog=$progdir/$progname
@@ -133,8 +131,8 @@ do
   fi
 done
 
-iptables-save > $MYTMP/save || myexit
-ip6tables-save > $MYTMP/save6 || myexit
+iptables-save > $MYTMP/save || exit
+ip6tables-save > $MYTMP/save6 || exit
 
 sort -u $MYTMP/list | sed -e 's;tests/;;' > $MYTMP/list.srt
 mv $MYTMP/list.srt $MYTMP/list
@@ -144,10 +142,10 @@ do
   i=$(echo $testfile | sed -e s'/.conf$//')
   d=$(dirname $i)
 
-  mkdir -p $outdir/tests/$d || myexit
-  mkdir -p $outdir/ipv4/$d || myexit
-  mkdir -p $outdir/ipv6/$d || myexit
-  mkdir -p $outdir/ipv4-no-nat/$d || myexit
+  mkdir -p $outdir/tests/$d || exit
+  mkdir -p $outdir/ipv4/$d || exit
+  mkdir -p $outdir/ipv6/$d || exit
+  mkdir -p $outdir/ipv4-no-nat/$d || exit
 done < $MYTMP/list
 
 while read testfile
@@ -249,4 +247,3 @@ done < $MYTMP/list
 
 iptables-restore < $MYTMP/save
 ip6tables-restore < $MYTMP/save6
-myexit
