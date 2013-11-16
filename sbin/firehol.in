@@ -800,6 +800,9 @@ DEFAULT_CLIENT_PORTS="1024:65535"
 # Get the default client ports from the kernel configuration.
 # This is formed to a range of ports to be used for all "default"
 # client ports when the client specified is the localhost.
+#
+# According to http://tldp.org/HOWTO/Linux+IPv6-HOWTO/proc-sys-net-ipv4..html
+# the ipv4 values are also used for ipv6, so no needed change here
 LOCAL_CLIENT_PORTS_LOW=`${SYSCTL_CMD} net.ipv4.ip_local_port_range | ${CUT_CMD} -d '=' -f 2 | ${CUT_CMD} -f 1`
 LOCAL_CLIENT_PORTS_HIGH=`${SYSCTL_CMD} net.ipv4.ip_local_port_range | ${CUT_CMD} -d '=' -f 2 | ${CUT_CMD} -f 2`
 LOCAL_CLIENT_PORTS="${LOCAL_CLIENT_PORTS_LOW}:${LOCAL_CLIENT_PORTS_HIGH}"
