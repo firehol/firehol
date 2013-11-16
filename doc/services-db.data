@@ -533,6 +533,95 @@ SERVICE ipsecnatt
 	NAME NAT traversal and IPsec
 	WIKI  http://en.wikipedia.org/wiki/NAT_traversal#NAT_traversal_and_IPsec
 
+SERVICE ipv6error
+	NAME ICMPv6 Error Handling
+	EXAMPLE
+		server ipv6error accept
+	NOTES
+		A number of icmpv6 error types are not treated equally
+		inbound and outbound.
+		-
+		The ipv6error rule wraps all of them in the following way:
+		<simplelist>
+		<member>allow incoming messages only for existing sessions</member>
+		<member>allow outgoing messages always</member>
+		</simplelist>
+		-
+		The following icmpv6 messages are handled:
+		<simplelist>
+		<member>destination-unreachable</member>
+		<member>packet-too-big</member>
+		<member>ttl-zero-during-transit</member>
+		<member>ttl-zero-during-reassembly</member>
+		<member>unknown-header-type</member>
+		<member>unknown-option</member>
+		</simplelist>
+		-
+		FireHOL sets up both rules the same way. In a router
+		with inface being internal and outface being external
+		the following will meet the recommendations of
+		<ulink url="http://tools.ietf.org/html/rfc4890">RFC
+		4890</ulink>:
+		<programlisting>server ipv6error accept</programlisting>
+		-
+		Interfaces should always have this set:
+		<programlisting>server ipv6error accept</programlisting>
+		-
+		Do not use:
+		<programlisting>client ipv6error accept</programlisting>
+		unless you are controlling traffic on a router interface
+		where outface is the internal destination.
+
+SERVICE ipv6neigh
+	NAME IPv6 Neighbour discovery
+	EXAMPLE
+		client ipv6neigh accept
+		server ipv6neigh accept
+	NOTES
+		ICMPv6 does a great deal of automatic configuration
+		and discovery. There is no ARP and no need to manually
+		configure routers. To enable this functionality the
+		network neighbour and router solicitation/advertisement
+		messages should be enabled on each interface.
+		-
+		These rules are stateless since advertisement can happen
+		automatically as well as on solicitation.
+		-
+		Neighbour discovery (incoming) should always be enabled:
+		<programlisting>server ipv6neigh accept</programlisting>
+		-
+		Neighbour advertisement (outgoing) should always be enabled:
+		<programlisting>client ipv6neigh accept</programlisting>
+		-
+		The rules should not be used to pass packets across a
+		firewall (e.g. in a router definition) unless the firewall
+		is for a bridge.
+
+SERVICE ipv6router
+	NAME IPv6 Router discovery
+	EXAMPLE
+		client ipv6router accept
+	NOTES
+		ICMPv6 does a great deal of automatic configuration
+		and discovery. There is no ARP and no need to manually
+		configure routers. To enable this functionality the
+		network neighbour and router solicitation/advertisement
+		messages should be enabled on each interface.
+		-
+		These rules are stateless since advertisement can happen
+		automatically as well as on solicitation.
+		-
+		Router discovery (incoming) should always be enabled:
+		<programlisting>client ipv6router accept</programlisting>
+		-
+		Router advertisement (outgoing) should be enabled on
+		a host that routes:
+		<programlisting>server ipv6router accept</programlisting>
+		-
+		The rules should not be used to pass packets across a
+		firewall (e.g. in a router definition) unless the firewall
+		is for a bridge.
+
 SERVICE irc
 	NAME Internet Relay Chat
 	WIKI  http://en.wikipedia.org/wiki/Internet_Relay_Chat
