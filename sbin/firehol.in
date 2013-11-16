@@ -1088,6 +1088,43 @@ both() {
 	return $status
 }
 
+expression_list() {
+	# Clean up a complex expression expressions, such that e.g.
+	# fun0 ( x ) word  word2 fun1(a b) ...
+	# Becomes:
+	#  fun0(x)
+	#  word
+	#  word2
+	#  fun(a,b)
+	#  ....
+	# 1st sed: remove excess space, insert newlines at end of functions
+	# 2nd sed: insert newlines before functions that are preceded by words
+	# 3nd sed: function? no: split words to lines. yes: comma parameters.
+	echo "$@" | tr '\t' ' ' | \
+		sed -e 's/   */ /g' \
+			-e 's/ *\([()]\) */\1/g' \
+			-e 's/)/)\
+/g' | \
+		sed -e 's/ \([^ ][^ ]*\)(/\
+\1(/' | \
+		sed -e '/[()]/bfun' -e 's/ /\n/g' -e ':fun' -e 's/ /,/g'
+}
+
+eval_param() {
+	expression_list "$@" | \
+	while read exp
+	do
+		case "$exp" in
+			*"("*)
+				$(echo "$exp" | tr '(),' '   ')
+			;;
+			*)
+				echo "$exp"
+			;;
+		esac
+	done
+}
+
 # ------------------------------------------------------------------------------
 # Keep information about the current primary command
 # Primary commands are: interface, router
@@ -5400,31 +5437,13 @@ rule() {
 		esac
 	done
 	if running_ipv4; then
-		case "$src4" in
-			*"("*)
-				src4=$(ipv4 $(echo "$src4" | tr '()' '  '))
-			;;
-		esac
-
-		case "$dst4" in
-			*"("*)
-				dst4=$(ipv4 $(echo "$dst4" | tr '()' '  '))
-			;;
-		esac
+		src4=$(ipv4 eval_param "$src4")
+		dst4=$(ipv4 eval_param "$dst4")
 	fi
 
 	if running_ipv6; then
-		case "$src6" in
-			*"("*)
-				src6=$(ipv6 $(echo "$src6" | tr '()' '  '))
-			;;
-		esac
-
-		case "$dst6" in
-			*"("*)
-				dst6=$(ipv6 $(echo "$dst6" | tr '()' '  '))
-		;;
-		esac
+		src6=$(ipv6 eval_param "$src6")
+		dst6=$(ipv6 eval_param "$dst6")
 	fi
 	
 	test -z "${table}" && table="-t filter"
