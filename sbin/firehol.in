@@ -4785,11 +4785,11 @@ rule() {
 					fi
 					if running_ipv4; then
 						test ${softwarnings} -eq 1 -a ! "${src4}" = "default" && softwarning "Overwritting param: src4 '${src4}' becomes '${1}'"
-						src4="${1}"
+						src4=$(ipv4 eval_param "${1}")
 					fi
 					if running_ipv6; then
 						test ${softwarnings} -eq 1 -a ! "${src6}" = "default" && softwarning "Overwritting param: src6 '${src6}' becomes '${1}'"
-						src6="${1}"
+						src6=$(ipv6 eval_param "${1}")
 					fi
 				else
 					if running_ipv4; then
@@ -4810,11 +4810,11 @@ rule() {
 					fi
 					if running_ipv4; then
 						test ${softwarnings} -eq 1 -a ! "${dst4}" = "default" && softwarning "Overwritting param: dst4 '${dst4}' becomes '${1}'"
-						dst4="${1}"
+						dst4=$(ipv4 eval_param "${1}")
 					fi
 					if running_ipv6; then
 						test ${softwarnings} -eq 1 -a ! "${dst6}" = "default" && softwarning "Overwritting param: dst6 '${dst6}' becomes '${1}'"
-						dst6="${1}"
+						dst6=$(ipv6 eval_param "${1}")
 					fi
 				fi
 				pop_namespace
@@ -4852,11 +4852,11 @@ rule() {
 					fi
 					if running_ipv4; then
 						test ${softwarnings} -eq 1 -a ! "${dst4}" = "default" && softwarning "Overwritting param: dst4 '${dst4}' becomes '${1}'"
-						dst4="${1}"
+						dst4=$(ipv4 eval_param "${1}")
 					fi
 					if running_ipv6; then
 						test ${softwarnings} -eq 1 -a ! "${dst6}" = "default" && softwarning "Overwritting param: dst6 '${dst6}' becomes '${1}'"
-						dst6="${1}"
+						dst6=$(ipv6 eval_param "${1}")
 					fi
 				else
 					if running_ipv4; then
@@ -4877,11 +4877,11 @@ rule() {
 					fi
 					if running_ipv4; then
 						test ${softwarnings} -eq 1 -a ! "${src4}" = "default" && softwarning "Overwritting param: src6 '${src4}' becomes '${1}'"
-						src4="${1}"
+						src4=$(ipv4 eval_param "${1}")
 					fi
 					if running_ipv6; then
 						test ${softwarnings} -eq 1 -a ! "${src6}" = "default" && softwarning "Overwritting param: src6 '${src6}' becomes '${1}'"
-						src6="${1}"
+						src6=$(ipv6 eval_param "${1}")
 					fi
 				fi
 				pop_namespace
@@ -5436,15 +5436,6 @@ rule() {
 				;;
 		esac
 	done
-	if running_ipv4; then
-		src4=$(ipv4 eval_param "$src4")
-		dst4=$(ipv4 eval_param "$dst4")
-	fi
-
-	if running_ipv6; then
-		src6=$(ipv6 eval_param "$src6")
-		dst6=$(ipv6 eval_param "$dst6")
-	fi
 	
 	test -z "${table}" && table="-t filter"
 	
