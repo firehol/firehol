@@ -645,7 +645,8 @@ SERVICE multicast
 		server multicast reject with proto-unreach
 	NOTES
 		The multicast service matches all packets sent to
-		224.0.0.0/4 using IGMP or UDP.
+		the $MULTICAST_IPS addresses using IGMP or UDP.
+		For IPv4 that means 224.0.0.0/4 and for IPv6 FF00::/16.
 
 SERVICE mysql
 	NAME MySQL
