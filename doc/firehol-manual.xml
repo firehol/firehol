@@ -37,6 +37,8 @@
   <xi:include xmlns:xi="http://www.w3.org/2001/XInclude"
                   href="chapter-troubleshooting.xml" />
   -->
+  <xi:include xmlns:xi="http://www.w3.org/2001/XInclude"
+                  href="chapter-rfc4890.xml" />
 
   <reference><title>FireHOL Reference</title>
     <xi:include xmlns:xi="http://www.w3.org/2001/XInclude"
