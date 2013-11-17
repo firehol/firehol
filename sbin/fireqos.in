@@ -1849,7 +1849,7 @@ match() {
 	local ipv4=$class_ipv4
 	local ipv6=$class_ipv6
 	local reverse=0
-	
+
 	case "$force_ipv" in
 		4)
 			local ipv4=1
@@ -1870,6 +1870,11 @@ match() {
 	while [ ! -z "$1" ]
 	do
 		case "$1" in
+			input|output)
+				local reverse=1
+				[ "$interface_inout" = "$1" ] && local reverse=0
+				;;
+
 			reverse)
 				local reverse=1
 				;;
@@ -1920,42 +1925,22 @@ match() {
 				;;
 			
 			sport|sports)
-				if [ $reverse -eq 0 ]
-				then
-					local sport="$2"
-				else
-					local dport="$2"
-				fi
+				local sport="$2"
 				shift
 				;;
 			
 			dport|dports)
-				if [ $reverse -eq 0 ]
-				then
-					local dport="$2"
-				else
-					local sport="$2"
-				fi
+				local dport="$2"
 				shift
 				;;
 			
 			src)
-				if [ $reverse -eq 0 ]
-				then
-					local src="$2"
-				else
-					local dst="$2"
-				fi
+				local src="$2"
 				shift
 				;;
 			
 			dst)
-				if [ $reverse -eq 0 ]
-				then
-					local dst="$2"
-				else
-					local src="$2"
-				fi
+				local dst="$2"
 				shift
 				;;
 			
@@ -1991,6 +1976,18 @@ match() {
 		shift
 	done
 	
+	# if reverse, flip src/dst sport/dport
+	if [ $reverse -eq 1 ]
+	then
+		local t="$src"
+		local src="$dst"
+		local dst="$t"
+
+		local t="$sport"
+		local sport="$dport"
+		local dport="$t"
+	fi
+
 	if [ -z "$prio" ]
 	then
 		local prio=$((class_matchid * 10))
