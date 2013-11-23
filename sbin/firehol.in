@@ -140,7 +140,7 @@ require_cmd() {
 	# if one is found, return success
 	for x in "${@}"
 	do
-		eval var=`echo ${x} | tr 'a-z' 'A-Z'`_CMD
+		eval var=`echo ${x} | tr 'a-z-' 'A-Z_'`_CMD
 		eval val=\$\{${var}\}
 		if [ -z "${val}" ]
 		then
@@ -204,12 +204,6 @@ which_cmd FIND_CMD find
 which_cmd FOLD_CMD fold
 which_cmd GREP_CMD grep
 which_cmd HEAD_CMD head
-which_cmd IPTABLES_CMD iptables
-which_cmd IPTABLES_SAVE_CMD iptables-save
-which_cmd IPTABLES_RESTORE_CMD iptables-restore
-which_cmd IP6TABLES_CMD ip6tables
-which_cmd IP6TABLES_SAVE_CMD ip6tables-save
-which_cmd IP6TABLES_RESTORE_CMD ip6tables-restore
 which_cmd LSMOD_CMD lsmod
 which_cmd MKDIR_CMD mkdir
 which_cmd MV_CMD mv
@@ -223,6 +217,42 @@ which_cmd UNAME_CMD uname
 which_cmd UNIQ_CMD uniq
 which_cmd LOGGER_CMD logger
 which_cmd FLOCK_CMD flock
+
+ENABLE_IPV4=1
+require_cmd -n iptables
+require_cmd -n iptables-save
+require_cmd -n iptables-restore
+if [ -z "${IPTABLES_CMD}" ]
+then
+	echo >&2 " WARNING: no iptables command: IPv4 disabled"
+	ENABLE_IPV4=0
+elif [ -z "${IPTABLES_SAVE_CMD}" ]
+then
+	echo >&2 " WARNING: no iptables-save command: IPv4 disabled"
+	ENABLE_IPV4=0
+elif [ -z "${IPTABLES_RESTORE_CMD}" ]
+then
+	echo >&2 " WARNING: no iptables-restore command: IPv4 disabled"
+	ENABLE_IPV4=0
+fi
+
+ENABLE_IPV6=1
+require_cmd -n ip6tables
+require_cmd -n ip6tables-save
+require_cmd -n ip6tables-restore
+if [ -z "${IP6TABLES_CMD}" ]
+then
+	echo >&2 " WARNING: no ip6tables command: IPv6 disabled"
+	ENABLE_IPV6=0
+elif [ -z "${IP6TABLES_SAVE_CMD}" ]
+then
+	echo >&2 " WARNING: no ip6tables-save command: IPv6 disabled"
+	ENABLE_IPV6=0
+elif [ -z "${IP6TABLES_RESTORE_CMD}" ]
+then
+	echo >&2 " WARNING: no ip6tables-restore command: IPv6 disabled"
+	ENABLE_IPV6=0
+fi
 
 # Special commands
 pager_cmd() {
@@ -360,7 +390,24 @@ renice_cmd 10 $$ >/dev/null 2>/dev/null
 
 # Initialize iptables
 ${IPTABLES_CMD} -nxvL >/dev/null 2>&1
+if [ $? -ne 0 ]
+then
+	echo >&2 " WARNING: error initializing iptables: IPv4 disabled"
+	ENABLE_IPV4=0
+fi
+
 ${IP6TABLES_CMD} -nxvL >/dev/null 2>&1
+if [ $? -ne 0 ]
+then
+	echo >&2 " WARNING: error initializing ip6tables: IPv6 disabled"
+	ENABLE_IPV6=0
+fi
+
+if [ $ENABLE_IPV4 -eq 0 -a $ENABLE_IPV6 -eq 0 ]
+then
+	echo >&2 " ERROR: Neither IPv4 nor IPv6 is available - exiting"
+	exit 1
+fi
 
 
 # ------------------------------------------------------------------------------
@@ -748,8 +795,18 @@ test -z "$WAIT_FOR_IFACE" && \
 test -z "$FIREHOL_FAST_ACTIVATION" && \
 	FIREHOL_FAST_ACTIVATION=0
 
-test -z "$FIREHOL_DEFAULT_NAMESPACE" && \
-	FIREHOL_DEFAULT_NAMESPACE=both
+if [ $ENABLE_IPV4 -eq 1 -a $ENABLE_IPV6 -eq 1 ]
+then
+	test -z "$FIREHOL_DEFAULT_NAMESPACE" && \
+		FIREHOL_DEFAULT_NAMESPACE=both
+elif [ $ENABLE_IPV4 -eq 1 ]
+then
+	test -z "$FIREHOL_DEFAULT_NAMESPACE" && \
+		FIREHOL_DEFAULT_NAMESPACE=ipv4
+else
+	test -z "$FIREHOL_DEFAULT_NAMESPACE" && \
+		FIREHOL_DEFAULT_NAMESPACE=ipv6
+fi
 
 # ----------------------------------------------------------------------
 # Firewall configuration variables
@@ -963,7 +1020,7 @@ both() {
 	if [ "${command}" = "interface" -o  "${command}" = "router" ]
 	then
 		# Old rules must be closed before these apply
-		FIREHOL_NS_PREP=both
+		FIREHOL_NS_PREP=$FIREHOL_DEFAULT_NAMESPACE
 		$command "$@"
 		status=$?
 	else
@@ -6528,16 +6585,6 @@ failure() {
 # On RedHat systems this will define success() and failure()
 test -f /etc/init.d/functions && . /etc/init.d/functions
 
-if [ -z "${IPTABLES_CMD}" -o ! -x "${IPTABLES_CMD}" ]; then
-	echo >&2 "Cannot find an executable iptables command."
-	exit 0
-fi
-
-if [ -z "${IP6TABLES_CMD}" -o ! -x "${IP6TABLES_CMD}" ]; then
-	echo >&2 "Cannot find an executable ip6tables command."
-	exit 0
-fi
-
 kernel_maj_min() {
 	local kmaj kmin IFS=.-
 
@@ -6610,36 +6657,40 @@ case "${arg}" in
 		test -f "${FIREHOL_LOCK_DIR}/iptables" && ${RM_CMD} -f "${FIREHOL_LOCK_DIR}/iptables"
 		
 		echo -n $"FireHOL: Clearing Firewall:"
-		load_kernel_module ip_tables
-		load_kernel_module ip6_tables
-		tables=`${CAT_CMD} /proc/net/ip_tables_names`
-		tables6=`${CAT_CMD} /proc/net/ip6_tables_names`
-		for t in ${tables}
-		do
-			${IPTABLES_CMD} -t "${t}" -F
-			${IPTABLES_CMD} -t "${t}" -X
-			${IPTABLES_CMD} -t "${t}" -Z
-			
-			# Find all default chains in this table.
-			chains=`${IPTABLES_CMD} -t "${t}" -nL | ${GREP_CMD} "^Chain " | ${CUT_CMD} -d ' ' -f 2`
-			for c in ${chains}
+		if [ $ENABLE_IPV4 -eq 1 ]; then
+			load_kernel_module ip_tables
+			tables=`${CAT_CMD} /proc/net/ip_tables_names`
+			for t in ${tables}
 			do
-				${IPTABLES_CMD} -t "${t}" -P "${c}" ACCEPT
-			done
-		done
-		for t in ${tables6}
-		do
-			${IP6TABLES_CMD} -t "${t}" -F
-			${IP6TABLES_CMD} -t "${t}" -X
-			${IP6TABLES_CMD} -t "${t}" -Z
+				${IPTABLES_CMD} -t "${t}" -F
+				${IPTABLES_CMD} -t "${t}" -X
+				${IPTABLES_CMD} -t "${t}" -Z
 
-			# Find all default chains in this table.
-			chains=`${IP6TABLES_CMD} -t "${t}" -nL | ${GREP_CMD} "^Chain " | ${CUT_CMD} -d ' ' -f 2`
-			for c in ${chains}
-			do
-				${IP6TABLES_CMD} -t "${t}" -P "${c}" ACCEPT
+				# Find all default chains in this table.
+				chains=`${IPTABLES_CMD} -t "${t}" -nL | ${GREP_CMD} "^Chain " | ${CUT_CMD} -d ' ' -f 2`
+				for c in ${chains}
+				do
+					${IPTABLES_CMD} -t "${t}" -P "${c}" ACCEPT
+				done
 			done
-		done
+		fi
+		if [ $ENABLE_IPV6 -eq 1 ]; then
+			load_kernel_module ip6_tables
+			tables6=`${CAT_CMD} /proc/net/ip6_tables_names`
+			for t in ${tables6}
+			do
+				${IP6TABLES_CMD} -t "${t}" -F
+				${IP6TABLES_CMD} -t "${t}" -X
+				${IP6TABLES_CMD} -t "${t}" -Z
+
+				# Find all default chains in this table.
+				chains=`${IP6TABLES_CMD} -t "${t}" -nL | ${GREP_CMD} "^Chain " | ${CUT_CMD} -d ' ' -f 2`
+				for c in ${chains}
+				do
+					${IP6TABLES_CMD} -t "${t}" -P "${c}" ACCEPT
+				done
+			done
+		fi
 		success $"FireHOL: Clearing Firewall:"
 		echo
 		
@@ -6660,24 +6711,31 @@ case "${arg}" in
 	status)
 		test ! -z "${1}" && softwarning "Arguments after parameter '${arg}' are ignored."
 		(
+		if [ $ENABLE_IPV4 -eq 1 ]; then
 			echo
 			echo
 			echo "--- MANGLE IPv4 ----------------------------------------------------------------"
 			echo
 			${IPTABLES_CMD} -t mangle -nxvL
+		fi
 
+		if [ $ENABLE_IPV6 -eq 1 ]; then
 			echo
 			echo
 			echo "--- MANGLE IPv6 ----------------------------------------------------------------"
 			echo
 			${IP6TABLES_CMD} -t mangle -nxvL
+		fi
 
+		if [ $ENABLE_IPV4 -eq 1 ]; then
 			echo
 			echo
 			echo "--- NAT IPv4 -------------------------------------------------------------------"
 			echo
 			${IPTABLES_CMD} -t nat -nxvL
+		fi
 
+		if [ $ENABLE_IPV6 -eq 1 ]; then
 			echo
 			echo
 			echo "--- NAT IPv6 -------------------------------------------------------------------"
@@ -6688,18 +6746,23 @@ case "${arg}" in
 			else
 				echo "IPv6 NAT not available"
 			fi
+		fi
 
+		if [ $ENABLE_IPV4 -eq 1 ]; then
 			echo
 			echo
 			echo "--- FILTER IPv4 ----------------------------------------------------------------"
 			echo
 			${IPTABLES_CMD} -nxvL
+		fi
 
+		if [ $ENABLE_IPV6 -eq 1 ]; then
 			echo
 			echo
 			echo "--- FILTER IPv6 ----------------------------------------------------------------"
 			echo
 			${IP6TABLES_CMD} -nxvL
+		fi
 		) | pager_cmd
 		exit $?
 		;;
@@ -6722,54 +6785,58 @@ case "${arg}" in
 		
 		syslog info "Starting PANIC mode (SSH SOURCE_IP=${ssh_src} SOURCE_PORTS=${ssh_sport} DESTINATION_PORTS=${ssh_dport})"
 		echo -n $"FireHOL: Blocking all communications:"
-		load_kernel_module ip_tables
-		load_kernel_module ip6_tables
-		tables=`${CAT_CMD} /proc/net/ip_tables_names`
-		tables6=`${CAT_CMD} /proc/net/ip6_tables_names`
-		for t in ${tables}
-		do
-			${IPTABLES_CMD} -t "${t}" -F
-			${IPTABLES_CMD} -t "${t}" -X
-			${IPTABLES_CMD} -t "${t}" -Z
-			
-			# Find all default chains in this table.
-			chains=`${IPTABLES_CMD} -t "${t}" -nL | ${GREP_CMD} "^Chain " | ${CUT_CMD} -d ' ' -f 2`
-			for c in ${chains}
+		if [ $ENABLE_IPV4 -eq 1 ]; then
+			load_kernel_module ip_tables
+			tables=`${CAT_CMD} /proc/net/ip_tables_names`
+			for t in ${tables}
 			do
-				${IPTABLES_CMD} -t "${t}" -P "${c}" ACCEPT
-				
-				if [ ! -z "${ssh_src}" ]
-				then
-					${IPTABLES_CMD} -t "${t}" -A "${c}" -p tcp -s "${ssh_src}" --sport "${ssh_sport}" --dport "${ssh_dport}" -m conntrack --ctstate ESTABLISHED -j ACCEPT
-					${IPTABLES_CMD} -t "${t}" -A "${c}" -p tcp -d "${ssh_src}" --dport "${ssh_sport}" --sport "${ssh_dport}" -m conntrack --ctstate ESTABLISHED -j ACCEPT
-				fi
-				if [ "${t}" != "nat" ] ; then
-					${IPTABLES_CMD} -t "${t}" -A "${c}" -j DROP
-				fi
-			done
-		done
-		for t in ${tables6}
-		do
-			${IP6TABLES_CMD} -t "${t}" -F
-			${IP6TABLES_CMD} -t "${t}" -X
-			${IP6TABLES_CMD} -t "${t}" -Z
+				${IPTABLES_CMD} -t "${t}" -F
+				${IPTABLES_CMD} -t "${t}" -X
+				${IPTABLES_CMD} -t "${t}" -Z
 
-			# Find all default chains in this table.
-			chains=`${IP6TABLES_CMD} -t "${t}" -nL | ${GREP_CMD} "^Chain " | ${CUT_CMD} -d ' ' -f 2`
-			for c in ${chains}
+				# Find all default chains in this table.
+				chains=`${IPTABLES_CMD} -t "${t}" -nL | ${GREP_CMD} "^Chain " | ${CUT_CMD} -d ' ' -f 2`
+				for c in ${chains}
+				do
+					${IPTABLES_CMD} -t "${t}" -P "${c}" ACCEPT
+
+					if [ ! -z "${ssh_src}" ]
+					then
+						${IPTABLES_CMD} -t "${t}" -A "${c}" -p tcp -s "${ssh_src}" --sport "${ssh_sport}" --dport "${ssh_dport}" -m conntrack --ctstate ESTABLISHED -j ACCEPT
+						${IPTABLES_CMD} -t "${t}" -A "${c}" -p tcp -d "${ssh_src}" --dport "${ssh_sport}" --sport "${ssh_dport}" -m conntrack --ctstate ESTABLISHED -j ACCEPT
+					fi
+					if [ "${t}" != "nat" ] ; then
+						${IPTABLES_CMD} -t "${t}" -A "${c}" -j DROP
+					fi
+				done
+			done
+		fi
+		if [ $ENABLE_IPV6 -eq 1 ]; then
+			load_kernel_module ip6_tables
+			tables6=`${CAT_CMD} /proc/net/ip6_tables_names`
+			for t in ${tables6}
 			do
-				${IP6TABLES_CMD} -t "${t}" -P "${c}" ACCEPT
+				${IP6TABLES_CMD} -t "${t}" -F
+				${IP6TABLES_CMD} -t "${t}" -X
+				${IP6TABLES_CMD} -t "${t}" -Z
 
-				if [ ! -z "${ssh_src}" ]
-				then
-					${IP6TABLES_CMD} -t "${t}" -A "${c}" -p tcp -s "${ssh_src}" --sport "${ssh_sport}" --dport "${ssh_dport}" -m conntrack --ctstate ESTABLISHED -j ACCEPT
-					${IP6TABLES_CMD} -t "${t}" -A "${c}" -p tcp -d "${ssh_src}" --dport "${ssh_sport}" --sport "${ssh_dport}" -m conntrack --ctstate ESTABLISHED -j ACCEPT
-				fi
-				if [ "${t}" != "nat" ] ; then
-					${IP6TABLES_CMD} -t "${t}" -A "${c}" -j DROP
-				fi
+				# Find all default chains in this table.
+				chains=`${IP6TABLES_CMD} -t "${t}" -nL | ${GREP_CMD} "^Chain " | ${CUT_CMD} -d ' ' -f 2`
+				for c in ${chains}
+				do
+					${IP6TABLES_CMD} -t "${t}" -P "${c}" ACCEPT
+
+					if [ ! -z "${ssh_src}" ]
+					then
+						${IP6TABLES_CMD} -t "${t}" -A "${c}" -p tcp -s "${ssh_src}" --sport "${ssh_sport}" --dport "${ssh_dport}" -m conntrack --ctstate ESTABLISHED -j ACCEPT
+						${IP6TABLES_CMD} -t "${t}" -A "${c}" -p tcp -d "${ssh_src}" --dport "${ssh_sport}" --sport "${ssh_dport}" -m conntrack --ctstate ESTABLISHED -j ACCEPT
+					fi
+					if [ "${t}" != "nat" ] ; then
+						${IP6TABLES_CMD} -t "${t}" -A "${c}" -j DROP
+					fi
+				done
 			done
-		done
+		fi
 		success $"FireHOL: Blocking all communications:"
 		echo
 		
@@ -7831,80 +7898,90 @@ initialize_firewall() {
 	
 	# Find all tables supported
 	local t=
-	local tables=`${CAT_CMD} /proc/net/ip_tables_names`
-	local tables6=`${CAT_CMD} /proc/net/ip6_tables_names`
-	for t in ${tables}
-	do
-		# Reset/empty this table.
-		${IPTABLES_CMD} -t "${t}" -F || exit 1
-		${IPTABLES_CMD} -t "${t}" -X || exit 1
-		${IPTABLES_CMD} -t "${t}" -Z || exit 1
-		
-		# Find all default chains in this table.
-		local chains=`${IPTABLES_CMD} -t "${t}" -nL | ${GREP_CMD} "^Chain " | ${CUT_CMD} -d ' ' -f 2`
-		
-		# If this is the 'filter' table, remember the default chains.
-		# This will be used at the end to make it DROP all packets.
-		test "${t}" = "filter" && firehol_filter_chains="${chains}"
-		
-		# Set the policy to ACCEPT on all default chains.
-		local c=
-		for c in ${chains}
+	if [ $ENABLE_IPV4 -eq 1 ]; then
+		local tables=`${CAT_CMD} /proc/net/ip_tables_names`
+		for t in ${tables}
 		do
-			local policy=ACCEPT
-			if [ "${t}" = "filter" ]
-			then
-				eval "policy=\${FIREHOL_${c}_ACTIVATION_POLICY}"
-			fi
-			${IPTABLES_CMD} -t "${t}" -P "${c}" $policy || exit 1
+			# Reset/empty this table.
+			${IPTABLES_CMD} -t "${t}" -F || exit 1
+			${IPTABLES_CMD} -t "${t}" -X || exit 1
+			${IPTABLES_CMD} -t "${t}" -Z || exit 1
+		
+			# Find all default chains in this table.
+			local chains=`${IPTABLES_CMD} -t "${t}" -nL | ${GREP_CMD} "^Chain " | ${CUT_CMD} -d ' ' -f 2`
+		
+			# If this is the 'filter' table, remember the default chains.
+			# This will be used at the end to make it DROP all packets.
+			test "${t}" = "filter" && firehol_filter_chains="${chains}"
+		
+			# Set the policy to ACCEPT on all default chains.
+			local c=
+			for c in ${chains}
+			do
+				local policy=ACCEPT
+				if [ "${t}" = "filter" ]
+				then
+					eval "policy=\${FIREHOL_${c}_ACTIVATION_POLICY}"
+				fi
+				${IPTABLES_CMD} -t "${t}" -P "${c}" $policy || exit 1
+			done
 		done
-	done
 
-	for t in ${tables6}
-	do
-		# Reset/empty this table.
-		${IP6TABLES_CMD} -t "${t}" -F || exit 1
-		${IP6TABLES_CMD} -t "${t}" -X || exit 1
-		${IP6TABLES_CMD} -t "${t}" -Z || exit 1
+		# Allow existing traffic to continue:
+		#   insert as the first rule in each chain, making it easy to
+		#   undo once the firewall is completely established
+		if [ ${FIREHOL_FAST_ACTIVATION} -ne 1 -a \
+			"${FIREHOL_ESTABLISHED_ACTIVATION_ACCEPT}" = "1" ]
+		then
+			${IPTABLES_CMD} -I INPUT 1 \
+				-m conntrack --ctstate ESTABLISHED,RELATED -j ACCEPT
+			${IPTABLES_CMD} -I OUTPUT 1 \
+				-m conntrack --ctstate ESTABLISHED,RELATED -j ACCEPT
+			${IPTABLES_CMD} -I FORWARD 1 \
+				-m conntrack --ctstate ESTABLISHED,RELATED -j ACCEPT
+		fi
+	fi
 
-		# Find all default chains in this table.
-		local chains=`${IP6TABLES_CMD} -t "${t}" -nL | ${GREP_CMD} "^Chain " | ${CUT_CMD} -d ' ' -f 2`
-
-		# If this is the 'filter' table, remember the default chains.
-		# This will be used at the end to make it DROP all packets.
-		test "${t}" = "filter" && firehol_filter6_chains="${chains}"
-
-		# Set the policy to ACCEPT on all default chains.
-		local c=
-		for c in ${chains}
+	if [ $ENABLE_IPV6 -eq 1 ]; then
+		local tables6=`${CAT_CMD} /proc/net/ip6_tables_names`
+		for t in ${tables6}
 		do
-			local policy=ACCEPT
-			if [ "${t}" = "filter" ]
-			then
-				eval "policy=\${FIREHOL_${c}_ACTIVATION_POLICY}"
-			fi
-			${IP6TABLES_CMD} -t "${t}" -P "${c}" $policy || exit 1
-		done
-	done
+			# Reset/empty this table.
+			${IP6TABLES_CMD} -t "${t}" -F || exit 1
+			${IP6TABLES_CMD} -t "${t}" -X || exit 1
+			${IP6TABLES_CMD} -t "${t}" -Z || exit 1
 
-	# Allow existing traffic to continue:
-	#   insert as the first rule in each chain, making it easy to undo
-	#   once the firewall is completely established
-	if [ ${FIREHOL_FAST_ACTIVATION} -ne 1 -a \
-	     "${FIREHOL_ESTABLISHED_ACTIVATION_ACCEPT}" = "1" ]
-	then
-		${IPTABLES_CMD} -I INPUT 1 \
-			-m conntrack --ctstate ESTABLISHED,RELATED -j ACCEPT
-		${IPTABLES_CMD} -I OUTPUT 1 \
-			-m conntrack --ctstate ESTABLISHED,RELATED -j ACCEPT
-		${IPTABLES_CMD} -I FORWARD 1 \
-			-m conntrack --ctstate ESTABLISHED,RELATED -j ACCEPT
-		${IP6TABLES_CMD} -I INPUT 1 \
-			-m conntrack --ctstate ESTABLISHED,RELATED -j ACCEPT
-		${IP6TABLES_CMD} -I OUTPUT 1 \
-			-m conntrack --ctstate ESTABLISHED,RELATED -j ACCEPT
-		${IP6TABLES_CMD} -I FORWARD 1 \
-			-m conntrack --ctstate ESTABLISHED,RELATED -j ACCEPT
+			# Find all default chains in this table.
+			local chains=`${IP6TABLES_CMD} -t "${t}" -nL | ${GREP_CMD} "^Chain " | ${CUT_CMD} -d ' ' -f 2`
+
+			# If this is the 'filter' table, remember the default chains.
+			# This will be used at the end to make it DROP all packets.
+			test "${t}" = "filter" && firehol_filter6_chains="${chains}"
+
+			# Set the policy to ACCEPT on all default chains.
+			local c=
+			for c in ${chains}
+			do
+				local policy=ACCEPT
+				if [ "${t}" = "filter" ]
+				then
+					eval "policy=\${FIREHOL_${c}_ACTIVATION_POLICY}"
+				fi
+				${IP6TABLES_CMD} -t "${t}" -P "${c}" $policy || exit 1
+			done
+		done
+
+		# Allow existing traffic to continue
+		if [ ${FIREHOL_FAST_ACTIVATION} -ne 1 -a \
+			"${FIREHOL_ESTABLISHED_ACTIVATION_ACCEPT}" = "1" ]
+		then
+			${IP6TABLES_CMD} -I INPUT 1 \
+				-m conntrack --ctstate ESTABLISHED,RELATED -j ACCEPT
+			${IP6TABLES_CMD} -I OUTPUT 1 \
+				-m conntrack --ctstate ESTABLISHED,RELATED -j ACCEPT
+			${IP6TABLES_CMD} -I FORWARD 1 \
+				-m conntrack --ctstate ESTABLISHED,RELATED -j ACCEPT
+		fi
 	fi
 }
 
@@ -7912,26 +7989,36 @@ initialize_firewall() {
 finalize_firewall() {
 	# Make it drop everything on table 'filter'.
 	local c=
-	for c in ${firehol_filter_chains}
-	do
-		${IPTABLES_CMD} -t filter -P "${c}" DROP || exit 1
-	done
-	for c in ${firehol_filter6_chains}
-	do
-		${IP6TABLES_CMD} -t filter -P "${c}" DROP || exit 1
-	done
+	if [ $ENABLE_IPV4 -eq 1 ]; then
+		for c in ${firehol_filter_chains}
+		do
+			${IPTABLES_CMD} -t filter -P "${c}" DROP || exit 1
+		done
 
-	# Remove rules inserted which were to keep existing traffic alive
-	# during activation
-	if [ ${FIREHOL_FAST_ACTIVATION} -ne 1 -a \
-	     "${FIREHOL_ESTABLISHED_ACTIVATION_ACCEPT}" = "1" ]
-	then
-		${IPTABLES_CMD} -D INPUT 1
-		${IPTABLES_CMD} -D OUTPUT 1
-		${IPTABLES_CMD} -D FORWARD 1
-		${IP6TABLES_CMD} -D INPUT 1
-		${IP6TABLES_CMD} -D OUTPUT 1
-		${IP6TABLES_CMD} -D FORWARD 1
+		# Remove rules inserted which were to keep existing traffic
+		# alive during activation
+		if [ ${FIREHOL_FAST_ACTIVATION} -ne 1 -a \
+			"${FIREHOL_ESTABLISHED_ACTIVATION_ACCEPT}" = "1" ]
+		then
+			${IPTABLES_CMD} -D INPUT 1
+			${IPTABLES_CMD} -D OUTPUT 1
+			${IPTABLES_CMD} -D FORWARD 1
+		fi
+	fi
+
+	if [ $ENABLE_IPV6 -eq 1 ]; then
+		for c in ${firehol_filter6_chains}
+		do
+			${IP6TABLES_CMD} -t filter -P "${c}" DROP || exit 1
+		done
+
+		if [ ${FIREHOL_FAST_ACTIVATION} -ne 1 -a \
+			"${FIREHOL_ESTABLISHED_ACTIVATION_ACCEPT}" = "1" ]
+		then
+			${IP6TABLES_CMD} -D INPUT 1
+			${IP6TABLES_CMD} -D OUTPUT 1
+			${IP6TABLES_CMD} -D FORWARD 1
+		fi
 	fi
 }
 
@@ -8034,7 +8121,14 @@ EOF
 
 # at the same time, replace all ${IPTABLES_CMD} references with just
 # the word 'iptables' to protect the currently running firewall
-${CAT_CMD} ${FIREHOL_CONFIG} | ${SED_CMD} "s|${IPTABLES_CMD}|iptables|g" | ${SED_CMD} "s|${IP6TABLES_CMD}|ip6tables|g" | gawk_cmd -f "${FIREHOL_TMP}.awk" >${FIREHOL_TMP}
+SED_RULES=
+if [ $ENABLE_IPV4 -eq 1 ]; then
+	SED_RULES="${SED_RULES} -e s|${IPTABLES_CMD}|iptables|g"
+fi
+if [ $ENABLE_IPV6 -eq 1 ]; then
+	SED_RULES="${SED_RULES} -e s|${IP6TABLES_CMD}|ip6tables|g"
+fi
+${CAT_CMD} ${FIREHOL_CONFIG} | ${SED_CMD} ${SED_RULES} | gawk_cmd -f "${FIREHOL_TMP}.awk" >${FIREHOL_TMP}
 ${RM_CMD} -f "${FIREHOL_TMP}.awk"
 
 # ------------------------------------------------------------------------------
