@@ -5475,10 +5475,14 @@ rule() {
 		if [ "${src4not}" != "${src6not}" ]
 		then
 			error "Mixed use of 'not' with src4 and src6."	&& return 1
+		else
+			srcnot="${src4not}"
 		fi
 		if [ "${dst4not}" != "${dst6not}" ]
 		then
 			error "Mixed use of 'not' with dst4 and dst6."	&& return 1
+		else
+			dstnot="${dst4not}"
 		fi
 		if [ "${src4}" = "default" -a "${src6}" != "default" ]
 		then
