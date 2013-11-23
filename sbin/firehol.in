@@ -2352,10 +2352,10 @@ rules_ping() {
 	local type="${1}"; shift
 	
 	if running_ipv4; then
-		add_icmp_rule_pair $mychain $type echo-request echo-reply "$@" || return 1
+		ipv4 add_icmp_rule_pair $mychain $type echo-request echo-reply "$@" || return 1
 	fi
 	if running_ipv6; then
-		add_icmpv6_rule_pair $mychain $type echo-request echo-reply "$@" || return 1
+		ipv6 add_icmpv6_rule_pair $mychain $type echo-request echo-reply "$@" || return 1
 	fi
 	
 	return 0
