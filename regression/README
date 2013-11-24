@@ -6,13 +6,16 @@ and will go through a number or arbitrary states. DO NOT RUN these tests
 unless you are protected by a firewall elsewhere on your network.
 
 Run tests as:
-  sudo ./regress -ok versions...
+  sudo ./regress -ok version...
 
-e.g.:
-  sudo ./regress -ok current v1.296 v2.0.0-pre3
+The version 'current' is special; it runs sbin/firehol.in in its current
+state, rather than getting it from the repository. You can also specify a
+specific firehol script if you need to e.g.:
+  sudo ./regress -ok current v1.296 v2.0.0-pre3 ../../firehol-old/firehol.sh
 
-To get comparisons between the current firehol.in in the working
-directory (including edits) and tagged versions 1.296 and 2.0.0-pre3
+To get comparisons between the current firehol.in in the working directory
+(including edits), tagged versions 1.296 and 2.0.0-pre3 and the script
+in the specified location.
 
 Any number of versions may be specified.
 
@@ -21,10 +24,12 @@ version.
 
 Output goes into output/<version> directories - old data will be removed
 before the new tests are run:
-  output/<version>/*.log             - stdout+stderr from run
-  output/<version>/*.out             - iptables-save output
-  output/<version>/ipv4-no-nat/*.out - iptables-save output with nat removed
-  output/<version>/ipv6/*.out        - ip6tables-save output
+ipv4  ipv4-no-nat  ipv6  tests
+  output/<version>/tests/.../*.conf      - config used for run
+  output/<version>/tests/.../*.log       - stdout+stderr from run
+  output/<version>/ipv4/.../*.out        - iptables-save output
+  output/<version>/ipv4-no-nat/.../*.out - iptables-save without nat table
+  output/<version>/ipv6/.../*.out        - ip6tables-save output
 
 Output is slightly munged to minimise the differences between runs and
 between iptables-save and ip6tables-save output. See tools/run-suite.sh
@@ -36,15 +41,12 @@ Comparison examples
 Compare current edited version to last v1.x release behaviour:
   diff -r output/v.1296 output/current
 
-Compare current master version to last v1.x release behaviour:
+Compare current edited version to last master version:
   diff -r output/master output/current
 
-Compare IPv4 only to FireHOL with IPv6 behaviour:
-  diff output/v2.0.0-pre3 output/v2.0.0
-(no point in comparing subdirectories since IPv6 is different by definition)
-
-Compare IPv4 output to FireHOL IPv6 output in both-capable version:
+Compare FireHOL IPv6 output to IPv4 output in a both-capable version:
   diff output/v2.0.0/ipv4-no-nat output/v2.0.0/ipv6
+(note: some differences are to be expected).
 
 Compare IPv4 to IPv6 in current edit
   diff output/current/ipv4-no-nat output/current/ipv6
@@ -67,41 +69,43 @@ Take a look at this file:
 It is written in such a way as to allow for being run by FireHOL with
 or without IPv6 capability (i.e. post or pre 2.0.0).
 
+In particular all scripts should have this line:
+  . $REGRESSDIR/include/regression.conf
 
-Auditing and signing test configurations
-========================================
-When the iptables output of a configuration is known to be good it
-can be appended to the configuration file and gpg-signed using the
-"sigtool" program.
+which will hide some syntax differences such as the ability to process
+ipv4/ipv6 tagged lines for older scripts.
 
-Multiple signatures can be accumulated to give extra confidence
-regarding the validity of output. If you understand iptables well
-but do not program, creating sample configurations, auditing and
-signing them is a great way to contribute.
+In addition it provides the ability to write:
+  if ipv6_capable; then
+        # These rules only processed by scripts which understands IPv6
+  else
+        # These rules only processed by scripts which do not understand IPv6
+  fi
 
-The audited output is attached to the configuration file but enclosed
-within bash functions so that FireHOL does not attempt to executed it.
-The functions have specific names to allow the output to be extracted
-for comparison later. The following two functions are used:
 
-audit_results_ipv4() {
-# iptables-save output goes here after processing with tools/reorg-save
-}
+Advanced checks / Checking for failure
+--------------------------------------
+The regression suite simply runs the various configurations for later
+cross checking. It will also output a notice for any configuration that
+does not return a successful status.
 
-audit_results_ipv6() {
-# ip6tables-save output goes here after processing with tools/reorg-save
-}
+This notice can be suppressed by including an additional function in
+the configuration and writing your own status code test. The function
+to create is check_results_script().
 
-An additional audit function may be provided which can test the output
-status and logfile contents. This is especially useful for tests that
-are expected to fail for some reason. The following script can be used
-to check for a successful load of the firewall:
+This will be run by the regression suite after an attempt to load the
+configuration. As well as the final status it can also check the content
+of the log file and the (mangled) contents of ip[6]tables-save.
 
-audit_results_script() {
+The following is an example of checking for a successful load:
+
+check_results_script() {
   local tmpdir="${1}"
   local status="${2}"
   local logfile="${3}"
-  shift; shift; shift;
+  local v4output="${4}"
+  local v6output="${5}"
+  shift; shift; shift; shift; shift;
 
   local expected_status=0
   if [ $status -ne $expected_status ]
@@ -119,31 +123,37 @@ audit_results_script() {
   return 0
 }
 
-To first sign a configuration, run:
-  ./sigtool tests/..../test.conf <gpgid> <verno>
+The following is an example of checking for an unsuccessful load:
 
-Where <gpgid> is a string that gpg will recognise for the purpose of
-selecting your gpg key and <verno> is the version of the output that
-has been audited as correct for the test in question.
+check_results_script() {
+  local tmpdir="${1}"
+  local status="${2}"
+  local logfile="${3}"
+  local v4output="${4}"
+  local v6output="${5}"
+  shift; shift; shift; shift; shift;
 
-The sigtool will append the iptables-save output to the configuration
-file tests/..../test.conf in a way that the regression suite will
-remove it before running and automatically compare the output. Please
-send this updated file along with the new tests/..../test.sigs file
-to the mailing list.
+  local expected_status=1
+  if [ $status -ne $expected_status ]
+  then
+    echo "Unexpected status $status (expected $expected_status)"
+    return 1
+  fi
 
-To add a signature to a configuration that has already been audited, run:
-  ./sigtool tests/..../test.conf <gpgid>
-and just send the updated sigs file to the mailing list.
+  tail -n 1 "${logfile}" > $tmpdir/$$.log || return 1
+  if grep -q "^Activating new firewall ([0-9]* rules): OK$" $tmpdir/$$.log
+  then
+    echo "Log did not end as expected: firewall got avtivated"
+    return 1
+  fi
 
-Note that there can only ever be a single audited output. It is not
-unthinkable that changes in future will mean that a different output
-could achieve identical aims... if this happens the suite will need
-to be updated to cope.
-
-The regression tool will automatically list the signatures on a test
-or you can run:
-  ./sigtool tests/..../test.conf
+  if ! grep -q "host.network.*not found" "${logfile}"
+  then
+    echo "Reason for failure we expected was not mentioned"
+    return 1
+  fi
+  return 0
+}
 
 
 Recommended services for testing with
@@ -160,3 +170,30 @@ give a good broad coverage of overall behaviour:
       ssh - tcp 22
   eserver - tcp/4661 udp/4661 udp/4665
   hylafax - server listens on tcp/4559 + opens back to client tcp/4558
+
+
+Auditing test configurations
+============================
+For the most part the regression scripts are used to check the behaviour
+between versions of FireHOL.
+
+When the iptables output of a configuration is known to be good it
+can be appended to the configuration file.
+
+The audited output is attached to the configuration file but enclosed
+within bash functions so that FireHOL does not attempt to executed it.
+The functions have specific names to allow the output to be extracted
+for comparison later. The following two functions are used:
+
+audit_results_ipv4() {
+# iptables-save output goes here after processing with tools/reorg-save
+}
+
+audit_results_ipv6() {
+# ip6tables-save output goes here after processing with tools/reorg-save
+}
+
+Note that there can only ever be a single audited output. It is not
+unthinkable that changes in future will mean that a different output
+could achieve identical aims... if this happens the suite will need
+to be updated to cope.

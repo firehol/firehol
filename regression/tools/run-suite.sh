@@ -191,8 +191,8 @@ do
     fi
   fi
 
-  if grep -q "audit_results_script" "$here/tests/$testfile"; then
-    sed -ne '/audit_results_script()/,/^}/p' "$here/tests/$testfile" > $MYTMP/auditscript
+  if grep -q "check_results_script" "$here/tests/$testfile"; then
+    sed -ne '/check_results_script()/,/^}/p' "$here/tests/$testfile" > $MYTMP/auditscript
   else
     rm -f $MYTMP/auditscript
   fi
@@ -234,14 +234,14 @@ do
   fi
   if [ -f $MYTMP/auditscript ]; then
     auditrun=$[auditrun+1]
-    echo "audit_results_script $MYTMP $fhstatus $logfile" >> $MYTMP/auditscript
+    echo "check_results_script $MYTMP $fhstatus $logfile $v4out $v6out" >> $MYTMP/auditscript
     bash $MYTMP/auditscript
     if [ $? -ne 0 ]; then
       auditfail=$[auditfail+1]
     fi
   else
     if [ $fhstatus -ne 0 ]; then
-      echo "      bad status $fhstatus (or need audit_results_script())"
+      echo "      bad status $fhstatus (or need check_results_script())"
       auditfail=$[auditfail+1]
     fi
   fi
