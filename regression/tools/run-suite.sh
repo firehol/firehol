@@ -236,6 +236,11 @@ do
     if [ $? -ne 0 ]; then
       auditfail=$[auditfail+1]
     fi
+  else
+    if [ $fhstatus -ne 0 ]; then
+      echo "      bad status $fhstatus (or need audit_results_script())"
+      auditfail=$[auditfail+1]
+    fi
   fi
   if [ $auditfail -gt 0 ]; then
     echo "      log $logfile"
