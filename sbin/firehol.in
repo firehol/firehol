@@ -626,12 +626,30 @@ fi
 
 load_ips() {
 	local v="${1}" # the variable
-	local d="${2}" # the default value
-	local dt="${3}" # days old
-	local m="${4}" # additional info for file generation
-	local c="${5}" # if set, complain if file is missing
-	
-	if [ ! -f "${FIREHOL_CONFIG_DIR}/${v}" ]
+	local f="${2}" # the old file-name
+	local d="${3}" # the default value
+	local dt="${4}" # days old
+	local m="${5}" # additional info for file generation
+	local c="${6}" # if set, complain if file is missing
+
+	# We load from a file with the variable name if found but will use
+	# the old file name for compatibility
+	if [ "${f}" != ${v} \
+             -a -f "${FIREHOL_CONFIG_DIR}/${f}" \
+             -a -f "${FIREHOL_CONFIG_DIR}/${v}" ]
+	then
+		echo >&2 "WARNING "
+		echo >&2 "Found ${f} and ${v} in '${FIREHOL_CONFIG_DIR}'"
+		echo >&2 "Using ${v}"
+		f=${v}
+	elif [ -f "${FIREHOL_CONFIG_DIR}/${v}" ]
+	then
+		f=${v}
+	else
+		: # Using the 'old' name
+	fi
+
+	if [ ! -f "${FIREHOL_CONFIG_DIR}/${f}" ]
 	then
 		if [ ! -z "${c}" ]
 		then
@@ -655,13 +673,13 @@ load_ips() {
 	
 	if [ ${dt} -gt 0 ]
 	then
-		local t=`${FIND_CMD} "${FIREHOL_CONFIG_DIR}/${v}" -mtime +${dt}`
+		local t=`${FIND_CMD} "${FIREHOL_CONFIG_DIR}/${f}" -mtime +${dt}`
 		if [ ! -z "${t}" ]
 		then
 			echo >&2
 			echo >&2
 			echo >&2 "WARNING"
-			echo >&2 "File '${FIREHOL_CONFIG_DIR}/${v}' is more than ${dt} days old."
+			echo >&2 "File '${FIREHOL_CONFIG_DIR}/${f}' is more than ${dt} days old."
 			echo >&2 "You should update it to ensure proper operation of your firewall."
 			echo >&2
 			
@@ -673,7 +691,7 @@ load_ips() {
 		fi
 	fi
 	
-	local t=`${CAT_CMD} "${FIREHOL_CONFIG_DIR}/${v}" | ${EGREP_CMD} "^ *[0-9]+\.[0-9]+\.[0-9]+\.[0-9]+/[0-9]+ *$"`
+	local t=`${CAT_CMD} "${FIREHOL_CONFIG_DIR}/${f}" | ${EGREP_CMD} "^ *[0-9]+\.[0-9]+\.[0-9]+\.[0-9]+/[0-9]+ *$"`
 	local t2=
 	local i=0
 	for x in ${t}
@@ -682,7 +700,7 @@ load_ips() {
 		t2="${t2} ${x}"
 	done
 	
-	local t6=`${CAT_CMD} "${FIREHOL_CONFIG_DIR}/${v}" | ${EGREP_CMD} "^ *((([0-9A-Fa-f]{1,4}:){7}(([0-9A-Fa-f]{1,4})|:))|(([0-9A-Fa-f]{1,4}:){6}(:|((25[0-5]|2[0-4]\d|[01]?\d{1,2})(\.(25[0-5]|2[0-4]\d|[01]?\d{1,2})){3})|(:[0-9A-Fa-f]{1,4})))|(([0-9A-Fa-f]{1,4}:){5}((:((25[0-5]|2[0-4]\d|[01]?\d{1,2})(\.(25[0-5]|2[0-4]\d|[01]?\d{1,2})){3})?)|((:[0-9A-Fa-f]{1,4}){1,2})))|(([0-9A-Fa-f]{1,4}:){4}(:[0-9A-Fa-f]{1,4}){0,1}((:((25[0-5]|2[0-4]\d|[01]?\d{1,2})(\.(25[0-5]|2[0-4]\d|[01]?\d{1,2})){3})?)|((:[0-9A-Fa-f]{1,4}){1,2})))|(([0-9A-Fa-f]{1,4}:){3}(:[0-9A-Fa-f]{1,4}){0,2}((:((25[0-5]|2[0-4]\d|[01]?\d{1,2})(\.(25[0-5]|2[0-4]\d|[01]?\d{1,2})){3})?)|((:[0-9A-Fa-f]{1,4}){1,2})))|(([0-9A-Fa-f]{1,4}:){2}(:[0-9A-Fa-f]{1,4}){0,3}((:((25[0-5]|2[0-4]\d|[01]?\d{1,2})(\.(25[0-5]|2[0-4]\d|[01]?\d{1,2})){3})?)|((:[0-9A-Fa-f]{1,4}){1,2})))|(([0-9A-Fa-f]{1,4}:)(:[0-9A-Fa-f]{1,4}){0,4}((:((25[0-5]|2[0-4]\d|[01]?\d{1,2})(\.(25[0-5]|2[0-4]\d|[01]?\d{1,2})){3})?)|((:[0-9A-Fa-f]{1,4}){1,2})))|(:(:[0-9A-Fa-f]{1,4}){0,5}((:((25[0-5]|2[0-4]\d|[01]?\d{1,2})(\.(25[0-5]|2[0-4]\d|[01]?\d{1,2})){3})?)|((:[0-9A-Fa-f]{1,4}){1,2})))|(((25[0-5]|2[0-4]\d|[01]?\d{1,2})(\.(25[0-5]|2[0-4]\d|[01]?\d{1,2})){3})))(%.+)?/[0-9]+ *$"`
+	local t6=`${CAT_CMD} "${FIREHOL_CONFIG_DIR}/${f}" | ${EGREP_CMD} "^ *((([0-9A-Fa-f]{1,4}:){7}(([0-9A-Fa-f]{1,4})|:))|(([0-9A-Fa-f]{1,4}:){6}(:|((25[0-5]|2[0-4]\d|[01]?\d{1,2})(\.(25[0-5]|2[0-4]\d|[01]?\d{1,2})){3})|(:[0-9A-Fa-f]{1,4})))|(([0-9A-Fa-f]{1,4}:){5}((:((25[0-5]|2[0-4]\d|[01]?\d{1,2})(\.(25[0-5]|2[0-4]\d|[01]?\d{1,2})){3})?)|((:[0-9A-Fa-f]{1,4}){1,2})))|(([0-9A-Fa-f]{1,4}:){4}(:[0-9A-Fa-f]{1,4}){0,1}((:((25[0-5]|2[0-4]\d|[01]?\d{1,2})(\.(25[0-5]|2[0-4]\d|[01]?\d{1,2})){3})?)|((:[0-9A-Fa-f]{1,4}){1,2})))|(([0-9A-Fa-f]{1,4}:){3}(:[0-9A-Fa-f]{1,4}){0,2}((:((25[0-5]|2[0-4]\d|[01]?\d{1,2})(\.(25[0-5]|2[0-4]\d|[01]?\d{1,2})){3})?)|((:[0-9A-Fa-f]{1,4}){1,2})))|(([0-9A-Fa-f]{1,4}:){2}(:[0-9A-Fa-f]{1,4}){0,3}((:((25[0-5]|2[0-4]\d|[01]?\d{1,2})(\.(25[0-5]|2[0-4]\d|[01]?\d{1,2})){3})?)|((:[0-9A-Fa-f]{1,4}){1,2})))|(([0-9A-Fa-f]{1,4}:)(:[0-9A-Fa-f]{1,4}){0,4}((:((25[0-5]|2[0-4]\d|[01]?\d{1,2})(\.(25[0-5]|2[0-4]\d|[01]?\d{1,2})){3})?)|((:[0-9A-Fa-f]{1,4}){1,2})))|(:(:[0-9A-Fa-f]{1,4}){0,5}((:((25[0-5]|2[0-4]\d|[01]?\d{1,2})(\.(25[0-5]|2[0-4]\d|[01]?\d{1,2})){3})?)|((:[0-9A-Fa-f]{1,4}){1,2})))|(((25[0-5]|2[0-4]\d|[01]?\d{1,2})(\.(25[0-5]|2[0-4]\d|[01]?\d{1,2})){3})))(%.+)?/[0-9]+ *$"`
 	for x in ${t6}
 	do
 		i=$[i + 1]
@@ -694,7 +712,7 @@ load_ips() {
 		echo >&2
 		echo >&2
 		echo >&2 "WARNING "
-		echo >&2 "The file '${FIREHOL_CONFIG_DIR}/${v}' contains zero IP definitions."
+		echo >&2 "The file '${FIREHOL_CONFIG_DIR}/${f}' contains zero IP definitions."
 		echo >&2 "Using internal default values for variable '${v}' and all inherited ones."
 		echo >&2
 		
@@ -716,15 +734,11 @@ load_ips() {
 # IP definitions
 
 # IANA Reserved IPv4 address space.
-RESERVED_IPS="0.0.0.0/8 127.0.0.0/8 240.0.0.0/4 "
-load_ips RESERVED_IPS "${RESERVED_IPS}" 0
-
-# We load from the old file name for compatibility but give the variable a
-# new name so it can be referenced separately.
-RESERVED_IPV4="$RESERVED_IPS"
+RESERVED_IPV4="0.0.0.0/8 127.0.0.0/8 240.0.0.0/4 "
+load_ips RESERVED_IPV4 RESERVED_IPS "${RESERVED_IPV4}" 0
 
 RESERVED_IPV6="::/8 0100::/8 0200::/7 0400::/6 0800::/5 1000::/4 4000::/3 6000::/3 8000::/3 A000::/3 C000::/3 E000::/4 F000::/5 F800::/6 FE00::/9 FEC0::/10"
-load_ips RESERVED_IPV6 "${RESERVED_IPV6}" 0
+load_ips RESERVED_IPV6 RESERVED_IPV6 "${RESERVED_IPV6}" 0
 
 # Make the original name a context-dependent function
 RESERVED_IPS="reserved_ips()"
@@ -750,12 +764,13 @@ reserved_ips() {
 # 192.88.99.0/24   => RFC 3068: 6to4 anycast & RFC 2544: Benchmarking addresses
 # 192.168.0.0/16   => RFC 1918: Private use
 PRIVATE_IPV4="10.0.0.0/8 169.254.0.0/16 172.16.0.0/12 192.0.2.0/24 192.88.99.0/24 192.168.0.0/16"
-load_ips PRIVATE_IPV4 "${PRIVATE_IPV4}" 0
+load_ips PRIVATE_IPV4 PRIVATE_IPS "${PRIVATE_IPV4}" 0
 
 # Private IPv6 address space
 # FC00::/7         => Unique Local Unicast
 # FE80::/10        => Link Local Unicast
 PRIVATE_IPV6="FC00::/7 FE80::/10"
+load_ips PRIVATE_IPV6 PRIVATE_IPV6 "${PRIVATE_IPV6}" 0
 
 PRIVATE_IPS="private_ips()"
 private_ips() {
@@ -773,18 +788,32 @@ private_ips() {
 
 # The multicast address space
 MULTICAST_IPV4="224.0.0.0/4"
-load_ips MULTICAST_IPV4 "${MULTICAST_IPV4}" 0
+load_ips MULTICAST_IPV4 MULTICAST_IPS "${MULTICAST_IPV4}" 0
 
 MULTICAST_IPV6="FF00::/16"
-load_ips MULTICAST_IPV6 "${MULTICAST_IPV6}" 0
+load_ips MULTICAST_IPV6 MULTICAST_IPV6 "${MULTICAST_IPV6}" 0
+
+MULTICAST_IPS="multicast_ips()"
+multicast_ips() {
+	if running_both; then
+		error "Cannot be called in 'both' mode"
+		return 1
+	fi
+	if running_ipv6; then
+		echo "${MULTICAST_IPV6}"
+	else
+		echo "${MULTICAST_IPV4}"
+	fi
+	return 0
+}
 
 # A shortcut to have all the Internet unroutable addresses in one
 # variable
 UNROUTABLE_IPV4="${RESERVED_IPV4} ${PRIVATE_IPV4}"
-load_ips UNROUTABLE_IPV4 "${UNROUTABLE_IPV4}" 0
+load_ips UNROUTABLE_IPV4 UNROUTABLE_IPS "${UNROUTABLE_IPV4}" 0
 
 UNROUTABLE_IPV6="${RESERVED_IPV6} ${PRIVATE_IPV6}"
-load_ips UNROUTABLE_IPV6 "${UNROUTABLE_IPV6}" 0
+load_ips UNROUTABLE_IPV6 UNROUTABLE_IPV6 "${UNROUTABLE_IPV6}" 0
 
 UNROUTABLE_IPS="unroutable_ips()"
 unroutable_ips() {
