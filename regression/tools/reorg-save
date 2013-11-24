@@ -18,6 +18,13 @@ while (<>) {
   # Set any packet counters to 0
   s/\[[0-9][0-9]*:[0-9][0-9]*\]$/[0:0]/;
 
+  # Hide logging prefix from fast activation changes in 31abff3
+  if (/log-prefix/) {
+    my @fields = split /--log-prefix /;
+    $fields[1] =~ s/ /_/g;
+    $_ = join('--log-prefix ', @fields);
+  }
+
   # Hide differences between icmpv6 and icmp
   s/icmp6-/icmp-/;
 
