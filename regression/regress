@@ -66,7 +66,9 @@ do
      if [ -s $v ]; then
         d=$(basename $v)
         f=$MYTMP/firehol-$d.in
-        cat $v > $f
+        # In case we are comparing against an old sanewall script, we want
+        # the default behaviour to be the same
+        sed -e '/SANEWALL_.*_ACTIVATION_POLICY=/s/"DROP"/"ACCEPT"/' $v > $f
      else
        d=$v
        f=$MYTMP/firehol-$d.in

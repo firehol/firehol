@@ -47,16 +47,22 @@ rm -rf $outdir
 myexit() {
   cd $here
   test -n "${SUDO_USER}" && chown -R ${SUDO_USER} output
-  clear_all
+  test -f $MYTMP/save && iptables-restore < $MYTMP/save
+  test -f $MYTMP/save6 && ip6tables-restore < $MYTMP/save6
   rm -rf $MYTMP
-  exit 0
+  rm -f /var/run/firehol.lck
+  exit
 }
 
 trap myexit INT
 trap myexit HUP
 trap myexit 0
 
+iptables-save > $MYTMP/save || exit
+ip6tables-save > $MYTMP/save6 || exit
+
 clear_all() {
+  test -d $MYTMP || exit 3
   cat > $MYTMP/reset <<-!
 	*nat
 	:PREROUTING ACCEPT [0:0]
@@ -130,9 +136,6 @@ do
     echo "$i: Not a file or directory"
   fi
 done
-
-iptables-save > $MYTMP/save || exit
-ip6tables-save > $MYTMP/save6 || exit
 
 sort -u $MYTMP/list | sed -e 's;tests/;;' > $MYTMP/list.srt
 mv $MYTMP/list.srt $MYTMP/list
@@ -249,6 +252,3 @@ do
     echo "    audit passed $auditrun/$auditrun"
   fi
 done < $MYTMP/list
-
-iptables-restore < $MYTMP/save
-ip6tables-restore < $MYTMP/save6
