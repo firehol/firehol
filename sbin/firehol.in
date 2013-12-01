@@ -8221,37 +8221,37 @@ ret=0
 # just before each known directive.
 # These line numbers will be used for debugging the configuration script.
 
-${CAT_CMD} >"${FIREHOL_TMP}.awk" <<"EOF"
-/^[[:space:]]*action[[:space:]]/ { printf "FIREHOL_LINEID=${LINENO} " }
-/^[[:space:]]*blacklist[[:space:]]/ { printf "FIREHOL_LINEID=${LINENO} " }
-/^[[:space:]]*classify[[:space:]]/ { printf "FIREHOL_LINEID=${LINENO} " }
-/^[[:space:]]*client[[:space:]]/ { printf "FIREHOL_LINEID=${LINENO} " }
-/^[[:space:]]*connmark[[:space:]]/ { printf "FIREHOL_LINEID=${LINENO} " }
-/^[[:space:]]*dnat[[:space:]]/ { printf "FIREHOL_LINEID=${LINENO} " }
-/^[[:space:]]*dscp[[:space:]]/ { printf "FIREHOL_LINEID=${LINENO} " }
-/^[[:space:]]*ecn_shame[[:space:]]/ { printf "FIREHOL_LINEID=${LINENO} " }
-/^[[:space:]]*group[[:space:]]/ { printf "FIREHOL_LINEID=${LINENO} " }
-/^[[:space:]]*interface[[:space:]]/ { printf "FIREHOL_LINEID=${LINENO} " }
-/^[[:space:]]*iptables[[:space:]]/ { printf "FIREHOL_LINEID=${LINENO} " }
-/^[[:space:]]*ip6tables[[:space:]]/ { printf "FIREHOL_LINEID=${LINENO} " }
-/^[[:space:]]*mac[[:space:]]/ { printf "FIREHOL_LINEID=${LINENO} " }
-/^[[:space:]]*mark[[:space:]]/ { printf "FIREHOL_LINEID=${LINENO} " }
-/^[[:space:]]*masquerade[[:space:]]/ { printf "FIREHOL_LINEID=${LINENO} " }
-/^[[:space:]]*nat[[:space:]]/ { printf "FIREHOL_LINEID=${LINENO} " }
-/^[[:space:]]*policy[[:space:]]/ { printf "FIREHOL_LINEID=${LINENO} " }
-/^[[:space:]]*postprocess[[:space:]]/ { printf "FIREHOL_LINEID=${LINENO} " }
-/^[[:space:]]*protection[[:space:]]/ { printf "FIREHOL_LINEID=${LINENO} " }
-/^[[:space:]]*redirect[[:space:]]/ { printf "FIREHOL_LINEID=${LINENO} " }
-/^[[:space:]]*require_kernel_module[[:space:]]/ { printf "FIREHOL_LINEID=${LINENO} " }
-/^[[:space:]]*router[[:space:]]/ { printf "FIREHOL_LINEID=${LINENO} " }
-/^[[:space:]]*route[[:space:]]/ { printf "FIREHOL_LINEID=${LINENO} " }
-/^[[:space:]]*server[[:space:]]/ { printf "FIREHOL_LINEID=${LINENO} " }
-/^[[:space:]]*snat[[:space:]]/ { printf "FIREHOL_LINEID=${LINENO} " }
-/^[[:space:]]*tcpmss[[:space:]]/ { printf "FIREHOL_LINEID=${LINENO} " }
-/^[[:space:]]*tos[[:space:]]/ { printf "FIREHOL_LINEID=${LINENO} " }
-/^[[:space:]]*transparent_squid[[:space:]]/ { printf "FIREHOL_LINEID=${LINENO} " }
-/^[[:space:]]*transparent_proxy[[:space:]]/ { printf "FIREHOL_LINEID=${LINENO} " }
-/^[[:space:]]*version[[:space:]]/ { printf "FIREHOL_LINEID=${LINENO} " }
+${CAT_CMD} >"${FIREHOL_TMP}.awk" <<'EOF'
+$1 == "action" { printf "FIREHOL_LINEID=${LINENO} " }
+$1 == "blacklist" { printf "FIREHOL_LINEID=${LINENO} " }
+$1 == "classify" { printf "FIREHOL_LINEID=${LINENO} " }
+$1 == "client" { printf "FIREHOL_LINEID=${LINENO} " }
+$1 == "connmark" { printf "FIREHOL_LINEID=${LINENO} " }
+$1 == "dnat" { printf "FIREHOL_LINEID=${LINENO} " }
+$1 == "dscp" { printf "FIREHOL_LINEID=${LINENO} " }
+$1 == "ecn_shame" { printf "FIREHOL_LINEID=${LINENO} " }
+$1 == "group" { printf "FIREHOL_LINEID=${LINENO} " }
+$1 == "interface" { printf "FIREHOL_LINEID=${LINENO} " }
+$1 == "iptables" { printf "FIREHOL_LINEID=${LINENO} " }
+$1 == "ip6tables" { printf "FIREHOL_LINEID=${LINENO} " }
+$1 == "mac" { printf "FIREHOL_LINEID=${LINENO} " }
+$1 == "mark" { printf "FIREHOL_LINEID=${LINENO} " }
+$1 == "masquerade" { printf "FIREHOL_LINEID=${LINENO} " }
+$1 == "nat" { printf "FIREHOL_LINEID=${LINENO} " }
+$1 == "policy" { printf "FIREHOL_LINEID=${LINENO} " }
+$1 == "postprocess" { printf "FIREHOL_LINEID=${LINENO} " }
+$1 == "protection" { printf "FIREHOL_LINEID=${LINENO} " }
+$1 == "redirect" { printf "FIREHOL_LINEID=${LINENO} " }
+$1 == "require_kernel_module" { printf "FIREHOL_LINEID=${LINENO} " }
+$1 == "router" { printf "FIREHOL_LINEID=${LINENO} " }
+$1 == "route" { printf "FIREHOL_LINEID=${LINENO} " }
+$1 == "server" { printf "FIREHOL_LINEID=${LINENO} " }
+$1 == "snat" { printf "FIREHOL_LINEID=${LINENO} " }
+$1 == "tcpmss" { printf "FIREHOL_LINEID=${LINENO} " }
+$1 == "tos" { printf "FIREHOL_LINEID=${LINENO} " }
+$1 == "transparent_squid" { printf "FIREHOL_LINEID=${LINENO} " }
+$1 == "transparent_proxy" { printf "FIREHOL_LINEID=${LINENO} " }
+$1 == "version" { printf "FIREHOL_LINEID=${LINENO} " }
 { print }
 EOF
 
