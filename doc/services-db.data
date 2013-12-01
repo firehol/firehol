@@ -276,7 +276,6 @@ SERVICE dhcp
 		interface eth0 lan src "$mylan" dst "$myip"
 		&nbsp;&nbsp;&nbsp;&nbsp;client all accept
 		</programlisting>
-
 SERVICE dhcprelay
 	NAME DHCP Relay
 	EXAMPLE
@@ -298,6 +297,31 @@ SERVICE dhcprelay
 		<ulink url="http://www.ietf.org/rfc/rfc1812.txt">RFC 1812</ulink>
 		and section 4 of
 		<ulink url="http://www.ietf.org/rfc/rfc1542.txt">RFC 1542</ulink>
+
+SERVICE dhcpv6
+	NAME Dynamic Host Configuration Protocol for IPv6
+	WIKI https://en.wikipedia.org/wiki/DHCPv6
+	CPORT 546
+	SPORT udp/547
+	EXAMPLE
+		server dhcp accept src "fe80::/64"
+		client dhcp accept src "fe80::/64"
+	NOTES
+		The dhcp service is implemented as stateless rules.
+		-
+		Clients broadcast from a link-local address to the
+		multicast address ff02::1:2 to find a server. The
+		Server sends a unicast replies back to the client.
+		-
+		If the DHCPv6 service was stateful, the iptables
+		connection tracker would not match the packets and
+		deny to the reply so the service is implemented as
+		stateless rules.
+		-
+		Note that this does not affect the security of either
+		DHCP servers or clients, since only the specific ports are
+		allowed (there is no random port at either the server or the
+		client side).
 
 SERVICE dict
 	NAME Dictionary Server Protocol

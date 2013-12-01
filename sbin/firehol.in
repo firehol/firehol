@@ -1773,6 +1773,8 @@ rules_xbox() {
 rules_dhcp() {
         local mychain="${1}"; shift
 	local type="${1}"; shift
+
+	if ! push_namespace ipv4; then return 1; fi
 	
 	local in=in
 	local out=out
@@ -1794,6 +1796,37 @@ rules_dhcp() {
 	rule ${in}          action "$@" chain "${in}_${mychain}"  proto "udp" sport "68" dport "67" || return 1
 	rule ${out} reverse action "$@" chain "${out}_${mychain}" proto "udp" sport "68" dport "67" || return 1
 	
+	pop_namespace
+	return 0
+}
+
+rules_dhcpv6() {
+        local mychain="${1}"; shift
+	local type="${1}"; shift
+
+	if ! push_namespace ipv6; then return 1; fi
+
+	local in=in
+	local out=out
+	if [ "${type}" = "client" ]
+	then
+		in=out
+		out=in
+	fi
+
+	local client_ports="${DEFAULT_CLIENT_PORTS}"
+	if [ "${type}" = "client" -a "${work_cmd}" = "interface" ]
+	then
+		client_ports="${LOCAL_CLIENT_PORTS}"
+	fi
+
+	# ----------------------------------------------------------------------
+
+	set_work_function "Setting up rules for DHCPv6 (${type})"
+	rule ${in}          action "$@" chain "${in}_${mychain}"  proto "udp" sport "546" dport "547" || return 1
+	rule ${out} reverse action "$@" chain "${out}_${mychain}" proto "udp" sport "546" dport "547" || return 1
+
+	pop_namespace
 	return 0
 }
 
