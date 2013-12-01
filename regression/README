@@ -197,3 +197,14 @@ Note that there can only ever be a single audited output. It is not
 unthinkable that changes in future will mean that a different output
 could achieve identical aims... if this happens the suite will need
 to be updated to cope.
+
+
+Per-service test
+================
+The following produces a one-per-file set of tests for each of the
+services that FireHOL supports, when run from the top-level regression
+directory:
+  for i in $(awk '/^SERVICE / {print $2}' ../doc/services-db.data)
+  do
+    sed "s|ZZZ|$i|g" tests/services/0-template-config > tests/services/$i.conf
+  done
