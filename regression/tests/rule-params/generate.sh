@@ -20,7 +20,7 @@ trap myexit 0
 
 i=0
 IFS='|'
-sed -e '/^#/d' -e 's/		*/|/g' 1-common | \
+sed -e '/^#/d' -e 's/		*/|/g' 1-common > $MYTMP/list
 while read v4 v6
 do
   i=$(expr $i + 1)
@@ -37,10 +37,10 @@ do
   fi
 
   sed -e "s/ZZ4/$v4/g" -e "s/ZZ6/$v6/g" 0-template-config > rules-$j-$w.conf
-done
+done < $MYTMP/list
 
 IFS='|'
-sed -e '/^#/d' -e 's/		*/|/g' 2-router | \
+sed -e '/^#/d' -e 's/		*/|/g' 2-router > $MYTMP/list
 while read v4 v6
 do
   i=$(expr $i + 1)
@@ -57,10 +57,10 @@ do
   fi
 
   sed -e '/INTERFACE/,/END INTERFACE/d' -e "s/ZZ4/$v4/g" -e "s/ZZ6/$v6/g" 0-template-config > rules-$j-$w.conf
-done
+done < $MYTMP/list
 
 IFS='|'
-sed -e '/^#/d' -e 's/		*/|/g' 3-interface | \
+sed -e '/^#/d' -e 's/		*/|/g' 3-interface > $MYTMP/list
 while read v4 v6
 do
   i=$(expr $i + 1)
@@ -77,4 +77,4 @@ do
   fi
 
   sed -e '/ROUTER/,/END ROUTER/d' -e "s/ZZ4/$v4/g" -e "s/ZZ6/$v6/g" 0-template-config > rules-$j-$w.conf
-done
+done < $MYTMP/list
