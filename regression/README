@@ -199,13 +199,12 @@ could achieve identical aims... if this happens the suite will need
 to be updated to cope.
 
 
-Per-service test
-================
-The following produces a one-per-file set of tests for each of the
-services that FireHOL supports, when run from the top-level regression
-directory:
-  for i in $(awk '/^SERVICE / {print $2}' ../doc/services-db.data)
-  do
-    grep -q "manually created" tests/services/$i.conf || \
-    sed "s|ZZZ|$i|g" tests/services/0-template-config > tests/services/$i.conf
-  done
+Per-service/per rule tests
+==========================
+To regenerate these tests, run:
+  cd tests/services
+  ./generate.sh
+
+and/or:
+  cd tests/rule-params
+  ./generate.sh

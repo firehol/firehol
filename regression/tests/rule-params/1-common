@@ -1,0 +1,20 @@
+# IPv4					IPv6
+src "10.0.0.1"				src "::10.0.0.1"
+src not "10.0.0.1"			src not "::10.0.0.1"
+dst "10.0.0.1"				dst "::10.0.0.1"
+dst not "10.0.0.1"			dst not "::10.0.0.1"
+srctype UNICAST				srctype UNICAST
+srctype not UNICAST			srctype not UNICAST
+dsttype UNICAST				dsttype UNICAST
+dsttype not UNICAST			dsttype not UNICAST
+proto 47				proto 47
+proto not 47				proto not 47
+mac 00:01:01:00:00:e6			mac 00:01:01:00:00:e6
+mac not 00:01:01:00:00:e6		mac not 00:01:01:00:00:e6
+dscp "0x20 0x30"			dscp "0x20 0x30"
+dscp not class "BE EF"			dscp not class "BE EF"
+mark "20 55"				mark "20 55"
+mark not "20 55"			mark not "20 55"
+tos "Maximize-Throughput 0x10"		tos "Maximize-Throughput 0x10"
+tos not "Maximize-Throughput 0x10"	tos not "Maximize-Throughput 0x10"
+custom "-s 10.0.0.1"			custom "-s ::10.0.0.1"
