@@ -42,6 +42,14 @@
   </para>
 
   <para>
+    By default FireHOL will try to create both IPv4 and IPv6 rules
+    for each <command>interface</command>.
+    To make this explicit or restrict which rules are created write
+    <command>both interface</command>, <command>ipv4 interface</command>
+    or <command>ipv6 interface</command>.
+  </para>
+
+  <para>
     A configuration file contains zero or more
     <command>router</command> definitions, which look like this:
     <programlisting>DMZ_IF=eth0
@@ -57,6 +65,14 @@ router wan2dmz inface ${WAN_IF} outface ${DMZ_IF}
     A definition may contain zero or more subcommands.
     Note that a router is not required to specify network interfaces to
     operate on. See <xref linkend="def-router"/> for full details.
+  </para>
+
+  <para>
+    By default FireHOL will try to create both IPv4 and IPv6 rules
+    for each <command>router</command>.
+    To make this explicit or restrict which rules are created write
+    <command>both router</command>, <command>ipv4 router</command>
+    or <command>ipv6 router</command>.
   </para>
 
   <para>

@@ -11,6 +11,9 @@
 <refnamediv>
 <refdescriptor>firehol-client</refdescriptor>
 <refname>firehol-client</refname>
+<refname>firehol-client4</refname>
+<refname>firehol-client6</refname>
+<refname>firehol-client46</refname>
 <refpurpose>accept replies from a service</refpurpose>
 </refnamediv>
 
@@ -51,6 +54,28 @@
     matched to this service.
     See <xref linkend="rule-params"/> for more details.
   </para>
+  <note>
+    <para>
+      Writing <command>client4</command> is equivalent to
+      writing <command>ipv4 client</command> and ensures this subcommand
+      is applied only in the IPv4 firewall rules.
+    </para>
+    <para>
+      Writing <command>client6</command> is equivalent to
+      writing <command>ipv6 client</command> and ensures this subcommand
+      is applied only in the IPv6 firewall rules.
+    </para>
+    <para>
+      Writing <command>client46</command> is equivalent to
+      writing <command>both client</command> and ensures this subcommand
+      is applied in both the IPv4 and IPv6 firewall rules; it cannot be used
+      as part an interface or router that is IPv4 or IPv6 only.
+    </para>
+    <para>
+      The default <command>server</command> inherits its behaviour
+      from the enclosing interface or router.
+    </para>
+  </note>
 </refsect1>
 
 <refsect1><title>Examples</title>

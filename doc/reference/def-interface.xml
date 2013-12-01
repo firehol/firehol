@@ -11,6 +11,9 @@
 <refnamediv>
 <refdescriptor>firehol-interface</refdescriptor>
 <refname>firehol-interface</refname>
+<refname>firehol-interface4</refname>
+<refname>firehol-interface6</refname>
+<refname>firehol-interface46</refname>
 <refpurpose>create an interface definition</refpurpose>
 </refnamediv>
 
@@ -44,6 +47,26 @@
     for whatever reason must be in a <command>router</command> (see
     <xref linkend="def-router"/>).
   </para></note>
+  <note>
+    <para>
+      Writing <command>interface4</command> is equivalent to
+      writing <command>ipv4 interface</command> and ensures the defined
+      interface is created only in the IPv4 firewall along with
+      any rules within it.
+    </para>
+    <para>
+      Writing <command>interface6</command> is equivalent to
+      writing <command>ipv6 interface</command> and ensures the defined
+      interface is created only in the IPv6 firewall along with
+      any rules within it.
+    </para>
+    <para>
+      Writing <command>interface46</command> is equivalent to
+      writing <command>both interface</command> and ensures the defined
+      interface is created in both the IPv4 and IPv6 firewalls. Any rules
+      within it will also be applied to both, unless they specify otherwise.
+    </para>
+  </note>
 </refsect1>
 
 <refsect1><title>Parameters</title>

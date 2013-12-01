@@ -11,6 +11,9 @@
 <refnamediv>
 <refdescriptor>firehol-router</refdescriptor>
 <refname>firehol-router</refname>
+<refname>firehol-router4</refname>
+<refname>firehol-router6</refname>
+<refname>firehol-router46</refname>
 <refpurpose>create a router definition</refpurpose>
 </refnamediv>
 
@@ -36,6 +39,26 @@
     The behaviour of the defined router is controlled by adding subcommands
     (listed in <xref linkend="rt-see-also"/>).
   </para>
+  <note>
+    <para>
+      Writing <command>router4</command> is equivalent to
+      writing <command>ipv4 router</command> and ensures the defined
+      router is created only in the IPv4 firewall along with
+      any rules within it.
+    </para>
+    <para>
+      Writing <command>router6</command> is equivalent to
+      writing <command>ipv6 router</command> and ensures the defined
+      router is created only in the IPv6 firewall along with
+      any rules within it.
+    </para>
+    <para>
+      Writing <command>router46</command> is equivalent to
+      writing <command>both router</command> and ensures the defined
+      router is created in both the IPv4 and IPv6 firewalls. Any rules
+      within it will also be applied to both, unless they specify otherwise.
+    </para>
+  </note>
 </refsect1>
 
 <refsect1><title>Parameters</title>

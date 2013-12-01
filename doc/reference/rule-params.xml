@@ -12,7 +12,11 @@
 <refdescriptor>firehol-rule-params</refdescriptor>
 <refname>firehol-rule-params</refname>
 <refname>firehol-src</refname>
+<refname>firehol-src4</refname>
+<refname>firehol-src5</refname>
 <refname>firehol-dst</refname>
+<refname>firehol-dst4</refname>
+<refname>firehol-dst6</refname>
 <refname>firehol-srctype</refname>
 <refname>firehol-dsttype</refname>
 <refname>firehol-inface</refname>
@@ -36,12 +40,12 @@
 
   <para>Common</para>
   <cmdsynopsis id="rule-params-src">
-    <command>src</command>
+    <command>src|src4|src6</command>
     <arg choice="opt">not</arg>
     <arg choice="plain"><replaceable>host</replaceable></arg>
   </cmdsynopsis>
   <cmdsynopsis id="rule-params-dst">
-    <command>dst</command>
+    <command>dst|dst4|dst6</command>
     <arg choice="opt">not</arg>
     <arg choice="plain"><replaceable>host</replaceable></arg>
   </cmdsynopsis>
@@ -168,10 +172,24 @@
     source and destination IP addresses of the request respectively.
     <replaceable>host</replaceable> defines the IP or IPs to be matched.
     Examples:
-    <programlisting>server smtp accept src not 192.0.2.1
-server smtp accept dst 198.51.100.1
-server smtp accept src not 192.0.2.1 dst 198.51.100.1
+    <programlisting>server4 smtp accept src not 192.0.2.1
+server4 smtp accept dst 198.51.100.1
+server4 smtp accept src not 192.0.2.1 dst 198.51.100.1
+server6 smtp accept src not 2001:DB8:1::/64
+server6 smtp accept dst 2001:DB8:2::/64
+server6 smtp accept src not 2001:DB8:1::/64 dst 2001:DB8:2::/64
     </programlisting>
+    When attempting to create rules for both IPv4 and IPv6 it is generally
+    easier to use the <command>src4</command>, <command>src6</command>,
+    <command>dst4</command> and <command>dst6</command> pairs:
+    <programlisting>server46 smtp accept src4 192.0.2.1 src6 2001:DB8:1::/64
+server46 smtp accept dst4 198.51.100.1 dst6 2001:DB8:2::/64
+server46 smtp accept dst4 $d4 dst6 $d6 src4 not $d4 src6 not $s6
+    </programlisting>
+    To keep the rules sane, if one of the 4/6 pair specifies
+    <option>not</option>, then so must the other. If you do not want to use
+    both IPv4 and IPv6 addresses, you must specify the rule as IPv4 or
+    IPv6 only. It is always possible to write a second IPv4 or IPv6 only rule.
   </para>
   <para>
     Use <command>srctype</command> or <command>dsttype</command> to define

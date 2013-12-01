@@ -11,7 +11,13 @@
 <refnamediv>
 <refdescriptor>firehol-server</refdescriptor>
 <refname>firehol-server</refname>
+<refname>firehol-server4</refname>
+<refname>firehol-server6</refname>
+<refname>firehol-server46</refname>
 <refname>firehol-route</refname>
+<refname>firehol-route4</refname>
+<refname>firehol-route6</refname>
+<refname>firehol-route46</refname>
 <refpurpose>accept requests to a service</refpurpose>
 </refnamediv>
 
@@ -62,6 +68,31 @@
     matched to this service.
     See <xref linkend="rule-params"/> for more details.
   </para>
+  <note>
+    <para>
+      Writing <command>server4</command> is equivalent to
+      writing <command>ipv4 server</command> and ensures this subcommand
+      is applied only in the IPv4 firewall rules.
+    </para>
+    <para>
+      Writing <command>server6</command> is equivalent to
+      writing <command>ipv6 server</command> and ensures this subcommand
+      is applied only in the IPv6 firewall rules.
+    </para>
+    <para>
+      Writing <command>server46</command> is equivalent to
+      writing <command>both server</command> and ensures this subcommand
+      is applied in both the IPv4 and IPv6 firewall rules; it cannot be used
+      as part an interface or router that is IPv4 or IPv6 only.
+    </para>
+    <para>
+      The default <command>server</command> inherits its behaviour
+      from the enclosing interface or router.
+    </para>
+    <para>
+      The same rules apply to the variations of <command>route</command>.
+    </para>
+  </note>
 </refsect1>
 
 <refsect1><title>Examples</title>
