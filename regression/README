@@ -8,6 +8,9 @@ unless you are protected by a firewall elsewhere on your network.
 Run tests as:
   sudo ./regress -ok version...
 
+or to run with fast activation:
+  sudo ./regress -fast version...
+
 The version 'current' is special; it runs sbin/firehol.in in its current
 state, rather than getting it from the repository. You can also specify a
 specific firehol script if you need to e.g.:
