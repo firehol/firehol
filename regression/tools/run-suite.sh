@@ -87,6 +87,12 @@ clear_all() {
   st1=$?
 
   cat > $MYTMP/reset <<-!
+	*nat
+	:PREROUTING ACCEPT [0:0]
+	:INPUT ACCEPT [0:0]
+	:OUTPUT ACCEPT [0:0]
+	:POSTROUTING ACCEPT [0:0]
+	COMMIT
 	*mangle
 	:PREROUTING ACCEPT [0:0]
 	:INPUT ACCEPT [0:0]
@@ -166,7 +172,7 @@ do
   v4nnaud="$outdir/ipv4-no-nat/$d/$f.aud"
 
   echo "  Running $cfgfile"
-  sed -e "s;\$REGRESSDIR;$REGRESSDIR;g" "$here/tests/$testfile" > "$cfgfile"
+  cp "$here/tests/$testfile" "$cfgfile"
 
   audit4=""
   if grep -q "audit_results_ipv4" "$here/tests/$testfile"

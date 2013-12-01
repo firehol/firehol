@@ -73,7 +73,7 @@ It is written in such a way as to allow for being run by FireHOL with
 or without IPv6 capability (i.e. post or pre 2.0.0).
 
 In particular all scripts should have this line:
-  . $REGRESSDIR/include/regression.conf
+  . ${REGRESSDIR}include/regression.conf
 
 which will hide some syntax differences such as the ability to process
 ipv4/ipv6 tagged lines for older scripts.

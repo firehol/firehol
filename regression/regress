@@ -26,7 +26,7 @@ then
   export FIREHOL_FAST_ACTIVATION
 fi
 
-REGRESSDIR=`pwd`
+REGRESSDIR=`pwd`/
 export REGRESSDIR
 
 shift
