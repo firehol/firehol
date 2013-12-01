@@ -3434,6 +3434,18 @@ interface() {
 	return 0
 }
 
+interface4() {
+	ipv4 interface "$@"
+}
+
+interface6() {
+	ipv6 interface "$@"
+}
+
+interface46() {
+	both interface "$@"
+}
+
 
 router() {
         work_realcmd_helper ${FUNCNAME} "$@"
@@ -3480,6 +3492,18 @@ router() {
 	FIREHOL_ROUTING=1
 	
 	return 0
+}
+
+router4() {
+	ipv4 router "$@"
+}
+
+router6() {
+	ipv6 router "$@"
+}
+
+router46() {
+	both router "$@"
 }
 
 postprocess() {
@@ -3648,6 +3672,18 @@ server() {
 	return $?
 }
 
+server4() {
+	ipv4 server "$@"
+}
+
+server6() {
+	ipv6 server "$@"
+}
+
+server46() {
+	both server "$@"
+}
+
 client() {
         work_realcmd_secondary ${FUNCNAME} "$@"
 	
@@ -3656,12 +3692,36 @@ client() {
 	return $?
 }
 
+client4() {
+	ipv4 client "$@"
+}
+
+client6() {
+	ipv6 client "$@"
+}
+
+client46() {
+	both client "$@"
+}
+
 route() {
         work_realcmd_secondary ${FUNCNAME} "$@"
 	
 	require_work set router || return 1
 	smart_function server "$@"
 	return $?
+}
+
+route4() {
+	ipv4 route "$@"
+}
+
+route6() {
+	ipv6 route "$@"
+}
+
+route46() {
+	both route "$@"
 }
 
 
