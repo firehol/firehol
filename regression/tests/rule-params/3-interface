@@ -1,0 +1,5 @@
+# IPv4					IPv6
+uid 0					uid 0
+uid not 0				uid not 0
+gid 0					gid 0
+gid not 0				gid not 0

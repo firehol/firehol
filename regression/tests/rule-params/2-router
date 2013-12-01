@@ -1,0 +1,9 @@
+# IPv4					IPv6
+inface eth0				inface eth0
+inface not eth0				inface not eth0
+outface eth0				outface eth0
+outface not eth0			outface not eth0
+physin eth0				physin eth0
+physin not eth0				physin not eth0
+physout eth0				physout eth0
+physout not eth0			physout not eth0
