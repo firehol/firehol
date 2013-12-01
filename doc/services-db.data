@@ -87,20 +87,23 @@ SERVICE any
 	CPORT all
 	SPORT all
 	EXAMPLE
-		server any myname accept proto 47
+		server any <replaceable>myname</replaceable> accept proto 47
 	NOTES
 		Matches all traffic (all protocols, ports, etc), but does
 		not care about kernel modules and does not activate any
 		other service indirectly. In combination with the
 		<xref linkend="rule-params"/>
 		this service can match unusual traffic (e.g. GRE - protocol 47).
+		-
+		Note that you have to supply your own name in addition to
+		"any".
 
 SERVICE anystateless
 	NAME Match all traffic statelessly
 	CPORT all
 	SPORT all
 	EXAMPLE
-		server anystateless myname accept proto 47
+		server anystateless <replaceable>myname</replaceable> accept proto 47
 	NOTES
 		Matches all traffic (all protocols, ports, etc), but does
 		not care about kernel modules and does not activate any other
@@ -110,6 +113,9 @@ SERVICE anystateless
 		-
 		This service is identical to "any" but does not care about
 		the state of traffic.
+		-
+		Note that you have to supply your own name in addition to
+		"anystateless".
 
 SERVICE apcupsd
 	NAME APC UPS Daemon
@@ -491,19 +497,19 @@ SERVICE iax2
 		This service refers to IAX version 2.
 		There is also <xref linkend="service-iax"/>.
 
-SERVICE icmp
-	ALIAS ICMP
+SERVICE ICMP
+	ALIAS icmp
 	NAME Internet Control Message Protocol
 	WIKI  http://en.wikipedia.org/wiki/Internet_Control_Message_Protocol
 	EXAMPLE
-		server icmp accept
+		server ICMP accept
 
-SERVICE icmpv6
-	ALIAS ICMPV6
+SERVICE ICMPV6
+	ALIAS icmpv6
 	NAME Internet Control Message Protocol v6
 	WIKI http://en.wikipedia.org/wiki/ICMPv6
 	EXAMPLE
-		server icmpv6 accept
+		server ICMPV6 accept
 
 SERVICE icp
 	NAME Internet Cache Protocol
@@ -538,7 +544,7 @@ SERVICE ipv6error
 	EXAMPLE
 		server ipv6error accept
 	NOTES
-		A number of icmpv6 error types are not treated equally
+		Not all icmpv6 error types should be treated equally
 		inbound and outbound.
 		-
 		The ipv6error rule wraps all of them in the following way:
@@ -547,7 +553,7 @@ SERVICE ipv6error
 		<member>allow outgoing messages always</member>
 		</simplelist>
 		-
-		The following icmpv6 messages are handled:
+		The following ICMPv6 messages are handled:
 		<simplelist>
 		<member>destination-unreachable</member>
 		<member>packet-too-big</member>
@@ -557,14 +563,13 @@ SERVICE ipv6error
 		<member>unknown-option</member>
 		</simplelist>
 		-
-		FireHOL sets up both rules the same way. In a router
-		with inface being internal and outface being external
-		the following will meet the recommendations of
-		<ulink url="http://tools.ietf.org/html/rfc4890">RFC
-		4890</ulink>:
+		Interfaces should always have this set:
 		<programlisting>server ipv6error accept</programlisting>
 		-
-		Interfaces should always have this set:
+		In a router with inface being internal and outface being
+		external the following will meet the recommendations of
+		<ulink url="http://tools.ietf.org/html/rfc4890">RFC
+		4890</ulink>:
 		<programlisting>server ipv6error accept</programlisting>
 		-
 		Do not use:
@@ -574,15 +579,16 @@ SERVICE ipv6error
 
 SERVICE ipv6neigh
 	NAME IPv6 Neighbour discovery
+	WIKI https://en.wikipedia.org/wiki/Neighbor_Discovery_Protocol
 	EXAMPLE
 		client ipv6neigh accept
 		server ipv6neigh accept
 	NOTES
-		ICMPv6 does a great deal of automatic configuration
-		and discovery. There is no ARP and no need to manually
-		configure routers. To enable this functionality the
-		network neighbour and router solicitation/advertisement
-		messages should be enabled on each interface.
+		IPv6 uses the Neighbour Discovery Protocol to do automatic
+		configuration of routes and to replace ARP. To allow this
+		functionality the network neighbour and router
+		solicitation/advertisement messages should be enabled on
+		each interface.
 		-
 		These rules are stateless since advertisement can happen
 		automatically as well as on solicitation.
@@ -599,14 +605,15 @@ SERVICE ipv6neigh
 
 SERVICE ipv6router
 	NAME IPv6 Router discovery
+	WIKI https://en.wikipedia.org/wiki/Neighbor_Discovery_Protocol
 	EXAMPLE
 		client ipv6router accept
 	NOTES
-		ICMPv6 does a great deal of automatic configuration
-		and discovery. There is no ARP and no need to manually
-		configure routers. To enable this functionality the
-		network neighbour and router solicitation/advertisement
-		messages should be enabled on each interface.
+		IPv6 uses the Neighbour Discovery Protocol to do automatic
+		configuration of routes and to replace ARP. To allow this
+		functionality the network neighbour and router
+		solicitation/advertisement messages should be enabled on
+		each interface.
 		-
 		These rules are stateless since advertisement can happen
 		automatically as well as on solicitation.
