@@ -206,5 +206,6 @@ services that FireHOL supports, when run from the top-level regression
 directory:
   for i in $(awk '/^SERVICE / {print $2}' ../doc/services-db.data)
   do
+    grep -q "manually created" tests/services/$i.conf || \
     sed "s|ZZZ|$i|g" tests/services/0-template-config > tests/services/$i.conf
   done
