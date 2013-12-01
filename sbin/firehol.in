@@ -603,6 +603,7 @@ fi
 "${MKDIR_CMD}" "${FIREHOL_CHAINS_DIR}"			|| exit 1
 "${MKDIR_CMD}" "${FIREHOL_DIR}/fast"			|| exit 1
 "${MKDIR_CMD}" "${FIREHOL_DIR}/fast/tables"		|| exit 1
+"${MKDIR_CMD}" "${FIREHOL_DIR}/fast/table6s"		|| exit 1
 
 
 # prepare the file that will hold all modules to be loaded.
@@ -3496,8 +3497,17 @@ runcmd() {
 # in fast activation mode we catch all /sbin/iptables commands and instead of
 # executing them, we generate an iptables-restore compatible file.
 
-iptables_fast() {
+run_fast() {
 	local t=filter
+	local cmd="$1"
+	shift
+
+	if [ "${cmd}" = "ip6tables" ]
+	then
+		n=table6
+	else
+		n=table
+	fi
 	
 	if [ "z$1" = "z-t" ]
 	then
@@ -3506,28 +3516,28 @@ iptables_fast() {
 	fi
 	
 	case "$1" in
-		-P)	echo ":$2 $3 [0:0]" >>$FIREHOL_DIR/fast/table.${t}.policy
+		-P)	echo ":$2 $3 [0:0]" >>$FIREHOL_DIR/fast/${n}.${t}.policy
 			;;
 		
-		-N)	echo ":$2 - [0:0]" >>$FIREHOL_DIR/fast/table.${t}.chains
+		-N)	echo ":$2 - [0:0]" >>$FIREHOL_DIR/fast/${n}.${t}.chains
 			;;
 		
-		-A)	${CAT_CMD} <<EOFA >>$FIREHOL_DIR/fast/table.${t}.rules
+		-A)	${CAT_CMD} <<EOFA >>$FIREHOL_DIR/fast/${n}.${t}.rules
 ${@}
 EOFA
 			;;
 			
-		-I)	${CAT_CMD} <<EOFI >>$FIREHOL_DIR/fast/table.${t}.rules
+		-I)	${CAT_CMD} <<EOFI >>$FIREHOL_DIR/fast/${n}.${t}.rules
 ${@}
 EOFI
 			;;
 		
 		# if it is none of the above, we execute it normally.
-		*)	echo "Ignoring command 'iptables -t ${t} ${@}'"
+		*)	echo "Ignoring command '${cmd} -t ${t} ${@}'"
 			;;
 	esac
 	
-	test ! -f $FIREHOL_DIR/fast/tables/${t} && ${TOUCH_CMD} $FIREHOL_DIR/fast/tables/${t}
+	test ! -f $FIREHOL_DIR/fast/${n}s/${t} && ${TOUCH_CMD} $FIREHOL_DIR/fast/${n}s/${t}
 	return 0
 }
 
@@ -3537,7 +3547,7 @@ iptables() {
 	
 	if [ $FIREHOL_FAST_ACTIVATION -eq 1 ]
 	then
-		iptables_fast "${@}"
+		run_fast iptables "${@}"
 	else
 		postprocess "${IPTABLES_CMD}" "$@"
 		FIREHOL_COMMAND_COUNTER=$[FIREHOL_COMMAND_COUNTER + 1]
@@ -3552,7 +3562,7 @@ ip6tables() {
 	
 	if [ $FIREHOL_FAST_ACTIVATION -eq 1 ]
 	then
-		ip6tables_fast "${@}"
+		run_fast ip6tables "${@}"
 	else
 		postprocess "${IP6TABLES_CMD}" "$@"
 		FIREHOL_COMMAND6_COUNTER=$[FIREHOL_COMMAND6_COUNTER + 1]
@@ -8310,10 +8320,23 @@ then
 			echo "COMMIT"
 		) >>${FIREHOL_OUTPUT}.fast
 	done
+
+	cd $FIREHOL_DIR/fast/table6s || exit 1
+	for firehol_table in `ls`
+	do
+		(
+			echo "*${firehol_table}"
+			test -f $FIREHOL_DIR/fast/table6.${firehol_table}.policy && ${CAT_CMD} $FIREHOL_DIR/fast/table6.${firehol_table}.policy
+			test -f $FIREHOL_DIR/fast/table6.${firehol_table}.chains && ${CAT_CMD} $FIREHOL_DIR/fast/table6.${firehol_table}.chains
+			test -f $FIREHOL_DIR/fast/table6.${firehol_table}.rules  && ${CAT_CMD} $FIREHOL_DIR/fast/table6.${firehol_table}.rules
+			echo "COMMIT"
+		) >>${FIREHOL_OUTPUT}.fast6
+	done
 	
 	if [ "${FIREHOL_MODE}" = "DEBUG" ]
 	then
 		${CAT_CMD} ${FIREHOL_OUTPUT}.fast
+		${CAT_CMD} ${FIREHOL_OUTPUT}.fast6
 		exit 1
 	fi
 	
@@ -8341,7 +8364,18 @@ then
 			
 			# the rest of the script will restore the original firewall
 		else
-			finalize_firewall
+			${IP6TABLES_RESTORE_CMD} <${FIREHOL_OUTPUT}.fast6 >>${FIREHOL_OUTPUT}.log 2>&1
+			if [ $? -ne 0 ]
+			then
+				# it failed
+				runtime_error error "CANNOT APPLY IN FAST MODE" FIN "${IP6TABLES_RESTORE_CMD}" "<${FIREHOL_OUTPUT}.fast6"
+
+				work_runtime_error=$[work_runtime_error+1]
+
+				# the rest of the script will restore the original firewall
+			else
+				finalize_firewall
+			fi
 		fi
 	fi
 else
