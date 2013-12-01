@@ -14,6 +14,8 @@ if (@ARGV > 0 and $ARGV[0] eq "-n") {
 while (<>) {
   # Remove comments
   next if (/^#/);
+  s/\r//g;
+  chomp;
 
   # Set any packet counters to 0
   s/\[[0-9][0-9]*:[0-9][0-9]*\]$/[0:0]/;
@@ -41,10 +43,20 @@ while (<>) {
   push @{$tables{$table}}, $_;
 }
 
+if ($skipnat or not defined($tables{"*nat"})) {
+  my @fakenat = ();
+  push @fakenat, "*nat";
+  push @fakenat, ":PREROUTING ACCEPT [0:0]";
+  push @fakenat, ":INPUT ACCEPT [0:0]";
+  push @fakenat, ":OUTPUT ACCEPT [0:0]";
+  push @fakenat, ":POSTROUTING ACCEPT [0:0]";
+  push @fakenat, "COMMIT";
+  $tables{"*nat"} = \@fakenat;
+}
+
 foreach $table (sort(keys(%tables))) {
-  next if $skipnat and $table =~ /^\* *nat\b/;
   my @lines = @{$tables{$table}};
   print "#\n";
-  print join('', @lines);
+  print join("\n", @lines) . "\n";
   print "#\n";
 }
