@@ -1,6 +1,6 @@
 # Process this file with automake to produce Makefile.in
 
-DIST_SUBDIRS = xsl latex tools reference man
+DIST_SUBDIRS = xsl latex tools reference
 
 dochtmldir = $(htmldir)/html
 
@@ -196,7 +196,8 @@ db-valid: \
 	touch db-valid
 
 $(FIREHOLMANUALMAN_GENERATED): db-valid xsl/manpages.xsl
-	$(MAKE) -C man manpages
+	mkdir -p man
+	(cd man && $(XSLTPROC) $(manpages_XSLTPROC_FLAGS) manpages.xsl $(FIREHOLMANUALXML_MASTER))
 
 firehol-manual.html: db-valid xsl/html.xsl $(FIREHOLMANUALXML_CSS)
 	$(XSLTPROC) $(XSLTPROC_FLAGS) -o $@ html.xsl $(FIREHOLMANUALXML_MASTER)

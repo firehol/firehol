@@ -87,7 +87,6 @@ AC_CONFIG_FILES([
 	doc/latex/Makefile
 	doc/xsl/Makefile
 	doc/reference/Makefile
-	doc/man/Makefile
 	examples/Makefile
 	etc/Makefile
 	packaging/Makefile
