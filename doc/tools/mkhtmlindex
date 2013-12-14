@@ -76,12 +76,47 @@ sub open_file {
   return $fh;
 }
 
-if (@ARGV != 2) {
-  print STDERR "Usage: mkhtmlindex output.html firehol-script\n";
+if (@ARGV < 3) {
+  print STDERR "Usage: mkhtmlindex output.html firehol-script html-files\n";
   exit 1;
 }
 
-$fh = open_file($ARGV[1]);
+my $output = shift @ARGV;
+my $script_file = shift @ARGV;
+
+sub slurp {
+  my $file = shift;
+  open FILE, "<$file" or die "Couldn't open file: $!";
+  binmode FILE;
+  my @list = <FILE>;
+  close FILE;
+  return \@list;
+}
+
+my @html_xref = ();
+foreach my $filename (@ARGV) {
+  push @html_xref, { name => $filename, contents => slurp($filename) };
+}
+
+sub get_href {
+  my $k = shift;
+  my @match = ();
+  my $matchfile;
+  foreach my $f (@_) {
+    my $name = $$f{name};
+    my @l = grep /a name="service-$k"/, @{$$f{contents}};
+    push @match, @l;
+    $matchfile = $name if (@l > 0);
+  }
+  return undef if (@match == 0);
+  if (@match > 1) {
+     print STDERR "Multiple hrefs for $k\n";
+     return undef;
+  }
+  return "$matchfile#service-$k";
+}
+
+$fh = open_file($script_file);
 
 # Extract service information from script
 my %services = ();
@@ -97,7 +132,7 @@ while (<$fh>) {
 }
 close $fh;
 
-open O, ">$ARGV[0]" or die;
+open O, ">$output" or die;
 
 print O <<'!'
 <html>
@@ -120,7 +155,9 @@ sub format_entries {
   my @fkeys = @{$fkeys};
   my @use = grep /^$c/i, @fkeys;
   foreach my $k (@use) {
-    print O "        <a href=\"firehol-manual.html#service-$k\">$k</a>\n";
+    my $href = get_href($k, @html_xref);
+    die "Unable to get href for $k" unless $href;
+    print O "        <a href=\"$href\">$k</a>\n";
   }
 }
 

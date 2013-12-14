@@ -134,8 +134,8 @@ FIREHOLMANUALMAN_GENERATED = \
 	man/man5/firehol-version.5
 
 FIREHOLMANUALHTML_GENERATED = \
-	firehol-services.html \
-	firehol-manual.html
+	firehol-manual.html \
+	firehol-services.html
 
 FIREHOLMANUALPDF_GENERATED = \
 	firehol-manual.pdf
@@ -183,8 +183,10 @@ services-generated: $(FIREHOLIN) services-db.data
 	$(MKSERVICELIST) services-a.xml $+
 	touch services-generated
 
-firehol-services.html:
-	$(MKHTMLINDEX) $@ $(FIREHOLIN)
+# Create versions for the chunked and single-page manuals
+firehol-services.html: firehol-manual.html
+	$(MKHTMLINDEX) index-services.html $(FIREHOLIN) rn*.html
+	$(MKHTMLINDEX) $@ $(FIREHOLIN) firehol-manual.html
 
 db-valid: \
 		$(FIREHOLMANUALXML_MASTER) \
@@ -199,7 +201,10 @@ $(FIREHOLMANUALMAN_GENERATED): db-valid xsl/manpages.xsl
 	mkdir -p man
 	(cd man && $(XSLTPROC) $(manpages_XSLTPROC_FLAGS) manpages.xsl $(FIREHOLMANUALXML_MASTER))
 
-firehol-manual.html: db-valid xsl/html.xsl $(FIREHOLMANUALXML_CSS)
+# First create a chunked version (creates index.html, ignores -o) for
+# upload to the website, then the single-page version to be included in tar
+firehol-manual.html: db-valid xsl/html.xsl xsl/chunk.xsl $(FIREHOLMANUALXML_CSS)
+	$(XSLTPROC) $(XSLTPROC_FLAGS) -o $@ chunk.xsl $(FIREHOLMANUALXML_MASTER)
 	$(XSLTPROC) $(XSLTPROC_FLAGS) -o $@ html.xsl $(FIREHOLMANUALXML_MASTER)
 
 firehol-manual.pdf: db-valid xsl/dblatex.xsl latex/dbfirehol.sty

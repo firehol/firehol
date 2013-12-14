@@ -18,6 +18,10 @@ doc/firehol-manual-info.xml
 doc/firehol-manual.html
 doc/firehol-manual.pdf
 doc/firehol-services.html
+doc/index-services.html
+doc/index.html
+doc/ch*.html
+doc/rn*.html
 doc/services-?.xml
 sbin/firehol
 sbin/fireqos
