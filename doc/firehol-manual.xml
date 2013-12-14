@@ -6,7 +6,7 @@
                 "http://www.oasis-open.org/docbook/xml/4.5/docbookx.dtd">
    %DocBookDTD;
                ]>
-<!-- For license information see firehol-manual-info.xml.in -->
+<!-- For license information see chapter-intro.xml -->
 <book>
   <bookinfo>
     <title>FireHOL Manual</title>

@@ -299,7 +299,7 @@ foreach my $k (@keys) {
     $curr_alpha = $alpha;
     print $o '<!DOCTYPE refsect1 PUBLIC "-//OASIS//DTD DocBook XML V4.1.2//EN"' . "\n";
     print $o '        "http://www.oasis-open.org/docbook/xml/4.5/docbookx.dtd">'."\n";
-    print $o '<!-- For license information see firehol-manual-info.xml.in -->'."\n";
+    print $o '<!-- For license information see chapter-intro.xml -->'."\n";
     print $o "<refsect1><title>Services starting with $alpha</title>\n";
 
     my $started = undef;
@@ -427,7 +427,7 @@ for my $lcalpha (@alphabet) {
   open $o, ">$fn" or die;
   print $o '<!DOCTYPE refsect1 PUBLIC "-//OASIS//DTD DocBook XML V4.1.2//EN"' . "\n";
   print $o '        "http://www.oasis-open.org/docbook/xml/4.5/docbookx.dtd">'."\n";
-  print $o '<!-- For license information see firehol-manual-info.xml.in -->'."\n";
+  print $o '<!-- For license information see chapter-intro.xml -->'."\n";
   print $o "<refsect1><title>Services starting with $alpha</title>\n";
   print $o "<para>Currently no services start with $alpha</para>\n";
   print $o "</refsect1>\n";
