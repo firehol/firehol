@@ -9,8 +9,8 @@
 <!-- For license information see chapter-intro.xml -->
 <book>
   <bookinfo>
-    <title>FireHOL Manual</title>
-    <subtitle>Firewalling with FireHOL</subtitle>
+    <title>FireHOL + FireQOS Manual</title>
+    <subtitle>Take control of your network with FireHOL and FireQOS</subtitle>
     <productname>FireHOL</productname>
     <corpauthor>FireHOL Team</corpauthor>
     <date>Built &PACKAGE_BUILT_DATE;</date>
@@ -29,132 +29,166 @@
 
   <xi:include xmlns:xi="http://www.w3.org/2001/XInclude"
                   href="chapter-intro.xml" />
-<!--
-  <xi:include xmlns:xi="http://www.w3.org/2001/XInclude"
-                  href="chapter-language.xml" />
-  <xi:include xmlns:xi="http://www.w3.org/2001/XInclude"
-                  href="chapter-security.xml" />
-  <xi:include xmlns:xi="http://www.w3.org/2001/XInclude"
-                  href="chapter-troubleshooting.xml" />
-  -->
-  <xi:include xmlns:xi="http://www.w3.org/2001/XInclude"
-                  href="chapter-rfc4890.xml" />
 
-  <reference><title>FireHOL Reference</title>
+  <part id="part-firehol"><title>FireHOL</title>
     <xi:include xmlns:xi="http://www.w3.org/2001/XInclude"
-                          href="reference/firehol.xml" />
+                    href="firehol/chapter-configuration.xml" />
     <xi:include xmlns:xi="http://www.w3.org/2001/XInclude"
-                          href="reference/firehol-conf.xml" />
+                    href="firehol/chapter-security.xml" />
     <xi:include xmlns:xi="http://www.w3.org/2001/XInclude"
-                          href="reference/firehol-variables.xml" />
+                  href="firehol/chapter-troubleshooting.xml" />
+  </part>
 
+  <part id="part-fireqos"><title>FireQOS</title>
     <xi:include xmlns:xi="http://www.w3.org/2001/XInclude"
-                          href="reference/def-interface.xml" />
-    <xi:include xmlns:xi="http://www.w3.org/2001/XInclude"
-                          href="reference/def-router.xml" />
+                    href="fireqos/chapter-configuration.xml" />
+  </part>
 
-    <xi:include xmlns:xi="http://www.w3.org/2001/XInclude"
-                          href="reference/cmd-policy.xml" />
-    <xi:include xmlns:xi="http://www.w3.org/2001/XInclude"
-                          href="reference/cmd-protection.xml" />
-    <xi:include xmlns:xi="http://www.w3.org/2001/XInclude"
-                          href="reference/cmd-server.xml" />
-    <xi:include xmlns:xi="http://www.w3.org/2001/XInclude"
-                          href="reference/cmd-client.xml" />
-    <xi:include xmlns:xi="http://www.w3.org/2001/XInclude"
-                          href="reference/cmd-group.xml" />
+  <part id="part-firehol-reference"><title>FireHOL Reference</title>
+    <reference><title>Running and Configuring</title>
+      <xi:include xmlns:xi="http://www.w3.org/2001/XInclude"
+                            href="firehol-reference/firehol.xml" />
+      <xi:include xmlns:xi="http://www.w3.org/2001/XInclude"
+                            href="firehol-reference/firehol-conf.xml" />
+      <xi:include xmlns:xi="http://www.w3.org/2001/XInclude"
+                            href="firehol-reference/firehol-variables.xml" />
 
-    <xi:include xmlns:xi="http://www.w3.org/2001/XInclude"
-                          href="reference/helpconf-version.xml" />
-    <xi:include xmlns:xi="http://www.w3.org/2001/XInclude"
-                          href="reference/helpconf-action.xml" />
-    <xi:include xmlns:xi="http://www.w3.org/2001/XInclude"
-                          href="reference/helpconf-blacklist.xml" />
-    <xi:include xmlns:xi="http://www.w3.org/2001/XInclude"
-                          href="reference/helpconf-classify.xml" />
-    <xi:include xmlns:xi="http://www.w3.org/2001/XInclude"
-                          href="reference/helpconf-connmark.xml" />
-    <xi:include xmlns:xi="http://www.w3.org/2001/XInclude"
-                          href="reference/helpconf-dscp.xml" />
-    <xi:include xmlns:xi="http://www.w3.org/2001/XInclude"
-                          href="reference/helpconf-mac.xml" />
-    <xi:include xmlns:xi="http://www.w3.org/2001/XInclude"
-                          href="reference/helpconf-mark.xml" />
-    <xi:include xmlns:xi="http://www.w3.org/2001/XInclude"
-                          href="reference/helpconf-nat.xml" />
-    <xi:include xmlns:xi="http://www.w3.org/2001/XInclude"
-                          href="reference/helpconf-proxy.xml" />
-    <xi:include xmlns:xi="http://www.w3.org/2001/XInclude"
-                          href="reference/helpconf-tos.xml" />
-    <xi:include xmlns:xi="http://www.w3.org/2001/XInclude"
-                          href="reference/helpconf-tosfix.xml" />
+    </reference>
 
-    <xi:include xmlns:xi="http://www.w3.org/2001/XInclude"
-                          href="reference/helpcmd-iptables.xml" />
-    <xi:include xmlns:xi="http://www.w3.org/2001/XInclude"
-                          href="reference/helpcmd-masquerade.xml" />
-    <xi:include xmlns:xi="http://www.w3.org/2001/XInclude"
-                          href="reference/helpcmd-tcpmss.xml" />
+    <reference><title>Definition Commands</title>
+      <xi:include xmlns:xi="http://www.w3.org/2001/XInclude"
+                            href="firehol-reference/def-interface.xml" />
+      <xi:include xmlns:xi="http://www.w3.org/2001/XInclude"
+                            href="firehol-reference/def-router.xml" />
+    </reference>
 
+    <reference><title>Rule Subcommands</title>
+      <xi:include xmlns:xi="http://www.w3.org/2001/XInclude"
+                            href="firehol-reference/cmd-policy.xml" />
+      <xi:include xmlns:xi="http://www.w3.org/2001/XInclude"
+                            href="firehol-reference/cmd-protection.xml" />
+      <xi:include xmlns:xi="http://www.w3.org/2001/XInclude"
+                            href="firehol-reference/cmd-server.xml" />
+      <xi:include xmlns:xi="http://www.w3.org/2001/XInclude"
+                            href="firehol-reference/cmd-client.xml" />
+      <xi:include xmlns:xi="http://www.w3.org/2001/XInclude"
+                            href="firehol-reference/cmd-group.xml" />
+    </reference>
+
+    <reference><title>Optional Parameters and Actions</title>
+      <xi:include xmlns:xi="http://www.w3.org/2001/XInclude"
+                            href="firehol-reference/rule-params.xml" />
+      <xi:include xmlns:xi="http://www.w3.org/2001/XInclude"
+                            href="firehol-reference/actions.xml" />
+    </reference>
+
+    <reference><title>Helper Commands</title>
+      <xi:include xmlns:xi="http://www.w3.org/2001/XInclude"
+                            href="firehol-reference/helpcmd-iptables.xml" />
+      <xi:include xmlns:xi="http://www.w3.org/2001/XInclude"
+                            href="firehol-reference/helpcmd-masquerade.xml" />
+      <xi:include xmlns:xi="http://www.w3.org/2001/XInclude"
+                            href="firehol-reference/helpcmd-tcpmss.xml" />
+    </reference>
+
+    <reference><title>Configuration Helper Commands</title>
+      <xi:include xmlns:xi="http://www.w3.org/2001/XInclude"
+                            href="firehol-reference/helpconf-version.xml" />
+      <xi:include xmlns:xi="http://www.w3.org/2001/XInclude"
+                            href="firehol-reference/helpconf-action.xml" />
+      <xi:include xmlns:xi="http://www.w3.org/2001/XInclude"
+                            href="firehol-reference/helpconf-blacklist.xml" />
+      <xi:include xmlns:xi="http://www.w3.org/2001/XInclude"
+                            href="firehol-reference/helpconf-classify.xml" />
+      <xi:include xmlns:xi="http://www.w3.org/2001/XInclude"
+                            href="firehol-reference/helpconf-connmark.xml" />
+      <xi:include xmlns:xi="http://www.w3.org/2001/XInclude"
+                            href="firehol-reference/helpconf-dscp.xml" />
+      <xi:include xmlns:xi="http://www.w3.org/2001/XInclude"
+                            href="firehol-reference/helpconf-mac.xml" />
+      <xi:include xmlns:xi="http://www.w3.org/2001/XInclude"
+                            href="firehol-reference/helpconf-mark.xml" />
+      <xi:include xmlns:xi="http://www.w3.org/2001/XInclude"
+                            href="firehol-reference/helpconf-nat.xml" />
+      <xi:include xmlns:xi="http://www.w3.org/2001/XInclude"
+                            href="firehol-reference/helpconf-proxy.xml" />
+      <xi:include xmlns:xi="http://www.w3.org/2001/XInclude"
+                            href="firehol-reference/helpconf-tos.xml" />
+      <xi:include xmlns:xi="http://www.w3.org/2001/XInclude"
+                            href="firehol-reference/helpconf-tosfix.xml" />
+    </reference>
+
+    <reference><title>Services Reference</title>
+      <xi:include xmlns:xi="http://www.w3.org/2001/XInclude"
+                            href="firehol-reference/services.xml" />
+      <xi:include xmlns:xi="http://www.w3.org/2001/XInclude"
+                            href="firehol-reference/services-a.xml" />
+      <xi:include xmlns:xi="http://www.w3.org/2001/XInclude"
+                          href="firehol-reference/services-b.xml" />
+      <xi:include xmlns:xi="http://www.w3.org/2001/XInclude"
+                            href="firehol-reference/services-c.xml" />
+      <xi:include xmlns:xi="http://www.w3.org/2001/XInclude"
+                            href="firehol-reference/services-d.xml" />
+      <xi:include xmlns:xi="http://www.w3.org/2001/XInclude"
+                            href="firehol-reference/services-e.xml" />
+      <xi:include xmlns:xi="http://www.w3.org/2001/XInclude"
+                            href="firehol-reference/services-f.xml" />
+      <xi:include xmlns:xi="http://www.w3.org/2001/XInclude"
+                            href="firehol-reference/services-g.xml" />
+      <xi:include xmlns:xi="http://www.w3.org/2001/XInclude"
+                            href="firehol-reference/services-h.xml" />
+      <xi:include xmlns:xi="http://www.w3.org/2001/XInclude"
+                            href="firehol-reference/services-i.xml" />
+      <xi:include xmlns:xi="http://www.w3.org/2001/XInclude"
+                            href="firehol-reference/services-j.xml" />
+      <xi:include xmlns:xi="http://www.w3.org/2001/XInclude"
+                            href="firehol-reference/services-k.xml" />
+      <xi:include xmlns:xi="http://www.w3.org/2001/XInclude"
+                            href="firehol-reference/services-l.xml" />
+      <xi:include xmlns:xi="http://www.w3.org/2001/XInclude"
+                            href="firehol-reference/services-m.xml" />
+      <xi:include xmlns:xi="http://www.w3.org/2001/XInclude"
+                          href="firehol-reference/services-n.xml" />
+      <xi:include xmlns:xi="http://www.w3.org/2001/XInclude"
+                            href="firehol-reference/services-o.xml" />
+      <xi:include xmlns:xi="http://www.w3.org/2001/XInclude"
+                            href="firehol-reference/services-p.xml" />
+      <xi:include xmlns:xi="http://www.w3.org/2001/XInclude"
+                            href="firehol-reference/services-q.xml" />
+      <xi:include xmlns:xi="http://www.w3.org/2001/XInclude"
+                            href="firehol-reference/services-r.xml" />
+      <xi:include xmlns:xi="http://www.w3.org/2001/XInclude"
+                            href="firehol-reference/services-s.xml" />
+      <xi:include xmlns:xi="http://www.w3.org/2001/XInclude"
+                            href="firehol-reference/services-t.xml" />
+      <xi:include xmlns:xi="http://www.w3.org/2001/XInclude"
+                            href="firehol-reference/services-u.xml" />
+      <xi:include xmlns:xi="http://www.w3.org/2001/XInclude"
+                            href="firehol-reference/services-v.xml" />
+      <xi:include xmlns:xi="http://www.w3.org/2001/XInclude"
+                            href="firehol-reference/services-w.xml" />
+      <xi:include xmlns:xi="http://www.w3.org/2001/XInclude"
+                            href="firehol-reference/services-x.xml" />
+      <xi:include xmlns:xi="http://www.w3.org/2001/XInclude"
+                            href="firehol-reference/services-y.xml" />
+      <xi:include xmlns:xi="http://www.w3.org/2001/XInclude"
+                            href="firehol-reference/services-z.xml" />
+    </reference>
+  </part>
+
+  <part id="part-fireqos-reference"><title>FireQOS Reference</title>
+    <reference><title>Running and Configuring</title>
+      <xi:include xmlns:xi="http://www.w3.org/2001/XInclude"
+                            href="fireqos-reference/fireqos.xml" />
+      <xi:include xmlns:xi="http://www.w3.org/2001/XInclude"
+                            href="fireqos-reference/fireqos-conf.xml" />
+    </reference>
+  </part>
+
+  <part id="part-appendices"><title>Appendices</title>
     <xi:include xmlns:xi="http://www.w3.org/2001/XInclude"
-                          href="reference/rule-params.xml" />
-    <xi:include xmlns:xi="http://www.w3.org/2001/XInclude"
-                          href="reference/actions.xml" />
-    <xi:include xmlns:xi="http://www.w3.org/2001/XInclude"
-                          href="reference/services.xml" />
-    <xi:include xmlns:xi="http://www.w3.org/2001/XInclude"
-                          href="reference/services-a.xml" />
-    <xi:include xmlns:xi="http://www.w3.org/2001/XInclude"
-                          href="reference/services-b.xml" />
-    <xi:include xmlns:xi="http://www.w3.org/2001/XInclude"
-                          href="reference/services-c.xml" />
-    <xi:include xmlns:xi="http://www.w3.org/2001/XInclude"
-                          href="reference/services-d.xml" />
-    <xi:include xmlns:xi="http://www.w3.org/2001/XInclude"
-                          href="reference/services-e.xml" />
-    <xi:include xmlns:xi="http://www.w3.org/2001/XInclude"
-                          href="reference/services-f.xml" />
-    <xi:include xmlns:xi="http://www.w3.org/2001/XInclude"
-                          href="reference/services-g.xml" />
-    <xi:include xmlns:xi="http://www.w3.org/2001/XInclude"
-                          href="reference/services-h.xml" />
-    <xi:include xmlns:xi="http://www.w3.org/2001/XInclude"
-                          href="reference/services-i.xml" />
-    <xi:include xmlns:xi="http://www.w3.org/2001/XInclude"
-                          href="reference/services-j.xml" />
-    <xi:include xmlns:xi="http://www.w3.org/2001/XInclude"
-                          href="reference/services-k.xml" />
-    <xi:include xmlns:xi="http://www.w3.org/2001/XInclude"
-                          href="reference/services-l.xml" />
-    <xi:include xmlns:xi="http://www.w3.org/2001/XInclude"
-                          href="reference/services-m.xml" />
-    <xi:include xmlns:xi="http://www.w3.org/2001/XInclude"
-                          href="reference/services-n.xml" />
-    <xi:include xmlns:xi="http://www.w3.org/2001/XInclude"
-                          href="reference/services-o.xml" />
-    <xi:include xmlns:xi="http://www.w3.org/2001/XInclude"
-                          href="reference/services-p.xml" />
-    <xi:include xmlns:xi="http://www.w3.org/2001/XInclude"
-                          href="reference/services-q.xml" />
-    <xi:include xmlns:xi="http://www.w3.org/2001/XInclude"
-                          href="reference/services-r.xml" />
-    <xi:include xmlns:xi="http://www.w3.org/2001/XInclude"
-                          href="reference/services-s.xml" />
-    <xi:include xmlns:xi="http://www.w3.org/2001/XInclude"
-                          href="reference/services-t.xml" />
-    <xi:include xmlns:xi="http://www.w3.org/2001/XInclude"
-                          href="reference/services-u.xml" />
-    <xi:include xmlns:xi="http://www.w3.org/2001/XInclude"
-                          href="reference/services-v.xml" />
-    <xi:include xmlns:xi="http://www.w3.org/2001/XInclude"
-                          href="reference/services-w.xml" />
-    <xi:include xmlns:xi="http://www.w3.org/2001/XInclude"
-                          href="reference/services-x.xml" />
-    <xi:include xmlns:xi="http://www.w3.org/2001/XInclude"
-                          href="reference/services-y.xml" />
-    <xi:include xmlns:xi="http://www.w3.org/2001/XInclude"
-                          href="reference/services-z.xml" />
-  </reference>
+                    href="firehol/appendix-rfc4890.xml" />
+  </part>
 
   <index/>
 </book>

@@ -1,0 +1,19 @@
+To reformat a block of text into docbook paragraphs:
+
+cat my.txt | (echo "    <para>"; fold -w60 -s | \
+              sed -e 's/^\(.\)/      &/' -e 's:^$:    </para>\n    <para>:'; \
+              echo "    </para>") > my-fragment.xml
+
+
+Updating some VARIABLES in Makefile.am:
+ find . -name '*chapter*.xml' -o -name '*appendix*.xml' | sort | \
+   sed -e '1i\\FIREHOLMANUALXML_CHAPTERS=\\' -e 's;^./;;' -e 's;^;\t;' \
+       -e 's/$/ \\/' -e '$s/ \\$//' > /tmp/a
+
+ find *-reference/ -name '*.xml' | sort |
+   sed -e '1i\\FIREHOLMANUALXML_REFERENCES=\\' -e 's;^./;;' -e 's;^;\t;' \
+       -e 's/$/ \\/' -e '$s/ \\$//' > /tmp/a
+
+ find man -name '*.[1-9]*' | sort | \
+   sed -e '1i\\FIREHOLMANUALMAN_GENERATED=\\' -e 's;^./;;' -e 's;^;\t;' \
+       -e 's/$/ \\/' -e '$s/ \\$//' > /tmp/a

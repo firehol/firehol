@@ -12,6 +12,7 @@ config.status
 doc/db-valid
 doc/services-generated
 doc/firehol.ent
+doc/html/
 doc/man/man1/
 doc/man/man5/
 doc/firehol-manual-info.xml
@@ -21,7 +22,9 @@ doc/firehol-services.html
 doc/index-services.html
 doc/index.html
 doc/ch*.html
+doc/pt*.html
 doc/rn*.html
+doc/apa*.html
 doc/services-?.xml
 sbin/firehol
 sbin/fireqos

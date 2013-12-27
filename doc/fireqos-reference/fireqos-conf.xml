@@ -1,0 +1,35 @@
+<!DOCTYPE refentry PUBLIC "-//OASIS//DTD DocBook XML V4.5//EN"
+                 "http://www.oasis-open.org/docbook/xml/4.5/docbookx.dtd">
+<!-- For license information see chapter-intro.xml -->
+<refentry id="fireqos.conf">
+
+<refmeta>
+<refentrytitle>FireHOL configuration: fireqos.conf</refentrytitle>
+<manvolnum>5</manvolnum>
+</refmeta>
+
+<refnamediv>
+<refdescriptor>fireqos.conf</refdescriptor>
+<refname>fireqos.conf</refname>
+<refpurpose>FireQOS configuration file</refpurpose>
+</refnamediv>
+
+<refsect1><title>Description</title>
+  <para>
+    <filename>/etc/firehol/fireqos.conf</filename> is the default
+    configuration file for <xref linkend="fireqos"/>. It defines the
+    traffic shaping that will be applied.
+  </para>
+
+  <para>TODO</para>
+</refsect1>
+
+<refsect1><title>See Also</title>
+  <simplelist type="vert">
+    <member><xref linkend="fireqos"/></member>
+    <member>FireHOL Manual: firehol-manual.pdf</member>
+    <member><ulink url="http://firehol.org/">FireHOL Online Documentation</ulink></member>
+  </simplelist>
+</refsect1>
+
+</refentry>

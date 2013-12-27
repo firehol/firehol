@@ -10,11 +10,10 @@
   </section>
   <section><title>Who should read this manual</title>
     <para>This manual is aimed at those who wish to create and maintain
-           firewalls with <application>FireHOL</application>.
+           firewalls with <application>FireHOL</application> or perform
+           traffic shaping with  <application>FireQOS</application>.
     </para>
-    <para>There is a lack of basic and tutorial information in this
-          manual currently. For help getting started and to
-          learn the configuration language, see the
+    <para>For more information and tutorials, see the
       <ulink url="http://firehol.org/">FireHOL website</ulink>.
     </para>
   </section>
@@ -30,6 +29,61 @@
       The package comes with a complete set of manpages, a README and a
       brief INSTALL guide.
     </para>
+  </section>
+  <section><title>Manual Organisation</title>
+    <para>
+      FireHOL, the package, consists of two principal programs. The
+      manual is split into four parts.
+      For firewalling read about <application>FireHOL</application> in
+      <xref linkend="part-firehol"/> with reference material in
+      <xref linkend="part-firehol-reference"/>
+      For traffic shaping/QOS read about <application>FireQOS</application>
+      in <xref linkend="part-fireqos"/> with reference material in
+      <xref linkend="part-fireqos-reference"/>.
+    </para>
+  </section>
+  <section><title>Installation</title>
+    <para>
+      You can download tar-file releases by visiting the
+      <ulink url="http://firehol.org/download/">FireHOL website
+      download area</ulink>.
+    </para>
+    <para>
+      Unpack and change directory with:
+      <programlisting>
+tar xfz firehol-version.tar.gz
+cd firehol-<replaceable>version</replaceable>
+      </programlisting>
+    </para>
+    <para>
+      Options for the configure program can be seen in the INSTALL file
+      and by running:
+      <programlisting>
+./configure --help
+      </programlisting>
+    </para>
+    <para>
+      To build and install taking the default options:
+      <programlisting>
+./configure &amp;&amp; make &amp;&amp; sudo make install
+      </programlisting>
+    </para>
+    <para>
+      Alternatively, just copy the <filename>sbin/firehol.in</filename>
+      and <filename>sbin/fireqos.in</filename> files to where you want them.
+      All of the common SysVInit command line arguments are recognised which
+      makes it easy to deploy the scripts as startup services.
+    </para>
+    <para>
+      Packages are available for most distributions and you can use your
+      distribution's standard commands (e.g. aptitude, yum, etc.) to install
+      these.
+    </para>
+    <note><para>
+      Distributions do not always offer the latest version. You can see
+      what the latest release is on the
+      <ulink url="http://firehol.org/">FireHOL website</ulink>.
+    </para></note>
   </section>
   <section><title>Licence</title>
      <para>

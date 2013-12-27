@@ -86,7 +86,10 @@ AC_CONFIG_FILES([
 	doc/tools/Makefile
 	doc/latex/Makefile
 	doc/xsl/Makefile
-	doc/reference/Makefile
+	doc/firehol/Makefile
+	doc/fireqos/Makefile
+	doc/firehol-reference/Makefile
+	doc/fireqos-reference/Makefile
 	examples/Makefile
 	etc/Makefile
 	packaging/Makefile

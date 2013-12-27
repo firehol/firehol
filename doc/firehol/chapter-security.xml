@@ -1,0 +1,122 @@
+<!DOCTYPE chapter PUBLIC "-//OASIS//DTD DocBook XML V4.5//EN"
+                 "http://www.oasis-open.org/docbook/xml/4.5/docbookx.dtd">
+<!-- For license information see chapter-intro.xml -->
+<chapter><title>Security</title>
+  <para>
+    This chapter discusses some of the security considerations of
+    firewalls in general and using FireHOL in particular.
+  </para>
+  <section><title>Important Security Note</title>
+    <para>
+      It should be observed that FireHOL can be no more secure than
+      your use of it. You should audit the output results at least once
+      to ensure you are happy with the rules produced. The rules that
+      get output are extremely regular and should make the task fairly
+      straightforward.
+    </para>
+    <para>
+      In particular it is your responsibility to ensure the final
+      firewall produced behaves as you expect. If in doubt we recommend
+      that you seek help from a firewall/networking professional.
+    </para>
+    <para>
+      Please consider signing up to the
+      <ulink url="http://lists.firehol.org/">mailing lists</ulink>
+      to ensure you are kept informed
+      in the event that a security problem is discovered.
+    </para>
+  </section>
+  <section><title>What happens when FireHOL Runs?</title>
+    <para>
+      FireHOL is a
+      <ulink url="http://www.gnu.org/software/bash/bash.html">BASH</ulink>
+      script. To run its configuration file, FireHOL first defines a set
+      of functions and variables and then it "sources" (runs inline) its
+      configuration file to be executed by <application>BASH</application>.
+    </para>
+    <para>
+      The keywords <command>interface</command>, <command>client</command>,
+      <command>server</command>, <command>router</command>, etc. are 
+      all <application>BASH</application> functions that are executed
+      by <application>BASH</application> when and if they appear
+      in the configuration file. Using shared variables these functions
+      share some state information that allows them to know, for example,
+      that a <command>client</command> command appears within
+      an <command>interface</command> and not within
+      a <command>router</command> and that the name given
+      to an <command>interface</command> that has not been used before.
+    </para>
+    <para>
+      Instead of running iptables commands directly, each of 
+      these functions (i.e. FireHOL) just writes the generated 
+      iptables commands to a temporary file. This is done to 
+      prevent altering a running firewall before ensuring that 
+      the syntax of the configuration file is correct. So, a 
+      complete run of the configuration file actually produces 
+      all the <ulink url="http://www.netfilter.org/">iptables</ulink>
+      commands for the firewall, written to a 
+      temporary file (script). Even the iptables commands given 
+      within the configuration file use the same concept (they 
+      just generate iptables commands in this script).
+    </para>
+    <para>
+      Finally, this script (the generated iptables commands) has 
+      to be run, but before doing so, FireHOL saves the running 
+      firewall to another temporary file. The saved firewall will 
+      be automatically restored if some of the generated iptables 
+      commands produces an error. Such an error is possible when 
+      for example, you specify an invalid IP address or hostname, 
+      or an invalid argument to some parameter that gets passed 
+      to iptables as-is.
+    </para>
+    <para>
+      It is important to understand that during the run of the 
+      generated iptables script (including the possible 
+      restoration of the old firewall), FireHOL allows all 
+      traffic to reach its destination. This has been done to 
+      prevent a possible lock-out situation where you are SSHing 
+      to the server to alter its firewall, and suddenly you loose 
+      the connection (although this can still happen if your new 
+      firewall doesn't allow the connection). To control this 
+      behaviour, set the ACTIVATION variables
+      (see <xref linkend="firehol-variables"/>).
+    </para>
+    <para>
+      If no error has been seen, FireHOL deletes all temporary 
+      files generated and exits.
+    </para>
+    <para>
+      In case there was an error, FireHOL will make the most to 
+      restore your previous firewall and will present you details 
+      about the error and its line number in the original 
+      configuration file.
+    </para>
+  </section>
+<!-- TODO
+  <section><title>Auditing</title>
+    <para>debug and explain options</para>
+    <para>pentest tools and services</para>
+    <section><title>Inspecting the output</title>
+      <para>debug</para>
+      <para>from iptables</para>
+    </section>
+  </section>
+  <section><title>Risks</title>
+    <para>content</para>
+    <section><title>client all</title>
+      <para>workstations... OK</para>
+      <para>servers... definitely not</para>
+    </section>
+    <section><title>During startup</title>
+      <para>mitigations</para>
+    </section>
+  </section>
+ -->
+  <section><title>Where to learn more</title>
+    <para>
+      The <ulink url="http://firehol.org/">FireHOL website</ulink>
+      contains more information and there are a number of
+      <command>iptables</command> tutorials online.
+    </para>
+  </section>
+</chapter>

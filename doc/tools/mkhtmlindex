@@ -95,7 +95,9 @@ sub slurp {
 
 my @html_xref = ();
 foreach my $filename (@ARGV) {
-  push @html_xref, { name => $filename, contents => slurp($filename) };
+  my $n = $filename;
+  $n =~ s/.*\///;
+  push @html_xref, { name => $n, contents => slurp($filename) };
 }
 
 sub get_href {

@@ -1,0 +1,77 @@
+<!DOCTYPE refentry PUBLIC "-//OASIS//DTD DocBook XML V4.5//EN"
+                 "http://www.oasis-open.org/docbook/xml/4.5/docbookx.dtd">
+<!-- For license information see chapter-intro.xml -->
+<refentry id="fireqos">
+
+<refmeta>
+  <refentrytitle>FireQOS program: fireqos</refentrytitle>
+  <manvolnum>1</manvolnum>
+</refmeta>
+
+<refnamediv>
+  <refdescriptor>fireqos</refdescriptor>
+  <refname>fireqos</refname>
+  <refpurpose>an easy to use but powerful traffic shaping tool</refpurpose>
+</refnamediv>
+
+<refsynopsisdiv>
+  <cmdsynopsis>
+    <command>fireqos</command>
+  </cmdsynopsis>
+  <cmdsynopsis>
+    <command>fireqos</command>
+    <arg choice="plain"><replaceable>CONFIGFILE</replaceable></arg>
+    <arg choice="plain">
+      <group choice="opt">
+        <arg choice="plain">start</arg>
+        <arg choice="plain">debug</arg>
+      </group>
+    </arg>
+    <arg choice="opt">
+      --
+      <arg rep="repeat" choice="plain"><replaceable>conf-arg</replaceable></arg>
+    </arg>
+  </cmdsynopsis>
+  <cmdsynopsis>
+    <command>TODO</command>
+  </cmdsynopsis>
+</refsynopsisdiv>
+
+<refsect1><title>Description</title>
+  <para>
+    TODO
+  </para>
+
+  <para>
+    Run without any arguments, <command>fireqos</command> will present
+    some help on usage.
+  </para>
+
+  <para>
+    When given <replaceable>CONFIGFILE</replaceable>,
+     <command>fireqos</command> will use the named file instead of
+    <filename>/etc/firehol/fireqos.conf</filename> as its configuration.
+  </para>
+</refsect1>
+
+<refsect1><title>Commands</title>
+  <para>
+    TODO
+  </para>
+</refsect1>
+
+<refsect1><title>Files</title>
+  <simplelist type="vert">
+    <member><filename>/etc/firehol/fireqos.conf</filename></member>
+  </simplelist>
+</refsect1>
+
+<refsect1><title>See Also</title>
+  <simplelist type="vert">
+    <member><xref linkend="fireqos.conf"/></member>
+    <member>FireHOL Manual: firehol-manual.pdf</member>
+    <member><ulink url="http://firehol.org/">FireHOL Online Documentation</ulink></member>
+  </simplelist>
+</refsect1>
+
+</refentry>

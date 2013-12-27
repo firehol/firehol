@@ -1,7 +1,7 @@
-<!DOCTYPE chapter PUBLIC "-//OASIS//DTD DocBook XML V4.5//EN"
+<!DOCTYPE appendix PUBLIC "-//OASIS//DTD DocBook XML V4.5//EN"
                  "http://www.oasis-open.org/docbook/xml/4.5/docbookx.dtd">
 <!-- For license information see chapter-intro.xml -->
-<chapter><title>ICMPv6 Firewall Recommendations</title>
+<appendix><title>ICMPv6 Firewall Recommendations</title>
   <section><title>Introduction</title>
     <para>
       <ulink url="http://tools.ietf.org/html/rfc4890">RFC 4890</ulink>
@@ -361,4 +361,4 @@ ip6tables -A icmpv6-filter -p icmpv6 -d $inner_prefix \
       unless you create a rule to explicitly allow the packets.
     </para>
   </section>
-</chapter>
+</appendix>
