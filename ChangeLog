@@ -1,4 +1,9 @@
+revision 1.297
 
+Remove adsense from offline manual pages
+Fix persmissions on a couple of examples
+
+----------------------------
 RCS file: /cvsroot/firehol/firehol/firehol.sh,v
 Working file: firehol.sh
 head: 1.296

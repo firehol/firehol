@@ -10,7 +10,7 @@
 #
 # config: /etc/firehol/firehol.conf
 #
-# $Id: firehol.sh,v 1.296 2013/01/06 23:49:08 ktsaou Exp $
+# $Id: firehol.sh,v 1.297 2013/01/06 23:49:08 ktsaou Exp $
 #
 
 # Make sure only root can run us.
@@ -243,7 +243,7 @@ ${RENICE_CMD} 10 $$ >/dev/null 2>/dev/null
 # Find our minor version
 firehol_minor_version() {
 ${CAT_CMD} <<"EOF" | ${CUT_CMD} -d ' ' -f 3 | ${CUT_CMD} -d '.' -f 2
-$Id: firehol.sh,v 1.296 2013/01/06 23:49:08 ktsaou Exp $
+$Id: firehol.sh,v 1.297 2013/01/06 23:49:08 ktsaou Exp $
 EOF
 }
 
@@ -5941,7 +5941,7 @@ case "${arg}" in
 			esac
 		else
 		${CAT_CMD} <<EOF
-$Id: firehol.sh,v 1.296 2013/01/06 23:49:08 ktsaou Exp $
+$Id: firehol.sh,v 1.297 2013/01/06 23:49:08 ktsaou Exp $
 (C) Copyright 2002-2007, Costa Tsaousis <costa@tsaousis.gr>
 FireHOL is distributed under GPL.
 
@@ -6130,7 +6130,7 @@ then
 	
 	${CAT_CMD} <<EOF
 
-$Id: firehol.sh,v 1.296 2013/01/06 23:49:08 ktsaou Exp $
+$Id: firehol.sh,v 1.297 2013/01/06 23:49:08 ktsaou Exp $
 (C) Copyright 2003, Costa Tsaousis <costa@tsaousis.gr>
 FireHOL is distributed under GPL.
 Home Page: http://firehol.sourceforge.net
@@ -6435,7 +6435,7 @@ then
 	
 	"${CAT_CMD}" >&2 <<EOF
 
-$Id: firehol.sh,v 1.296 2013/01/06 23:49:08 ktsaou Exp $
+$Id: firehol.sh,v 1.297 2013/01/06 23:49:08 ktsaou Exp $
 (C) Copyright 2003, Costa Tsaousis <costa@tsaousis.gr>
 FireHOL is distributed under GPL.
 Home Page: http://firehol.sourceforge.net
@@ -6513,7 +6513,7 @@ EOF
 	
 	${CAT_CMD} <<EOF
 #!${FIREHOL_FILE}
-# $Id: firehol.sh,v 1.296 2013/01/06 23:49:08 ktsaou Exp $
+# $Id: firehol.sh,v 1.297 2013/01/06 23:49:08 ktsaou Exp $
 # 
 # This config will have the same effect as NO PROTECTION!
 # Everything that found to be running, is allowed.
