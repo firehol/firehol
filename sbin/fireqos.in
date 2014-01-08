@@ -83,6 +83,7 @@ FIREQOS_SHOW_MATCHES=0
 # the classes priority in balanced mode
 FIREQOS_BALANCED_PRIO=4
 
+
 COLOR_RESET="\e[0m"
 COLOR_BLACK="\e[30m"
 COLOR_RED="\e[31m"
@@ -241,7 +242,9 @@ server_webmin_ports="tcp/10000"
 server_xdmcp_ports="udp/177"
 
 # FireQOS only services
+server_torrents_ports="tcp/6881:6999 udp/6881:6999"
 server_facetime_ports="udp/3478:3497 udp/16384:16387 udp/16393:16402"
+server_hangouts_ports="udp/19305:19309 tcp/19305:19309"
 server_gtalk_ports="tcp/5222 tcp/5228"
 server_teamviewer_ports="tcp/5938"
 server_ping_ports="icmp/any"
@@ -256,45 +259,55 @@ simple_service() {
 	local s=
 	for s in $service
 	do
-		local ports=
-		eval "local ports=\$server_${s}_ports"
-		if [ -z "$ports" ]
+		local sports=
+		eval "local sports=\$server_${s}_ports"
+		if [ -z "$sports" ]
 		then
 			error "Service '$s' is not defined."
 			exit 1
 		fi
 		
-		local pmatch="ports"
+		# INPUT
+		# server_x_ports=tcp/SPORT
+		# server x src CLIENT dst SERVER ==>         dport SPORT, src CLIENT, dst SERVER ==> dport SPORT, src CLIENT, dst SERVER
+		# client x src CLIENT dst SERVER ==> reverse dport SPORT, src CLIENT, dst SERVER ==> sport SPORT, dst CLIENT, src SERVER
+
+		# OUTPUT
+		# server_x_ports=tcp/SPORT
+		# server x src CLIENT dst SERVER ==> reverse dport SPORT, src CLIENT, dst SERVER ==> sport SPORT, dst CLIENT, src SERVER
+		# client x src CLIENT dst SERVER ==>         dport SPORT, src CLIENT, dst SERVER ==> dport SPORT, src CLIENT, dst SERVER
+
+		# So:
+		# 1. use 'server' when you are the server
+		# 2. use 'client' when you are the client
+		# 3. use 'src' and 'dst' to match the REQUEST, i.e. src=CLIENT, dst=SERVER
+		# 4. forget about INPUT and OUTPUT interfaces, FireQOS will figure it out
+
+		local reverse=
 		case $direction in
 			server)
-				pmatch="dports"
-				[ "$interface_inout" = "output" ] && pmatch="sports"
+				[ "$interface_inout" = "output" ] && local reverse="reverse"
 				;;
 				
 			client)
-				pmatch="sports"
-				[ "$interface_inout" = "output" ] && pmatch="dports"
-				;;
-				
-			service)
-				pmatch="ports"
+				[ "$interface_inout" = "input" ] && local reverse="reverse"
 				;;
 				
 			*)
-				error "Cannot understand service direction '$direction'."
+				error "A service cannot be applied as '$direction'."
 				exit 1
 				;;
 		esac
 		
-		local port=
-		for port in $ports
+		local p=
+		for p in $sports
 		do
 			local proto=
-			local sport=
-			IFS="/" read proto sport <<EOF
-$port
+			local ports=
+			IFS="/" read proto ports <<EOF
+$p
 EOF
-			match proto $proto $pmatch $sport "${@}"
+			match $reverse proto $proto dports $ports "${@}"
 		done
 	done
 }
@@ -307,14 +320,40 @@ client() {
 	simple_service client "${@}"
 }
 
+server4() {
+	ipv4 server "${@}"
+}
+
+server6() {
+	ipv6 server "${@}"
+}
+
+server46() {
+	ipv46 server "${@}"
+}
+
+client4() {
+	ipv4 client "${@}"
+}
+
+client6() {
+	ipv6 client "${@}"
+}
+
+client46() {
+	ipv46 client "${@}"
+}
+
 service() {
-	simple_service service "${@}"
+	error "the 'service' match is no longer supported."
+	exit 1
 }
 
 fireqos_active_interfaces() {
 	ls $FIREQOS_DIR/ 2>/dev/null |\
 		$grep_cmd ".conf" |\
-		$sed_cmd "s/\.conf//g"
+		$tr_cmd "\n" " " |\
+		$sed_cmd -e "s/\.conf//g" -e "s/ \+/ /g"
 }
 
 FIREQOS_COMPLETED=
@@ -355,7 +394,7 @@ fireqos_exit() {
 			then
 				local a="Traffic control on these interfaces is operational: $ifs"
 			else
-				local a="No traffic control is operational by FireQOS"
+				local a="No traffic control is operational by FireQOS."
 			fi
 			echo >&2
 			echo >&2 "$a"
@@ -405,14 +444,18 @@ syslog() {
 }
 
 error() {
+	echo >&2 -e "$COLOR_RED$COLOR_BOLD"
 	echo >&2
 	echo >&2
-	echo >&2 "FAILED: $@"
+	echo >&2 "ERROR:"
+	echo -e >&2 "$@"
+	echo >&2
+	echo >&2 -e "$COLOR_RESET"
 	exit 1
 }
 
 warning() {
-	echo >&2 -e ":	\e[1;31mWARNING! $* \e[0m"
+	echo >&2 -e ":	${COLOR_YELLOW}${COLOR_BOLD}WARNING! $* ${COLOR_RESET}"
 }
 
 runcmd() {
@@ -458,9 +501,15 @@ tc() {
 		
 		if [ $ret -ne 0 ]
 		then
-			echo >&2 "FAILED: tc failed with error $ret, while executing the command:"
+			echo >&2 -e "$COLOR_RED$COLOR_BOLD"
+			echo >&2
+			echo >&2
+			echo >&2 "ERROR:"
+			echo >&2 "tc failed with error $ret, while executing the command:"
 			printf "%q " $tc_cmd "${@}"
 			echo
+			echo >&2
+			echo >&2 -e "$COLOR_RESET"
 			exit 1
 		fi
 	fi
@@ -675,18 +724,18 @@ parse_class_params() {
 					if [ "$3" = "options" ]
 					then
 						local qdisc_options="$4"
-						shift
+						shift 2
 					fi
 					shift
 					;;
 			
-			sfq|pfifo|bfifo|codel|none)
+			sfq|pfifo|bfifo|fq_codel|codel|none)
 					local qdisc="$1"
 					local qdisc_options="default"
 					if [ "$2" = "options" ]
 					then
 						local qdisc_options="$3"
-						shift
+						shift 2
 					fi
 					;;
 					
@@ -1015,7 +1064,7 @@ check_constrains() {
 	then
 		if [ $ceil -gt $parent_ceil ]
 		then
-			warning "ceil ($((ceil * 8 / 1000))kbit) is more than its parent's ceil ($((parent_ceil * 8 / 1000))kbit). Fixed it by settting ceil to parent's ceil."
+			warning "ceil ($((ceil * 8 / 1000))kbit) is higher than its parent's ceil ($((parent_ceil * 8 / 1000))kbit). Fixed it by settting ceil to parent's ceil."
 			eval "${prefix}_ceil=$parent_ceil"
 		fi
 	fi
@@ -1024,7 +1073,7 @@ check_constrains() {
 	then
 		if [ $burst -gt $parent_burst ]
 		then
-			warning "burst ($burst bytes) is less than its parent's burst ($parent_burst bytes). Fixed it by setting burst to parent's burst."
+			warning "burst ($burst bytes) is higher than its parent's burst ($parent_burst bytes). Fixed it by setting burst to parent's burst."
 			eval "${prefix}_burst=$parent_burst"
 		fi
 	fi
@@ -1033,12 +1082,21 @@ check_constrains() {
 	then
 		if [ $cburst -gt $parent_cburst ]
 		then
-			warning "cburst ($cburst bytes) is less than its parent's cburst ($parent_cburst bytes). Fixed it by setting cburst to parent's cburst."
+			warning "cburst ($cburst bytes) is higher than its parent's cburst ($parent_cburst bytes). Fixed it by setting cburst to parent's cburst."
 			eval "${prefix}_cburst=$parent_cburst"
 		fi
 	fi
 	
 	return 0
+}
+
+check_committed_rate() {
+	if [ $parent_rate -ge $parent_sumrate ]
+	then
+		echo -e ": $class_tabs${COLOR_BLUE}${COLOR_BOLD}committed rate $((parent_sumrate * 8 / 1000))kbit ($((parent_sumrate * 100 / parent_rate))%), the remaining $(((parent_rate - parent_sumrate)*8/1000))kbit will be spare bandwidth.${COLOR_RESET}"
+	else
+		echo -e ": $class_tabs${COLOR_RED}${COLOR_BOLD}committed rate $((parent_sumrate * 8 / 1000))kbit, ($((parent_sumrate * 100 / parent_rate))%), overbooked by $((-(parent_rate - parent_sumrate)*8/1000))kbit. PLEASE FIX.${COLOR_RESET}"
+	fi
 }
 
 interface_major=
@@ -1081,6 +1139,8 @@ interface_close() {
 			parent_default_added=1
 		fi
 		
+		check_committed_rate
+
 		# NOT NEEDED - the default for interfaces works via kernel.
 		# match all class default flowid $interface_major:$parent_default_class prio 0xffff
 	fi
@@ -1197,6 +1257,8 @@ interface() {
 	
 	[ -z "$interface_priority_mode" ] && interface_priority_mode="priority"
 	
+	# IPv, this is only used by matches
+	# here we just give the defaults for inheritance to work
 	if [ -z "$interface_ipv4" -a -z "$interface_ipv6" ]
 	then
 		interface_ipv4=1
@@ -1247,8 +1309,8 @@ interface() {
 	# set the default qdisc for all classes
 	if [ -z "$interface_qdisc" ]
 	then
-		interface_qdisc="sfq"
-		interface_qdisc_options="default"
+		interface_qdisc="$FIREQOS_DEFAULT_QDISC"
+		interface_qdisc_options="$FIREQOS_DEFAULT_QDISC_OPTIONS"
 	fi
 	
 	# the desired minimum rate for all classes
@@ -1307,6 +1369,7 @@ interface() {
 	
 	parent_push interface
 	
+	# default IPv for the classes
 	class_ipv4=$interface_ipv4
 	class_ipv6=$interface_ipv6
 	class_name=root
@@ -1410,6 +1473,8 @@ class() {
 			# by the kernel. This rule, sends all remaining traffic to the inner default.
 			match all class default flowid $parent_major:$parent_default_class prio 0xffff
 			
+			check_committed_rate
+
 			if [ $parent_stab -eq 1 ]
 			then
 				parent_pull
@@ -1432,15 +1497,15 @@ class() {
 	
 	class_name="$1"; shift
 	
-	# increase the global class counter
+	# increase the interface global class counter
 	interface_global_class_counter=$((interface_global_class_counter + 1))
 	
 	# increase the parent's class counter
 	# this is used for determining the minor of the class
 	parent_class_counter=$((parent_class_counter + 1))
 	
-	# if this is the default class, use the pre-defined
-	# id, otherwise use the classid we just increased
+	# if this is the default class, use the pre-defined id,
+	# otherwise use the classid we just increased
 	if [ "$class_name" = "default" ]
 	then
 		local id=$parent_default_class
@@ -1497,8 +1562,12 @@ class() {
 	[ $class_prio -gt 7 ] && class_prio=7
 	
 	# if not specified, set the minimum rate
-	[ -z "$class_rate" ] && class_rate=$interface_minrate
-	
+	if [ -z "$class_rate" ]
+	then
+		[ $class_group -eq 1 ] && error "Class group '$class_name' does not specify a committed rate.\nClass groups should have a committed rate."
+		class_rate=$interface_minrate
+	fi
+
 	# class rate cannot go bellow 1/100 of the interface rate
 	[ $class_rate -lt $interface_minrate ] && class_rate=$interface_minrate
 	
@@ -1525,23 +1594,21 @@ class() {
 		test ! -z "$class_mpu"		&& local stab="$stab mpu $class_mpu"
 	fi
 	
+	# check it the user overbooked the parent
+	parent_sumrate=$((parent_sumrate + $class_rate))
+	local info_color="$COLOR_BLUE"
+	[ $parent_sumrate -gt $parent_rate ] && local info_color="$COLOR_RED"
+	
 	if [ $class_group -eq 1 -a ! -z "$stab" ]
 	then
-		echo -e " $COLOR_BOLD$COLOR_BLUE($class_classid, prio $class_prio, MTU $class_mtu, quantum $class_quantum)$COLOR_RESET"
+		echo -e " $info_color$COLOR_BOLD($class_classid, $((class_rate*8/1000))kbit, prio $class_prio, MTU $class_mtu, quantum $class_quantum)$COLOR_RESET"
 	else
-		echo -e " $COLOR_BOLD$COLOR_BLUE($class_classid, prio $class_prio)$COLOR_RESET"
+		echo -e " $info_color$COLOR_BOLD($class_classid, $((class_rate*8/1000))kbit, prio $class_prio)$COLOR_RESET"
 	fi
 	
 	# keep track of all classes in the interface, so that the matches can name them to get their flowid
 	interface_classes="$interface_classes $class_name|$class_filters_flowid"
 	interface_classes_ids="$interface_classes_ids $ncid"
-	
-	# check it the user overbooked the parent
-	parent_sumrate=$((parent_sumrate + $class_rate))
-	if [ $parent_sumrate -gt $parent_rate ]
-	then
-		warning "The classes under $parent_name commit more bandwidth (+$(( (parent_sumrate - parent_rate) * 8 / 1000 ))kbit) than the available rate."
-	fi
 	
 	class_default_class=
 	if [ $class_group -eq 1 ]
@@ -1703,8 +1770,8 @@ find_port_masks() {
 	local i=
 	for i in 1 2 3 4 5 6 7 8 9 10 11 12 13 14 15 16 17
 	do
-		local base=$(( (from >> i) << i ))
-		local end=$(( base + (1 << i) - 1 ))
+		local base=$(( (from >> i) << $i ))
+		local end=$(( base + (1 << $i) - 1 ))
 
 		[ $FIREQOS_DEBUG_PORTS -eq 1 ] && printf >&2 ": >>> examine bit %d, from 0x%04x (%s) to 0x%04x (%s), " $i $base $base $end $end
 
@@ -1716,9 +1783,9 @@ find_port_masks() {
 	[ $FIREQOS_DEBUG_PORTS -eq 1 ] && echo >&2 " failed"
 	
 	i=$[ i - 1 ]
-	local base=$(( (from >> i) << i ))
-	local end=$(( base + (1 << i) - 1 ))
-	local mask=$(( (0xffff >> i) << i ))
+	local base=$(( (from >> i) << $i ))
+	local end=$(( base + (1 << $i) - 1 ))
+	local mask=$(( (0xffff >> $i) << $i ))
 	
 	[ $FIREQOS_DEBUG_PORTS -eq 1 ] && printf >&2 ": 0x%04x (%d) to 0x%04x (%d),  match 0x%04x (%d) to 0x%04x (%d) with mask 0x%04x \n" $from $from $to $to $base $base $end $$
 	printf "%d/0x%04x\n" $base $mask
@@ -1781,7 +1848,8 @@ match() {
 	local tcproto=
 	local ipv4=$class_ipv4
 	local ipv6=$class_ipv6
-	
+	local reverse=0
+
 	case "$force_ipv" in
 		4)
 			local ipv4=1
@@ -1802,6 +1870,15 @@ match() {
 	while [ ! -z "$1" ]
 	do
 		case "$1" in
+			input|output)
+				local reverse=1
+				[ "$interface_inout" = "$1" ] && local reverse=0
+				;;
+
+			reverse)
+				local reverse=1
+				;;
+
 			at)
 				local at="$2"
 				shift
@@ -1899,6 +1976,18 @@ match() {
 		shift
 	done
 	
+	# if reverse, flip src/dst sport/dport
+	if [ $reverse -eq 1 ]
+	then
+		local t="$src"
+		local src="$dst"
+		local dst="$t"
+
+		local t="$sport"
+		local sport="$dport"
+		local dport="$t"
+	fi
+
 	if [ -z "$prio" ]
 	then
 		local prio=$((class_matchid * 10))
@@ -2065,6 +2154,10 @@ match() {
 					
 					gre|GRE)
 							local proto_arg="match ip$ipvx protocol 47 0xff"
+							;;
+
+					+([0-9]))
+							local proto_arg="match ip$ipvx protocol $tproto 0xff"
 							;;
 					
 					*)		local pid=`$cat_cmd /etc/protocols | $egrep_cmd -i "^$tproto[[:space:]]" | tail -n 1 | $sed_cmd "s/[[:space:]]\+/ /g" | $cut_cmd -d ' ' -f 2`
@@ -2324,6 +2417,38 @@ clear_everything() {
 	return 0
 }
 
+clear_all_qos_on_all_interfaces() {
+	echo >&2 
+	echo >&2 "Clearing all QoS on all interfaces..."
+	echo >&2 
+	
+    local dev=
+    for dev in `cat /proc/net/dev | grep ':' |  cut -d ':' -f 1 | sed "s/ //g" | grep -v "^lo$"`
+    do
+		printf >&2 " %16.16s: " $dev
+		echo >&2 "cleared traffic control"
+
+        # remove existing qdisc from all devices
+        tc ignore-error qdisc del dev $dev ingress >/dev/null 2>&1
+        tc ignore-error qdisc del dev $dev root >/dev/null 2>&1
+    done
+    
+	echo >&2
+    rmmod ifb 2>/dev/null
+	echo >&2 " - removed all IFB devices"
+    
+    if [ -d $FIREQOS_DIR ]
+    then
+            cd $FIREQOS_DIR
+            if [ $? -eq 0 ]
+            then
+                    rm interfaces *.conf 2>/dev/null
+            fi
+			echo >&2 " - cleared FireQOS status"
+    fi
+    return 0
+}
+
 check_root() {
 	if [ ! "${UID}" = 0 ]
 	then
@@ -2341,6 +2466,7 @@ show_interfaces() {
 		echo
 		echo "The following interfaces are available:"
 		fireqos_active_interfaces
+		echo
 	else
 		echo "No interfaces have been configured."
 	fi
@@ -2572,13 +2698,6 @@ EOF
 	done
 	echo
 	
-	for x in $interface_classes_ids
-	do
-		eval local priority="\${class_${x}_priority}"
-		printf "% ${number_digits}.${number_digits}s " $priority
-	done
-	echo
-	
 	if [ $show_speeds -eq 1 ]
 	then
 		for x in $interface_classes_ids
@@ -2604,6 +2723,20 @@ EOF
 		done
 		echo
 	fi
+	echo
+	
+	for x in $interface_classes_ids
+	do
+		eval local priority="\${class_${x}_priority}"
+		printf "% ${number_digits}.${number_digits}s " $priority
+	done
+	echo
+	
+	for x in $interface_classes_ids
+	do
+		eval local qdisc="\${class_${x}_qdisc}"
+		printf "% ${number_digits}.${number_digits}s " $qdisc
+	done
 	echo
 	
 	# the main loop
@@ -2866,35 +2999,65 @@ FireQOS $VERSION
 EOF
 
 show_usage() {
-$cat_cmd <<USAGE
+local msg="
 
-$me start|stop|status <name>
+${COLOR_YELLOW}${COLOR_BOLD}$me${COLOR_RESET} ${COLOR_BLUE}${COLOR_BOLD}action${COLOR_RESET}
 
-	start	activates traffic shapping rules
-		according to rules given in ${FIREQOS_CONFIG}
+${COLOR_BLUE}${COLOR_BOLD}action${COLOR_RESET} can be one of:
+
+	${COLOR_YELLOW}${COLOR_BOLD}start${COLOR_RESET} [${COLOR_BLUE}${COLOR_BOLD}filename${COLOR_RESET}] [${COLOR_YELLOW}${COLOR_BOLD}--${COLOR_RESET} ${COLOR_BLUE}${COLOR_BOLD}options${COLOR_RESET}]
+		or
+	[${COLOR_BLUE}${COLOR_BOLD}filename${COLOR_RESET}] ${COLOR_YELLOW}${COLOR_BOLD}start${COLOR_RESET} [${COLOR_YELLOW}${COLOR_BOLD}--${COLOR_RESET} ${COLOR_BLUE}${COLOR_BOLD}options${COLOR_RESET}]
+		activates traffic shapping rules according to rules given in
+		${COLOR_BLUE}${COLOR_BOLD}${FIREQOS_CONFIG}${COLOR_RESET}
 		
-	stop	stops all traffic shapping, on all interfaces
-	
-	debug	same as 'start', but shows also the generated tc commands
-	
-	status <name>
-		shows live class utilization for the interface <name>
-		the name given mathes the name of an interface statement
-		given in the config.
-	
-	drops <name>
-		shows packets dropped per second, per class
-		for the interface <name>
-		
-	overlimits <name>
-		shows packets delayed per second, per class
-		for the interface <name>
-	
-	requeues <name>
-		shows packets requeued per second, per class
-		for the interface <name>
+		if ${COLOR_BLUE}${COLOR_BOLD}filename${COLOR_RESET} is given, it will be used instead of the
+		default ${COLOR_BLUE}${COLOR_BOLD}${FIREQOS_CONFIG}${COLOR_RESET}
 
-USAGE
+		all ${COLOR_BLUE}${COLOR_BOLD}options${COLOR_RESET} after ${COLOR_YELLOW}${COLOR_BOLD}--${COLOR_RESET} will be given as options to the config
+		file when it will be executed by FireQOS
+
+	${COLOR_YELLOW}${COLOR_BOLD}debug${COLOR_RESET} [${COLOR_BLUE}${COLOR_BOLD}filename${COLOR_RESET}] [${COLOR_YELLOW}${COLOR_BOLD}--${COLOR_RESET} ${COLOR_BLUE}${COLOR_BOLD}options${COLOR_RESET}]
+		or
+	[${COLOR_BLUE}${COLOR_BOLD}filename${COLOR_RESET}] ${COLOR_YELLOW}${COLOR_BOLD}debug${COLOR_RESET} [${COLOR_YELLOW}${COLOR_BOLD}--${COLOR_RESET} ${COLOR_BLUE}${COLOR_BOLD}options${COLOR_RESET}]
+		same as ${COLOR_YELLOW}${COLOR_BOLD}start${COLOR_RESET}, but shows also the generated tc commands
+	
+	${COLOR_YELLOW}${COLOR_BOLD}stop${COLOR_RESET}
+		stops all traffic shapping applied by FireQOS
+		(it does not touch QoS on other interfaces and IFBs used by
+			other tools)
+
+	${COLOR_YELLOW}${COLOR_BOLD}clear_all_qos${COLOR_RESET}
+		- stops all traffic shapping on all network interfaces
+		- removes all IFB devices from the system
+		(clears even QoS applied by other tools)
+	
+	${COLOR_YELLOW}${COLOR_BOLD}status${COLOR_RESET} [${COLOR_BLUE}${COLOR_BOLD}name${COLOR_RESET} [ ${COLOR_YELLOW}${COLOR_BOLD}dump${COLOR_RESET} [${COLOR_BLUE}${COLOR_BOLD}class${COLOR_RESET}] ] ]
+		shows live class utilization for the interface ${COLOR_BLUE}${COLOR_BOLD}name${COLOR_RESET} the
+		name given mathes the name of an interface statement given
+		in the config
+
+		if ${COLOR_YELLOW}${COLOR_BOLD}dump' is specified, it tcpdumps the traffic in the
+		${COLOR_BLUE}${COLOR_BOLD}class${COLOR_RESET} of interface ${COLOR_BLUE}${COLOR_BOLD}name${COLOR_RESET}
+	
+	${COLOR_YELLOW}${COLOR_BOLD}tcpdump${COLOR_RESET} ${COLOR_BLUE}${COLOR_BOLD}name${COLOR_RESET} ${COLOR_BLUE}${COLOR_BOLD}class${COLOR_RESET}
+		or
+	${COLOR_YELLOW}${COLOR_BOLD}dump${COLOR_RESET} ${COLOR_BLUE}${COLOR_BOLD}name${COLOR_RESET} ${COLOR_BLUE}${COLOR_BOLD}class${COLOR_RESET}
+		tcpdumps all traffic in the ${COLOR_BLUE}${COLOR_BOLD}class${COLOR_RESET} of interface ${COLOR_BLUE}${COLOR_BOLD}name${COLOR_RESET}
+
+	${COLOR_YELLOW}${COLOR_BOLD}drops${COLOR_RESET} ${COLOR_BLUE}${COLOR_BOLD}name${COLOR_RESET}
+		shows packets dropped per second, per class for the
+		interface ${COLOR_BLUE}${COLOR_BOLD}name${COLOR_RESET}
+		
+	${COLOR_YELLOW}${COLOR_BOLD}overlimits${COLOR_RESET} ${COLOR_BLUE}${COLOR_BOLD}name${COLOR_RESET}
+		shows packets delayed per second, per class for the
+		interface ${COLOR_BLUE}${COLOR_BOLD}name${COLOR_RESET}
+	
+	${COLOR_YELLOW}${COLOR_BOLD}requeues${COLOR_RESET} ${COLOR_BLUE}${COLOR_BOLD}name${COLOR_RESET}
+		shows packets requeued per second, per class for the
+		interface ${COLOR_BLUE}${COLOR_BOLD}name${COLOR_RESET}
+"
+echo -e "$msg"
 
 }
 
@@ -2903,7 +3066,13 @@ while [ ! -z "$1" ]
 do
 	case "$1" in
 
-		stop)	
+		clear_all_qos)
+			clear_all_qos_on_all_interfaces
+			syslog info "Cleared all QOS on all interfaces"
+			exit 0
+			;;
+
+		stop)
 			clear_everything
 			syslog info "Cleared all FireQOS changes"
 			exit 0
@@ -2990,6 +3159,17 @@ if [ ! -d "${FIREQOS_DIR}/ifaces" ]
 then
 	mkdir -p "${FIREQOS_DIR}/ifaces" || exit 1
 fi
+
+FIREQOS_DEFAULT_QDISC="fq_codel"
+FIREQOS_DEFAULT_QDISC_OPTIONS="default"
+
+# check if this system has fq_codel
+runcmd $modprobe_cmd sch_$FIREQOS_DEFAULT_QDISC >/dev/null 2>&1
+[ $? -ne 0 ] && FIREQOS_DEFAULT_QDISC="codel"
+
+# check if this system has codel
+runcmd $modprobe_cmd sch_$FIREQOS_DEFAULT_QDISC >/dev/null 2>&1
+[ $? -ne 0 ] && FIREQOS_DEFAULT_QDISC="sfq"
 
 # make sure we are not running in parallel
 fireqos_concurrent_run_lock
