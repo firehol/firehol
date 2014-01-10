@@ -196,7 +196,7 @@ FIREHOLMANUALMAN_GENERATED=\
 	man/man5/firehol-snat.5 \
 	man/man5/firehol-src4.5 \
 	man/man5/firehol-src.5 \
-	man/man5/firehol-src5.5 \
+	man/man5/firehol-src6.5 \
 	man/man5/firehol-srctype.5 \
 	man/man5/firehol-tarpit.5 \
 	man/man5/firehol-tcpmss.5 \
