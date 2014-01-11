@@ -1,0 +1,127 @@
+<!DOCTYPE refentry PUBLIC "-//OASIS//DTD DocBook XML V4.5//EN"
+                 "http://www.oasis-open.org/docbook/xml/4.5/docbookx.dtd">
+<!-- For license information see chapter-intro.xml -->
+<refentry id="qos-match-params">
+
+<refmeta>
+<refentrytitle>optional match parameters: fireqos-match-params</refentrytitle>
+<manvolnum>5</manvolnum>
+</refmeta>
+
+<refnamediv>
+<refdescriptor>fireqos-match-params</refdescriptor>
+<refname>fireqos-match-params</refname>
+<refname>fireqos-at</refname>
+<refname>fireqos-match-class</refname>
+<refname>fireqos-syn</refname>
+<refname>fireqos-syns</refname>
+<refname>fireqos-ack</refname>
+<refname>fireqos-acks</refname>
+<refname>fireqos-tos</refname>
+<refname>fireqos-match-priority</refname>
+<refname>fireqos-mark</refname>
+<refname>fireqos-ports</refname>
+<refname>fireqos-sports</refname>
+<refname>fireqos-dports</refname>
+<refname>fireqos-ip</refname>
+<refname>fireqos-net</refname>
+<refname>fireqos-host</refname>
+<refname>fireqos-src</refname>
+<refname>fireqos-dest</refname>
+<refname>fireqos-match-prio</refname>
+<refpurpose>optional match parameters</refpurpose>
+</refnamediv>
+
+<refsynopsisdiv>
+  <cmdsynopsis>
+    <command>at</command>
+    <arg choice="plain">
+      <group choice="opt">
+        <arg choice="plain">root</arg>
+        <arg choice="plain"><replaceable>name</replaceable></arg>
+      </group>
+    </arg>
+  </cmdsynopsis>
+  <cmdsynopsis>
+    <command>class</command>
+    <arg choice="plain"><replaceable>name</replaceable></arg>
+  </cmdsynopsis>
+  <cmdsynopsis>
+    <command>syn|syns</command>
+  </cmdsynopsis>
+  <cmdsynopsis>
+    <command>ack|acks</command>
+  </cmdsynopsis>
+  <cmdsynopsis>
+    <command>proto|protocol</command>
+    <arg rep="repeat" choice="plain"><replaceable>protocol</replaceable></arg>
+    <command> or tcp|udp|icmp|gre|ipv6</command>
+  </cmdsynopsis>
+  <cmdsynopsis>
+    <command>tos|priority</command>
+    <arg rep="repeat" choice="plain"><replaceable>tosid</replaceable></arg>
+  </cmdsynopsis>
+  <cmdsynopsis>
+    <command>mark</command>
+    <arg rep="repeat" choice="plain"><replaceable>mark</replaceable></arg>
+  </cmdsynopsis>
+  <cmdsynopsis>
+    <command>ports</command>
+    <arg rep="repeat" choice="plain"><replaceable>port</replaceable></arg>
+  </cmdsynopsis>
+  <cmdsynopsis>
+    <command>sports</command>
+    <arg rep="repeat" choice="plain"><replaceable>port</replaceable></arg>
+  </cmdsynopsis>
+  <cmdsynopsis>
+    <command>dports</command>
+    <arg rep="repeat" choice="plain"><replaceable>port</replaceable></arg>
+  </cmdsynopsis>
+  <cmdsynopsis>
+    <command>ip|net|host</command>
+    <arg rep="repeat" choice="plain">
+      <group choice="req">
+        <arg choice="plain"><replaceable>addr</replaceable></arg>
+        <arg choice="plain"><replaceable>net</replaceable></arg>
+      </group>
+    </arg>
+  </cmdsynopsis>
+  <cmdsynopsis>
+    <command>src</command>
+    <arg rep="repeat" choice="plain">
+      <group choice="req">
+        <arg choice="plain"><replaceable>addr</replaceable></arg>
+        <arg choice="plain"><replaceable>net</replaceable></arg>
+      </group>
+    </arg>
+  </cmdsynopsis>
+  <cmdsynopsis>
+    <command>dst</command>
+    <arg rep="repeat" choice="plain">
+      <group choice="req">
+        <arg choice="plain"><replaceable>addr</replaceable></arg>
+        <arg choice="plain"><replaceable>net</replaceable></arg>
+      </group>
+    </arg>
+  </cmdsynopsis>
+  <cmdsynopsis>
+    <command>prio</command>
+    <arg choice="plain"><replaceable>id</replaceable></arg>
+  </cmdsynopsis>
+</refsynopsisdiv>
+
+<refsect1><title>Description</title>
+  <para>
+     TODO
+  </para>
+</refsect1>
+
+<refsect1><title>See Also</title>
+  <simplelist type="vert">
+    <member><xref linkend="fireqos"/></member>
+    <member><xref linkend="fireqos.conf"/></member>
+    <member><xref linkend="qos-match"/></member>
+  </simplelist>
+</refsect1>
+
+</refentry>

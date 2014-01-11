@@ -1,0 +1,139 @@
+<!DOCTYPE refentry PUBLIC "-//OASIS//DTD DocBook XML V4.5//EN"
+                 "http://www.oasis-open.org/docbook/xml/4.5/docbookx.dtd">
+<!-- For license information see chapter-intro.xml -->
+<refentry id="qos-class-params">
+
+<refmeta>
+<refentrytitle>optional class parameters: fireqos-class-params</refentrytitle>
+<manvolnum>5</manvolnum>
+</refmeta>
+
+<refnamediv>
+<refdescriptor>fireqos-class-params</refdescriptor>
+<refname>fireqos-class-params</refname>
+<refname>fireqos-rate</refname>
+<refname>fireqos-commit</refname>
+<refname>fireqos-min</refname>
+<refname>fireqos-ceil</refname>
+<refname>fireqos-max</refname>
+<refname>fireqos-minrate</refname>
+<refname>fireqos-qdisc</refname>
+<refname>fireqos-pfifo</refname>
+<refname>fireqos-bfifo</refname>
+<refname>fireqos-sfq</refname>
+<refname>fireqos-fq_codel</refname>
+<refname>fireqos-codel</refname>
+<refname>fireqos-none</refname>
+<refname>fireqos-class-prio</refname>
+<refname>fireqos-linklayer</refname>
+<refname>fireqos-ethernet</refname>
+<refname>fireqos-atm</refname>
+<refname>fireqos-adsl</refname>
+<refname>fireqos-mtu</refname>
+<refname>fireqos-mpu</refname>
+<refname>fireqos-tsize</refname>
+<refname>fireqos-overhead</refname>
+<refname>fireqos-r2q</refname>
+<refname>fireqos-burst</refname>
+<refname>fireqos-cburst</refname>
+<refname>fireqos-quantum</refname>
+<refname>fireqos-class-priority</refname>
+<refname>fireqos-balanced</refname>
+<refpurpose>optional class parameters</refpurpose>
+</refnamediv>
+
+<refsynopsisdiv>
+  <cmdsynopsis>
+    <command>rate|commit|min</command>
+    <arg choice="plain"><replaceable>speed</replaceable></arg>
+  </cmdsynopsis>
+  <cmdsynopsis>
+    <command>ceil|max</command>
+    <arg choice="plain"><replaceable>speed</replaceable></arg>
+  </cmdsynopsis>
+  <cmdsynopsis>
+    <command>minrate</command>
+    <arg choice="plain"><replaceable>speed</replaceable></arg>
+  </cmdsynopsis>
+  <cmdsynopsis>
+    <command>qdisc</command>
+    <arg choice="plain"><replaceable>qdisc-name</replaceable></arg>
+    <command> or pfifo|bfifo|sfq|fq_codel|codel|none</command>
+  </cmdsynopsis>
+  <cmdsynopsis>
+    <command>prio</command>
+    <arg choice="plain">
+      <group choice="req">
+        <arg choice="plain">0..7</arg>
+        <arg choice="plain">keep</arg>
+        <arg choice="plain">last</arg>
+      </group>
+    </arg>
+  </cmdsynopsis>
+  <cmdsynopsis>
+    <command>linklayer</command>
+    <arg choice="plain"><replaceable>linklayer-name</replaceable></arg>
+    <command> or ethernet|atm</command>
+  </cmdsynopsis>
+  <cmdsynopsis>
+    <command>adsl</command>
+    <arg choice="plain">
+      <group choice="opt">
+        <arg choice="plain">local</arg>
+        <arg choice="plain">remote</arg>
+      </group>
+    </arg>
+    <arg choice="plain"><replaceable>encapsulation</replaceable></arg>
+  </cmdsynopsis>
+  <cmdsynopsis>
+    <command>mtu</command>
+    <arg choice="plain"><replaceable>bytes</replaceable></arg>
+  </cmdsynopsis>
+  <cmdsynopsis>
+    <command>mpu</command>
+    <arg choice="plain"><replaceable>bytes</replaceable></arg>
+  </cmdsynopsis>
+  <cmdsynopsis>
+    <command>tsize</command>
+    <arg choice="plain"><replaceable>size</replaceable></arg>
+  </cmdsynopsis>
+  <cmdsynopsis>
+    <command>overhead</command>
+    <arg choice="plain"><replaceable>bytes</replaceable></arg>
+  </cmdsynopsis>
+  <cmdsynopsis>
+    <command>r2q</command>
+    <arg choice="plain"><replaceable>factor</replaceable></arg>
+  </cmdsynopsis>
+  <cmdsynopsis>
+    <command>burst</command>
+    <arg choice="plain"><replaceable>bytes</replaceable></arg>
+  </cmdsynopsis>
+  <cmdsynopsis>
+    <command>cburst</command>
+    <arg choice="plain"><replaceable>bytes</replaceable></arg>
+  </cmdsynopsis>
+  <cmdsynopsis>
+    <command>quantum</command>
+    <arg choice="plain"><replaceable>bytes</replaceable></arg>
+  </cmdsynopsis>
+  <cmdsynopsis>
+    <command>priority|balanced</command>
+  </cmdsynopsis>
+</refsynopsisdiv>
+
+<refsect1><title>Description</title>
+  <para>
+     TODO
+  </para>
+</refsect1>
+
+<refsect1><title>See Also</title>
+  <simplelist type="vert">
+    <member><xref linkend="fireqos"/></member>
+    <member><xref linkend="fireqos.conf"/></member>
+    <member><xref linkend="qos-class"/></member>
+  </simplelist>
+</refsect1>
+
+</refentry>

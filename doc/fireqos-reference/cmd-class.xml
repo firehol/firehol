@@ -1,0 +1,121 @@
+<!DOCTYPE refentry PUBLIC "-//OASIS//DTD DocBook XML V4.5//EN"
+                 "http://www.oasis-open.org/docbook/xml/4.5/docbookx.dtd">
+<!-- For license information see chapter-intro.xml -->
+<refentry id="qos-class">
+
+<refmeta>
+<refentrytitle>traffic class: fireqos-class</refentrytitle>
+<manvolnum>5</manvolnum>
+</refmeta>
+
+<refnamediv>
+<refdescriptor>fireqos-class</refdescriptor>
+<refname>fireqos-class</refname>
+<refname>fireqos-class4</refname>
+<refname>fireqos-class6</refname>
+<refname>fireqos-class46</refname>
+<refpurpose>define a traffic class</refpurpose>
+</refnamediv>
+
+<refsynopsisdiv>
+  <cmdsynopsis>
+    <command>class</command>
+    <arg choice="opt"><option>group</option></arg>
+    <arg choice="plain"><replaceable>name</replaceable></arg>
+    <arg choice="opt"><replaceable>optional-class-params</replaceable></arg>
+  </cmdsynopsis>
+  <cmdsynopsis>
+    <command>class</command>
+    <arg choice="plain"><option>group</option></arg>
+    <arg choice="plain"><option>end</option></arg>
+  </cmdsynopsis>
+</refsynopsisdiv>
+
+<refsect1><title>Description</title>
+  <para>
+    There is also an optional <command>match</command> parameter
+    called <command>class</command>; see <xref linkend="qos-match-params"/>.
+  </para>
+
+  <para>
+    Writing <command>class</command> inherits the IPv4/IPv6 version
+    from its enclosing interface (see <xref linkend="qos-interface"/>).
+  </para>
+
+  <para>
+    Writing <command>class4</command> includes only IPv4 traffic in the class.
+  </para>
+
+  <para>
+    Writing <command>class6</command> includes only IPv6 traffic in the class.
+  </para>
+
+  <para>
+    Writing <command>interface46</command> includes both IPv4 and IPv6
+    traffic in the class.
+  </para>
+</refsect1>
+
+<refsect1><title>Parameters</title>
+  <variablelist>
+    <varlistentry><term><option>group</option></term>
+      <listitem>
+        <para>
+          It is possible to nest classes by using a group. Grouped classes
+          must be closed with the <command>class group end</command>
+          command.
+        </para>
+      </listitem>
+    </varlistentry>
+    <varlistentry><term><replaceable>name</replaceable></term>
+      <listitem>
+        <para>
+          This is a single-word name for this class and is used
+          for displaying status information.
+        </para>
+      </listitem>
+    </varlistentry>
+    <varlistentry><term><replaceable>optional-class-params</replaceable></term>
+      <listitem>
+        <para>
+          The set of optional class parameters to apply to this class.
+        </para>
+      </listitem>
+    </varlistentry>
+  </variablelist>
+</refsect1>
+
+<refsect1><title>Examples</title>
+  <para>
+    To create an nested class, called servers, containing http and smtp:
+    <programlisting>
+interface eth0 lan rate 1Gbit
+  class voip commit 1Mbit
+    match udp ports 5060,10000:10100
+
+  class group servers commit 50%  # define the parent class
+    match tcp                     # apply to all child classes
+        
+    class mail commit 50%         # 50% of parent ('servers')
+      match port 25               # matches within parent class ('servers')
+
+    class web commit 50%
+      match port 80
+  class group end                 # end the group 'servers'
+    
+  class streaming commit 30%
+    </programlisting>
+  </para>
+</refsect1>
+
+<refsect1><title>See Also</title>
+  <simplelist type="vert">
+    <member><xref linkend="fireqos"/></member>
+    <member><xref linkend="fireqos.conf"/></member>
+    <member><xref linkend="qos-class-params"/></member>
+    <member><xref linkend="qos-interface"/></member>
+    <member><xref linkend="qos-match"/></member>
+  </simplelist>
+</refsect1>
+
+</refentry>

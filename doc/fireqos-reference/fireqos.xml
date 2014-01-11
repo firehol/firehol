@@ -17,9 +17,6 @@
 <refsynopsisdiv>
   <cmdsynopsis>
     <command>fireqos</command>
-  </cmdsynopsis>
-  <cmdsynopsis>
-    <command>fireqos</command>
     <arg choice="plain"><replaceable>CONFIGFILE</replaceable></arg>
     <arg choice="plain">
       <group choice="opt">
@@ -33,13 +30,57 @@
     </arg>
   </cmdsynopsis>
   <cmdsynopsis>
-    <command>TODO</command>
+    <command>fireqos</command>
+    <arg choice="req">
+      <group choice="plain">
+        <arg choice="plain">stop</arg>
+        <arg choice="plain">clear_all_qos</arg>
+      </group>
+    </arg>
+  </cmdsynopsis>
+  <cmdsynopsis>
+    <command>fireqos</command>
+    <arg choice="plain">status</arg>
+    <arg choice="opt">
+       <replaceable>name</replaceable>
+       <arg choice="opt">
+         dump
+         <arg choice="opt"><replaceable>class</replaceable></arg>
+       </arg>
+    </arg>
+  </cmdsynopsis>
+  <cmdsynopsis>
+    <command>fireqos</command>
+    <arg choice="req">
+      <group choice="plain">
+        <arg choice="plain">dump</arg>
+        <arg choice="plain">tcpdump</arg>
+      </group>
+    </arg>
+    <arg choice="plain"><replaceable>name</replaceable></arg>
+    <arg choice="plain"><replaceable>class</replaceable></arg>
+    <arg choice="opt">
+      <arg rep="repeat" choice="plain">
+         <replaceable>tcpdump-arg</replaceable>
+      </arg>
+    </arg>
+  </cmdsynopsis>
+  <cmdsynopsis>
+    <command>fireqos</command>
+    <arg choice="req">
+      <group choice="plain">
+        <arg choice="plain">drops</arg>
+        <arg choice="plain">overlimits</arg>
+        <arg choice="plain">requeues</arg>
+      </group>
+    </arg>
+    <arg choice="plain"><replaceable>name</replaceable></arg>
   </cmdsynopsis>
 </refsynopsisdiv>
 
 <refsect1><title>Description</title>
   <para>
-    TODO
+    FireQOS is a helper to assist you configure traffic shaping on Linux.
   </para>
 
   <para>
@@ -52,12 +93,121 @@
      <command>fireqos</command> will use the named file instead of
     <filename>/etc/firehol/fireqos.conf</filename> as its configuration.
   </para>
+
+  <para>
+    The parameter <replaceable>name</replaceable> always refers to
+    and interface name from the configuration file. The parameter
+    <replaceable>class</replaceable> always refers to a named class
+    within a named interface.
+  </para>
+
+  <para>
+    It is possible to pass arguments for use by the configuration file
+    separating any <replaceable>conf-arg</replaceable> values
+    from the rest of the arguments with <userinput>--</userinput>. The
+    arguments are accessible in the configuration using standard
+    <command>bash(1)</command> syntax e.g. $1, $2, etc.
+  </para>
 </refsect1>
 
 <refsect1><title>Commands</title>
-  <para>
-    TODO
-  </para>
+  <variablelist>
+    <varlistentry><term>start</term>
+                  <term>debug</term>
+      <listitem>
+        <para>
+          Activates traffic shaping on all interfaces, as given in the
+          configuration file. When invoked as <option>debug</option>,
+          FireQOS also prints all of the <command>tc(8)</command> commands
+          it executes.
+        </para>
+      </listitem>
+    </varlistentry>
+    <varlistentry><term>stop</term>
+      <listitem>
+        <para>
+          Removes all traffic shaping applied by
+          FireQOS (it does not touch QoS on other interfaces and IFBs
+          used by other tools).
+        </para>
+      </listitem>
+    </varlistentry>
+    <varlistentry><term>clear_all_qos</term>
+      <listitem>
+        <para>
+          Removes all traffic shaping on all network interfaces and
+          removes all IFB devices from the system, even those applied
+          by other tools.
+        </para>
+      </listitem>
+    </varlistentry>
+    <varlistentry><term>status</term>
+      <listitem>
+        <para>
+          Shows live utilization for the specified interface.
+          FireQOS will show you the rate of traffic on all classes,
+          adding one line per second (similarly to vmstat, iostat, etc.)
+        </para>
+        <para>
+          If <option>dump</option> is specified, it tcpdumps the traffic
+          in the given class of the interface.
+        </para>
+      </listitem>
+    </varlistentry>
+    <varlistentry><term>tcpdump</term>
+                  <term>dump</term>
+      <listitem>
+        <para>
+          FireQOS temporarily mirrors the traffic of any leaf class to
+          an IFB device. Then it runs <command>tcpdump</command> on this
+          interface to dump the traffic to your console.
+        </para>
+        <para>
+          You may add any tcpdump parameters you like to the command line,
+          (to dump the traffic to a file, match a subset of the traffic, etc.),
+          for example this:
+<programlisting>
+fireqos tcpdump adsl-in voip -n
+</programlisting>
+          will start a tcpdump of all traffic on interface adsl-in,
+          in class voip. The parameter <option>-n</option> is
+          a <command>tcpdump</command> parameter.
+        </para>
+        <note><para>
+          When FireQOS is running in tcpdump mode, it locks itself and
+          will refuse to run in parallel with another FireQOS altering
+          the QoS, or tcpdumping other traffic. This is because FireQOS
+          reserves device ifb0 for monitoring. If two FireQOS processes
+          were allowed to tcpdump in parallel, your dumps would be wrong.
+          So it locks itself to prevent such a case.
+        </para></note>
+      </listitem>
+    </varlistentry>
+    <varlistentry><term>drops</term>
+      <listitem>
+        <para>
+          Shows packets dropped per second, per class,
+          for the sprcified interface.
+        </para>
+      </listitem>
+    </varlistentry>
+    <varlistentry><term>overlimits</term>
+      <listitem>
+        <para>
+          Shows packets delayed per second, per class,
+          for the sprcified interface.
+        </para>
+      </listitem>
+    </varlistentry>
+    <varlistentry><term>requeues</term>
+      <listitem>
+        <para>
+          Shows packets requeued per second, per class,
+          for the sprcified interface.
+        </para>
+      </listitem>
+    </varlistentry>
+  </variablelist>
 </refsect1>
 
 <refsect1><title>Files</title>

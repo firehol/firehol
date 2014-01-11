@@ -73,36 +73,14 @@ FIREHOLMANUALXML_REFERENCES=\
 	firehol-reference/services-x.xml \
 	firehol-reference/services-y.xml \
 	firehol-reference/services-z.xml \
+	fireqos-reference/cmd-class.xml \
+	fireqos-reference/cmd-interface.xml \
+	fireqos-reference/cmd-match.xml \
 	fireqos-reference/fireqos-conf.xml \
-	fireqos-reference/fireqos.xml
-
-FIREHOLMANUALXML_GENERATED = \
-	services-a.xml \
-	services-b.xml \
-	services-c.xml \
-	services-d.xml \
-	services-e.xml \
-	services-f.xml \
-	services-g.xml \
-	services-h.xml \
-	services-i.xml \
-	services-j.xml \
-	services-k.xml \
-	services-l.xml \
-	services-m.xml \
-	services-n.xml \
-	services-o.xml \
-	services-p.xml \
-	services-q.xml \
-	services-r.xml \
-	services-s.xml \
-	services-t.xml \
-	services-u.xml \
-	services-v.xml \
-	services-w.xml \
-	services-x.xml \
-	services-y.xml \
-	services-z.xml
+	fireqos-reference/fireqos.xml \
+	fireqos-reference/params-class.xml \
+	fireqos-reference/params-match.xml \
+	fireqos-reference/params-shared.xml
 
 FIREHOLMANUALMAN_GENERATED=\
 	man/man1/firehol.1 \
@@ -208,7 +186,69 @@ FIREHOLMANUALMAN_GENERATED=\
 	man/man5/firehol-uid.5 \
 	man/man5/firehol-variables.5 \
 	man/man5/firehol-version.5 \
-	man/man5/fireqos.conf.5
+	man/man5/fireqos-ack.5 \
+	man/man5/fireqos-acks.5 \
+	man/man5/fireqos-adsl.5 \
+	man/man5/fireqos-at.5 \
+	man/man5/fireqos-atm.5 \
+	man/man5/fireqos-balanced.5 \
+	man/man5/fireqos-bfifo.5 \
+	man/man5/fireqos-burst.5 \
+	man/man5/fireqos-cburst.5 \
+	man/man5/fireqos-ceil.5 \
+	man/man5/fireqos-class4.5 \
+	man/man5/fireqos-class46.5 \
+	man/man5/fireqos-class.5 \
+	man/man5/fireqos-class6.5 \
+	man/man5/fireqos-class-params.5 \
+	man/man5/fireqos-class-prio.5 \
+	man/man5/fireqos-class-priority.5 \
+	man/man5/fireqos-codel.5 \
+	man/man5/fireqos-commit.5 \
+	man/man5/fireqos.conf.5 \
+	man/man5/fireqos-dest.5 \
+	man/man5/fireqos-dports.5 \
+	man/man5/fireqos-ethernet.5 \
+	man/man5/fireqos-fq_codel.5 \
+	man/man5/fireqos-host.5 \
+	man/man5/fireqos-interface4.5 \
+	man/man5/fireqos-interface46.5 \
+	man/man5/fireqos-interface.5 \
+	man/man5/fireqos-interface6.5 \
+	man/man5/fireqos-ip.5 \
+	man/man5/fireqos-linklayer.5 \
+	man/man5/fireqos-mark.5 \
+	man/man5/fireqos-match4.5 \
+	man/man5/fireqos-match46.5 \
+	man/man5/fireqos-match.5 \
+	man/man5/fireqos-match6.5 \
+	man/man5/fireqos-match-class.5 \
+	man/man5/fireqos-match-params.5 \
+	man/man5/fireqos-match-prio.5 \
+	man/man5/fireqos-match-priority.5 \
+	man/man5/fireqos-max.5 \
+	man/man5/fireqos-min.5 \
+	man/man5/fireqos-minrate.5 \
+	man/man5/fireqos-mpu.5 \
+	man/man5/fireqos-mtu.5 \
+	man/man5/fireqos-net.5 \
+	man/man5/fireqos-none.5 \
+	man/man5/fireqos-overhead.5 \
+	man/man5/fireqos-pfifo.5 \
+	man/man5/fireqos-ports.5 \
+	man/man5/fireqos-prio.5 \
+	man/man5/fireqos-priority.5 \
+	man/man5/fireqos-qdisc.5 \
+	man/man5/fireqos-quantum.5 \
+	man/man5/fireqos-r2q.5 \
+	man/man5/fireqos-rate.5 \
+	man/man5/fireqos-sfq.5 \
+	man/man5/fireqos-sports.5 \
+	man/man5/fireqos-src.5 \
+	man/man5/fireqos-syn.5 \
+	man/man5/fireqos-syns.5 \
+	man/man5/fireqos-tos.5 \
+	man/man5/fireqos-tsize.5
 
 FIREHOLMANUALHTML_GENERATED = \
 	firehol-manual.html \
@@ -216,6 +256,34 @@ FIREHOLMANUALHTML_GENERATED = \
 
 FIREHOLMANUALPDF_GENERATED = \
 	firehol-manual.pdf
+
+FIREHOLMANUALXML_GENERATED = \
+	services-a.xml \
+	services-b.xml \
+	services-c.xml \
+	services-d.xml \
+	services-e.xml \
+	services-f.xml \
+	services-g.xml \
+	services-h.xml \
+	services-i.xml \
+	services-j.xml \
+	services-k.xml \
+	services-l.xml \
+	services-m.xml \
+	services-n.xml \
+	services-o.xml \
+	services-p.xml \
+	services-q.xml \
+	services-r.xml \
+	services-s.xml \
+	services-t.xml \
+	services-u.xml \
+	services-v.xml \
+	services-w.xml \
+	services-x.xml \
+	services-y.xml \
+	services-z.xml
 
 export FIREHOLMANUALXML_MASTER
 

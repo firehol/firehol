@@ -1,0 +1,46 @@
+<!DOCTYPE refentry PUBLIC "-//OASIS//DTD DocBook XML V4.5//EN"
+                 "http://www.oasis-open.org/docbook/xml/4.5/docbookx.dtd">
+<!-- For license information see chapter-intro.xml -->
+<refentry id="qos-shared-params">
+
+<refmeta>
+<refentrytitle>class/match parameters: fireqos-shared-params</refentrytitle>
+<manvolnum>5</manvolnum>
+</refmeta>
+
+<refnamediv>
+<refdescriptor>fireqos-shared-params</refdescriptor>
+<refname>fireqos-prio</refname>
+<refname>fireqos-priority</refname>
+<refpurpose>class/match parameters</refpurpose>
+</refnamediv>
+
+<refsect1><title>Description</title>
+  <para>
+     Some optional parameter names are the same for both
+     <command>class</command> and <command>match</command>.
+     This page exists as a placeholder to help you find the
+     appropriate documentation.
+  </para>
+
+  <para>
+    For the <command>class</command> version,
+    see <xref linkend="qos-class-params"/>.
+  </para>
+
+  <para>
+    For the <command>match</command> version,
+    see <xref linkend="qos-match-params"/>.
+  </para>
+</refsect1>
+
+<refsect1><title>See Also</title>
+  <simplelist type="vert">
+    <member><xref linkend="fireqos"/></member>
+    <member><xref linkend="fireqos.conf"/></member>
+    <member><xref linkend="qos-class"/></member>
+    <member><xref linkend="qos-match"/></member>
+  </simplelist>
+</refsect1>
+
+</refentry>

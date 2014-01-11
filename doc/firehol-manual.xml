@@ -16,13 +16,12 @@
     <date>Built &PACKAGE_BUILT_DATE;</date>
     <releaseinfo>&PACKAGE_VERSION;</releaseinfo>
     <copyright>
-      <year>2012</year>
-      <year>2013</year>
+      <year>2012-2014</year>
       <holder>Phil Whineray &lt;phil@sanewall.org&gt;</holder>
     </copyright>
     <copyright>
       <year>2004</year>
-      <year>2013</year>
+      <year>2013-2014</year>
       <holder>Costa Tsaousis &lt;costa@tsaousis.gr&gt;</holder>
     </copyright>
   </bookinfo>
@@ -182,6 +181,24 @@
                             href="fireqos-reference/fireqos.xml" />
       <xi:include xmlns:xi="http://www.w3.org/2001/XInclude"
                             href="fireqos-reference/fireqos-conf.xml" />
+    </reference>
+
+    <reference><title>Organising Traffic</title>
+      <xi:include xmlns:xi="http://www.w3.org/2001/XInclude"
+                            href="fireqos-reference/cmd-interface.xml" />
+      <xi:include xmlns:xi="http://www.w3.org/2001/XInclude"
+                            href="fireqos-reference/cmd-class.xml" />
+      <xi:include xmlns:xi="http://www.w3.org/2001/XInclude"
+                            href="fireqos-reference/cmd-match.xml" />
+    </reference>
+
+    <reference><title>Optional Parameters</title>
+      <xi:include xmlns:xi="http://www.w3.org/2001/XInclude"
+                            href="fireqos-reference/params-shared.xml" />
+      <xi:include xmlns:xi="http://www.w3.org/2001/XInclude"
+                            href="fireqos-reference/params-class.xml" />
+      <xi:include xmlns:xi="http://www.w3.org/2001/XInclude"
+                            href="fireqos-reference/params-match.xml" />
     </reference>
   </part>
 

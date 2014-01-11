@@ -1,0 +1,71 @@
+<!DOCTYPE refentry PUBLIC "-//OASIS//DTD DocBook XML V4.5//EN"
+                 "http://www.oasis-open.org/docbook/xml/4.5/docbookx.dtd">
+<!-- For license information see chapter-intro.xml -->
+<refentry id="qos-match">
+
+<refmeta>
+<refentrytitle>traffic match: fireqos-match</refentrytitle>
+<manvolnum>5</manvolnum>
+</refmeta>
+
+<refnamediv>
+<refdescriptor>fireqos-match</refdescriptor>
+<refname>fireqos-match</refname>
+<refname>fireqos-match4</refname>
+<refname>fireqos-match6</refname>
+<refname>fireqos-match46</refname>
+<refpurpose>define a traffic match</refpurpose>
+</refnamediv>
+
+<refsynopsisdiv>
+  <cmdsynopsis>
+    <command>match</command>
+    <arg choice="opt"><replaceable>optional-match-params</replaceable></arg>
+  </cmdsynopsis>
+</refsynopsisdiv>
+
+<refsect1><title>Description</title>
+  <para>
+    Writing <command>match</command> inherits the IPv4/IPv6 version
+    from its enclosing class (see <xref linkend="qos-class"/>).
+  </para>
+
+  <para>
+    Writing <command>match4</command> includes only IPv4 traffic in the match.
+  </para>
+
+  <para>
+    Writing <command>match6</command> includes only IPv6 traffic in the match.
+  </para>
+
+  <para>
+    Writing <command>interface46</command> includes both IPv4 and IPv6
+    traffic in the match.
+  </para>
+
+  <para>
+    The <replaceable>optional-match-params</replaceable>
+    are a set of parameters to apply to this match.
+    See <xref linkend="qos-match-params"/>.
+  </para>
+</refsect1>
+
+<refsect1><title>Examples</title>
+  <para>
+    <programlisting>
+match udp port 53  # DNS match, ipv4 and/or ipv6 (inherited)
+    </programlisting>
+  </para>
+</refsect1>
+
+<refsect1><title>See Also</title>
+  <simplelist type="vert">
+    <member><xref linkend="fireqos"/></member>
+    <member><xref linkend="fireqos.conf"/></member>
+    <member><xref linkend="qos-match-params"/></member>
+    <member><xref linkend="qos-interface"/></member>
+    <member><xref linkend="qos-class"/></member>
+  </simplelist>
+</refsect1>
+
+</refentry>
