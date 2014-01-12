@@ -89,7 +89,7 @@
   <para>
     To create an nested class, called servers, containing http and smtp:
     <programlisting>
-interface eth0 lan rate 1Gbit
+interface eth0 lan input rate 1Gbit
   class voip commit 1Mbit
     match udp ports 5060,10000:10100
 

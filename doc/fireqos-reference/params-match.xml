@@ -54,55 +54,49 @@
   </cmdsynopsis>
   <cmdsynopsis>
     <command>proto|protocol</command>
-    <arg rep="repeat" choice="plain"><replaceable>protocol</replaceable></arg>
+    <arg choice="plain"><replaceable>protocol</replaceable></arg>
+    <arg rep="repeat" choice="opt"><replaceable>,protocol</replaceable></arg>
     <command> or tcp|udp|icmp|gre|ipv6</command>
   </cmdsynopsis>
   <cmdsynopsis>
     <command>tos|priority</command>
-    <arg rep="repeat" choice="plain"><replaceable>tosid</replaceable></arg>
+    <arg choice="plain"><replaceable>tosid</replaceable></arg>
+    <arg rep="repeat" choice="opt"><replaceable>,tosid</replaceable></arg>
   </cmdsynopsis>
   <cmdsynopsis>
     <command>mark</command>
-    <arg rep="repeat" choice="plain"><replaceable>mark</replaceable></arg>
+    <arg choice="plain"><replaceable>mark</replaceable></arg>
+    <arg rep="repeat" choice="opt"><replaceable>,mark</replaceable></arg>
   </cmdsynopsis>
   <cmdsynopsis>
     <command>ports</command>
-    <arg rep="repeat" choice="plain"><replaceable>port</replaceable></arg>
+    <arg choice="plain"><replaceable>port-range</replaceable></arg>
+    <arg rep="repeat" choice="opt"><replaceable>,port-range</replaceable></arg>
   </cmdsynopsis>
   <cmdsynopsis>
     <command>sports</command>
-    <arg rep="repeat" choice="plain"><replaceable>port</replaceable></arg>
+    <arg choice="plain"><replaceable>port-range</replaceable></arg>
+    <arg rep="repeat" choice="opt"><replaceable>,port-range</replaceable></arg>
   </cmdsynopsis>
   <cmdsynopsis>
     <command>dports</command>
-    <arg rep="repeat" choice="plain"><replaceable>port</replaceable></arg>
+    <arg choice="plain"><replaceable>port-range</replaceable></arg>
+    <arg rep="repeat" choice="opt"><replaceable>,port-range</replaceable></arg>
   </cmdsynopsis>
   <cmdsynopsis>
     <command>ip|net|host</command>
-    <arg rep="repeat" choice="plain">
-      <group choice="req">
-        <arg choice="plain"><replaceable>addr</replaceable></arg>
-        <arg choice="plain"><replaceable>net</replaceable></arg>
-      </group>
-    </arg>
+    <arg choice="plain"><replaceable>net</replaceable></arg>
+    <arg rep="repeat" choice="opt"><replaceable>,net</replaceable></arg>
   </cmdsynopsis>
   <cmdsynopsis>
     <command>src</command>
-    <arg rep="repeat" choice="plain">
-      <group choice="req">
-        <arg choice="plain"><replaceable>addr</replaceable></arg>
-        <arg choice="plain"><replaceable>net</replaceable></arg>
-      </group>
-    </arg>
+    <arg choice="plain"><replaceable>net</replaceable></arg>
+    <arg rep="repeat" choice="opt"><replaceable>,net</replaceable></arg>
   </cmdsynopsis>
   <cmdsynopsis>
     <command>dst</command>
-    <arg rep="repeat" choice="plain">
-      <group choice="req">
-        <arg choice="plain"><replaceable>addr</replaceable></arg>
-        <arg choice="plain"><replaceable>net</replaceable></arg>
-      </group>
-    </arg>
+    <arg choice="plain"><replaceable>net</replaceable></arg>
+    <arg rep="repeat" choice="opt"><replaceable>,net</replaceable></arg>
   </cmdsynopsis>
   <cmdsynopsis>
     <command>prio</command>

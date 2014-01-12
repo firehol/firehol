@@ -110,9 +110,64 @@
   </note>
 </refsect1>
 
+<refsect1><title>Example</title>
+  <programlisting>
+# incoming traffic from my ADSL router
+interface eth2 adsl-in input rate 10500kbit adsl remote pppoe-llc
+  class voip commit 100kbit pfifo
+    match udp ports 5060,10000:10100 # asterisk sip and rtp
+    match udp ports 16393:16402 # apple facetime
+
+  class realtime commit 10%
+    match tcp port 22,1195:1198,1753 # ssh, openvpn, pptp
+    match udp port 53 # dns
+    match proto GRE
+    match icmp
+    match tcp syn
+    match tcp ack
+
+  class clients commit 10%
+    match tcp port 20,21,25,80,143,443,465,873,993 # mail, web, ftp, etc
+
+  # unmatched traffic goes here ('default' is a special name)
+  class default max 90%
+
+  # I define torrents beneath the default class, because I want them
+  # to slow down when the default class is willing to get bandwidth
+  class torrents max 90%
+    match port 51414 # my torrent client
+
+# outgoing traffic to my ADSL router
+interface eth2 adsl-out output rate 800kbit adsl remote pppoe-llc
+  class voip commit 100kbit pfifo
+    match udp ports 5060,10000:10100 # asterisk sip and rtp
+    match udp ports 16393:16402 # apple facetime
+
+  class realtime commit 10%
+    match tcp port 22,1195:1198,1753 # ssh, openvpn, pptp
+    match udp port 53 # dns
+    match proto GRE
+    match icmp
+    match tcp syn
+    match tcp ack
+
+  class clients commit 10%
+    match tcp port 20,21,25,80,143,443,465,873,993 # mail, web, ftp, etc
+
+  # unmatched traffic goes here ('default' is a special name)
+  class default max 90%
+
+  # I define torrents, beneath the default class, because I want them
+  # to slow down when the default class is willing to get bandwidth
+   class torrents max 90%
+       match port 51414 # my torrent client
+  </programlisting>
+</refsect1>
+
 <refsect1><title>See Also</title>
   <simplelist type="vert">
     <member><xref linkend="fireqos"/></member>
+    <member><xref linkend="qos-interface"/></member>
     <member>FireHOL Manual: firehol-manual.pdf</member>
     <member><ulink url="http://firehol.org/">FireHOL Online Documentation</ulink></member>
   </simplelist>
