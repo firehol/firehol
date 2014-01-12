@@ -1,6 +1,6 @@
 # Process this file with automake to produce Makefile.in
 
-DIST_SUBDIRS = xsl latex tools firehol-reference fireqos-reference
+DIST_SUBDIRS = xsl latex tools firehol fireqos firehol-reference fireqos-reference
 
 dochtmldir = $(htmldir)/html
 

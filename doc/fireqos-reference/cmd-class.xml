@@ -51,7 +51,7 @@
   </para>
 
   <para>
-    Writing <command>interface46</command> includes both IPv4 and IPv6
+    Writing <command>class46</command> includes both IPv4 and IPv6
     traffic in the class.
   </para>
 </refsect1>

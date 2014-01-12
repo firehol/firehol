@@ -39,7 +39,7 @@
   </para>
 
   <para>
-    Writing <command>interface46</command> includes both IPv4 and IPv6
+    Writing <command>match46</command> includes both IPv4 and IPv6
     traffic in the match.
   </para>
 
