@@ -51,6 +51,11 @@
     to both IPv4 and IPv6 traffic.
   </para>
 
+  <para>
+    The actual traffic shaping behaviour of a class is defined by adding
+    classes. See <xref linkend="qos-class"/>.
+  </para>
+
   <note>
     <para>
       To achieve best results with <emphasis>incoming</emphasis> traffic
