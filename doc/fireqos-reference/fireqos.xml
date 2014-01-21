@@ -144,7 +144,7 @@
     <varlistentry><term>status</term>
       <listitem>
         <para>
-          Shows live utilization for the specified interface.
+          Shows live utilisation for the specified interface.
           FireQOS will show you the rate of traffic on all classes,
           adding one line per second (similarly to vmstat, iostat, etc.)
         </para>
@@ -187,7 +187,7 @@ fireqos tcpdump adsl-in voip -n
       <listitem>
         <para>
           Shows packets dropped per second, per class,
-          for the sprcified interface.
+          for the specified interface.
         </para>
       </listitem>
     </varlistentry>
@@ -195,7 +195,7 @@ fireqos tcpdump adsl-in voip -n
       <listitem>
         <para>
           Shows packets delayed per second, per class,
-          for the sprcified interface.
+          for the specified interface.
         </para>
       </listitem>
     </varlistentry>
@@ -203,7 +203,7 @@ fireqos tcpdump adsl-in voip -n
       <listitem>
         <para>
           Shows packets requeued per second, per class,
-          for the sprcified interface.
+          for the specified interface.
         </para>
       </listitem>
     </varlistentry>

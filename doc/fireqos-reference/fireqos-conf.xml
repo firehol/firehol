@@ -22,7 +22,7 @@
 
   <para>
     The default configuration file is
-    <filename>/etc/firehol/fireqos.conf</filename>. It can be overriden
+    <filename>/etc/firehol/fireqos.conf</filename>. It can be overridden
     from the command line.
   </para>
 

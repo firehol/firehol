@@ -79,7 +79,7 @@
   </para>
 
   <note><para>
-     The undelying linux qdisc used by FireQOS, HTB, supports only 8
+     The underlying Linux qdisc used by FireQOS, HTB, supports only 8
      priorities, from 0 to 7. If you use more than 8 priorities, all
      after the 8th will get the same priority (<option>prio</option> 7).
   </para></note>

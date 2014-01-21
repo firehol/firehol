@@ -64,9 +64,9 @@
     </para>
 
     <para>
-      If you use all there is, at 100% utilization of the link, the
+      If you use all there is, at 100% utilisation of the link, the
       neighbour routers will start queuing packets. This will destroy
-      prioritization. Try 85% or 90% instead.
+      prioritisation. Try 85% or 90% instead.
     </para>
   </note>
 </refsect1>
