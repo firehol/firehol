@@ -78,7 +78,7 @@
   <cmdsynopsis>
     <command>adsl</command>
     <arg choice="plain">
-      <group choice="opt">
+      <group choice="plain">
         <arg choice="plain">local</arg>
         <arg choice="plain">remote</arg>
       </group>
@@ -124,14 +124,154 @@
 
 <refsect1><title>Description</title>
   <para>
-     TODO
+     All of the options apply to <command>interface</command> and
+     <command>class</command> statements.
   </para>
+
+  <variablelist>
+    <varlistentry><term><option>rate</option> <replaceable>speed</replaceable></term>
+                  <term><option>commit</option> <replaceable>speed</replaceable></term>
+                  <term><option>min</option> <replaceable>speed</replaceable></term>
+      <listitem>
+        <para>
+           When a committed rate is provided to a class, it means that the
+           bandwidth will be given to the class when it needs it.
+           If the class does not need the bandwidth, it will be available
+           for any other class to use.
+        </para>
+        <note>
+          <para>
+             For interfaces, a rate must be defined.
+          </para>
+          <para>
+             For classes the rate defaults to 1/100 of the interface capacity.
+          </para>
+        </note>
+      </listitem>
+    </varlistentry>
+
+    <varlistentry><term><option>ceil</option> <replaceable>speed</replaceable></term>
+                  <term><option>max</option> <replaceable>speed</replaceable></term>
+      <listitem>
+        <para>
+        </para>
+      </listitem>
+    </varlistentry>
+
+    <varlistentry><term><option>minrate</option> <replaceable>speed</replaceable></term>
+      <listitem>
+        <para>
+        </para>
+      </listitem>
+    </varlistentry>
+
+    <varlistentry><term><option>qdisc</option> <replaceable>qdisc-name</replaceable></term>
+                  <term><option>pfifo</option></term>
+                  <term><option>bfifo</option></term>
+                  <term><option>sfq</option></term>
+                  <term><option>fq_codel</option></term>
+                  <term><option>codel</option></term>
+                  <term><option>none</option></term>
+      <listitem>
+        <para>
+        </para>
+      </listitem>
+    </varlistentry>
+
+    <varlistentry><term><option>prio</option> 0..7|keep|last</term>
+      <listitem>
+        <para>
+        </para>
+      </listitem>
+    </varlistentry>
+
+    <varlistentry><term><option>linklayer</option> <replaceable>linklayer-name</replaceable></term>
+                  <term><option>ethernet</option></term>
+                  <term><option>atm</option></term>
+      <listitem>
+        <para>
+        </para>
+      </listitem>
+    </varlistentry>
+
+    <varlistentry><term><option>adsl</option> local|remote <replaceable>encapsulation</replaceable></term>
+      <listitem>
+        <para>
+        </para>
+      </listitem>
+    </varlistentry>
+
+    <varlistentry><term><option>mtu</option> <replaceable>bytes</replaceable></term>
+      <listitem>
+        <para>
+        </para>
+      </listitem>
+    </varlistentry>
+
+    <varlistentry><term><option>mpu</option> <replaceable>bytes</replaceable></term>
+      <listitem>
+        <para>
+        </para>
+      </listitem>
+    </varlistentry>
+
+    <varlistentry><term><option>tsize</option> <replaceable>size</replaceable></term>
+      <listitem>
+        <para>
+        </para>
+      </listitem>
+    </varlistentry>
+
+    <varlistentry><term><option>overhead</option> <replaceable>bytes</replaceable></term>
+      <listitem>
+        <para>
+        </para>
+      </listitem>
+    </varlistentry>
+
+    <varlistentry><term><option>r2q</option> <replaceable>factor</replaceable></term>
+      <listitem>
+        <para>
+        </para>
+      </listitem>
+    </varlistentry>
+
+    <varlistentry><term><option>burst</option> <replaceable>bytes</replaceable></term>
+      <listitem>
+        <para>
+        </para>
+      </listitem>
+    </varlistentry>
+
+    <varlistentry><term><option>cburst</option> <replaceable>bytes</replaceable></term>
+      <listitem>
+        <para>
+        </para>
+      </listitem>
+    </varlistentry>
+
+    <varlistentry><term><option>quantum</option> <replaceable>bytes</replaceable></term>
+      <listitem>
+        <para>
+        </para>
+      </listitem>
+    </varlistentry>
+
+    <varlistentry><term><option>priority</option></term>
+                  <term><option>balanced</option></term>
+      <listitem>
+        <para>
+        </para>
+      </listitem>
+    </varlistentry>
+  </variablelist>
 </refsect1>
 
 <refsect1><title>See Also</title>
   <simplelist type="vert">
     <member><xref linkend="fireqos"/></member>
     <member><xref linkend="fireqos.conf"/></member>
+    <member><xref linkend="qos-interface"/></member>
     <member><xref linkend="qos-class"/></member>
   </simplelist>
 </refsect1>
