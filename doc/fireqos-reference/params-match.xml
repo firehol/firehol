@@ -36,7 +36,7 @@
   <cmdsynopsis>
     <command>at</command>
     <arg choice="plain">
-      <group choice="opt">
+      <group choice="plain">
         <arg choice="plain">root</arg>
         <arg choice="plain"><replaceable>name</replaceable></arg>
       </group>
@@ -70,18 +70,18 @@
   </cmdsynopsis>
   <cmdsynopsis>
     <command>ports</command>
-    <arg choice="plain"><replaceable>port-range</replaceable></arg>
-    <arg rep="repeat" choice="opt"><replaceable>,port-range</replaceable></arg>
+    <arg choice="plain"><replaceable>port[:range]</replaceable></arg>
+    <arg rep="repeat" choice="opt"><replaceable>,port[:range]</replaceable></arg>
   </cmdsynopsis>
   <cmdsynopsis>
     <command>sports</command>
-    <arg choice="plain"><replaceable>port-range</replaceable></arg>
-    <arg rep="repeat" choice="opt"><replaceable>,port-range</replaceable></arg>
+    <arg choice="plain"><replaceable>port[:range]</replaceable></arg>
+    <arg rep="repeat" choice="opt"><replaceable>,port[:range]</replaceable></arg>
   </cmdsynopsis>
   <cmdsynopsis>
     <command>dports</command>
-    <arg choice="plain"><replaceable>port-range</replaceable></arg>
-    <arg rep="repeat" choice="opt"><replaceable>,port-range</replaceable></arg>
+    <arg choice="plain"><replaceable>port[:range]</replaceable></arg>
+    <arg rep="repeat" choice="opt"><replaceable>,port[:range]</replaceable></arg>
   </cmdsynopsis>
   <cmdsynopsis>
     <command>ip|net|host</command>
@@ -106,8 +106,120 @@
 
 <refsect1><title>Description</title>
   <para>
-     TODO
+     These options apply to <command>match</command> statements.
   </para>
+
+  <variablelist>
+    <varlistentry><term><option>at</option> root|<replaceable>name</replaceable></term>
+      <listitem>
+        <para>
+        </para>
+      </listitem>
+    </varlistentry>
+
+    <varlistentry><term><option>class</option> <replaceable>name</replaceable></term>
+      <listitem>
+        <para>
+        </para>
+      </listitem>
+    </varlistentry>
+
+    <varlistentry><term><option>syn</option></term>
+                  <term><option>syns</option></term>
+      <listitem>
+        <para>
+        </para>
+      </listitem>
+    </varlistentry>
+
+    <varlistentry><term><option>ack</option></term>
+                  <term><option>acks</option></term>
+      <listitem>
+        <para>
+        </para>
+      </listitem>
+    </varlistentry>
+
+    <varlistentry><term><option>proto</option> <replaceable>protocol</replaceable>[,<replaceable>protocol</replaceable>...]</term>
+                  <term><option>protocol</option> <replaceable>protocol</replaceable>[,<replaceable>protocol</replaceable>...]</term>
+                  <term><option>tcp</option></term>
+                  <term><option>udp</option></term>
+                  <term><option>icmp</option></term>
+                  <term><option>gre</option></term>
+                  <term><option>ipv6</option></term>
+      <listitem>
+        <para>
+        </para>
+      </listitem>
+    </varlistentry>
+
+    <varlistentry><term><option>tos</option> <replaceable>tosid</replaceable>[,<replaceable>tosid</replaceable>...]</term>
+                  <term><option>priority</option> <replaceable>tosid</replaceable>[,<replaceable>tosid</replaceable>...]</term>
+      <listitem>
+        <para>
+        </para>
+      </listitem>
+    </varlistentry>
+
+    <varlistentry><term><option>mark</option> <replaceable>mark</replaceable>[,<replaceable>mark</replaceable>...]</term>
+      <listitem>
+        <para>
+        </para>
+      </listitem>
+    </varlistentry>
+
+    <varlistentry><term><option>ports</option> <replaceable>port[:range]</replaceable>[,<replaceable>port[:range]</replaceable>...]</term>
+      <listitem>
+        <para>
+        </para>
+      </listitem>
+    </varlistentry>
+
+    <varlistentry><term><option>sports</option> <replaceable>port[:range]</replaceable>[,<replaceable>port[:range]</replaceable>...]</term>
+      <listitem>
+        <para>
+        </para>
+      </listitem>
+    </varlistentry>
+
+    <varlistentry><term><option>dports</option> <replaceable>port[:range]</replaceable>[,<replaceable>port[:range]</replaceable>...]</term>
+      <listitem>
+        <para>
+        </para>
+      </listitem>
+    </varlistentry>
+
+    <varlistentry><term><option>ip</option> <replaceable>net</replaceable>[,<replaceable>net</replaceable>...]</term>
+                  <term><option>net</option> <replaceable>net</replaceable>[,<replaceable>net</replaceable>...]</term>
+                  <term><option>host</option> <replaceable>net</replaceable>[,<replaceable>net</replaceable>...]</term>
+      <listitem>
+        <para>
+        </para>
+      </listitem>
+    </varlistentry>
+
+    <varlistentry><term><option>src</option> <replaceable>net</replaceable>[,<replaceable>net</replaceable>...]</term>
+      <listitem>
+        <para>
+        </para>
+      </listitem>
+    </varlistentry>
+
+    <varlistentry><term><option>dst</option> <replaceable>net</replaceable>[,<replaceable>net</replaceable>...]</term>
+      <listitem>
+        <para>
+        </para>
+      </listitem>
+    </varlistentry>
+
+    <varlistentry><term><option>prio</option> <replaceable>id</replaceable></term>
+      <listitem>
+        <para>
+        </para>
+      </listitem>
+    </varlistentry>
+
+  </variablelist>
 </refsect1>
 
 <refsect1><title>See Also</title>
