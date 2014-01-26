@@ -113,6 +113,20 @@
     <varlistentry><term><option>at</option> root|<replaceable>name</replaceable></term>
       <listitem>
         <para>
+          By default a <option>match</option> is attached to the parent
+          of its parent class. For example, if its parent is a class
+          directly under the interface, then the <option>match</option>
+          is attached to the interface and is compared against all traffic
+          of the interface. For nested classes, a <option>match</option>
+          of a leaf, is attached to the parent class and is compared
+          against all traffic of this parent class.
+        </para>
+        <para>
+          With the <option>at</option> parameter, a <option>match</option>
+          can be attached any class. The <replaceable>name</replaceable>
+          parameter should be a class name. The name
+          <userinput>root</userinput> attaches the <option>match</option>
+          to the interface.
         </para>
       </listitem>
     </varlistentry>
@@ -120,6 +134,12 @@
     <varlistentry><term><option>class</option> <replaceable>name</replaceable></term>
       <listitem>
         <para>
+          Defines the <replaceable>name</replaceable> of the class that
+          will get the packets matched by this <option>match</option>.
+        </para>
+        <para>
+          By default it is the name of the class the <option>match</option>
+          statement appears under.
         </para>
       </listitem>
     </varlistentry>
@@ -128,6 +148,21 @@
                   <term><option>syns</option></term>
       <listitem>
         <para>
+          Match TCP SYN packets. Note that
+          the <option>tcp</option> parameter must be specified.
+        </para>
+        <para>
+          If the same match statement includes more protocols than TCP,
+          then this match will work for the TCP packets (it will be
+          silently ignored for all other protocols).
+        </para>
+        <para>
+          For example, syn is ignored when generating the UDP filter in
+          the below:
+<programlisting>
+match tcp syn
+match proto tcp,udp syn
+</programlisting>
         </para>
       </listitem>
     </varlistentry>
@@ -136,6 +171,7 @@
                   <term><option>acks</option></term>
       <listitem>
         <para>
+          Same as <option>syn</option>, but matching TCP ACK packets.
         </para>
       </listitem>
     </varlistentry>
@@ -149,6 +185,7 @@
                   <term><option>ipv6</option></term>
       <listitem>
         <para>
+          Match the protocol in the IP header.
         </para>
       </listitem>
     </varlistentry>
@@ -157,6 +194,29 @@
                   <term><option>priority</option> <replaceable>tosid</replaceable>[,<replaceable>tosid</replaceable>...]</term>
       <listitem>
         <para>
+          Match to TOS field of ipv4 or the priority field of ipv6.
+          id can be a <replaceable>value/mask</replaceable> in any
+          format <command>tc</command> accepts, or one of the following:
+          <simplelist type="vert">
+            <member>
+              min-delay, minimize-delay, minimum-delay, low-delay,
+              interactive
+            </member>
+            <member>
+              maximize-throughput, maximum-throughput, max-throughput,
+              high-throughput, bulk
+            </member>
+            <member>
+              maximize-reliability, maximum-reliability, max-reliability,
+              reliable
+            </member>
+            <member>
+              min-cost, minimize-cost, minimum-cost, low-cost, cheap
+            </member>
+            <member>
+              normal-service, normal
+            </member>
+          </simplelist>
         </para>
       </listitem>
     </varlistentry>
@@ -164,27 +224,25 @@
     <varlistentry><term><option>mark</option> <replaceable>mark</replaceable>[,<replaceable>mark</replaceable>...]</term>
       <listitem>
         <para>
+          Match an iptables MARK. Matching iptables MARKs does not work
+          on input interfaces. You can use them only on output.
+          The IFB devices that are used for shaping inbound traffic
+          do not have any iptables hooks to allow matching MARKs.
+          If you try it, FireQOS will attempt to do it, but currently
+          you will get an error from the tc command executed.
         </para>
       </listitem>
     </varlistentry>
 
     <varlistentry><term><option>ports</option> <replaceable>port[:range]</replaceable>[,<replaceable>port[:range]</replaceable>...]</term>
+                  <term><option>sports</option> <replaceable>port[:range]</replaceable>[,<replaceable>port[:range]</replaceable>...]</term>
+                  <term><option>dports</option> <replaceable>port[:range]</replaceable>[,<replaceable>port[:range]</replaceable>...]</term>
       <listitem>
         <para>
-        </para>
-      </listitem>
-    </varlistentry>
-
-    <varlistentry><term><option>sports</option> <replaceable>port[:range]</replaceable>[,<replaceable>port[:range]</replaceable>...]</term>
-      <listitem>
-        <para>
-        </para>
-      </listitem>
-    </varlistentry>
-
-    <varlistentry><term><option>dports</option> <replaceable>port[:range]</replaceable>[,<replaceable>port[:range]</replaceable>...]</term>
-      <listitem>
-        <para>
+          Match ports of the IP header. <option>ports</option> will
+          create rules for matching source and destination ports
+          (separate rules for each). <option>dports</option> matches
+          destination ports, <option>sports</option> matches source ports.
         </para>
       </listitem>
     </varlistentry>
@@ -192,29 +250,114 @@
     <varlistentry><term><option>ip</option> <replaceable>net</replaceable>[,<replaceable>net</replaceable>...]</term>
                   <term><option>net</option> <replaceable>net</replaceable>[,<replaceable>net</replaceable>...]</term>
                   <term><option>host</option> <replaceable>net</replaceable>[,<replaceable>net</replaceable>...]</term>
+                  <term><option>src</option> <replaceable>net</replaceable>[,<replaceable>net</replaceable>...]</term>
+                  <term><option>dst</option> <replaceable>net</replaceable>[,<replaceable>net</replaceable>...]</term>
       <listitem>
         <para>
+          Match IPs of the IP header. <option>ip</option>,
+          <option>net</option> and <option>host</option> will
+          create rules for matching source and destination IPs
+          (separate rules for each). <option>src</option> matches
+          source IPs and <option>dst</option> destination IPs.
         </para>
-      </listitem>
-    </varlistentry>
+        <note>
+          <para>
+            If the class these matches appear in are IPv4, then only IPv4
+            IPs can be used. To override use
+            <userinput>match6 ... src/dst
+            <replaceable>IPV6_IP</replaceable></userinput>.
+          </para>
+          <para>
+            Similarly, if the class is IPv6, then only IPv6 IPs can be used.
+            To override use
+            <userinput>match4 ... src/dst
+            <replaceable>IPV4_IP</replaceable></userinput>.
+          </para>
+          <para>
+            You can mix IPv4 and IPv6 in any way you like. FireQOS supports
+            inheritance, to figure out for each statement which is the default.
+            For example:
+<programlisting>
+interface46 eth0 lan output rate 1Gbit # ipv4 and ipv6 enabled
+  class voip # ipv4 and ipv6 class, as interface is both
+    match udp port 53 # ipv4 and ipv6 rule, as class is both
+    match4 src 192.0.2.1 # ipv4 only rule
+    match6 src 2001:db8::1 # ipv6 only rule
 
-    <varlistentry><term><option>src</option> <replaceable>net</replaceable>[,<replaceable>net</replaceable>...]</term>
-      <listitem>
-        <para>
-        </para>
-      </listitem>
-    </varlistentry>
+  class4 realtime # ipv4 only class
+    match src 198.51.100.1 # ipv4 only rule, as class is ipv4-only
 
-    <varlistentry><term><option>dst</option> <replaceable>net</replaceable>[,<replaceable>net</replaceable>...]</term>
-      <listitem>
-        <para>
-        </para>
+  class6 servers # ipv6 only class
+    match src 2001:db8::2 # ipv6 only rule, as class is ipv6-only
+</programlisting>
+          </para>
+          <para>
+            To convert an IPv4 interface to IPv6, just replace
+            <command>interface</command> with <command>interface6</command>.
+            All the rules in that interface, will automatically inherit
+            the new protocol. Of course, if you use IP addresses for
+            matching packets, make sure they are IPv6 IPs too.
+          </para>
+        </note>
       </listitem>
     </varlistentry>
 
     <varlistentry><term><option>prio</option> <replaceable>id</replaceable></term>
       <listitem>
         <para>
+          All match statements are attached to the interface. They
+          forward traffic to their class, but they are actually
+          executed for all packets that are leaving the interface
+          (note: input matches are actually output matches on an IFB device).
+        </para>
+        <para>
+          By default, the priority they are executed, is the priority
+          they appear in the configuration file, i.e. the first match
+          of the first class is executed first, then the rest matches
+          of the first class in the sequence they appear, then the
+          matches of the second class, etc.
+        </para>
+        <para>
+          It is sometimes necessary to control the order of matches.
+          For example, when you want host 192.0.2.1 to be assigned the
+          first class, except port tcp/1234 which should be assigned
+          the second class. The following will <emphasis>not</emphasis>
+          work:
+<programlisting>
+interface eth0 lan output rate 1Gbit
+  class high
+    match host 192.0.2.1
+
+  class low
+    match host 192.0.2.1 port 1234 # Will never match
+</programlisting>
+        </para>
+        <para>
+          In this case, the first match is assigned priority 10
+          and the second priority 20. The second match will
+          never match anything, since all traffic for the host is already
+          matched by the first one.
+        </para>
+        <para>
+          Setting an explicit priority allows you to change the order
+          in which the matches are executed. FireQOS gives priority
+          10 to the first match of every interface, 20 to the second
+          match, 30 to the third match, etc. So the default is 10 x the
+          sequence number. You can set <option>prio</option> to overwrite
+          this number.
+        </para>
+        <para>
+          To force executing the second match before the first, just
+          set a lower priority for it. For example, this will cause the
+          desired behaviour:
+<programlisting>
+interface eth0 lan output rate 1Gbit
+  class high
+    match host 192.0.2.1
+
+  class low
+    match host 192.0.2.1 port 1234 prio 1 # Matches before host-only
+</programlisting>
         </para>
       </listitem>
     </varlistentry>

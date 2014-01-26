@@ -103,7 +103,7 @@
 <refsect1><title>Examples</title>
   <para>Match traffic within classes:
     <programlisting>
-interface eth0 lan rate 1Gbit
+interface eth0 lan output rate 1Gbit
   class voip
     match udp ports 5060,10000:10100
   class dns
@@ -117,7 +117,7 @@ interface eth0 lan rate 1Gbit
 (N.B. without the <option>class</option> parameters, all traffic would
 be classified into 'mail'):
     <programlisting>
-interface eth0 lan rate 1Gbit
+interface eth0 lan output rate 1Gbit
   class voip
   class dns
   class mail

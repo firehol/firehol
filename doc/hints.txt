@@ -1,7 +1,6 @@
                          FireHOL Manual Update Hints
                          ***************************
 
-
 Updating VARIABLES in Makefile.am
 =================================
  find . -name '*chapter*.xml' -o -name '*appendix*.xml' | sort | \
@@ -123,3 +122,19 @@ An entry may contain multiple terms is they mean the same thing.
 
   item2, alternate
      Description 2
+
+External references
+===================
+Official documentation IP address ranges:
+  http://tools.ietf.org/html/rfc5737
+    192.0.2.0/24
+    198.51.100.0/24
+    203.0.113.0/24
+
+  http://tools.ietf.org/search/rfc3849
+    2001:DB8::/32
+
+Official documentation domain roots:
+  http://tools.ietf.org/search/rfc2606
+    .example
+    .invalid
