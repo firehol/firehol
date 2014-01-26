@@ -7,7 +7,7 @@
     the system log, typically <filename>/var/log/syslog</filename>,
     <filename>/var/log/messages</filename> or similar.
   </para>
-  <section><title>Reading log output</title>
+  <section id="troubleshooting-log"><title>Reading log output</title>
     <para>
       The system log will log any packets dropped
       <emphasis>implicitly</emphasis> by FireHOL. This means any

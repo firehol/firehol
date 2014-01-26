@@ -1,8 +1,8 @@
 <!DOCTYPE appendix PUBLIC "-//OASIS//DTD DocBook XML V4.5//EN"
                  "http://www.oasis-open.org/docbook/xml/4.5/docbookx.dtd">
 <!-- For license information see chapter-intro.xml -->
-<appendix><title>ICMPv6 Firewall Recommendations</title>
-  <section><title>Introduction</title>
+<appendix id="firehol-icmpv6-rfc"><title>ICMPv6 Firewall Recommendations</title>
+  <section id="firehol-icmpv6-rfc-intro"><title>Introduction</title>
     <para>
       <ulink url="http://tools.ietf.org/html/rfc4890">RFC 4890</ulink>
       is entitled "Recommendations for Filtering ICMPv6 Messages in Firewalls".
@@ -28,7 +28,7 @@
     </para>
   </section>
 
-  <section><title>Allow outbound echo requests from prefixes which belong to the site</title>
+  <section id="icmpv6-echo-out"><title>Allow outbound echo requests from prefixes which belong to the site</title>
     <para>
        The <action>router</action> command (see <xref linkend="def-router"/>)
        should be used with an appropriate <action>src</action> rule parameter
@@ -36,7 +36,7 @@
     </para>
   </section>
 
-  <section><title>Allow inbound echo requests towards only predetermined hosts</title>
+  <section id="icmpv6-echo-in"><title>Allow inbound echo requests towards only predetermined hosts</title>
     <para>
        The <xref linkend="service-ping"/> should be used in combination
        with an appropriate <action>dst</action> rule parameter
@@ -44,13 +44,13 @@
     </para>
   </section>
 
-  <section><title>Allow incoming and outgoing echo reply messages only for existing sessions</title>
+  <section id="icmpv6-echo-reply"><title>Allow incoming and outgoing echo reply messages only for existing sessions</title>
     <para>
        This is handled automatically by the <xref linkend="service-ping"/>.
     </para>
   </section>
 
-  <section><title>Deny icmps to/from link local addresses</title>
+  <section id="icmpv6-deny-ll"><title>Deny icmps to/from link local addresses</title>
     <para>
        The <action>router</action> command (see <xref linkend="def-router"/>)
        should be used with an appropriate <action>src</action>
@@ -61,7 +61,7 @@
     </para>
   </section>
 
-  <section><title>Drop echo replies which have a multicast address as a destination</title>
+  <section id="icmpv6-echo-multicast"><title>Drop echo replies which have a multicast address as a destination</title>
     <para>
        The <xref linkend="service-ping"/> can be used with an
        appropriate <action>src</action> rule parameter
@@ -83,35 +83,35 @@
     </para>
   </section>
 
-  <section><title>Allow outgoing destination unreachable messages</title>
+  <section id="icmpv6-unreach-out"><title>Allow outgoing destination unreachable messages</title>
     <para>
       The rule(s) suggested by <xref linkend="rfc4890-dest-unreach"/>
       will also meet this recommendation.
     </para>
   </section>
 
-  <section><title>Allow incoming Packet Too Big messages only for existing sessions</title>
+  <section id="icmpv6-toobig-in"><title>Allow incoming Packet Too Big messages only for existing sessions</title>
     <para>
       The rule(s) suggested by <xref linkend="rfc4890-dest-unreach"/>
       will also meet this recommendation.
     </para>
   </section>
 
-  <section><title>Allow outgoing Packet Too Big messages</title>
+  <section id="icmpv6-toobig-out"><title>Allow outgoing Packet Too Big messages</title>
     <para>
       The rule(s) suggested by <xref linkend="rfc4890-dest-unreach"/>
       will also meet this recommendation.
     </para>
   </section>
 
-  <section><title>Allow incoming time exceeded code 0 messages only for existing sessions</title>
+  <section id="icmpv6-time-in"><title>Allow incoming time exceeded code 0 messages only for existing sessions</title>
     <para>
       The rule(s) suggested by <xref linkend="rfc4890-dest-unreach"/>
       will also meet this recommendation.
     </para>
   </section>
 
-  <section><title>Allow incoming time exceeded code 1 messages</title>
+  <section id="icmpv6-time-in-1"><title>Allow incoming time exceeded code 1 messages</title>
     <para>
       The rule(s) suggested by <xref linkend="rfc4890-dest-unreach"/>
       will also meet this recommendation.
@@ -137,35 +137,35 @@
     </note>
   </section>
 
-  <section><title>Allow outgoing time exceeded code 0 messages</title>
+  <section id="icmpv6-time-out"><title>Allow outgoing time exceeded code 0 messages</title>
     <para>
       The rule(s) suggested by <xref linkend="rfc4890-dest-unreach"/>
       will also meet this recommendation.
     </para>
   </section>
 
-  <section><title>Allow outgoing time exceeded code 1 messages</title>
+  <section id="icmpv6-time-out-1"><title>Allow outgoing time exceeded code 1 messages</title>
     <para>
       The rule(s) suggested by <xref linkend="rfc4890-dest-unreach"/>
       will also meet this recommendation.
     </para>
   </section>
 
-  <section><title>Allow incoming parameter problem code 1 and 2 messages for an existing session</title>
+  <section id="icmpv6-param-in"><title>Allow incoming parameter problem code 1 and 2 messages for an existing session</title>
     <para>
       The rule(s) suggested by <xref linkend="rfc4890-dest-unreach"/>
       will also meet this recommendation.
     </para>
   </section>
 
-  <section><title>Allow outgoing parameter problem code 1 and code 2 messages</title>
+  <section id="icmpv6-param-out"><title>Allow outgoing parameter problem code 1 and code 2 messages</title>
     <para>
       The rule(s) suggested by <xref linkend="rfc4890-dest-unreach"/>
       will also meet this recommendation.
     </para>
   </section>
 
-  <section><title>Allow incoming and outgoing parameter problem code 0 messages</title>
+  <section id="icmpv6-param-inout"><title>Allow incoming and outgoing parameter problem code 0 messages</title>
     <para>
       From the RFC it is not really necessary to allow these messages.
       <application>FireHOL</application> handles this automatically
@@ -174,7 +174,7 @@
     </para>
   </section>
 
-  <section><title>Drop NS/NA messages both incoming and outgoing</title>
+  <section id="icmpv6-neigh-inout"><title>Drop NS/NA messages both incoming and outgoing</title>
     <para>
       <application>FireHOL</application> handles this automatically unless
       you set up an explicit route for the packets.
@@ -185,7 +185,7 @@
     </para></note>
   </section>
 
-  <section><title>Drop RS/RA messages both incoming and outgoing</title>
+  <section id="icmpv6-route-inout"><title>Drop RS/RA messages both incoming and outgoing</title>
     <para>
       <application>FireHOL</application> handles this automatically unless
       you set up an explicit route for the packets.
@@ -196,7 +196,7 @@
     </para></note>
   </section>
 
-  <section><title>Drop Redirect messages both incoming and outgoing</title>
+  <section id="icmpv6-redirect-inout"><title>Drop Redirect messages both incoming and outgoing</title>
     <para>
       <application>FireHOL</application> handles this automatically unless
       you set up an explicit route for the packets.
@@ -210,7 +210,7 @@
     </para></note>
   </section>
 
-  <section><title>Drop incoming and outgoing Multicast Listener queries (MLDv1 and MLDv2)</title>
+  <section id="icmpv6-multicastq-inout"><title>Drop incoming and outgoing Multicast Listener queries (MLDv1 and MLDv2)</title>
     <para>
       <application>FireHOL</application> handles this automatically unless
       you set up an explicit route for the packets.
@@ -225,7 +225,7 @@
     </para></note>
   </section>
 
-  <section><title>Drop incoming and outgoing Multicast Listener reports (MLDv1)</title>
+  <section id="icmpv6-multicastr-inout"><title>Drop incoming and outgoing Multicast Listener reports (MLDv1)</title>
     <para>
       <application>FireHOL</application> handles this automatically
       unless you create a rule to explicitly allow the packets.
@@ -240,7 +240,7 @@
     </para></note>
   </section>
 
-  <section><title>Drop incoming and outgoing Multicast Listener Done messages (MLDv1)</title>
+  <section id="icmpv6-multicastd-inout"><title>Drop incoming and outgoing Multicast Listener Done messages (MLDv1)</title>
     <para>
        <application>FireHOL</application> handles this automatically
        unless you create a rule to explicitly allow the packets.
@@ -255,7 +255,7 @@
     </para></note>
   </section>
 
-  <section><title>Drop incoming and outgoing Multicast Listener reports (MLDv2)</title>
+  <section id="icmpv6-multicastr2-inout"><title>Drop incoming and outgoing Multicast Listener reports (MLDv2)</title>
     <para>
        <application>FireHOL</application> handles this automatically
        unless you create a rule to explicitly allow the packets.
@@ -270,7 +270,7 @@
     </para></note>
   </section>
 
-  <section><title>Drop router renumbering messages</title>
+  <section id="icmpv6-route-renumber"><title>Drop router renumbering messages</title>
     <para>
        <application>FireHOL</application> handles this automatically
        unless you create a rule to explicitly allow the packets.
@@ -285,7 +285,7 @@
     </para></note>
   </section>
 
-  <section><title>Drop node information queries (139) and replies (140)</title>
+  <section id="icmpv6-node-inout"><title>Drop node information queries (139) and replies (140)</title>
     <para>
       <application>FireHOL</application> handles this automatically
       unless you create a rule to explicitly allow the packets.
@@ -301,7 +301,7 @@ ip6tables -A icmpv6-filter -p icmpv6 --icmpv6-type 140 -j DROP
     </para>
   </section>
 
-  <section><title>If there are mobile ipv6 home agents present on the trusted side allow</title>
+  <section id="icmpv6-mobile-trusted"><title>If there are mobile ipv6 home agents present on the trusted side allow</title>
     <para>
       At some point <application>FireHOL</application> may have a helper
       command added to simplify this setup. Meantime this is an example of
@@ -328,7 +328,7 @@ ip6tables -A icmpv6-filter -p icmpv6 -s $inner_prefix \
     </para>
   </section>
 
-  <section><title>If there are roaming mobile nodes present on the trusted side allow</title>
+  <section id="icmpv6-roaming-trusted"><title>If there are roaming mobile nodes present on the trusted side allow</title>
     <para>
       At some point <application>FireHOL</application> may have a helper
       command added to simplify this setup. Meantime this is an example of
@@ -355,7 +355,7 @@ ip6tables -A icmpv6-filter -p icmpv6 -d $inner_prefix \
     </para>
   </section>
 
-  <section><title>Drop everything else</title>
+  <section id="icmpv6-drop-rest"><title>Drop everything else</title>
     <para>
       <application>FireHOL</application> handles this automatically
       unless you create a rule to explicitly allow the packets.

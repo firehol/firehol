@@ -1,8 +1,8 @@
 <!DOCTYPE chapter PUBLIC "-//OASIS//DTD DocBook XML V4.5//EN"
                  "http://www.oasis-open.org/docbook/xml/4.5/docbookx.dtd">
 <!-- For license information see chapter-intro.xml -->
-<chapter><title>Configuration</title>
-  <section><title>Getting started</title>
+<chapter id="firehol-configuration"><title>Configuration</title>
+  <section id="firehol-config-start"><title>Getting started</title>
     <para>
       Please see the <ulink url="http://firehol.org/tutorial">online
       tutorials</ulink> for help getting started.
@@ -22,7 +22,7 @@
     </section>
  -->
   </section>
-  <section><title>Language</title>
+  <section id="firehol-config-language"><title>Language</title>
 <!-- TODO
     <para>content</para>
     <section><title>Preamble</title>
@@ -31,7 +31,7 @@
       <para>matched to the domain</para>
     </section>
  -->
-    <section><title>Use of bash</title>
+    <section id="firehol-config-bash"><title>Use of bash</title>
       <para>
         FireHOL configuration files are normal
         <ulink url="http://www.gnu.org/software/bash/bash.html">BASH</ulink>
