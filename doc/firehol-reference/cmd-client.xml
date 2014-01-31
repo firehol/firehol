@@ -19,7 +19,7 @@
 
 <refsynopsisdiv>
   <cmdsynopsis>
-    <command>client</command>
+    <command>client|client46|client4|client6</command>
     <arg choice="plain"><replaceable>service</replaceable></arg>
     <arg choice="plain"><replaceable>action</replaceable></arg>
     <arg choice="opt"><replaceable>rule-params</replaceable></arg>

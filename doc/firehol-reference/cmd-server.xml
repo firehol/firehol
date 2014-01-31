@@ -23,13 +23,13 @@
 
 <refsynopsisdiv>
   <cmdsynopsis>
-    <command>server</command>
+    <command>server|server46|server4|server6</command>
     <arg choice="plain"><replaceable>service</replaceable></arg>
     <arg choice="plain"><replaceable>action</replaceable></arg>
     <arg choice="opt"><replaceable>rule-params</replaceable></arg>
   </cmdsynopsis>
   <cmdsynopsis>
-    <command>route</command>
+    <command>route|route46|route4|route6</command>
     <arg choice="plain"><replaceable>service</replaceable></arg>
     <arg choice="plain"><replaceable>action</replaceable></arg>
     <arg choice="opt"><replaceable>rule-params</replaceable></arg>
