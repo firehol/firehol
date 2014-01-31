@@ -19,7 +19,17 @@
 
 <refsynopsisdiv>
   <cmdsynopsis>
-    <command>router</command>
+    <command>router|router46</command>
+    <arg choice="plain"><replaceable>name</replaceable></arg>
+    <arg choice="opt"><replaceable>rule-params</replaceable></arg>
+  </cmdsynopsis>
+  <cmdsynopsis>
+    <command>router4</command>
+    <arg choice="plain"><replaceable>name</replaceable></arg>
+    <arg choice="opt"><replaceable>rule-params</replaceable></arg>
+  </cmdsynopsis>
+  <cmdsynopsis>
+    <command>router6</command>
     <arg choice="plain"><replaceable>name</replaceable></arg>
     <arg choice="opt"><replaceable>rule-params</replaceable></arg>
   </cmdsynopsis>

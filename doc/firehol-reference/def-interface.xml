@@ -19,7 +19,19 @@
 
 <refsynopsisdiv>
   <cmdsynopsis>
-    <command>interface</command>
+    <command>interface|interface46</command>
+    <arg choice="plain"><replaceable>real-interface</replaceable></arg>
+    <arg choice="plain"><replaceable>name</replaceable></arg>
+    <arg choice="opt"><replaceable>rule-params</replaceable></arg>
+  </cmdsynopsis>
+  <cmdsynopsis>
+    <command>interface4</command>
+    <arg choice="plain"><replaceable>real-interface</replaceable></arg>
+    <arg choice="plain"><replaceable>name</replaceable></arg>
+    <arg choice="opt"><replaceable>rule-params</replaceable></arg>
+  </cmdsynopsis>
+  <cmdsynopsis>
+    <command>interface6</command>
     <arg choice="plain"><replaceable>real-interface</replaceable></arg>
     <arg choice="plain"><replaceable>name</replaceable></arg>
     <arg choice="opt"><replaceable>rule-params</replaceable></arg>
