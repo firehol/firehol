@@ -51,6 +51,8 @@
                             href="firehol-reference/firehol-conf.xml" />
       <xi:include xmlns:xi="http://www.w3.org/2001/XInclude"
                             href="firehol-reference/firehol-variables.xml" />
+      <xi:include xmlns:xi="http://www.w3.org/2001/XInclude"
+                            href="firehol-reference/modifiers.xml" />
 
     </reference>
 

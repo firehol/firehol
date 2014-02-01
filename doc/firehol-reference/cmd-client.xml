@@ -94,6 +94,7 @@ client smtp accept log "mail packet" src 192.0.2.1
   <simplelist type="vert">
     <member><xref linkend="firehol"/></member>
     <member><xref linkend="firehol.conf"/></member>
+    <member><xref linkend="firehol-modifiers"/></member>
     <member><xref linkend="def-interface"/></member>
     <member><xref linkend="def-router"/></member>
     <member><xref linkend="ref-services"/></member>

@@ -142,6 +142,7 @@ interface eth0 internet src not "${UNROUTABLE_IPS}"
   <simplelist type="vert">
     <member><xref linkend="firehol"/></member>
     <member><xref linkend="firehol.conf"/></member>
+    <member><xref linkend="firehol-modifiers"/></member>
     <member><xref linkend="def-router"/></member>
     <member><xref linkend="cmd-policy"/></member>
     <member><xref linkend="cmd-protection"/></member>

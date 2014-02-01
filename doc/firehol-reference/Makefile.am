@@ -26,6 +26,7 @@ EXTRA_DIST = \
 	helpcmd-iptables.xml \
 	helpcmd-masquerade.xml \
 	helpcmd-tcpmss.xml \
+	modifiers.xml \
 	rule-params.xml \
 	actions.xml \
 	services.xml

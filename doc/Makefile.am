@@ -76,6 +76,7 @@ FIREHOLMANUALXML_REFERENCES=\
 	fireqos-reference/cmd-class.xml \
 	fireqos-reference/cmd-interface.xml \
 	fireqos-reference/cmd-match.xml \
+	firehol-reference/modifiers.xml \
 	fireqos-reference/fireqos-conf.xml \
 	fireqos-reference/fireqos.xml \
 	fireqos-reference/params-class.xml \
@@ -114,6 +115,8 @@ FIREHOLMANUALMAN_GENERATED=\
 	man/man5/firehol-interface.5 \
 	man/man5/firehol-interface6.5 \
 	man/man5/firehol-iptables.5 \
+	man/man5/firehol-ipv4.5 \
+	man/man5/firehol-ipv6.5 \
 	man/man5/firehol-log.5 \
 	man/man5/firehol-loglimit.5 \
 	man/man5/firehol-mac.5 \
