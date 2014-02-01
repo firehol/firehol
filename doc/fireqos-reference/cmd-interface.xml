@@ -19,7 +19,7 @@
 
 <refsynopsisdiv>
   <cmdsynopsis>
-    <command>interface</command>
+    <command>interface|interface4</command>
     <arg choice="plain"><replaceable>device</replaceable></arg>
     <arg choice="plain"><replaceable>name</replaceable></arg>
     <arg choice="plain"><replaceable>direction</replaceable></arg>
@@ -32,6 +32,14 @@
       </group>
       <arg choice="plain"><replaceable>speed</replaceable></arg>
     </arg>
+  </cmdsynopsis>
+  <cmdsynopsis>
+    <command>interface46</command>
+    <arg choice="plain"><replaceable>...</replaceable></arg>
+  </cmdsynopsis>
+  <cmdsynopsis>
+    <command>interface6</command>
+    <arg choice="plain"><replaceable>...</replaceable></arg>
   </cmdsynopsis>
 </refsynopsisdiv>
 

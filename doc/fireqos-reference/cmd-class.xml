@@ -19,13 +19,13 @@
 
 <refsynopsisdiv>
   <cmdsynopsis>
-    <command>class</command>
+    <command>class|class4|class6|class46</command>
     <arg choice="opt"><option>group</option></arg>
     <arg choice="plain"><replaceable>name</replaceable></arg>
     <arg choice="opt"><replaceable>optional-class-params</replaceable></arg>
   </cmdsynopsis>
   <cmdsynopsis>
-    <command>class</command>
+    <command>class|class4|class6|class46</command>
     <arg choice="plain"><option>group</option></arg>
     <arg choice="plain"><option>end</option></arg>
   </cmdsynopsis>

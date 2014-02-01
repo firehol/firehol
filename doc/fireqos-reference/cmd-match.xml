@@ -19,7 +19,7 @@
 
 <refsynopsisdiv>
   <cmdsynopsis>
-    <command>match</command>
+    <command>match|match4|match6|match46</command>
     <arg choice="opt"><replaceable>optional-match-params</replaceable></arg>
   </cmdsynopsis>
 </refsynopsisdiv>
