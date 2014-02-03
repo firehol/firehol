@@ -4329,6 +4329,7 @@ group() {
 	
 	case $type in
 		with|start|begin)
+			push_namespace "${FIREHOL_NS_CURR}"
 			# increase the counter
 			FIREHOL_GROUP_COUNTER=$[FIREHOL_GROUP_COUNTER + 1]
 			
@@ -4362,6 +4363,7 @@ group() {
 			set_work_function "Closing group '${work_name}'. Now working under '${FIREHOL_GROUP_STACK[$FIREHOL_GROUP_DEPTH]}'"
 			
 			work_name=${FIREHOL_GROUP_STACK[$FIREHOL_GROUP_DEPTH]}
+			pop_namespace
 			;;
 		
 		*)
@@ -4371,6 +4373,18 @@ group() {
 	esac
 	
 	return 0
+}
+
+group4() {
+	ipv4 group "$@"
+}
+
+group6() {
+	ipv6 group "$@"
+}
+
+group46() {
+	both group "$@"
 }
 
 close_all_groups() {
