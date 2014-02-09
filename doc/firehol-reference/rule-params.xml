@@ -19,6 +19,8 @@
 <refname>firehol-dst6</refname>
 <refname>firehol-srctype</refname>
 <refname>firehol-dsttype</refname>
+<refname>firehol-dport</refname>
+<refname>firehol-sport</refname>
 <refname>firehol-inface</refname>
 <refname>firehol-outface</refname>
 <refname>firehol-physin</refname>
@@ -33,6 +35,8 @@
 <refname>firehol-mark-param</refname>
 <refname>firehol-tos-param</refname>
 <refname>firehol-dscp-param</refname>
+<refname>firehol-dport</refname>
+<refname>firehol-sport</refname>
 <refpurpose>optional rule parameters</refpurpose>
 </refnamediv>
 
@@ -388,13 +392,15 @@ server smtp accept inface eth0 outface eth1
      <command>sport</command> requires an argument
      <replaceable>port</replaceable> which can be a name, number, range
      (FROM:TO) or a quoted list of ports. It specifies the source port
-     of a request.
+     of a request and can be useful with helper commands (such as nat)
+     where there is no implicit port.
   </para>
   <para>
      <command>dport</command> requires an argument
      <replaceable>port</replaceable> which can be a name, number, range
      (FROM:TO) or a quoted list of ports. It specifies the destination port
-     of a request.
+     of a request and can be useful with helper commands (such as nat)
+     where there is no implicit port.
   </para>
 </refsect1>
 
