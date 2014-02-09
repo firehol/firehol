@@ -955,7 +955,7 @@ LOCAL_CLIENT_PORTS="${LOCAL_CLIENT_PORTS_LOW}:${LOCAL_CLIENT_PORTS_HIGH}"
 # This is our version number. It is increased when the configuration
 # file commands and arguments change their meaning and usage, so that
 # the user will have to review it more precisely.
-FIREHOL_VERSION=5
+FIREHOL_VERSION=6
 
 
 # ----------------------------------------------------------------------
@@ -3369,14 +3369,24 @@ tcpmss() {
 # WHY:
 # We have to make sure the configuration file has been written for this version
 # of FireHOL. Note that the version command does not actually check the version
-# of firehol.sh. It checks only its release number (R5 currently).
+# of firehol.sh. It checks only its config version number.
 
 version() {
         work_realcmd_helper ${FUNCNAME} "$@"
 	
 	if [ ${1} -gt ${FIREHOL_VERSION} ]
 	then
-		error "Wrong version. FireHOL is v${FIREHOL_VERSION}, your script requires v${1}."
+		error "Wrong version. FireHOL is v${FIREHOL_VERSION}, your script requires v${1}. See http://firehol.org/upgrade/#config-version-${FIREHOL_VERSION}"
+	fi
+
+	if [ ${1} -eq 5 ]
+	then
+		ENABLE_IPV6=0
+		FIREHOL_DEFAULT_NAMESPACE=ipv4
+		FIREHOL_NS_CURR=$FIREHOL_DEFAULT_NAMESPACE
+		FIREHOL_NS_STACK=
+		FIREHOL_NS_PREP=
+		softwarning "Running version 5 config. Update configuration to version 6 for IPv6 support. See http://firehol.org/upgrade/#config-version-${FIREHOL_VERSION}"
 	fi
 }
 

@@ -17,7 +17,7 @@
 <refsynopsisdiv>
   <cmdsynopsis>
     <command>version</command>
-    <arg choice="plain">5</arg>
+    <arg choice="plain">6</arg>
   </cmdsynopsis>
 </refsynopsisdiv>
 
@@ -40,6 +40,10 @@
     The value that <application>FireHOL</application> expects is increased
     every time that the configuration file format changes.
   </para>
+  <note><para>
+    If you pass version 5 to FireHOL, it will disable IPv6 support and
+    warn you that you must update your configuration.
+  </para></note>
 </refsect1>
 
 <refsect1><title>See Also</title>

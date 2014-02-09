@@ -8,7 +8,7 @@
 # (even pings to other hosts).
 #
 
-version 5
+version 6
 
 # Accept all client traffic on any interface
 interface any world
