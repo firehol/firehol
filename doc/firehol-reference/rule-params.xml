@@ -141,6 +141,16 @@
     <arg choice="plain">"<replaceable>log text</replaceable>"</arg>
     <arg choice="opt">level <replaceable>loglevel</replaceable></arg>
   </cmdsynopsis>
+
+  <para>Other</para>
+  <cmdsynopsis>
+    <command>sport</command>
+    <arg choice="plain"><replaceable>port(s)</replaceable></arg>
+  </cmdsynopsis>
+  <cmdsynopsis>
+    <command>dport</command>
+    <arg choice="plain"><replaceable>port(s)</replaceable></arg>
+  </cmdsynopsis>
 </refsynopsisdiv>
 
 <refsect1><title>Description</title>
@@ -374,33 +384,32 @@ server smtp accept inface eth0 outface eth1
   </para>
 </refsect1>
 
-<refsect1><title>Internal use</title>
+<refsect1><title>Lesser used parameters</title>
   <para>
-     In addition to the commands in the synopsis,
-     <application>FireHOL</application> provides <command>limit</command>,
-     <command>sport</command> and <command>dport</command> which are used
-     internally. These should not normally be used in configuration files
-     unless you really understand what you are doing.
+     <application>FireHOL</application> also
+     provides <command>dport</command>,
+     <command>sport</command> and <command>limit</command> which are used
+     internally and rarely needed within configuration files.
+  </para>
+  <para>
+     <command>dport</command> requires an argument
+     <replaceable>port</replaceable> which can be a name, number, range
+     (FROM:TO) or a quoted list of ports. It specifies the destination port
+     of a request and can be useful when matching traffic to helper
+     commands (such as nat) where there is no implicit port.
+  </para>
+  <para>
+     <command>sport</command> requires an argument
+     <replaceable>port</replaceable> which can be a name, number, range
+     (FROM:TO) or a quoted list of ports. It specifies the source port
+     of a request and can be useful when matching traffic to helper
+     commands (such as nat) where there is no implicit port.
   </para>
   <para>
      <command>limit</command> requires the arguments
      <replaceable>frequency</replaceable> and
      <replaceable>burst</replaceable> and will limit
      the matching of traffic in both directions.
-  </para>
-  <para>
-     <command>sport</command> requires an argument
-     <replaceable>port</replaceable> which can be a name, number, range
-     (FROM:TO) or a quoted list of ports. It specifies the source port
-     of a request and can be useful with helper commands (such as nat)
-     where there is no implicit port.
-  </para>
-  <para>
-     <command>dport</command> requires an argument
-     <replaceable>port</replaceable> which can be a name, number, range
-     (FROM:TO) or a quoted list of ports. It specifies the destination port
-     of a request and can be useful with helper commands (such as nat)
-     where there is no implicit port.
   </para>
 </refsect1>
 

@@ -9,8 +9,7 @@
 <!-- For license information see chapter-intro.xml -->
 <book>
   <bookinfo>
-    <title>FireHOL + FireQOS Manual</title>
-    <subtitle>Take control of your network with FireHOL and FireQOS</subtitle>
+    <title>FireHOL + FireQOS Reference</title>
     <productname>FireHOL</productname>
     <corpauthor>FireHOL Team</corpauthor>
     <date>Built &PACKAGE_BUILT_DATE;</date>
