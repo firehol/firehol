@@ -89,7 +89,7 @@ dnat to 192.0.2.1 outface eth0 src 198.51.100.1 dst 203.0.113.1
     by calling <command>nat redirect-to</command>. For
     example:
     <programlisting>
-redirect-to 8080 inface eth0 src 198.51.100.0/24 proto tcp dport 80
+redirect to 8080 inface eth0 src 198.51.100.0/24 proto tcp dport 80
     </programlisting>
   </para>
   </refsect2>
