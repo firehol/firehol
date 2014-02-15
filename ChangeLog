@@ -1,3 +1,13 @@
+firehol (2.0.0-pre6) unstable; urgency=low
+
+  * Implement dual IPv4/IPv6 as standard
+    - Update your config from version 5 to 6 to enable
+    - See http://firehol.org/upgrade/#config-version-6
+
+  * Include FireQOS manual pages
+
+ -- Phil Whineray <phil@sanewall.org>  Sat, 15 Feb 2014 11:05:00 +0000
+
 firehol (2.0.0-pre5) unstable; urgency=low
 
   * Fix error in new FIREHOL_DEBUGGING code which prevented errors

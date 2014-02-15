@@ -1,4 +1,13 @@
-development
+2014/02/15:
+
+Release of version 2.0.0-pre6
+
+Implement dual IPv4/IPv6 as standard
+- Update your config from version 5 to 6 to enable
+- See http://firehol.org/upgrade/#config-version-6
+
+Include FireQOS manual pages
+
 2013/10/29:
 
 Release of version 2.0.0-pre5
