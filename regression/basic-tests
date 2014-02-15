@@ -65,7 +65,7 @@ have_ipv6="`grep IP6TABLES_CMD $MYTMP/fh-$d.in`"
 if [ "$have_ipv6" ]
 then
   # NAT does not allow DROP, hence all_drops is lower
-  all_accepts=20
+  all_accepts=24
   all_drops=16
 else
   all_accepts=12
@@ -79,7 +79,7 @@ accepts=`grep ACCEPT $MYTMP/result | wc -l`
 echo "$d stop ... accepts=$accepts drops=$drops"
 if [ $accepts -ne $all_accepts ]
 then
-  echo "ERROR: Status not functional!"
+  echo "ERROR: Status not functional! N.B. kernel version can have an effect"
   exit 1
 fi
 if [ $drops -ne 0 ]
