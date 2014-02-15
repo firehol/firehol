@@ -63,7 +63,7 @@ interface any world
 
     # Provide these services to trusted hosts only
     group with src "192.0.2.1 192.0.2.2"
-        server ssh telnet
+        server telnet accept
         server ssh accept
     group end
     </programlisting>
