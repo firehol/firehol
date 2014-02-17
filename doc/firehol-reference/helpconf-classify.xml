@@ -11,7 +11,7 @@
 <refnamediv>
 <refdescriptor>firehol-classify</refdescriptor>
 <refname>firehol-classify</refname>
-<refpurpose>classify traffic for traffic shapping tools</refpurpose>
+<refpurpose>classify traffic for traffic shaping tools</refpurpose>
 </refnamediv>
 
 <refsynopsisdiv>

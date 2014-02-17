@@ -48,7 +48,7 @@
       trust all hosts that can reach the interface.
       <application>FireHOL</application> CANNOT create valid "accept by
       default" firewalls. See this
-      <ulink url="http://sourceforge.net/tracker/index.php?func=detail&amp;aid=927532&amp;group_id=58425&amp;atid=487692">FireHOL bug report</ulink> for
+      <ulink url="http://sourceforge.net/tracker/index.php?func=detail&aid=927532&group_id=58425&atid=487692">FireHOL bug report</ulink> for
       some more information and history.
     </para>
   </warning>

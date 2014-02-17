@@ -283,7 +283,7 @@ server smtp deny
              As the kernel conntrack modules are always loaded by
              <application>FireHOL</application>, some per-connection
              resources will be consumed. See this
-             <ulink url="http://bugs.firehol.org/firehol/issues/10">bug
+             <ulink url="http://bugs.sanewall.org/sanewall/issues/10">bug
              report</ulink> for details.
           </para></note>
         </listitem>

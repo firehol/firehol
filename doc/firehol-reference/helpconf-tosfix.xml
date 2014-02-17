@@ -26,7 +26,7 @@
     Type of Service (TOS) field in packet headers based on the
     suggestions given by Erik Hensema in
     <ulink url="http://www.docum.org/docum.org/faq/cache/49.html">
-       iptables and tc shapping tricks
+       iptables and tc shaping tricks
     </ulink>.
   </para>
   <para>
