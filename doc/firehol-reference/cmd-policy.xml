@@ -47,9 +47,14 @@
       Do not set a policy to <option>accept</option> unless you fully
       trust all hosts that can reach the interface.
       <application>FireHOL</application> CANNOT create valid "accept by
-      default" firewalls. See this
-      <ulink url="http://sourceforge.net/tracker/index.php?func=detail&aid=927532&group_id=58425&atid=487692">FireHOL bug report</ulink> for
+      default" firewalls.
+<!--
+  For some reason this link no longer resolves and I cannot find the
+  original bug report.
+  See this
+  <ulink url="http://sourceforge.net/tracker/index.php?func=detail&aid=927532&group_id=58425&atid=487692">FireHOL bug report</ulink> for
       some more information and history.
+  -->
     </para>
   </warning>
 </refsect1>
