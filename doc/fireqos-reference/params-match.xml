@@ -69,17 +69,17 @@
     <arg rep="repeat" choice="opt"><replaceable>,mark</replaceable></arg>
   </cmdsynopsis>
   <cmdsynopsis>
-    <command>ports</command>
+    <command>port|ports</command>
     <arg choice="plain"><replaceable>port[:range]</replaceable></arg>
     <arg rep="repeat" choice="opt"><replaceable>,port[:range]</replaceable></arg>
   </cmdsynopsis>
   <cmdsynopsis>
-    <command>sports</command>
+    <command>sport|sports</command>
     <arg choice="plain"><replaceable>port[:range]</replaceable></arg>
     <arg rep="repeat" choice="opt"><replaceable>,port[:range]</replaceable></arg>
   </cmdsynopsis>
   <cmdsynopsis>
-    <command>dports</command>
+    <command>dport|dports</command>
     <arg choice="plain"><replaceable>port[:range]</replaceable></arg>
     <arg rep="repeat" choice="opt"><replaceable>,port[:range]</replaceable></arg>
   </cmdsynopsis>
