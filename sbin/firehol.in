@@ -478,10 +478,18 @@ firehol_exit() {
 	then
 		echo
 		echo -n $"FireHOL: Restoring old firewall:"
-		${IPTABLES_RESTORE_CMD} <"${FIREHOL_SAVED}"
-		local status4=$?
-		${IP6TABLES_RESTORE_CMD} <"${FIREHOL_SAVED6}"
-		local status6=$?
+		local status4=0
+		local status6=0
+		if [ $ENABLE_IPV4 -eq 1 ]
+		then
+			${IPTABLES_RESTORE_CMD} <"${FIREHOL_SAVED}"
+			status4=$?
+		fi
+		if [ $ENABLE_IPV6 -eq 1 ]
+		then
+			${IP6TABLES_RESTORE_CMD} <"${FIREHOL_SAVED6}"
+			status6=$?
+		fi
 		if [ $status4 -eq 0 -a $status6 -eq 0 ]
 		then
 			local restored="OK"
@@ -8112,10 +8120,21 @@ fixed_save() {
 }
 
 echo -n $"FireHOL: Saving your old firewall to a temporary file:"
-fixed_save ${IPTABLES_SAVE_CMD} >${FIREHOL_SAVED}
-status4=$?
-fixed_save ${IP6TABLES_SAVE_CMD} >${FIREHOL_SAVED6}
-status6=$?
+if [ $ENABLE_IPV4 -eq 1 ]
+then
+	fixed_save ${IPTABLES_SAVE_CMD} >${FIREHOL_SAVED}
+	status4=$?
+else
+	status4=0
+fi
+
+if [ $ENABLE_IPV6 -eq 1 ]
+then
+	fixed_save ${IP6TABLES_SAVE_CMD} >${FIREHOL_SAVED6}
+	status6=$?
+else
+	status6=0
+fi
 
 if [ $status4 -eq 0 -a $status6 -eq 0 ]
 then
@@ -8488,8 +8507,15 @@ then
 		work_runtime_error=$[work_runtime_error+1]
 	else
 		# attempt to restore this firewall from the generated commands
-		${IPTABLES_RESTORE_CMD} <${FIREHOL_OUTPUT}.fast >${FIREHOL_OUTPUT}.log 2>&1
-		if [ $? -ne 0 ]
+		if [ $ENABLE_IPV4 -eq 1 ]
+		then
+			${IPTABLES_RESTORE_CMD} <${FIREHOL_OUTPUT}.fast >${FIREHOL_OUTPUT}.log 2>&1
+			status4=$?
+		else
+			status4=0
+		fi
+
+		if [ $status4 -ne 0 ]
 		then
 			# it failed
 			runtime_error error "CANNOT APPLY IN FAST MODE" FIN "${IPTABLES_RESTORE_CMD}" "<${FIREHOL_OUTPUT}.fast"
@@ -8498,8 +8524,14 @@ then
 			
 			# the rest of the script will restore the original firewall
 		else
-			${IP6TABLES_RESTORE_CMD} <${FIREHOL_OUTPUT}.fast6 >>${FIREHOL_OUTPUT}.log 2>&1
-			if [ $? -ne 0 ]
+			if [ $ENABLE_IPV6 -eq 1 ]
+			then
+				${IP6TABLES_RESTORE_CMD} <${FIREHOL_OUTPUT}.fast6 >>${FIREHOL_OUTPUT}.log 2>&1
+				status6=$?
+			else
+				status6=0
+			fi
+			if [ $status6 -ne 0 ]
 			then
 				# it failed
 				runtime_error error "CANNOT APPLY IN FAST MODE" FIN "${IP6TABLES_RESTORE_CMD}" "<${FIREHOL_OUTPUT}.fast6"
@@ -8583,7 +8615,7 @@ fi
 
 if [ ${FIREHOL_SAVE} -eq 1 ]
 then
-	if [ -z "${FIREHOL_AUTOSAVE}" ]
+	if [ $ENABLE_IPV4 -eq 1 -a -z "${FIREHOL_AUTOSAVE}" ]
 	then
 		if [ -d "/etc/sysconfig" ]
 		then
@@ -8611,44 +8643,50 @@ then
 			exit 1
 		fi
 	fi
-	if [ -z "${FIREHOL_AUTOSAVE6}" ]
+	if [ $ENABLE_IPV6 -eq 1 -a -z "${FIREHOL_AUTOSAVE6}" ]
 	then
 		error "Cannot find where to save ip6tables file. Please set FIREHOL_AUTOSAVE6."
 		echo
 		exit 1
 	fi
 	
-	echo -n $"FireHOL: Saving firewall to ${FIREHOL_AUTOSAVE}:"
-	
-	fixed_save ${IPTABLES_SAVE_CMD} >${FIREHOL_AUTOSAVE}
-	
-	if [ ! $? -eq 0 ]
+	if [ $ENABLE_IPV4 -eq 1 ]
 	then
-		syslog err "Failed to save new firewall to '${FIREHOL_AUTOSAVE}'."
-		failure $"FireHOL: Saving firewall to ${FIREHOL_AUTOSAVE}:"
+		echo -n $"FireHOL: Saving firewall to ${FIREHOL_AUTOSAVE}:"
+	
+		fixed_save ${IPTABLES_SAVE_CMD} >${FIREHOL_AUTOSAVE}
+	
+		if [ ! $? -eq 0 ]
+		then
+			syslog err "Failed to save new firewall to '${FIREHOL_AUTOSAVE}'."
+			failure $"FireHOL: Saving firewall to ${FIREHOL_AUTOSAVE}:"
+			echo
+			exit 1
+		fi
+
+		syslog info "New firewall saved to '${FIREHOL_AUTOSAVE}'."
+		success $"FireHOL: Saving firewall to ${FIREHOL_AUTOSAVE}:"
 		echo
-		exit 1
 	fi
-	
-	syslog info "New firewall saved to '${FIREHOL_AUTOSAVE}'."
-	success $"FireHOL: Saving firewall to ${FIREHOL_AUTOSAVE}:"
-	echo
-	
-	echo -n $"FireHOL: Saving IPv6 firewall to ${FIREHOL_AUTOSAVE6}:"
-	
-	fixed_save ${IP6TABLES_SAVE_CMD} >${FIREHOL_AUTOSAVE6}
-	
-	if [ ! $? -eq 0 ]
+
+	if [ $ENABLE_IPV6 -eq 1 ]
 	then
-		syslog err "Failed to save new IPv6 firewall to '${FIREHOL_AUTOSAVE6}'."
-		failure $"FireHOL: Saving IPv6 firewall to ${FIREHOL_AUTOSAVE6}:"
-		echo
-		exit 1
-	fi
+		echo -n $"FireHOL: Saving IPv6 firewall to ${FIREHOL_AUTOSAVE6}:"
 	
-	syslog info "New IPv6 firewall saved to '${FIREHOL_AUTOSAVE6}'."
-	success $"FireHOL: Saving IPv6 firewall to ${FIREHOL_AUTOSAVE6}:"
-	echo
+		fixed_save ${IP6TABLES_SAVE_CMD} >${FIREHOL_AUTOSAVE6}
+	
+		if [ ! $? -eq 0 ]
+		then
+			syslog err "Failed to save new IPv6 firewall to '${FIREHOL_AUTOSAVE6}'."
+			failure $"FireHOL: Saving IPv6 firewall to ${FIREHOL_AUTOSAVE6}:"
+			echo
+			exit 1
+		fi
+
+		syslog info "New IPv6 firewall saved to '${FIREHOL_AUTOSAVE6}'."
+		success $"FireHOL: Saving IPv6 firewall to ${FIREHOL_AUTOSAVE6}:"
+		echo
+	fi
 	
 	# Save the list of modules we need to run to restore the firewall.
 	if [ -f "${FIREHOL_SPOOL_DIR}/last_save_modules.sh" ]
