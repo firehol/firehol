@@ -8620,7 +8620,7 @@ then
 	
 	echo -n $"FireHOL: Saving firewall to ${FIREHOL_AUTOSAVE}:"
 	
-	fixed_save ${IPTABLES_SAVE_CMD} >${FIREHOL_SAVED}
+	fixed_save ${IPTABLES_SAVE_CMD} >${FIREHOL_AUTOSAVE}
 	
 	if [ ! $? -eq 0 ]
 	then
@@ -8636,7 +8636,7 @@ then
 	
 	echo -n $"FireHOL: Saving IPv6 firewall to ${FIREHOL_AUTOSAVE6}:"
 	
-	fixed_save ${IP6TABLES_SAVE_CMD} >${FIREHOL_SAVED6}
+	fixed_save ${IP6TABLES_SAVE_CMD} >${FIREHOL_AUTOSAVE6}
 	
 	if [ ! $? -eq 0 ]
 	then
