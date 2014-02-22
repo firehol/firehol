@@ -119,7 +119,17 @@ require_cmd() {
 
 require_cmd tc || exit 1
 require_cmd ip || exit 1
-require_cmd modprobe || exit 1
+require_cmd modprobe 2> /dev/null
+if [ $? -ne 0 ]
+then
+	require_cmd insmod 2> /dev/null
+	if [ $? -ne 0 ]
+	then
+		echo >&2 "Neither modprobe nor insmod is found in this system."
+		exit 1
+	fi
+	modprobe_cmd=$insmod_cmd
+fi
 require_cmd flock || exit 1
 require_cmd grep || exit 1
 require_cmd egrep || exit 1
