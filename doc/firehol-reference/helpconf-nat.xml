@@ -19,37 +19,36 @@
 
 <refsynopsisdiv>
   <cmdsynopsis>
-    <command>snat</command>
-    <arg choice="opt">to</arg>
-    <arg choice="plain"><replaceable>target</replaceable></arg>
-    <arg choice="opt"><replaceable>rule-params</replaceable></arg>
-  </cmdsynopsis>
-  <cmdsynopsis>
-    <command>dnat</command>
-    <arg choice="opt">to</arg>
-    <arg choice="plain"><replaceable>target</replaceable></arg>
-    <arg choice="opt"><replaceable>rule-params</replaceable></arg>
-  </cmdsynopsis>
-  <cmdsynopsis>
-    <command>redirect</command>
-    <arg choice="opt">to</arg>
-    <arg choice="plain"><replaceable>portrange</replaceable></arg>
-    <arg choice="opt"><replaceable>rule-params</replaceable></arg>
-  </cmdsynopsis>
-  <cmdsynopsis>
     <command>nat</command>
     <group choice="req">
       <arg choice="plain">to-source</arg>
       <arg choice="plain">to-destination</arg>
-      <arg choice="plain">redirect-to</arg>
     </group>
-    <arg choice="plain"><replaceable>target</replaceable></arg>
+    <arg choice="plain"><replaceable>ipaddr[:port]</replaceable></arg>
     <arg choice="opt"><replaceable>rule-params</replaceable></arg>
   </cmdsynopsis>
   <cmdsynopsis>
     <command>nat</command>
     <arg choice="plain">redirect-to</arg>
-    <arg choice="plain"><replaceable>portrange</replaceable></arg>
+    <arg choice="plain"><replaceable>port[-range]</replaceable></arg>
+    <arg choice="opt"><replaceable>rule-params</replaceable></arg>
+  </cmdsynopsis>
+  <cmdsynopsis>
+    <command>snat</command>
+    <arg choice="opt">to</arg>
+    <arg choice="plain"><replaceable>ipaddr[:port]</replaceable></arg>
+    <arg choice="opt"><replaceable>rule-params</replaceable></arg>
+  </cmdsynopsis>
+  <cmdsynopsis>
+    <command>dnat</command>
+    <arg choice="opt">to</arg>
+    <arg choice="plain"><replaceable>ipaddr[:port]</replaceable></arg>
+    <arg choice="opt"><replaceable>rule-params</replaceable></arg>
+  </cmdsynopsis>
+  <cmdsynopsis>
+    <command>redirect</command>
+    <arg choice="opt">to</arg>
+    <arg choice="plain"><replaceable>port[-range]</replaceable></arg>
     <arg choice="opt"><replaceable>rule-params</replaceable></arg>
   </cmdsynopsis>
 </refsynopsisdiv>
@@ -59,79 +58,75 @@
     <para>
        The <option><replaceable>rule-params</replaceable></option> are
        used only to determine the traffic that will be matched for NAT
-       in these commands.
+       in these commands, not to permit traffic to flow.
     </para>
   </note>
-  <refsect2 id="nat-snat"><title>snat</title>
+
   <para>
-    The <command>snat</command> helper sets up a Source NAT rule for
-    routed traffic by calling <command>nat to-source</command>. For
-    example:
-    <programlisting>
-snat to 192.0.2.1 outface eth0 src 198.51.100.1 dst 203.0.113.1
-    </programlisting>
+    The <command>dnat</command> helper is a synonym for 
+    <command>nat to-destination</command> (Destination NAT),
+    the <command>snat</command> helper is a synonym for 
+    <command>nat to-source</command> (Source NAT),
+    and the <command>redirect</command> helper is a synonym for 
+    <command>nat redirect-to</command> (redirect to port on local host).
   </para>
-  </refsect2>
-  <refsect2 id="nat-dnat"><title>dnat</title>
+
   <para>
-    The <command>dnat</command> helper sets up a Destination NAT rule for
-    routed traffic by calling <command>nat to-destination</command>. For
-    example:
-    <programlisting>
-dnat to 192.0.2.1 outface eth0 src 198.51.100.1 dst 203.0.113.1
-    </programlisting>
+    The <option><replaceable>port</replaceable></option> part of the
+    new address is optional with SNAT and DNAT; if not specified it
+    will not be changed.
   </para>
-  </refsect2>
-  <refsect2 id="nat-redirect"><title>redirect</title>
+
   <para>
-    The <command>redirect</command> helper redirects matching traffic
-    to <replaceable>portrange</replaceable> on the local host
-    by calling <command>nat redirect-to</command>. For
-    example:
-    <programlisting>
-redirect to 8080 inface eth0 src 198.51.100.0/24 proto tcp dport 80
-    </programlisting>
+    When you apply NAT to a packet, the Linux kernel will track the
+    changes it makes, so that when it sees replies the transformation
+    will be applied in the opposite direction. For instance if you changed
+    the destination port of a packet from 80 to 8080, when a reply comes
+    back, its source is set as 80. This means the original sender does not
+    need to be aware a transformation is happening. 
   </para>
-  </refsect2>
-  <refsect2 id="nat-nat"><title>nat</title>
+
+  <para>
+    Applying NAT does not automatically create rules to allow the traffic
+    to pass. You will still need to include client or server entries in
+    an interface or router to allow the traffic.
+  </para>
+
+  <para>
+    When using SNAT, the transformation is in the POSTROUTING chain of
+    the NAT table and happens after normal rules are matched, so your
+    client or server rule should match the "unmodified" traffic.
+  </para>
+
+  <para>
+    When using DNAT or a REDIRECT, the transformation is in the PREROUTING
+    chain of the NAT table and happens before normal rules are matched,
+    so your client or server rule should match the "modified" traffic.
+  </para>
+
+  <para>
+    If you would like to see more detail, this
+    <ulink url="http://upload.wikimedia.org/wikipedia/commons/3/37/Netfilter-packet-flow.svg">flow diagram</ulink>
+    shows how network packets are processed by the kernel.
+  </para>
+
   <para>
     The <command>nat</command> helper takes one of the following
     sub-commands:
     <variablelist>
-      <varlistentry><term>to-source <replaceable>target</replaceable></term>
+      <varlistentry><term>to-destination <replaceable>ipaddr[:port]</replaceable></term>
         <listitem>
           <para>
-            Defines a Source NAT (created in table NAT, chain POSTROUTING).
+            Defines a Destination NAT (DNAT).
+            Commonly thought of as port-forwarding (where packets destined
+            for the firewall with a given port and protocol are sent to a
+            different IP address and possibly port), DNAT is much more
+            flexible in that any number of parameters can be matched before
+            the destination information is rewritten.
           </para>
           <para>
-            <replaceable>target</replaceable> is the source address to be
-            set in packets matching
-           <option><replaceable>rule-params</replaceable></option>.
-          </para>
-          <para>
-            If no rules are given, all forwarded traffic will be matched.
-            <option>inface</option> should not be used in SNAT since the
-            information is not available at the time the decision is made.
-          </para>
-          <para>
-            <replaceable>target</replaceable> accepts any
-            <option>--to-source</option> values that
-            <command>iptables(8)</command> accepts. Run
-            <userinput>iptables -j SNAT --help</userinput> to for more
-            information. Multiple <replaceable>targets</replaceable> may
-            be specified by separating with spaces and enclosing with
-            quotes.
-          </para>
-        </listitem>
-      </varlistentry>
-      <varlistentry><term>to-destination <replaceable>target</replaceable></term>
-        <listitem>
-          <para>
-            Defines a Destination NAT (created in table NAT, chain POSTROUTING).
-          </para>
-          <para>
-            <replaceable>target</replaceable> is the destination address to be
-            set in packets matching
+            <replaceable>ipaddr[:port]</replaceable> is the destination
+            address to be set in packets matching
            <option><replaceable>rule-params</replaceable></option>.
           </para>
           <para>
@@ -140,24 +135,55 @@ redirect to 8080 inface eth0 src 198.51.100.0/24 proto tcp dport 80
             information is not available at the time the decision is made.
           </para>
           <para>
-            <replaceable>target</replaceable> accepts any
+            <replaceable>ipaddr[:port]</replaceable> accepts any
             <option>--to-destination</option> values that
             <command>iptables(8)</command> accepts. Run
             <userinput>iptables -j DNAT --help</userinput> to for more
-            information. Multiple <replaceable>targets</replaceable> may
+            information. Multiple <replaceable>ipaddr</replaceable> may
             be specified by separating with spaces and enclosing with
             quotes.
           </para>
         </listitem>
       </varlistentry>
-      <varlistentry><term>redirect-to <replaceable>portrange</replaceable></term>
+      <varlistentry><term>to-source <replaceable>ipaddr[:port]</replaceable></term>
         <listitem>
           <para>
-            Redirect matching traffic to the local machine (created in table
-            NAT, chain PREROUTING).
+            Defines a Source NAT (SNAT).
+            SNAT is similar to masquerading
+            (see <xref linkend="helpcmd-masquerade"/>) but more efficient
+            for static IP addresses. You can use it to give a public
+            IP address to a host which does not have one behind the firewall.
           </para>
           <para>
-            <replaceable>portrange</replaceable> is the port range
+            <replaceable>ipaddr[:port]</replaceable> is the source address
+            to be set in packets matching
+           <option><replaceable>rule-params</replaceable></option>.
+          </para>
+          <para>
+            If no rules are given, all forwarded traffic will be matched.
+            <option>inface</option> should not be used in SNAT since the
+            information is not available at the time the decision is made.
+          </para>
+          <para>
+            <replaceable>ipaddr[:port]</replaceable> accepts any
+            <option>--to-source</option> values that
+            <command>iptables(8)</command> accepts. Run
+            <userinput>iptables -j SNAT --help</userinput> to for more
+            information. Multiple <replaceable>ipaddr[:port]</replaceable> may
+            be specified by separating with spaces and enclosing with
+            quotes.
+          </para>
+        </listitem>
+      </varlistentry>
+      <varlistentry><term>redirect-to <replaceable>port[-range]</replaceable></term>
+        <listitem>
+          <para>
+            Redirect matching traffic to the local machine.
+            This is typically useful if you want to
+            intercept some traffic and process it on the local machine.
+          </para>
+          <para>
+            <replaceable>port[-range]</replaceable> is the port range
             (from-to) or single port that packets matching
             <option><replaceable>rule-params</replaceable></option>
             will be redirected to.
@@ -171,11 +197,22 @@ redirect to 8080 inface eth0 src 198.51.100.0/24 proto tcp dport 80
       </varlistentry>
     </variablelist>
   </para>
-  </refsect2>
 </refsect1>
 
 <refsect1><title>Examples</title>
   <programlisting>
+# Port forwarding HTTP
+dnat to 192.0.2.2 proto tcp dport 80
+
+# Port forwarding HTTPS on to a different port internally
+dnat to 192.0.2.2:4443 proto tcp dport 443
+
+# Fix source for traffic leaving the firewall via eth0 with private address
+snat to 198.51.100.1 outface eth0 src 192.168.0.0/24
+
+# Transparent squid (running on the firewall) for some hosts
+redirect to 8080 inface eth0 src 198.51.100.0/24 proto tcp dport 80
+
 # Send to 192.0.2.1
 #  - all traffic arriving at or passing through the firewall
 nat to-destination 192.0.2.1
@@ -194,11 +231,6 @@ nat to-destination 192.0.2.1 proto tcp dst 203.0.113.1
 #  - TCP traffic arriving at or passing through the firewall
 #  - which WAS going to 203.0.113.1, port 25
 nat to-destination 192.0.2.1 proto tcp dport 25 dst 203.0.113.1
-
-# Other examples
-nat to-source 192.0.2.1 outface eth0 src 198.51.100.1 dst 203.0.113.1
-nat to-destination 192.0.2.2 outface eth0 src 198.51.100.2 dst 203.0.113.2
-nat redirect-to 8080 inface eth0 src 198.51.100.0/24 proto tcp dport 80
   </programlisting>
 </refsect1>
 
@@ -210,6 +242,7 @@ nat redirect-to 8080 inface eth0 src 198.51.100.0/24 proto tcp dport 80
     <member><xref linkend="def-router"/></member>
     <member><xref linkend="rule-params"/></member>
     <member><xref linkend="helpcmd-masquerade"/></member>
+    <member><ulink url="http://www.netfilter.org/documentation/HOWTO/NAT-HOWTO-6.html">NAT HOWTO</ulink></member>
   </simplelist>
 </refsect1>
 
