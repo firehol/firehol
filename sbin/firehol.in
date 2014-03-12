@@ -204,6 +204,7 @@ which_cmd FIND_CMD find
 which_cmd FOLD_CMD fold
 which_cmd GREP_CMD grep
 which_cmd HEAD_CMD head
+which_cmd TAIL_CMD tail
 which_cmd LSMOD_CMD lsmod
 which_cmd MKDIR_CMD mkdir
 which_cmd MV_CMD mv
@@ -3163,30 +3164,44 @@ connmark() {
 	
 	require_work clear || ( error "$FUNCNAME cannot be used in '${work_cmd}'. Put it before any '${work_cmd}' definition."; return 1 )
 	
+	if [ $connmark_count -eq 0 ]
+	then
+		set_work_function "Initializing CONNMARK system"
+
+		# restore connmark when it comes in, before routing decision
+		iptables_both -t mangle -A "OUTPUT"     -m conntrack --ctstate ESTABLISHED,RELATED -j CONNMARK --restore-mark
+		iptables_both -t mangle -A "PREROUTING" -m conntrack --ctstate ESTABLISHED,RELATED -j CONNMARK --restore-mark
+	fi
+
 	local num="${1}"; shift
 	local where="${1}"; shift
-	test -z "${where}" && where=OUTPUT
+	test -z "${where}" && where="OUTPUT POSTROUTING"
 	
 	connmark_count=$[connmark_count + 1]
 	
-	set_work_function "Setting up rules for CONNMARK"
+	if [ "${num}" = "save" -o "${num}" = "restore" ]
+	then
+		# backward compatibility - nothing to be done here
+		return 0
+	fi
+
+	set_work_function "Setting up rules for CONNMARK rule No $connmark_count"
 	
-	create_chain mangle "connmark.${connmark_count}" "${where}" "$@" || return 1
-	
-	case "${num}" in
-		save)
-			iptables_both -t mangle -A "connmark.${connmark_count}" -j CONNMARK --save-mark
-			;;
-		
-		restore)
-			iptables_both -t mangle -A "connmark.${connmark_count}" -j CONNMARK --restore-mark
-			;;
-			
-		*)
-			iptables_both -t mangle -A "connmark.${connmark_count}" -j CONNMARK --set-mark ${num}
-			;;
-	esac
-	
+	local chain=
+	for chain in ${where}
+	do
+		case "${chain}" in
+			interface)
+				rule table mangle chain "PREROUTING"  custom '-m conntrack --ctstate NEW' inface "$@" action CONNMARK to ${num}
+				rule table mangle chain "POSTROUTING" custom '-m conntrack --ctstate NEW' outface "$@" action CONNMARK to ${num}
+				;;
+
+			*)
+				rule table mangle chain "${chain}" custom '-m conntrack --ctstate NEW' "$@" action CONNMARK to ${num}
+				;;
+		esac
+	done
+
 	return 0
 }
 
@@ -4315,6 +4330,13 @@ close_router() {
 close_master() {
 	set_work_function "Finilizing firewall policies"
 	
+	if [ $connmark_count -gt 0 ]
+	then
+		# if connmark has been used, add finilization rules
+		iptables_both -t mangle -A "INPUT"       -m conntrack --ctstate NEW -m connmark ! --mark 0 -j CONNMARK --save-mark
+		iptables_both -t mangle -A "POSTROUTING" -m conntrack --ctstate NEW -m connmark ! --mark 0 -j CONNMARK --save-mark
+	fi
+
 	# Accept all related traffic to the established connections
 	rule chain INPUT state RELATED action ACCEPT || return 1
 	rule chain OUTPUT state RELATED action ACCEPT || return 1
@@ -5373,6 +5395,45 @@ rule() {
 							error "${action} requires a 'to' argument"
 							return 1
 						fi
+						if [ ! "A${table}" = "A-t mangle" ]
+						then
+							error "${action} must on a the 'mangle' table."
+							return 1
+						fi
+						;;
+						
+					connmark|CONNMARK)
+						action="CONNMARK"
+						case "${1}" in
+							to)
+								local -a action_param=("--set-mark" "${2}")
+								shift 2
+								;;
+							save)
+								if [ "${2}" = "mask" ]
+								then
+									local -a action_param=("--save-mark" "--mask" "${3}")
+									shift 3
+								else
+									local -a action_param=("--save-mark")
+									shift 1
+								fi
+								;;
+							restore)
+								if [ "${2}" = "mask" ]
+								then
+									local -a action_param=("--restore-mark" "--mask" "${3}")
+									shift 3
+								else
+									local -a action_param=("--restore-mark")
+									shift 1
+								fi
+								;;
+							*)
+								error "${action} requires a either 'to', 'save' or 'restore' argument"
+								return 1
+								;;
+						esac
 						if [ ! "A${table}" = "A-t mangle" ]
 						then
 							error "${action} must on a the 'mangle' table."
@@ -8519,9 +8580,15 @@ then
 		then
 			# it failed
 			runtime_error error "CANNOT APPLY IN FAST MODE" FIN "${IPTABLES_RESTORE_CMD}" "<${FIREHOL_OUTPUT}.fast"
-			
+
 			work_runtime_error=$[work_runtime_error+1]
 			
+			# find the line
+			echo >&2 "Offending line:"
+			line=`cat "${FIREHOL_OUTPUT}.log" | grep "Error occurred at line: " | cut -d ':' -f 2`
+			${CAT_CMD} "${FIREHOL_OUTPUT}.fast" | ${HEAD_CMD} -n $line | ${TAIL_CMD} -n 1 >&2
+			echo >&2
+
 			# the rest of the script will restore the original firewall
 		else
 			if [ $ENABLE_IPV6 -eq 1 ]
@@ -8537,6 +8604,12 @@ then
 				runtime_error error "CANNOT APPLY IN FAST MODE" FIN "${IP6TABLES_RESTORE_CMD}" "<${FIREHOL_OUTPUT}.fast6"
 
 				work_runtime_error=$[work_runtime_error+1]
+
+				# find the line
+				echo >&2 "Offending line:"
+				line=`cat "${FIREHOL_OUTPUT}.log" | grep "Error occurred at line: " | cut -d ':' -f 2`
+				${CAT_CMD} "${FIREHOL_OUTPUT}.fast6" | ${HEAD_CMD} -n $line | ${TAIL_CMD} -n 1 >&2
+				echo >&2
 
 				# the rest of the script will restore the original firewall
 			else
