@@ -3164,15 +3164,6 @@ connmark() {
 	
 	require_work clear || ( error "$FUNCNAME cannot be used in '${work_cmd}'. Put it before any '${work_cmd}' definition."; return 1 )
 	
-	if [ $connmark_count -eq 0 ]
-	then
-		set_work_function "Initializing CONNMARK system"
-
-		# restore connmark when it comes in, before routing decision
-		iptables_both -t mangle -A "OUTPUT"     -m conntrack --ctstate ESTABLISHED,RELATED -j CONNMARK --restore-mark
-		iptables_both -t mangle -A "PREROUTING" -m conntrack --ctstate ESTABLISHED,RELATED -j CONNMARK --restore-mark
-	fi
-
 	local num="${1}"; shift
 	local where="${1}"; shift
 	test -z "${where}" && where="OUTPUT POSTROUTING"
@@ -3192,8 +3183,10 @@ connmark() {
 	do
 		case "${chain}" in
 			interface)
-				rule table mangle chain "PREROUTING"  custom '-m conntrack --ctstate NEW' inface "$@" action CONNMARK to ${num}
-				rule table mangle chain "POSTROUTING" custom '-m conntrack --ctstate NEW' outface "$@" action CONNMARK to ${num}
+				#rule table mangle chain "PREROUTING"  custom '-m conntrack --ctstate NEW' inface "$@" action CONNMARK to ${num}
+				#rule table mangle chain "POSTROUTING" custom '-m conntrack --ctstate NEW' outface "$@" action CONNMARK to ${num}
+				rule table mangle chain "PREROUTING"  inface "$@" action CONNMARK to ${num}
+				rule table mangle chain "POSTROUTING" outface "$@" action CONNMARK to ${num}
 				;;
 
 			*)
@@ -4333,6 +4326,9 @@ close_master() {
 	if [ $connmark_count -gt 0 ]
 	then
 		# if connmark has been used, add finilization rules
+		iptables_both -t mangle -A "OUTPUT"     -m conntrack --ctstate ESTABLISHED,RELATED -m connmark --mark 0 -j CONNMARK --restore-mark
+		iptables_both -t mangle -A "PREROUTING" -m conntrack --ctstate ESTABLISHED,RELATED -m connmark --mark 0 -j CONNMARK --restore-mark
+
 		iptables_both -t mangle -A "INPUT"       -m conntrack --ctstate NEW -m connmark ! --mark 0 -j CONNMARK --save-mark
 		iptables_both -t mangle -A "POSTROUTING" -m conntrack --ctstate NEW -m connmark ! --mark 0 -j CONNMARK --save-mark
 	fi
