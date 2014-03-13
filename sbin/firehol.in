@@ -3164,18 +3164,28 @@ connmark() {
 	
 	require_work clear || ( error "$FUNCNAME cannot be used in '${work_cmd}'. Put it before any '${work_cmd}' definition."; return 1 )
 	
+	if [ "${1}" = "save" ]
+	then
+		# save MARK to CONNMARK
+		shift 1
+		rule table mangle chain INPUT       custom '-m conntrack --ctstate NEW -m mark ! --mark 0' "$@" action CONNMARK save
+		rule table mangle chain POSTROUTING custom '-m conntrack --ctstate NEW -m mark ! --mark 0' "$@" action CONNMARK save
+		return 0
+	elif [ "${1}" = "restore" ]
+	then
+		# restore MARK from CONNMARK
+		shift 1
+		rule table mangle chain OUTPUT     custom '-m conntrack --ctstate ESTABLISHED,RELATED' "$@" action CONNMARK restore
+		rule table mangle chain PREROUTING custom '-m conntrack --ctstate ESTABLISHED,RELATED' "$@" action CONNMARK restore
+		return 0
+	fi
+
 	local num="${1}"; shift
 	local where="${1}"; shift
 	test -z "${where}" && where="OUTPUT POSTROUTING"
 	
 	connmark_count=$[connmark_count + 1]
 	
-	if [ "${num}" = "save" -o "${num}" = "restore" ]
-	then
-		# backward compatibility - nothing to be done here
-		return 0
-	fi
-
 	set_work_function "Setting up rules for CONNMARK rule No $connmark_count"
 	
 	local chain=
@@ -3183,10 +3193,8 @@ connmark() {
 	do
 		case "${chain}" in
 			interface)
-				#rule table mangle chain "PREROUTING"  custom '-m conntrack --ctstate NEW' inface "$@" action CONNMARK to ${num}
-				#rule table mangle chain "POSTROUTING" custom '-m conntrack --ctstate NEW' outface "$@" action CONNMARK to ${num}
-				rule table mangle chain "PREROUTING"  inface "$@" action CONNMARK to ${num}
-				rule table mangle chain "POSTROUTING" outface "$@" action CONNMARK to ${num}
+				rule table mangle chain "PREROUTING"  custom '-m conntrack --ctstate NEW' inface  "$@" action CONNMARK to ${num}
+				rule table mangle chain "POSTROUTING" custom '-m conntrack --ctstate NEW' outface "$@" action CONNMARK to ${num}
 				;;
 
 			*)
@@ -4323,16 +4331,6 @@ close_router() {
 close_master() {
 	set_work_function "Finilizing firewall policies"
 	
-	if [ $connmark_count -gt 0 ]
-	then
-		# if connmark has been used, add finilization rules
-		iptables_both -t mangle -A "OUTPUT"     -m conntrack --ctstate ESTABLISHED,RELATED -m connmark --mark 0 -j CONNMARK --restore-mark
-		iptables_both -t mangle -A "PREROUTING" -m conntrack --ctstate ESTABLISHED,RELATED -m connmark --mark 0 -j CONNMARK --restore-mark
-
-		iptables_both -t mangle -A "INPUT"       -m conntrack --ctstate NEW -m connmark ! --mark 0 -j CONNMARK --save-mark
-		iptables_both -t mangle -A "POSTROUTING" -m conntrack --ctstate NEW -m connmark ! --mark 0 -j CONNMARK --save-mark
-	fi
-
 	# Accept all related traffic to the established connections
 	rule chain INPUT state RELATED action ACCEPT || return 1
 	rule chain OUTPUT state RELATED action ACCEPT || return 1
