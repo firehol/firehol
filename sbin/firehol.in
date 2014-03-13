@@ -3168,6 +3168,11 @@ connmark() {
 	local where="${1}"; shift
 	test -z "${where}" && where="OUTPUT POSTROUTING"
 	
+	if [ $mark_count -gt 0 -a $connmark_count -eq 0 ]
+	then
+		softwarning "MARK and CONNMARK can interfere with each other. Check https://github.com/ktsaou/firehol/issues/23#issuecomment-37599754"
+	fi
+	
 	connmark_count=$[connmark_count + 1]
 	
 	if [ "${num}" = "save" ]
@@ -3224,6 +3229,11 @@ mark() {
 	local where="${1}"; shift
 	test -z "${where}" && where=OUTPUT
 	
+	if [ $mark_count -eq 0 -a $connmark_count -gt 0 ]
+	then
+		softwarning "MARK and CONNMARK can interfere with each other. Check https://github.com/ktsaou/firehol/issues/23#issuecomment-37599754"
+	fi
+
 	mark_count=$[mark_count + 1]
 	
 	set_work_function "Setting up rules for MARK"
