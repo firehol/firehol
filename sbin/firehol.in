@@ -3174,8 +3174,8 @@ connmark() {
 	then
 		# save MARK to CONNMARK
 		shift 1
-		rule table mangle chain INPUT       custom '-m conntrack --ctstate NEW -m mark ! --mark 0' "$@" action CONNMARK save
-		rule table mangle chain POSTROUTING custom '-m conntrack --ctstate NEW -m mark ! --mark 0' "$@" action CONNMARK save
+		rule table mangle chain INPUT       custom '-m conntrack --ctstate NEW' "$@" action CONNMARK save
+		rule table mangle chain POSTROUTING custom '-m conntrack --ctstate NEW' "$@" action CONNMARK save
 		return 0
 	fi
 
@@ -3192,12 +3192,19 @@ connmark() {
 	do
 		case "${chain}" in
 			interface)
-				rule table mangle chain "PREROUTING"  custom '-m conntrack --ctstate NEW' inface "$@" action CONNMARK to ${num}
-				rule table mangle chain "POSTROUTING" custom '-m conntrack --ctstate NEW' outface "$@" action CONNMARK to ${num}
+				create_chain mangle "connmark.inface.${connmark_count}" "PREROUTING" custom '-m conntrack --ctstate NEW' inface "$@" || return 1
+				rule table mangle chain "connmark.inface.${connmark_count}" action CONNMARK to ${num}
+				rule table mangle chain "connmark.inface.${connmark_count}" action CONNMARK restore
+
+				create_chain mangle "connmark.outface.${connmark_count}" "POSTROUTING" custom '-m conntrack --ctstate NEW' outface "$@" || return 1
+				rule table mangle chain "connmark.outface.${connmark_count}" action CONNMARK to ${num}
+				rule table mangle chain "connmark.outface.${connmark_count}" action CONNMARK restore
 				;;
 
 			*)
-				rule table mangle chain "${chain}" custom '-m conntrack --ctstate NEW' "$@" action CONNMARK to ${num}
+				create_chain mangle "connmark.${chain}.${connmark_count}" "${chain}" custom '-m conntrack --ctstate NEW' "$@" || return 1
+				rule table mangle chain "connmark.${chain}.${connmark_count}" action CONNMARK to ${num}
+				rule table mangle chain "connmark.${chain}.${connmark_count}" action CONNMARK restore
 				;;
 		esac
 	done
@@ -4332,10 +4339,10 @@ close_master() {
 	
 	if [ $connmark_count -gt 0 ]
 	then
-		# if connmark has been used, add finilization rules
+		# if connmark has been used, add MARK restoration from CONNMARK, at the top of mangle
 		# copy CONNMARK to MARK
-		iptables_both -t mangle -A "OUTPUT"     -m connmark ! --mark 0 -m mark --mark 0 -j CONNMARK --restore-mark
-		iptables_both -t mangle -A "PREROUTING" -m connmark ! --mark 0 -m mark --mark 0 -j CONNMARK --restore-mark
+		iptables_both -t mangle -I OUTPUT     1 -m conntrack --ctstate ESTABLISHED,RELATED -j CONNMARK --restore-mark
+		iptables_both -t mangle -I PREROUTING 1 -m conntrack --ctstate ESTABLISHED,RELATED -j CONNMARK --restore-mark
 	fi
 
 	# Accept all related traffic to the established connections
@@ -8587,6 +8594,7 @@ then
 			# find the line
 			echo >&2 "Offending line:"
 			line=`cat "${FIREHOL_OUTPUT}.log" | grep "Error occurred at line: " | cut -d ':' -f 2`
+			test -z "$line" && line=`cat "${FIREHOL_OUTPUT}.log" | grep "iptables-restore: line " | grep failed | cut -d ' ' -f 3`
 			${CAT_CMD} "${FIREHOL_OUTPUT}.fast" | ${HEAD_CMD} -n $line | ${TAIL_CMD} -n 1 >&2
 			echo >&2
 
@@ -8609,6 +8617,7 @@ then
 				# find the line
 				echo >&2 "Offending line:"
 				line=`cat "${FIREHOL_OUTPUT}.log" | grep "Error occurred at line: " | cut -d ':' -f 2`
+				test -z "$line" && line=`cat "${FIREHOL_OUTPUT}.log" | grep "ip6tables-restore: line " | grep failed | cut -d ' ' -f 3`
 				${CAT_CMD} "${FIREHOL_OUTPUT}.fast6" | ${HEAD_CMD} -n $line | ${TAIL_CMD} -n 1 >&2
 				echo >&2
 
