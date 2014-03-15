@@ -1296,10 +1296,10 @@ interface() {
 		local a3="$3"
 		shift 3
 
-		interface "$a1" "$a2" input "$@" || return $?
+		interface "$a1" "${a2}-in" input "$@" || return $?
 		interface_save=1
 
-		save interface "$a1" "$a2" output "$@"
+		save interface "$a1" "${a2}-out" output "$@"
 		return 0
 	fi
 
