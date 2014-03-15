@@ -60,6 +60,7 @@ FIREQOS_CONFIG=/etc/firehol/fireqos.conf
 FIREQOS_LOCK_FILE=/var/run/fireqos.lock
 FIREQOS_LOCK_FILE_TIMEOUT=600
 FIREQOS_DIR=/var/run/fireqos
+FIREQOS_SAVE="${FIREQOS_DIR}/.tmp.save.$$.$RANDOM"
 
 # Gets set to 1 if this system cannot handle sub-second resolution
 FIREQOS_LOWRES_TIMER=0
@@ -265,7 +266,23 @@ server_tcp_ports="tcp/any"
 server_udp_ports="udp/any"
 server_surfing_ports="tcp/0:1023"
 
+save() {
+	[ ! $interface_save -eq 1 ] && return 0
+
+	local ipv=${force_ipv}
+	if [ ! -z "$ipv" ]
+	then
+		local ipv="ipv$ipv"
+	fi
+	(
+		printf "%q " $ipv "$@"
+		printf "\n"
+	) >>"${FIREQOS_SAVE}"
+}
+
 simple_service() {
+	[ $interface_save -eq 1 ] && save ${FUNCNAME} "$@"
+
 	local direction="$1"; shift
 	local service="$1"; shift
 	
@@ -320,7 +337,7 @@ simple_service() {
 			IFS="/" read proto ports <<EOF
 $p
 EOF
-			match $reverse proto $proto dports $ports "${@}"
+			match -ns $reverse proto $proto dports $ports "${@}"
 		done
 	done
 }
@@ -421,7 +438,7 @@ fireqos_exit() {
 		
 	elif [ "$FIREQOS_COMPLETED" = "1" ]
 	then
-		syslog info "QoS applied ok"
+		syslog info "QoS applied ok ($tc_count tc commands applied)"
 		
 	fi
 	echo >&2 "bye..."
@@ -485,7 +502,10 @@ runcmd() {
 	"${@}"
 }
 
+tc_count=0
 tc() {
+	tc_count=$[tc_count + 1]
+
 	local noerror=0
 	if [ "$1" = "ignore-error" ]
 	then
@@ -698,7 +718,9 @@ parse_class_params() {
 	local mpu=
 	local tsize=
 	local linklayer=
-	
+	local valid_options="$interface_inout"
+	local current_options="$interface_inout"
+
 	eval local base_rate="\$${parent}_rate"
 	
 	case "$force_ipv" in
@@ -722,6 +744,10 @@ parse_class_params() {
 	while [ ! -z "$1" ]
 	do
 		case "$1" in
+			input|output)
+					local current_options="$1"
+					;;
+
 			priority|balanced)
 					local priority_mode="$1"
 					;;
@@ -755,17 +781,26 @@ parse_class_params() {
 			minrate)
 					[ "$prefix" = "class" ] && error "'$1' cannot be used in classes."
 					
-					local minrate="`rate2bps $2 $base_rate`"
+					if [ $valid_options = $current_options ]
+					then
+						local minrate="`rate2bps $2 $base_rate`"
+					fi
 					shift
 					;;
 					
 			rate|min|commit)
-					local rate="`rate2bps $2 $base_rate`"
+					if [ $valid_options = $current_options ]
+					then
+						local rate="`rate2bps $2 $base_rate`"
+					fi
 					shift
 					;;
 					
 			ceil|max)
-					local ceil="`rate2bps $2 $base_rate`"
+					if [ $valid_options = $current_options ]
+					then
+						local ceil="`rate2bps $2 $base_rate`"
+					fi
 					shift
 					;;
 					
@@ -1130,12 +1165,35 @@ interface_classes_monitor=
 interface_sumrate=0
 interface_classid=
 interface_stab=
+interface_save=0
 
 ifb_interfaces=0
 class_matchid=
 force_ipv=
 
 interface_close() {
+	if [ -f "${FIREQOS_SAVE}" ]
+	then
+		# we have the output of a bidirectional interface to run
+
+		# debug info
+		# cat "${FIREQOS_SAVE}"
+
+		# move the exiting file to a new place, to avoid recursion
+		mv "${FIREQOS_SAVE}" "${FIREQOS_SAVE}.run"
+
+		# close the existing, input, interface
+		interface_close
+
+		# run the new, output, interface
+		source "${FIREQOS_SAVE}.run"
+
+		# delete the file, we don't need it any more
+		rm "${FIREQOS_SAVE}.run"
+
+		# continue running this interface_close function, to close the output interface too
+	fi
+
 	if [ ! -z "$interface_dev" ]
 	then
 		# close all open class groups
@@ -1184,6 +1242,7 @@ interface_close() {
 	interface_sumrate=0
 	interface_classid=
 	interface_stab=1
+	interface_save=0
 	class_matchid=1
 	parent_stack_size=0
 	
@@ -1228,7 +1287,24 @@ interface46() {
 	ipv46 interface "${@}"
 }
 
+interface_count=0
 interface() {
+	if [ "$3" = "both" -o "$3" = "bidirectional" ]
+	then
+		local a1="$1"
+		local a2="$2"
+		local a3="$3"
+		shift 3
+
+		interface "$a1" "$a2" input "$@" || return $?
+		interface_save=1
+
+		save interface "$a1" "$a2" output "$@"
+		return 0
+	fi
+
+	interface_count=$[interface_count + 1]
+
 	interface_close
 	
 	printf ": ${FUNCNAME} %s" "$*"
@@ -1236,7 +1312,7 @@ interface() {
 	interface_dev="$1"; shift
 	interface_name="$1"; shift
 	interface_inout="$1"; shift
-	
+
 	if [ "$interface_inout" = "input" ]
 	then
 		ifb_interfaces=$((ifb_interfaces + 1))
@@ -1353,7 +1429,7 @@ interface() {
 	[ ! -z "$interface_quantum" ]			&& local quantum="quantum $interface_quantum"
 	[ ! -z "$interface_r2q" ]			&& local r2q="r2q $interface_r2q"
 	
-	echo -e " $COLOR_BOLD$COLOR_BLUE($interface_realdev, MTU $interface_mtu, quantum $interface_quantum)$COLOR_RESET"
+	echo -e " $COLOR_BOLD$COLOR_BLUE($interface_realdev, $((interface_rate*8/1000))kbit, MTU $interface_mtu, quantum $interface_quantum)$COLOR_RESET"
 	
 	# remember we used this interface
 	$touch_cmd $FIREQOS_DIR/ifaces/$interface_realdev
@@ -1441,7 +1517,12 @@ class46() {
 	ipv46 class "${@}"
 }
 
+class_count=0
 class() {
+	[ $interface_save -eq 1 ] && save ${FUNCNAME} "$@"
+
+	class_count=$[class_count + 1]
+
 	# check if the have to push into the stack the last class (if it was a group class)
 	if [ $class_group -eq 1 ]
 	then
@@ -1840,7 +1921,17 @@ match46() {
 	ipv46 match "${@}"
 }
 
+match_count=0
 match() {
+	match_count=$[match_count + 1]
+
+	if [ "z$1" = "z-ns" ]
+	then
+		shift
+	else
+		[ $interface_save -eq 1 ] && save ${FUNCNAME} "$@"
+	fi
+
 	[ $FIREQOS_DEBUG -eq 1 -o $FIREQOS_SHOW_MATCHES -eq 1 ] && echo ":		${FUNCNAME} $*"
 	
 	local proto=any
@@ -3222,7 +3313,15 @@ enable trap					# Enable the trap buildin shell command.
 interface_close					# close the last interface.
 
 echo
-echo "All Done!. Enjoy..."
+echo "  Traffic is classified:"
+echo
+echo "      - on $interface_count interfaces"
+echo "      - to $class_count classes"
+echo "      - by $match_count FireQOS matches"
+echo
+echo "  $tc_count TC commands executed"
+echo
+echo "All Done! Enjoy..."
 
 # inform the trap everything is ok
 FIREQOS_COMPLETED=1
