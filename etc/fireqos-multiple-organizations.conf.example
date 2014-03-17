@@ -1,0 +1,104 @@
+#!fireqos
+
+# 
+# Share bandwidth between different organizations
+#
+# This script will allow you to segment any interface to multiple organizations.
+# Both INPUT and OUTPUT bandwidth will be segmented.
+# Spare bandwidth, i.e. bandwidth not used by an organization will be made
+# available for the others to use.
+
+
+# Information about the interface to share.
+
+DEVICE="eth3"
+INPUT_SPEED="100Mbit"
+OUTPUT_SPEED="100Mbit"
+LINKTYPE="ethernet"
+
+
+# This will be called for each organization for both
+# INPUT and OUTPUT, to add clases for providing
+# QoS within the organization
+
+classes_within_organization() {
+
+	# add as many classes as you need,
+	# but remember:
+	#    1. do not use 'match' for classification,
+	#       use only 'server' and 'client'
+	#    2. use only percentages for rate and ceil
+	#
+	
+	class interactive
+		client dns
+		client gtalk
+		server icmp
+		client icmp
+		
+	class video
+		client facetime
+		client hangouts
+		
+	class vpn
+		client pptp
+		client GRE
+		client teamviewer
+		
+	class surfing
+		client surfing
+		
+	class default
+		
+	class torrents
+		server torrents
+		client torrents
+		
+		match sports 16384:65535 dports 16384:65535
+}
+
+
+interface $DEVICE orgs bidirectional $LINKTYPE balanced input rate $INPUT_SPEED output rate $OUTPUT_RATE
+	
+	# ADD ORGANIZATIONS
+	# each gets a class group
+	
+	# I have assumed that:
+	#    organization 1 is using IPs 10.0.1.0/24
+	#    organization 2 is using IPs 10.0.2.0/24
+	#    organization 3 is using IPs 10.0.3.0/24
+	# You can change these bellow, to match your setup.
+	
+	# ----------------------------------------------
+	# Organization 1
+	
+	class group org1 commit 33% max 100%
+		match net "10.0.1.0/24"
+		
+		classes_within_organization
+	class group end
+	
+	
+	# ----------------------------------------------
+	# Organization 2
+	
+	class group org2 commit 33% max 100%
+		match net "10.0.2.0/24"
+		
+		classes_within_organization
+	class group end
+	
+	
+	# ----------------------------------------------
+	# Organization 3
+		
+	class group org3 commit 33% max 100%
+		match net "10.0.3.0/24"
+		
+		classes_within_organization
+	class group end
+	
+	# you can add as many organizations as you like
+
+done
+
