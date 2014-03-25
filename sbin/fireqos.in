@@ -1432,7 +1432,7 @@ interface() {
 	echo -e " $COLOR_BOLD$COLOR_BLUE($interface_realdev, $((interface_rate*8/1000))kbit, MTU $interface_mtu, quantum $interface_quantum)$COLOR_RESET"
 	
 	# remember we used this interface
-	$touch_cmd $FIREQOS_DIR/ifaces/$interface_realdev
+	echo "$interface_name" >$FIREQOS_DIR/ifaces/$interface_realdev
 	
 	# Add root qdisc with proper linklayer and overheads
 	tc ignore-error qdisc del dev $interface_realdev root
