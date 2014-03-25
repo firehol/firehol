@@ -2928,7 +2928,7 @@ transparent_squid() {
 	transparent_proxy 80 "$@"
 }
 
-FIREHOL_TPROXY_MARK="0xffff"
+FIREHOL_TPROXY_MARK="0xffff/0xffff"
 FIREHOL_TPROXY_IP_ROUTE_TABLE="999"
 FIREHOL_TPROXY_ROUTE_DEVICE="lo"
 
@@ -2964,22 +2964,27 @@ tproxy() {
 	require_work clear || ( error "$FUNCNAME cannot be used in '${work_cmd}'. Put it before any '${work_cmd}' definition."; return 1 )
 	
 	local ports="${1}"; shift
-	local tproxy_type="${1}"; shift
-	local redirect="${1}"; shift
 	
-	test -z "${redirect}" && error "Proxy listening port is empty" && return 1
-	case "${tproxy_type}" in
-		port)
-			local tproxy_action_options="tproxy-mark $FIREHOL_TPROXY_MARK on-port ${redirect}"
-			;;
-		ip)
-			local tproxy_action_options="tproxy-mark $FIREHOL_TPROXY_MARK on-ip ${redirect}"
-			;;
-		*)
-			error "Invalid tproxy type '$tproxy_type'. It can either be 'port' or 'ip'."
-			return 1
-			;;
-	esac
+	local tproxy_action_options="tproxy-mark $FIREHOL_TPROXY_MARK"
+	local tport=
+	local tip=
+
+	if [ "$1" = "port" ]
+	then
+		local tproxy_action_options="$tproxy_action_options on-port ${2}"
+		local tport="${2}"
+		shift 2
+	else
+		error "TPROXY needs at least the port the proxy is listening at."
+		return 1
+	fi
+
+	if [ "$1" = "ip" ]
+	then
+		local tproxy_action_options="$tproxy_action_options on-ip ${2}"
+		local tip="${2}"
+		shift 2
+	fi
 	
 	tproxy_count=$[tproxy_count + 1]
 	
@@ -2987,7 +2992,7 @@ tproxy() {
 	
 	create_chain mangle "in_tproxy.${tproxy_count}" PREROUTING "$@" outface any proto tcp dport "${ports}" || return 1
 
-	create_chain mangle "in_tproxy.${tproxy_count}.divert" "in_tproxy.${tproxy_count}" custom '-m socket' || return 1
+	create_chain mangle "in_tproxy.${tproxy_count}.divert" "in_tproxy.${tproxy_count}" proto tcp custom '-m socket' || return 1
 	rule table mangle chain "in_tproxy.${tproxy_count}.divert" action MARK to $FIREHOL_TPROXY_MARK
 	rule table mangle chain "in_tproxy.${tproxy_count}.divert" action ACCEPT
 
@@ -5476,13 +5481,15 @@ rule() {
 						then
 							action_param=(${action_param[@]} "--on-port" "${2}")
 							shift 2
-						elif [ "${1}" = "on-ip" -o "${1}" = "to-ip" ]
-						then
-							action_param=(${action_param[@]} "--on-ip" "${2}")
-							shift 2
 						else
 							error "${action} requires a 'on-port' or 'on-ip' argument."
 							return 1
+						fi
+
+						if [ "${1}" = "on-ip" -o "${1}" = "to-ip" ]
+						then
+							action_param=(${action_param[@]} "--on-ip" "${2}")
+							shift 2
 						fi
 
 						if [ ! "A${table}" = "A-t mangle" ]
