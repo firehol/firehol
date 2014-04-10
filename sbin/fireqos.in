@@ -1953,6 +1953,9 @@ match() {
 	local ipv4=$class_ipv4
 	local ipv6=$class_ipv6
 	local reverse=0
+	local estimator_interval=
+	local estimator_decay=
+	local police_arg=
 
 	case "$force_ipv" in
 		4)
@@ -2073,6 +2076,25 @@ match() {
 				shift
 				;;
 				
+			estimator)
+				local estimator_interval="$2"
+				local estimator_decay="$3"
+				shift 2
+				;;
+
+			police)
+				local police_arg="$2"
+				shift
+				;;
+
+			limit)
+				local limit_rate="`rate2bps $2 $class_rate`"
+				local estimator_interval="500msec"
+				local estimator_decay="1sec"
+				local police_arg="rate $[limit_rate * 8 / 1000]kbit burst 50kb continue"
+				shift
+				;;
+
 			*)	error "Cannot understand what the filter '${1}' is."
 				return 1
 				;;
@@ -2456,7 +2478,25 @@ match() {
 											
 											[ ! -z "$u32" -a ! -z "$mark_arg" ] && local mark_arg="and $mark_arg"
 											
-											tc filter add dev $device parent $parent protocol $tcproto_arg prio $prio $u32 $proto_arg $ip_arg $src_arg $dst_arg $port_arg $sport_arg $dport_arg $tos_arg $ack_arg $syn_arg $mark_arg $custom flowid $flowid
+											local estimator=
+											if [ ! -z "$estimator_interval" -a ! -z "$estimator_decay" ]
+											then
+												local estimator="estimator $estimator_interval $estimator_decay"
+											fi
+											local police=
+											if [ ! -z "$police_arg" ]
+											then
+												local police="police $police_arg"
+											fi
+
+											tc filter add \
+												dev $device parent $parent protocol $tcproto_arg prio $prio \
+												$estimator \
+												$u32 \
+												$proto_arg $ip_arg $src_arg $dst_arg $port_arg $sport_arg $dport_arg $tos_arg $ack_arg $syn_arg $mark_arg \
+												$custom \
+												flowid $flowid \
+												$police
 											
 										done # mark
 									done # tos
