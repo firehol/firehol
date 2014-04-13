@@ -1,3 +1,23 @@
+firehol (2.0.0-pre7) unstable; urgency=low
+
+  * FireQOS fixes/enhancements
+    - full bidirectional interface support, including firehol like services
+    - running on OpenWRT (insmod instead of modprobe, low-res timers)
+    - option to limit each match to a specific rate
+
+  * FireHOL fixes/enhancements
+    - firehol save now writes to the specified files again
+    - firehol save, restore and fastactivation now work IPv4-only mode
+    - improved fast activation error handling (issue #22)
+    - improved mark/connmark handling (issue #23)
+    - tproxy support added
+
+  * Documentation
+    - Link and spelling fixes
+    - new config examples
+
+ -- Phil Whineray <phil@sanewall.org>  Sun, 13 Apr 2014 17:04:00 +0100
+
 firehol (2.0.0-pre6) unstable; urgency=low
 
   * Implement dual IPv4/IPv6 as standard
