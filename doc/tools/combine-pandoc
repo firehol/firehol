@@ -1,0 +1,76 @@
+#!/usr/bin/perl -w
+
+use strict;
+
+if (@ARGV < 3) {
+  print "Usage: combine-pandoc pdf|htm output-file index-file extra...\n";
+  exit 1;
+}
+
+my $mode = shift @ARGV;
+my $outfile = shift @ARGV;
+my $infile = shift @ARGV;
+
+open OUT, ">$outfile" or die "Unable to open $outfile for writing\n";
+
+sub exit_error {
+  unlink $outfile;
+  die shift;
+}
+
+sub include_file {
+  my $name = shift;
+  my $skip_metadata = shift;
+  open INCLUDE, "<$name" or exit_error("Unable to open $name for reading\n");
+
+  my $title = <INCLUDE>; # Extract title as a header
+  if ($title =~ s/^% ([^ ]*).*/### $1/p) {
+    print OUT "$title\n";
+  }
+
+  while (<INCLUDE>) {
+    if ($skip_metadata) {
+      if (/^[A-Z#]/) {
+        $skip_metadata = undef;
+      } else {
+        next; # Skip metadata before first header
+      }
+    }
+
+    # Make headers lower level
+    s/^#/####/;
+    if ($mode eq "pdf") {
+      # pandoc 1.9.4.2 PDF generation hates underscores in the links
+      s/#service-([a-z]*)_([a-z]*)/#service-$1-$2/g;
+      s/_/-/g if (/# service: /);
+      # Force a break after the title for PDF with a UTF8 non-printing space
+      $_ .= chr(194) . chr(160) . "\n" if (/^#/);
+    }
+    print OUT;
+  }
+
+  close INCLUDE;
+}
+
+open IN, "<$infile" or exit_error("Unable to open $infile for reading\n");
+while (<IN>) {
+  if (/]\(([^)]+.md)\)/) {
+    print OUT "\n"; # Ensure a blank line between each subsequent file header
+    if ($1 eq "common-intro.md") {
+      include_file($1, 0);
+    } else {
+      include_file($1, 1);
+    }
+    print OUT "\n\\newpage\n";
+  } else {
+    print OUT;
+  }
+}
+
+while (@ARGV) {
+  print OUT "\n";
+  include_file(shift @ARGV, 0);
+}
+
+close IN;
+close OUT;

@@ -1,0 +1,34 @@
+#!/usr/bin/perl -w
+
+my $debug = 0;
+
+use strict;
+use Data::Dumper;
+use Text::ParseWords;
+use File::Basename qw( dirname );
+use lib dirname($0);
+use servicedb;
+
+if (@ARGV != 3) {
+  print STDERR "Usage: mkservicelist output.md firehol-script services-db.data\n";
+  exit 1;
+}
+
+my ($services, $all_run) = servicedb::read_script($ARGV[1]);
+my ($dbinfo, $dbalias) = servicedb::read_db($ARGV[2]);
+my @service_keywords = servicedb::validate($services, $dbinfo, $dbalias);
+
+open my $o, ">$ARGV[0]" or die;
+print $o "\n";
+print $o "<!--\n";
+print $o "  This file lists keywords associated with FireHOL services\n";
+print $o "  and associates them with anchors in the HTML.\n";
+print $o "  -->\n\n";
+
+for my $xk (@service_keywords) {
+  my $dk = lc($xk);
+  print $o "[keyword-service-$xk]: firehol-services.5.md#service-$dk\n";
+}
+
+print $o "\n";
+close $o;

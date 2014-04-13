@@ -1,0 +1,33 @@
+#!/bin/sh
+
+set -e
+
+if [ $# -ne 3 ]
+then
+  echo "man-synos markdown target-manpage strip-prefix"
+  exit 1
+fi
+
+md="$1"
+shift
+target="$1"
+shift
+prefix="$1"
+shift
+
+if [ ! -f "$target" ]
+then
+  echo "No such file: $target"
+  exit 1
+fi
+
+mandir=$(dirname $target)
+sofile=$(echo $target | sed -e "s:^$prefix::")
+
+sed -ne 's/extra-manpage: *//p' "$md" | while read f
+do
+  echo ".so $sofile" > $mandir/$f
+  echo "Created $sofile -> $mandir/$f"
+done
+
+exit 0
