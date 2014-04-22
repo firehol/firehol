@@ -4,6 +4,18 @@ DIST_SUBDIRS = tools
 
 dochtmldir = $(htmldir)/html
 
+FIREHOLMANUALHTML_GENERATED = \
+	firehol-manual.html
+
+FIREHOLMANUALPDF_GENERATED = \
+	firehol-manual.pdf
+
+FIREHOLMANUAL_LINKS = \
+	service-links \
+	links-internal \
+	links-keywords-firehol \
+	links-keywords-fireqos
+
 FIREHOLMANUAL_CSS = \
 	firehol-manual.css
 
@@ -173,17 +185,8 @@ FIREHOLMANUALMAN_GENERATED_INDIRECT = \
 	man/man5/fireqos-dst.5 \
 	man/man5/fireqos-prio.5
 
-FIREHOLMANUALHTML_GENERATED = \
-	firehol-manual.html
-
-FIREHOLMANUALPDF_GENERATED = \
-	firehol-manual.pdf
-
-FIREHOLMANUAL_LINKS = \
-	service-links \
-	links-internal \
-	links-keywords-firehol \
-	links-keywords-fireqos
+FIREHOLMANUALMARKDOWN_GENERATED = \
+	firehol-services.5.md
 
 dochtml_DATA = \
 	$(FIREHOLMANUAL_CSS) \
@@ -201,8 +204,8 @@ if MAINTAINER_MODE
 MKSERVICELINKS = ${top_srcdir}/doc/tools/mkservicelinks
 MKSERVICEMAN = ${top_srcdir}/doc/tools/mkserviceman
 MANSYNOS = ${top_srcdir}/doc/tools/man-synos
-COMBINEMANDOC = ${top_srcdir}/doc/tools/combine-mandoc
-CHECKLINKS = ${top_srcdir}/doc/tools/checklinks
+COMBINEPANDOC = ${top_srcdir}/doc/tools/combine-pandoc
+CHECKLINKS = ${top_srcdir}/doc/tools/check-links
 
 FIREHOLIN = $(top_srcdir)/sbin/firehol.in
 
@@ -210,54 +213,64 @@ PANDOC_MAN_OPTIONS = -s -t man -f markdown
 PANDOC_PDF_OPTIONS = --toc -N -f markdown
 PANDOC_HTML_OPTIONS = --toc -c firehol-manual.css -f markdown
 
-man/man1/%.1: %.1.md
-	@mkdir -p man/man1
-	pandoc $(PANDOC_MAN_OPTIONS) -o $@ $< tmp/anchor-links
-# Disable groff hyphenation (wrecks URLs) and supress any internal links,
-# since pandoc 1.9.4.2 just leaves them verbatim in manpage output.
-	sed -i -e '1a.nh' -e 's/ (#[a-z.0-9_-]*)//g' $@
-	$(MANSYNOS) $< $@ man/
-
-man/man5/%.5: %.5.md
-	@mkdir -p man/man5
-	pandoc $(PANDOC_MAN_OPTIONS) -o $@ $< tmp/anchor-links
-# Disable groff hyphenation (wrecks URLs) and supress any internal links,
-# since pandoc 1.9.4.2 just leaves them verbatim in manpage output.
-	sed -i -e '1a.nh' -e 's/ (#[a-z.0-9_-]*)//g' $@
-	$(MANSYNOS) $< $@ man/
-
-firehol-services.5.md: ../sbin/firehol.in services-db.data tmp/anchor-links
+firehol-services.5.md: ../sbin/firehol.in services-db.data service-links
 	$(MKSERVICEMAN) firehol-services.5.md $+
 
 service-links: ../sbin/firehol.in services-db.data
 	$(MKSERVICELINKS) service-links $+
 
-firehol-manual.pdf: *.md firehol-services.5.md $(FIREHOLMANUAL_LINKS)
-	mkdir -p tmp
-	sed -e 's/: .*#/: #/' $(FIREHOLMANUAL_LINKS) > tmp/anchor-links
-	$(COMBINEPANDOC) pdf tmp/pdf-combined.md contents.md tmp/anchor-links
+man/man1/%.1: %.1.md
+	$(MKDIR_P) tmp
+	$(MKDIR_P) man/man1
+	$(SED) -e '/^%/s/DATE/@PACKAGE_BUILT_DATE@/' -e '/^%/s/VERSION/@PACKAGE_VERSION@/' $< > tmp/manproc
+	$(SED) -e 's/: .*#/: #/' $(FIREHOLMANUAL_LINKS) > tmp/anchor-links
+	pandoc $(PANDOC_MAN_OPTIONS) -o $@ tmp/manproc tmp/anchor-links
+# Disable groff hyphenation (wrecks URLs) and supress any internal links,
+# since pandoc 1.9.4.2 just leaves them verbatim in manpage output.
+	$(SED) -i -e '1a.nh' -e 's/ (#[a-z.0-9_-]*)//g' $@
+	$(MANSYNOS) $< $@ man/
+
+man/man5/%.5: %.5.md
+	$(MKDIR_P) tmp
+	$(MKDIR_P) man/man5
+	$(SED) -e '/^%/s/DATE/@PACKAGE_BUILT_DATE@/' -e '/^%/s/VERSION/@PACKAGE_VERSION@/' $< > tmp/manproc
+	$(SED) -e 's/: .*#/: #/' $(FIREHOLMANUAL_LINKS) > tmp/anchor-links
+	pandoc $(PANDOC_MAN_OPTIONS) -o $@ tmp/manproc tmp/anchor-links
+# Disable groff hyphenation (wrecks URLs) and supress any internal links,
+# since pandoc 1.9.4.2 just leaves them verbatim in manpage output.
+	$(SED) -i -e '1a.nh' -e 's/ (#[a-z.0-9_-]*)//g' $@
+	$(MANSYNOS) $< $@ man/
+
+$(FIREHOLMANUALMAN_GENERATED): $(FIREHOLMANUAL_LINKS)
+
+firehol-manual.pdf: *.md $(FIREHOLMANUALMARKDOWN_GENERATED) $(FIREHOLMANUAL_LINKS)
+	$(MKDIR_P) tmp
+	$(SED) -e 's/: .*#/: #/' $(FIREHOLMANUAL_LINKS) > tmp/anchor-links
+	$(SED) -e '/^%/s/DATE/@PACKAGE_BUILT_DATE@/' -e '/^%/s/VERSION/@PACKAGE_VERSION@/' contents.md > tmp/contents
+	$(COMBINEPANDOC) pdf tmp/pdf-combined.md tmp/contents tmp/anchor-links
 	$(PANDOC) $(PANDOC_PDF_OPTIONS) -o $@ tmp/pdf-combined.md
 
-firehol-manual.html: *.md firehol-services.5.md $(FIREHOLMANUAL_LINKS)
-	mkdir -p tmp
-	sed -e 's/: .*#/: #/' $(FIREHOLMANUAL_LINKS) > tmp/anchor-links
-	$(COMBINEPANDOC) html $@ contents.md tmp/anchor-links
+firehol-manual.html: *.md $(FIREHOLMANUALMARKDOWN_GENERATED) $(FIREHOLMANUAL_LINKS)
+	$(MKDIR_P) tmp
+	$(SED) -e 's/: .*#/: #/' $(FIREHOLMANUAL_LINKS) > tmp/anchor-links
+	$(SED) -e '/^%/s/DATE/@PACKAGE_BUILT_DATE@/' -e '/^%/s/VERSION/@PACKAGE_VERSION@/' contents.md > tmp/contents
+	$(COMBINEPANDOC) html tmp/html-combined.md tmp/contents tmp/anchor-links
 	$(PANDOC) $(PANDOC_HTML_OPTIONS) -o tmp/unform.html tmp/html-combined.md
-	xmllint --format tmp/unform.html > tmp/format.html
+	$(XMLLINT) $(XMLLINT_FLAGS) --format tmp/unform.html > tmp/format.html
 	$(CHECKLINKS) tmp/format.html $(FIREHOLMANUAL_LINKS)
 # Remove manpage internal sections from HTML
-	@sed -e '/^                  <ul>/,/^                  <\/ul>/d' tmp/format.html > $@
+	$(SED) -e '/^                  <ul>/,/^                  <\/ul>/d' tmp/format.html > $@
 
 endif
 
 EXTRA_DIST = \
 	services-db.data \
+	$(FIREHOLMANUAL_LINKS) \
 	$(FIREHOLMANUALXML_CSS) \
 	$(FIREHOLMANUALXML_MASTER) \
 	$(FIREHOLMANUALHTML_GENERATED) \
 	$(FIREHOLMANUALPDF_GENERATED) \
-	$(FIREHOLMANUALMAN_GENERATED) \
-	$(FIREHOLMANUAL_LINKS) \
+	$(FIREHOLMANUALMAN_GENERATED)
 
 CLEANFILES =
 
@@ -265,6 +278,7 @@ DISTCLEANFILES =
 
 MAINTAINERCLEANFILES = \
 	services-links \
+	$(FIREHOLMANUALMARKDOWN_GENERATED) \
 	$(FIREHOLMANUALHTML_GENERATED) \
 	$(FIREHOLMANUALPDF_GENERATED) \
 	$(FIREHOLMANUALMAN_GENERATED) \

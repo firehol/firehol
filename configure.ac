@@ -22,10 +22,11 @@ AC_SUBST(PACKAGE_BUILT_DATE)
 AX_PROG_XMLLINT([--nonet])
 AX_PROG_XSLTPROC([--nonet])
 AX_PROG_DBLATEX([])
+AX_NEED_PROG([PANDOC], [pandoc], [pandoc])
 AX_CHECK_DOCBOOK_DTD([4.5])
 AX_CHECK_DOCBOOK_XSLT_MIN([1.76.1])
 AX_CHECK_DBLATEX_MIN([0.3.4],[],[AC_MSG_ERROR(could not find required version of DBLaTeX)])
-AC_CONFIG_FILES([doc/firehol.ent])
+# AC_CONFIG_FILES([doc/firehol.ent])
 AC_MSG_NOTICE(***************************************************)
 fi
 
@@ -84,12 +85,6 @@ AC_CONFIG_FILES([
 	m4/Makefile
 	doc/Makefile
 	doc/tools/Makefile
-	doc/latex/Makefile
-	doc/xsl/Makefile
-	doc/firehol/Makefile
-	doc/fireqos/Makefile
-	doc/firehol-reference/Makefile
-	doc/fireqos-reference/Makefile
 	examples/Makefile
 	etc/Makefile
 	packaging/Makefile

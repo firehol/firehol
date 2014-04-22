@@ -26,6 +26,9 @@ doc/pt*.html
 doc/rn*.html
 doc/apa*.html
 doc/services-?.xml
+doc/firehol-services.5.md
+doc/service-links
+doc/tmp/
 sbin/firehol
 sbin/fireqos
 *.xz

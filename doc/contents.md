@@ -1,6 +1,6 @@
 % FireHOL + FireQOS Reference
 % Copyright (c) 2004,2013-2014 Costa Tsaousis <costa@tsaousis.org>; Copyright (c) 2012-2014 Phil Whineray <phil@sanewall.org>
-% Version 2.0.0-pre10 (Built 2014-03-16)
+% Version VERSION (Built DATE)
 
 \newpage
 
