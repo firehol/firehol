@@ -19,7 +19,11 @@ FIREHOLMANUAL_LINKS = \
 FIREHOLMANUAL_CSS = \
 	firehol-manual.css
 
+# Generate using:
+# (echo firehol-services.5.md; ls fire*.md) | sed -ne 's;\(.*\).\([0-9]\).md;\tman/man\2/\1.\2 \\;p' |sort -u
 FIREHOLMANUALMAN_GENERATED = \
+	man/man1/firehol.1 \
+	man/man1/fireqos.1 \
 	man/man5/firehol-action.5 \
 	man/man5/firehol-actions.5 \
 	man/man5/firehol-blacklist.5 \
@@ -48,142 +52,136 @@ FIREHOLMANUALMAN_GENERATED = \
 	man/man5/firehol-tosfix.5 \
 	man/man5/firehol-variables.5 \
 	man/man5/firehol-version.5 \
-	man/man1/firehol.1 \
-	man/man5/fireqos-conf.5 \
 	man/man5/fireqos-class.5 \
+	man/man5/fireqos-conf.5 \
 	man/man5/fireqos-interface.5 \
 	man/man5/fireqos-match.5 \
 	man/man5/fireqos-params.5 \
 	man/man5/fireqos-params-class.5 \
-	man/man5/fireqos-params-match.5 \
-	man/man1/fireqos.1
+	man/man5/fireqos-params-match.5
 
 # Generate using:
-# sed -ne 's;extra-manpage: \(.*\)\([0-9]\);\tman/man\2/\1\2 \\;p' *.md
+# sed -ne 's;extra-manpage: \(.*\)\([0-9]\);\tman/man\2/\1\2 \\;p' *.md|sort -u
 FIREHOLMANUALMAN_GENERATED_INDIRECT = \
 	man/man5/firehol-accept.5 \
-	man/man5/firehol-reject.5 \
-	man/man5/firehol-drop.5 \
-	man/man5/firehol-deny.5 \
-	man/man5/firehol-return.5 \
-	man/man5/firehol-tarpit.5 \
-	man/man5/firehol-client46.5 \
 	man/man5/firehol-client4.5 \
+	man/man5/firehol-client46.5 \
 	man/man5/firehol-client6.5 \
 	man/man5/firehol.conf.5 \
-	man/man5/firehol-interface46.5 \
+	man/man5/firehol-custom.5 \
+	man/man5/firehol-deny.5 \
+	man/man5/firehol-dnat.5 \
+	man/man5/firehol-dport.5 \
+	man/man5/firehol-drop.5 \
+	man/man5/firehol-dscp-param.5 \
+	man/man5/firehol-dst4.5 \
+	man/man5/firehol-dst.5 \
+	man/man5/firehol-dst6.5 \
+	man/man5/firehol-dsttype.5 \
+	man/man5/firehol-gid.5 \
+	man/man5/firehol-inface.5 \
 	man/man5/firehol-interface4.5 \
+	man/man5/firehol-interface46.5 \
 	man/man5/firehol-interface6.5 \
 	man/man5/firehol-ip6tables.5 \
 	man/man5/firehol-ipv4.5 \
 	man/man5/firehol-ipv6.5 \
-	man/man5/firehol-dnat.5 \
-	man/man5/firehol-snat.5 \
-	man/man5/firehol-redirect.5 \
-	man/man5/firehol-src.5 \
-	man/man5/firehol-src4.5 \
-	man/man5/firehol-src6.5 \
-	man/man5/firehol-dst.5 \
-	man/man5/firehol-dst4.5 \
-	man/man5/firehol-dst6.5 \
-	man/man5/firehol-srctype.5 \
-	man/man5/firehol-dsttype.5 \
-	man/man5/firehol-dport.5 \
-	man/man5/firehol-sport.5 \
-	man/man5/firehol-inface.5 \
+	man/man5/firehol-log.5 \
+	man/man5/firehol-loglimit.5 \
+	man/man5/firehol-mac-param.5 \
+	man/man5/firehol-mark-param.5 \
 	man/man5/firehol-outface.5 \
 	man/man5/firehol-physin.5 \
 	man/man5/firehol-physout.5 \
-	man/man5/firehol-custom.5 \
-	man/man5/firehol-log.5 \
-	man/man5/firehol-loglimit.5 \
 	man/man5/firehol-proto.5 \
-	man/man5/firehol-uid.5 \
-	man/man5/firehol-gid.5 \
-	man/man5/firehol-mac-param.5 \
-	man/man5/firehol-mark-param.5 \
-	man/man5/firehol-tos-param.5 \
-	man/man5/firehol-dscp-param.5 \
-	man/man5/firehol-dport.5 \
+	man/man5/firehol-redirect.5 \
+	man/man5/firehol-reject.5 \
+	man/man5/firehol-return.5 \
+	man/man5/firehol-route4.5 \
+	man/man5/firehol-route46.5 \
+	man/man5/firehol-route6.5 \
+	man/man5/firehol-router4.5 \
+	man/man5/firehol-router46.5 \
+	man/man5/firehol-router6.5 \
+	man/man5/firehol-server4.5 \
+	man/man5/firehol-server46.5 \
+	man/man5/firehol-server6.5 \
+	man/man5/firehol-snat.5 \
 	man/man5/firehol-sport.5 \
+	man/man5/firehol-src4.5 \
+	man/man5/firehol-src.5 \
+	man/man5/firehol-src6.5 \
+	man/man5/firehol-srctype.5 \
+	man/man5/firehol-tarpit.5 \
+	man/man5/firehol-tos-param.5 \
 	man/man5/firehol-transparent_proxy.5 \
 	man/man5/firehol-transparent_squid.5 \
-	man/man5/firehol-router46.5 \
-	man/man5/firehol-router4.5 \
-	man/man5/firehol-router6.5 \
-	man/man5/firehol-server46.5 \
-	man/man5/firehol-server4.5 \
-	man/man5/firehol-server6.5 \
-	man/man5/firehol-route46.5 \
-	man/man5/firehol-route4.5 \
-	man/man5/firehol-route6.5 \
-	man/man5/fireqos-class46.5 \
-	man/man5/fireqos-class4.5 \
-	man/man5/fireqos-class6.5 \
-	man/man5/fireqos.conf.5 \
-	man/man5/fireqos-interface46.5 \
-	man/man5/fireqos-interface4.5 \
-	man/man5/fireqos-interface6.5 \
-	man/man5/fireqos-match46.5 \
-	man/man5/fireqos-match4.5 \
-	man/man5/fireqos-match6.5 \
-	man/man5/fireqos-prio.5 \
-	man/man5/fireqos-priority.5 \
-	man/man5/fireqos-class-params.5 \
-	man/man5/fireqos-rate.5 \
-	man/man5/fireqos-commit.5 \
-	man/man5/fireqos-min.5 \
-	man/man5/fireqos-ceil.5 \
-	man/man5/fireqos-max.5 \
-	man/man5/fireqos-minrate.5 \
-	man/man5/fireqos-qdisc.5 \
-	man/man5/fireqos-pfifo.5 \
-	man/man5/fireqos-bfifo.5 \
-	man/man5/fireqos-sfq.5 \
-	man/man5/fireqos-fq_codel.5 \
-	man/man5/fireqos-codel.5 \
-	man/man5/fireqos-none.5 \
-	man/man5/fireqos-linklayer.5 \
-	man/man5/fireqos-ethernet.5 \
-	man/man5/fireqos-atm.5 \
-	man/man5/fireqos-adsl.5 \
-	man/man5/fireqos-mpu.5 \
-	man/man5/fireqos-mtu.5 \
-	man/man5/fireqos-tsize.5 \
-	man/man5/fireqos-overhead.5 \
-	man/man5/fireqos-r2q.5 \
-	man/man5/fireqos-burst.5 \
-	man/man5/fireqos-cburst.5 \
-	man/man5/fireqos-quantum.5 \
-	man/man5/fireqos-balanced.5 \
-	man/man5/fireqos-match-params.5 \
-	man/man5/fireqos-at.5 \
-	man/man5/fireqos-syn.5 \
-	man/man5/fireqos-syns.5 \
+	man/man5/firehol-uid.5 \
 	man/man5/fireqos-ack.5 \
 	man/man5/fireqos-acks.5 \
-	man/man5/fireqos-proto.5 \
-	man/man5/fireqos-protocol.5 \
-	man/man5/fireqos-tcp.5 \
-	man/man5/fireqos-udp.5 \
-	man/man5/fireqos-icmp.5 \
-	man/man5/fireqos-gre.5 \
-	man/man5/fireqos-ipv6.5 \
-	man/man5/fireqos-tos.5 \
-	man/man5/fireqos-priority.5 \
-	man/man5/fireqos-mark.5 \
-	man/man5/fireqos-port.5 \
-	man/man5/fireqos-ports.5 \
-	man/man5/fireqos-sport.5 \
-	man/man5/fireqos-sports.5 \
+	man/man5/fireqos-adsl.5 \
+	man/man5/fireqos-at.5 \
+	man/man5/fireqos-atm.5 \
+	man/man5/fireqos-balanced.5 \
+	man/man5/fireqos-bfifo.5 \
+	man/man5/fireqos-burst.5 \
+	man/man5/fireqos-cburst.5 \
+	man/man5/fireqos-ceil.5 \
+	man/man5/fireqos-class4.5 \
+	man/man5/fireqos-class46.5 \
+	man/man5/fireqos-class6.5 \
+	man/man5/fireqos-class-params.5 \
+	man/man5/fireqos-codel.5 \
+	man/man5/fireqos-commit.5 \
+	man/man5/fireqos.conf.5 \
 	man/man5/fireqos-dport.5 \
 	man/man5/fireqos-dports.5 \
-	man/man5/fireqos-ip.5 \
-	man/man5/fireqos-net.5 \
-	man/man5/fireqos-host.5 \
-	man/man5/fireqos-src.5 \
 	man/man5/fireqos-dst.5 \
-	man/man5/fireqos-prio.5
+	man/man5/fireqos-ethernet.5 \
+	man/man5/fireqos-fq_codel.5 \
+	man/man5/fireqos-gre.5 \
+	man/man5/fireqos-host.5 \
+	man/man5/fireqos-icmp.5 \
+	man/man5/fireqos-interface4.5 \
+	man/man5/fireqos-interface46.5 \
+	man/man5/fireqos-interface6.5 \
+	man/man5/fireqos-ip.5 \
+	man/man5/fireqos-ipv6.5 \
+	man/man5/fireqos-linklayer.5 \
+	man/man5/fireqos-mark.5 \
+	man/man5/fireqos-match4.5 \
+	man/man5/fireqos-match46.5 \
+	man/man5/fireqos-match6.5 \
+	man/man5/fireqos-match-params.5 \
+	man/man5/fireqos-max.5 \
+	man/man5/fireqos-min.5 \
+	man/man5/fireqos-minrate.5 \
+	man/man5/fireqos-mpu.5 \
+	man/man5/fireqos-mtu.5 \
+	man/man5/fireqos-net.5 \
+	man/man5/fireqos-none.5 \
+	man/man5/fireqos-overhead.5 \
+	man/man5/fireqos-pfifo.5 \
+	man/man5/fireqos-port.5 \
+	man/man5/fireqos-ports.5 \
+	man/man5/fireqos-prio.5 \
+	man/man5/fireqos-priority.5 \
+	man/man5/fireqos-proto.5 \
+	man/man5/fireqos-protocol.5 \
+	man/man5/fireqos-qdisc.5 \
+	man/man5/fireqos-quantum.5 \
+	man/man5/fireqos-r2q.5 \
+	man/man5/fireqos-rate.5 \
+	man/man5/fireqos-sfq.5 \
+	man/man5/fireqos-sport.5 \
+	man/man5/fireqos-sports.5 \
+	man/man5/fireqos-src.5 \
+	man/man5/fireqos-syn.5 \
+	man/man5/fireqos-syns.5 \
+	man/man5/fireqos-tcp.5 \
+	man/man5/fireqos-tos.5 \
+	man/man5/fireqos-tsize.5 \
+	man/man5/fireqos-udp.5
 
 FIREHOLMANUALMARKDOWN_GENERATED = \
 	firehol-services.5.md
