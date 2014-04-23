@@ -128,4 +128,8 @@ else
         fi
     fi
 fi
+
+AS_IF([test "x$PANDOC" = "x"],[
+  AC_MSG_ERROR([cannot find pandoc, bailing out])
+])
 ])
