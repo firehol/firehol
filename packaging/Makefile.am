@@ -3,6 +3,7 @@
 EXTRA_DIST = \
 	check-contents \
 	check-log \
+	git-build \
 	Makefile.am \
 	packver \
 	pre-commit \

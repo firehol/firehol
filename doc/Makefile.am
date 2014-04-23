@@ -209,10 +209,6 @@ CHECKLINKS = ${top_srcdir}/doc/tools/check-links
 
 FIREHOLIN = $(top_srcdir)/sbin/firehol.in
 
-PANDOC_MAN_OPTIONS = -s -t man -f markdown
-PANDOC_PDF_OPTIONS = --toc -N -f markdown
-PANDOC_HTML_OPTIONS = --toc -c firehol-manual.css -f markdown
-
 firehol-services.5.md: ../sbin/firehol.in services-db.data service-links
 	$(MKSERVICEMAN) firehol-services.5.md $+
 
@@ -235,7 +231,7 @@ man/man5/%.5: %.5.md
 	$(MKDIR_P) man/man5
 	$(SED) -e '/^%/s/DATE/@PACKAGE_BUILT_DATE@/' -e '/^%/s/VERSION/@PACKAGE_VERSION@/' $< > tmp/manproc
 	$(SED) -e 's/: .*#/: #/' $(FIREHOLMANUAL_LINKS) > tmp/anchor-links
-	pandoc $(PANDOC_MAN_OPTIONS) -o $@ tmp/manproc tmp/anchor-links
+	pandoc $(PANDOC_MAN_FLAGS) -o $@ tmp/manproc tmp/anchor-links
 # Disable groff hyphenation (wrecks URLs) and supress any internal links,
 # since pandoc 1.9.4.2 just leaves them verbatim in manpage output.
 	$(SED) -i -e '1a.nh' -e 's/ (#[a-z.0-9_-]*)//g' $@
@@ -248,14 +244,14 @@ firehol-manual.pdf: *.md $(FIREHOLMANUALMARKDOWN_GENERATED) $(FIREHOLMANUAL_LINK
 	$(SED) -e 's/: .*#/: #/' $(FIREHOLMANUAL_LINKS) > tmp/anchor-links
 	$(SED) -e '/^%/s/DATE/@PACKAGE_BUILT_DATE@/' -e '/^%/s/VERSION/@PACKAGE_VERSION@/' contents.md > tmp/contents
 	$(COMBINEPANDOC) pdf tmp/pdf-combined.md tmp/contents tmp/anchor-links
-	$(PANDOC) $(PANDOC_PDF_OPTIONS) -o $@ tmp/pdf-combined.md
+	$(PANDOC) $(PANDOC_PDF_FLAGS) -o $@ tmp/pdf-combined.md
 
 firehol-manual.html: *.md $(FIREHOLMANUALMARKDOWN_GENERATED) $(FIREHOLMANUAL_LINKS)
 	$(MKDIR_P) tmp
 	$(SED) -e 's/: .*#/: #/' $(FIREHOLMANUAL_LINKS) > tmp/anchor-links
 	$(SED) -e '/^%/s/DATE/@PACKAGE_BUILT_DATE@/' -e '/^%/s/VERSION/@PACKAGE_VERSION@/' contents.md > tmp/contents
 	$(COMBINEPANDOC) html tmp/html-combined.md tmp/contents tmp/anchor-links
-	$(PANDOC) $(PANDOC_HTML_OPTIONS) -o tmp/unform.html tmp/html-combined.md
+	$(PANDOC) $(PANDOC_HTML_FLAGS) -o tmp/unform.html tmp/html-combined.md
 	$(XMLLINT) $(XMLLINT_FLAGS) --format tmp/unform.html > tmp/format.html
 	$(CHECKLINKS) tmp/format.html $(FIREHOLMANUAL_LINKS)
 # Remove manpage internal sections from HTML

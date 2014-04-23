@@ -1,4 +1,4 @@
-# Process this file with autoconf to produce a configure script.
+dnl Process this file with autoconf to produce a configure script.
 
 AC_PREREQ([2.63])
 AC_INIT([firehol],[m4_esyscmd([./packaging/packver])],[firehol-devs@lists.firehol.org])
@@ -9,7 +9,7 @@ AC_CONFIG_SRCDIR([sbin/fireqos.in])
 AM_INIT_AUTOMAKE([gnu])
 AM_MAINTAINER_MODE([disable])
 
-# Checks for programs.
+dnl Checks for programs.
 AC_PROG_MAKE_SET
 
 AX_FIREHOL_AUTOSAVE()
@@ -20,13 +20,9 @@ AC_MSG_NOTICE(***************** MAINTAINER MODE *****************)
 PACKAGE_BUILT_DATE=$(date '+%d %b %Y')
 AC_SUBST(PACKAGE_BUILT_DATE)
 AX_PROG_XMLLINT([--nonet])
-AX_PROG_XSLTPROC([--nonet])
-AX_PROG_DBLATEX([])
-AX_NEED_PROG([PANDOC], [pandoc], [pandoc])
-AX_CHECK_DOCBOOK_DTD([4.5])
-AX_CHECK_DOCBOOK_XSLT_MIN([1.76.1])
-AX_CHECK_DBLATEX_MIN([0.3.4],[],[AC_MSG_ERROR(could not find required version of DBLaTeX)])
-# AC_CONFIG_FILES([doc/firehol.ent])
+AX_PROG_PANDOC([ -f markdown --toc -N],
+               [ -f markdown -t html --toc -c firehol-manual.css],
+               [ -f markdown -t man -s])
 AC_MSG_NOTICE(***************************************************)
 fi
 
