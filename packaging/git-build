@@ -13,7 +13,8 @@ then
   if [ "$1" != "-ok" ]
   then
     echo "Warning: this script runs: git clean -d -f -x"
-    echo "         ensure all new files are checked in and re-run with '-ok'"
+    echo "         ensure all required ?? files are added, then re-run with '-ok'"
+    git status -s | grep '^?'
     exit 1
   fi
 fi
