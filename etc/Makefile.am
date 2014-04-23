@@ -12,5 +12,6 @@ servicesconf_DATA = \
 
 EXTRA_DIST = \
 	firehol.conf.example \
+	bittorrent.conf.example \
 	fireqos.conf.example \
-	bittorrent.conf.example
+	fireqos-multiple-organizations.conf.example
