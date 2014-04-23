@@ -24,6 +24,7 @@ AX_PROG_PANDOC([ -f markdown --toc -N],
                [ -f markdown -t html --toc -c firehol-manual.css],
                [ -f markdown -t man -s])
 AX_CHECK_PANDOC_MIN([1.9.1.1],[],[AC_MSG_ERROR(could not find required version of pandoc)])
+AX_CHECK_PANDOC_OUTPUT()
 AC_MSG_NOTICE(***************************************************)
 fi
 
