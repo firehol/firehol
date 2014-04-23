@@ -220,7 +220,7 @@ man/man1/%.1: %.1.md
 	$(MKDIR_P) man/man1
 	$(SED) -e '/^%/s/DATE/@PACKAGE_BUILT_DATE@/' -e '/^%/s/VERSION/@PACKAGE_VERSION@/' $< > tmp/manproc
 	$(SED) -e 's/: .*#/: #/' $(FIREHOLMANUAL_LINKS) > tmp/anchor-links
-	pandoc $(PANDOC_MAN_OPTIONS) -o $@ tmp/manproc tmp/anchor-links
+	pandoc $(PANDOC_MAN_FLAGS) -o $@ tmp/manproc tmp/anchor-links
 # Disable groff hyphenation (wrecks URLs) and supress any internal links,
 # since pandoc 1.9.4.2 just leaves them verbatim in manpage output.
 	$(SED) -i -e '1a.nh' -e 's/ (#[a-z.0-9_-]*)//g' $@
