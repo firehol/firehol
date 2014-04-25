@@ -18,7 +18,6 @@ AX_FIREHOL_AUTOSAVE6()
 if test x"$USE_MAINTAINER_MODE" = xyes; then
 AC_MSG_NOTICE(***************** MAINTAINER MODE *****************)
 PACKAGE_BUILT_DATE=$(date '+%d %b %Y')
-AC_SUBST(PACKAGE_BUILT_DATE)
 AX_PROG_XMLLINT([--nonet])
 AX_PROG_PANDOC([ -f markdown --toc -N],
                [ -f markdown -t html --toc -c firehol-manual.css],
@@ -33,6 +32,9 @@ dnl I downloaded mine from here:
 dnl   https://launchpad.net/ubuntu/+source/pandoc/1.9.4.2-2build1/+build/3744151
 AX_CHECK_PANDOC_MIN([1.9.4.2],[],[AC_MSG_ERROR(could not find required version of pandoc)])
 AX_CHECK_PANDOC_OUTPUT()
+AC_SUBST(PACKAGE_BUILT_DATE)
+AC_SUBST(PANDOC_VERSION)
+AC_CONFIG_FILES([doc/tools/pandoc-post], [chmod +x doc/tools/pandoc-post])
 AC_MSG_NOTICE(***************************************************)
 fi
 

@@ -1,0 +1,126 @@
+#!/bin/sh
+
+#
+# pandoc-post - clean up pandoc outputs, depending on format and
+#               version
+#
+SED=@SED@
+XMLLINT=@XMLLINT@
+XMLLINT_FLAGS=@XMLLINT_FLAGS@
+#
+scriptname=pandoc-post
+if ! MYTMP=$(mktemp -d -t $scriptname-XXXXXX)
+then
+            echo >&2
+            echo >&2
+            echo >&2 "Cannot create temporary directory."
+            echo >&2
+            exit 1
+fi
+
+cleanup() {
+  status=$?
+  rm -rf "${MYTMP}"
+  exit $status
+}
+
+# clean up if we get stopped by Crtl-C or forced logout or normal exit
+trap cleanup INT
+trap cleanup HUP
+trap cleanup 0
+
+split()
+{
+    # Prefix local names with the function name to try to avoid conflicts
+    # local split_wordlist
+    split_wordlist="$1"
+    shift
+    read "$@" <<EOF-split-end-of-arguments
+${split_wordlist}
+EOF-split-end-of-arguments
+}
+
+# Usage: version_ge v1 v2
+# Where v1 and v2 are multi-part version numbers such as 12.5.67
+# Missing .<number>s on the end of a version are treated as .0, & leading
+# zeros are not significant, so 1.2 == 1.2.0 == 1.2.0.0 == 01.2 == 1.02
+# Returns true if v1 >= v2, false if v1 < v2
+version_ge()
+{
+    # Prefix local names with the function name to try to avoid conflicts
+    # local version_ge_1 version_ge_2 version_ge_a version_ge_b
+    # local version_ge_save_ifs
+    version_ge_v1="$1"
+    version_ge_v2="$2"
+
+    version_ge_save_ifs="$IFS"
+    while test -n "${version_ge_v1}${version_ge_v2}"; do
+        IFS="."
+        split "$version_ge_v1" version_ge_a version_ge_v1
+        split "$version_ge_v2" version_ge_b version_ge_v2
+        IFS="$version_ge_save_ifs"
+        #echo " compare  $version_ge_a  $version_ge_b"
+        test "0$version_ge_a" -gt "0$version_ge_b" && return 0 # v1>v2: true
+        test "0$version_ge_a" -lt "0$version_ge_b" && return 1 # v1<v2:false
+    done
+    # version strings are both empty & no differences found - must be equal.
+    return 0 # v1==v2: true
+}
+
+if [ $# -ne 3 ]
+then
+  echo "Usage: pandoc-post pandoc-version file-format filename"
+  echo "       cleans up pandoc output by version and format"
+  exit 1
+fi
+
+version="$1"
+shift
+format="$1"
+shift
+filename="$1"
+shift
+
+if [ ! -f "$filename" ]
+then
+  echo "No such file: $filename"
+  exit 1
+fi
+
+if ! version_ge "$version" 1.9.4.2
+then
+  echo "Only versions of pandoc >= 1.9.4.2 are catered for"
+  exit 1
+fi
+
+case "$format" in
+      pdf)
+        # No cleanup we can do
+        exit 0
+      ;;
+
+      html)
+	$XMLLINT $XMLLINT_FLAGS --format "$filename" > $MYTMP/format.html
+        # Remove manpage internal sections from HTML (several levels down)
+	$SED -e '/^                  <ul>/,/^                  <\/ul>/d' $MYTMP/format.html > "$filename"
+        :
+      ;;
+
+      man)
+        :
+        # Disable groff hyphenation (wrecks URLs)
+	$SED -i -e '1a.nh' "$filename"
+        if version_ge "$version" 1.9.4.2
+        then
+          # supress any internal links, since pandoc just leaves them
+          # verbatim in manpage output
+	  sed -i -e 's/ (#[a-z.0-9_-]*)//g' "$filename"
+        fi
+      ;;
+
+      *)
+        echo "Unknown format $format"
+      ;;
+esac
+
+exit 0

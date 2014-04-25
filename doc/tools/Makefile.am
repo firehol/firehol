@@ -6,4 +6,5 @@ EXTRA_DIST = \
 	man-synos \
 	mkservicelinks \
 	mkserviceman \
+	pandoc-post \
 	servicedb.pm
