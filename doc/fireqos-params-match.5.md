@@ -109,7 +109,6 @@ For example, syn is ignored when generating the UDP filter in the
 below:
 
 ~~~~
-
 match tcp syn
 match proto tcp,udp syn
 ~~~~
@@ -174,7 +173,6 @@ inheritance, to figure out for each statement which is the
 default. For example:
 
 ~~~~
-
 interface46 eth0 lan output rate 1Gbit # ipv4 and ipv6 enabled
   class voip # ipv4 and ipv6 class, as interface is both
     match udp port 53 # ipv4 and ipv6 rule, as class is both
@@ -216,7 +214,6 @@ class, except port tcp/1234 which should be assigned the second
 class. The following will *not* work:
 
 ~~~~
-
 interface eth0 lan output rate 1Gbit
   class high
     match host 192.0.2.1
@@ -240,7 +237,6 @@ lower priority for it. For example, this will cause the desired
 behaviour:
 
 ~~~~
-
 interface eth0 lan output rate 1Gbit
   class high
     match host 192.0.2.1

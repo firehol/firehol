@@ -248,8 +248,8 @@ firehol-manual.html: *.md $(FIREHOLMANUALMARKDOWN_GENERATED) $(FIREHOLMANUAL_LIN
 	$(COMBINEPANDOC) html tmp/html-combined.md contents.md tmp/anchor-links
 	$(SED) -i -e '/^%/s/DATE/@PACKAGE_BUILT_DATE@/' -e '/^%/s/VERSION/@PACKAGE_VERSION@/' tmp/html-combined.md
 	$(PANDOC) $(PANDOC_HTML_FLAGS) -o tmp/manual.html tmp/html-combined.md
-	$(PANDOCPOST) $(PANDOC_VERSION) html tmp/manual.html
 	$(CHECKLINKS) tmp/manual.html $(FIREHOLMANUAL_LINKS)
+	$(PANDOCPOST) $(PANDOC_VERSION) html tmp/manual.html
 	cp tmp/manual.html $@
 
 endif

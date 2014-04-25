@@ -38,7 +38,6 @@ MISSMATCH" (sic.). `mac` obeys the default log limits (see
 # EXAMPLES
 
 ~~~~
-
 mac 192.0.2.1    00:01:01:00:00:e6
 mac 198.51.100.1 00:01:01:02:aa:e8
 ~~~~

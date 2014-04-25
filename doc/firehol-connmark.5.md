@@ -44,7 +44,6 @@ LAN, eth1 connects to ISP 'A' and eth2 to ISP 'B'. To ensure traffic
 leaves via the same ISP as it arrives from you can mark the traffic.
 
 ~~~~
-
  # mark connections when they arrive from the ISPs
  connmark 1 PREROUTING inface eth1
  connmark 2 PREROUTING inface eth2

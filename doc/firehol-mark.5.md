@@ -46,7 +46,6 @@ declared before the first router or interface.
 # EXAMPLES
 
 ~~~~
-
  # mark with 1, packets sent by the local machine
  mark 1 OUTPUT
 

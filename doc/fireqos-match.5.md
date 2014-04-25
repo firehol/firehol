@@ -68,7 +68,6 @@ matches, using the `class` parameter. See
 Match traffic within classes:
 
 ~~~~
-
     interface eth0 lan output rate 1Gbit
       class voip
         match udp ports 5060,10000:10100
@@ -83,7 +82,6 @@ without the `class` parameters, all traffic would be classified into
 'mail'):
 
 ~~~~
-
     interface eth0 lan output rate 1Gbit
       class voip
       class dns

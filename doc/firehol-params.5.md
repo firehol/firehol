@@ -117,7 +117,6 @@ the request respectively. *host* defines the IP or IPs to be matched.
 Examples:
 
 ~~~~
-
 server4 smtp accept src not 192.0.2.1
 server4 smtp accept dst 198.51.100.1
 server4 smtp accept src not 192.0.2.1 dst 198.51.100.1
@@ -130,7 +129,6 @@ When attempting to create rules for both IPv4 and IPv6 it is generally
 easier to use the `src4`, `src6`, `dst4` and `dst6` pairs:
 
 ~~~~
-
 server46 smtp accept src4 192.0.2.1 src6 2001:DB8:1::/64
 server46 smtp accept dst4 198.51.100.1 dst6 2001:DB8:2::/64
 server46 smtp accept dst4 $d4 dst6 $d6 src4 not $d4 src6 not $s6
@@ -196,7 +194,6 @@ host. In an `interface`, "remote" always means the non-local host. In a
 refers to the destination of requests for `client`s. Examples:
 
 ~~~~
-
  # Only allow pop3 requests to the e6 host
  client pop3 accept mac 00:01:01:00:00:e6
 
@@ -210,7 +207,6 @@ Use `dscp` to match the DSCP field on packets. For details on DSCP
 values and classids, see [firehol-dscp(5)][keyword-firehol-dscp-helper].
 
 ~~~~
-
  server smtp accept dscp not "0x20 0x30"
  server smtp accept dscp not class "BE EF"
 ~~~~
@@ -240,7 +236,6 @@ iptables(8) that itself contains a space you need to quote strings in
 the usual bash(1) manner. For example:
 
 ~~~~
-
 server smtp accept custom "--some-option some-value"
 server smtp accept custom "--some-option 'some-value second-value'"
 ~~~~
@@ -256,7 +251,6 @@ is received and forwarded respectively. Use the same format as
 Examples:
 
 ~~~~
-
 server smtp accept inface not eth0
 server smtp accept inface not "eth0 eth1"
 server smtp accept inface eth0 outface eth1

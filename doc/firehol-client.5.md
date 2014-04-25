@@ -61,7 +61,6 @@ the traffic that is matched to this service. See
 # EXAMPLES
 
 ~~~~
-
 client smtp accept
 
 client "smtp pop3" accept

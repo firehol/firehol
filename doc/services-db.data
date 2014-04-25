@@ -185,21 +185,20 @@ SERVICE custom
 	NOTES
 		The full syntax is:
 		-
-		<command>subcommand</command> custom *name* *svr-proto/ports* *cli-ports* <command>action</command> <command>params</command>
+		*subcommand* `custom` *name* *svr-proto/ports* *cli-ports* *action* *params*
 		-
 		This service is used by FireHOL to allow you create rules
 		for services which do not have a definition.
 		-
-		<command>subcommand</command>, <command>action</command> and
-		<command>params</command> have their usual meanings.
+		`subcommand`, *action* and *params* have their usual meanings.
 		-
-		A <option>name</option> must be supplied along with server
+		A *name* must be supplied along with server
 		ports in the form *proto/range*
 		and client ports which takes only a
 		*range*.
 		-
 		To define services with the built-in extension mechanism
-		to avoid the need for <command>custom</command> services,
+		to avoid the need for `custom` services,
 		see [Adding Services](#adding-services)
 		in [firehol.conf(5)](#firehol.conf5).
 
@@ -268,14 +267,24 @@ SERVICE dhcp
 		rest of the services.
 		-
 		For example:
-		<programlisting>
-		interface eth0 dhcp
-		&nbsp;&nbsp;&nbsp;&nbsp;policy return
-		&nbsp;&nbsp;&nbsp;&nbsp;server dhcp accept
-		&nbsp;
-		interface eth0 lan src "$mylan" dst "$myip"
-		&nbsp;&nbsp;&nbsp;&nbsp;client all accept
-		</programlisting>
+		-
+		`interface eth0 dhcp`
+		-
+		`    policy return`
+		-
+		`    server dhcp accept`
+		-
+		-
+		`interface eth0 lan src "$mylan" dst "$myip"`
+		-
+		`    client all accept`
+		-
+		For example:
+		    interface eth0 dhcp
+		      policy return
+		      server dhcp accept
+		    interface eth0 lan src "$mylan" dst "$myip"
+		      client all accept
 		-
 		This service implicitly sets its client or server to ipv4 mode.
 SERVICE dhcprelay
@@ -375,14 +384,12 @@ SERVICE emule
 		[eMule Port Definitions](http://www.emule-project.net/home/perl/help.cgi?l=1&rm=show_topic&topic_id=122),
 		FireHOL defines:
 		-
-		<simplelist>
-		<member>Accept from any client port to the server at tcp/4661</member>
-		<member>Accept from any client port to the server at tcp/4662</member>
-		<member>Accept from any client port to the server at udp/4665</member>
-		<member>Accept from any client port to the server at udp/4672</member>
-		<member>Accept from any server port to the client at tcp/4662</member>
-		<member>Accept from any server port to the client at udp/4672</member>
-		</simplelist>
+		* Accept from any client port to the server at tcp/4661
+		* Accept from any client port to the server at tcp/4662
+		* Accept from any client port to the server at udp/4665
+		* Accept from any client port to the server at udp/4672
+		* Accept from any server port to the client at tcp/4662
+		* Accept from any server port to the client at udp/4672
 		-
 		Use the FireHOL [firehol-client(5)][keyword-firehol-client]
 		command to match the eMule client.
@@ -419,11 +426,9 @@ SERVICE gift
 	NOTES
 		The gift FireHOL service supports:
 		-
-		<simplelist>
-		<member>Gnutella listening at tcp/4302</member>
-		<member>FastTrack listening at tcp/1214</member>
-		<member>OpenFT listening at tcp/2182 and tcp/2472</member>
-		</simplelist>
+		* Gnutella listening at tcp/4302
+		* FastTrack listening at tcp/1214
+		* OpenFT listening at tcp/2182 and tcp/2472
 		-
 		The above ports are the defaults given for the corresponding
 		giFT modules.
@@ -576,31 +581,30 @@ SERVICE ipv6error
 		inbound and outbound.
 		-
 		The ipv6error rule wraps all of them in the following way:
-		<simplelist>
-		<member>allow incoming messages only for existing sessions</member>
-		<member>allow outgoing messages always</member>
-		</simplelist>
+		* allow incoming messages only for existing sessions
+		* allow outgoing messages always
 		-
 		The following ICMPv6 messages are handled:
-		<simplelist>
-		<member>destination-unreachable</member>
-		<member>packet-too-big</member>
-		<member>ttl-zero-during-transit</member>
-		<member>ttl-zero-during-reassembly</member>
-		<member>unknown-header-type</member>
-		<member>unknown-option</member>
-		</simplelist>
+		-
+		* destination-unreachable
+		* packet-too-big
+		* ttl-zero-during-transit
+		* ttl-zero-during-reassembly
+		* unknown-header-type
+		* unknown-option
 		-
 		Interfaces should always have this set:
-		<programlisting>server ipv6error accept</programlisting>
+		-
+		    `server ipv6error accept`
 		-
 		In a router with inface being internal and outface being
 		external the following will meet the recommendations of
 		[RFC 4890](http://tools.ietf.org/html/rfc4890):
-		<programlisting>server ipv6error accept</programlisting>
+		-
+		    `server ipv6error accept`
 		-
 		Do not use:
-		<programlisting>client ipv6error accept</programlisting>
+		    `client ipv6error accept`
 		unless you are controlling traffic on a router interface
 		where outface is the internal destination.
 		-
@@ -623,10 +627,12 @@ SERVICE ipv6neigh
 		automatically as well as on solicitation.
 		-
 		Neighbour discovery (incoming) should always be enabled:
-		<programlisting>server ipv6neigh accept</programlisting>
+		-
+		    `server ipv6neigh accept`
 		-
 		Neighbour advertisement (outgoing) should always be enabled:
-		<programlisting>client ipv6neigh accept</programlisting>
+		-
+		    `client ipv6neigh accept`
 		-
 		The rules should not be used to pass packets across a
 		firewall (e.g. in a router definition) unless the firewall
@@ -650,11 +656,13 @@ SERVICE ipv6router
 		automatically as well as on solicitation.
 		-
 		Router discovery (incoming) should always be enabled:
-		<programlisting>client ipv6router accept</programlisting>
+		-
+		    `client ipv6router accept`
 		-
 		Router advertisement (outgoing) should be enabled on
 		a host that routes:
-		<programlisting>server ipv6router accept</programlisting>
+		-
+		    `server ipv6router accept`
 		-
 		The rules should not be used to pass packets across a
 		firewall (e.g. in a router definition) unless the firewall
@@ -863,10 +871,8 @@ SERVICE nfs
 		-
 		For this reason, the NFS service requires that:
 		-
-		<simplelist>
-		<member>the firewall is restarted if the NFS server is restarted</member>
-		<member>the NFS server must be specified on all nfs statements (only if it is not the localhost)</member>
-		</simplelist>
+		* the firewall is restarted if the NFS server is restarted
+		* the NFS server must be specified on all nfs statements (only if it is not the localhost)
 		-
 		Since NFS queries the remote RPC server, it is required to
 		also be allowed to do so, by allowing the
@@ -901,10 +907,8 @@ SERVICE nis
 		-
 		For this reason, the nis service requires that:
 		-
-		<simplelist>
-		<member>the firewall is restarted if the nis server is restarted</member>
-		<member>the nis server must be specified on all nis statements (only if it is not the localhost)</member>
-		</simplelist>
+		* the firewall is restarted if the nis server is restarted
+		* the nis server must be specified on all nis statements (only if it is not the localhost)
 		-
 		Since nis queries the remote RPC server, it is required to
 		also be allowed to do so, by allowing the

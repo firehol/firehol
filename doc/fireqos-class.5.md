@@ -116,7 +116,6 @@ config, FireQOS will append one at the end of each `interface` or
 To create a nested class, called servers, containing http and smtp:
 
 ~~~~
-
 interface eth0 lan input rate 1Gbit
   class voip commit 1Mbit
     match udp ports 5060,10000:10100

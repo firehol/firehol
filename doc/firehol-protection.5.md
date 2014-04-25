@@ -101,7 +101,6 @@ all-floods [*requests/period* [*burst*]]
 # EXAMPLES
 
 ~~~~
-
 protection strong
 
 protection "invalid new-tcp-w/o-syn"

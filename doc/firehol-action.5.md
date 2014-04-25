@@ -37,7 +37,6 @@ RETURN have any meaning in this instance.
 To create a custom chain and have some rules use it:
 
 ~~~~
-
 action chain ACT1 accept
 
 interface any world
@@ -68,7 +67,6 @@ You can also create multiple chains simultaneously. To create 3 ACCEPT
 and 3 DROP chains you can do the following:
 
 ~~~~
-
 action chain "ACT1 ACT2 ACT3" accept
 action chain "ACT4 ACT5 ACT6" drop
 ~~~~

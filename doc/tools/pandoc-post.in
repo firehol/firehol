@@ -100,7 +100,18 @@ case "$format" in
       ;;
 
       html)
+        # Validate tags
+	$XMLLINT $XMLLINT_FLAGS --html "$filename" > $MYTMP/verify.html
+
+        # Reformat so we can indentify internal  sections
 	$XMLLINT $XMLLINT_FLAGS --format "$filename" > $MYTMP/format.html
+
+        # Fixup some whitespace formatting damage done by xmllint
+        # - if line ends in a pre
+        #   N = join next line, then remove newline and finally excess spaces
+        $SED -i -e '/<pre>$/{N;s/\n//;s/<pre> *<code>/<pre><code>/}' \
+                -e '/<\/code>$/{N;s/\n//;s:</code> *</pre>:</code></pre>:}' \
+             $MYTMP/format.html
         # Remove manpage internal sections from HTML (several levels down)
 	$SED -e '/^                  <ul>/,/^                  <\/ul>/d' $MYTMP/format.html > "$filename"
         :
@@ -114,7 +125,7 @@ case "$format" in
         then
           # supress any internal links, since pandoc just leaves them
           # verbatim in manpage output
-	  sed -i -e 's/ (#[a-z.0-9_-]*)//g' "$filename"
+	  $SED -i -e 's/ (#[a-z.0-9_-]*)//g' "$filename"
         fi
       ;;
 

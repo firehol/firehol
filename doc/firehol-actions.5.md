@@ -176,7 +176,6 @@ service.
 silently discard SMTP traffic:
 
 ~~~~
-
 server smtp drop
 
 server smtp deny

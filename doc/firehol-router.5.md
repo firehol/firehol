@@ -93,7 +93,6 @@ eth0) to be accessed by clients (from PPP) and SMTP clients (from eth0)
 to access any servers (on PPP):
 
 ~~~~
-
 router mylan inface ppp+ outface eth0
   server http accept
   client smtp accept
@@ -109,7 +108,6 @@ within the the router allow HTTP servers on eth0 to be accessible to PPP
 and any SMTP servers on PPP to be accessible from eth0:
 
 ~~~~
-
 router mylan
   server http accept inface ppp+ outface eth0
   server smtp accept inface eth0 outface ppp

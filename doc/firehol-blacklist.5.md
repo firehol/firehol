@@ -35,7 +35,6 @@ must be declared before the first router or interface.
 # EXAMPLES
 
 ~~~~
-
 blacklist full 192.0.2.1 192.0.2.2
 blacklist input "192.0.2.3 192.0.2.4"
 ~~~~

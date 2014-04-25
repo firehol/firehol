@@ -20,7 +20,7 @@ AC_MSG_NOTICE(***************** MAINTAINER MODE *****************)
 PACKAGE_BUILT_DATE=$(date '+%d %b %Y')
 AX_PROG_XMLLINT([--nonet])
 AX_PROG_PANDOC([ -f markdown --toc -N],
-               [ -f markdown -t html --toc -c firehol-manual.css],
+               [ -f markdown -t html --email-obfuscation=references --toc -c firehol-manual.css],
                [ -f markdown -t man -s])
 dnl Earlier versions have subtle problems in e.g. PDF output
 dnl   Note that we still have some workarounds in the Makefile for 1.9.4.2

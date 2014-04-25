@@ -91,7 +91,7 @@ foreach my $k (@service_keywords) {
 
   if ($example) {
     $example =~ s/\n/\n      /gs if $example; # Extra lines still in MD block
-    $example = "~~~~\n\n      $example\n    ~~~~"
+    $example = "~~~~\n      $example\n    ~~~~"
   }
 
   my $notes = coalesce($$dbinfo{$k}{"notes"}, $$services{$k}{"notes"});
@@ -148,7 +148,7 @@ foreach my $k (@service_keywords) {
   }
   if ($notes) {
     print $o "    Notes\n\n";
-    my @lines = split /\n\s*/, $notes;
+    my @lines = split /\n[\t ]*/, $notes;
     foreach my $l (@lines) {
       print $o "    > $l\n";
     }

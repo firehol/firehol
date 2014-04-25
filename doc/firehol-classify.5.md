@@ -28,7 +28,6 @@ declared before the first router or interface.
 # EXAMPLES
 
 ~~~~
-
  # Put all smtp traffic leaving via eth1 in class 1:1
  classify 1:1 outface eth1 proto tcp dport 25
 ~~~~

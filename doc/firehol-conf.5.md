@@ -28,7 +28,6 @@ A configuration file contains one or more `interface` definitions, which
 look like this:
 
 ~~~~
-
  interface eth0 lan
    client all accept # This host can access any remote service
    server ssh accept # Remote hosts can access SSH on local server
@@ -48,7 +47,6 @@ A configuration file contains zero or more `router` definitions, which
 look like this:
 
 ~~~~
-
 DMZ_IF=eth0
 WAN_IF=eth1
 router wan2dmz inface ${WAN_IF} outface ${DMZ_IF}
@@ -163,7 +161,6 @@ server listens at, with further dynamic ports requiring kernel modules
 to be loaded:
 
 ~~~~
-
     # Setup service
     server_daftnet_ports="tcp/1234 udp/1234"
     client_daftnet_ports="default 1234"
