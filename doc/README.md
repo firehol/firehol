@@ -34,8 +34,8 @@ process this file, try:
     pandoc -f markdown -o README.html README.md
 
 
-Tiles
-=====
+Titles
+======
 
 Use #, ##, ### rather than underlining titles, since some of the scripts
 rely on them when combining files. The exception is introduction.md which
@@ -84,7 +84,7 @@ External Links
 Uniqueness of anchors
 ---------------------
 For the single-page HTML output, the anchors which are referenced must
-be globally unique, not just within a files. This means whenever an
+be globally unique, not just within a file. This means whenever an
 internal link is created, the section to which it refers must be
 uniquely named.
 
