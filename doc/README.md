@@ -56,7 +56,7 @@ Keywords + Services Links
 
     Keyword link definitions should be included in `link-keywords-firehol`
     or `links-keywords-fireqos`, and should be of the form:
-        file.md#anchor-in-single-html
+        `file.md#anchor-in-single-html`
 
     the build scripts will take care of excluding or replacing the file.md
     according to the output format.
@@ -69,9 +69,11 @@ Internal Links
 
         [title name][] or [your text][title name]
 
-    Internal link definitions should be included in links-internal and
-    written in the form 'filename.md#markdown-anchor' - these will be
-    processed appropriately for each format.
+    Internal link definitions should be included in `links-internal` and
+    written in the form:
+        `filename.md#markdown-anchor`
+
+    these will be processed appropriately for each format.
 
 External Links
 :   External links can be written in-line as:
@@ -90,6 +92,15 @@ uniquely named.
 
 The check-links script ensures this is the case whilst building the
 HTML output.
+
+Pandoc creates anchors automatically for most headers etc. but it is
+possible to manually create an anchor with standard HTML syntax e.g.
+
+    <a id="myid"></a>
+
+This can be used as normal and should be included in `internal-links`
+if it will be used from within the document or referred to from the
+website.
 
 
 Vim Syntax highlighting

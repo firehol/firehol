@@ -30,3 +30,16 @@
 [fireqos-match(5)]: fireqos-match.5.md#fireqos-match5
 [fireqos-params-class(5)]: fireqos-params-class.5.md#fireqos-params-class5
 [fireqos-params-match(5)]: fireqos-params-match.5.md#fireqos-params-match5
+
+<!--
+   These links are maintained for the benefit of the website and must
+   not be removed.
+  -->
+
+[keyword-manref-firehol-config-file]: firehol-conf.5.md#firehol.conf5
+[keyword-manref-firehol-variables-control]: firehol-variables.5.md#firehol-variables5
+[keyword-manref-firehol-variables-unroutable]: firehol-conf.5.md#variables-available
+[keyword-manref-firehol-variables-activation]: firehol-conf.5.md#variables-available
+[keyword-manref-firehol-helpme]: firehol.1.md#helpme-wizard
+[keyword-manref-firehol-explain]: firehol.1.md#explain
+[keyword-manref-firehol-debug]: firehol.1.md#debug

@@ -106,11 +106,11 @@ save
     > configuration is checked (for client port ranges), and RPC servers
     > are queried (to allow correct functioning of the NFS service).
 
-debug
+<a id="debug"></a>debug
 :   Parses the configuration file but instead of activating it, FireHOL
     shows the generated iptables(8) statements.
 
-explain
+<a id="explain"></a>explain
 :   Enters an interactive mode where FireHOL accepts normal
     configuration commands and presents the generated iptables(8) commands
     for each of them, together with some reasoning for its purpose.
@@ -129,7 +129,7 @@ explain
     quit
     :   Exit interactive mode and quit
 
-helpme; wizard
+<a id="helpme-wizard"></a>helpme; wizard
 :   Tries to guess the FireHOL configuration needed for the current
     machine.
 
