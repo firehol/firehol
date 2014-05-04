@@ -24,6 +24,10 @@
 #       See the file COPYING for details.
 #
 
+# make sure sbin is included in the path
+# it seems that pppd ip-up.d script need this
+export PATH="$PATH:/sbin:/usr/sbin:/usr/local/sbin"
+
 get_version() {
 	GIT_REF='$Format:%d,commit-%h$'
 	local IFS=":(), "
@@ -1648,12 +1652,15 @@ class() {
 			# increase the parent's priority of subclasses
 			parent_class_prio=$((parent_class_prio + 1))
 		fi
+	else
+		parent_class_prio=$((class_prio + 1))
 	fi
-	# remember this prio, in case we need it later
-	last_class_prio="$class_prio"
-	
+
 	[ $class_prio -lt 0 ] && class_prio=0
 	[ $class_prio -gt 7 ] && class_prio=7
+	
+	# remember this prio, in case we need it later
+	last_class_prio="$class_prio"
 	
 	# if not specified, set the minimum rate
 	if [ -z "$class_rate" ]
