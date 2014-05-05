@@ -1,0 +1,47 @@
+#!/bin/sh
+
+set -e
+
+if [ $# -lt 2 ]
+then
+  echo "check-links html pandoc-links..."
+  exit 1
+fi
+
+html="$1"
+shift
+
+errors=
+
+for f in "$@"
+do
+  line=0
+  while read from to
+  do
+    set +e
+    line=$(expr $line + 1)
+    link=$(echo $to | cut -f2- -d'#')
+    count=$(grep "id=[\"']$link[\"']" $html | wc -l)
+    islink=$(echo $from | grep ":")
+    set -e
+    if [ ! "$islink" ]
+    then
+      :
+    elif [ $count -eq 0 ]
+    then
+      errors=Y
+      echo "$f.$line - no id $link found in $html"
+    elif [ $count -gt 1 ]
+    then
+      errors=Y
+      echo "$f.$line - $count id $link found in $html"
+    fi
+  done < "$f"
+done
+
+if [ "$errors" ]
+then
+  exit 1
+fi
+
+exit 0

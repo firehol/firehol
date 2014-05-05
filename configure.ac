@@ -1,4 +1,4 @@
-# Process this file with autoconf to produce a configure script.
+dnl Process this file with autoconf to produce a configure script.
 
 AC_PREREQ([2.63])
 AC_INIT([firehol],[m4_esyscmd([./packaging/packver])],[firehol-devs@lists.firehol.org])
@@ -9,7 +9,7 @@ AC_CONFIG_SRCDIR([sbin/fireqos.in])
 AM_INIT_AUTOMAKE([gnu])
 AM_MAINTAINER_MODE([disable])
 
-# Checks for programs.
+dnl Checks for programs.
 AC_PROG_MAKE_SET
 
 AX_FIREHOL_AUTOSAVE()
@@ -18,14 +18,23 @@ AX_FIREHOL_AUTOSAVE6()
 if test x"$USE_MAINTAINER_MODE" = xyes; then
 AC_MSG_NOTICE(***************** MAINTAINER MODE *****************)
 PACKAGE_BUILT_DATE=$(date '+%d %b %Y')
-AC_SUBST(PACKAGE_BUILT_DATE)
 AX_PROG_XMLLINT([--nonet])
-AX_PROG_XSLTPROC([--nonet])
-AX_PROG_DBLATEX([])
-AX_CHECK_DOCBOOK_DTD([4.5])
-AX_CHECK_DOCBOOK_XSLT_MIN([1.76.1])
-AX_CHECK_DBLATEX_MIN([0.3.4],[],[AC_MSG_ERROR(could not find required version of DBLaTeX)])
-AC_CONFIG_FILES([doc/firehol.ent])
+AX_PROG_PANDOC([ -f markdown --toc -N],
+               [ -f markdown -t html --email-obfuscation=references --toc -c firehol-manual.css],
+               [ -f markdown -t man -s])
+dnl Earlier versions have subtle problems in e.g. PDF output
+dnl   Note that we still have some workarounds in the Makefile for 1.9.4.2
+dnl   which can maybe be taken out for later versions...
+dnl Debian wheezy has an up-to-date version as does Ubuntu from 12.10 on.
+dnl The updated binary runs just fine when upgraded on 12.04 with:
+dnl   dpkg -i pandoc_1.9.4.2-2build1_amd64.deb
+dnl I downloaded mine from here:
+dnl   https://launchpad.net/ubuntu/+source/pandoc/1.9.4.2-2build1/+build/3744151
+AX_CHECK_PANDOC_MIN([1.9.4.2],[],[AC_MSG_ERROR(could not find required version of pandoc)])
+AX_CHECK_PANDOC_OUTPUT()
+AC_SUBST(PACKAGE_BUILT_DATE)
+AC_SUBST(PANDOC_VERSION)
+AC_CONFIG_FILES([doc/tools/pandoc-post], [chmod +x doc/tools/pandoc-post])
 AC_MSG_NOTICE(***************************************************)
 fi
 
@@ -84,12 +93,6 @@ AC_CONFIG_FILES([
 	m4/Makefile
 	doc/Makefile
 	doc/tools/Makefile
-	doc/latex/Makefile
-	doc/xsl/Makefile
-	doc/firehol/Makefile
-	doc/fireqos/Makefile
-	doc/firehol-reference/Makefile
-	doc/fireqos-reference/Makefile
 	examples/Makefile
 	etc/Makefile
 	packaging/Makefile

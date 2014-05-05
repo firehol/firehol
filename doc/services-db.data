@@ -35,8 +35,8 @@ SERVICE AH
 		server AH accept
 	NOTES
 		For more information see this
-		<ulink url="http://web.archive.org/web/20100918134143/http://www.freeswan.org/freeswan_trees/freeswan-1.99/doc/ipsec.html#AH.ipsec">Archive of the FreeS/WAN documentation</ulink>
-		and <ulink url="http://www.ietf.org/rfc/rfc2402.txt">RFC 2402</ulink>.
+		[Archive of the FreeS/WAN documentation](http://web.archive.org/web/20100918134143/http://www.freeswan.org/freeswan_trees/freeswan-1.99/doc/ipsec.html#AH.ipsec)
+		and [RFC 2402](http://www.ietf.org/rfc/rfc2402.txt).
 
 SERVICE ESP
 	NAME IPSec Encapsulated Security Payload (ESP)
@@ -45,8 +45,8 @@ SERVICE ESP
 	WIKI http://en.wikipedia.org/wiki/IPsec#Encapsulating_Security_Payload
 	NOTES
 		For more information see this
-		<ulink url="http://web.archive.org/web/20100918134143/http://www.freeswan.org/freeswan_trees/freeswan-1.99/doc/ipsec.html#ESP.ipsec">Archive of the FreeS/WAN documentation</ulink>
-		<ulink url="http://www.ietf.org/rfc/rfc2406.txt">RFC 2406</ulink>.
+		[Archive of the FreeS/WAN documentation](http://web.archive.org/web/20100918134143/http://www.freeswan.org/freeswan_trees/freeswan-1.99/doc/ipsec.html#ESP.ipsec)
+		[RFC 2406](http://www.ietf.org/rfc/rfc2406.txt).
 
 SERVICE GRE
 	NAME Generic Routing Encapsulation
@@ -56,7 +56,7 @@ SERVICE GRE
 	NOTES
 		Protocol No 47.
 		-
-		For more information see RFC <ulink url="http://www.ietf.org/rfc/rfc2784.txt">RFC 2784</ulink>.
+		For more information see RFC [RFC 2784](http://www.ietf.org/rfc/rfc2784.txt).
 
 SERVICE OSPF
 	NAME Open Shortest Path First
@@ -87,12 +87,12 @@ SERVICE any
 	CPORT all
 	SPORT all
 	EXAMPLE
-		server any <replaceable>myname</replaceable> accept proto 47
+		server any *myname* accept proto 47
 	NOTES
 		Matches all traffic (all protocols, ports, etc), but does
 		not care about kernel modules and does not activate any
 		other service indirectly. In combination with the
-		<xref linkend="rule-params"/>
+		[firehol-params(5)](#firehol-params5)
 		this service can match unusual traffic (e.g. GRE - protocol 47).
 		-
 		Note that you have to supply your own name in addition to
@@ -103,12 +103,12 @@ SERVICE anystateless
 	CPORT all
 	SPORT all
 	EXAMPLE
-		server anystateless <replaceable>myname</replaceable> accept proto 47
+		server anystateless *myname* accept proto 47
 	NOTES
 		Matches all traffic (all protocols, ports, etc), but does
 		not care about kernel modules and does not activate any other
 		service indirectly. In combination with the
-		<xref linkend="rule-params"/>
+		[firehol-params(5)](#firehol-params5)
 		this service can match unusual traffic (e.g. GRE - protocol 47).
 		-
 		This service is identical to "any" but does not care about
@@ -135,8 +135,8 @@ SERVICE apcupsd
 		You can define port 6544 in APCUPSD, by changing the value
 		of NETPORT in its configuration file, or overwrite this
 		FireHOL service definition using the procedures described
-		in <xref linkend="adding-services"/>
-		of <xref linkend="firehol.conf"/>.
+		in [Adding Services](#adding-services)
+		in [firehol.conf(5)](#firehol.conf5).
 
 SERVICE apcupsdnis
 	NAME APC UPS Daemon Network Information Server
@@ -146,7 +146,7 @@ SERVICE apcupsdnis
 		server apcupsdnis accept
 	NOTES
 		This service allows the remote WEB interfaces of
-		<ulink url="http://www.apcupsd.com/">APCUPSD</ulink>, to connect
+		[APCUPSD](http://www.apcupsd.com/), to connect
 		and get information from the server directly connected to
 		the UPS device.
 
@@ -165,9 +165,9 @@ SERVICE asterisk
 	NOTES
 		This service refers only to the manager interface of asterisk.
 		You should normally enable
-		<xref linkend="service-sip"/>,
-		<xref linkend="service-h323"/>,
-		<xref linkend="service-rtp"/>, etc. at the
+		[sip][keyword-service-sip],
+		[h323][keyword-service-h323],
+		[rtp][keyword-service-rtp], etc. at the
 		firewall level, if you enable the relative channel drivers
 		of asterisk.
 
@@ -185,23 +185,22 @@ SERVICE custom
 	NOTES
 		The full syntax is:
 		-
-		<command>subcommand</command> custom <replaceable>name</replaceable> <replaceable>svr-proto/ports</replaceable> <replaceable>cli-ports</replaceable> <command>action</command> <command>params</command>
+		*subcommand* `custom` *name* *svr-proto/ports* *cli-ports* *action* *params*
 		-
 		This service is used by FireHOL to allow you create rules
 		for services which do not have a definition.
 		-
-		<command>subcommand</command>, <command>action</command> and
-		<command>params</command> have their usual meanings.
+		`subcommand`, *action* and *params* have their usual meanings.
 		-
-		A <option>name</option> must be supplied along with server
-		ports in the form <replaceable>proto/range</replaceable>
+		A *name* must be supplied along with server
+		ports in the form *proto/range*
 		and client ports which takes only a
-		<replaceable>range</replaceable>.
+		*range*.
 		-
 		To define services with the built-in extension mechanism
-		to avoid the need for <command>custom</command> services,
-		see <xref linkend="adding-services"/>
-		of <xref linkend="firehol.conf"/>.
+		to avoid the need for `custom` services,
+		see [Adding Services](#adding-services)
+		in [firehol.conf(5)](#firehol.conf5).
 
 SERVICE cvspserver
 	NAME Concurrent Versions System
@@ -229,7 +228,7 @@ SERVICE dcc
 	WIKI http://en.wikipedia.org/wiki/Distributed_Checksum_Clearinghouse
 	NOTES
 		See also this
-		<ulink url="http://www.rhyolite.com/dcc/FAQ.html#firewall-ports">DCC FAQ</ulink>.
+		[DCC FAQ](http://www.rhyolite.com/dcc/FAQ.html#firewall-ports).
 
 SERVICE dcpp
 	NAME Direct Connect++ P2P
@@ -268,14 +267,24 @@ SERVICE dhcp
 		rest of the services.
 		-
 		For example:
-		<programlisting>
-		interface eth0 dhcp
-		&nbsp;&nbsp;&nbsp;&nbsp;policy return
-		&nbsp;&nbsp;&nbsp;&nbsp;server dhcp accept
-		&nbsp;
-		interface eth0 lan src "$mylan" dst "$myip"
-		&nbsp;&nbsp;&nbsp;&nbsp;client all accept
-		</programlisting>
+		-
+		`interface eth0 dhcp`
+		-
+		`    policy return`
+		-
+		`    server dhcp accept`
+		-
+		-
+		`interface eth0 lan src "$mylan" dst "$myip"`
+		-
+		`    client all accept`
+		-
+		For example:
+		    interface eth0 dhcp
+		      policy return
+		      server dhcp accept
+		    interface eth0 lan src "$mylan" dst "$myip"
+		      client all accept
 		-
 		This service implicitly sets its client or server to ipv4 mode.
 SERVICE dhcprelay
@@ -296,9 +305,9 @@ SERVICE dhcprelay
 		instead.
 		-
 		For more information about DHCP Relay see section 9.1.2 of
-		<ulink url="http://www.ietf.org/rfc/rfc1812.txt">RFC 1812</ulink>
+		[RFC 1812](http://www.ietf.org/rfc/rfc1812.txt)
 		and section 4 of
-		<ulink url="http://www.ietf.org/rfc/rfc1542.txt">RFC 1542</ulink>
+		[RFC 1542](http://www.ietf.org/rfc/rfc1542.txt)
 
 SERVICE dhcpv6
 	NAME Dynamic Host Configuration Protocol for IPv6
@@ -334,7 +343,7 @@ SERVICE dict
 		server dict accept
 	NOTES
 		See
-		<ulink url="http://www.ietf.org/rfc/rfc2229.txt">RFC2229</ulink>.
+		[RFC2229](http://www.ietf.org/rfc/rfc2229.txt).
 
 SERVICE distcc
 	NAME Distributed CC
@@ -344,7 +353,7 @@ SERVICE distcc
 		server distcc accept
 	NOTES
 		For distcc security, please check the
-		<ulink url="http://distcc.googlecode.com/svn/trunk/doc/web/security.html">distcc security design</ulink>.
+		[distcc security design](http://distcc.googlecode.com/svn/trunk/doc/web/security.html).
 
 SERVICE dns
 	NAME Domain Name System
@@ -372,19 +381,17 @@ SERVICE emule
 		client emule accept src 192.0.2.1
 	NOTES
 		According to
-		<ulink url="http://www.emule-project.net/home/perl/help.cgi?l=1&rm=show_topic&topic_id=122">eMule Port Definitions</ulink>,
+		[eMule Port Definitions](http://www.emule-project.net/home/perl/help.cgi?l=1&rm=show_topic&topic_id=122),
 		FireHOL defines:
 		-
-		<simplelist>
-		<member>Accept from any client port to the server at tcp/4661</member>
-		<member>Accept from any client port to the server at tcp/4662</member>
-		<member>Accept from any client port to the server at udp/4665</member>
-		<member>Accept from any client port to the server at udp/4672</member>
-		<member>Accept from any server port to the client at tcp/4662</member>
-		<member>Accept from any server port to the client at udp/4672</member>
-		</simplelist>
+		* Accept from any client port to the server at tcp/4661
+		* Accept from any client port to the server at tcp/4662
+		* Accept from any client port to the server at udp/4665
+		* Accept from any client port to the server at udp/4672
+		* Accept from any server port to the client at tcp/4662
+		* Accept from any server port to the client at udp/4672
 		-
-		Use the FireHOL <xref linkend="cmd-client"/>
+		Use the FireHOL [firehol-client(5)][keyword-firehol-client]
 		command to match the eMule client.
 		-
 		Please note that the eMule client is an HTTP client also.
@@ -419,17 +426,15 @@ SERVICE gift
 	NOTES
 		The gift FireHOL service supports:
 		-
-		<simplelist>
-		<member>Gnutella listening at tcp/4302</member>
-		<member>FastTrack listening at tcp/1214</member>
-		<member>OpenFT listening at tcp/2182 and tcp/2472</member>
-		</simplelist>
+		* Gnutella listening at tcp/4302
+		* FastTrack listening at tcp/1214
+		* OpenFT listening at tcp/2182 and tcp/2472
 		-
 		The above ports are the defaults given for the corresponding
 		giFT modules.
 		-
 		To allow access to the user interface ports of giFT, use
-		the <xref linkend="service-giftui"/>.
+		the [giftui][keyword-service-giftui].
 
 SERVICE giftui
 	NAME giFT Internet File Transfer User Interface
@@ -440,7 +445,7 @@ SERVICE giftui
 	NOTES
 		This service refers only to the user interface ports offered
 		by giFT. To allow gift accept P2P requests, use the
-		<xref linkend="service-gift"/>.
+		[gift][keyword-service-gift].
 
 SERVICE gkrellmd
 	NAME GKrellM Daemon
@@ -479,7 +484,7 @@ SERVICE httpalt
 		server httpalt accept
 	NOTES
 		This port is commonly used by web servers, web proxies
-		and caches where the standard <xref linkend="service-http"/>
+		and caches where the standard [http][keyword-service-http]
 		port is not available or can or should not be used.
 
 SERVICE https
@@ -513,7 +518,7 @@ SERVICE iax
 		server iax accept
 	NOTES
 		This service refers to IAX version 1.
-		There is also <xref linkend="service-iax2"/>.
+		There is also [iax2][keyword-service-iax2].
 
 SERVICE iax2
 	NAME Inter-Asterisk eXchange v2
@@ -523,7 +528,7 @@ SERVICE iax2
 		server iax2 accept
 	NOTES
 		This service refers to IAX version 2.
-		There is also <xref linkend="service-iax"/>.
+		There is also [iax][keyword-service-iax].
 
 SERVICE ICMP
 	ALIAS icmp
@@ -576,32 +581,30 @@ SERVICE ipv6error
 		inbound and outbound.
 		-
 		The ipv6error rule wraps all of them in the following way:
-		<simplelist>
-		<member>allow incoming messages only for existing sessions</member>
-		<member>allow outgoing messages always</member>
-		</simplelist>
+		* allow incoming messages only for existing sessions
+		* allow outgoing messages always
 		-
 		The following ICMPv6 messages are handled:
-		<simplelist>
-		<member>destination-unreachable</member>
-		<member>packet-too-big</member>
-		<member>ttl-zero-during-transit</member>
-		<member>ttl-zero-during-reassembly</member>
-		<member>unknown-header-type</member>
-		<member>unknown-option</member>
-		</simplelist>
+		-
+		* destination-unreachable
+		* packet-too-big
+		* ttl-zero-during-transit
+		* ttl-zero-during-reassembly
+		* unknown-header-type
+		* unknown-option
 		-
 		Interfaces should always have this set:
-		<programlisting>server ipv6error accept</programlisting>
+		-
+		    `server ipv6error accept`
 		-
 		In a router with inface being internal and outface being
 		external the following will meet the recommendations of
-		<ulink url="http://tools.ietf.org/html/rfc4890">RFC
-		4890</ulink>:
-		<programlisting>server ipv6error accept</programlisting>
+		[RFC 4890](http://tools.ietf.org/html/rfc4890):
+		-
+		    `server ipv6error accept`
 		-
 		Do not use:
-		<programlisting>client ipv6error accept</programlisting>
+		    `client ipv6error accept`
 		unless you are controlling traffic on a router interface
 		where outface is the internal destination.
 		-
@@ -624,10 +627,12 @@ SERVICE ipv6neigh
 		automatically as well as on solicitation.
 		-
 		Neighbour discovery (incoming) should always be enabled:
-		<programlisting>server ipv6neigh accept</programlisting>
+		-
+		    `server ipv6neigh accept`
 		-
 		Neighbour advertisement (outgoing) should always be enabled:
-		<programlisting>client ipv6neigh accept</programlisting>
+		-
+		    `client ipv6neigh accept`
 		-
 		The rules should not be used to pass packets across a
 		firewall (e.g. in a router definition) unless the firewall
@@ -651,11 +656,13 @@ SERVICE ipv6router
 		automatically as well as on solicitation.
 		-
 		Router discovery (incoming) should always be enabled:
-		<programlisting>client ipv6router accept</programlisting>
+		-
+		    `client ipv6router accept`
 		-
 		Router advertisement (outgoing) should be enabled on
 		a host that routes:
-		<programlisting>server ipv6router accept</programlisting>
+		-
+		    `server ipv6router accept`
 		-
 		The rules should not be used to pass packets across a
 		firewall (e.g. in a router definition) unless the firewall
@@ -676,7 +683,7 @@ SERVICE isakmp
 		server isakmp accept
 	NOTES
 		For more information see the
-		<ulink url="http://web.archive.org/web/20100918134143/http://www.freeswan.org/freeswan_trees/freeswan-1.99/doc/ipsec.html#IKE.ipsec">Archive of the FreeS/WAN documentation</ulink>
+		[Archive of the FreeS/WAN documentation](http://web.archive.org/web/20100918134143/http://www.freeswan.org/freeswan_trees/freeswan-1.99/doc/ipsec.html#IKE.ipsec)
 
 SERVICE jabber
 	NAME Extensible Messaging and Presence Protocol
@@ -696,7 +703,7 @@ SERVICE jabberd
 		connections.
 		-
 		Use this service for a jabberd server. In all other cases,
-		use the <xref linkend="service-jabber"/>.
+		use the [jabber][keyword-service-jabber].
 
 SERVICE l2tp
 	NAME Layer 2 Tunneling Protocol
@@ -721,7 +728,7 @@ SERVICE lpd
 		server lpd accept
 	NOTES
 		LPD is documented in
-		<ulink url="http://www.ietf.org/rfc/rfc1179.txt">RFC 1179</ulink>.
+		[RFC 1179](http://www.ietf.org/rfc/rfc1179.txt).
 		-
 		Since many operating systems incorrectly use the non-default
 		client ports for LPD access, this definition allows any
@@ -737,24 +744,24 @@ SERVICE microsoft_ds
 		Direct Hosted (i.e. NETBIOS-less SMB)
 		-
 		This is another NETBIOS Session Service with minor
-		differences with <xref linkend="service-netbios_ssn"/>.
+		differences with [netbios_ssn][keyword-service-netbios_ssn].
 		It is supported only by Windows 2000 and Windows XP and
 		it offers the advantage of being independent of WINS for
 		name resolution.
 		-
 		It seems that samba supports transparently this protocol
-		on the <xref linkend="service-netbios_ssn"/> ports, so
+		on the [netbios_ssn][keyword-service-netbios_ssn] ports, so
 		that either direct hosted or traditional SMB can be served
 		simultaneously.
 		-
-		Please refer to the <xref linkend="service-netbios_ssn"/>
+		Please refer to the [netbios_ssn][keyword-service-netbios_ssn]
 		for more information.
 
 SERVICE mms
 	NAME Microsoft Media Server
 	WIKI  http://en.wikipedia.org/wiki/Microsoft_Media_Server
-	MOD See <ulink url="http://www.netfilter.org/documentation/HOWTO/netfilter-extensions-HOWTO-5.html#ss5.5">here</ulink>.
-	MODNAT See <ulink url="http://www.netfilter.org/documentation/HOWTO/netfilter-extensions-HOWTO-5.html#ss5.5">here</ulink>.
+	MOD See [here](http://www.netfilter.org/documentation/HOWTO/netfilter-extensions-HOWTO-5.html#ss5.5).
+	MODNAT See [here](http://www.netfilter.org/documentation/HOWTO/netfilter-extensions-HOWTO-5.html#ss5.5).
 	EXAMPLE
 		server mms accept
 	NOTES
@@ -808,7 +815,7 @@ SERVICE netbios_dgm
 	EXAMPLE
 		server netbios_dgm accept
 	NOTES
-		See also the <xref linkend="service-samba"/>.
+		See also the [samba][keyword-service-samba].
 		-
 		Keep in mind that this service broadcasts (to the broadcast
 		address of your LAN) UDP packets. If you place this service
@@ -822,7 +829,7 @@ SERVICE netbios_ns
 	EXAMPLE
 		server netbios_ns accept
 	NOTES
-		See also the <xref linkend="service-samba"/>.
+		See also the [samba][keyword-service-samba].
 
 SERVICE netbios_ssn
 	NAME NETBIOS Session Service
@@ -830,10 +837,10 @@ SERVICE netbios_ssn
 	EXAMPLE
 		server netbios_ssn accept
 	NOTES
-		See also the <xref linkend="service-samba"/>.
+		See also the [samba][keyword-service-samba].
 		-
 		Please keep in mind that newer NETBIOS clients prefer to use
-		port 445 (<xref linkend="service-microsoft_ds"/>) for the
+		port 445 ([microsoft_ds][keyword-service-microsoft_ds]) for the
 		NETBIOS session service, and when this is not available they
 		fall back to port 139 (netbios_ssn). Versions of samba above
 		3.x bind automatically to ports 139 and 445.
@@ -844,7 +851,7 @@ SERVICE netbios_ssn
 		This timeout can be up to several minutes.
 		-
 		To overcome this problem you can explicitly REJECT the
-		<xref linkend="service-microsoft_ds"/> with a
+		[microsoft_ds][keyword-service-microsoft_ds] with a
 		tcp-reset message:
 		-
 		server microsoft_ds reject with tcp-reset
@@ -864,14 +871,12 @@ SERVICE nfs
 		-
 		For this reason, the NFS service requires that:
 		-
-		<simplelist>
-		<member>the firewall is restarted if the NFS server is restarted</member>
-		<member>the NFS server must be specified on all nfs statements (only if it is not the localhost)</member>
-		</simplelist>
+		* the firewall is restarted if the NFS server is restarted
+		* the NFS server must be specified on all nfs statements (only if it is not the localhost)
 		-
 		Since NFS queries the remote RPC server, it is required to
 		also be allowed to do so, by allowing the
-		<xref linkend="service-portmap"/> too. Take care that
+		[portmap][keyword-service-portmap] too. Take care that
 		this is allowed by the running firewall when FireHOL tries
 		to query the RPC server. So you might have to setup NFS in
 		two steps: First add the portmap service and activate the
@@ -879,11 +884,13 @@ SERVICE nfs
 		-
 		To avoid this you can setup your NFS server to listen on
 		pre-defined ports, as documented in
-		<ulink url="http://nfs.sourceforge.net/nfs-howto/ar01s06.html#nfs_firewalls">NFS Howto</ulink>.
+		[NFS Howto][NFS Howto].
 		If you do this then you will have to define the the ports
 		using the procedure described
-		in <xref linkend="adding-services"/>
-		of <xref linkend="firehol.conf"/>.
+		in [Adding Services](#adding-services)
+		in [firehol.conf(5)](#firehol.conf5).
+		-
+		[NFS Howto]: http://nfs.sourceforge.net/nfs-howto/ar01s06.html#nfs_firewalls
 
 SERVICE nis
 	NAME Network Information Service
@@ -900,21 +907,19 @@ SERVICE nis
 		-
 		For this reason, the nis service requires that:
 		-
-		<simplelist>
-		<member>the firewall is restarted if the nis server is restarted</member>
-		<member>the nis server must be specified on all nis statements (only if it is not the localhost)</member>
-		</simplelist>
+		* the firewall is restarted if the nis server is restarted
+		* the nis server must be specified on all nis statements (only if it is not the localhost)
 		-
 		Since nis queries the remote RPC server, it is required to
 		also be allowed to do so, by allowing the
-		<xref linkend="service-portmap"/> too. Take care that
+		[portmap][keyword-service-portmap] too. Take care that
 		this is allowed by the running firewall when FireHOL tries
 		to query the RPC server. So you might have to setup nis in
 		two steps: First add the portmap service and activate the
 		firewall, then add the nis service and restart the firewall.
 		-
 		This service was added to FireHOL by
-		<ulink url="http://sourceforge.net/p/firehol/feature-requests/20">Carlos Rodrigues</ulink>.
+		[Carlos Rodrigues](http://sourceforge.net/p/firehol/feature-requests/20).
 		His comments regarding this implementation, are:
 		-
 		These rules work for client access only!
@@ -967,7 +972,7 @@ SERVICE nxserver
 		Default ports used by NX server for connections without
 		encryption.
 		-
-		Note that nxserver also needs the <xref linkend="service-ssh"/>
+		Note that nxserver also needs the [ssh][keyword-service-ssh]
 		to be enabled.
 		-
 		This information has been extracted from this
@@ -977,7 +982,7 @@ SERVICE nxserver
 		and the defaults are DISPLAY_BASE=1000 and DISPLAY_LIMIT=200.
 		-
 		For encrypted nxserver sessions, only
-		<xref linkend="service-ssh"/> is needed.
+		[ssh][keyword-service-ssh] is needed.
 
 SERVICE openvpn
 	NAME OpenVPN
@@ -1106,10 +1111,10 @@ SERVICE samba
 		server samba accept
 	NOTES
 		The samba service automatically sets all the rules for
-		<xref linkend="service-netbios_ns"/>,
-		<xref linkend="service-netbios_dgm"/>,
-		<xref linkend="service-netbios_ssn"/> and
-		<xref linkend="service-microsoft_ds"/>.
+		[netbios_ns][keyword-service-netbios_ns],
+		[netbios_dgm][keyword-service-netbios_dgm],
+		[netbios_ssn][keyword-service-netbios_ssn] and
+		[microsoft_ds][keyword-service-microsoft_ds].
 		-
 		Please refer to the notes of the above services for more
 		information.
@@ -1123,7 +1128,7 @@ SERVICE samba
 		This service definition includes a hack, that allows a
 		Linux samba server to respond correctly in such situations,
 		by allowing new outgoing connections from the well known
-		<xref linkend="service-netbios_ns"/> port to the clients
+		[netbios_ns][keyword-service-netbios_ns] port to the clients
 		high ports.
 		-
 		However, for clients and routers this hack is not applied
@@ -1143,7 +1148,7 @@ SERVICE sip
 		server sip accept
 	WIKI http://en.wikipedia.org/wiki/Session_Initiation_Protocol
 	NOTES
-		<ulink url="http://www.voip-info.org/wiki/view/SIP">SIP</ulink> is an IETF
+		[SIP](http://www.voip-info.org/wiki/view/SIP) is an IETF
 		standard protocol (RFC 2543) for initiating interactive user
 		sessions involving multimedia elements such as video, voice,
 		chat, gaming, etc. SIP works in the application layer of
@@ -1181,7 +1186,7 @@ SERVICE socks
 	EXAMPLE
 		server socks accept
 	NOTES
-		See also <ulink url="http://www.ietf.org/rfc/rfc1928.txt">RFC 1928</ulink>.
+		See also [RFC 1928](http://www.ietf.org/rfc/rfc1928.txt).
 
 SERVICE squid
 	NAME Squid Web Cache
@@ -1202,7 +1207,7 @@ SERVICE stun
 	EXAMPLE
 		server stun accept
 	NOTES
-		<ulink url="http://www.voip-info.org/wiki/view/STUN">STUN</ulink>
+		[STUN](http://www.voip-info.org/wiki/view/STUN)
 		is a protocol for assisting devices behind a NAT firewall or
 		router with their packet routing.
 
@@ -1267,7 +1272,7 @@ SERVICE upnp
 	WIKI http://en.wikipedia.org/wiki/Universal_Plug_and_Play
 	NOTES
 		For a Linux implementation see:
-		<ulink url="http://linux-igd.sourceforge.net/">Linux IGD</ulink>.
+		[Linux IGD](http://linux-igd.sourceforge.net/).
 
 SERVICE uucp
 	NAME Unix-to-Unix Copy
@@ -1281,7 +1286,7 @@ SERVICE vmware
 		server vmware accept
 	NOTES
 		Used from VMWare 1 and up. See the
-		<ulink url="http://kb.vmware.com/selfservice/microsites/search.do?language=en_US&cmd=displayKC&externalId=1012382">VMWare KnowledgeBase</ulink>.
+		[VMWare KnowledgeBase](http://kb.vmware.com/selfservice/microsites/search.do?language=en_US&cmd=displayKC&externalId=1012382).
 
 SERVICE vmwareauth
 	NAME vmwareauth
@@ -1289,7 +1294,7 @@ SERVICE vmwareauth
 		server vmwareauth accept
 	NOTES
 		Used from VMWare 1 and up. See the
-		<ulink url="http://kb.vmware.com/selfservice/microsites/search.do?language=en_US&cmd=displayKC&externalId=1012382">VMWare KnowledgeBase</ulink>.
+		[VMWare KnowledgeBase](http://kb.vmware.com/selfservice/microsites/search.do?language=en_US&cmd=displayKC&externalId=1012382).
 
 SERVICE vmwareweb
 	NAME vmwareweb
@@ -1297,9 +1302,9 @@ SERVICE vmwareweb
 		server vmwareweb accept
 	NOTES
 		Used from VMWare 2 and up. See
-		<ulink url="http://www.vmware.com/support/server2/doc/releasenotes_vmserver2.html">VMWare Server 2.0 release notes</ulink>
+		[VMWare Server 2.0 release notes](http://www.vmware.com/support/server2/doc/releasenotes_vmserver2.html)
 		and the
-		<ulink url="http://kb.vmware.com/selfservice/microsites/search.do?language=en_US&cmd=displayKC&externalId=1012382">VMWare KnowledgeBase</ulink>.
+		[VMWare KnowledgeBase](http://kb.vmware.com/selfservice/microsites/search.do?language=en_US&cmd=displayKC&externalId=1012382).
 
 SERVICE vnc
 	NAME Virtual Network Computing
@@ -1337,6 +1342,6 @@ SERVICE xdmcp
 		server xdmcp accept
 	WIKI http://en.wikipedia.org/wiki/X_display_manager_(program_type)#X_Display_Manager_Control_Protocol
 	NOTES
-		See <ulink url="http://www.jirka.org/gdm-documentation/x70.html">Gnome Display Manager</ulink>
+		See [Gnome Display Manager](http://www.jirka.org/gdm-documentation/x70.html)
 		for a discussion about XDMCP and firewalls (Gnome Display
 		Manager is a replacement for XDM).

@@ -1,0 +1,32 @@
+#!/bin/sh
+
+if [ ! -f .gitignore -o ! -f sbin/firehol.in ]
+then
+  echo "Run as ./packaging/dev-build from a firehol git repository"
+  exit 1
+fi
+
+clean=$(git status -s | grep "^?")
+
+if [ "$clean" ]
+then
+  if [ "$1" != "-ok" ]
+  then
+    echo "Warning: this script runs: git clean -d -f -x"
+    echo "         ensure all required ?? files are added, then re-run with '-ok'"
+    git status -s | grep '^?'
+    exit 1
+  fi
+fi
+
+set -e
+
+git clean -d -f -x
+./autogen.sh
+./configure --enable-maintainer-mode 
+sed -i -e '1idevelopment' NEWS
+set +e
+make dist
+status=$?
+sed -i -e '1d' NEWS
+exit $status

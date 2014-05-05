@@ -1,9 +1,19 @@
                             Packaging Scripts
                             *****************
 
+check-contents:
+   When provided with a git repo, which has been used to produce a
+   distribution tar.gz (with make dist) and the resultant tar-file,
+   lists files which appear in one or the other only, to help check
+   for missing EXTRA_DIST entries in Makefile.am files.
+
 check-log:
    Checks the formatting of ChangeLog meets the debian packaging
    standards.
+
+git-build:
+   When run from the top-level repository, performs a complete clean
+   and maintainer-mode rebuild of the FireHOL package.
 
 pre-commit:
    Copy to .git/hooks/pre-commit in order to have check-log and

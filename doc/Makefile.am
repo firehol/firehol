@@ -1,194 +1,122 @@
 # Process this file with automake to produce Makefile.in
 
-DIST_SUBDIRS = xsl latex tools firehol fireqos firehol-reference fireqos-reference
+DIST_SUBDIRS = tools
 
 dochtmldir = $(htmldir)/html
 
-FIREHOLMANUALXML_CSS=\
+FIREHOLMANUALHTML_GENERATED = \
+	firehol-manual.html
+
+FIREHOLMANUALPDF_GENERATED = \
+	firehol-manual.pdf
+
+FIREHOLMANUAL_LINKS = \
+	service-links \
+	links-internal \
+	links-keywords-firehol \
+	links-keywords-fireqos
+
+FIREHOLMANUAL_CSS = \
 	firehol-manual.css
 
-FIREHOLMANUALXML_MASTER=\
-	firehol-manual.xml
-
-FIREHOLMANUALXML_CHAPTERS=\
-	chapter-intro.xml \
-	firehol/appendix-rfc4890.xml \
-	firehol/chapter-configuration.xml \
-	firehol/chapter-security.xml \
-	firehol/chapter-troubleshooting.xml \
-	fireqos/chapter-configuration.xml
-
-FIREHOLMANUALXML_REFERENCES=\
-	firehol-reference/actions.xml \
-	firehol-reference/cmd-client.xml \
-	firehol-reference/cmd-group.xml \
-	firehol-reference/cmd-policy.xml \
-	firehol-reference/cmd-protection.xml \
-	firehol-reference/cmd-server.xml \
-	firehol-reference/def-interface.xml \
-	firehol-reference/def-router.xml \
-	firehol-reference/firehol-conf.xml \
-	firehol-reference/firehol-variables.xml \
-	firehol-reference/firehol.xml \
-	firehol-reference/helpcmd-iptables.xml \
-	firehol-reference/helpcmd-masquerade.xml \
-	firehol-reference/helpcmd-tcpmss.xml \
-	firehol-reference/helpconf-action.xml \
-	firehol-reference/helpconf-blacklist.xml \
-	firehol-reference/helpconf-classify.xml \
-	firehol-reference/helpconf-connmark.xml \
-	firehol-reference/helpconf-dscp.xml \
-	firehol-reference/helpconf-mac.xml \
-	firehol-reference/helpconf-mark.xml \
-	firehol-reference/helpconf-nat.xml \
-	firehol-reference/helpconf-proxy.xml \
-	firehol-reference/helpconf-tosfix.xml \
-	firehol-reference/helpconf-tos.xml \
-	firehol-reference/helpconf-version.xml \
-	firehol-reference/rule-params.xml \
-	firehol-reference/services-a.xml \
-	firehol-reference/services-b.xml \
-	firehol-reference/services-c.xml \
-	firehol-reference/services-d.xml \
-	firehol-reference/services-e.xml \
-	firehol-reference/services-f.xml \
-	firehol-reference/services-g.xml \
-	firehol-reference/services-h.xml \
-	firehol-reference/services-i.xml \
-	firehol-reference/services-j.xml \
-	firehol-reference/services-k.xml \
-	firehol-reference/services-l.xml \
-	firehol-reference/services-m.xml \
-	firehol-reference/services-n.xml \
-	firehol-reference/services-o.xml \
-	firehol-reference/services-p.xml \
-	firehol-reference/services-q.xml \
-	firehol-reference/services-r.xml \
-	firehol-reference/services-s.xml \
-	firehol-reference/services-t.xml \
-	firehol-reference/services-u.xml \
-	firehol-reference/services-v.xml \
-	firehol-reference/services-w.xml \
-	firehol-reference/services.xml \
-	firehol-reference/services-x.xml \
-	firehol-reference/services-y.xml \
-	firehol-reference/services-z.xml \
-	fireqos-reference/cmd-class.xml \
-	fireqos-reference/cmd-interface.xml \
-	fireqos-reference/cmd-match.xml \
-	firehol-reference/modifiers.xml \
-	fireqos-reference/fireqos-conf.xml \
-	fireqos-reference/fireqos.xml \
-	fireqos-reference/params-class.xml \
-	fireqos-reference/params-match.xml \
-	fireqos-reference/params-shared.xml
-
-FIREHOLMANUALMAN_GENERATED=\
+# Generate using:
+# (echo firehol-services.5.md; ls fire*.md) | sed -ne 's;\(.*\).\([0-9]\).md;\tman/man\2/\1.\2 \\;p' |sort -u
+FIREHOLMANUALMAN_GENERATED = \
 	man/man1/firehol.1 \
 	man/man1/fireqos.1 \
-	man/man5/firehol-accept.5 \
 	man/man5/firehol-action.5 \
 	man/man5/firehol-actions.5 \
 	man/man5/firehol-blacklist.5 \
 	man/man5/firehol-classify.5 \
+	man/man5/firehol-client.5 \
+	man/man5/firehol-conf.5 \
+	man/man5/firehol-connmark.5 \
+	man/man5/firehol-dscp.5 \
+	man/man5/firehol-group.5 \
+	man/man5/firehol-interface.5 \
+	man/man5/firehol-iptables.5 \
+	man/man5/firehol-mac.5 \
+	man/man5/firehol-mark.5 \
+	man/man5/firehol-masquerade.5 \
+	man/man5/firehol-modifiers.5 \
+	man/man5/firehol-nat.5 \
+	man/man5/firehol-params.5 \
+	man/man5/firehol-policy.5 \
+	man/man5/firehol-protection.5 \
+	man/man5/firehol-proxy.5 \
+	man/man5/firehol-router.5 \
+	man/man5/firehol-server.5 \
+	man/man5/firehol-services.5 \
+	man/man5/firehol-tcpmss.5 \
+	man/man5/firehol-tos.5 \
+	man/man5/firehol-tosfix.5 \
+	man/man5/firehol-variables.5 \
+	man/man5/firehol-version.5 \
+	man/man5/fireqos-class.5 \
+	man/man5/fireqos-conf.5 \
+	man/man5/fireqos-interface.5 \
+	man/man5/fireqos-match.5 \
+	man/man5/fireqos-params.5 \
+	man/man5/fireqos-params-class.5 \
+	man/man5/fireqos-params-match.5
+
+# Generate using:
+# sed -ne 's;extra-manpage: \(.*\)\([0-9]\);\tman/man\2/\1\2 \\;p' *.md|sort -u
+FIREHOLMANUALMAN_GENERATED_INDIRECT = \
+	man/man5/firehol-accept.5 \
 	man/man5/firehol-client4.5 \
 	man/man5/firehol-client46.5 \
-	man/man5/firehol-client.5 \
 	man/man5/firehol-client6.5 \
 	man/man5/firehol.conf.5 \
-	man/man5/firehol-connmark.5 \
 	man/man5/firehol-custom.5 \
 	man/man5/firehol-deny.5 \
 	man/man5/firehol-dnat.5 \
+	man/man5/firehol-dport.5 \
 	man/man5/firehol-drop.5 \
-	man/man5/firehol-dscp.5 \
 	man/man5/firehol-dscp-param.5 \
 	man/man5/firehol-dst4.5 \
 	man/man5/firehol-dst.5 \
 	man/man5/firehol-dst6.5 \
 	man/man5/firehol-dsttype.5 \
 	man/man5/firehol-gid.5 \
-	man/man5/firehol-group.5 \
 	man/man5/firehol-inface.5 \
 	man/man5/firehol-interface4.5 \
 	man/man5/firehol-interface46.5 \
-	man/man5/firehol-interface.5 \
 	man/man5/firehol-interface6.5 \
-	man/man5/firehol-iptables.5 \
+	man/man5/firehol-ip6tables.5 \
 	man/man5/firehol-ipv4.5 \
 	man/man5/firehol-ipv6.5 \
 	man/man5/firehol-log.5 \
 	man/man5/firehol-loglimit.5 \
-	man/man5/firehol-mac.5 \
 	man/man5/firehol-mac-param.5 \
-	man/man5/firehol-mark.5 \
 	man/man5/firehol-mark-param.5 \
-	man/man5/firehol-masquerade.5 \
-	man/man5/firehol-nat.5 \
 	man/man5/firehol-outface.5 \
 	man/man5/firehol-physin.5 \
 	man/man5/firehol-physout.5 \
-	man/man5/firehol-policy.5 \
-	man/man5/firehol-protection.5 \
 	man/man5/firehol-proto.5 \
 	man/man5/firehol-redirect.5 \
 	man/man5/firehol-reject.5 \
 	man/man5/firehol-return.5 \
 	man/man5/firehol-route4.5 \
 	man/man5/firehol-route46.5 \
-	man/man5/firehol-route.5 \
 	man/man5/firehol-route6.5 \
 	man/man5/firehol-router4.5 \
 	man/man5/firehol-router46.5 \
-	man/man5/firehol-router.5 \
 	man/man5/firehol-router6.5 \
-	man/man5/firehol-rule-params.5 \
 	man/man5/firehol-server4.5 \
 	man/man5/firehol-server46.5 \
-	man/man5/firehol-server.5 \
 	man/man5/firehol-server6.5 \
-	man/man5/firehol-services.5 \
-	man/man5/firehol-services-a.5 \
-	man/man5/firehol-services-b.5 \
-	man/man5/firehol-services-c.5 \
-	man/man5/firehol-services-d.5 \
-	man/man5/firehol-services-e.5 \
-	man/man5/firehol-services-f.5 \
-	man/man5/firehol-services-g.5 \
-	man/man5/firehol-services-h.5 \
-	man/man5/firehol-services-i.5 \
-	man/man5/firehol-services-j.5 \
-	man/man5/firehol-services-k.5 \
-	man/man5/firehol-services-l.5 \
-	man/man5/firehol-services-m.5 \
-	man/man5/firehol-services-n.5 \
-	man/man5/firehol-services-o.5 \
-	man/man5/firehol-services-p.5 \
-	man/man5/firehol-services-q.5 \
-	man/man5/firehol-services-r.5 \
-	man/man5/firehol-services-s.5 \
-	man/man5/firehol-services-t.5 \
-	man/man5/firehol-services-u.5 \
-	man/man5/firehol-services-v.5 \
-	man/man5/firehol-services-w.5 \
-	man/man5/firehol-services-x.5 \
-	man/man5/firehol-services-y.5 \
-	man/man5/firehol-services-z.5 \
 	man/man5/firehol-snat.5 \
+	man/man5/firehol-sport.5 \
 	man/man5/firehol-src4.5 \
 	man/man5/firehol-src.5 \
 	man/man5/firehol-src6.5 \
 	man/man5/firehol-srctype.5 \
 	man/man5/firehol-tarpit.5 \
-	man/man5/firehol-tcpmss.5 \
-	man/man5/firehol-tos.5 \
-	man/man5/firehol-tosfix.5 \
 	man/man5/firehol-tos-param.5 \
 	man/man5/firehol-transparent_proxy.5 \
 	man/man5/firehol-transparent_squid.5 \
 	man/man5/firehol-uid.5 \
-	man/man5/firehol-variables.5 \
-	man/man5/firehol-version.5 \
 	man/man5/fireqos-ack.5 \
 	man/man5/fireqos-acks.5 \
 	man/man5/fireqos-adsl.5 \
@@ -201,34 +129,30 @@ FIREHOLMANUALMAN_GENERATED=\
 	man/man5/fireqos-ceil.5 \
 	man/man5/fireqos-class4.5 \
 	man/man5/fireqos-class46.5 \
-	man/man5/fireqos-class.5 \
 	man/man5/fireqos-class6.5 \
 	man/man5/fireqos-class-params.5 \
-	man/man5/fireqos-class-prio.5 \
-	man/man5/fireqos-class-priority.5 \
 	man/man5/fireqos-codel.5 \
 	man/man5/fireqos-commit.5 \
 	man/man5/fireqos.conf.5 \
-	man/man5/fireqos-dest.5 \
+	man/man5/fireqos-dport.5 \
 	man/man5/fireqos-dports.5 \
+	man/man5/fireqos-dst.5 \
 	man/man5/fireqos-ethernet.5 \
 	man/man5/fireqos-fq_codel.5 \
+	man/man5/fireqos-gre.5 \
 	man/man5/fireqos-host.5 \
+	man/man5/fireqos-icmp.5 \
 	man/man5/fireqos-interface4.5 \
 	man/man5/fireqos-interface46.5 \
-	man/man5/fireqos-interface.5 \
 	man/man5/fireqos-interface6.5 \
 	man/man5/fireqos-ip.5 \
+	man/man5/fireqos-ipv6.5 \
 	man/man5/fireqos-linklayer.5 \
 	man/man5/fireqos-mark.5 \
 	man/man5/fireqos-match4.5 \
 	man/man5/fireqos-match46.5 \
-	man/man5/fireqos-match.5 \
 	man/man5/fireqos-match6.5 \
-	man/man5/fireqos-match-class.5 \
 	man/man5/fireqos-match-params.5 \
-	man/man5/fireqos-match-prio.5 \
-	man/man5/fireqos-match-priority.5 \
 	man/man5/fireqos-max.5 \
 	man/man5/fireqos-min.5 \
 	man/man5/fireqos-minrate.5 \
@@ -238,168 +162,120 @@ FIREHOLMANUALMAN_GENERATED=\
 	man/man5/fireqos-none.5 \
 	man/man5/fireqos-overhead.5 \
 	man/man5/fireqos-pfifo.5 \
+	man/man5/fireqos-port.5 \
 	man/man5/fireqos-ports.5 \
 	man/man5/fireqos-prio.5 \
 	man/man5/fireqos-priority.5 \
+	man/man5/fireqos-proto.5 \
+	man/man5/fireqos-protocol.5 \
 	man/man5/fireqos-qdisc.5 \
 	man/man5/fireqos-quantum.5 \
 	man/man5/fireqos-r2q.5 \
 	man/man5/fireqos-rate.5 \
 	man/man5/fireqos-sfq.5 \
+	man/man5/fireqos-sport.5 \
 	man/man5/fireqos-sports.5 \
 	man/man5/fireqos-src.5 \
 	man/man5/fireqos-syn.5 \
 	man/man5/fireqos-syns.5 \
+	man/man5/fireqos-tcp.5 \
 	man/man5/fireqos-tos.5 \
-	man/man5/fireqos-tsize.5
+	man/man5/fireqos-tsize.5 \
+	man/man5/fireqos-udp.5
 
-FIREHOLMANUALHTML_GENERATED = \
-	firehol-manual.html \
-	firehol-services.html
-
-FIREHOLMANUALPDF_GENERATED = \
-	firehol-manual.pdf
-
-FIREHOLMANUALXML_GENERATED = \
-	services-a.xml \
-	services-b.xml \
-	services-c.xml \
-	services-d.xml \
-	services-e.xml \
-	services-f.xml \
-	services-g.xml \
-	services-h.xml \
-	services-i.xml \
-	services-j.xml \
-	services-k.xml \
-	services-l.xml \
-	services-m.xml \
-	services-n.xml \
-	services-o.xml \
-	services-p.xml \
-	services-q.xml \
-	services-r.xml \
-	services-s.xml \
-	services-t.xml \
-	services-u.xml \
-	services-v.xml \
-	services-w.xml \
-	services-x.xml \
-	services-y.xml \
-	services-z.xml
-
-export FIREHOLMANUALXML_MASTER
+FIREHOLMANUALMARKDOWN_GENERATED = \
+	firehol-services.5.md
 
 dochtml_DATA = \
-	$(FIREHOLMANUALXML_CSS) \
+	$(FIREHOLMANUAL_CSS) \
 	$(FIREHOLMANUALHTML_GENERATED)
 
 pdf_DATA = \
 	$(FIREHOLMANUALPDF_GENERATED)
 
 man_MANS = \
-	$(FIREHOLMANUALMAN_GENERATED)
+	$(FIREHOLMANUALMAN_GENERATED) \
+	$(FIREHOLMANUALMAN_GENERATED_INDIRECT)
 
 if MAINTAINER_MODE
 
-PAPERTYPE = a4paper
-
-MKSERVICELIST = ${top_srcdir}/doc/tools/mkservicelist
-MKHTMLINDEX = ${top_srcdir}/doc/tools/mkhtmlindex
+MKSERVICELINKS = ${top_srcdir}/doc/tools/mkservicelinks
+MKSERVICEMAN = ${top_srcdir}/doc/tools/mkserviceman
+MANSYNOS = ${top_srcdir}/doc/tools/man-synos
+COMBINEPANDOC = ${top_srcdir}/doc/tools/combine-pandoc
+PANDOCPOST = ${top_srcdir}/doc/tools/pandoc-post
+CHECKLINKS = ${top_srcdir}/doc/tools/check-links
 
 FIREHOLIN = $(top_srcdir)/sbin/firehol.in
 
-XMLLINT_FLAGS += \
-	--path ${abs_top_builddir}/doc:${abs_top_srcdir}/doc \
-	--xinclude
+firehol-services.5.md: ../sbin/firehol.in services-db.data service-links
+	$(MKSERVICEMAN) firehol-services.5.md $+
 
-XSLTPROC_FLAGS += \
-	--path ${abs_top_builddir}/doc:${abs_top_srcdir}/doc:${abs_top_srcdir}/doc/xsl \
-	--xinclude
+service-links: ../sbin/firehol.in services-db.data
+	$(MKSERVICELINKS) service-links $+
 
-##DBLATEX_FLAGS += \
-##	--xslt=xsltproc \
-##	--xslt-opts "--path ${abs_top_builddir}/doc:${abs_top_srcdir}/doc:${abs_top_srcdir}/doc/xsl"
+man/man1/%.1: %.1.md
+	$(MKDIR_P) tmp
+	$(MKDIR_P) man/man1
+	$(SED) -e '/^%/s/DATE/@PACKAGE_BUILT_DATE@/' -e '/^%/s/VERSION/@PACKAGE_VERSION@/' $< > tmp/manproc
+	$(SED) -e 's/: .*#/: #/' $(FIREHOLMANUAL_LINKS) > tmp/anchor-links
+	$(PANDOC) $(PANDOC_MAN_FLAGS) -o $@ tmp/manproc tmp/anchor-links
+	$(PANDOCPOST) $(PANDOC_VERSION) man $@
+	$(MANSYNOS) $< $@ man/
 
-export manpages_XSLTPROC_FLAGS = \
-	$(XSLTPROC_FLAGS) \
-	--param man.output.base.dir man
+man/man5/%.5: %.5.md
+	$(MKDIR_P) tmp
+	$(MKDIR_P) man/man5
+	$(SED) -e '/^%/s/DATE/@PACKAGE_BUILT_DATE@/' -e '/^%/s/VERSION/@PACKAGE_VERSION@/' $< > tmp/manproc
+	$(SED) -e 's/: .*#/: #/' $(FIREHOLMANUAL_LINKS) > tmp/anchor-links
+	$(PANDOC) $(PANDOC_MAN_FLAGS) -o $@ tmp/manproc tmp/anchor-links
+	$(PANDOCPOST) $(PANDOC_VERSION) man $@
+	$(MANSYNOS) $< $@ man/
 
-$(FIREHOLMANUALXML_GENERATED): services-generated
+$(FIREHOLMANUALMAN_GENERATED): $(FIREHOLMANUAL_LINKS)
 
-services-generated: $(FIREHOLIN) services-db.data
-	$(MKSERVICELIST) services-a.xml $+
-	touch services-generated
+firehol-manual.pdf: *.md $(FIREHOLMANUALMARKDOWN_GENERATED) $(FIREHOLMANUAL_LINKS)
+	$(MKDIR_P) tmp
+	$(SED) -e 's/: .*#/: #/' $(FIREHOLMANUAL_LINKS) > tmp/anchor-links
+	$(COMBINEPANDOC) pdf tmp/pdf-combined.md contents.md tmp/anchor-links
+	$(SED) -i -e '/^%/s/DATE/@PACKAGE_BUILT_DATE@/' -e '/^%/s/VERSION/@PACKAGE_VERSION@/' tmp/pdf-combined.md
+	$(PANDOC) $(PANDOC_PDF_FLAGS) -o $@ tmp/pdf-combined.md
+	$(PANDOCPOST) $(PANDOC_VERSION) pdf $@
 
-# Create index for services in the chunked HTML
-html/index-services.html: html/index.html
-	$(MKHTMLINDEX) $@ $(FIREHOLIN) html/rn*.html
-
-# Create index for services in the single-page HTML
-firehol-services.html: firehol-manual.html
-	$(MKHTMLINDEX) $@ $(FIREHOLIN) firehol-manual.html
-
-db-valid: \
-		$(FIREHOLMANUALXML_MASTER) \
-		$(FIREHOLMANUALXML_CHAPTERS) \
-		$(FIREHOLMANUALXML_REFERENCES) \
-		$(FIREHOLMANUALXML_GENERATED) \
-		firehol.ent
-	$(XMLLINT) $(XMLLINT_FLAGS) --noout --postvalid $<
-	touch db-valid
-
-# Create a chunked version for the website
-html/index.html: db-valid xsl/chunk.xsl $(FIREHOLMANUALXML_CSS)
-	mkdir -p html
-	(cd html && $(XSLTPROC) $(XSLTPROC_FLAGS) chunk.xsl $(FIREHOLMANUALXML_MASTER))
-	cp $(FIREHOLMANUALXML_CSS) html/.
-
-# Create a single-page version to be included in tar
-firehol-manual.html: db-valid xsl/html.xsl $(FIREHOLMANUALXML_CSS) html/index.html
-	$(XSLTPROC) $(XSLTPROC_FLAGS) -o $@ html.xsl $(FIREHOLMANUALXML_MASTER)
-
-firehol-manual.pdf: db-valid xsl/dblatex.xsl latex/dbfirehol.sty firehol-services.html html/index-services.html
-	$(DBLATEX) $(DBLATEX_FLAGS) \
-			-t pdf \
-			-P paper.type=$(PAPERTYPE) \
-			-p xsl/dblatex.xsl \
-			-s latex/dbfirehol.sty \
-			-o $@ \
-		$(FIREHOLMANUALXML_MASTER)
-
-$(FIREHOLMANUALMAN_GENERATED): db-valid xsl/manpages.xsl firehol-manual.pdf
-	mkdir -p man
-	(cd man && $(XSLTPROC) $(manpages_XSLTPROC_FLAGS) manpages.xsl $(FIREHOLMANUALXML_MASTER))
+firehol-manual.html: *.md $(FIREHOLMANUALMARKDOWN_GENERATED) $(FIREHOLMANUAL_LINKS)
+	$(MKDIR_P) tmp
+	$(SED) -e 's/: .*#/: #/' $(FIREHOLMANUAL_LINKS) > tmp/anchor-links
+	$(COMBINEPANDOC) html tmp/html-combined.md contents.md tmp/anchor-links
+	$(SED) -i -e '/^%/s/DATE/@PACKAGE_BUILT_DATE@/' -e '/^%/s/VERSION/@PACKAGE_VERSION@/' tmp/html-combined.md
+	$(PANDOC) $(PANDOC_HTML_FLAGS) -o tmp/manual.html tmp/html-combined.md
+	$(CHECKLINKS) tmp/manual.html $(FIREHOLMANUAL_LINKS)
+	$(PANDOCPOST) $(PANDOC_VERSION) html tmp/manual.html
+	cp tmp/manual.html $@
 
 endif
 
 EXTRA_DIST = \
+	*.md \
 	services-db.data \
-	firehol.ent \
-	$(FIREHOLMANUALXML_GENERATED) \
-	db-valid \
-	$(FIREHOLMANUALXML_CSS) \
-	$(FIREHOLMANUALXML_MASTER) \
+	$(FIREHOLMANUAL_LINKS) \
+	$(FIREHOLMANUAL_CSS) \
 	$(FIREHOLMANUALHTML_GENERATED) \
 	$(FIREHOLMANUALPDF_GENERATED) \
-	$(FIREHOLMANUALMAN_GENERATED)
+	$(FIREHOLMANUALMAN_GENERATED) \
+	$(FIREHOLMANUALMAN_GENERATED_INDIRECT)
 
 CLEANFILES =
 
 DISTCLEANFILES =
 
 MAINTAINERCLEANFILES = \
-	firehol.ent \
-	$(FIREHOLMANUALXML_GENERATED) \
-	db-valid \
-	services-generated \
+	services-links \
+	$(FIREHOLMANUALMARKDOWN_GENERATED) \
 	$(FIREHOLMANUALHTML_GENERATED) \
 	$(FIREHOLMANUALPDF_GENERATED) \
-	$(FIREHOLMANUALMAN_GENERATED)
+	$(FIREHOLMANUALMAN_GENERATED) \
+	$(FIREHOLMANUALMAN_GENERATED_INDIRECT)
 
 uninstall-local:
 	@-rmdir --ignore-fail-on-non-empty $(DESTDIR)$(dochtmldir)
 	@-rmdir --ignore-fail-on-non-empty $(DESTDIR)$(pdfdir)
-#	@-rmdir --ignore-fail-on-non-empty $(DESTDIR)$(docdir)
-
-.NOTPARALLEL: $(FIREHOLMANUALMAN_GENERATED)

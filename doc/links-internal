@@ -1,0 +1,45 @@
+
+<!--
+    This file lists internal references within the manual
+    and associates them with anchors in the output.
+
+    Note that the blank line after this comment is required, to keep
+    pandoc(1) happy when formatting.
+  -->
+
+[ADDING SERVICES]: firehol-conf.5.md#adding-services
+[CONFIGURATION HELPER COMMANDS]: firehol-conf.5.md#configuration-helper-commands
+[HELPER COMMANDS]: firehol-conf.5.md#helper-commands
+[INTERFACE SUBCOMMANDS]: firehol-interface.5.md#interface-subcommands
+[REJECT WITH MESSAGES]: firehol-actions.5.md#reject-with-messages
+[ROUTER SUBCOMMANDS]: firehol-router.5.md#router-subcommands
+
+[firehol(1)]: firehol.1.md#firehol1
+[firehol-actions(5)]: firehol-actions.5.md#firehol-actions5
+[firehol.conf(5)]: firehol-conf.5.md#firehol.conf5
+[firehol-modifiers(5)]: firehol-modifiers.5.md#firehol-modifiers5
+[firehol-nat(5)]: firehol-nat.5.md#firehol-nat5
+[firehol-params(5)]: firehol-params.5.md#firehol-params5
+[firehol-proxy(5)]: firehol-proxy.5.md#firehol-proxy5
+[firehol-services(5)]: firehol-services.5.md#firehol-services5
+[firehol-variables(5)]: firehol-variables.5.md#firehol-variables5
+[fireqos(1)]: fireqos.1.md#fireqos1
+[fireqos.conf(5)]: fireqos-conf.5.md#fireqos.conf5
+[fireqos-interface(5)]: fireqos-interface.5.md#fireqos-interface5
+[fireqos-class(5)]: fireqos-class.5.md#fireqos-class5
+[fireqos-match(5)]: fireqos-match.5.md#fireqos-match5
+[fireqos-params-class(5)]: fireqos-params-class.5.md#fireqos-params-class5
+[fireqos-params-match(5)]: fireqos-params-match.5.md#fireqos-params-match5
+
+<!--
+   These links are maintained for the benefit of the website and must
+   not be removed.
+  -->
+
+[keyword-manref-firehol-config-file]: firehol-conf.5.md#firehol.conf5
+[keyword-manref-firehol-variables-control]: firehol-variables.5.md#firehol-variables5
+[keyword-manref-firehol-variables-unroutable]: firehol-conf.5.md#variables-available
+[keyword-manref-firehol-variables-activation]: firehol-conf.5.md#variables-available
+[keyword-manref-firehol-helpme]: firehol.1.md#helpme-wizard
+[keyword-manref-firehol-explain]: firehol.1.md#explain
+[keyword-manref-firehol-debug]: firehol.1.md#debug

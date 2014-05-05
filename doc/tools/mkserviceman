@@ -1,0 +1,159 @@
+#!/usr/bin/perl -w
+
+my $debug = 0;
+
+use strict;
+use Data::Dumper;
+use Text::ParseWords;
+use File::Basename qw( dirname );
+use lib dirname($0);
+use servicedb;
+
+if (@ARGV != 4) {
+  print STDERR "Usage: mkserviceman output firehol-script services-db.data service-links\n";
+  exit 1;
+}
+
+my ($services, $all_run) = servicedb::read_script($ARGV[1]);
+my ($dbinfo, $dbalias) = servicedb::read_db($ARGV[2]);
+my @service_keywords = servicedb::validate($services, $dbinfo, $dbalias);
+
+sub coalesce {
+  while (@_ > 0) {
+    $_ = shift @_;
+    return $_ if defined $_;
+  }
+  return undef;
+}
+
+sub docmod {
+  my $b = "http://cateee.net/lkddb/web-lkddb";
+  my $modlist = shift @_;
+
+  my @mods = split(/,/, $modlist);
+  my @modwithurl = ();
+  foreach my $mod (@mods) {
+    if ($mod =~ /^nf/) {
+      my $m = uc($mod);
+      $m =~ s/CONNTRACK_PROTO/CT_PROTO/;
+      push @modwithurl, "$mod [CONFIG_$m]($b/$m.html)";
+    } else {
+      push @modwithurl, $mod;
+    }
+  }
+
+  $modlist = join("\n    * ", @modwithurl);
+  return $modlist;
+}
+
+open my $o, ">$ARGV[0]" or die;
+print $o '% firehol-services(5) FireHOL Reference | VERSION' . "\n";
+print $o '% FireHOL Team' . "\n";
+print $o '% Built DATE' . "\n";
+print $o '' . "\n";
+print $o '# NAME' . "\n";
+print $o '' . "\n";
+print $o 'firehol-services - FireHOL services list' . "\n";
+print $o '' . "\n";
+print $o '# SYNOPSIS' . "\n";
+print $o '' . "\n";
+
+my $alpha = "";
+for my $xk (@service_keywords) {
+  my $a = lc(substr($xk, 0, 1));
+  if ($a ne $alpha) {
+    print $o "\n";
+    $alpha = $a;
+  }
+  print $o "[$xk][keyword-service-$xk]\n";
+}
+
+print $o "\n";
+print $o '# DESCRIPTION' . "\n";
+print $o "\n";
+
+foreach my $k (@service_keywords) {
+  my $name = $$dbinfo{$k}{"name"};
+  my @links = ();
+  my @linkb = ();
+  my $home = $$dbinfo{$k}{"home"};
+  my $wiki = $$dbinfo{$k}{"wiki"};
+  push @links, "[Homepage][HOME-$k]" if $home;
+  push @linkb, "[HOME-$k]: $home" if $home;
+  push @links, "[Wikipedia][WIKI-$k]" if $wiki;
+  push @linkb, "[WIKI-$k]: $wiki" if $wiki;
+
+  my $sport = coalesce($$dbinfo{$k}{"server"}, $$services{$k}{"server"}, "N/A");
+  my $cport = coalesce($$dbinfo{$k}{"client"}, $$services{$k}{"client"}, "N/A");
+  my $netmod = coalesce($$dbinfo{$k}{"mod"}, $$services{$k}{"mod"});
+  my $natmod = coalesce($$dbinfo{$k}{"modnat"}, $$services{$k}{"modnat"});
+  my $example = coalesce($$dbinfo{$k}{"example"}, $$services{$k}{"example"});
+
+  if ($example) {
+    $example =~ s/\n/\n      /gs if $example; # Extra lines still in MD block
+    $example = "~~~~\n      $example\n    ~~~~"
+  }
+
+  my $notes = coalesce($$dbinfo{$k}{"notes"}, $$services{$k}{"notes"});
+  my $type = coalesce($$services{$k}{"type"}, "simple");
+  if ($$dbalias{$k}) {
+    my $official = $$dbalias{$k};
+    $name = $$dbinfo{$official}{"name"};
+  }
+
+  print $o "\n## service: $k\n\n";
+  print $o "$name\n";
+
+  if ($$dbalias{$k}) {
+    print $o ":   Alias for [$$dbalias{$k}][keyword-service-$$dbalias{$k}]\n\n";
+  } else {
+    if ($example) {
+      print $o ":   Example:\n\n";
+      print $o "    $example\n\n";
+      print $o "    ";
+    } else {
+      print $o ":   ";
+    }
+    print $o "Service Type:\n\n";
+    print $o "    * $type\n\n";
+    print $o "    Server Ports:\n\n";
+    print $o "    * $sport\n\n";
+    print $o "    Client Ports:\n\n";
+    print $o "    * $cport\n\n";
+  }
+
+  if ($netmod) {
+    print $o "    Netfilter Modules\n\n";
+    print $o "    * " . docmod($netmod) . "\n\n";
+  }
+  if ($natmod) {
+    print $o "    Netfilter NAT Modules\n\n";
+    print $o "    * " . docmod($natmod) . "\n\n";
+  }
+  if (@links) {
+    print $o "    Links\n\n";
+    print $o "    * " . join("\n    * ", @links) . "\n\n";
+    print $o join("\n", @linkb) . "\n\n";
+  }
+  if ($k eq "all") {
+    my $xtra_notes = "The following complex services are activated:\n\n";
+    foreach my $s (sort(keys(%{$all_run}))) {
+      $xtra_notes .= " *$s*";
+    }
+    if (defined($notes)) {
+      $notes .= "\n" . $xtra_notes . "\n";
+    } else {
+      $notes = $xtra_notes . "\n";
+    }
+  }
+  if ($notes) {
+    print $o "    Notes\n\n";
+    my @lines = split /\n[\t ]*/, $notes;
+    foreach my $l (@lines) {
+      print $o "    > $l\n";
+    }
+  }
+}
+if ($o) {
+  close $o;
+}

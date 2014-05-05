@@ -1,0 +1,36 @@
+#!/bin/sh
+
+#
+# check-contents
+#
+scriptname=check-contents
+if ! MYTMP=$(mktemp -d -t $scriptname-XXXXXX)
+then
+            echo >&2
+            echo >&2
+            echo >&2 "Cannot create temporary directory."
+            echo >&2
+            exit 1
+fi
+
+cleanup() {
+  status=$?
+  rm -rf "${MYTMP}"
+  exit $status
+}
+
+# clean up if we get stopped by Crtl-C or forced logout or normal exit
+trap cleanup INT
+trap cleanup HUP
+trap cleanup 0
+
+if [ $# -ne 2 ]
+then
+  echo "check-contents git-dir tar-gz-file"
+  exit 1
+fi
+
+mkdir $MYTMP/unpack
+tar xfzC "$2" $MYTMP/unpack
+diff -r "$1" $MYTMP/unpack/* | grep "^Only"
+

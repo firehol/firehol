@@ -9,7 +9,9 @@ examples_DATA = \
 	server-dmz.conf \
 	client-all.conf \
 	lan-gateway.conf \
-	office.conf
+	office.conf \
+	icmpv6.conf \
+	fireqos.conf
 
 EXTRA_DIST = \
 	$(examples_DATA) \
