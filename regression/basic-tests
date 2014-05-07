@@ -65,7 +65,7 @@ have_ipv6="`grep IP6TABLES_CMD $MYTMP/fh-$d.in`"
 if [ "$have_ipv6" ]
 then
   # NAT does not allow DROP, hence all_drops is lower
-  all_accepts=24
+  all_accepts=20
   all_drops=16
 else
   all_accepts=12
