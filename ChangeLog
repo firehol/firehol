@@ -1,3 +1,15 @@
+firehol (2.0.0-pre8) unstable; urgency=low
+
+  * FireQOS fixes/enhancements
+    - resolved an issue with pppd ip-up scripts
+    - automatic numbering continues giving class priorities after
+      a manual priority is given
+
+  * Documentation
+    - replaced docbook with pandoc (issue #24)
+
+ -- Phil Whineray <phil@sanewall.org>  Sat, 10 May 2014 08:25:00 +0100
+
 firehol (2.0.0-pre7) unstable; urgency=low
 
   * FireQOS fixes/enhancements
