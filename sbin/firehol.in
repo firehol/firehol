@@ -5107,7 +5107,7 @@ rule() {
 				shift
 				;;
 				
-			dst|DST|destination|DESTINATION)
+			dst|DST|destination|DESTINATION|dst4|dst6)
 				if [ "${1}" = "dst4" ]
 				then
 					if ! push_namespace ipv4; then return 1; fi
