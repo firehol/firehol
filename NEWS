@@ -1,3 +1,10 @@
+2014/06/08:
+
+Release of version 2.0.0-pre9
+
+FireHOL fixes/enhancements
+- recognise dst4/dst6 on interface/router as well as src4/src6
+
 2014/05/10:
 
 Release of version 2.0.0-pre8
