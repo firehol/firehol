@@ -1569,7 +1569,7 @@ class() {
 			
 			# In nested classes, the default of the parent class is not respected
 			# by the kernel. This rule, sends all remaining traffic to the inner default.
-			match all class default flowid $parent_major:$parent_default_class prio 0xffff
+			match all class default flowid $parent_major:$parent_default_class prio 0xfffe
 			
 			check_committed_rate
 
