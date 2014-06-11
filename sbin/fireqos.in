@@ -1670,7 +1670,11 @@ class() {
 	fi
 
 	# class rate cannot go bellow 1/100 of the interface rate
-	[ $class_rate -lt $interface_minrate ] && class_rate=$interface_minrate
+	if [ $class_rate -lt $interface_minrate ]
+	then
+		warning "class rate ($((class_rate * 8 /1000))kbit) was less than the interface minrate ($((interface_minrate * 8 /1000))kbit). Fixed it by setting class rate to minrate."
+		class_rate=$interface_minrate
+	fi
 	
 	check_constrains class
 	
