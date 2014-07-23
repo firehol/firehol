@@ -5,7 +5,7 @@ Who should read this manual
 ---------------------------
 
 This is a reference guide with specific detailed information on
-commands and configuration syntax for the FireHOL and FireQOS tools.
+commands and configuration syntax for the FireQOS tool.
 The reference is unlikely to be suitable for newcomers to the tools,
 except as a means to look up more information on a particular command.
 
@@ -46,10 +46,9 @@ To build and install taking the default options:
     ./configure && make && sudo make install
           
 
-Alternatively, just copy the `sbin/firehol.in` and `sbin/fireqos.in`
-files to where you want them. All of the common SysVInit command line
-arguments are recognised which makes it easy to deploy the scripts as
-startup services.
+Alternatively, just copy the `sbin/fireqos.in` file to where you want it.
+All of the common SysVInit command line arguments are recognised which
+makes it easy to deploy the script as a startup service.
 
 Packages are available for most distributions and you can use your
 distribution's standard commands (e.g. aptitude, yum, etc.) to install

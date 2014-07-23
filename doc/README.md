@@ -1,20 +1,19 @@
 FireHOL/FireQOS Manual Maintenance
 ==================================
 
-The manual is written in the pandoc version of Markdown. See the
+The manuals are written in the pandoc version of Markdown. See the
 [pandoc site](http://johnmacfarlane.net/pandoc/README.html) for tool
 and syntax information:
 
 The single-file manuals (PDF and HTML) are combined by a script which looks
-at the file:
+at the file in the appropriate subdirectory:
     contents.md
 
 To add a new file, just add it to contents.md and specify the output
-manpages in Makefile.am under FIREHOLMANUALMAN_GENERATED.
+manpages in Makefile.am under MANUALMAN_GENERATED.
 
 If synonym manpages are needed, add them to Makefile.am under the variable
-FIREHOLMANUALMAN_GENERATED_INDIRECT and create a comment block in
-the .md file:
+MANUALMAN_GENERATED_INDIRECT and create a comment block in the .md file:
 
 ~~~~
 <!--

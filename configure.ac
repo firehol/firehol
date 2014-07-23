@@ -92,7 +92,8 @@ AC_CONFIG_FILES([
 	sbin/Makefile
 	m4/Makefile
 	doc/Makefile
-	doc/tools/Makefile
+	doc/firehol/Makefile
+	doc/fireqos/Makefile
 	examples/Makefile
 	etc/Makefile
 	packaging/Makefile

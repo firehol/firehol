@@ -23,13 +23,6 @@
 [firehol-proxy(5)]: firehol-proxy.5.md#firehol-proxy5
 [firehol-services(5)]: firehol-services.5.md#firehol-services5
 [firehol-variables(5)]: firehol-variables.5.md#firehol-variables5
-[fireqos(1)]: fireqos.1.md#fireqos1
-[fireqos.conf(5)]: fireqos-conf.5.md#fireqos.conf5
-[fireqos-interface(5)]: fireqos-interface.5.md#fireqos-interface5
-[fireqos-class(5)]: fireqos-class.5.md#fireqos-class5
-[fireqos-match(5)]: fireqos-match.5.md#fireqos-match5
-[fireqos-params-class(5)]: fireqos-params-class.5.md#fireqos-params-class5
-[fireqos-params-match(5)]: fireqos-params-match.5.md#fireqos-params-match5
 
 <!--
    These links are maintained for the benefit of the website and must
