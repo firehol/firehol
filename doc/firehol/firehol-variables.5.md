@@ -229,11 +229,16 @@ FIREHOL\_DROP\_INVALID
 :   If set to 1, this variable causes FireHOL to drop all packets
     matched as `INVALID` in the iptables(8) connection tracker.
 
+    You may be better off using
+    [firehol-protection(5)][keyword-firehol-protection] to control
+    matching of `INVALID` packets and others on a per-interface
+    and per-router basis.
+
     > **Note**
     >
-    > You can use [firehol-protection(5)][keyword-firehol-protection] to
-    > control matching of `INVALID` packets and others on a per-interface
-    > and per-router basis.
+    > Care must be taken on IPv6 interfaces, since ICMPv6 packets such
+    > as Neighbour Discovery are not tracked, meaning they are marked
+    > as INVALID.
 
     Example:
 

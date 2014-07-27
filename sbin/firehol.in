@@ -7437,8 +7437,10 @@ All the others are simple single socket services.
 
 Please note that the service:
 	
-	all	matches all packets, all protocols, all of everything,
-		while ensuring that required kernel modules are loaded.
+	all	matches all packets and all protocols, while ensuring that
+		required kernel modules are loaded. Packets "untracked" by
+		iptables (e.g. ICMPv6 neighbour discovery packets) are not
+		included in "all" and must be handled separately.
 	
 	any	allows the matching of packets with unusual rules, like
 		only protocol but no ports. If service any is used
