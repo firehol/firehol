@@ -116,42 +116,38 @@ CHECKLINKS = ${top_srcdir}/doc/tools/check-links
 FIREHOLIN = $(top_srcdir)/sbin/firehol.in
 
 man/man1/%.1: %.1.md
-	$(MKDIR_P) tmp
 	$(MKDIR_P) man/man1
-	$(SED) -e '/^%/s/DATE/@PACKAGE_BUILT_DATE@/' -e '/^%/s/VERSION/@PACKAGE_VERSION@/' $< > tmp/manproc
-	$(SED) -e 's/: .*#/: #/' $(MANUAL_LINKS) > tmp/anchor-links
-	$(PANDOC) $(PANDOC_MAN_FLAGS) -o $@ tmp/manproc tmp/anchor-links
+	$(SED) -e '/^%/s/DATE/@PACKAGE_BUILT_DATE@/' -e '/^%/s/VERSION/@PACKAGE_VERSION@/' $< > tmp-manproc
+	$(SED) -e 's/: .*#/: #/' $(MANUAL_LINKS) > tmp-anchor-links
+	$(PANDOC) $(PANDOC_MAN_FLAGS) -o $@ tmp-manproc tmp-anchor-links
 	$(PANDOCPOST) $(PANDOC_VERSION) man $@
 	$(MANSYNOS) $< $@ man/
 
 man/man5/%.5: %.5.md
-	$(MKDIR_P) tmp
 	$(MKDIR_P) man/man5
-	$(SED) -e '/^%/s/DATE/@PACKAGE_BUILT_DATE@/' -e '/^%/s/VERSION/@PACKAGE_VERSION@/' $< > tmp/manproc
-	$(SED) -e 's/: .*#/: #/' $(MANUAL_LINKS) > tmp/anchor-links
-	$(PANDOC) $(PANDOC_MAN_FLAGS) -o $@ tmp/manproc tmp/anchor-links
+	$(SED) -e '/^%/s/DATE/@PACKAGE_BUILT_DATE@/' -e '/^%/s/VERSION/@PACKAGE_VERSION@/' $< > tmp-manproc
+	$(SED) -e 's/: .*#/: #/' $(MANUAL_LINKS) > tmp-anchor-links
+	$(PANDOC) $(PANDOC_MAN_FLAGS) -o $@ tmp-manproc tmp-anchor-links
 	$(PANDOCPOST) $(PANDOC_VERSION) man $@
 	$(MANSYNOS) $< $@ man/
 
 $(MANUALMAN_GENERATED): $(MANUAL_LINKS)
 
 fireqos-manual.pdf: *.md $(MANUAL_LINKS)
-	$(MKDIR_P) tmp
-	$(SED) -e 's/: .*#/: #/' $(MANUAL_LINKS) > tmp/anchor-links
-	$(COMBINEPANDOC) pdf tmp/pdf-combined.md contents.md tmp/anchor-links
-	$(SED) -i -e '/^%/s/DATE/@PACKAGE_BUILT_DATE@/' -e '/^%/s/VERSION/@PACKAGE_VERSION@/' tmp/pdf-combined.md
-	$(PANDOC) $(PANDOC_PDF_FLAGS) -o $@ tmp/pdf-combined.md
+	$(SED) -e 's/: .*#/: #/' $(MANUAL_LINKS) > tmp-anchor-links
+	$(COMBINEPANDOC) pdf tmp-pdf-combined.md contents.md tmp-anchor-links
+	$(SED) -i -e '/^%/s/DATE/@PACKAGE_BUILT_DATE@/' -e '/^%/s/VERSION/@PACKAGE_VERSION@/' tmp-pdf-combined.md
+	$(PANDOC) $(PANDOC_PDF_FLAGS) -o $@ tmp-pdf-combined.md
 	$(PANDOCPOST) $(PANDOC_VERSION) pdf $@
 
 fireqos-manual.html: *.md $(MANUAL_LINKS)
-	$(MKDIR_P) tmp
-	$(SED) -e 's/: .*#/: #/' $(MANUAL_LINKS) > tmp/anchor-links
-	$(COMBINEPANDOC) html tmp/html-combined.md contents.md tmp/anchor-links
-	$(SED) -i -e '/^%/s/DATE/@PACKAGE_BUILT_DATE@/' -e '/^%/s/VERSION/@PACKAGE_VERSION@/' tmp/html-combined.md
-	$(PANDOC) $(PANDOC_HTML_FLAGS) -o tmp/manual.html tmp/html-combined.md
-	$(CHECKLINKS) tmp/manual.html $(MANUAL_LINKS)
-	$(PANDOCPOST) $(PANDOC_VERSION) html tmp/manual.html
-	cp tmp/manual.html $@
+	$(SED) -e 's/: .*#/: #/' $(MANUAL_LINKS) > tmp-anchor-links
+	$(COMBINEPANDOC) html tmp-html-combined.md contents.md tmp-anchor-links
+	$(SED) -i -e '/^%/s/DATE/@PACKAGE_BUILT_DATE@/' -e '/^%/s/VERSION/@PACKAGE_VERSION@/' tmp-html-combined.md
+	$(PANDOC) $(PANDOC_HTML_FLAGS) -o tmp-manual.html tmp-html-combined.md
+	$(CHECKLINKS) tmp-manual.html $(MANUAL_LINKS)
+	$(PANDOCPOST) $(PANDOC_VERSION) html tmp-manual.html
+	cp tmp-manual.html $@
 
 endif
 
@@ -162,7 +158,12 @@ EXTRA_DIST = \
 	$(MANUALMAN_GENERATED) \
 	$(MANUALMAN_GENERATED_INDIRECT)
 
-CLEANFILES =
+CLEANFILES = \
+       tmp-anchor-links \
+       tmp-html-combined.md \
+       tmp-manproc \
+       tmp-manual.html \
+       tmp-pdf-combined.md
 
 DISTCLEANFILES =
 

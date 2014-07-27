@@ -61,7 +61,7 @@ Keywords + Services Links
     according to the output format.
 
     Services links are generated automatically as part of the build process
-    and will be put in the `services-links` file.
+    and will be put in the `service-links` file.
 
 Internal Links
 :   Always write links to these as:

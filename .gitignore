@@ -12,14 +12,14 @@ config.status
 doc/db-valid
 doc/services-generated
 doc/firehol.ent
-doc/firehol/tmp/
+doc/firehol/tmp*
 doc/firehol/man/man1/
 doc/firehol/man/man5/
 doc/firehol/firehol-manual.html
 doc/firehol/firehol-manual.pdf
 doc/firehol/firehol-services.html
 doc/firehol/firehol-services.5.md
-doc/fireqos/tmp/
+doc/fireqos/tmp*
 doc/fireqos/man/man1/
 doc/fireqos/man/man5/
 doc/fireqos/fireqos-manual.html
