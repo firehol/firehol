@@ -319,7 +319,7 @@ SERVICE dhcpv6
 		client dhcp accept
 	NOTES
 		The dhcp service is implemented as stateless rules.
-		It cannon be stateful as the connection tracker will not
+		It cannot be stateful as the connection tracker will not
 		match a unicast reply to a broadcast request. Further,
 		if you wish to add src/dst rule parameters, you must
 		account for both the broadcast and link-local network prefixes.
