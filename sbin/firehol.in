@@ -1832,8 +1832,8 @@ rules_dhcpv6() {
 	# ----------------------------------------------------------------------
 
 	set_work_function "Setting up rules for DHCPv6 (${type})"
-	rule ${in}          action "$@" chain "${in}_${mychain}"  proto "udp" sport "546" dport "547" || return 1
-	rule ${out} reverse action "$@" chain "${out}_${mychain}" proto "udp" sport "546" dport "547" || return 1
+	rule ${in}          action "$@" chain "${in}_${mychain}"  proto "udp" dport "547" || return 1
+	rule ${out} reverse action "$@" chain "${out}_${mychain}" proto "udp" sport "546" || return 1
 
 	pop_namespace
 	return 0

@@ -312,27 +312,32 @@ SERVICE dhcprelay
 SERVICE dhcpv6
 	NAME Dynamic Host Configuration Protocol for IPv6
 	WIKI https://en.wikipedia.org/wiki/DHCPv6
-	CPORT 546
+	CPORT udp/546
 	SPORT udp/547
 	EXAMPLE
-		server dhcp accept src "fe80::/64"
-		client dhcp accept src "fe80::/64"
+		server dhcp accept
+		client dhcp accept
 	NOTES
 		The dhcp service is implemented as stateless rules.
+		It cannon be stateful as the connection tracker will not
+		match a unicast reply to a broadcast request. Further,
+		if you wish to add src/dst rule parameters, you must
+		account for both the broadcast and link-local network prefixes.
 		-
 		Clients broadcast from a link-local address to the
-		multicast address ff02::1:2 to find a server. The
-		Server sends a unicast replies back to the client.
+		multicast address ff02::1:2 on UDP port 547 to find a
+		server. The server sends a unicast reply back to the
+		client which listens on UDP port 546.
 		-
-		If the DHCPv6 service was stateful, the iptables
-		connection tracker would not match the packets and
-		deny to the reply so the service is implemented as
-		stateless rules.
+		For a FireHOL interface, creating a client will allow
+		sending to port 547 and receiving on port 546. Creating
+		a server allows sending to port 546 and receiving on port 547.
 		-
-		Note that this does not affect the security of either
-		DHCP servers or clients, since only the specific ports are
-		allowed (there is no random port at either the server or the
-		client side).
+		Unlike DHCP for IPv4, the source ports to be used are not
+		defined in DHCPv6 - see section 5.2 of
+		[RFC3315](http://www.ietf.org/rfc/rfc3315.txt).
+		Some servers are known to make use of this to send from
+		arbitrary ports, so FireHOL does not assume a source port.
 		-
 		This service implicitly sets its client or server to ipv6 mode.
 
