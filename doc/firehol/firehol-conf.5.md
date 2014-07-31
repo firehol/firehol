@@ -202,7 +202,7 @@ service.
 >
 > The first line must read:
 >
->     FHVER 1:213
+>     #FHVER: 1:213
 >
 > 1 is the service definition API version. It will be changed if the API
 > is ever modified. The 213 originally referred to a FireHOL 1.x minor
