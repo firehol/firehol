@@ -1,3 +1,20 @@
+2014/08/02:
+
+Release of version 2.0.0-rc.1
+
+FireHOL fixes/enhancements
+- #15 Do not fix source ports for DHCPv6 (not required by RFC)
+
+FireQOS fixes/enhancements
+- fixed mixed ipv4 and ipv6 matches that were generating match
+  priorities above 0xffff
+- #29 added warning when rate is lower than minrate
+
+Documentation
+- split manual in two
+- explain that ICMPv6 ND/RD packets are untracked by default, so not in all
+- #31 fixed magic line of services definition
+
 2014/06/08:
 
 Release of version 2.0.0-pre9
