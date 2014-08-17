@@ -1954,6 +1954,8 @@ match() {
 	local ip=any
 	local tos=any
 	local mark=any
+	local srcmac=any
+	local dstmac=any
 	local class=$class_name
 	local flowid=$class_filters_flowid
 	local ack=0
@@ -2106,6 +2108,16 @@ match() {
 				shift
 				;;
 
+			srcmac|smac)
+				local srcmac=`echo "$2" | sed -e "s/://g"`
+				shift
+				;;
+
+			dstmac|dmac)
+				local dstmac=`echo "$2" | sed -e "s/://g"`
+				shift
+				;;
+
 			*)	error "Cannot understand what the filter '${1}' is."
 				return 1
 				;;
@@ -2123,6 +2135,10 @@ match() {
 		local t="$sport"
 		local sport="$dport"
 		local dport="$t"
+
+		local t="$srcmac"
+		local srcmac="$dstmac"
+		local dstmac="$t"
 	fi
 
 	if [ -z "$prio" ]
@@ -2151,6 +2167,8 @@ match() {
 	[ -z "$ip" ]	&& error "Cannot accept empty IPs."			&& return 1
 	[ -z "$tos" ]	&& error "Cannot accept empty TOS."			&& return 1
 	[ -z "$mark" ]	&& error "Cannot accept empty MARK."			&& return 1
+	[ -z "$srcmac" ]	&& error "Cannot accept empty source MAC."		&& return 1
+	[ -z "$dstmac" ]	&& error "Cannot accept empty destination MAC."		&& return 1
 	
 	[ ! "$port" = "any" -a ! "$sport" = "any" ]	&& error "Cannot match 'port' and 'sport'." && exit 1
 	[ ! "$port" = "any" -a ! "$dport" = "any" ]	&& error "Cannot match 'port' and 'dport'." && exit 1
@@ -2479,36 +2497,63 @@ match() {
 													;;
 											esac
 											
-											if [ "$tcproto_arg" = "arp" ]
-											then
-												local u32="u32 match u32 0 0"
-											else
-												local u32="u32"
-												[ -z "$proto_arg$ip_arg$src_arg$dst_arg$port_arg$sport_arg$dport_arg$tos_arg$ack_arg$syn_arg" ] && local u32=
-											fi
-											
-											[ ! -z "$u32" -a ! -z "$mark_arg" ] && local mark_arg="and $mark_arg"
-											
-											local estimator=
-											if [ ! -z "$estimator_interval" -a ! -z "$estimator_decay" ]
-											then
-												local estimator="estimator $estimator_interval $estimator_decay"
-											fi
-											local police=
-											if [ ! -z "$police_arg" ]
-											then
-												local police="police $police_arg"
-											fi
+											local smac=
+											for smac in $srcmac
+											do
+												local smac_arg=
+												if [ ! "$smac" = "any" ]
+												then
+													local sm1=`echo "$smac" | cut -b 1-8`
+													local sm2=`echo "$smac" | cut -b 9-12`
+													local smac_arg="u32 match u16 0x0800 0xFFFF at -2 match u16 0x$sm2 0xFFFF at -4 match u32 0x$sm1 0xFFFFFFFF at -8"
+												fi
 
-											tc filter add \
-												dev $device parent $parent protocol $tcproto_arg prio $prio \
-												$estimator \
-												$u32 \
-												$proto_arg $ip_arg $src_arg $dst_arg $port_arg $sport_arg $dport_arg $tos_arg $ack_arg $syn_arg $mark_arg \
-												$custom \
-												flowid $flowid \
-												$police
-											
+												local dmac=
+												for dmac in $dstmac
+												do
+													local dmac_arg=
+													if [ ! "$dmac" = "any" ]
+													then
+														local dm1=`echo "$dmac" | cut -b 1-4`
+														local dm2=`echo "$dmac" | cut -b 5-12`
+														local dmac_arg="u32 match u16 0x0800 0xFFFF at -2 match u32 0x$dm2 0xFFFFFFFF at -12 match u16 0x$dm1 0xFFFF at -14"
+													fi
+
+													if [ "$tcproto_arg" = "arp" ]
+													then
+														local u32="u32 match u32 0 0"
+													else
+														local u32="u32"
+														[ -z "$proto_arg$ip_arg$src_arg$dst_arg$port_arg$sport_arg$dport_arg$tos_arg$ack_arg$syn_arg" ] && local u32=
+													fi
+													
+													[ ! -z "$u32" -a ! -z "$mark_arg" ] && local mark_arg="and $mark_arg"
+													
+													local estimator=
+													if [ ! -z "$estimator_interval" -a ! -z "$estimator_decay" ]
+													then
+														local estimator="estimator $estimator_interval $estimator_decay"
+													fi
+													local police=
+													if [ ! -z "$police_arg" ]
+													then
+														local police="police $police_arg"
+													fi
+
+													tc filter add \
+														dev $device parent $parent protocol $tcproto_arg prio $prio \
+														$estimator \
+														$u32 \
+														$proto_arg $ip_arg $src_arg $dst_arg $port_arg $sport_arg $dport_arg $tos_arg $ack_arg $syn_arg $mark_arg \
+														$smac_arg \
+														$dmac_arg \
+														$custom \
+														flowid $flowid \
+														$police
+
+												done # dstmac
+											done # srcmac
+
 										done # mark
 									done # tos
 								
