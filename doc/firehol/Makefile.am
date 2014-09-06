@@ -155,6 +155,7 @@ firehol-manual.pdf: *.md $(MANUALMARKDOWN_GENERATED) $(MANUAL_LINKS)
 	$(COMBINEPANDOC) pdf tmp-pdf-combined.md contents.md tmp-anchor-links
 	$(SED) -i -e '/^%/s/DATE/@PACKAGE_BUILT_DATE@/' -e '/^%/s/VERSION/@PACKAGE_VERSION@/' tmp-pdf-combined.md
 	$(PANDOC) $(PANDOC_PDF_FLAGS) -o $@ tmp-pdf-combined.md
+	rm tmp-pdf-combined.md
 	$(PANDOCPOST) $(PANDOC_VERSION) pdf $@
 
 firehol-manual.html: *.md $(MANUALMARKDOWN_GENERATED) $(MANUAL_LINKS)
@@ -162,9 +163,10 @@ firehol-manual.html: *.md $(MANUALMARKDOWN_GENERATED) $(MANUAL_LINKS)
 	$(COMBINEPANDOC) html tmp-html-combined.md contents.md tmp-anchor-links
 	$(SED) -i -e '/^%/s/DATE/@PACKAGE_BUILT_DATE@/' -e '/^%/s/VERSION/@PACKAGE_VERSION@/' tmp-html-combined.md
 	$(PANDOC) $(PANDOC_HTML_FLAGS) -o tmp-manual.html tmp-html-combined.md
+	rm tmp-html-combined.md
 	$(CHECKLINKS) tmp-manual.html $(MANUAL_LINKS)
 	$(PANDOCPOST) $(PANDOC_VERSION) html tmp-manual.html
-	cp tmp-manual.html $@
+	mv tmp-manual.html $@
 
 endif
 
