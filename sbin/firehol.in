@@ -2059,7 +2059,7 @@ rules_nfs() {
 	local x=
 	for x in ${servers}
 	do
-		local tmp="${FIREHOL_DIR}/firehol.rpcinfo.$$.${RANDOM}"
+		local tmp="`${MKTEMP_CMD} ${FIREHOL_DIR}/firehol-rpcinfo-XXXXXXXXXX`"
 		
 		set_work_function "Getting RPC information from server '${x}'"
 		
@@ -2178,7 +2178,7 @@ rules_nis() {
 	local x=
 	for x in ${servers}
 	do
-		local tmp="${FIREHOL_DIR}/firehol.rpcinfo.$$.${RANDOM}"
+		local tmp="`${MKTEMP_CMD} ${FIREHOL_DIR}/firehol-rpcinfo-XXXXXXXXXX)`"
 		
 		set_work_function "Getting RPC information from server '${x}'"
 		
