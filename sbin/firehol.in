@@ -182,7 +182,6 @@ require_cmd() {
 # Currently the following commands are required only when needed.
 # (i.e. Command on Demand)
 #
-# wget or curl (either is fine)
 # zcat or gzcat or gzip (either or none is fine)
 # less or more (either or none is fine)
 # ip
@@ -289,26 +288,6 @@ zcat_cmd() {
 	echo >&2 " Make sure you have one of these available in the system path."
 	echo >&2 " "
 	
-	return 1
-}
-
-# Fetch a URL and output it to the standard output.
-wget_cmd() {
-	local url="${1}"
-	
-	require_cmd wget curl
-	
-	if [ ! -z "${WGET_CMD}" ]
-	then
-		${WGET_CMD} -O - "${url}" 2>/dev/null
-		return $?
-	elif [ ! -z "${CURL_CMD}" ]
-	then
-		${CURL_CMD} -s "${url}"
-		return $?
-	fi
-	
-	error "Cannot use either 'wget' or 'curl' to fetch '${url}'."
 	return 1
 }
 
@@ -2781,26 +2760,6 @@ fi
 ecn_shame() {
 	softwarning "ECN_SHAME IP list no longer available, helper is ignored."
 	return 0
-}
-
-# Fetch a URL and output it to the standard output.
-firehol_wget() {
-	local url="${1}"
-	
-	require_cmd wget curl
-	
-	if [ ! -z "${WGET_CMD}" ]
-	then
-		${WGET_CMD} -O - "${url}" 2>/dev/null
-		return $?
-	elif [ ! -z "${CURL_CMD}" ]
-	then
-		${CURL_CMD} -s "${url}"
-		return $?
-	fi
-	
-	error "Cannot use either 'wget' or 'curl' to fetch '${url}'."
-	return 1
 }
 
 # define custom actions
