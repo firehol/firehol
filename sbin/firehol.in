@@ -207,6 +207,7 @@ which_cmd HEAD_CMD head
 which_cmd TAIL_CMD tail
 which_cmd LSMOD_CMD lsmod
 which_cmd MKDIR_CMD mkdir
+which_cmd MKTEMP_CMD mktemp
 which_cmd MV_CMD mv
 which_cmd RM_CMD rm
 which_cmd SED_CMD sed
@@ -425,7 +426,7 @@ fi
 # Directories and files
 
 # Create an empty temporary directory we need for this run.
-if ! FIREHOL_DIR="`mktemp -d -t firehol-XXXXXXXXXX`"
+if ! FIREHOL_DIR="`${MKTEMP_CMD} -d -t firehol-XXXXXXXXXX`"
 then
             echo >&2
             echo >&2
