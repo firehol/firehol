@@ -596,25 +596,10 @@ then
 	"${CHMOD_CMD}" 700 "${FIREHOL_CONFIG_DIR}/services"
 fi
 
-# Remove any old directories that might be there.
-if [ -d "${FIREHOL_DIR}" ]
-then
-	"${RM_CMD}" -rf "${FIREHOL_DIR}"
-	if [ $? -ne 0 -o -e "${FIREHOL_DIR}" ]
-	then
-		echo >&2
-		echo >&2
-		echo >&2 "Cannot clean temporary directory '${FIREHOL_DIR}'."
-		echo >&2
-		exit 1
-	fi
-fi
-"${MKDIR_CMD}" "${FIREHOL_DIR}"					|| exit 1
-"${MKDIR_CMD}" "${FIREHOL_CHAINS_DIR}"			|| exit 1
-"${MKDIR_CMD}" "${FIREHOL_DIR}/fast"			|| exit 1
-"${MKDIR_CMD}" "${FIREHOL_DIR}/fast/tables"		|| exit 1
-"${MKDIR_CMD}" "${FIREHOL_DIR}/fast/table6s"		|| exit 1
-
+"${MKDIR_CMD}" "${FIREHOL_CHAINS_DIR}" || exit 1
+"${MKDIR_CMD}" "${FIREHOL_DIR}/fast" || exit 1
+"${MKDIR_CMD}" "${FIREHOL_DIR}/fast/tables"	|| exit 1
+"${MKDIR_CMD}" "${FIREHOL_DIR}/fast/table6s" || exit 1
 
 # prepare the file that will hold all modules to be loaded.
 # this is needed only when we are going to save the firewall
