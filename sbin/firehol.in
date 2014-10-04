@@ -7890,7 +7890,8 @@ EOF
 		echo "# TODO: Change \"if${i}\" to something with meaning to you."
 		echo "# TODO: Check the optional rule parameters (src/dst)."
 		echo "#       Remove 'dst ${ifip}' if this is dynamically assigned."
-		echo "interface ${iface} if${i} src ${ifnets} dst ${ifip}"
+		echo "#       To add IPv6, read http://firehol.org/upgrade/#config-version-6"
+		echo "interface4 ${iface} if${i} src ${ifnets} dst ${ifip}"
 		echo
 		echo "	# The default policy is DROP. You can be more polite with REJECT."
 		echo "	# Prefer to be polite on your own clients to prevent timeouts."
@@ -8173,13 +8174,20 @@ EOF
 				${TOUCH_CMD} "${FIREHOL_DIR}/keys/${key}"
 				
 				x=$[x + 1]
+				if [ $x -lt 10 ]
+				then
+					lx="0$x"
+				else
+					lx="$x"
+				fi
 				
 				echo
 				echo "# Router No ${x}."
 				echo "# Clients on ${inface} (from ${src}) accessing servers on ${outface} (to ${dst})."
-				echo "# TODO: Change \"router${x}\" to something with meaning to you."
+				echo "# TODO: Change \"router${lx}\" to something with meaning to you."
 				echo "# TODO: Check the optional rule parameters (src/dst)."
-				echo "router router${x} inface ${inface} outface ${outface} src ${src} dst ${dst}"
+				echo "#       To add IPv6, read http://firehol.org/upgrade/#config-version-6"
+				echo "router4 router${lx} inface ${inface} outface ${outface} src ${src} dst ${dst}"
 				echo 
 				echo "	# If you don't trust the clients on ${inface} (from ${src}), or"
 				echo "	# if you want to protect the servers on ${outface} (to ${dst}),"
