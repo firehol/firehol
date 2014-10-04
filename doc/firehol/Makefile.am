@@ -194,6 +194,14 @@ MAINTAINERCLEANFILES = \
 	$(MANUALMAN_GENERATED) \
 	$(MANUALMAN_GENERATED_INDIRECT)
 
+
+if MAINTAINER_MODE
+
+DISTCLEANFILES += $(MAINTAINERCLEANFILES)
+
+endif
+
+
 uninstall-local:
 	@-rmdir --ignore-fail-on-non-empty $(DESTDIR)$(dochtmldir)
 	@-rmdir --ignore-fail-on-non-empty $(DESTDIR)$(pdfdir)
