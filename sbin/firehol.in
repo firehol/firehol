@@ -4089,19 +4089,24 @@ else
 	# We could not find a kernel configuration
 	
 	KERNEL_CONFIG=
-	echo >&2 " "
-	echo >&2 " IMPORTANT WARNING:"
-	echo >&2 " ------------------"
-	echo >&2 " FireHOL cannot find your current kernel configuration."
-	echo >&2 " Please, either compile your kernel with /proc/config,"
-	echo >&2 " or make sure there is a valid kernel config in:"
-	echo >&2 " /usr/src/linux/.config"
-	echo >&2 " "
-	echo >&2 " Because of this, FireHOL will simply attempt to load"
-	echo >&2 " all kernel modules for the services used, without"
-	echo >&2 " being able to detect failures."
-	echo >&2 " "
-	sleep 2
+
+	if [ ! ${FIREHOL_LOAD_KERNEL_MODULES} -eq 0 ]
+	then
+		echo >&2 " "
+		echo >&2 " IMPORTANT WARNING:"
+		echo >&2 " ------------------"
+		echo >&2 " FireHOL cannot find your current kernel configuration."
+		echo >&2 " Please, either compile your kernel with /proc/config,"
+		echo >&2 " or make sure there is a valid kernel config in:"
+		echo >&2 " /usr/src/linux/.config"
+		echo >&2 " "
+		echo >&2 " Because of this, FireHOL will simply attempt to load"
+		echo >&2 " all kernel modules for the services used, without"
+		echo >&2 " being able to detect failures."
+		echo >&2 " "
+		sleep 2
+	fi
+
 fi
 
 # activation-phase command to check for the existance of
