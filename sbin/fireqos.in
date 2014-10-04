@@ -4,7 +4,7 @@
 #
 #   Copyright
 #
-#       Copyright (C) 2003-2013 Costa Tsaousis <costa@tsaousis.gr>
+#       Copyright (C) 2013-2014 Costa Tsaousis <costa@tsaousis.gr>
 #
 #   License
 #
@@ -3209,7 +3209,7 @@ monitor() {
 
 $cat_cmd <<EOF
 FireQOS $VERSION
-(C) 2013 Costa Tsaousis, GPL
+(C) 2013-2014 Costa Tsaousis, GPL
 
 EOF
 
