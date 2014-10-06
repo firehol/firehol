@@ -1,3 +1,21 @@
+firehol (2.0.0-rc.2) unstable; urgency=low
+
+  * Create functional firehol helpme output (issue #35)
+    - Includes pointers to the IPv6 upgrade documentation
+
+  * Added srcmac dstmac matches to FireQOS
+
+  * Tidy-ups and small patches from Jerome Benoit
+    - Remove long-redundant firehol_wget and wget_cmd helpers
+    - Use mktemp for temporary directories during RPC enumeration
+    - Don't delete and recreate the main temporary directory
+    - Treat mktemp like other required commands
+    - Silence module detection warning when not loading modules
+
+  * Clean up some intermediate files before packing
+
+ -- Phil Whineray <phil@sanewall.org>  Mon,  6 Oct 2014 07:42:00 +0100
+
 firehol (2.0.0-rc.1) unstable; urgency=low
 
   * FireHOL fixes/enhancements

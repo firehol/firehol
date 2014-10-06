@@ -1,3 +1,21 @@
+2014/10/06:
+
+Release of version 2.0.0-rc.2
+
+FireHOL fixes/enhancements
+- Create functional firehol helpme output (issue #35)
+- Remove long-redundant firehol_wget and wget_cmd helpers
+- Use mktemp for temporary directories during RPC enumeration
+- Don't delete and recreate the main temporary directory
+- Treat mktemp like other required commands
+- Silence module detection warning when not loading modules
+
+FireQOS fixes/enhancements
+- Added srcmac dstmac matches to FireQOS
+
+Packaging
+- Clean up some intermediate files before packing
+
 2014/08/02:
 
 Release of version 2.0.0-rc.1
