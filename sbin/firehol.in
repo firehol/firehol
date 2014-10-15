@@ -4570,14 +4570,14 @@ rule_action_param() {
 						# to pass.
 						if [ "${do_accept_limit}" = "1" ]
 						then
-							local accept_limit_chain="`echo "ACCEPT LIMIT ${freq} ${burst} ${overflow}" | tr " /." "___"`"
+							local accept_limit_chain="`echo "ACC LIM ${freq} ${burst} ${overflow}" | tr " /." "___"`"
 							
 							# does the chain we need already exist?
-							if [ ! -f "${FIREHOL_CHAINS_DIR}/${accept_limit_chain}" ]
+							if [ ! -f "${FIREHOL_CHAINS_DIR}/${accept_limit_chain}.${iptables_cmd}" ]
 							then
 								# the chain does not exist. create it.
 								$iptables_cmd ${table} -N "${accept_limit_chain}"
-								touch "${FIREHOL_CHAINS_DIR}/${accept_limit_chain}"
+								touch "${FIREHOL_CHAINS_DIR}/${accept_limit_chain}.${iptables_cmd}"
 								
 								# first, if the traffic is not a NEW connection, allow it.
 								# doing this first will speed up normal traffic.
@@ -4640,14 +4640,14 @@ rule_action_param() {
 						# to pass.
 						if [ "${do_accept_recent}" = "1" ]
 						then
-							local accept_recent_chain="`echo "ACCEPT RECENT $name $seconds $hits" | tr " /." "___"`"
+							local accept_recent_chain="`echo "ACC REC $name $seconds $hits" | tr " /." "___"`"
 							
 							# does the chain we need already exist?
-							if [ ! -f "${FIREHOL_CHAINS_DIR}/${accept_recent_chain}" ]
+							if [ ! -f "${FIREHOL_CHAINS_DIR}/${accept_recent_chain}.${iptables_cmd}" ]
 							then
 								# the chain does not exist. create it.
 								$iptables_cmd ${table} -N "${accept_recent_chain}"
-								touch "${FIREHOL_CHAINS_DIR}/${accept_recent_chain}"
+								touch "${FIREHOL_CHAINS_DIR}/${accept_recent_chain}.${iptables_cmd}"
 								
 								# first, if the traffic is not a NEW connection, allow it.
 								# doing this first will speed up normal traffic.
@@ -4679,11 +4679,11 @@ rule_action_param() {
 						local -a action_param=()
 						
 						# does the knock chain exists?
-						if [ ! -f "${FIREHOL_CHAINS_DIR}/${name}" ]
+						if [ ! -f "${FIREHOL_CHAINS_DIR}/${name}.${iptables_cmd}" ]
 						then
 							# the chain does not exist. create it.
 							$iptables_cmd ${table} -N "${name}"
-							touch "${FIREHOL_CHAINS_DIR}/${name}"
+							touch "${FIREHOL_CHAINS_DIR}/${name}.${iptables_cmd}"
 							
 							$iptables_cmd -A "${name}" -m conntrack --ctstate ESTABLISHED -j ACCEPT
 							
