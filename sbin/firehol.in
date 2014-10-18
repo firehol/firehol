@@ -381,11 +381,14 @@ then
 	ENABLE_IPV4=0
 fi
 
-${IP6TABLES_CMD} -nxvL >/dev/null 2>&1
-if [ $? -ne 0 ]
+if [ $ENABLE_IPV6 -eq 1 ]
 then
-	echo >&2 " WARNING: error initializing ip6tables: IPv6 disabled"
-	ENABLE_IPV6=0
+	${IP6TABLES_CMD} -nxvL >/dev/null 2>&1
+	if [ $? -ne 0 ]
+	then
+		echo >&2 " WARNING: error initializing ip6tables: IPv6 disabled"
+		ENABLE_IPV6=0
+	fi
 fi
 
 if [ $ENABLE_IPV4 -eq 0 -a $ENABLE_IPV6 -eq 0 ]
@@ -8311,8 +8314,11 @@ firehol_filter_chains=
 firehol_filter6_chains=
 initialize_firewall() {
 	load_kernel_module ip_tables
-	load_kernel_module ip6_tables
 	load_kernel_module nf_conntrack
+	if [ $ENABLE_IPV6 -eq 1 ]
+	then
+		load_kernel_module ip6_tables
+	fi
 	
 	for m in ${FIREHOL_KERNEL_MODULES}
 	do
