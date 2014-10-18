@@ -20,7 +20,7 @@ be produced.
 A configuration file starts with an optional version indicator which
 looks like this:
 
-    version 5
+    version 6
 
 See [firehol-version(1)][keyword-firehol-version] for full details.
 
@@ -42,6 +42,11 @@ The above definition has name "lan" and specifies a network interface
 By default FireHOL will try to create both IPv4 and IPv6 rules for each
 interface. To make this explicit or restrict which rules are created
 write `both interface`, `ipv4 interface` or `ipv6 interface`.
+
+Note that IPv6 will be disabled silently if your system is not configured
+to use it. You can test this by looking for the file `/proc/net/if_inet6`. The
+[IPv6 HOWTO](http://www.tldp.org/HOWTO/Linux+IPv6-HOWTO/systemcheck-kernel.html)
+has more information.
 
 A configuration file contains zero or more `router` definitions, which
 look like this:

@@ -241,7 +241,11 @@ ENABLE_IPV6=1
 require_cmd -n ip6tables
 require_cmd -n ip6tables-save
 require_cmd -n ip6tables-restore
-if [ -z "${IP6TABLES_CMD}" ]
+if [ ! -f /proc/net/if_inet6 ]
+then
+	# IPv6 not in use on this system, silently ignore
+	ENABLE_IPV6=0
+elif [ -z "${IP6TABLES_CMD}" ]
 then
 	echo >&2 " WARNING: no ip6tables command: IPv6 disabled"
 	ENABLE_IPV6=0
