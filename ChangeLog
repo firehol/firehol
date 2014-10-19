@@ -1,3 +1,16 @@
+firehol (2.0.0-rc.3) unstable; urgency=low
+
+  * Fix chain lengths and ensure both IPv4/IPv6 ones created for:
+    - with limit (#38)
+    - with knock (#40)
+    - with recent
+
+  * Silently disable IPv6 where the kernel has no IPv6 support (#39)
+
+  * Reverted accidental commit a714b186aa
+
+ -- Phil Whineray <phil@sanewall.org>  Sun, 19 Oct 2014 09:03:00 +0100
+
 firehol (2.0.0-rc.2) unstable; urgency=low
 
   * Create functional firehol helpme output (issue #35)

@@ -1,3 +1,11 @@
+2014/10/19:
+
+Release of version 2.0.0-rc.3
+
+- Fix chain lengths and ensure both IPv4/IPv6 ones created for
+  "with limit", "with knock" and "with recent" (issues #38 and #40)
+- Silently disable IPv6 where the kernel has no IPv6 support (#39)
+
 2014/10/06:
 
 Release of version 2.0.0-rc.2
