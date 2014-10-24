@@ -1,3 +1,9 @@
+firehol (2.0.0) stable; urgency=low
+
+  * No changes from 2.0.0-rc.3
+
+ -- Phil Whineray <phil@sanewall.org>  Fri, 24 Oct 2014 08:40:00 +0100
+
 firehol (2.0.0-rc.3) unstable; urgency=low
 
   * Fix chain lengths and ensure both IPv4/IPv6 ones created for:
