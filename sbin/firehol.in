@@ -8434,9 +8434,12 @@ finalize_firewall() {
 		if [ ${FIREHOL_FAST_ACTIVATION} -ne 1 -a \
 			"${FIREHOL_ESTABLISHED_ACTIVATION_ACCEPT}" = "1" ]
 		then
-			${IPTABLES_CMD} -D INPUT 1
-			${IPTABLES_CMD} -D OUTPUT 1
-			${IPTABLES_CMD} -D FORWARD 1
+			${IPTABLES_CMD} -D INPUT \
+				-m conntrack --ctstate ESTABLISHED,RELATED -j ACCEPT
+			${IPTABLES_CMD} -D OUTPUT \
+				-m conntrack --ctstate ESTABLISHED,RELATED -j ACCEPT
+			${IPTABLES_CMD} -D FORWARD \
+				-m conntrack --ctstate ESTABLISHED,RELATED -j ACCEPT
 		fi
 	fi
 
@@ -8449,9 +8452,12 @@ finalize_firewall() {
 		if [ ${FIREHOL_FAST_ACTIVATION} -ne 1 -a \
 			"${FIREHOL_ESTABLISHED_ACTIVATION_ACCEPT}" = "1" ]
 		then
-			${IP6TABLES_CMD} -D INPUT 1
-			${IP6TABLES_CMD} -D OUTPUT 1
-			${IP6TABLES_CMD} -D FORWARD 1
+			${IP6TABLES_CMD} -D INPUT \
+				-m conntrack --ctstate ESTABLISHED,RELATED -j ACCEPT
+			${IP6TABLES_CMD} -D OUTPUT \
+				-m conntrack --ctstate ESTABLISHED,RELATED -j ACCEPT
+			${IP6TABLES_CMD} -D FORWARD \
+				-m conntrack --ctstate ESTABLISHED,RELATED -j ACCEPT
 		fi
 	fi
 }
