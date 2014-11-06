@@ -39,7 +39,7 @@ fi
 
 if [ "$notroot" -o $# -lt 1 ]
 then
-  echo "Usage: sudo ./regress -ok current|git-version [...]"
+  echo "Usage: sudo ./regress -ok current|git-version|./path/to/test.conf [...]"
   exit 1
 fi
 
@@ -61,9 +61,15 @@ trap myexit INT
 trap myexit HUP
 trap myexit 0
 
+limit=""
 for v in "$@"
 do
+  run_it=Y
   case $v in
+    ./*)
+      limit="$limit $v"
+      run_it=
+    ;;
     current)
      d=current
      (cd .. && cat sbin/firehol.in) > $MYTMP/firehol-$d.in
@@ -83,17 +89,21 @@ do
      fi
     ;;
   esac
-  test -s $MYTMP/firehol-$d.in || exit 1
-  rm -rf output/$d
-  chmod +x $MYTMP/firehol-$d.in
-  run="$run $d"
+
+  if [ "$run_it" ]
+  then
+    test -s $MYTMP/firehol-$d.in || exit 1
+    rm -rf output/$d
+    chmod +x $MYTMP/firehol-$d.in
+    run="$run $d"
+  fi
 done
 
 started=`date`
 RUN_SUITE=OK export RUN_SUITE
 for d in $run
 do
-  ./tools/run-suite.sh $MYTMP/firehol-$d.in output/$d
+  ./tools/run-suite.sh $MYTMP/firehol-$d.in output/$d $limit
 done
 echo " Started: $started"
 echo "Finished: $(date)"
