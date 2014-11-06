@@ -225,7 +225,7 @@ do
     if ! cmp "$v4out" "$v4aud"; then
       echo "Warning: ipv4 output differs from audited version"
       echo " v4result $v4out"
-      echo "  v4audit $v4out"
+      echo "  v4audit $v4aud"
       auditfail=$[auditfail+1]
     fi
   fi
