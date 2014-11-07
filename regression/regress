@@ -103,7 +103,13 @@ started=`date`
 RUN_SUITE=OK export RUN_SUITE
 for d in $run
 do
-  ./tools/run-suite.sh $MYTMP/firehol-$d.in output/$d $limit
+  ./tools/run-suite.sh $MYTMP/firehol-$d.in output/$d $limit 2>&1 | \
+          tee output/$d.log
 done
 echo " Started: $started"
 echo "Finished: $(date)"
+echo "    Logs:"
+for d in $run
+do
+  echo "          output/$d.log"
+done
