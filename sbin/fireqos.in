@@ -2243,7 +2243,20 @@ match() {
 	for tcproto_arg in $tcproto
 	do
 		local ipvx=
-		[ "$tcproto_arg" = "ipv6" ] && local ipvx="6"
+		local ether_type=
+
+		case $tcproto_arg in
+			ip)
+				local ether_type="0x0800"
+				;;
+
+			ipv6)
+				local ether_type="0x86DD"
+				local ipvx="6"
+				;;
+
+			*)
+		esac
 		
 		local tproto=
 		for tproto in $proto
@@ -2505,7 +2518,9 @@ match() {
 												then
 													local sm1=`echo "$smac" | cut -b 1-8`
 													local sm2=`echo "$smac" | cut -b 9-12`
-													local smac_arg="u32 match u16 0x0800 0xFFFF at -2 match u16 0x$sm2 0xFFFF at -4 match u32 0x$sm1 0xFFFFFFFF at -8"
+													local smac_arg="u32"
+													test ! -z "$ether_type" && local smac_arg="$smac_arg match u16 $ether_type 0xFFFF at -2"
+													local smac_arg="$smac_arg match u16 0x$sm2 0xFFFF at -4 match u32 0x$sm1 0xFFFFFFFF at -8"
 												fi
 
 												local dmac=
@@ -2516,7 +2531,9 @@ match() {
 													then
 														local dm1=`echo "$dmac" | cut -b 1-4`
 														local dm2=`echo "$dmac" | cut -b 5-12`
-														local dmac_arg="u32 match u16 0x0800 0xFFFF at -2 match u32 0x$dm2 0xFFFFFFFF at -12 match u16 0x$dm1 0xFFFF at -14"
+														local dmac_arg="u32"
+														test ! -z "$ether_type" && local dmac_arg="$dmac_arg match u16 $ether_type 0xFFFF at -2"
+														local dmac_arg="$dmac_arg match u32 0x$dm2 0xFFFFFFFF at -12 match u16 0x$dm1 0xFFFF at -14"
 													fi
 
 													if [ "$tcproto_arg" = "arp" ]
