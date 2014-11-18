@@ -5782,6 +5782,18 @@ rule() {
 	test -z "${sid}"	&& error "Cannot accept an empty 'sid'."	&& return 1
 	test -z "${cmd}"	&& error "Cannot accept an empty 'cmd'."	&& return 1
 
+	physbridge="--physdev-is-bridged"
+	if [ ! "${work_cmd}" = "router" -a ! "${physin}${physout}" = "anyany" ]
+	then
+		if [ ! "${physin}" = "any" -a "${physout}" = "any" ]
+		then
+			physbridge="--physdev-is-in"
+		elif [ "${physin}" = "any" -a ! "${physout}" = "any" ]
+		then
+			physbridge="--physdev-is-out"
+		fi
+	fi
+
 	local srcnot=
 	local dstnot=
 	if running_both; then
@@ -5899,7 +5911,7 @@ rule() {
 			local inph=
 			for inph in ${physin}
 			do
-				iptables_both ${table} -A "${negative_chain}" -m physdev --physdev-in "${inph}" -j RETURN
+				iptables_both ${table} -A "${negative_chain}" -m physdev ${physbridge} --physdev-in "${inph}" -j RETURN
 			done
 			physinnot=
 			physin=any
@@ -5910,7 +5922,7 @@ rule() {
 			local outph=
 			for outph in ${physout}
 			do
-				iptables_both ${table} -A "${negative_chain}" -m physdev --physdev-out "${outph}" -j RETURN
+				iptables_both ${table} -A "${negative_chain}" -m physdev ${physbridge} --physdev-out "${outph}" -j RETURN
 			done
 			physoutnot=
 			physout=any
@@ -6400,7 +6412,7 @@ rule() {
 				;;
 			
 			*)
-				local -a physdev_arg=("-m" "physdev")
+				local -a physdev_arg=("-m" "physdev" ${physbridge})
 				local -a inph_arg=("--physdev-in" "${inph}")
 				;;
 		esac
@@ -6415,7 +6427,7 @@ rule() {
 				;;
 			
 			*)
-				local -a physdev_arg=("-m" "physdev")
+				local -a physdev_arg=("-m" "physdev" ${physbridge})
 				local -a outph_arg=("--physdev-out" "${outph}")
 				;;
 		esac
