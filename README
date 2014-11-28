@@ -1,6 +1,3 @@
-[![GitHub version](https://badge.fury.io/gh/ktsaou%2Ffirehol.svg)](http://badge.fury.io/gh/ktsaou%2Ffirehol)
-
-
 FireHOL, an iptables stateful packet filtering firewall for humans!
 FireQOS, a TC based bandwidth shaper for humans!
 
