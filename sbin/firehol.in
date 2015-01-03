@@ -219,6 +219,14 @@ which_cmd UNIQ_CMD uniq
 which_cmd LOGGER_CMD logger
 which_cmd FLOCK_CMD flock
 
+ENABLE_ACCOUNTING=1
+require_cmd -n nfacct
+if [ -z "${NFACCT_CMD}" ]
+then
+	echo >&2 " WARNING: no nfacct command: Accounting disabled"
+	ENABLE_ACCOUNTING=0
+fi
+
 ENABLE_IPV4=1
 require_cmd -n iptables
 require_cmd -n iptables-save
@@ -321,7 +329,7 @@ modprobe_cmd() {
 	
 	if [ ! -z "${MODPROBE_CMD}" ]
 	then
-		save_for_restore "${MODPROBE_CMD}" "${@}"
+		save_for_restore none "${MODPROBE_CMD}" "${@}"
 		"${MODPROBE_CMD}" "${@}"
 		status=$?
 		if [ $status -eq 17 ]
@@ -421,7 +429,7 @@ then
             echo >&2
             exit 1
 fi
-FIREHOL_CHAINS_DIR="${FIREHOL_DIR}/chains"
+#FIREHOL_CHAINS_DIR="${FIREHOL_DIR}/chains"
 FIREHOL_OUTPUT="${FIREHOL_DIR}/firehol-out.sh"
 FIREHOL_SAVED="${FIREHOL_DIR}/firehol-save.sh"
 FIREHOL_SAVED6="${FIREHOL_DIR}/firehol-save6.sh"
@@ -583,7 +591,7 @@ then
 	"${CHMOD_CMD}" 700 "${FIREHOL_CONFIG_DIR}/services"
 fi
 
-"${MKDIR_CMD}" "${FIREHOL_CHAINS_DIR}" || exit 1
+#"${MKDIR_CMD}" "${FIREHOL_CHAINS_DIR}" || exit 1
 "${MKDIR_CMD}" "${FIREHOL_DIR}/fast" || exit 1
 "${MKDIR_CMD}" "${FIREHOL_DIR}/fast/tables"	|| exit 1
 "${MKDIR_CMD}" "${FIREHOL_DIR}/fast/table6s" || exit 1
@@ -3593,8 +3601,16 @@ router46() {
 }
 
 save_for_restore() {
+	local check="$1"; shift
+
 	printf "%q " "$@" >>"${FIREHOL_DIR}/firewall_restore_commands.sh"
-	printf "\n" >>"${FIREHOL_DIR}/firewall_restore_commands.sh"
+
+	if [ "${check}" = "none" -o "${check}" = "warn" ]
+	then
+		printf " || echo >/dev/null\n" >>"${FIREHOL_DIR}/firewall_restore_commands.sh"
+	else
+		printf " || exit 1\n" >>"${FIREHOL_DIR}/firewall_restore_commands.sh"
+	fi
 }
 
 postprocess() {
@@ -3621,15 +3637,20 @@ postprocess() {
 	fi
 	
 	printf "%q " "$@" >>${FIREHOL_OUTPUT}
-	printf "\n" >>${FIREHOL_OUTPUT}
-	
+	if [ ${check} = "none" ]
+	then
+		printf " >/dev/null 2>&1 || echo >/dev/null\n" >>${FIREHOL_OUTPUT}
+	else
+		printf "\n" >>${FIREHOL_OUTPUT}
+	fi
+
 	if [ "${FIREHOL_MODE}" = "EXPLAIN" ]
 	then
 		${CAT_CMD} ${FIREHOL_OUTPUT}
 		${RM_CMD} -f ${FIREHOL_OUTPUT}
 	fi
 	
-	test $save -eq 1 && save_for_restore "${@}"
+	test $save -eq 1 && save_for_restore ${check} "${@}"
 
 	return 0
 }
@@ -4554,10 +4575,10 @@ rule_action_param() {
 	local count=0
 	while [ ! -z "${1}" -a ! "A${1}" = "A--" ]
 	do
-		action_param[$count]="${1}"
+		local -a action_param[$count]="${1}"
 		shift
 		
-		count=$[count + 1]
+		local count=$[count + 1]
 	done
 	
 	# If we don't have a seperator, generate an error
@@ -4612,11 +4633,13 @@ rule_action_param() {
 							local accept_limit_chain="`echo "ACC LIM ${freq} ${burst} ${overflow}" | tr " /." "___"`"
 							
 							# does the chain we need already exist?
-							if [ ! -f "${FIREHOL_CHAINS_DIR}/${accept_limit_chain}.${iptables_cmd}" ]
+							#if [ ! -f "${FIREHOL_CHAINS_DIR}/${accept_limit_chain}.${iptables_cmd}" ]
+							if [ ! -z "${FIREHOL_CHAINS[${accept_limit_chain}.${iptables_cmd}]}" ]
 							then
 								# the chain does not exist. create it.
 								$iptables_cmd ${table} -N "${accept_limit_chain}"
-								touch "${FIREHOL_CHAINS_DIR}/${accept_limit_chain}.${iptables_cmd}"
+								FIREHOL_CHAINS[${accept_limit_chain}.${iptables_cmd}]="1"
+								#touch "${FIREHOL_CHAINS_DIR}/${accept_limit_chain}.${iptables_cmd}"
 								
 								# first, if the traffic is not a NEW connection, allow it.
 								# doing this first will speed up normal traffic.
@@ -4682,11 +4705,13 @@ rule_action_param() {
 							local accept_recent_chain="`echo "ACC REC $name $seconds $hits" | tr " /." "___"`"
 							
 							# does the chain we need already exist?
-							if [ ! -f "${FIREHOL_CHAINS_DIR}/${accept_recent_chain}.${iptables_cmd}" ]
+							#if [ ! -f "${FIREHOL_CHAINS_DIR}/${accept_recent_chain}.${iptables_cmd}" ]
+							if [ ! -z "${FIREHOL_CHAINS[${accept_recent_chain}.${iptables_cmd}]}" ]
 							then
 								# the chain does not exist. create it.
 								$iptables_cmd ${table} -N "${accept_recent_chain}"
-								touch "${FIREHOL_CHAINS_DIR}/${accept_recent_chain}.${iptables_cmd}"
+								FIREHOL_CHAINS[${accept_recent_chain}.${iptables_cmd}]="1"
+								#touch "${FIREHOL_CHAINS_DIR}/${accept_recent_chain}.${iptables_cmd}"
 								
 								# first, if the traffic is not a NEW connection, allow it.
 								# doing this first will speed up normal traffic.
@@ -4718,11 +4743,13 @@ rule_action_param() {
 						local -a action_param=()
 						
 						# does the knock chain exists?
-						if [ ! -f "${FIREHOL_CHAINS_DIR}/${name}.${iptables_cmd}" ]
+						#if [ ! -f "${FIREHOL_CHAINS_DIR}/${name}.${iptables_cmd}" ]
+						if [ ! -z "${FIREHOL_CHAINS[${name}.${iptables_cmd}]}" ]
 						then
 							# the chain does not exist. create it.
 							$iptables_cmd ${table} -N "${name}"
-							touch "${FIREHOL_CHAINS_DIR}/${name}.${iptables_cmd}"
+							FIREHOL_CHAINS[${name}.${iptables_cmd}]="1"
+							#touch "${FIREHOL_CHAINS_DIR}/${name}.${iptables_cmd}"
 							
 							$iptables_cmd -A "${name}" -m conntrack --ctstate ESTABLISHED -j ACCEPT
 							
@@ -4747,20 +4774,15 @@ rule_action_param() {
 			then
 				if [ "${protocol}" = "tcp" -o "${protocol}" = "TCP" ]
 				then
-					action_param=("--reject-with" "tcp-reset")
+					local -a action_param=("--reject-with" "tcp-reset")
 				else
-					action_param=()
+					local -a action_param=()
 				fi
 			fi
 			;;
 	esac
 	
 	$iptables_cmd "$@" -j "${action}" "${action_param[@]}"
-	local ret=$?
-	
-	test $ret -gt 0 && failed=$[failed + 1]
-	
-	return $ret
 }
 
 rule() {
@@ -4876,23 +4898,26 @@ rule() {
 	# set it, in order to be local
 	local -a action_param=()
 	
+	# accounting
+	local accounting=
+
 	while [ ! -z "${1}" ]
 	do
 		case "${1}" in
 			reverse|REVERSE)
-				reverse=1
+				local reverse=1
 				shift
 				;;
 				
 			table|TABLE)
 				test ${softwarnings} -eq 1 -a ! -z "${table}" && softwarning "Overwritting param: ${1} '${chain}' becomes '${2}'"
-				table="-t ${2}"
+				local table="-t ${2}"
 				shift 2
 				;;
 				
 			chain|CHAIN)
 				test ${softwarnings} -eq 1 -a ! -z "${chain}" && softwarning "Overwritting param: ${1} '${chain}' becomes '${2}'"
-				chain="${2}"
+				local chain="${2}"
 				shift 2
 				;;
 				
@@ -4900,25 +4925,25 @@ rule() {
 				shift
 				if [ ${reverse} -eq 0 ]
 				then
-					infacenot=
+					local infacenot=
 					if [ "${1}" = "not" -o "${1}" = "NOT" ]
 					then
 						shift
-						infacenot="!"
+						local infacenot="!"
 					else
-						if [ $swi -eq 1 ]
+						if [ ${swi} -eq 1 ]
 						then
 							work_inface="${1}"
 						fi
 					fi
 					test ${softwarnings} -eq 1 -a ! "${inface}" = "any" && softwarning "Overwritting param: inface '${inface}' becomes '${1}'"
-					inface="${1}"
+					local inface="${1}"
 				else
-					outfacenot=
+					local outfacenot=
 					if [ "${1}" = "not" -o "${1}" = "NOT" ]
 					then
 						shift
-						outfacenot="!"
+						local outfacenot="!"
 					else
 						if [ ${swo} -eq 1 ]
 						then
@@ -4926,7 +4951,7 @@ rule() {
 						fi
 					fi
 					test ${softwarnings} -eq 1 -a ! "${outface}" = "any" && softwarning "Overwritting param: outface '${outface}' becomes '${1}'"
-					outface="${1}"
+					local outface="${1}"
 				fi
 				shift
 				;;
@@ -4935,11 +4960,11 @@ rule() {
 				shift
 				if [ ${reverse} -eq 0 ]
 				then
-					outfacenot=
+					local outfacenot=
 					if [ "${1}" = "not" -o "${1}" = "NOT" ]
 					then
 						shift
-						outfacenot="!"
+						local outfacenot="!"
 					else
 						if [ ${swo} -eq 1 ]
 						then
@@ -4947,13 +4972,13 @@ rule() {
 						fi
 					fi
 					test ${softwarnings} -eq 1 -a ! "${outface}" = "any" && softwarning "Overwritting param: outface '${outface}' becomes '${1}'"
-					outface="${1}"
+					local outface="${1}"
 				else
-					infacenot=
+					local infacenot=
 					if [ "${1}" = "not" -o "${1}" = "NOT" ]
 					then
 						shift
-						infacenot="!"
+						local infacenot="!"
 					else
 						if [ ${swi} -eq 1 ]
 						then
@@ -4961,7 +4986,7 @@ rule() {
 						fi
 					fi
 					test ${softwarnings} -eq 1 -a ! "${inface}" = "any" && softwarning "Overwritting param: inface '${inface}' becomes '${1}'"
-					inface="${1}"
+					local inface="${1}"
 				fi
 				shift
 				;;
@@ -4970,23 +4995,23 @@ rule() {
 				shift
 				if [ ${reverse} -eq 0 ]
 				then
-					physinnot=
+					local physinnot=
 					if [ "${1}" = "not" -o "${1}" = "NOT" ]
 					then
 						shift
-						physinnot="!"
+						local physinnot="!"
 					fi
 					test ${softwarnings} -eq 1 -a ! "${physin}" = "any" && softwarning "Overwritting param: physin '${physin}' becomes '${1}'"
-					physin="${1}"
+					local physin="${1}"
 				else
-					physoutnot=
+					local physoutnot=
 					if [ "${1}" = "not" -o "${1}" = "NOT" ]
 					then
 						shift
-						physoutnot="!"
+						local physoutnot="!"
 					fi
 					test ${softwarnings} -eq 1 -a ! "${physout}" = "any" && softwarning "Overwritting param: physout '${physout}' becomes '${1}'"
-					physout="${1}"
+					local physout="${1}"
 				fi
 				shift
 				;;
@@ -4995,37 +5020,37 @@ rule() {
 				shift
 				if [ ${reverse} -eq 0 ]
 				then
-					physoutnot=
+					local physoutnot=
 					if [ "${1}" = "not" -o "${1}" = "NOT" ]
 					then
 						shift
-						physoutnot="!"
+						local physoutnot="!"
 					fi
 					test ${softwarnings} -eq 1 -a ! "${physout}" = "any" && softwarning "Overwritting param: physout '${physout}' becomes '${1}'"
-					physout="${1}"
+					local physout="${1}"
 				else
-					physinnot=
+					local physinnot=
 					if [ "${1}" = "not" -o "${1}" = "NOT" ]
 					then
 						shift
-						physinnot="!"
+						local physinnot="!"
 					fi
 					test ${softwarnings} -eq 1 -a ! "${physin}" = "any" && softwarning "Overwritting param: physin '${physin}' becomes '${1}'"
-					physin="${1}"
+					local physin="${1}"
 				fi
 				shift
 				;;
 				
 			mac|MAC)
 				shift
-				macnot=
+				local macnot=
 				if [ "${1}" = "not" -o "${1}" = "NOT" ]
 				then
 					shift
-					test ${nomac} -eq 0 && macnot="!"
+					test ${nomac} -eq 0 && local macnot="!"
 				fi
 				test ${softwarnings} -eq 1 -a ! "${mac}" = "any" && softwarning "Overwritting param: mac '${mac}' becomes '${1}'"
-				test ${nomac} -eq 0 && mac="${1}"
+				test ${nomac} -eq 0 && local mac="${1}"
 				shift
 				;;
 				
@@ -5043,53 +5068,53 @@ rule() {
 				if [ ${reverse} -eq 0 ]
 				then
 					if running_ipv4; then
-						src4not=
+						local src4not=
 					fi
 					if running_ipv6; then
-						src6not=
+						local src6not=
 					fi
 					if [ "${1}" = "not" -o "${1}" = "NOT" ]
 					then
 						shift
 						if running_ipv4; then
-							src4not="!"
+							local src4not="!"
 						fi
 						if running_ipv6; then
-							src6not="!"
+							local src6not="!"
 						fi
 					fi
 					if running_ipv4; then
 						test ${softwarnings} -eq 1 -a ! "${src4}" = "default" && softwarning "Overwritting param: src4 '${src4}' becomes '${1}'"
-						src4=$(ipv4 eval_param "${1}")
+						local src4=$(ipv4 eval_param "${1}")
 					fi
 					if running_ipv6; then
 						test ${softwarnings} -eq 1 -a ! "${src6}" = "default" && softwarning "Overwritting param: src6 '${src6}' becomes '${1}'"
-						src6=$(ipv6 eval_param "${1}")
+						local src6=$(ipv6 eval_param "${1}")
 					fi
 				else
 					if running_ipv4; then
-						dst4not=
+						local dst4not=
 					fi
 					if running_ipv6; then
-						dst6not=
+						local dst6not=
 					fi
 					if [ "${1}" = "not" -o "${1}" = "NOT" ]
 					then
 						shift
 						if running_ipv4; then
-							dst4not="!"
+							local dst4not="!"
 						fi
 						if running_ipv6; then
-							dst6not="!"
+							local dst6not="!"
 						fi
 					fi
 					if running_ipv4; then
 						test ${softwarnings} -eq 1 -a ! "${dst4}" = "default" && softwarning "Overwritting param: dst4 '${dst4}' becomes '${1}'"
-						dst4=$(ipv4 eval_param "${1}")
+						local dst4=$(ipv4 eval_param "${1}")
 					fi
 					if running_ipv6; then
 						test ${softwarnings} -eq 1 -a ! "${dst6}" = "default" && softwarning "Overwritting param: dst6 '${dst6}' becomes '${1}'"
-						dst6=$(ipv6 eval_param "${1}")
+						local dst6=$(ipv6 eval_param "${1}")
 					fi
 				fi
 				pop_namespace
@@ -5110,53 +5135,53 @@ rule() {
 				if [ ${reverse} -eq 0 ]
 				then
 					if running_ipv4; then
-						dst4not=
+						local dst4not=
 					fi
 					if running_ipv6; then
-						dst6not=
+						local dst6not=
 					fi
 					if [ "${1}" = "not" -o "${1}" = "NOT" ]
 					then
 						shift
 						if running_ipv4; then
-							dst4not="!"
+							local dst4not="!"
 						fi
 						if running_ipv6; then
-							dst6not="!"
+							local dst6not="!"
 						fi
 					fi
 					if running_ipv4; then
 						test ${softwarnings} -eq 1 -a ! "${dst4}" = "default" && softwarning "Overwritting param: dst4 '${dst4}' becomes '${1}'"
-						dst4=$(ipv4 eval_param "${1}")
+						local dst4=$(ipv4 eval_param "${1}")
 					fi
 					if running_ipv6; then
 						test ${softwarnings} -eq 1 -a ! "${dst6}" = "default" && softwarning "Overwritting param: dst6 '${dst6}' becomes '${1}'"
-						dst6=$(ipv6 eval_param "${1}")
+						local dst6=$(ipv6 eval_param "${1}")
 					fi
 				else
 					if running_ipv4; then
-						src4not=
+						local src4not=
 					fi
 					if running_ipv6; then
-						src6not=
+						local src6not=
 					fi
 					if [ "${1}" = "not" -o "${1}" = "NOT" ]
 					then
 						shift
 						if running_ipv4; then
-							src4not="!"
+							local src4not="!"
 						fi
 						if running_ipv6; then
-							src6not="!"
+							local src6not="!"
 						fi
 					fi
 					if running_ipv4; then
 						test ${softwarnings} -eq 1 -a ! "${src4}" = "default" && softwarning "Overwritting param: src6 '${src4}' becomes '${1}'"
-						src4=$(ipv4 eval_param "${1}")
+						local src4=$(ipv4 eval_param "${1}")
 					fi
 					if running_ipv6; then
 						test ${softwarnings} -eq 1 -a ! "${src6}" = "default" && softwarning "Overwritting param: src6 '${src6}' becomes '${1}'"
-						src6=$(ipv6 eval_param "${1}")
+						local src6=$(ipv6 eval_param "${1}")
 					fi
 				fi
 				pop_namespace
@@ -5167,23 +5192,23 @@ rule() {
 				shift
 				if [ ${reverse} -eq 0 ]
 				then
-					srctypenot=
+					local srctypenot=
 					if [ "${1}" = "not" -o "${1}" = "NOT" ]
 					then
 						shift
-						srctypenot="!"
+						local srctypenot="!"
 					fi
 					test ${softwarnings} -eq 1 -a ! "${srctype}" = "" && softwarning "Overwritting param: srctype '${srctype}' becomes '${1}'"
-					srctype="`echo ${1} | ${SED_CMD} -e "s|^ \+||" -e "s| \+\$||" -e "s| \+|,|g" | ${TR_CMD} a-z A-Z`"
+					local srctype="`echo ${1} | ${SED_CMD} -e "s|^ \+||" -e "s| \+\$||" -e "s| \+|,|g" | ${TR_CMD} a-z A-Z`"
 				else
-					dsttypenot=
+					local dsttypenot=
 					if [ "${1}" = "not" -o "${1}" = "NOT" ]
 					then
 						shift
-						dsttypenot="!"
+						local dsttypenot="!"
 					fi
 					test ${softwarnings} -eq 1 -a ! "${dsttype}" = "" && softwarning "Overwritting param: dsttype '${dsttype}' becomes '${1}'"
-					dsttype="`echo ${1} | ${SED_CMD} -e "s|^ \+||" -e "s| \+\$||" -e "s| \+|,|g" | ${TR_CMD} a-z A-Z`"
+					local dsttype="`echo ${1} | ${SED_CMD} -e "s|^ \+||" -e "s| \+\$||" -e "s| \+|,|g" | ${TR_CMD} a-z A-Z`"
 				fi
 				shift
 				;;
@@ -5192,23 +5217,23 @@ rule() {
 				shift
 				if [ ${reverse} -eq 0 ]
 				then
-					dsttypenot=
+					local dsttypenot=
 					if [ "${1}" = "not" -o "${1}" = "NOT" ]
 					then
 						shift
-						dsttypenot="!"
+						local dsttypenot="!"
 					fi
 					test ${softwarnings} -eq 1 -a ! "${dsttype}" = "" && softwarning "Overwritting param: dsttype '${dsttype}' becomes '${1}'"
-					dsttype="`echo ${1} | ${SED_CMD} -e "s|^ \+||" -e "s| \+\$||" -e "s| \+|,|g" | ${TR_CMD} a-z A-Z`"
+					local dsttype="`echo ${1} | ${SED_CMD} -e "s|^ \+||" -e "s| \+\$||" -e "s| \+|,|g" | ${TR_CMD} a-z A-Z`"
 				else
-					srctypenot=
+					local srctypenot=
 					if [ "${1}" = "not" -o "${1}" = "NOT" ]
 					then
 						shift
-						srctypenot="!"
+						local srctypenot="!"
 					fi
 					test ${softwarnings} -eq 1 -a ! "${srctype}" = "" && softwarning "Overwritting param: srctype '${srctype}' becomes '${1}'"
-					srctype="`echo ${1} | ${SED_CMD} -e "s|^ \+||" -e "s| \+\$||" -e "s| \+|,|g" | ${TR_CMD} a-z A-Z`"
+					local srctype="`echo ${1} | ${SED_CMD} -e "s|^ \+||" -e "s| \+\$||" -e "s| \+|,|g" | ${TR_CMD} a-z A-Z`"
 				fi
 				shift
 				;;
@@ -5217,23 +5242,23 @@ rule() {
 				shift
 				if [ ${reverse} -eq 0 ]
 				then
-					sportnot=
+					local sportnot=
 					if [ "${1}" = "not" -o "${1}" = "NOT" ]
 					then
 						shift
-						sportnot="!"
+						local sportnot="!"
 					fi
 					test ${softwarnings} -eq 1 -a ! "${sport}" = "any" && softwarning "Overwritting param: sport '${sport}' becomes '${1}'"
-					sport="${1}"
+					local sport="${1}"
 				else
-					dportnot=
+					local dportnot=
 					if [ "${1}" = "not" -o "${1}" = "NOT" ]
 					then
 						shift
-						dportnot="!"
+						local dportnot="!"
 					fi
 					test ${softwarnings} -eq 1 -a ! "${dport}" = "any" && softwarning "Overwritting param: dport '${dport}' becomes '${1}'"
-					dport="${1}"
+					local dport="${1}"
 				fi
 				shift
 				;;
@@ -5242,96 +5267,96 @@ rule() {
 				shift
 				if [ ${reverse} -eq 0 ]
 				then
-					dportnot=
+					local dportnot=
 					if [ "${1}" = "not" -o "${1}" = "NOT" ]
 					then
 						shift
-						dportnot="!"
+						local dportnot="!"
 					fi
 					test ${softwarnings} -eq 1 -a ! "${dport}" = "any" && softwarning "Overwritting param: dport '${dport}' becomes '${1}'"
-					dport="${1}"
+					local dport="${1}"
 				else
-					sportnot=
+					local sportnot=
 					if [ "${1}" = "not" -o "${1}" = "NOT" ]
 					then
 						shift
-						sportnot="!"
+						local sportnot="!"
 					fi
 					test ${softwarnings} -eq 1 -a ! "${sport}" = "any" && softwarning "Overwritting param: sport '${sport}' becomes '${1}'"
-					sport="${1}"
+					local sport="${1}"
 				fi
 				shift
 				;;
 				
 			proto|PROTO|protocol|PROTOCOL)
 				shift
-				protonot=
+				local protonot=
 				if [ "${1}" = "not" -o "${1}" = "NOT" ]
 				then
 					shift
-					protonot="!"
+					local protonot="!"
 				fi
 				test ${softwarnings} -eq 1 -a ! "${proto}" = "any" && softwarning "Overwritting param: proto '${proto}' becomes '${1}'"
-				proto="${1}"
+				local proto="${1}"
 				shift
 				;;
 				
 			mark|MARK)
 				shift
-				marknot=
+				local marknot=
 				if [ "${1}" = "not" -o "${1}" = "NOT" ]
 				then
 					shift
-					marknot="!"
+					local marknot="!"
 				fi
 				test ${softwarnings} -eq 1 -a ! "${mark}" = "any" && softwarning "Overwritting param: mark '${mark}' becomes '${1}'"
-				mark="${1}"
+				local mark="${1}"
 				shift
 				;;
 				
 			tos|TOS)
 				shift
-				tosnot=
+				local tosnot=
 				if [ "${1}" = "not" -o "${1}" = "NOT" ]
 				then
 					shift
-					tosnot="!"
+					local tosnot="!"
 				fi
 				test ${softwarnings} -eq 1 -a ! "${tos}" = "any" && softwarning "Overwritting param: tos '${tos}' becomes '${1}'"
-				tos="${1}"
+				local tos="${1}"
 				shift
 				;;
 				
 			dscp|DSCP)
 				shift
-				dscpnot=
+				local dscpnot=
 				if [ "${1}" = "not" -o "${1}" = "NOT" ]
 				then
 					shift
-					dscpnot="!"
+					local dscpnot="!"
 				fi
 				test ${softwarnings} -eq 1 -a ! "${dscp}" = "any" && softwarning "Overwritting param: dscp '${dscp}' becomes '${1}'"
-				dscp="${1}"
+				local dscp="${1}"
 				shift
 				
 				if [ "${dscp}" = "class" ]
 				then
-					dscptype="-class"
-					dscp="${1}"
+					local dscptype="-class"
+					local dscp="${1}"
 					shift
 				fi
 				;;
 				
 			action|ACTION)
 				test ${softwarnings} -eq 1 -a ! -z "${action}" && softwarning "Overwritting param: action '${action}' becomes '${2}'"
-				action="${2}"
+				local action="${2}"
 				shift 2
 				
 				local -a action_param=()
 				local action_is_chain=0
 				case "${action}" in
 					accept|ACCEPT)
-						action="ACCEPT"
+						local action="ACCEPT"
 						
 						if [ "${1}" = "with" ]
 						then
@@ -5344,8 +5369,8 @@ rule() {
 									
 									if [ "${1}" = "overflow" ]
 									then
-										action_param[3]="overflow"
-										action_param[4]="${2}"
+										local -a action_param[3]="overflow"
+										local -a action_param[4]="${2}"
 										shift 2
 									fi
 									;;
@@ -5369,11 +5394,11 @@ rule() {
 						;;
 						
 					deny|DENY|drop|DROP)
-						action="DROP"
+						local action="DROP"
 						;;
 						
 					reject|REJECT)
-						action="REJECT"
+						local action="REJECT"
 						if [ "${1}" = "with" ]
 						then
 							local -a action_param=("--reject-with" "${2}")
@@ -5384,27 +5409,27 @@ rule() {
 						;;
 						
 					return|RETURN)
-						action="RETURN"
+						local action="RETURN"
 						;;
 						
 					mirror|MIRROR)
-						action="MIRROR"
+						local action="MIRROR"
 						test $nomirror -eq 1 && action="REJECT"
 						;;
 						
 					none|NONE)
-						action="NONE"
+						local action="NONE"
 						;;
 						
 					snat|SNAT)
-						action="SNAT"
+						local action="SNAT"
 						if [ "${1}" = "to" ]
 						then
 							local -a action_param=()
 							local x=
 							for x in ${2}
 							do
-								action_param=(${action_param[@]} "--to-source" "${x}")
+								local -a action_param=("${action_param[@]}" "--to-source" "${x}")
 							done
 							shift 2
 						else
@@ -5419,14 +5444,14 @@ rule() {
 						;;
 						
 					dnat|DNAT)
-						action="DNAT"
+						local action="DNAT"
 						if [ "${1}" = "to" ]
 						then
 							local -a action_param=()
 							local x=
 							for x in ${2}
 							do
-								action_param=(${action_param[@]} "--to-destination" "${x}")
+								local -a action_param=("${action_param[@]}" "--to-destination" "${x}")
 							done
 							shift 2
 						else
@@ -5441,7 +5466,7 @@ rule() {
 						;;
 						
 					redirect|REDIRECT)
-						action="REDIRECT"
+						local action="REDIRECT"
 						if [ "${1}" = "on-port" -o "${1}" = "to-port" -o "${1}" = "to" ]
 						then
 							local -a action_param=("--to-ports" "${2}")
@@ -5458,17 +5483,17 @@ rule() {
 						;;
 						
 					tproxy|TPROXY)
-						action="TPROXY"
+						local action="TPROXY"
 						local -a action_param=()
 						if [ "${1}" = "mark" -o "${1}" = "tproxy-mark" ]
 						then
-							action_param=("--tproxy-mark" "${2}")
+							local -a action_param=("--tproxy-mark" "${2}")
 							shift 2
 						fi
 
 						if [ "${1}" = "on-port" -o "${1}" = "to-port" -o "${1}" = "to" ]
 						then
-							action_param=(${action_param[@]} "--on-port" "${2}")
+							local -a action_param=("${action_param[@]}" "--on-port" "${2}")
 							shift 2
 						else
 							error "${action} requires a 'on-port' or 'on-ip' argument."
@@ -5477,7 +5502,7 @@ rule() {
 
 						if [ "${1}" = "on-ip" -o "${1}" = "to-ip" ]
 						then
-							action_param=(${action_param[@]} "--on-ip" "${2}")
+							local -a action_param=("${action_param[@]}" "--on-ip" "${2}")
 							shift 2
 						fi
 
@@ -5489,7 +5514,7 @@ rule() {
 						;;
 						
 					tos|TOS)
-						action="TOS"
+						local action="TOS"
 						if [ "${1}" = "to" ]
 						then
 							local -a action_param=("--set-tos" "${2}")
@@ -5506,7 +5531,7 @@ rule() {
 						;;
 						
 					mark|MARK)
-						action="MARK"
+						local action="MARK"
 						if [ "${1}" = "to" ]
 						then
 							local -a action_param=("--set-mark" "${2}")
@@ -5523,7 +5548,7 @@ rule() {
 						;;
 						
 					connmark|CONNMARK)
-						action="CONNMARK"
+						local action="CONNMARK"
 						case "${1}" in
 							to)
 								local -a action_param=("--set-mark" "${2}")
@@ -5562,7 +5587,7 @@ rule() {
 						;;
 						
 					dscp|DSCP)
-						action="DSCP"
+						local action="DSCP"
 						if [ "${1}" = "to" ]
 						then
 							if [ "${2}" = "class" ]
@@ -5585,7 +5610,7 @@ rule() {
 						;;
 						
 					tarpit|TARPIT)
-						action="TARPIT"
+						local action="TARPIT"
 						;;
 						
 					*)
@@ -5597,85 +5622,85 @@ rule() {
 			
 			state|STATE)
 				shift
-				statenot=
+				local statenot=
 				if [ "${1}" = "not" -o "${1}" = "NOT" ]
 				then
 					shift
-					statenot="!"
+					local statenot="!"
 				fi
 				test ${softwarnings} -eq 1 -a ! -z "${state}" && softwarning "Overwritting param: state '${state}' becomes '${1}'"
-				state="${1}"
+				local state="${1}"
 				shift
 				;;
 				
 			user|USER|uid|UID)
 				shift
-				uidnot=
+				local uidnot=
 				if [ "${1}" = "not" -o "${1}" = "NOT" ]
 				then
 					shift
-					test ${noowner} -eq 0 && uidnot="!"
+					test ${noowner} -eq 0 && local uidnot="!"
 				fi
 				test ${softwarnings} -eq 1 -a ! "${uid}" = "any" && softwarning "Overwritting param: uid '${uid}' becomes '${1}'"
-				test ${noowner} -eq 0 && uid="${1}"
+				test ${noowner} -eq 0 && local uid="${1}"
 				shift
 				;;
 				
 			group|GROUP|gid|GID)
 				shift
-				gidnot=
+				local gidnot=
 				if [ "${1}" = "not" -o "${1}" = "NOT" ]
 				then
 					shift
-					test ${noowner} -eq 0 && gidnot="!"
+					test ${noowner} -eq 0 && local gidnot="!"
 				fi
 				test ${softwarnings} -eq 1 -a ! "${gid}" = "any" && softwarning "Overwritting param: gid '${gid}' becomes '${1}'"
-				test ${noowner} -eq 0 && gid="${1}"
+				test ${noowner} -eq 0 && local gid="${1}"
 				shift
 				;;
 				
 			process|PROCESS|pid|PID)
 				shift
-				pidnot=
+				local pidnot=
 				if [ "${1}" = "not" -o "${1}" = "NOT" ]
 				then
 					shift
-					test ${noowner} -eq 0 && pidnot="!"
+					test ${noowner} -eq 0 && local pidnot="!"
 				fi
 				test ${softwarnings} -eq 1 -a ! "${pid}" = "any" && softwarning "Overwritting param: pid '${pid}' becomes '${1}'"
-				test ${noowner} -eq 0 && pid="${1}"
+				test ${noowner} -eq 0 && local pid="${1}"
 				shift
 				;;
 				
 			session|SESSION|sid|SID)
 				shift
-				sidnot=
+				local sidnot=
 				if [ "${1}" = "not" -o "${1}" = "NOT" ]
 				then
 					shift
-					test ${noowner} -eq 0 && sidnot="!"
+					test ${noowner} -eq 0 && local sidnot="!"
 				fi
 				test ${softwarnings} -eq 1 -a ! "${sid}" = "any" && softwarning "Overwritting param: sid '${sid}' becomes '${1}'"
-				test ${noowner} -eq 0 && sid="${1}"
+				test ${noowner} -eq 0 && local sid="${1}"
 				shift
 				;;
 				
 			command|COMMAND|cmd|CMD)
 				shift
-				cmdnot=
+				local cmdnot=
 				if [ "${1}" = "not" -o "${1}" = "NOT" ]
 				then
 					shift
-					test ${noowner} -eq 0 && cmdnot="!"
+					test ${noowner} -eq 0 && local cmdnot="!"
 				fi
 				test ${softwarnings} -eq 1 -a ! "${cmd}" = "any" && softwarning "Overwritting param: cmd '${cmd}' becomes '${1}'"
-				test ${noowner} -eq 0 && cmd="${1}"
+				test ${noowner} -eq 0 && local cmd="${1}"
 				shift
 				;;
 				
 			custom|CUSTOM)
 				test ${softwarnings} -eq 1 -a ! -z "${custom}" && softwarning "Overwritting param: custom '${custom}' becomes '${2}'"
-				custom="${2}"
+				local custom="${2}"
 				shift 2
 				;;
 				
@@ -5683,16 +5708,16 @@ rule() {
 				if [ ${nolog} -eq 0 ]
 				then
 					test ${softwarnings} -eq 1 -a ! -z "${log}" && softwarning "Overwritting param: log '${log}/${logtxt}' becomes 'normal/${2}'"
-					log=normal
-					logtxt="`echo ${2} | ${TR_CMD} " " "_"`"
+					local log=normal
+					local logtxt="`echo ${2} | ${TR_CMD} " " "_"`"
 				fi
 				shift 2
 				if [ "${1}" = "level" ]
 				then
-					loglevel="${2}"
+					local loglevel="${2}"
 					shift 2
 				else
-					loglevel="${FIREHOL_LOG_LEVEL}"
+					local loglevel="${FIREHOL_LOG_LEVEL}"
 				fi
 				;;
 				
@@ -5700,30 +5725,30 @@ rule() {
 				if [ ${nolog} -eq 0 ]
 				then
 					test ${softwarnings} -eq 1 -a ! -z "${log}" && softwarning "Overwritting param: log '${log}/${logtxt}' becomes 'limit/${2}'"
-					log=limit
-					logtxt="`echo ${2} | ${TR_CMD} " " "_"`"
+					local log=limit
+					local logtxt="`echo ${2} | ${TR_CMD} " " "_"`"
 				fi
 				shift 2
 				if [ "${1}" = "level" ]
 				then
-					loglevel="${2}"
+					local loglevel="${2}"
 					shift 2
 				else
-					loglevel="${FIREHOL_LOG_LEVEL}"
+					local loglevel="${FIREHOL_LOG_LEVEL}"
 				fi
 				;;
 				
 			limit|LIMIT)
 				test ${softwarnings} -eq 1 -a ! -z "${limit}" && softwarning "Overwritting param: limit '${limit}' becomes '${2}'"
-				limit="${2}"
-				burst="${3}"
+				local limit="${2}"
+				local burst="${3}"
 				shift 3
 				;;
 				
 			iplimit|IPLIMIT)
 				test ${softwarnings} -eq 1 -a ! -z "${iplimit}" && softwarning "Overwritting param: iplimit '${iplimit}' becomes '${2}'"
-				iplimit="${2}"
-				iplimit_mask="${3}"
+				local iplimit="${2}"
+				local iplimit_mask="${3}"
 				shift 3
 				;;
 				
@@ -5766,13 +5791,22 @@ rule() {
 				;;
 				
 			set_work_inface|SET_WORK_INFACE)
-				swi=1
+				local swi=1
 				shift
 				;;
 				
 			set_work_outface|SET_WORK_OUTFACE)
-				swo=1
+				local swo=1
 				shift
+				;;
+
+			acct|accounting)
+				if [ ${ENABLE_ACCOUNTING} -eq 1 ]
+				then
+					local accounting="$2"
+					FIREHOL_NFACCT[$accounting]="1"
+				fi
+				shift 2
 				;;
 				
 			*)
@@ -5782,7 +5816,7 @@ rule() {
 		esac
 	done
 	
-	test -z "${table}" && table="-t filter"
+	test -z "${table}" && local table="-t filter"
 	
 	# If the user did not specified a rejection message,
 	# we have to be smart and produce a tcp-reset if the protocol
@@ -5791,7 +5825,7 @@ rule() {
 	# To accomplish the differentiation based on protocol we have
 	# to change the protocol "any" to "tcp any"
 	
-	test "${action}" = "REJECT" -a "${action_param[1]}" = "auto" -a "${proto}" = "any" && proto="tcp any"
+	test "${action}" = "REJECT" -a "${action_param[1]}" = "auto" -a "${proto}" = "any" && local proto="tcp any"
 	
 	
 	# we cannot accept empty strings to a few parameters, since this
@@ -5814,15 +5848,15 @@ rule() {
 	test -z "${sid}"	&& error "Cannot accept an empty 'sid'."	&& return 1
 	test -z "${cmd}"	&& error "Cannot accept an empty 'cmd'."	&& return 1
 
-	physbridge="--physdev-is-bridged"
+	local physbridge="--physdev-is-bridged"
 	if [ ! "${work_cmd}" = "router" -a ! "${physin}${physout}" = "anyany" ]
 	then
 		if [ ! "${physin}" = "any" -a "${physout}" = "any" ]
 		then
-			physbridge="--physdev-is-in"
+			local physbridge="--physdev-is-in"
 		elif [ "${physin}" = "any" -a ! "${physout}" = "any" ]
 		then
-			physbridge="--physdev-is-out"
+			local physbridge="--physdev-is-out"
 		fi
 	fi
 
@@ -5833,13 +5867,13 @@ rule() {
 		then
 			error "Mixed use of 'not' with src4 and src6."	&& return 1
 		else
-			srcnot="${src4not}"
+			local srcnot="${src4not}"
 		fi
 		if [ "${dst4not}" != "${dst6not}" ]
 		then
 			error "Mixed use of 'not' with dst4 and dst6."	&& return 1
 		else
-			dstnot="${dst4not}"
+			local dstnot="${dst4not}"
 		fi
 		if [ "${src4}" = "default" -a "${src6}" != "default" ]
 		then
@@ -5861,17 +5895,17 @@ rule() {
 			error "Must specify dst6 when specifying dst4"	&& return 1
 		fi
 	elif running_ipv6; then
-		srcnot="${src6not}"
-		dstnot="${dst6not}"
+		local srcnot="${src6not}"
+		local dstnot="${dst6not}"
 	else
-		srcnot="${src4not}"
-		dstnot="${dst4not}"
+		local srcnot="${src4not}"
+		local dstnot="${dst4not}"
 	fi
 
-	test "${src4}" = "default" && src4="any"
-	test "${dst4}" = "default" && dst4="any"
-	test "${src6}" = "default" && src6="any"
-	test "${dst6}" = "default" && dst6="any"
+	test "${src4}" = "default" && local src4="any"
+	test "${dst4}" = "default" && local dst4="any"
+	test "${src6}" = "default" && local src6="any"
+	test "${dst6}" = "default" && local dst6="any"
 
 	# ----------------------------------------------------------------------------------
 	# Do we have negative contitions?
@@ -5923,8 +5957,8 @@ rule() {
 			do
 				iptables_both ${table} -A "${negative_chain}" -i "${inf}" -j RETURN
 			done
-			infacenot=
-			inface=any
+			local infacenot=
+			local inface=any
 		fi
 	
 		if [ ! -z "${outfacenot}" ]
@@ -5934,8 +5968,8 @@ rule() {
 			do
 				iptables_both ${table} -A "${negative_chain}" -o "${outf}" -j RETURN
 			done
-			outfacenot=
-			outface=any
+			local outfacenot=
+			local outface=any
 		fi
 		
 		if [ ! -z "${physinnot}" ]
@@ -5945,8 +5979,8 @@ rule() {
 			do
 				iptables_both ${table} -A "${negative_chain}" -m physdev ${physbridge} --physdev-in "${inph}" -j RETURN
 			done
-			physinnot=
-			physin=any
+			local physinnot=
+			local physin=any
 		fi
 	
 		if [ ! -z "${physoutnot}" ]
@@ -5956,8 +5990,8 @@ rule() {
 			do
 				iptables_both ${table} -A "${negative_chain}" -m physdev ${physbridge} --physdev-out "${outph}" -j RETURN
 			done
-			physoutnot=
-			physout=any
+			local physoutnot=
+			local physout=any
 		fi
 		
 		if [ ! -z "${macnot}" ]
@@ -5967,8 +6001,8 @@ rule() {
 			do
 				iptables_both ${table} -A "${negative_chain}" -m mac --mac-source "${m}" -j RETURN
 			done
-			macnot=
-			mac=any
+			local macnot=
+			local mac=any
 		fi
 		
 		if [ ! -z "${srcnot}" ]
@@ -5986,9 +6020,9 @@ rule() {
 					ip6tables ${table} -A "${negative_chain}" -s "${s}" -j RETURN
 				done
 			fi
-			srcnot=
-			src4=any
-			src6=any
+			local srcnot=
+			local src4=any
+			local src6=any
 		fi
 		
 		if [ ! -z "${dstnot}" ]
@@ -6006,9 +6040,9 @@ rule() {
 					ip6tables ${table} -A "${negative_chain}" -d "${d}" -j RETURN
 				done
 			fi
-			dstnot=
-			dst4=any
-			dst6=any
+			local dstnot=
+			local dst4=any
+			local dst6=any
 		fi
 		
 		if [ ! -z "${protonot}" ]
@@ -6024,8 +6058,8 @@ rule() {
 			do
 				iptables_both ${table} -A "${negative_chain}" -p "${pr}" -j RETURN
 			done
-			protonot=
-			proto=any
+			local protonot=
+			local proto=any
 		fi
 		
 		if [ ! -z "${sportnot}" ]
@@ -6045,8 +6079,8 @@ rule() {
 					iptables_both ${table} -A "${negative_chain}" -p "${pr}" --sport "${sp}" -j RETURN
 				done
 			done
-			sportnot=
-			sport=any
+			local sportnot=
+			local sport=any
 		fi
 		
 		if [ ! -z "${dportnot}" ]
@@ -6066,8 +6100,8 @@ rule() {
 					iptables_both ${table} -A "${negative_chain}" -p "${pr}" --dport "${dp}" -j RETURN
 				done
 			done
-			dportnot=
-			dport=any
+			local dportnot=
+			local dport=any
 		fi
 		
 		if [ ! -z "${uidnot}" ]
@@ -6077,8 +6111,8 @@ rule() {
 			do
 				iptables_both ${table} -A "${negative_chain}" -m owner --uid-owner "${tuid}" -j RETURN
 			done
-			uidnot=
-			uid=any
+			local uidnot=
+			local uid=any
 		fi
 		
 		if [ ! -z "${gidnot}" ]
@@ -6088,8 +6122,8 @@ rule() {
 			do
 				iptables_both ${table} -A "${negative_chain}" -m owner --gid-owner "${tgid}" -j RETURN
 			done
-			gidnot=
-			gid=any
+			local gidnot=
+			local gid=any
 		fi
 		
 		if [ ! -z "${pidnot}" ]
@@ -6099,8 +6133,8 @@ rule() {
 			do
 				iptables_both ${table} -A "${negative_chain}" -m owner --pid-owner "${tpid}" -j RETURN
 			done
-			pidnot=
-			pid=any
+			local pidnot=
+			local pid=any
 		fi
 		
 		if [ ! -z "${sidnot}" ]
@@ -6110,8 +6144,8 @@ rule() {
 			do
 				iptables_both ${table} -A "${negative_chain}" -m owner --sid-owner "${tsid}" -j RETURN
 			done
-			sidnot=
-			sid=any
+			local sidnot=
+			local sid=any
 		fi
 		
 		if [ ! -z "${cmdnot}" ]
@@ -6121,8 +6155,8 @@ rule() {
 			do
 				iptables_both ${table} -A "${negative_chain}" -m owner --cmd-owner "${tcmd}" -j RETURN
 			done
-			cmdnot=
-			cmd=any
+			local cmdnot=
+			local cmd=any
 		fi
 		
 		if [ ! -z "${marknot}" ]
@@ -6132,8 +6166,8 @@ rule() {
 			do
 				iptables_both ${table} -A "${negative_chain}" -m mark --mark "${tmark}" -j RETURN
 			done
-			marknot=
-			mark=any
+			local marknot=
+			local mark=any
 		fi
 		
 		if [ ! -z "${tosnot}" ]
@@ -6143,8 +6177,8 @@ rule() {
 			do
 				iptables_both ${table} -A "${negative_chain}" -m tos --tos "${ttos}" -j RETURN
 			done
-			tosnot=
-			tos=any
+			local tosnot=
+			local tos=any
 		fi
 		
 		if [ ! -z "${dscpnot}" ]
@@ -6154,8 +6188,8 @@ rule() {
 			do
 				iptables_both ${table} -A "${negative_chain}" -m dscp --dscp${dscptype} "${tdscp}" -j RETURN
 			done
-			dscp=any
-			dscpnot=
+			local dscp=any
+			local dscpnot=
 		fi
 		
 		
@@ -6178,10 +6212,10 @@ rule() {
 				esac
 				
 				if running_ipv4; then
-					rule_action_param iptables "${negative_action}" "${pr}" "" "" "${table}" "${action_param[@]}" -- ${table} -A "${negative_chain}" "${proto_arg[@]}"
+					rule_action_param iptables "${negative_action}" "${pr}" "" "" "${table}" "${action_param[@]}" -- ${table} -A "${negative_chain}" "${proto_arg[@]}" || local failed=$[failed + 1]
 				fi
 				if running_ipv6; then
-					rule_action_param ip6tables "${negative_action}" "${pr}" "" "" "${table}" "${action_param[@]}" -- ${table} -A "${negative_chain}" "${proto_arg[@]}"
+					rule_action_param ip6tables "${negative_action}" "${pr}" "" "" "${table}" "${action_param[@]}" -- ${table} -A "${negative_chain}" "${proto_arg[@]}" || local failed=$[failed + 1]
 				fi
 				local -a action_param=()
 			done
@@ -6249,15 +6283,15 @@ rule() {
 	local logrule=
 	case "${log}" in
 		'')
-			logrule=none
+			local logrule=none
 			;;
 
 		limit)
-			logrule=limit
+			local logrule=limit
 			;;
 
 		normal)
-			logrule=normal
+			local logrule=normal
 			;;
 
 		*)
@@ -6538,16 +6572,21 @@ rule() {
 		# build the command
 		declare -a basecmd=("${inf_arg[@]}" "${outf_arg[@]}" "${physdev_arg[@]}" "${inph_arg[@]}" "${outph_arg[@]}" "${limit_arg[@]}" "${iplimit_arg[@]}" "${proto_arg[@]}" "${s_arg[@]}" "${sp_arg[@]}" "${d_arg[@]}" "${dp_arg[@]}" "${owner_arg[@]}" "${uid_arg[@]}" "${gid_arg[@]}" "${pid_arg[@]}" "${sid_arg[@]}" "${cmd_arg[@]}" "${addrtype_arg[@]}" "${stp_arg[@]}" "${dtp_arg[@]}" "${state_arg[@]}" "${mc_arg[@]}" "${mark_arg[@]}" "${tos_arg[@]}" "${dscp_arg[@]}")
 
-	if [ "$logrule" = "limit" ]
+		if [ "$logrule" = "limit" ]
 		then
 			iptables ${table} -A "${chain}" "${basecmd[@]}" ${custom} -m limit --limit "${FIREHOL_LOG_FREQUENCY}" --limit-burst "${FIREHOL_LOG_BURST}" -j ${FIREHOL_LOG_MODE} ${FIREHOL_LOG_OPTIONS} "${logopts_arg[@]}"
 		elif [ "$logrule" = "normal" ]
 		then
-			iptables ${table} -A "${chain}" "${basecmd[@]}" ${custom}  -j ${FIREHOL_LOG_MODE} ${FIREHOL_LOG_OPTIONS} "${logopts_arg[@]}"
+			iptables ${table} -A "${chain}" "${basecmd[@]}" ${custom} -j ${FIREHOL_LOG_MODE} ${FIREHOL_LOG_OPTIONS} "${logopts_arg[@]}"
+		fi
+
+		if [ ! -z "${accounting}" ]
+		then
+			iptables ${table} -A "${chain}" "${basecmd[@]}" ${custom} -m nfacct --nfacct-name "${accounting}"
 		fi
 
 		# do it!
-		rule_action_param iptables "${action}" "${pr}" "${statenot}" "${state}" "${table}" "${action_param[@]}" -- ${table} -A "${chain}" "${basecmd[@]}" ${custom}
+		rule_action_param iptables "${action}" "${pr}" "${statenot}" "${state}" "${table}" "${action_param[@]}" -- ${table} -A "${chain}" "${basecmd[@]}" ${custom} || local failed=$[failed + 1]
 
 		done # dst4
 		done # src4
@@ -6585,7 +6624,7 @@ rule() {
 		# build the command
 		declare -a basecmd=("${inf_arg[@]}" "${outf_arg[@]}" "${physdev_arg[@]}" "${inph_arg[@]}" "${outph_arg[@]}" "${limit_arg[@]}" "${iplimit_arg[@]}" "${proto_arg[@]}" "${s_arg[@]}" "${sp_arg[@]}" "${d_arg[@]}" "${dp_arg[@]}" "${owner_arg[@]}" "${uid_arg[@]}" "${gid_arg[@]}" "${pid_arg[@]}" "${sid_arg[@]}" "${cmd_arg[@]}" "${addrtype_arg[@]}" "${stp_arg[@]}" "${dtp_arg[@]}" "${state_arg[@]}" "${mc_arg[@]}" "${mark_arg[@]}" "${tos_arg[@]}" "${dscp_arg[@]}")
 
-	if [ "$logrule" = "limit" ]
+		if [ "$logrule" = "limit" ]
 		then
 			ip6tables ${table} -A "${chain}" "${basecmd[@]}" ${custom} -m limit --limit "${FIREHOL_LOG_FREQUENCY}" --limit-burst "${FIREHOL_LOG_BURST}" -j ${FIREHOL_LOG_MODE} ${FIREHOL_LOG_OPTIONS} "${logopts_arg[@]}"
 		elif [ "$logrule" = "normal" ]
@@ -6593,8 +6632,13 @@ rule() {
 			ip6tables ${table} -A "${chain}" "${basecmd[@]}" ${custom}  -j ${FIREHOL_LOG_MODE} ${FIREHOL_LOG_OPTIONS} "${logopts_arg[@]}"
 		fi
 
+		if [ ! -z "${accounting}" ]
+		then
+			iptables ${table} -A "${chain}" "${basecmd[@]}" ${custom} -m nfacct --nfacct-name "${accounting}"
+		fi
+
 		# do it!
-		rule_action_param ip6tables "${action}" "${pr}" "${statenot}" "${state}" "${table}" "${action_param[@]}" -- ${table} -A "${chain}" "${basecmd[@]}" ${custom}
+		rule_action_param ip6tables "${action}" "${pr}" "${statenot}" "${state}" "${table}" "${action_param[@]}" -- ${table} -A "${chain}" "${basecmd[@]}" ${custom} || local failed=$[failed + 1]
 
 		done # dst6
 		done # src6
@@ -6734,14 +6778,18 @@ runtime_error() {
 # Although FireHOL chain naming makes chains with unique names, this is just
 # an extra sanity check.
 
+declare -A FIREHOL_NFACCT=()
+declare -A FIREHOL_CHAINS=()
 chain_exists() {
 	local chain="${1}"
 
 	if running_ipv4; then
-		test -f "${FIREHOL_CHAINS_DIR}/${chain}.4" && return 1
+		test ! -z "${FIREHOL_CHAINS[${chain}.4]}" && return 1
+		# test -f "${FIREHOL_CHAINS_DIR}/${chain}.4" && return 1
 	fi
 	if running_ipv6; then
-		test -f "${FIREHOL_CHAINS_DIR}/${chain}.6" && return 1
+		test ! -z "${FIREHOL_CHAINS[${chain}.6]}" && return 1
+		# test -f "${FIREHOL_CHAINS_DIR}/${chain}.6" && return 1
 	fi
 	
 	return 0
@@ -6768,10 +6816,12 @@ create_chain() {
 	
 	iptables_both -t ${table} -N "${newchain}" || return 1
 	if running_ipv4; then
-		${TOUCH_CMD} "${FIREHOL_CHAINS_DIR}/${newchain}.4"
+		FIREHOL_CHAINS[${newchain}.4]="1"
+		#${TOUCH_CMD} "${FIREHOL_CHAINS_DIR}/${newchain}.4"
 	fi
 	if running_ipv6; then
-		${TOUCH_CMD} "${FIREHOL_CHAINS_DIR}/${newchain}.6"
+		FIREHOL_CHAINS[${newchain}.6]="1"
+		#${TOUCH_CMD} "${FIREHOL_CHAINS_DIR}/${newchain}.6"
 	fi
 	
 	if [ ! -z "${oldchain}" ]
@@ -8229,17 +8279,17 @@ EOF
 					then
 						# Add it
 						netcount=$[netcount + 1]
-						ifnets=(${net} ${ifnets[@]})
+						ifnets=(${net} "${ifnets[@]}")
 					fi
 				else
-					ofnets=(${net} ${ofnets[@]})
+					ofnets=(${net} "${ofnets[@]}")
 				fi
 			done
 			
 			# find all the networks this IP can access through gateways
 			if [ ! -z "${ofnets[*]}" ]
 			then
-				for net in ${ofnets[@]}
+				for net in "${ofnets[@]}"
 				do
 					test "${net}" = "default" && continue
 					
@@ -8247,7 +8297,7 @@ EOF
 					gw=`${IP_CMD} route show ${nn} dev ${iface} | ${EGREP_CMD} "^${nn}[[:space:]]+via[[:space:]][0-9\.]+" | ${CUT_CMD} -d ' ' -f 3 | ips2net -`
 					test -z "${gw}" && continue
 					
-					for nn in ${ifnets[@]}
+					for nn in "${ifnets[@]}"
 					do
 						test "${nn}" = "default" && continue
 						
@@ -8277,7 +8327,7 @@ EOF
 							then
 								# Add it
 								netcount=$[netcount + 1]
-								ifnets=(${net} ${ifnets[@]})
+								ifnets=(${net} "${ifnets[@]}")
 							fi
 							break
 						fi
@@ -8300,7 +8350,7 @@ EOF
 			# Is this interface the default gateway too?
 			if [ "${gw_if}" = "${iface}" ]
 			then
-				for nn in ${ifnets[@]}
+				for nn in "${ifnets[@]}"
 				do
 					if ip_in_net "${gw_ip}" ${nn}
 					then
@@ -8497,6 +8547,13 @@ initialize_firewall() {
 	
 	test $FIREHOL_ROUTING -eq 1 && postprocess -warn ${SYSCTL_CMD} -w "net.ipv4.ip_forward=1"
 	
+	for m in "${!FIREHOL_NFACCT[@]}"
+	do
+		# -ne here because nfacct will generate an error
+		# if the object already exists.
+		postprocess -ne "${NFACCT_CMD}" add "${m}"
+	done
+
 	# Find all tables supported
 	local t=
 	if [ $ENABLE_IPV4 -eq 1 ]; then
@@ -8823,8 +8880,8 @@ then
 	
 	if [ "${FIREHOL_MODE}" = "DEBUG" ]
 	then
-		${CAT_CMD} ${FIREHOL_OUTPUT}.fast
-		${CAT_CMD} ${FIREHOL_OUTPUT}.fast6
+		test $ENABLE_IPV4 -eq 1 && ${CAT_CMD} ${FIREHOL_OUTPUT}.fast
+		test $ENABLE_IPV6 -eq 1 && ${CAT_CMD} ${FIREHOL_OUTPUT}.fast6
 		exit 1
 	fi
 	
