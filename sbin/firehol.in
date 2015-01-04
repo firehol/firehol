@@ -4638,7 +4638,7 @@ rule_action_param() {
 							
 							# does the chain we need already exist?
 							#if [ ! -f "${FIREHOL_CHAINS_DIR}/${accept_limit_chain}.${iptables_cmd}" ]
-							if [ ! -z "${FIREHOL_CHAINS[${accept_limit_chain}.${iptables_cmd}]}" ]
+							if [ -z "${FIREHOL_CHAINS[${accept_limit_chain}.${iptables_cmd}]}" ]
 							then
 								# the chain does not exist. create it.
 								$iptables_cmd ${table} -N "${accept_limit_chain}"
@@ -4710,7 +4710,7 @@ rule_action_param() {
 							
 							# does the chain we need already exist?
 							#if [ ! -f "${FIREHOL_CHAINS_DIR}/${accept_recent_chain}.${iptables_cmd}" ]
-							if [ ! -z "${FIREHOL_CHAINS[${accept_recent_chain}.${iptables_cmd}]}" ]
+							if [ -z "${FIREHOL_CHAINS[${accept_recent_chain}.${iptables_cmd}]}" ]
 							then
 								# the chain does not exist. create it.
 								$iptables_cmd ${table} -N "${accept_recent_chain}"
@@ -4748,7 +4748,7 @@ rule_action_param() {
 						
 						# does the knock chain exists?
 						#if [ ! -f "${FIREHOL_CHAINS_DIR}/${name}.${iptables_cmd}" ]
-						if [ ! -z "${FIREHOL_CHAINS[${name}.${iptables_cmd}]}" ]
+						if [ -z "${FIREHOL_CHAINS[${name}.${iptables_cmd}]}" ]
 						then
 							# the chain does not exist. create it.
 							$iptables_cmd ${table} -N "${name}"
