@@ -220,11 +220,15 @@ which_cmd LOGGER_CMD logger
 which_cmd FLOCK_CMD flock
 
 ENABLE_ACCOUNTING=1
+ACCOUNTING_WARNING=0
 require_cmd -n nfacct
 if [ -z "${NFACCT_CMD}" ]
 then
-	echo >&2 " WARNING: no nfacct command: Accounting disabled"
+	# silently disable accounting here,
+	# the user will get a warning when the first
+	# accounting rule is evaluated
 	ENABLE_ACCOUNTING=0
+	ACCOUNTING_WARNING=1
 fi
 
 ENABLE_IPV4=1
@@ -5805,6 +5809,10 @@ rule() {
 				then
 					local accounting="$2"
 					FIREHOL_NFACCT[$accounting]="1"
+				elif [ ${ACCOUNTING_WARNING} -eq 1 ]
+				then
+					softwarning "Accounting is requested, but accounting is disabled. Is nfacct installed?"
+					ACCOUNTING_WARNING=0
 				fi
 				shift 2
 				;;
