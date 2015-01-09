@@ -1218,13 +1218,14 @@ interface_close() {
 
 		# NOT NEEDED - the default for interfaces works via kernel.
 		# match all class default flowid $interface_major:$parent_default_class prio 0xffff
+		
+		FIREQOS_INTERFACES_COMPLETED="$interface_name $FIREQOS_INTERFACES_COMPLETED"
+		
+		echo "interface_classes='TOTAL|${interface_major}:1 $interface_classes'" >>"${FIREQOS_DIR}/${interface_name}.conf"
+		echo "interface_classes_ids='${interface_major}_1 $interface_classes_ids'" >>"${FIREQOS_DIR}/${interface_name}.conf"
+		echo "interface_classes_monitor='$interface_classes_monitor'" >>"${FIREQOS_DIR}/${interface_name}.conf"
 	fi
 	
-	FIREQOS_INTERFACES_COMPLETED="$interface_name $FIREQOS_INTERFACES_COMPLETED"
-	
-	echo "interface_classes='TOTAL|${interface_major}:1 $interface_classes'" >>"${FIREQOS_DIR}/${interface_name}.conf"
-	echo "interface_classes_ids='${interface_major}_1 $interface_classes_ids'" >>"${FIREQOS_DIR}/${interface_name}.conf"
-	echo "interface_classes_monitor='$interface_classes_monitor'" >>"${FIREQOS_DIR}/${interface_name}.conf"
 	echo
 	parent_clear
 	
