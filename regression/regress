@@ -104,7 +104,8 @@ do
   fi
 done
 
-test -d $ETCSAVE && mv $ETCSAVE /etc/firehol
+test -d /etc/firehol && mv /etc/firehol $ETCSAVE
+mkdir -p /etc/firehol/services
 
 started=`date`
 RUN_SUITE=OK export RUN_SUITE
