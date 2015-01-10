@@ -1100,15 +1100,12 @@ unroutable_ips() {
 
 if [ $ENABLE_IPV4 -eq 1 -a $ENABLE_IPV6 -eq 1 ]
 then
-	test -z "$FIREHOL_DEFAULT_NAMESPACE" && \
-		FIREHOL_DEFAULT_NAMESPACE=both
+	FIREHOL_DEFAULT_NAMESPACE=both
 elif [ $ENABLE_IPV4 -eq 1 ]
 then
-	test -z "$FIREHOL_DEFAULT_NAMESPACE" && \
-		FIREHOL_DEFAULT_NAMESPACE=ipv4
+	FIREHOL_DEFAULT_NAMESPACE=ipv4
 else
-	test -z "$FIREHOL_DEFAULT_NAMESPACE" && \
-		FIREHOL_DEFAULT_NAMESPACE=ipv6
+	FIREHOL_DEFAULT_NAMESPACE=ipv6
 fi
 
 # Get the default client ports from the kernel configuration.
