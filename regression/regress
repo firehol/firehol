@@ -6,7 +6,7 @@ then
   exit 1
 fi
 
-if [ "$1" != "-ok" -a "$1" != "-fast" ]
+if [ "$1" != "-ok" -a "$1" != "-slow" ]
 then
   echo "Do no run on a production system!"
   echo ""
@@ -16,15 +16,17 @@ then
   echo "If you are running remotely your session will get interrupted"
   echo "Ensure you can re-establish control."
   echo ""
-  echo "Re-run with '-ok' or '-fast' as a parameter to proceed"
+  echo "Re-run with '-ok' or '-slow' as a parameter to proceed"
   exit 1
 fi
 
-if [ "$1" = "-fast" ]
+if [ "$1" = "-slow" ]
 then
+  FIREHOL_FAST_ACTIVATION=0
+else
   FIREHOL_FAST_ACTIVATION=1
-  export FIREHOL_FAST_ACTIVATION
 fi
+export FIREHOL_FAST_ACTIVATION
 
 REGRESSDIR=`pwd`/
 export REGRESSDIR
