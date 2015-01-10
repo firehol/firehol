@@ -37,8 +37,11 @@ then
             exit 1
 fi
 
+ETCSAVE=/etc/firehol.save$$
+
 myexit() {
   rm -rf $MYTMP
+  test -d $ETCSAVE && rm -rf /etc/firehol && mv $ETCSAVE /etc/firehol
   exit 0
 }
 
@@ -64,27 +67,39 @@ chmod +x $MYTMP/fh-$d.in
 have_ipv6="`grep IP6TABLES_CMD $MYTMP/fh-$d.in`"
 if [ "$have_ipv6" ]
 then
-  # NAT does not allow DROP, hence all_drops is lower
-  all_accepts=20
-  all_drops=16
+  ip6tables -t nat -L > /dev/null 2>&1
+  if [ $? -eq 0 ]
+  then # Have NAT
+    all_accepts=24
+    all_drops=16
+  else
+    all_accepts=20
+    all_drops=16
+  fi
 else
+  # NAT does not allow DROP, hence all_drops is lower
   all_accepts=12
   all_drops=8
 fi
+
+test -d /etc/firehol && mv /etc/firehol $ETCSAVE
+mkdir -p /etc/firehol/services
 
 $MYTMP/fh-$d.in stop || exit
 $MYTMP/fh-$d.in status > $MYTMP/result || exit
 drops=`grep DROP $MYTMP/result | wc -l`
 accepts=`grep ACCEPT $MYTMP/result | wc -l`
-echo "$d stop ... accepts=$accepts drops=$drops"
+echo "$d stop ... accepts=$accepts (want $all_accepts) drops=$drops (want 0)"
 if [ $accepts -ne $all_accepts ]
 then
   echo "ERROR: Status not functional! N.B. kernel version can have an effect"
+  cat $MYTMP/result
   exit 1
 fi
 if [ $drops -ne 0 ]
 then
   echo "ERROR: Firewall not stopped!"
+  cat $MYTMP/result
   exit 1
 fi
 

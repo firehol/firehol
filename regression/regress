@@ -52,8 +52,11 @@ then
             exit 1
 fi
 
+ETCSAVE=/etc/firehol.save$$
+
 myexit() {
   rm -rf $MYTMP
+  test -d $ETCSAVE && rm -rf /etc/firehol && mv $ETCSAVE /etc/firehol
   exit 0
 }
 
@@ -98,6 +101,8 @@ do
     run="$run $d"
   fi
 done
+
+test -d $ETCSAVE && mv $ETCSAVE /etc/firehol
 
 started=`date`
 RUN_SUITE=OK export RUN_SUITE
