@@ -1,4 +1,78 @@
 #!/bin/bash
+#
+# Link Balancer - Policy Based Routing for humans...
+#
+#   Copyright
+#
+#       Copyright (C) 2015 Costa Tsaousis <costa@tsaousis.gr>
+#       Copyright (C) 2015 Phil Whineray <phil@sanewall.org>
+#
+#   License
+#
+#       This program is free software; you can redistribute it and/or modify
+#       it under the terms of the GNU General Public License as published by
+#       the Free Software Foundation; either version 2 of the License, or
+#       (at your option) any later version.
+#
+#       This program is distributed in the hope that it will be useful,
+#       but WITHOUT ANY WARRANTY; without even the implied warranty of
+#       MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE. See the
+#       GNU General Public License for more details.
+#
+#       You should have received a copy of the GNU General Public License
+#       along with this program. If not, see <http://www.gnu.org/licenses/>.
+#
+#       See the file COPYING for details.
+#
+
+# make sure sbin is included in the path
+# it seems that pppd ip-up.d script need this
+export PATH="$PATH:/sbin:/usr/sbin:/usr/local/sbin"
+
+LB_FILE="${0}"
+
+get_version() {
+	GIT_REF='$Format:%d,commit-%h$'
+	local IFS=":(), "
+	set -- "$GIT_REF"
+	ver='$Id$'
+	for i in $@
+	do
+		case "$i" in
+			*[0-9].[0.9]*)
+				echo "$i" | sed -e 's/^v//'
+				return 0
+			;;
+			commit-[0-9a-zA-Z]*)
+				ver="$i"
+			;;
+		esac
+	done
+	echo "$ver"
+	return 0
+}
+VERSION=$(get_version)
+
+# Make sure only root can run us.
+if [ ! "${UID}" = 0 ]
+then
+	echo >&2
+	echo >&2
+	echo >&2 "Only user root can run Link Balancer."
+	echo >&2
+	exit 1
+fi
+
+declare -a LB_ORIGINAL_ARGS=("${@}")
+LB_DEFAULT_WORKING_DIRECTORY="${PWD}"
+
+if [ "$LB_DEBUGGING" ]; then set -v; set -x; fi
+
+# Make sure we don't get localized results
+export LC_ALL=C
+
+# Make sure our generated files cannot be accessed by anyone else.
+umask 077
 
 # if called with the parameter 'boot', create a new screen that
 # will run forever.
@@ -32,9 +106,9 @@ fi
 LB_RUN_DIR="/var/run/link-balancer"
 if [ ! -d "${LB_RUN_DIR}" ]
 then
-	mkdir -p "${LB_RUN_DIR}" 		|| exit 1
+	mkdir -p "${LB_RUN_DIR}" 	|| exit 1
 	chown root:root "${LB_RUN_DIR}"	|| exit 1
-	chmod 700 "${LB_RUN_DIR}"		|| exit 1
+	chmod 700 "${LB_RUN_DIR}"	|| exit 1
 fi
 
 # get an exclusive lock or wait for it to be available
@@ -115,6 +189,9 @@ lb_exit() {
 		rm -rf "${LB_DIR}"
 	fi
 
+	enable trap
+	enable exit
+	trap exit EXIT
 	exit ${LB_RESULT_CODE}
 }
 
@@ -525,6 +602,7 @@ EOF_GW
 # - the array index is the table name
 # - the array value is the number of default gateways available
 declare -A LB_TABLES=()
+declare -A LB_TABLES_FALLBACK=()
 
 # keep track of the IP version per table
 # if a table is used by both IPv4 and IPv6, '46' should be stored
@@ -611,17 +689,22 @@ table() {
 		LB_TABLES_IPV[$table]="46"
 	fi
 
+	if [ "${table}" = "${origin}" -o -z "${origin}" -o "${origin}" = "none" ]
+	then
+		local origin="none"
+	fi
+
 	# give a summary to the user
 	cat <<EOF_TABLE
 
     --- TABLE CONFIGURATION ---
     Table       : ${table}
-    Duplicate of: ${origin}
+    Copy from   : ${origin}
     IP VERSION  : ${LB_IPV}
 
 EOF_TABLE
 
-	if [ ! "${table}" = "${origin}" -a ! -z "${origin}" -a ! "${origin}" = "none" ]
+	if [ ! "${origin}" = "none" ]
 	then
 		# just link it
 		# The source file may not exist yet. This is OK.
@@ -638,20 +721,28 @@ EOF_TABLE
 	work_table="${table}"
 	work_ipv="${LB_IPV}"
 	LB_TABLES[$table]=0
+	LB_TABLES_FALLBACK[$table]=0
 
-	# set LB_ORIGIN_TABLES
-	if [ -z "${LB_ORIGIN_TABLES[$origin]}" ]
+	if [ ! "${origin}" = "none" ]
 	then
-		LB_ORIGIN_TABLES[$origin]="${LB_IPV}"
-	elif [ ! "${LB_ORIGIN_TABLES[$origin]}" = "${LB_IPV}" ]
-	then
-		LB_ORIGIN_TABLES[$origin]="46"
+		# set LB_ORIGIN_TABLES
+		if [ -z "${LB_ORIGIN_TABLES[$origin]}" ]
+		then
+			LB_ORIGIN_TABLES[$origin]="${LB_IPV}"
+		elif [ ! "${LB_ORIGIN_TABLES[$origin]}" = "${LB_IPV}" ]
+		then
+			LB_ORIGIN_TABLES[$origin]="46"
+		fi
 	fi
 
 	# instruct the finalizer to run IPvX tables
 	touch "${LB_DIR}/tables.${LB_IPV}"
 }
 
+fallback() {
+	DEBUGCMD "${FUNCNAME}" "${#FUNCNAME[*]}" "${@}"
+	default "${@}" weight 0
+}
 
 default() {
 	DEBUGCMD "${FUNCNAME}" "${#FUNCNAME[*]}" "${@}"
@@ -723,14 +814,28 @@ default() {
 		return 1
 	fi
 
-	local count=${LB_TABLES[${work_table}]}
+	local context="default"
+	if [ "${weight}" = "0" ]
+	then
+		local context="fallback"
+		local weight="100"
+		local count=${LB_TABLES_FALLBACK[${work_table}]}
+	else
+		local count=${LB_TABLES[${work_table}]}
+	fi
+
 	while read
 	do
 		count=$[count + 1]
-		echo "nexthop ${REPLY} weight ${weight}" >>"${LB_DIR}/table.${work_table}.default.${LB_IPV}"
+		echo "nexthop ${REPLY} weight ${weight}" >>"${LB_DIR}/table.${work_table}.${context}.${LB_IPV}"
 	done <"${LB_DIR}/gateway.${gw}.paths"
 	
-	LB_TABLES[${work_table}]=$count
+	if [ "${context}" = "default" ]
+	then
+		LB_TABLES[${work_table}]=$count
+	else
+		LB_TABLES_FALLBACK[${work_table}]=$count
+	fi
 }
 
 lb_diff_route() {
@@ -840,28 +945,45 @@ update_table() {
 	# ---------------------------------------------------------------------
 	# generate the new routing table
 
+	local context="default"
+	local gateways=${LB_TABLES[${table}]}
+	if [ ${gateways} -eq 0 ]
+	then
+		# there are no active gateways
+		# do we have a fallback?
+		if [ ${LB_TABLES_FALLBACK[${table}]} -gt 0 ]
+		then
+			# we have a fallback
+			local gateways=${LB_TABLES_FALLBACK[${table}]}
+			local context="fallback"
+
+			echo >&2 "   USING fallback gateways!"
+			log "Using fallback gateways for table ${table}."
+		fi
+	fi
+
 	(
 		cat "${LB_DIR}/table.${table}.origin_routes.${LB_IPV}"
 
-		if [ ${LB_TABLES[${table}]} -eq 0 ]
+		if [ ${gateways} -eq 0 ]
 		then
 			# we don't have a gateway alive
 			# copy the origin default gateway, if we have to
 			cat "${LB_DIR}/table.${table}.origin_default.${LB_IPV}"
 
-		elif [ ${LB_TABLES[${table}]} -eq 1 ]
+		elif [ ${gateways} -eq 1 ]
 		then
 			# we only have one gateway alive
 
 			printf "default "
-			cat "${LB_DIR}/table.${table}.default.${LB_IPV}" |\
+			cat "${LB_DIR}/table.${table}.${context}.${LB_IPV}" |\
 				sed -e "s/nexthop //g" -e "s/ weight [0-9]\+//g"
 
 		else
 			# we have many (2+) gateways alive
 
 			printf "default "
-			cat "${LB_DIR}/table.${table}.default.${LB_IPV}" | tr '\n' ' '
+			cat "${LB_DIR}/table.${table}.${context}.${LB_IPV}" | tr '\n' ' '
 
 		fi
 	) | trim_spaces |\
@@ -984,6 +1106,45 @@ updated_routes() {
 # -----------------------------------------------------------------------------
 # policy based routing - rules section
 
+LB_DO_RULES_IPV4=0
+LB_DO_RULES_IPV6=0
+LB_RULES_DEFAULT_IPV=${LB_DEFAULT_IPV}
+
+policy4() { policy ipv4 "${@}"; }
+policy6() { policy ipv6 "${@}"; }
+policy() {
+	printf >&2 "\n-------------------------------------------------------------------------------\n"
+	DEBUGCMD "${FUNCNAME}" "${#FUNCNAME[*]}" "${@}"
+	LB_RULES_DEFAULT_IPV=${LB_DEFAULT_IPV}
+
+	while [ ! -z "${1}" ]
+	do
+		case "${1}" in
+			ipv4)
+				LB_RULES_DEFAULT_IPV=4
+				;;
+
+			ipv6)
+				LB_RULES_DEFAULT_IPV=6
+				;;
+
+			*)
+				error "${FUNCNAME}: Cannot understand option '${1}'."
+				exit 1
+				;;
+		esac
+		shift
+	done
+
+	if [ "${LB_RULES_DEFAULT_IPV}" = "6" ]
+	then
+		LB_DO_RULES_IPV6=1
+	else
+		LB_DO_RULES_IPV4=1
+	fi
+	touch "${LB_DIR}/rules.${LB_RULES_DEFAULT_IPV}"
+}
+
 LB_RULE_BASE4=1000
 LB_RULE_BASE6=1000
 
@@ -991,26 +1152,7 @@ rules4() { rules ipv4 "${@}"; }
 rules6() { rules ipv6 "${@}"; }
 rules() {
 	DEBUGCMD "${FUNCNAME}" "${#FUNCNAME[*]}" "${@}"
-	LB_IPV=${LB_DEFAULT_IPV}
-
-	local base=
-	if [ "${LB_IPV}" = "6" ]
-	then
-		local base=${LB_RULE_BASE6}
-	else 
-		local base=${LB_RULE_BASE4}
-	fi
-
-	# give some space between rules
-	base=$[ ( (base + LB_RULE_STEP) / LB_RULE_STEP ) * LB_RULE_STEP ]
-
-	# put it back, in case we return before the end
-	if [ "${LB_IPV}" = "6" ]
-	then
-		LB_RULE_BASE6=${base}
-	else 
-		LB_RULE_BASE4=${base}
-	fi
+	LB_IPV=${LB_RULES_DEFAULT_IPV}
 
 	local -a tos=()
 	local -a mark=()
@@ -1027,10 +1169,14 @@ rules() {
 		case "${1}" in
 			ipv4)
 				LB_IPV=4
+				LB_DO_RULES_IPV4=1
+				touch "${LB_DIR}/rules.${LB_IPV}"
 				;;
 
 			ipv6)
 				LB_IPV=6
+				LB_DO_RULES_IPV6=1
+				touch "${LB_DIR}/rules.${LB_IPV}"
 				;;
 
 			at|lookup|table)
@@ -1083,7 +1229,7 @@ rules() {
 				fi
 				if [ "${LB_GATEWAYS[$x]}" -eq 0 ]
 				then
-					warning "Ignoring rules for gateways '${x}'. Gateway '${x}' is not alive."
+					warning "Ignoring rules for gateway '${x}'. Gateway '${x}' is not alive."
 				else
 					src+=(`loadfile "${LB_DIR}/gateway.${x}.source-ips"`)
 				fi
@@ -1113,8 +1259,27 @@ rules() {
 		shift
 	done
 
-	# make sure we process rules even if this is empty
+	local base=
+	if [ "${LB_IPV}" = "6" ]
+	then
+		local base=${LB_RULE_BASE6}
+		LB_DO_RULES_IPV6=1
+	else 
+		local base=${LB_RULE_BASE4}
+		LB_DO_RULES_IPV4=1
+	fi
 	touch "${LB_DIR}/rules.${LB_IPV}"
+
+	# give some space between rules
+	base=$[ ( (base + LB_RULE_STEP) / LB_RULE_STEP ) * LB_RULE_STEP ]
+
+	# put it back, in case we return before the end
+	if [ "${LB_IPV}" = "6" ]
+	then
+		LB_RULE_BASE6=${base}
+	else 
+		LB_RULE_BASE4=${base}
+	fi
 
 	if [ "${#mark[*]}${#tos[*]}${#src[*]}${#dst[*]}${#inface[*]}" = "00000" ]
 	then
@@ -1127,14 +1292,8 @@ rules() {
 		if [ -z "${LB_TABLES[$table]}" ]
 		then
 			error "${FUNCNAME}: table $table does not exist."
-			return 1
+			exit 1
 		fi
-
-		#if [ "${LB_TABLES[$table]}" -eq 0 ]
-		#then
-		#	warning "${FUNCNAME} for table '${table}': Ignoring rules. Table ${table} is not alive."
-		#	return 1
-		#fi
 	fi
 
 	test ${#mark[@]} -eq 0 && mark=('any')
@@ -1254,7 +1413,7 @@ finalize_rules() {
 	# get all the rules for all the tables except 'main'
 	run ip -${LB_IPV} rule show |\
 		trim_spaces |\
-		egrep " lookup (`echo ${!tables[@]} | tr ' ' '|'`)$" |\
+		egrep -v "^(0|32766|32767)" |\
 		sed "s/\(^[0-9]\+\): /priority \1 /g" |\
 		normalize_rules |\
 		sort >"${LB_DIR}/rules.existing.${LB_IPV}"
@@ -1336,13 +1495,271 @@ asips() {
 		"${aggregate}"
 }
 
+# -----------------------------------------------------------------------------
+# help
+
+emit_version() {
+	cat <<EOF
+
+FireHOL LinkBalancer $VERSION
+(C) Copyright 2015 Costa Tsaousis <costa@tsaousis.gr>
+(C) Copyright 2015 Phil Whineray <phil@firehol.org>
+FireHOL is distributed under the GPL v2+.
+Home Page: http://firehol.org
+
+-------------------------------------------------------------------------
+Get notified of new FireHOL releases by subscribing to the mailing list:
+    http://lists.firehol.org/mailman/listinfo/firehol-support/
+-------------------------------------------------------------------------
+
+EOF
+}
+
+
+help() {
+
+cat <<EOFHELP
+Modes:
+
+   ${LB_FILE} boot [seconds]
+
+     - default 'seconds' is 300 (run every 5 mins)
+
+   Runs LinkBalancer in a screen session in the background.
+   To see it running run: 'screen -r link-balancer'
+   To exit screen without stopping it, press: Control-a then d.
+
+
+   ${LB_FILE} loop [seconds]
+
+   like above, but run in foreground, not in a screen session.
+
+
+   ${LB_FILE} -h|--help
+
+   Present this help file.
+
+
+   ${LB_FILE} [-t|--test] [-f|--fast] [-d|--debug]
+
+    -t or --test
+
+    Do not alter anything on the system.
+    Just show what would have been done.
+
+    -f or --fast
+
+    Assume all gateways are up, if their interfaces are up.
+    This should be run from '/etc/ppp/ip-down' to quickly
+    restore the default gateways of the system.
+
+    -d or --debug
+
+    At the end of the execution, output all temporary
+    files.
+
+EOFHELP
+
+cat >"${LB_CONFIG}.example" <<EOFCONFIG
+# Link Balancer Configuration file
+
+# default is IPv4.
+# You can change the default to IPv6 by setting this to "6":
+LB_DEFAULT_IPV="4"
+
+# You can also specify IPv4 or IPv6 for gateways, tables and policy by
+# using gateway4 gateway6 table4 table6 policy4 policy6
+# If you use these without the number, the default above will be used.
+# You can also run 'ipv4 gateway ...' or 'ipv4 gateway ...'
+# for all these statements.
+
+# -----------------------------------------------------------------------------
+# define all the gateways
+
+# TEMPLATE:
+#
+# gateway GATEWAY_NAME dev DEVICE [gw "IPs"] [src "IPs"] [check METHOD "IPs" ]
+#
+#  - DEVICE is the interface via which the gateway is accessible
+#  - gw IP is autodetected if not given
+#  - src IP is autodetected if not given
+#  - METHODs: ping traceroute alwayson (default is ping)
+#  - when check IPs is empty the gw IPs are used
+#
+# In general
+# - for point to point PPP interfaces everything is autodetected
+# - for point to lan PPP interfaces, you have to give gw IP and src IP
+# - for eth devices you have to specify the gw IP
+#
+# Hint: If you use PPP devices, specify in the peers file of pppd the
+# unit number you want it to use. This way, you will know that, for example,
+# you office VPN is always at ppp14.
+# Another way is to rename the ppp device in /etc/ppp/ip-up, so that
+# instead of having 'ppp14', you will have the interface as 'work1'.
+#
+# examples:
+
+# wan providers
+gateway dsl1 dev ppp11
+gateway dsl2 dev eth3 gw 2.2.2.2
+gateway dsl3 dev eth4 gw 3.3.3.3
+
+# dual path office VPN
+gateway work1 dev ppp14 check 172.16.1.2
+gateway work2 dev tun0 check 172.16.1.4
+
+
+# -----------------------------------------------------------------------------
+# define all the routing tables
+
+# Tables can be defined using numbers from 1 to 252.
+# Do not use tables 0, 253, 254 and 255. They are system tables.
+
+# You can give names to tables by editing /etc/iproute2/rt_tables
+# If you give names, you can use them here.
+
+# TEMPLATE:
+#
+# table NAME [from ORIGIN_TABLE_NAME] [nodefault]
+#
+# - NAME and ORIGIN_TABLE_NAME can either be IDs or names
+# - The default ORIGIN_TABLE_NAME is: main
+# - nodefault means in case the table is left without a default gateway,
+#   do not copy the default gateway of the ORIGIN_TABLE_NAME
+#
+# then for each table, define the default gateways you want:
+#
+#       default via GATEWAY_NAME [weight 0-250]
+#
+# - GATEWAY_NAME is the name of the gateway as given in the gateways section.
+# - default weight is 100. Weights can be given as 0 to 255.
+# - weight 0 is special. It means don't use this unless there is no
+#   other gateway available.
+# 
+# you can add as many default gateways per table, as you need.
+#
+# You should define one table per gateway and one for load-balancing the
+# gateways. You need one table per gateway, so that if you receive requests
+# from the gateways, you will respond to these requests via the same path.
+# 
+# examples:
+
+# one table per WAN gateway
+table dsl1
+	default via dsl1
+
+table dsl2
+	default via dsl2
+
+table dsl3
+	default via dsl3
+
+# this is the main system routing table
+table main
+	default via dsl1 weigth 250
+	default via dsl2 weight 150
+	default via dsl3 weight 50
+
+
+# one table per WORK gateway
+table work1 from WORK # we copy WORK here, not 'main'
+	default via work1
+
+table work2 from WORK # we copy WORK here, not 'main'
+	default via work2
+
+# this is based on 'main'
+# but we don't need its default gateway
+table WORK nodefault
+	default via work1 weight 100
+	default via work2 weight 50
+
+
+# -----------------------------------------------------------------------------
+# define rules for selecting tables
+
+policy
+
+# define a mark for each gateway table.
+# this makes packets originated from them to be routed back to them
+	connmark 0x1 table dsl1
+	connmark 0x2 table dsl2
+	connmark 0x3 table dsl3
+	connmark 0x11 table work1
+	connmark 0x12 table work2
+
+# You will have to add these connmark rules at the top of your firehol.conf:
+# connmark 0x1 inface ppp11
+# connmark 0x2 inface eth3
+# connmark 0x3 inface eth4
+# connmark 0x11 inface ppp14
+# connmark 0x12 inface tun0
+
+# Now you can add policy routing rules.
+# TEMPLATE:
+#        rules [not] [from|src IPs] [to|dst IPs] [mark X] [tos X] table TABLE_NAME
+#
+# example:
+
+	# clients at 192.168.1.0 use only dsl1
+	rules src 192.168.1.0/24 table dsl1
+
+	# web server at 1.2.3.4 is routed only via dsl2
+	rules dst 1.2.3.4 table dsl2
+
+# You can use LinkBalancer to find all the IP address space of your upstream
+# providers:
+# Run:
+#
+#  ${LB_FILE} asips ONE_IP_OF_YOUR_PROVIDER
+#
+# LinkBalancer will query RIPE to find all the IPs of your provider.
+# So you can add:
+
+	rules dst IPS_OF_PROVIDER_1 table dsl1
+	rules dst IPS_OF_PROVIDER_2 table dsl2
+	rules dst IPS_OF_PROVIDER_3 table dsl3
+
+# You can also have all the IPs in separate files:
+# Run:
+#
+#  ${LB_FILE} asips ONE_IP_OF_YOUR_PROVIDER_1 >/etc/firehol/PROVIDER1_IPS
+#
+# Then:
+	rules dst loadfile PROVIDER1_IPS table dsl1
+
+
+# Last, you may want to route local traffic to the proper table.
+# This is not required through.
+# It will only help if you run daemons that bind to specific IPs
+# and you want them to be routed based on these IPs.
+
+	rules src gw-src-ips dsl1 table dsl1
+	rules src gw-src-ips dsl2 table dsl2
+	rules src gw-src-ips dsl3 table dsl3
+	rules src gw-src-ips work1 table work1
+	rules src gw-src-ips work2 table work2
+
+
+EOFCONFIG
+
+echo >&2 "Saved ${LB_CONFIG}.example for your convinience..."
+
+}
 
 # -----------------------------------------------------------------------------
 # options
 
+emit_version
+
 while [ ! -z "$1" ]
 do
 	case "$1" in
+		-h|--help)
+			help
+			exit 0
+			;;
+
 		-t|--test)
 			DRY_RUN=1
 			;;
@@ -1388,12 +1805,15 @@ $1 == "ipv6" { printf "LB_LINEID=${LINENO} " }
 $1 == "gateway" { printf "LB_LINEID=${LINENO} " }
 $1 == "table" { printf "LB_LINEID=${LINENO} " }
 $1 == "rules" { printf "LB_LINEID=${LINENO} " }
+$1 == "policy" { printf "LB_LINEID=${LINENO} " }
 $1 == "gateway4" { printf "LB_LINEID=${LINENO} " }
 $1 == "table4" { printf "LB_LINEID=${LINENO} " }
 $1 == "rules4" { printf "LB_LINEID=${LINENO} " }
+$1 == "policy4" { printf "LB_LINEID=${LINENO} " }
 $1 == "gateway6" { printf "LB_LINEID=${LINENO} " }
 $1 == "table6" { printf "LB_LINEID=${LINENO} " }
 $1 == "rules6" { printf "LB_LINEID=${LINENO} " }
+$1 == "policy6" { printf "LB_LINEID=${LINENO} " }
 $1 == "default" { printf "LB_LINEID=${LINENO} " }
 $1 == "src" { printf "LB_LINEID=${LINENO} " }
 $1 == "dst" { printf "LB_LINEID=${LINENO} " }
@@ -1418,7 +1838,9 @@ EOF2
 
 # process the script
 LB_LINEID="INIT"
+enable -n trap			# Disable the trap buildin shell command.
 source "${LB_DIR}/config.script" || exit 1
+enable trap
 LB_LINEID="FIN"
 
 # apply the changes
@@ -1427,8 +1849,8 @@ printf >&2 "APPLYING CHANGES\n"
 
 test -f "${LB_DIR}/tables.4" && finalize_tables 4
 test -f "${LB_DIR}/tables.6" && finalize_tables 6
-test -f "${LB_DIR}/rules.4" && finalize_rules 4
-test -f "${LB_DIR}/rules.6" && finalize_rules 6
+test ${LB_DO_RULES_IPV4} -eq 1 && finalize_rules 4
+test ${LB_DO_RULES_IPV6} -eq 1 && finalize_rules 6
 LB_RESULT_CODE=0
 
 # all done!
