@@ -452,6 +452,9 @@ fireqos_exit() {
 	
 	[ -f "${FIREQOS_LOCK_FILE}" ] && rm -f "${FIREQOS_LOCK_FILE}" >/dev/null 2>&1
 
+	enable trap
+	enable exit
+	trap exit EXIT
 	if [ "$FIREQOS_COMPLETED" = "0" ]
 	then
 		exit 1
