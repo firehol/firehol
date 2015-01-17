@@ -331,7 +331,7 @@ check_ping() {
 }
 
 CHECK_TRACEROUTE_PORT=80
-CHECK_TRACEROUTE_WAIT=10
+CHECK_TRACEROUTE_WAIT=2
 check_traceroute() {
 	DEBUGCMD "${FUNCNAME}" "${#FUNCNAME[*]}" "${@}"
 	
@@ -380,8 +380,6 @@ gateway() {
 		shift
 	fi
 
-	LB_GATEWAYS[$name]=0
-
 	local gw=
 	local dev=
 	local src=
@@ -428,6 +426,9 @@ gateway() {
 		shift
 	done
 
+	LB_GATEWAYS[$name]=0
+	LB_GATEWAYS_IPV[$name]=${LB_IPV}
+
 	# if we don't have source IPs, find them from the interface
 	if [ -z "${src}" -o "${src}" = "auto" ]
 	then
@@ -462,7 +463,6 @@ gateway() {
 	test -z "${dst}" -o "${dst}" = "auto" -o "${dst}" = "detect" -o "${dst}" = "gateway" && local dst="${gw}"
 	test $FORCE_ALWAYSON -eq 1 && local check="alwayson"
 
-	LB_GATEWAYS_IPV[$name]=${LB_IPV}
 	cat <<EOF_GW
 
     --- GATEWAY CONFIGURATION ----
@@ -470,7 +470,7 @@ gateway() {
     Via IP    : ${gw}
     Source IPs: ${src}
     Check     : ${check} ${dst}
-    IP VERSION: ${LB_GATEWAYS_IPV[$name]}
+    IP VERSION: ${LB_IPV}
 
 EOF_GW
 
@@ -513,7 +513,7 @@ EOF_GW
 	LB_GATEWAYS[$name]="${count}"
 
 	echo 
-	echo "    IPv${LB_GATEWAYS_IPV[$name]} gateway '${name}' is alive, having ${count} active path(s)."
+	echo "    IPv${LB_IPV} gateway '${name}' is alive, having ${count} active path(s)."
 	return 0
 }
 
@@ -553,6 +553,7 @@ get_existing_routing_table() {
 }
 
 work_table=
+work_ipv=
 table4() { table ipv4 "${@}"; }
 table6() { table ipv6 "${@}"; }
 table() {
@@ -635,6 +636,7 @@ EOF_TABLE
 	fi
 
 	work_table="${table}"
+	work_ipv="${LB_IPV}"
 	LB_TABLES[$table]=0
 
 	# set LB_ORIGIN_TABLES
@@ -661,6 +663,7 @@ default() {
 	fi
 
 	# check IPvX is as it should
+	LB_IPV=${work_ipv}
 	if [ ! "${LB_TABLES_IPV[${work_table}]}" = "${LB_IPV}" -a ! "${LB_TABLES_IPV[${work_table}]}" = "46" ]
 	then
 		error "${FUNCNAME} INTERNAL ERROR: Inheritted IPv${LB_IPV} but table is IPv${LB_TABLES_IPV[${work_table}]}."
@@ -704,7 +707,7 @@ default() {
 
 	if [ ! "${LB_GATEWAYS_IPV[$gw]}" = "${LB_IPV}" ]
 	then
-		error "${FUNCNAME} '${gw}' on '${work_table}': Cannot assign an IPv${LB_GATEWAYS_IPV[$gw]} to an IPv${LB_IPV} table."
+		error "${FUNCNAME} '${gw}' on '${work_table}': Cannot assign an IPv${LB_GATEWAYS_IPV[$gw]} gateway to an IPv${LB_IPV} table."
 		exit 1
 	fi
 
