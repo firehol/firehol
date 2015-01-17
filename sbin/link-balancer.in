@@ -1178,6 +1178,8 @@ rules() {
 		done
 	done
 
+	touch "${LB_DIR}/rules.${LB_IPV}"
+
 	# put the priority back to the global variable
 	if [ "${LB_IPV}" = "6" ]
 	then
