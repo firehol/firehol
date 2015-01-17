@@ -842,7 +842,9 @@ firehol_exit() {
 		fi
 	fi
 	
+	enable trap
 	enable exit
+	trap exit EXIT
 	if [ ${FIREHOL_ACTIVATED_SUCCESSFULLY} -eq 0 ]
 	then
 		exit 1
