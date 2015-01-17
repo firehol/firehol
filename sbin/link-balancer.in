@@ -129,7 +129,7 @@ trap lb_exit INT
 log() {
 	if [ ${DRY_RUN} -eq 0 ]
 	then
-		logger -p daemon.info -t "LinkBalancer" "${@}"
+		logger -p daemon.info -t "LinkBalancer" "${*}"
 	fi
 }
 
