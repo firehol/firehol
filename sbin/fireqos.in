@@ -5,6 +5,7 @@
 #   Copyright
 #
 #       Copyright (C) 2013-2014 Costa Tsaousis <costa@tsaousis.gr>
+#       Copyright (C) 2013-2014 Phil Whineray <phil@sanewall.org>
 #
 #   License
 #
@@ -50,6 +51,7 @@ get_version() {
 }
 VERSION=$(get_version)
 
+# Make sure we don't get localized results
 export LC_ALL=C
 
 # let everyone read our status info
@@ -57,6 +59,7 @@ umask 022
 
 me="$0"
 
+# enabled extended pattern matching in bash
 shopt -s extglob
 
 FIREQOS_SYSLOG_FACILITY="daemon"
@@ -448,6 +451,12 @@ fireqos_exit() {
 	echo >&2 "bye..."
 	
 	[ -f "${FIREQOS_LOCK_FILE}" ] && rm -f "${FIREQOS_LOCK_FILE}" >/dev/null 2>&1
+
+	if [ "$FIREQOS_COMPLETED" = "0" ]
+	then
+		exit 1
+	fi
+	exit 0
 }
 
 fireqos_concurrent_run_lock() {
@@ -3411,6 +3420,7 @@ fireqos_concurrent_run_lock
 FIREQOS_COMPLETED=0
 trap fireqos_exit EXIT
 trap fireqos_exit SIGHUP
+trap fireqos_exit INT
 
 # load the IFB kernel module
 runcmd $modprobe_cmd ifb numifbs=0 >/dev/null 2>&1
