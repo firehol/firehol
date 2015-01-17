@@ -73,6 +73,7 @@ then
 	echo >&2
 	echo >&2 "Only user root can run FireHOL."
 	echo >&2
+	exit 1
 fi
 
 # Remember who you are.
@@ -80,6 +81,8 @@ FIREHOL_FILE="${0}"
 declare -a FIREHOL_ORIGINAL_ARGS=("${@}")
 FIREHOL_DEFAULT_WORKING_DIRECTORY="${PWD}"
 
+# Make sure we don't get localized results
+export LC_ALL=C
 
 # ------------------------------------------------------------------------------
 # XXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXX
@@ -766,7 +769,7 @@ syslog() {
 
 firehol_exit() {
 	local restored="NO"
-	if [ -f "${FIREHOL_SAVED}" -a "${FIREHOL_MODE}" = "START" ]
+	if [ \( -f "${FIREHOL_SAVED}" -o -f "${FIREHOL_SAVED6}" \) -a "${FIREHOL_MODE}" = "START" ]
 	then
 		echo
 		echo -n $"FireHOL: Restoring old firewall:"
@@ -839,12 +842,19 @@ firehol_exit() {
 		fi
 	fi
 	
-	return 0
+	enable exit
+	if [ ${FIREHOL_ACTIVATED_SUCCESSFULLY} -eq 0 ]
+	then
+		exit 1
+	fi
+
+	exit 0
 }
 
 # Run our exit even if we don't call exit.
 trap firehol_exit EXIT
 trap firehol_exit SIGHUP
+trap firehol_exit INT
 
 
 # ------------------------------------------------------------------------------
@@ -8704,7 +8714,7 @@ firehol_concurrent_run_lock
 echo -n $"FireHOL: Saving your running firewall to a temporary file:"
 if [ $ENABLE_IPV4 -eq 1 ]
 then
-	fixed_save ${IPTABLES_SAVE_CMD} >${FIREHOL_SAVED}
+	fixed_save ${IPTABLES_SAVE_CMD} >${FIREHOL_SAVED}.new
 	status4=$?
 else
 	status4=0
@@ -8712,7 +8722,7 @@ fi
 
 if [ $ENABLE_IPV6 -eq 1 ]
 then
-	fixed_save ${IP6TABLES_SAVE_CMD} >${FIREHOL_SAVED6}
+	fixed_save ${IP6TABLES_SAVE_CMD} >${FIREHOL_SAVED6}.new
 	status6=$?
 else
 	status6=0
@@ -8720,6 +8730,9 @@ fi
 
 if [ $status4 -eq 0 -a $status6 -eq 0 ]
 then
+	test -f ${FIREHOL_SAVED}.new && mv ${FIREHOL_SAVED}.new ${FIREHOL_SAVED}
+	test -f ${FIREHOL_SAVED6}.new && mv ${FIREHOL_SAVED6}.new ${FIREHOL_SAVED6}
+
 	success $"FireHOL: Saving your running firewall to a temporary file:"
 	echo
 else
