@@ -1113,6 +1113,9 @@ rules() {
 		shift
 	done
 
+	# make sure we process rules even if this is empty
+	touch "${LB_DIR}/rules.${LB_IPV}"
+
 	if [ "${#mark[*]}${#tos[*]}${#src[*]}${#dst[*]}${#inface[*]}" = "00000" ]
 	then
 		warning "${FUNCNAME} gives no rules."
@@ -1177,8 +1180,6 @@ rules() {
 			done
 		done
 	done
-
-	touch "${LB_DIR}/rules.${LB_IPV}"
 
 	# put the priority back to the global variable
 	if [ "${LB_IPV}" = "6" ]
