@@ -1,0 +1,1433 @@
+#!/bin/bash
+
+# if called with the parameter 'boot', create a new screen that
+# will run forever.
+if [ "$1" = "boot" ]
+then
+	shift
+	screen -S 'link-balancer' -d -m "$0" loop "${@}"
+	exit 0
+fi
+
+# if called with the parameter 'loop', run forever.
+if [ "$1" = "loop" ]
+then
+	shift
+	secs="${1}"
+	secs=$[ secs + 1 - 1 ]
+	test "${secs}" = "0" && secs=300
+
+	while [ 1 ]
+	do
+		$0 "${@}"
+		echo "Waiting for $secs secs..."
+		sleep $secs
+	done
+	exit 0
+fi
+
+# link-balancer temporary directory.
+# every instance of link-balancer creates a random directory
+# within this one.
+LB_RUN_DIR="/var/run/link-balancer"
+if [ ! -d "${LB_RUN_DIR}" ]
+then
+	mkdir -p "${LB_RUN_DIR}" 		|| exit 1
+	chown root:root "${LB_RUN_DIR}"	|| exit 1
+	chmod 700 "${LB_RUN_DIR}"		|| exit 1
+fi
+
+# get an exclusive lock or wait for it to be available
+LOCKFILE="${LB_RUN_DIR}/link-balancer.lock"
+[ "${FLOCKER}" != "${LOCKFILE}" ] && exec env FLOCKER="${LOCKFILE}" flock -e "${LOCKFILE}" "$0" "$@" || :
+
+
+# -----------------------------------------------------------------------------
+# PREPARATIONS
+
+# If this is set to 1, no checks will be made if the gateways are available.
+# All gateways will be assumed active, if their interfaces are found
+# operational.
+# WHY: When we have a multi-ppp environment the default gateway of the system
+# will be composed my multiple 'nexthop' routes. When a ppp device fails
+# the kernel will remove the entire default gateway, not just the 'nexthop'
+# that is not available any more.
+# By calling link-balancer with option '-f' will enable this option.
+# This option will make link-balancer restore the default gateway as soon
+# as possible.
+# 'link-balancer -f' should thus by called by ppp/ip-down scripts.
+FORCE_ALWAYSON=0
+
+# If set to 1, link-balancer will not change anything. It will just show
+# what it will execute if run without it.
+DRY_RUN=0
+
+# If set to 1, link-balancer will output to standard-error all temporary files
+# it generates during its execution.
+DEBUG_ALL_DATA=0
+
+# The step which increments the priority of the rules for each rule statement
+# in the configuration file.
+LB_RULE_STEP=100
+
+# Keeps a list of all tables that have been altered during its run.
+declare -A LB_ALTERED=()
+
+# Where is the link-balancer configuration files?
+LB_CONFIG_DIR="/etc/firehol"
+
+# Link-balancer main configuration file.
+LB_CONFIG="${LB_CONFIG_DIR}/link-balancer.conf"
+
+# temporary variable
+# takes either 4 or 6 to switch the functions in ipv4 or ipv6
+LB_IPV=
+LB_DEFAULT_IPV=4
+
+cd "${LB_RUN_DIR}" || exit 1
+LB_DIR="`mktemp -d "${LB_RUN_DIR}/temp-XXXXXXXXXX"`" || exit 1
+
+LB_RESULT_CODE=1
+lb_exit() {
+	cd /tmp
+
+	if [ ${DEBUG_ALL_DATA} -eq 1 ]
+	then
+		echo >&2
+		echo >&2
+		echo >&2 "---------------------------------------------------------------------"
+		echo >&2 "Temporary folder contents:"
+		ls -l "${LB_DIR}/" >&2
+
+		for x in "${LB_DIR}"/*
+		do
+			echo >&2
+			echo >&2
+			echo >&2 "---------------------------------------------------------------------"
+			echo >&2 "${x}"
+			echo >&2 
+			cat >&2 "${x}"
+		done
+	fi
+
+	if [ ! -z "${LB_DIR}" -a -d "${LB_DIR}" ]
+	then
+		rm -rf "${LB_DIR}"
+	fi
+
+	exit ${LB_RESULT_CODE}
+}
+
+trap lb_exit EXIT
+trap lb_exit SIGHUP
+trap lb_exit INT
+
+
+# -----------------------------------------------------------------------------
+# COMMON FUNCTIONS
+
+log() {
+	if [ ${DRY_RUN} -eq 0 ]
+	then
+		logger -p daemon.info -t "LinkBalancer" "${@}"
+	fi
+}
+
+last_debug_depth=0
+DEBUGCMDNNL() {
+	local prefix="${1}"; shift
+	local name="${1}"; shift
+	local depth="${1}"; shift
+	
+	test "$depth" = "" && local depth=$last_debug_depth
+	last_debug_depth=$depth
+
+	# printf >&2 "`date`"
+	printf >&2 "% $((depth))s ${prefix} %s " " " "${name}"
+	printf >&2 " ${*} "
+}
+
+DEBUGCMD() {
+	DEBUGCMDNNL "-" "${@}"
+	printf >&2 "\n"
+}
+
+warning() {
+	log "WARNING ${LB_LINEID}@${LB_CONFIG}: ${@}"
+
+	echo >&2
+	echo >&2 "WARNING ${LB_LINEID}@${LB_CONFIG}: " "$@"
+	echo >&2
+	
+	return 0
+}
+
+error() {
+	log "ERROR ${LB_LINEID}@${LB_CONFIG}: ${@}"
+
+	echo >&2
+	echo >&2 "ERROR ${LB_LINEID}@${LB_CONFIG}: " "$@"
+	echo >&2
+	
+	exit 1
+}
+
+run() {
+	DEBUGCMDNNL "#" "${FUNCNAME}" "${#FUNCNAME[*]}" "${@}" " ... "
+
+	local tmp="`mktemp "${LB_DIR}/run-${1}-$$-XXXXXXXXXX"`"
+	"${@}" >"$tmp" 2>"$tmp.err"
+	local ret=$?
+
+	if [ $ret -eq 0 ]
+		then
+		printf >&2 "OK\n"
+	else
+		printf >&2 "FAILED\n"
+	fi
+	cat >&2 "$tmp.err"
+	cat "$tmp"
+	rm "$tmp" "$tmp.err"
+	return $ret
+}
+
+action() {
+	if [ ${DRY_RUN} -eq 0 ]
+		then
+		run "${@}"
+		local ret=$?
+
+		if [ $ret -ne 0 ]
+		then
+			warning "Command: '${@}' exited with code $ret."
+		else
+			log "Successfuly run: '${@}'."
+		fi
+
+		return $ret
+	fi
+
+	DEBUGCMDNNL "#" "${FUNCNAME}" "${#FUNCNAME[*]}" "${@}" " ... "
+	printf >&2 "DEFERRED\n"
+	return 0
+}
+
+trim_spaces() {
+	sed -e "s/[\t\\ ]\+/ /g" -e "s/ \+$//g" -e "s/^ \+//g"
+}
+
+loadfile() {
+	local file="$1"; shift
+
+	cd "${LB_CONFIG_DIR}"
+	test ! -f "${file}" && log "WARNING: file '${file}' does not exist."
+	cat "${file}" | sed -e "s/#.*$//g" | trim_spaces | tr '\n' ' '
+	local ret=$?
+	cd "${LB_RUN_DIR}"
+
+	return $ret
+}
+
+ipv4() {
+	DEBUGCMD "${FUNCNAME}" "${#FUNCNAME[*]}" "${@}"
+	local cmd="${1}"; shift
+
+	case "${cmd}" in
+		gateway|table|rules|mark|fwmark|connmark|src|dst|from|to|tos|not)
+			"${cmd}" ipv4 "${@}"
+			return $?
+			;;
+
+		default)
+			error "Command '${cmd}' inherits IP version from its parent. Do not give ${FUNCNAME} for '${cmd}'."
+			exit 1
+			;;
+
+		*)
+			error "Command '${cmd}' cannot change IP version."
+			exit 1
+			;;
+	esac
+}
+
+ipv6() {
+	DEBUGCMD "${FUNCNAME}" "${#FUNCNAME[*]}" "${@}"
+	local cmd="${1}"; shift
+
+	case "${cmd}" in
+		gateway|table|rules|mark|fwmark|connmark|src|dst|from|to|tos|not)
+			"${cmd}" ipv6 "${@}"
+			return $?
+			;;
+
+		default)
+			error "Command '${cmd}' inherits IP version from its parent. Do not give ${FUNCNAME} for '${cmd}'."
+			exit 1
+			;;
+
+		*)
+			error "Command '${cmd}' cannot change IP version."
+			exit 1
+			;;
+	esac
+}
+
+
+# -----------------------------------------------------------------------------
+# gateway section
+
+get_interface_ips() {
+
+	local ipv="4"
+	test "${LB_IPV}" = "6" && local ipv="6"
+
+	local inet="inet"
+	test "${LB_IPV}" = "6" && local inet="inet6"
+
+
+	run ip -${ipv} addr show dev "$1" |\
+		trim_spaces |\
+		grep "${inet} " |\
+		cut -d ' ' -f 2 |\
+		cut -d '/' -f 1 |\
+		tr '\n' ' '
+}
+
+get_interface_routes() {
+	local dev="${1}"; shift
+
+	local ipv=4
+	test "${LB_IPV}" = "6" && local ipv=6
+
+	local hostnet="/32"
+	test "${LB_IPV}" = "6" && local hostnet="/128"
+
+	local i=
+	for i in ${@}
+	do
+		run ip -${ipv} route show dev "${dev}" scope link src "${i}" |\
+			trim_spaces |\
+			cut -d ' ' -f 1 |\
+			sed "s|/${hostnet}||g" |\
+			grep -v "/" |\
+			tr '\n' ' '
+	done
+}
+
+CHECK_PING_COUNT=3
+CHECK_PING_WAIT=10
+check_ping() {
+	DEBUGCMD "${FUNCNAME}" "${#FUNCNAME[*]}" "${@}"
+	
+	local dev="$1"
+	local src="$2"
+	local dst="$3"
+	
+	local cmd="ping"
+	test "${LB_IPV}" = "6" && local cmd="ping6"
+	
+	run $cmd -I ${src} -c ${CHECK_PING_COUNT} -w ${CHECK_PING_WAIT} ${dst} >/dev/null
+	return $?
+}
+
+CHECK_TRACEROUTE_PORT=80
+CHECK_TRACEROUTE_WAIT=10
+check_traceroute() {
+	DEBUGCMD "${FUNCNAME}" "${#FUNCNAME[*]}" "${@}"
+	
+	local dev="$1"
+	local src="$2"
+	local dst="$3"
+	
+	local cmd="traceroute"
+	test "${LB_IPV}" = "6" && local cmd="traceroute6"
+	
+	local found="`run $cmd -i "${dev}" -r -s ${src} -w ${CHECK_TRACEROUTE_WAIT} -Tn -p ${CHECK_TRACEROUTE_PORT} ${dst} | grep ${dst}`"
+	test ! -z "${found}" && return 0
+	return 1
+}
+
+check_alwayson() {
+	DEBUGCMD "${FUNCNAME}" "${#FUNCNAME[*]}" "${@}"
+	
+	local dev="$1"
+	local src="$2"
+	local dst="$3"
+
+	return 0
+}
+
+# this array has one entry per gateway.
+# - the array index is the gateway name
+# - the array value is the number of distinct gateways alive
+declare -A LB_GATEWAYS=()
+
+# keep track of the gateways IP version
+declare -A LB_GATEWAYS_IPV=()
+
+gateway4() { gateway ipv4 "${@}"; }
+gateway6() { gateway ipv6 "${@}"; }
+gateway() {
+	printf >&2 "\n-------------------------------------------------------------------------------\n"
+	DEBUGCMD "${FUNCNAME}" "${#FUNCNAME[*]}" "${@}"
+	LB_IPV=${LB_DEFAULT_IPV}
+
+	if [ ! -z "${work_route}" ]
+	then
+		local name="${work_route}"
+	else
+		local name="${1}"
+		shift
+	fi
+
+	LB_GATEWAYS[$name]=0
+
+	local gw=
+	local dev=
+	local src=
+	local dst="gateway"
+	local check="ping"
+
+	while [ ! -z "${1}" ]
+	do
+		case "${1}" in
+			ipv4)
+				LB_IPV=4
+				;;
+
+			ipv6)
+				LB_IPV=6
+				;;
+
+			on|dev)
+				local dev="${2}"
+				shift
+				;;
+
+			gateway|gw|via)
+				local gw="${2}"
+				shift
+				;;
+
+			src|from)
+				local src="${2}"
+				shift
+				;;
+
+			check)
+				local check="${2}"
+				local dst="${3}"
+				shift 2
+				;;
+
+			*)
+				error "${FUNCNAME} '${name}': cannot understand parameter '${1}'."
+				return 1
+				;;
+		esac
+		shift
+	done
+
+	# if we don't have source IPs, find them from the interface
+	if [ -z "${src}" -o "${src}" = "auto" ]
+	then
+		local src="`get_interface_ips "${dev}" | sort -u`"
+	fi
+
+	# if we don't have source IPs, cannot proceed
+	if [ -z "${src}" ]
+	then
+		warning "Cannot find gateway ${name} IPs."
+		return 1
+	fi
+
+	# if we don't have a gateway, cannot proceed
+	if [ -z "${dev}" ]
+	then
+		error "${FUNCNAME} '${name}': cannot add a gateway without a device."
+		return 2
+	fi
+
+	# if we don't have gateway IPs, find them from the interface
+	test -z "${gw}" -o "${gw}" = "auto" -o "${gw}" = "detect" && local gw="`get_interface_routes "${dev}" ${src}`"
+
+	# if we don't have a gateway, cannot proceed
+	if [ -z "${gw}" ]
+	then
+		warning "Cannot find ${name} gateway IPs."
+		return 3
+	fi
+
+	# if we don't have a destination, use the gateway	
+	test -z "${dst}" -o "${dst}" = "auto" -o "${dst}" = "detect" -o "${dst}" = "gateway" && local dst="${gw}"
+	test $FORCE_ALWAYSON -eq 1 && local check="alwayson"
+
+	LB_GATEWAYS_IPV[$name]=${LB_IPV}
+	cat <<EOF_GW
+
+    --- GATEWAY CONFIGURATION ----
+    Gateway   : ${name}
+    Via IP    : ${gw}
+    Source IPs: ${src}
+    Check     : ${check} ${dst}
+    IP VERSION: ${LB_GATEWAYS_IPV[$name]}
+
+EOF_GW
+
+	echo "${src}" >"${LB_DIR}/gateway.${name}.source-ips"
+
+	# -------------------------------------------------------------------------
+	# Check if the gateway is alive
+
+	echo "    CHECKING IF GATEWAY ${name} IS ALIVE"
+
+	local alive=0
+	local s=
+	for s in ${src}
+	do
+		local d=
+		for d in ${dst}
+		do
+			test $alive -ne 0 && break
+
+			check_${check} ${dev} ${s} ${d}
+			test $? -eq 0 && local alive=1
+		done
+	done
+
+	if [ ${alive} -eq 0 ]
+	then
+		echo
+		echo "    Gateway ${name} is not alive."
+		return 99
+	fi
+
+	local count=0
+	local g=
+	for g in ${gw}
+	do
+		local count=$[count + 1]
+		echo "via ${g} dev ${dev}" >>"${LB_DIR}/gateway.${name}.paths"
+	done
+
+	LB_GATEWAYS[$name]="${count}"
+
+	echo 
+	echo "    IPv${LB_GATEWAYS_IPV[$name]} gateway '${name}' is alive, having ${count} active path(s)."
+	return 0
+}
+
+
+# -----------------------------------------------------------------------------
+# table section
+
+# this array has one entry per table.
+# - the array index is the table name
+# - the array value is the number of default gateways available
+declare -A LB_TABLES=()
+
+# keep track of the IP version per table
+# if a table is used by both IPv4 and IPv6, '46' should be stored
+declare -A LB_TABLES_IPV=()
+
+# keep track of all origin tables
+# if a table is used by both IPv4 and IPv6, '46' should be stored
+declare -A LB_ORIGIN_TABLES=()
+
+get_existing_routing_table() {
+	DEBUGCMD "${FUNCNAME}" "${#FUNCNAME[*]}" "${@}"
+	
+	local table="${1}"
+
+	if [ "${LB_IPV}" = "6" ]
+	then
+		run ip -6 -o route show table "${table}" |\
+			trim_spaces |\
+			sort
+	else
+		run ip -4 -o route show table "${table}" |\
+			grep -v " via 127.0.0.1 dev lo" |\
+			trim_spaces |\
+			sort
+	fi
+}
+
+work_table=
+table4() { table ipv4 "${@}"; }
+table6() { table ipv6 "${@}"; }
+table() {
+	printf >&2 "\n-------------------------------------------------------------------------------\n"
+	DEBUGCMD "${FUNCNAME}" "${#FUNCNAME[*]}" "${@}"
+	LB_IPV=${LB_DEFAULT_IPV}
+
+	local table="$1"; shift
+
+	if [ -z "${table}" ]
+	then
+		error "${FUNCNAME} needs a name."
+		return 1
+	fi
+
+	local origin="main"
+	local copy_default=1
+	while [ ! -z "${1}" ]
+	do
+		case "${1}" in
+			ipv4)
+				LB_IPV=4
+				;;
+
+			ipv6)
+				LB_IPV=6
+				;;
+
+			from|copy|duplicate)
+				local origin="${2}"
+				shift
+				;;
+
+			nodefault|keepdefault|nodef)
+				local copy_default=0
+				;;
+
+			*)
+				error "${FUNCNAME} '${table}': Cannot understand option '${1}'."
+				return 1
+				;;
+		esac
+		shift
+	done
+
+	# set LB_TABLES_IPV
+	if [ -z "${LB_TABLES_IPV[$table]}" ]
+	then
+		LB_TABLES_IPV[$table]="${LB_IPV}"
+	elif [ "${LB_TABLES_IPV[$table]}" = "${LB_IPV}" ]
+	then
+		error "${FUNCNAME}: table ${table} already exists in IPv${LB_IPV}."
+		exit 1
+	else
+		LB_TABLES_IPV[$table]="46"
+	fi
+
+	# give a summary to the user
+	cat <<EOF_TABLE
+
+    --- TABLE CONFIGURATION ---
+    Table       : ${table}
+    Duplicate of: ${origin}
+    IP VERSION  : ${LB_IPV}
+
+EOF_TABLE
+
+	if [ ! "${table}" = "${origin}" -a ! -z "${origin}" -a ! "${origin}" = "none" ]
+	then
+		# just link it
+		# The source file may not exist yet. This is OK.
+		# Later, at finizize_tables() we will check the links to find
+		# the dependencies between the tables so that they will be
+		# activated in the correct order, so that in one pass all
+		# tables will get the final routes.
+		# We will also check if the user requested a circular
+		# dependency, and stop processing in this case.
+		ln -s "${LB_DIR}/table.${origin}.routes.${LB_IPV}" "${LB_DIR}/table.${table}.origin_routes.${LB_IPV}"
+		test $copy_default -eq 1 && ln -s "${LB_DIR}/table.${origin}.default.${LB_IPV}" "${LB_DIR}/table.${table}.origin_default.${LB_IPV}"
+	fi
+
+	work_table="${table}"
+	LB_TABLES[$table]=0
+
+	# set LB_ORIGIN_TABLES
+	if [ -z "${LB_ORIGIN_TABLES[$origin]}" ]
+	then
+		LB_ORIGIN_TABLES[$origin]="${LB_IPV}"
+	elif [ ! "${LB_ORIGIN_TABLES[$origin]}" = "${LB_IPV}" ]
+	then
+		LB_ORIGIN_TABLES[$origin]="46"
+	fi
+
+	# instruct the finalizer to run IPvX tables
+	touch "${LB_DIR}/tables.${LB_IPV}"
+}
+
+
+default() {
+	DEBUGCMD "${FUNCNAME}" "${#FUNCNAME[*]}" "${@}"
+
+	if [ -z "${work_table}" ]
+	then
+		error "Statement 'default' should appear after a 'table'."
+		exit 1
+	fi
+
+	# check IPvX is as it should
+	if [ ! "${LB_TABLES_IPV[${work_table}]}" = "${LB_IPV}" -a ! "${LB_TABLES_IPV[${work_table}]}" = "46" ]
+	then
+		error "${FUNCNAME} INTERNAL ERROR: Inheritted IPv${LB_IPV} but table is IPv${LB_TABLES_IPV[${work_table}]}."
+		exit 1
+	fi
+
+	local gw=
+	local weight=100
+	while [ ! -z "${1}" ]
+	do
+		case "${1}" in
+			via|gateway|gw)
+				gw="${2}"
+				shift
+				;;
+
+			weight)
+				local weight="${2}"
+				shift
+				;;
+
+			*)
+				error "${FUNCNAME} on '${work_table}': Cannot understand option '${1}'."
+				return 1
+				;;
+		esac
+		shift
+	done
+
+	if [ -z "${gw}" ]
+	then
+		error "${FUNCNAME} on '${work_table}': Cannot work without a gateway."
+		return 1
+	fi
+
+	if [ -z "${LB_GATEWAYS[$gw]}" ]
+	then
+		warning "${FUNCNAME} '${gw}' on '${work_table}': Unknown gateway '${gw}' requested."
+		return 1
+	fi
+
+	if [ ! "${LB_GATEWAYS_IPV[$gw]}" = "${LB_IPV}" ]
+	then
+		error "${FUNCNAME} '${gw}' on '${work_table}': Cannot assign an IPv${LB_GATEWAYS_IPV[$gw]} to an IPv${LB_IPV} table."
+		exit 1
+	fi
+
+	if [ "${LB_GATEWAYS[$gw]}" = "0" ]
+	then
+		warning "${FUNCNAME} '${gw}' on '${work_table}': Ignoring gateway '${gw}', it is not alive."
+		return 1
+	fi
+
+	if [ ! -s "${LB_DIR}/gateway.${gw}.paths" ]
+	then
+		warning "${FUNCNAME} '${gw}' on '${work_table}': Gateway '${gw}' does not have any routes."
+		return 1
+	fi
+
+	local count=${LB_TABLES[${work_table}]}
+	while read
+	do
+		count=$[count + 1]
+		echo "nexthop ${REPLY} weight ${weight}" >>"${LB_DIR}/table.${work_table}.default.${LB_IPV}"
+	done <"${LB_DIR}/gateway.${gw}.paths"
+	
+	LB_TABLES[${work_table}]=$count
+}
+
+lb_diff_route() {
+	local cmd="$1"; shift
+	local table="$1"; shift
+
+	case "${cmd}" in
+		add)
+			action ip -${LB_IPV} route add table ${table} "${@}" || action ip -${LB_IPV} route append table ${table} "${@}"
+			return $?
+			;;
+
+		delete)
+			action ip -${LB_IPV} route del table ${table} "${@}"
+			return $?
+			;;
+
+		same)
+			return 0
+			;;
+	esac
+	return 1
+}
+
+update_table() {
+	printf >&2 "\n    -----------------------------------------------\n"
+	DEBUGCMD "${FUNCNAME}" "${#FUNCNAME[*]}" "${@}"
+
+	LB_IPV="${1}"; shift
+	local table="${1}"; shift
+
+	# check IPvX is as it should
+	if [ ! "${LB_TABLES_IPV[${table}]}" = "${LB_IPV}" -a ! "${LB_TABLES_IPV[${table}]}" = "46" ]
+	then
+		error "${FUNCNAME} INTERNAL ERROR: Inheritted IPv${LB_IPV} but table is IPv${LB_TABLES_IPV[${work_table}]}."
+		exit 1
+	fi
+
+	# ---------------------------------------------------------------------
+	# unit testing - make sure it works right
+
+	if [ -h "${LB_DIR}/table.${table}.origin_routes.${LB_IPV}" -a ! -f "${LB_DIR}/table.${table}.origin_routes.${LB_IPV}" ]
+	then
+		error "INTERNAL ERROR: table.${table}.origin_routes.${LB_IPV} is an unresolvable link!"
+		exit 1
+	fi
+
+	if [ -h "${LB_DIR}/table.${table}.origin_default.${LB_IPV}" -a ! -f "${LB_DIR}/table.${table}.origin_default.${LB_IPV}" ]
+	then
+		error "INTERNAL ERROR: table.${table}.origin_default.${LB_IPV} is an unresolvable link!"
+		exit 1
+	fi
+
+
+	# ---------------------------------------------------------------------
+	# decide what will be done for this table
+
+	# 1. if 'table.${table}.origin_routes' exists, we copy the routing table
+	# 2. if 'table.${table}.default' or 'table.${table}.origin_default' exist, we set the default gateway
+	# 3. if none of the above is present, we do nothing
+
+	local routing_filter_cmd="cat"
+	if [ -f "${LB_DIR}/table.${table}.origin_routes.${LB_IPV}" -a \( -f "${LB_DIR}/table.${table}.default.${LB_IPV}" -o -f "${LB_DIR}/table.${table}.origin_default.${LB_IPV}" \) ]
+	then
+		# we do both routes copy and set default gateway
+		local routing_filter_cmd="cat"
+
+	elif [ -f "${LB_DIR}/table.${table}.default.${LB_IPV}" -o -f "${LB_DIR}/table.${table}.origin_default.${LB_IPV}" ]
+	then
+		# we should only process default gateway
+		local routing_filter_cmd="grep ^default"
+
+	elif [ -f "${LB_DIR}/table.${table}.origin_routes.${LB_IPV}" ]
+	then
+		# we should only copy the routing table without the default gateway
+		local routing_filter_cmd="grep -v ^default"
+
+	else
+		# nothing to be done - just return
+		echo >&2 "    Nothing to be done for table ${table}"
+		return 0
+	fi
+
+
+	# ---------------------------------------------------------------------
+	# get the existing routing table
+
+	get_existing_routing_table "${table}" >"${LB_DIR}/table.${table}.existing_routing_table.${LB_IPV}"
+
+	# if we don't have origin, assume the existing is the origin
+	if [ ! -f "${LB_DIR}/table.${table}.origin_routes.${LB_IPV}" ]
+	then
+		cat "${LB_DIR}/table.${table}.existing_routing_table.${LB_IPV}" |\
+			grep -v ^default >"${LB_DIR}/table.${table}.origin_routes.${LB_IPV}"
+	fi
+
+	if [ ! -f "${LB_DIR}/table.${table}.origin_default.${LB_IPV}" ]
+	then
+		cat "${LB_DIR}/table.${table}.existing_routing_table.${LB_IPV}" |\
+			grep -v ^default >"${LB_DIR}/table.${table}.origin_default.${LB_IPV}"
+	fi
+
+	cat "${LB_DIR}/table.${table}.existing_routing_table.${LB_IPV}" |\
+		${routing_filter_cmd} >"${LB_DIR}/table.${table}.existing_routes.${LB_IPV}"
+
+
+	# ---------------------------------------------------------------------
+	# generate the new routing table
+
+	(
+		cat "${LB_DIR}/table.${table}.origin_routes.${LB_IPV}"
+
+		if [ ${LB_TABLES[${table}]} -eq 0 ]
+		then
+			# we don't have a gateway alive
+			# copy the origin default gateway, if we have to
+			cat "${LB_DIR}/table.${table}.origin_default.${LB_IPV}"
+
+		elif [ ${LB_TABLES[${table}]} -eq 1 ]
+		then
+			# we only have one gateway alive
+
+			printf "default "
+			cat "${LB_DIR}/table.${table}.default.${LB_IPV}" |\
+				sed -e "s/nexthop //g" -e "s/ weight [0-9]\+//g"
+
+		else
+			# we have many (2+) gateways alive
+
+			printf "default "
+			cat "${LB_DIR}/table.${table}.default.${LB_IPV}" | tr '\n' ' '
+
+		fi
+	) | trim_spaces |\
+		sort >"${LB_DIR}/table.${table}.new_routing_table.${LB_IPV}"
+
+	# keep the new routes of our dependands
+	cat "${LB_DIR}/table.${table}.new_routing_table.${LB_IPV}" |\
+		grep -v ^default >"${LB_DIR}/table.${table}.routes.${LB_IPV}"
+
+	cat "${LB_DIR}/table.${table}.new_routing_table.${LB_IPV}" |\
+		grep ^default >"${LB_DIR}/table.${table}.default.${LB_IPV}"
+
+	# generate the new routing table for diff
+	cat "${LB_DIR}/table.${table}.new_routing_table.${LB_IPV}" |\
+		${routing_filter_cmd} >"${LB_DIR}/table.${table}.new_routes.${LB_IPV}"
+
+	# ---------------------------------------------------------------------
+	# diff magic...
+	# generate a script to process the diffs of the two files
+	diff >"${LB_DIR}/table.${table}.script.${LB_IPV}"			\
+		--old-line-format="lb_diff_route delete ${table} %L" 		\
+		--new-line-format="lb_diff_route add ${table} %L" 		\
+		--unchanged-line-format="lb_diff_route same ${table} %L" 	\
+		"${LB_DIR}/table.${table}.existing_routes.${LB_IPV}"		\
+		"${LB_DIR}/table.${table}.new_routes.${LB_IPV}"
+
+	if [ $? -eq 1 ]
+	then
+		source "${LB_DIR}/table.${table}.script.${LB_IPV}"
+		LB_ALTERED[table.${table}]=1
+
+		local def=0
+		test ! -z "`grep " default " "${LB_DIR}/table.${table}.script.${LB_IPV}"`" && def=1
+		
+		echo >&2 
+		echo >&2 "    Updated routing table ${table}!"
+
+		updated_routes "${table}" "${def}"
+	else
+		echo >&2 
+		echo >&2 "    Table's ${table} routing is already as it should."
+		echo >&2 
+	fi
+}
+
+finalize_tables() {
+	printf >&2 "\n-------------------------------------------------------------------------------\n"
+	DEBUGCMD "${FUNCNAME}" "${#FUNCNAME[*]}" "${@}"
+
+	LB_IPV="${1}"
+	if [ -z "${LB_IPV}" ]
+	then
+		error "INTERNAL ERROR: Detected empty LB_IPV."
+		exit 1
+	fi
+
+	# put all the tables in this variable
+	local -A all=()
+	local x=
+	for x in "${!LB_ORIGIN_TABLES[@]}"
+	do
+		test "${LB_ORIGIN_TABLES[$x]}" = "${LB_IPV}" -o "${LB_ORIGIN_TABLES[$x]}" = "46" && all[$x]=1
+	done
+	for x in "${!LB_TABLES[@]}"
+	do
+		test "${LB_TABLES_IPV[$x]}" = "${LB_IPV}" -o "${LB_TABLES_IPV[$x]}" = "46" && all[$x]=1
+	done
+
+	# execute the tables with circular dependency check
+	while [ "${#all[@]}" -ne 0 ]
+	do
+		local found=0
+		for x in "${!all[@]}"
+		do
+			printf >&2 "\n     > Checking dependency for IPv${LB_IPV} table ${x}... "
+
+			if [ ! -h "${LB_DIR}/table.${x}.origin_routes.${LB_IPV}" -o -f "${LB_DIR}/table.${x}.origin_routes.${LB_IPV}" ]
+			then
+				if [ ! -z "${LB_TABLES[$x]}" ]
+				then
+					printf >&2 "READY!\n"
+					update_table "${LB_IPV}" "${x}"
+				else
+					printf >&2 "ORIGIN ONLY\n"
+
+					get_existing_routing_table "${x}" >"${LB_DIR}/table.${x}.existing_routing_table.${LB_IPV}" || exit 1
+
+					cat "${LB_DIR}/table.${x}.existing_routing_table" |\
+						grep -v ^default >"${LB_DIR}/table.${x}.routes.${LB_IPV}"
+
+					cat "${LB_DIR}/table.${x}.existing_routing_table" |\
+						grep ^default >"${LB_DIR}/table.${x}.default.${LB_IPV}"
+				fi
+
+				unset all[$x]
+				local found=1
+				break
+			else
+				printf >&2 "NOT READY\n"
+			fi
+		done
+		
+		if [ $found -eq 0 ]
+		then
+			error "CIRCULAR DEPENDENCY among the tables detected."
+			exit 1
+		fi
+	done
+}
+
+# this is to overwritten by the caller
+# it is called only when routing rules are updated (added/removed)
+updated_routes() {
+	local table="${1}"
+	local def="${2}" # if this is 1, the default route has been updated
+
+	return 0
+}
+
+# -----------------------------------------------------------------------------
+# policy based routing - rules section
+
+LB_RULE_BASE4=1000
+LB_RULE_BASE6=1000
+
+rules4() { rules ipv4 "${@}"; }
+rules6() { rules ipv6 "${@}"; }
+rules() {
+	DEBUGCMD "${FUNCNAME}" "${#FUNCNAME[*]}" "${@}"
+	LB_IPV=${LB_DEFAULT_IPV}
+
+	local base=
+	if [ "${LB_IPV}" = "6" ]
+	then
+		local base=${LB_RULE_BASE6}
+	else 
+		local base=${LB_RULE_BASE4}
+	fi
+
+	# give some space between rules
+	base=$[ ( (base + LB_RULE_STEP) / LB_RULE_STEP ) * LB_RULE_STEP ]
+
+	# put it back, in case we return before the end
+	if [ "${LB_IPV}" = "6" ]
+	then
+		LB_RULE_BASE6=${base}
+	else 
+		LB_RULE_BASE4=${base}
+	fi
+
+	local -a tos=()
+	local -a mark=()
+	local -a src=()
+	local -a dst=()
+	local -a inface=()
+
+	local action=
+	local table=
+	local not=
+	local cmd=
+	while [ ! -z "${1}" ]
+	do
+		case "${1}" in
+			ipv4)
+				LB_IPV=4
+				;;
+
+			ipv6)
+				LB_IPV=6
+				;;
+
+			at|lookup|table)
+				local action="lookup ${2}"
+				local table="${2}"
+				shift
+				;;
+
+			# nat) # this converts the rule to 'masquerade' and gives a warning it is deprecated
+
+			prohibit|unreachable) # 'reject' gives: Error: argument "reject" is wrong: Failed to parse rule type
+				local action="${1}"
+				;;
+
+			mark|connmark)
+				local cmd="mark"
+				;;
+
+			src|from)
+				local cmd="src"
+				;;
+			
+			inface|iif)
+				local cmd="inface"
+				;;
+
+			dst|to)
+				local cmd="dst"
+				;;
+			
+			tos)
+				local cmd="tos"
+				;;
+
+			not)
+				local not="not"
+				;;
+
+			gw-src-ips)
+				local x=${2}; shift
+				if [ -z "${LB_GATEWAYS[$x]}" ]
+				then
+					error "Cannot find gateway '${x}'."
+					exit 1
+				fi
+				if [ ! "${LB_GATEWAYS_IPV[$x]}" = "${LB_IPV}" ]
+				then
+					error "Cannot add IPv${LB_GATEWAYS_IPV[$x]} gateway source IPs to IPv${LB_IPV} rules."
+					exit 1
+				fi
+				if [ "${LB_GATEWAYS[$x]}" -eq 0 ]
+				then
+					warning "Ignoring rules for gateways '${x}'. Gateway '${x}' is not alive."
+				else
+					src+=(`loadfile "${LB_DIR}/gateway.${x}.source-ips"`)
+				fi
+				;;
+
+			loadfile)
+				case "${cmd}" in
+					mark) mark+=(`loadfile "${2}"`);;
+					tos) tos+=(`loadfile "${2}"`);;
+					src) src+=(`loadfile "${2}"`);;
+					dst) dst+=(`loadfile "${2}"`);;
+					inface) inface+=(`loadfile "${2}"`);;
+				esac
+				shift
+				;;
+
+			*)
+				case "${cmd}" in
+					mark) mark+=("$1");;
+					tos) tos+=("$1");;
+					src) src+=("$1");;
+					dst) dst+=("$1");;
+					inface) inface+=("$1");;
+				esac
+				;;
+		esac
+		shift
+	done
+
+	if [ "${#mark[*]}${#tos[*]}${#src[*]}${#dst[*]}${#inface[*]}" = "00000" ]
+	then
+		warning "${FUNCNAME} gives no rules."
+		return 1
+	fi
+
+	if [ ! -z "${table}" ]
+	then
+		if [ -z "${LB_TABLES[$table]}" ]
+		then
+			error "${FUNCNAME}: table $table does not exist."
+			return 1
+		fi
+
+		#if [ "${LB_TABLES[$table]}" -eq 0 ]
+		#then
+		#	warning "${FUNCNAME} for table '${table}': Ignoring rules. Table ${table} is not alive."
+		#	return 1
+		#fi
+	fi
+
+	test ${#mark[@]} -eq 0 && mark=('any')
+	test ${#tos[@]} -eq 0 && tos=('any')
+	test ${#src[@]} -eq 0 && src=('any')
+	test ${#dst[@]} -eq 0 && dst=('any')
+	test ${#inface[@]} -eq 0 && inface=('any')
+
+	local m=
+	local t=
+	local s=
+	local d=
+	local i=
+	for m in ${mark[@]}
+	do
+		test "${m}" = "any" && local m=
+		test ! -z "${m}" && local m="fwmark ${m}"
+
+		for t in ${tos[@]}
+		do
+			test "${t}" = "any" && local t=
+			test ! -z "${t}" && local t="tos ${t}"
+
+			for i in ${inface[@]}
+			do
+				test "${i}" = "any" && local i=
+				test ! -z "${i}" && local d="iif ${i}"
+
+				for s in ${src[@]}
+				do
+					test "${s}" = "any" && local s="all"
+					test ! -z "${s}" && local s="from ${s}"
+
+					for d in ${dst[@]}
+					do
+						test "${d}" = "any" && local d=
+						test ! -z "${d}" && local d="to ${d}"
+
+						echo "priority ${base} ${not} ${s} ${d} ${t} ${m} ${i} ${action}" >>"${LB_DIR}/rules.${LB_IPV}"
+						base=$[base + 1]
+					done
+				done
+			done
+		done
+	done
+
+	# put the priority back to the global variable
+	if [ "${LB_IPV}" = "6" ]
+	then
+		LB_RULE_BASE6=${base}
+	else 
+		LB_RULE_BASE4=${base}
+	fi
+}
+
+mark() { rules ${FUNCNAME} "${@}"; }
+fwmark() { rules ${FUNCNAME} "${@}"; }
+connmark() { rules ${FUNCNAME} "${@}"; }
+src() { rules ${FUNCNAME} "${@}"; }
+dst() { rules ${FUNCNAME} "${@}"; }
+from() { rules ${FUNCNAME} "${@}"; }
+to() { rules ${FUNCNAME} "${@}"; }
+tos() { rules ${FUNCNAME} "${@}"; }
+not() { rules ${FUNCNAME} "${@}"; }
+
+# function to be called by the diff generated script
+lb_diff_rule() {
+	local cmd="$1"; shift
+
+	case "${cmd}" in
+		add)
+			action ip -${LB_IPV} rule add "${@}"
+			return $?
+			;;
+
+		delete)
+			action ip -${LB_IPV} rule del "${@}"
+			return $?
+			;;
+
+		same)
+			return 0
+			;;
+	esac
+	return 1
+}
+
+normalize_rules() {
+	sed -e "s| fwmark 0x\([0-9a-fA-F]\)\([ /]\)| fwmark 0x0\1\2|g" \
+		-e "s| tos 0x\([0-9a-fA-F]\) | tos 0x0\1|g" \
+		-e "s| tos 0x02 | tos mincost |g" \
+		-e "s| tos 0x04 | tos reliability |g" \
+		-e "s| tos 0x08 | tos throughput |g" \
+		-e "s| tos 0x0a | tos lowdelay |g" \
+		-e "s| tos 2 | tos mincost |g" \
+		-e "s| tos 4 | tos reliability |g" \
+		-e "s| tos 8 | tos throughput |g" \
+		-e "s| tos 10 | tos lowdelay |g"
+}
+
+finalize_rules() {
+	printf >&2 "\n-------------------------------------------------------------------------------\n"
+	DEBUGCMD "${FUNCNAME}" "${#FUNCNAME[*]}" "${@}"
+
+	LB_IPV="${1}"
+	if [ -z "${LB_IPV}" ]
+	then
+		error "INTERNAL ERROR: Detected empty LB_IPV."
+		exit 1
+	fi
+
+	# copy the tables and remove 'main' from it
+	local string=$(declare -p LB_TABLES)
+	eval "local -A tables=${string#*=}"
+	unset tables[main]
+
+	# get all the rules for all the tables except 'main'
+	run ip -${LB_IPV} rule show |\
+		trim_spaces |\
+		egrep " lookup (`echo ${!tables[@]} | tr ' ' '|'`)$" |\
+		sed "s/\(^[0-9]\+\): /priority \1 /g" |\
+		normalize_rules |\
+		sort >"${LB_DIR}/rules.existing.${LB_IPV}"
+
+	# fix the generated rules, from the rules()
+	cat "${LB_DIR}/rules.${LB_IPV}" |\
+		trim_spaces |\
+		normalize_rules |\
+		sort -u >"${LB_DIR}/rules.new.${LB_IPV}"
+
+	# diff magic...
+	# generate a script to process the diffs of the two files
+	diff >"${LB_DIR}/rules.script.${LB_IPV}"				\
+		--old-line-format="lb_diff_rule delete ${table} %L" 		\
+		--new-line-format="lb_diff_rule add ${table} %L" 		\
+		--unchanged-line-format="lb_diff_rule same ${table} %L" 	\
+		"${LB_DIR}/rules.existing.${LB_IPV}"				\
+		"${LB_DIR}/rules.new.${LB_IPV}"
+
+	if [ $? -eq 1 ]
+	then
+		source "${LB_DIR}/rules.script.${LB_IPV}"
+		LB_ALTERED[routing.rules.ipv${LB_IPV}]=1
+
+		echo >&2 
+		echo >&2 "    Updated IPv${LB_IPV} routing rules!"
+
+		updated_rules
+	else
+		echo >&2 
+		echo >&2 "    Nothing to be done for IPv${LB_IPV} routing rules."
+	fi
+}
+
+# this is to overwritten by the caller
+# it is called only when routing rules are updated (added/removed)
+updated_rules() {
+	return 0
+}
+
+# -----------------------------------------------------------------------------
+# other functions
+
+# this tries to find all the IPs of an Autonomous System (AS).
+# 1. it requires an IP from the caller.
+# 2. it queries whois for this IP to find its AS.
+# 3. it queries RIPE to get all the IP address space for this AS.
+asips() {
+	local ip="${1}"
+
+	if [ -z "${ip}" ]
+	then
+		echo >&2 "${FUNCNAME} requires an IP address."
+		echo >&2 "Commands: 'whois' and 'jq' have to be installed for this to work."
+		return 1
+	fi
+
+	# aggregate-flim is a command that aggregates IPv4 IPs
+	local aggregate="`which aggregate 2>/dev/null`"
+	test -z "${aggregate}" && local aggregate="`which aggregate-flim 2>/dev/null`"
+	test -z "${aggregate}" && local aggregate="cat"
+
+	echo >&2 
+	echo >&2 "Querying whois for IP ${ip}..."
+	local as="`whois "${1}" | grep "origin:" | trim_spaces | cut -d ' ' -f 2 | grep ^AS | head -n 1`"
+	if [ -z "${as}" ]
+	then
+		echo >&2 "Cannot find the Autonomous System of IP '${ip}'."
+		return 1
+	fi
+	echo >&2 "IP ${ip} is part of Autonomous System: ${as}."
+
+	echo >&2
+	echo >&2 "Querying RIPE for ${as}..."
+	wget -O - "https://stat.ripe.net/data/as-routing-consistency/data.json?resource=${as}" |\
+		jq .data.prefixes[].prefix |\
+		sed -e 's| ||g' -e 's|"||g' |\
+		egrep "^[0-9]+\.[0-9]+\.[0-9]+\.[0-9]+/[0-9]+" |\
+		"${aggregate}"
+}
+
+
+# -----------------------------------------------------------------------------
+# options
+
+while [ ! -z "$1" ]
+do
+	case "$1" in
+		-t|--test)
+			DRY_RUN=1
+			;;
+
+		-f|--fast)
+			FORCE_ALWAYSON=1
+			;;
+
+		-d|--debug)
+			DEBUG_ALL_DATA=1
+			;;
+
+		asips)
+			shift
+			asips "${@}"
+			LB_RESULT_CODE=$?
+			exit ${LB_RESULT_CODE}
+			;;
+
+		*)
+			echo >&2 "Unknown option '$1'"
+			exit 1
+			;;
+	esac
+	shift
+done
+
+log "Started"
+
+if [ ! -f "${LB_CONFIG}" ]
+then
+	echo >&2 "Cannot find config file '${LB_CONFIG}'"
+	exit 1
+fi
+
+printf >&2 "\n\n###############################################################################\n"
+printf >&2 "PROCESSING CONFIGURATION\n"
+
+# add a line number at each configuration line
+cat >"${LB_DIR}/config.awk" <<'EOF'
+$1 == "ipv4" { printf "LB_LINEID=${LINENO} " }
+$1 == "ipv6" { printf "LB_LINEID=${LINENO} " }
+$1 == "gateway" { printf "LB_LINEID=${LINENO} " }
+$1 == "table" { printf "LB_LINEID=${LINENO} " }
+$1 == "rules" { printf "LB_LINEID=${LINENO} " }
+$1 == "gateway4" { printf "LB_LINEID=${LINENO} " }
+$1 == "table4" { printf "LB_LINEID=${LINENO} " }
+$1 == "rules4" { printf "LB_LINEID=${LINENO} " }
+$1 == "gateway6" { printf "LB_LINEID=${LINENO} " }
+$1 == "table6" { printf "LB_LINEID=${LINENO} " }
+$1 == "rules6" { printf "LB_LINEID=${LINENO} " }
+$1 == "default" { printf "LB_LINEID=${LINENO} " }
+$1 == "src" { printf "LB_LINEID=${LINENO} " }
+$1 == "dst" { printf "LB_LINEID=${LINENO} " }
+$1 == "mark" { printf "LB_LINEID=${LINENO} " }
+$1 == "fwmark" { printf "LB_LINEID=${LINENO} " }
+$1 == "connmark" { printf "LB_LINEID=${LINENO} " }
+$1 == "tos" { printf "LB_LINEID=${LINENO} " }
+$1 == "from" { printf "LB_LINEID=${LINENO} " }
+$1 == "to" { printf "LB_LINEID=${LINENO} " }
+$1 == "not" { printf "LB_LINEID=${LINENO} " }
+{ print }
+EOF
+
+cat "${LB_CONFIG}" |\
+	sed ':x; /\\$/ { N; s/\\\n//; tx }' |\
+	awk -f "${LB_DIR}/config.awk" >"${LB_DIR}/config.script"
+
+cat >>"${LB_DIR}/config.script" <<EOF2
+# do not return failure if the last command failed.
+echo >/dev/null
+EOF2
+
+# process the script
+LB_LINEID="INIT"
+source "${LB_DIR}/config.script" || exit 1
+LB_LINEID="FIN"
+
+# apply the changes
+printf >&2 "\n\n###############################################################################\n"
+printf >&2 "APPLYING CHANGES\n"
+
+test -f "${LB_DIR}/tables.4" && finalize_tables 4
+test -f "${LB_DIR}/tables.6" && finalize_tables 6
+test -f "${LB_DIR}/rules.4" && finalize_rules 4
+test -f "${LB_DIR}/rules.6" && finalize_rules 6
+LB_RESULT_CODE=0
+
+# all done!
+echo >&2
+test ! -z "${!LB_ALTERED[*]}" && warning "Altered: ${!LB_ALTERED[@]}"
+
+# No need to cleanup
+# The trap will cleanup the temporary directory
