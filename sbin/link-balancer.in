@@ -1689,11 +1689,11 @@ policy
 	connmark 0x12 table work2
 
 # You will have to add these connmark rules at the top of your firehol.conf:
-# connmark 0x1 inface ppp11
-# connmark 0x2 inface eth3
-# connmark 0x3 inface eth4
-# connmark 0x11 inface ppp14
-# connmark 0x12 inface tun0
+# connmark 0x1 interface ppp11
+# connmark 0x2 interface eth3
+# connmark 0x3 interface eth4
+# connmark 0x11 interface ppp14
+# connmark 0x12 interface tun0
 
 # Now you can add policy routing rules.
 # TEMPLATE:
@@ -1815,6 +1815,7 @@ $1 == "table6" { printf "LB_LINEID=${LINENO} " }
 $1 == "rules6" { printf "LB_LINEID=${LINENO} " }
 $1 == "policy6" { printf "LB_LINEID=${LINENO} " }
 $1 == "default" { printf "LB_LINEID=${LINENO} " }
+$1 == "fallback" { printf "LB_LINEID=${LINENO} " }
 $1 == "src" { printf "LB_LINEID=${LINENO} " }
 $1 == "dst" { printf "LB_LINEID=${LINENO} " }
 $1 == "mark" { printf "LB_LINEID=${LINENO} " }
