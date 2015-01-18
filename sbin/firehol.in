@@ -7487,6 +7487,8 @@ case "${arg}" in
 	explain)
 		test ! -z "${1}" && warning "Arguments after parameter '${arg}' are ignored."
 		firewall_policy_applied=1
+		firewall_policy6_applied=1
+		FIREHOL_FAST_ACTIVATION=0
 		FIREHOL_MODE="EXPLAIN"
 		;;
 	
