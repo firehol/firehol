@@ -365,7 +365,6 @@ FIREHOL_CONFIG="${FIREHOL_CONFIG_DIR}/firehol.conf"
 FIREHOL_LOCK_FILE="${FIREHOL_RUN_DIR}/firehol.lck"
 
 
-
 # ------------------------------------------------------------------------------
 # XXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXX
 # ------------------------------------------------------------------------------
@@ -750,6 +749,124 @@ FIREHOL_OUTPUT="${FIREHOL_DIR}/firehol-out.sh"
 FIREHOL_SAVED="${FIREHOL_DIR}/firehol-save.sh"
 FIREHOL_SAVED6="${FIREHOL_DIR}/firehol-save6.sh"
 FIREHOL_TMP="${FIREHOL_DIR}/firehol-tmp.sh"
+
+
+# -----------------------------------------------------------------------------
+# MARKS
+
+declare -A MARKS_BITS='([connmark]="6" [usermark]="7" )'
+declare -A MARKS_MASKS='([connmark]="0x0000003f" [usermark]="0x00001fc0" )'
+declare -A MARKS_MAX='([connmark]="63" [usermark]="127" )'
+declare -A MARKS_SHIFT='([connmark]="0" [usermark]="6" )'
+
+# taken from http://stackoverflow.com/questions/109023/how-to-count-the-number-of-set-bits-in-a-32-bit-integer
+# and http://books.google.gr/books?id=iBNKMspIlqEC&pg=PA66&redir_esc=y#v=onepage&q&f=false
+# counts the number of bits set in a number
+numberofbits() {
+	local x="${1}"
+
+	local x=$[ x - ( (x >> 1) & 0x55555555) ]
+	local x=$[ (x & 0x33333333) + ( (x >> 2) & 0x33333333) ]
+	local x=$[ (x + (x >> 4) ) & 0x0F0F0F0F ]
+	local x=$[ x + (x >> 8) ]
+	local x=$[ x + (x >> 16) ];
+	local bits=$[ x & 0x0000003F ]
+	echo $bits
+}
+
+# taken from http://www.skorks.com/2010/10/write-a-function-to-determine-if-a-number-is-a-power-of-2/
+# checks if a number is power of 2
+ispoweroftwo() {
+	local num="${1}"
+
+	test ! $num = 0 -a $[num & (num - 1)] = 0 && return 0
+	return 1
+}
+
+markdef() {
+	# echo "${FUNCNAME} ${*}"
+	local name="${1}"; shift
+	local max="${1}"; shift
+
+	if [ "${max}" = "rest" ]
+	then
+		local max=$[ 1 << (32 - MARKS_TOTAL_BITS) ]
+	fi
+
+	if ! ispoweroftwo $max
+	then
+		echo >&2 "Max value $max of mark '$name' is not a power of 2."
+		exit 1
+	fi
+
+	# it will be from 0 to max - 1
+	max=$[ max - 1 ]
+
+	if [ $max -lt 1 -o $max -gt $[ 0xffffffff ] ]
+	then
+		echo >&2 "Max value $max of mark '$name' is out of bounds."
+		exit 1
+	fi
+
+	# prevent a fork
+	bits=$(numberofbits $max)
+
+	if [ $bits -eq 0 ]
+	then
+		echo >&2 "INTERNAL ERROR: Cannot figure out the bits set of value $max."
+		exit 1
+	fi
+
+	if [ $[ bits + MARKS_TOTAL_BITS ] -gt 32 ]
+	then
+		echo >&2 "Too many masks were requested. Cannot proceed. Please use fewer."
+		exit 1
+	fi
+
+	# find its mask
+	# we have all the bits we need set in $mark
+	# just shift it to the right position.
+	local mask=$[ max << MARKS_TOTAL_BITS ]
+
+	MARKS_SHIFT[$name]=${MARKS_TOTAL_BITS}
+	MARKS_MAX[$name]=$max
+	MARKS_BITS[$name]=$bits
+	MARKS_MASKS[$name]=$(printf "0x%08x" $mask)
+
+	# echo "Mark $name with $[MARKS_MAX[$name] + 1] possible values (from 0 to ${MARKS_MAX[$name]}), uses ${MARKS_BITS[$name]} bits, has mask ${MARKS_MASKS[$name]} and values should be shifted by ${MARKS_SHIFT[$name]} bits"
+
+	MARKS_TOTAL_BITS=$[ MARKS_TOTAL_BITS + bits ]
+}
+
+if [ -f "${FIREHOL_CONFIG_DIR}/marks.conf" ]
+then
+	declare -A MARKS_BITS=()
+	declare -A MARKS_MASKS=()
+	declare -A MARKS_MAX=()
+	declare -A MARKS_SHIFT=()
+	
+	MARKS_TOTAL_BITS=0
+	source "${FIREHOL_CONFIG_DIR}/marks.conf" || exit 1
+
+	if [ -z "${MARKS_MASKS[connmark]}" ]
+	then
+		echo >&2 "File ${FIREHOL_CONFIG_DIR}/marks.conf does not define a 'connmark' definition."
+		exit 1
+	fi
+
+	if [ -z "${MARKS_MASKS[usermark]}" ]
+	then
+		echo >&2 "File ${FIREHOL_CONFIG_DIR}/marks.conf does not define a 'usermark' definition."
+		exit 1
+	fi
+
+	# save the information for the other tools
+	declare -p MARKS_BITS MARKS_MASKS MARKS_MAX MARKS_SHIFT >"${FIREHOL_SPOOL_DIR}/marks.conf"
+
+elif [ -f "${FIREHOL_SPOOL_DIR}/marks.conf" ]
+then
+	source "${FIREHOL_SPOOL_DIR}/marks.conf" || exit 1
+fi
 
 
 # ------------------------------------------------------------------------------
@@ -3385,7 +3502,6 @@ classify() {
 	return 0
 }
 
-connmark_count=0
 connmark() {
 	work_realcmd_helper $FUNCNAME "$@"
 	
@@ -3397,19 +3513,9 @@ connmark() {
 	local where="${1}"; shift
 	test -z "${where}" && where="OUTPUT POSTROUTING"
 	
-	if [ $mark_count -gt 0 -a $connmark_count -eq 0 ]
-	then
-		softwarning "MARK and CONNMARK can interfere with each other. Check https://github.com/ktsaou/firehol/issues/23#issuecomment-37599754"
-	fi
-	
-	connmark_count=$[connmark_count + 1]
-	
 	if [ "${num}" = "save" ]
 	then
-		# save MARK to CONNMARK
-		shift 1
-		rule table mangle chain INPUT       custom '-m conntrack --ctstate NEW' "$@" action CONNMARK save
-		rule table mangle chain POSTROUTING custom '-m conntrack --ctstate NEW' "$@" action CONNMARK save
+		# backward compatibility - nothing to be done here
 		return 0
 	fi
 
@@ -3419,26 +3525,27 @@ connmark() {
 		return 0
 	fi
 
-	set_work_function "Setting up rules for CONNMARK rule No $connmark_count"
+	set_work_function "Setting up rules for CONNMARK"
 	
+	if [ "${num}" -lt 0 -o "${num}" -gt "${MARKS_MAX[connmark]}" ]
+	then
+		error "FireHOL is configured to use $[${MARKS_MAX[connmark]} + 1] connmarks (from 0 to ${MARKS_MAX[connmark]})."
+		return 1
+	fi
+
+	local mark="$[num << ${MARKS_SHIFT[connmark]}]/${MARKS_MASKS[connmark]}"
+
 	local chain=
 	for chain in ${where}
 	do
 		case "${chain}" in
 			interface)
-				create_chain mangle "connmark.inface.${connmark_count}" "PREROUTING" custom '-m conntrack --ctstate NEW' inface "$@" || return 1
-				rule table mangle chain "connmark.inface.${connmark_count}" action CONNMARK to ${num}
-				rule table mangle chain "connmark.inface.${connmark_count}" action CONNMARK restore
-
-				create_chain mangle "connmark.outface.${connmark_count}" "POSTROUTING" custom '-m conntrack --ctstate NEW' outface "$@" || return 1
-				rule table mangle chain "connmark.outface.${connmark_count}" action CONNMARK to ${num}
-				rule table mangle chain "connmark.outface.${connmark_count}" action CONNMARK restore
+				rule table mangle chain PREROUTING  custom '-m conntrack --ctstate NEW' inface  "${@}" action MARK to "${mark}" || return 1
+				rule table mangle chain POSTROUTING custom '-m conntrack --ctstate NEW' outface "${@}" action MARK to "${mark}" || return 1
 				;;
 
 			*)
-				create_chain mangle "connmark.${chain}.${connmark_count}" "${chain}" custom '-m conntrack --ctstate NEW' "$@" || return 1
-				rule table mangle chain "connmark.${chain}.${connmark_count}" action CONNMARK to ${num}
-				rule table mangle chain "connmark.${chain}.${connmark_count}" action CONNMARK restore
+				rule table mangle chain "${chain}" custom '-m conntrack --ctstate NEW' "${@}" action MARK to "${mark}" || return 1
 				;;
 		esac
 	done
@@ -3446,7 +3553,6 @@ connmark() {
 	return 0
 }
 
-mark_count=0
 mark() {
 	work_realcmd_helper $FUNCNAME "$@"
 	
@@ -3458,17 +3564,18 @@ mark() {
 	local where="${1}"; shift
 	test -z "${where}" && where=OUTPUT
 	
-	if [ $mark_count -eq 0 -a $connmark_count -gt 0 ]
-	then
-		softwarning "MARK and CONNMARK can interfere with each other. Check https://github.com/ktsaou/firehol/issues/23#issuecomment-37599754"
-	fi
-
-	mark_count=$[mark_count + 1]
-	
 	set_work_function "Setting up rules for MARK"
 	
-	create_chain mangle "mark.${mark_count}" "${where}" "$@" || return 1
-	iptables_both -t mangle -A "mark.${mark_count}" -j MARK --set-mark ${num}
+	if [ "${num}" -lt 0 -o "${num}" -gt "${MARKS_MAX[usermark]}" ]
+	then
+		error "FireHOL is configured to use $[${MARKS_MAX[usermark]} + 1] usermarks (from 0 to ${MARKS_MAX[usermark]})."
+		return 1
+	fi
+
+	# we assume this is always 'usermark'
+	local mark="$[num << ${MARKS_SHIFT[usermark]}]/${MARKS_MASKS[usermark]}"
+
+	rule table mangle chain "${where}" custom '-m conntrack --ctstate NEW' "${@}" action MARK to "${mark}" || return 1
 	
 	return 0
 }
@@ -4624,13 +4731,13 @@ close_router() {
 close_master() {
 	set_work_function "Finilizing firewall policies"
 	
-	if [ $connmark_count -gt 0 ]
-	then
-		# if connmark has been used, add MARK restoration from CONNMARK, at the top of mangle
-		# copy CONNMARK to MARK
-		iptables_both -t mangle -I OUTPUT     1 -m conntrack --ctstate ESTABLISHED,RELATED -j CONNMARK --restore-mark
-		iptables_both -t mangle -I PREROUTING 1 -m conntrack --ctstate ESTABLISHED,RELATED -j CONNMARK --restore-mark
-	fi
+	# copy CONNMARK to MARK at the top of mangle, on entry points
+	iptables_both -t mangle -I OUTPUT     1 -m conntrack --ctstate ESTABLISHED,RELATED -j CONNMARK --restore-mark
+	iptables_both -t mangle -I PREROUTING 1 -m conntrack --ctstate ESTABLISHED,RELATED -j CONNMARK --restore-mark
+
+	# save MARK to CONNMARK at the end of mangle, on exit points
+	iptables_both -t mangle -A INPUT       -m conntrack --ctstate NEW -j CONNMARK --save-mark
+	iptables_both -t mangle -A POSTROUTING -m conntrack --ctstate NEW -j CONNMARK --save-mark
 
 	# Accept all related traffic to the established connections
 	rule chain INPUT state RELATED action ACCEPT || return 1
@@ -5487,6 +5594,34 @@ rule() {
 				;;
 				
 			mark|MARK)
+				shift
+				local marknot=
+				if [ "${1}" = "not" -o "${1}" = "NOT" ]
+				then
+					shift
+					local marknot="!"
+				fi
+				test ${softwarnings} -eq 1 -a ! "${mark}" = "any" && softwarning "Overwritting param: mark '${mark}' becomes '${1}'"
+				local num="${1}"
+				local mark="$[num << ${MARKS_SHIFT[usermark]}]/${MARKS_MASKS[usermark]}"
+				shift
+				;;
+				
+			connmark|CONNMARK)
+				shift
+				local marknot=
+				if [ "${1}" = "not" -o "${1}" = "NOT" ]
+				then
+					shift
+					local marknot="!"
+				fi
+				test ${softwarnings} -eq 1 -a ! "${mark}" = "any" && softwarning "Overwritting param: mark '${mark}' becomes '${1}'"
+				local num="${1}"
+				local mark="$[num << ${MARKS_SHIFT[connmark]}]/${MARKS_MASKS[connmark]}"
+				shift
+				;;
+				
+			rawmark|RAWMARK)
 				shift
 				local marknot=
 				if [ "${1}" = "not" -o "${1}" = "NOT" ]
