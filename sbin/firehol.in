@@ -138,6 +138,13 @@ markdef() {
 	local name="${1}"; shift
 	local max="${1}"; shift
 
+
+	if [ ! -z "${MARKS_MASKS[$name]}" ]
+	then
+		echo >&2 "Mark type '${name}' already exists. Please use 'marksreset' to reset them before re-defining them."
+		exit 1
+	fi
+
 	if [ "${max}" = "rest" ]
 	then
 		local max=$[ 1 << (32 - MARKS_TOTAL_BITS) ]
