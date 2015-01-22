@@ -3192,16 +3192,18 @@ transparent_squid() {
 	transparent_proxy 80 "$@"
 }
 
-FIREHOL_TPROXY_MARK="0xffff/0xffff"
-FIREHOL_TPROXY_IP_ROUTE_TABLE="999"
+FIREHOL_TPROXY_MARK=
+FIREHOL_TPROXY_IP_ROUTE_TABLE="241"
 FIREHOL_TPROXY_ROUTE_DEVICE="lo"
 
 tproxy_setup_ip_route() {
+	require_cmd ip
+	
 	local x=
 	for x in inet inet6
 	do
 		# remove the existing ip rules for this mark
-		postprocess -ne ${IP_CMD} -f $x rule del from all fwmark $FIREHOL_TPROXY_MARK
+		postprocess -ne ${IP_CMD} -f $x rule del lookup $FIREHOL_TPROXY_IP_ROUTE_TABLE
 
 		# remove the existing rules from the ip route table
 		postprocess -ne ${IP_CMD} -f $x route flush table $FIREHOL_TPROXY_IP_ROUTE_TABLE
@@ -3229,6 +3231,11 @@ tproxy() {
 	
 	local ports="${1}"; shift
 	
+	if [ -z "${FIREHOL_TPROXY_MARK}" ]
+	then
+		FIREHOL_TPROXY_MARK="$[ MARKS_MAX[usermark] << MARKS_SHIFT[usermark] ]/${MARKS_MASKS[usermark]}"
+	fi
+
 	local tproxy_action_options="tproxy-mark $FIREHOL_TPROXY_MARK"
 	local tport=
 	local tip=
