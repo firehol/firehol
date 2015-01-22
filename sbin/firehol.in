@@ -84,6 +84,111 @@ FIREHOL_DEFAULT_WORKING_DIRECTORY="${PWD}"
 # Make sure we don't get localized results
 export LC_ALL=C
 
+
+# ------------------------------------------------------------------------------
+# XXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXX
+# ------------------------------------------------------------------------------
+#
+# BITMASKED MARKS
+#
+# ------------------------------------------------------------------------------
+# XXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXX
+# ------------------------------------------------------------------------------
+
+declare -A MARKS_BITS=()
+declare -A MARKS_MASKS=()
+declare -A MARKS_MAX=()
+declare -A MARKS_SHIFT=()
+MARKS_TOTAL_BITS=0
+
+marksreset() {
+	declare -A MARKS_BITS=()
+	declare -A MARKS_MASKS=()
+	declare -A MARKS_MAX=()
+	declare -A MARKS_SHIFT=()
+	MARKS_TOTAL_BITS=0
+}
+
+# taken from http://stackoverflow.com/questions/109023/how-to-count-the-number-of-set-bits-in-a-32-bit-integer
+# and http://books.google.gr/books?id=iBNKMspIlqEC&pg=PA66&redir_esc=y#v=onepage&q&f=false
+# counts the number of bits set in a number
+numberofbits() {
+	local x="${1}"
+
+	local x=$[ x - ( (x >> 1) & 0x55555555) ]
+	local x=$[ (x & 0x33333333) + ( (x >> 2) & 0x33333333) ]
+	local x=$[ (x + (x >> 4) ) & 0x0F0F0F0F ]
+	local x=$[ x + (x >> 8) ]
+	local x=$[ x + (x >> 16) ];
+	local bits=$[ x & 0x0000003F ]
+	echo $bits
+}
+
+# taken from http://www.skorks.com/2010/10/write-a-function-to-determine-if-a-number-is-a-power-of-2/
+# checks if a number is power of 2
+ispoweroftwo() {
+	local num="${1}"
+
+	test ! $num = 0 -a $[num & (num - 1)] = 0 && return 0
+	return 1
+}
+
+markdef() {
+	# echo "${FUNCNAME} ${*}"
+	local name="${1}"; shift
+	local max="${1}"; shift
+
+	if [ "${max}" = "rest" ]
+	then
+		local max=$[ 1 << (32 - MARKS_TOTAL_BITS) ]
+	fi
+
+	if ! ispoweroftwo $max
+	then
+		echo >&2 "Max value $max of mark '$name' is not a power of 2."
+		exit 1
+	fi
+
+	# it will be from 0 to max - 1
+	max=$[ max - 1 ]
+
+	if [ $max -lt 1 -o $max -gt $[ 0xffffffff ] ]
+	then
+		echo >&2 "Max value $max of mark '$name' is out of bounds."
+		exit 1
+	fi
+
+	# prevent a fork
+	bits=$(numberofbits $max)
+
+	if [ $bits -eq 0 ]
+	then
+		echo >&2 "INTERNAL ERROR: Cannot figure out the bits set of value $max."
+		exit 1
+	fi
+
+	if [ $[ bits + MARKS_TOTAL_BITS ] -gt 32 ]
+	then
+		echo >&2 "Too many masks were requested. Cannot proceed. Please use fewer."
+		exit 1
+	fi
+
+	# find its mask
+	# we have all the bits we need set in $mark
+	# just shift it to the right position.
+	local mask=$[ max << MARKS_TOTAL_BITS ]
+
+	MARKS_SHIFT[$name]=${MARKS_TOTAL_BITS}
+	MARKS_MAX[$name]=$max
+	MARKS_BITS[$name]=$bits
+	MARKS_MASKS[$name]=$(printf "0x%08x" $mask)
+
+	# echo "Mark $name with $[MARKS_MAX[$name] + 1] possible values (from 0 to ${MARKS_MAX[$name]}), uses ${MARKS_BITS[$name]} bits, has mask ${MARKS_MASKS[$name]} and values should be shifted by ${MARKS_SHIFT[$name]} bits"
+
+	MARKS_TOTAL_BITS=$[ MARKS_TOTAL_BITS + bits ]
+}
+
+
 # ------------------------------------------------------------------------------
 # XXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXX
 # ------------------------------------------------------------------------------
@@ -283,6 +388,29 @@ FIREHOL_TRUST_LOOPBACK=1
 
 
 # ----------------------------------------------------------------------
+# IPTABLES MARKS BITMASKING
+
+# FireHOL allows multiple independent MARKs.
+# By default FireHOL requires 'connmark' and 'usermark'.
+# The possible values supported by each may be defined here.
+# The value must be a power of two.
+
+# reset the internal marks to empty - do not remove
+marksreset
+
+# connmarks are used by the connmark helper
+markdef connmark 64
+
+# usermark are used by the mark helper
+markdef usermark 128
+
+# Additional types may be defined like this:
+# markdef qosmark 8
+# To use it use 'custommark' helper and match
+# The first argument to both is the mark name (qosmark in this case)
+
+
+# ----------------------------------------------------------------------
 # IPTABLES PACKETS LOGGING
 
 # LOG mode for iptables
@@ -363,6 +491,21 @@ FIREHOL_CONFIG="${FIREHOL_CONFIG_DIR}/firehol.conf"
 
 # Concurrent run control
 FIREHOL_LOCK_FILE="${FIREHOL_RUN_DIR}/firehol.lck"
+
+if [ -z "${MARKS_MASKS[connmark]}" ]
+then
+	echo >&2 "File ${FIREHOL_CONFIG_DIR}/marks.conf does not define a 'connmark' definition."
+	exit 1
+fi
+
+if [ -z "${MARKS_MASKS[usermark]}" ]
+then
+	echo >&2 "File ${FIREHOL_CONFIG_DIR}/marks.conf does not define a 'usermark' definition."
+	exit 1
+fi
+
+# save the information for the other tools
+declare -p MARKS_BITS MARKS_MASKS MARKS_MAX MARKS_SHIFT >"${FIREHOL_SPOOL_DIR}/marks.conf"
 
 
 # ------------------------------------------------------------------------------
@@ -749,124 +892,6 @@ FIREHOL_OUTPUT="${FIREHOL_DIR}/firehol-out.sh"
 FIREHOL_SAVED="${FIREHOL_DIR}/firehol-save.sh"
 FIREHOL_SAVED6="${FIREHOL_DIR}/firehol-save6.sh"
 FIREHOL_TMP="${FIREHOL_DIR}/firehol-tmp.sh"
-
-
-# -----------------------------------------------------------------------------
-# MARKS
-
-declare -A MARKS_BITS='([connmark]="6" [usermark]="7" )'
-declare -A MARKS_MASKS='([connmark]="0x0000003f" [usermark]="0x00001fc0" )'
-declare -A MARKS_MAX='([connmark]="63" [usermark]="127" )'
-declare -A MARKS_SHIFT='([connmark]="0" [usermark]="6" )'
-
-# taken from http://stackoverflow.com/questions/109023/how-to-count-the-number-of-set-bits-in-a-32-bit-integer
-# and http://books.google.gr/books?id=iBNKMspIlqEC&pg=PA66&redir_esc=y#v=onepage&q&f=false
-# counts the number of bits set in a number
-numberofbits() {
-	local x="${1}"
-
-	local x=$[ x - ( (x >> 1) & 0x55555555) ]
-	local x=$[ (x & 0x33333333) + ( (x >> 2) & 0x33333333) ]
-	local x=$[ (x + (x >> 4) ) & 0x0F0F0F0F ]
-	local x=$[ x + (x >> 8) ]
-	local x=$[ x + (x >> 16) ];
-	local bits=$[ x & 0x0000003F ]
-	echo $bits
-}
-
-# taken from http://www.skorks.com/2010/10/write-a-function-to-determine-if-a-number-is-a-power-of-2/
-# checks if a number is power of 2
-ispoweroftwo() {
-	local num="${1}"
-
-	test ! $num = 0 -a $[num & (num - 1)] = 0 && return 0
-	return 1
-}
-
-markdef() {
-	# echo "${FUNCNAME} ${*}"
-	local name="${1}"; shift
-	local max="${1}"; shift
-
-	if [ "${max}" = "rest" ]
-	then
-		local max=$[ 1 << (32 - MARKS_TOTAL_BITS) ]
-	fi
-
-	if ! ispoweroftwo $max
-	then
-		echo >&2 "Max value $max of mark '$name' is not a power of 2."
-		exit 1
-	fi
-
-	# it will be from 0 to max - 1
-	max=$[ max - 1 ]
-
-	if [ $max -lt 1 -o $max -gt $[ 0xffffffff ] ]
-	then
-		echo >&2 "Max value $max of mark '$name' is out of bounds."
-		exit 1
-	fi
-
-	# prevent a fork
-	bits=$(numberofbits $max)
-
-	if [ $bits -eq 0 ]
-	then
-		echo >&2 "INTERNAL ERROR: Cannot figure out the bits set of value $max."
-		exit 1
-	fi
-
-	if [ $[ bits + MARKS_TOTAL_BITS ] -gt 32 ]
-	then
-		echo >&2 "Too many masks were requested. Cannot proceed. Please use fewer."
-		exit 1
-	fi
-
-	# find its mask
-	# we have all the bits we need set in $mark
-	# just shift it to the right position.
-	local mask=$[ max << MARKS_TOTAL_BITS ]
-
-	MARKS_SHIFT[$name]=${MARKS_TOTAL_BITS}
-	MARKS_MAX[$name]=$max
-	MARKS_BITS[$name]=$bits
-	MARKS_MASKS[$name]=$(printf "0x%08x" $mask)
-
-	# echo "Mark $name with $[MARKS_MAX[$name] + 1] possible values (from 0 to ${MARKS_MAX[$name]}), uses ${MARKS_BITS[$name]} bits, has mask ${MARKS_MASKS[$name]} and values should be shifted by ${MARKS_SHIFT[$name]} bits"
-
-	MARKS_TOTAL_BITS=$[ MARKS_TOTAL_BITS + bits ]
-}
-
-if [ -f "${FIREHOL_CONFIG_DIR}/marks.conf" ]
-then
-	declare -A MARKS_BITS=()
-	declare -A MARKS_MASKS=()
-	declare -A MARKS_MAX=()
-	declare -A MARKS_SHIFT=()
-	
-	MARKS_TOTAL_BITS=0
-	source "${FIREHOL_CONFIG_DIR}/marks.conf" || exit 1
-
-	if [ -z "${MARKS_MASKS[connmark]}" ]
-	then
-		echo >&2 "File ${FIREHOL_CONFIG_DIR}/marks.conf does not define a 'connmark' definition."
-		exit 1
-	fi
-
-	if [ -z "${MARKS_MASKS[usermark]}" ]
-	then
-		echo >&2 "File ${FIREHOL_CONFIG_DIR}/marks.conf does not define a 'usermark' definition."
-		exit 1
-	fi
-
-	# save the information for the other tools
-	declare -p MARKS_BITS MARKS_MASKS MARKS_MAX MARKS_SHIFT >"${FIREHOL_SPOOL_DIR}/marks.conf"
-
-elif [ -f "${FIREHOL_SPOOL_DIR}/marks.conf" ]
-then
-	source "${FIREHOL_SPOOL_DIR}/marks.conf" || exit 1
-fi
 
 
 # ------------------------------------------------------------------------------
@@ -3198,7 +3223,7 @@ FIREHOL_TPROXY_ROUTE_DEVICE="lo"
 
 tproxy_setup_ip_route() {
 	require_cmd ip
-	
+
 	local x=
 	for x in inet inet6
 	do
@@ -3560,31 +3585,35 @@ connmark() {
 	return 0
 }
 
-mark() {
+custommark() {
 	work_realcmd_helper $FUNCNAME "$@"
 	
 	set_work_function -ne "Initializing $FUNCNAME"
 	
 	require_work clear || ( error "$FUNCNAME cannot be used in '${work_cmd}'. Put it before any '${work_cmd}' definition."; return 1 )
 	
+	local name="${1}"; shift
 	local num="${1}"; shift
 	local where="${1}"; shift
 	test -z "${where}" && where=OUTPUT
 	
 	set_work_function "Setting up rules for MARK"
 	
-	if [ "${num}" -lt 0 -o "${num}" -gt "${MARKS_MAX[usermark]}" ]
+	if [ "${num}" -lt 0 -o "${num}" -gt "${MARKS_MAX[$name]}" ]
 	then
-		error "FireHOL is configured to use $[${MARKS_MAX[usermark]} + 1] usermarks (from 0 to ${MARKS_MAX[usermark]})."
+		error "FireHOL is configured to use $[${MARKS_MAX[$name]} + 1] $name (from 0 to ${MARKS_MAX[$name]})."
 		return 1
 	fi
 
-	# we assume this is always 'usermark'
-	local mark="$[num << ${MARKS_SHIFT[usermark]}]/${MARKS_MASKS[usermark]}"
+	local mark="$[num << ${MARKS_SHIFT[$name]}]/${MARKS_MASKS[$name]}"
 
 	rule table mangle chain "${where}" custom '-m conntrack --ctstate NEW' "${@}" action MARK to "${mark}" || return 1
 	
 	return 0
+}
+
+mark() {
+	custommark usermark "${@}"
 }
 
 tos_count=0
@@ -5597,6 +5626,22 @@ rule() {
 				fi
 				test ${softwarnings} -eq 1 -a ! "${proto}" = "any" && softwarning "Overwritting param: proto '${proto}' becomes '${1}'"
 				local proto="${1}"
+				shift
+				;;
+				
+			custommark|CUSTOMMARK)
+				shift
+				local markname="${1}"
+				shift
+				local marknot=
+				if [ "${1}" = "not" -o "${1}" = "NOT" ]
+				then
+					shift
+					local marknot="!"
+				fi
+				test ${softwarnings} -eq 1 -a ! "${mark}" = "any" && softwarning "Overwritting param: mark '${mark}' becomes '${1}'"
+				local num="${1}"
+				local mark="$[num << ${MARKS_SHIFT[$markname]}]/${MARKS_MASKS[$markname]}"
 				shift
 				;;
 				

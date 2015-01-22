@@ -2060,21 +2060,33 @@ match() {
 				;;
 				
 			connmark|connmarks)
-				test ! "${mark}" = "any" && warning "Overwritting mark '${mark}' with '${2}'"
+				test ! "${mark}" = "any" && warning "Overwritting mark '${marktype}/${mark}' with 'connmark/${2}'"
 				local marktype="connmark"
 				local mark="$2"
 				shift
 				;;
 				
 			mark|marks)
-				test ! "${mark}" = "any" && warning "Overwritting mark '${mark}' with '${2}'"
+				test ! "${mark}" = "any" && warning "Overwritting mark '${marktype}/${mark}' with 'usermark/${2}'"
 				local marktype="usermark"
 				local mark="$2"
 				shift
 				;;
 				
+			custommark|custommarks)
+				test ! "${mark}" = "any" && warning "Overwritting mark '${marktype}/${mark}' with '${2}/${3}'"
+				local marktype="$2"
+				local mark="$3"
+				shift 2
+				if [ -z "${MARKS_BITS[$marktype]}" ]
+				then
+					error "Mark type '${marktype}' is not defined."
+					return 1
+				fi
+				;;
+				
 			rawmark|rawmarks)
-				test ! "${mark}" = "any" && warning "Overwritting mark '${mark}' with '${2}'"
+				test ! "${mark}" = "any" && warning "Overwritting mark '${marktype}/${mark}' with '${2}'"
 				local marktype=
 				local mark="$2"
 				shift

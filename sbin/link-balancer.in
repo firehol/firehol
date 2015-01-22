@@ -1220,6 +1220,16 @@ rules() {
 				local cmd="mark"
 				;;
 
+			custommark)
+				local marktype="${2}"; shift
+				local cmd="mark"
+				if [ -z "${MARKS_BITS[$marktype]}" ]
+				then
+					error "Mark type '${marktype}' is not defined."
+					exit 1
+				fi
+				;;
+
 			connmark)
 				local marktype="connmark"
 				local cmd="mark"
