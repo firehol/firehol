@@ -1283,7 +1283,7 @@ rules() {
 							local x=
 							for x in $1
 							do
-								mark+=("$[x << ${MARKS_SHIFT[$marktype]}]/${MARKS_MASKS[$marktype]}")
+								mark+=(`printf "0x%x/${MARKS_MASKS[$marktype]}" "$[x << ${MARKS_SHIFT[$marktype]}]"`)
 							done
 						fi
 						;;
