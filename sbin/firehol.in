@@ -102,11 +102,13 @@ declare -A MARKS_SHIFT=()
 MARKS_TOTAL_BITS=0
 
 marksreset() {
-	declare -A MARKS_BITS=()
-	declare -A MARKS_MASKS=()
-	declare -A MARKS_MAX=()
-	declare -A MARKS_SHIFT=()
+	#echo >&2 "${FUNCNAME} ${*}: Reseting marks..."
+	MARKS_BITS=()
+	MARKS_MASKS=()
+	MARKS_MAX=()
+	MARKS_SHIFT=()
 	MARKS_TOTAL_BITS=0
+	#declare -p MARKS_BITS MARKS_MASKS MARKS_MAX MARKS_SHIFT >&2
 }
 
 # taken from http://stackoverflow.com/questions/109023/how-to-count-the-number-of-set-bits-in-a-32-bit-integer
@@ -134,14 +136,14 @@ ispoweroftwo() {
 }
 
 markdef() {
-	# echo "${FUNCNAME} ${*}"
+	# echo >&2 "${FUNCNAME} ${*}"
+
 	local name="${1}"; shift
 	local max="${1}"; shift
 
-
 	if [ ! -z "${MARKS_MASKS[$name]}" ]
 	then
-		echo >&2 "Mark type '${name}' already exists. Please use 'marksreset' to reset them before re-defining them."
+		echo >&2 "Mark type '${name}' already exists with mask ${MARKS_MASKS[$name]}. Please use 'marksreset' to reset them before re-defining them."
 		exit 1
 	fi
 
@@ -191,6 +193,7 @@ markdef() {
 	MARKS_MASKS[$name]=$(printf "0x%08x" $mask)
 
 	# echo "Mark $name with $[MARKS_MAX[$name] + 1] possible values (from 0 to ${MARKS_MAX[$name]}), uses ${MARKS_BITS[$name]} bits, has mask ${MARKS_MASKS[$name]} and values should be shifted by ${MARKS_SHIFT[$name]} bits"
+	# declare -p MARKS_BITS MARKS_MASKS MARKS_MAX MARKS_SHIFT >&2
 
 	MARKS_TOTAL_BITS=$[ MARKS_TOTAL_BITS + bits ]
 }
