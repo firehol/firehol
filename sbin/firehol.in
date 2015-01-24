@@ -952,7 +952,7 @@ FIREHOL_ACTIVATED_SUCCESSFULLY=0
 syslog() {
 	local p="$1"; shift
 	
-	"${LOGGER_CMD}" -p ${FIREHOL_SYSLOG_FACILITY}.$p -t "FireHOL[$$]" "${@}"
+	"${LOGGER_CMD}" -p ${FIREHOL_SYSLOG_FACILITY}.$p -t "FireHOL[$$]" -- "${@}"
 	return 0
 }
 
@@ -3629,6 +3629,7 @@ connmark() {
 	#
 	#local mark="$[num << ${MARKS_SHIFT[connmark]}]/${MARKS_MASKS[connmark]}"
 	local mark="$(mark_value connmark $num)"
+	test -z "${mark}" && work_error=$[work_error + 1] && return 1
 
 	local chain=
 	for chain in ${where}
@@ -3670,6 +3671,7 @@ custommark() {
 	#
 	#local mark="$[num << ${MARKS_SHIFT[$name]}]/${MARKS_MASKS[$name]}"
 	local mark="$(mark_value $name $num)"
+	test -z "${mark}" && work_error=$[work_error + 1] && return 1
 
 	rule table mangle chain "${where}" custom '-m conntrack --ctstate NEW' "${@}" action MARK to "${mark}" || return 1
 	
