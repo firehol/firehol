@@ -1298,7 +1298,8 @@ FIREHOL_LINEID="INIT"
 # Suggested by Fco.Felix Belmonte <ffelix@gescosoft.com>
 # Note that each of the complex services
 # may add to this variable the kernel modules it requires.
-FIREHOL_KERNEL_MODULES=
+declare -A FIREHOL_KERNEL_MODULES=()
+
 #
 # In the configuration file you can write:
 #
@@ -1333,15 +1334,15 @@ FIREHOL_CONF_SHOW=1
 
 # ------------------------------------------------------------------------------
 # Keep information about the current namespace: ipv4, ipv6 or both
-FIREHOL_NS_STACK=
-FIREHOL_NS_CURR=$FIREHOL_DEFAULT_NAMESPACE
+declare -a FIREHOL_NS_STACK=()
+FIREHOL_NS_CURR=${FIREHOL_DEFAULT_NAMESPACE}
 FIREHOL_NS_PREP=
 
 peek_namespace() {
-	local ns=$(echo $FIREHOL_NS_STACK | cut -f1 -d:)
+	local ns="${FIREHOL_NS_STACK[0]}"
 	if [ "$ns" = "" ]
 	then
-		echo $FIREHOL_DEFAULT_NAMESPACE
+		echo ${FIREHOL_DEFAULT_NAMESPACE}
 	else
 		echo $ns
 	fi
@@ -1358,14 +1359,18 @@ push_namespace() {
 		error "Cannot use namespace $1 within ${FIREHOL_NS_CURR}"
 		return 1
 	fi
-	FIREHOL_NS_STACK="$1:$FIREHOL_NS_STACK"
-	FIREHOL_NS_CURR=$(peek_namespace)
+	FIREHOL_NS_STACK=("$1" "${FIREHOL_NS_STACK[@]}")
+	FIREHOL_NS_CURR="$1"
+	#echo >&2 "${FUNCNAME} ${@} == ${FIREHOL_NS_STACK[*]}"
 	return 0
 }
 
 pop_namespace() {
-	FIREHOL_NS_STACK=$(echo $FIREHOL_NS_STACK | cut -f2- -d:)
-	FIREHOL_NS_CURR=$(peek_namespace)
+	FIREHOL_NS_CURR="${FIREHOL_NS_STACK[0]}"
+	unset FIREHOL_NS_STACK[0]
+	FIREHOL_NS_STACK=("${FIREHOL_NS_STACK[@]}")
+
+	#echo >&2 "${FUNCNAME} ${FIREHOL_NS_CURR} == ${FIREHOL_NS_STACK[*]}"
 	return 0
 }
 
@@ -1450,42 +1455,42 @@ both() {
 	return $status
 }
 
-expression_list() {
-	# Clean up a complex expression expressions, such that e.g.
-	# fun0 ( x ) word  word2 fun1(a b) ...
-	# Becomes:
-	#  fun0(x)
-	#  word
-	#  word2
-	#  fun(a,b)
-	#  ....
-	# 1st sed: remove excess space, insert newlines at end of functions
-	# 2nd sed: insert newlines before functions that are preceded by words
-	# 3nd sed: function? no: split words to lines. yes: comma parameters.
-	echo "$@" | tr '\t' ' ' | \
-		sed -e 's/   */ /g' \
-			-e 's/ *\([()]\) */\1/g' \
-			-e 's/)/)\
-/g' | \
-		sed -e 's/ \([^ ][^ ]*\)(/\
-\1(/' | \
-		sed -e '/[()]/bfun' -e 's/ /\n/g' -e ':fun' -e 's/ /,/g'
-}
-
-eval_param() {
-	expression_list "$@" | \
-	while read exp
-	do
-		case "$exp" in
-			*"("*)
-				$(echo "$exp" | tr '(),' '   ')
-			;;
-			*)
-				echo "$exp"
-			;;
-		esac
-	done
-}
+#expression_list() {
+#	# Clean up a complex expression expressions, such that e.g.
+#	# fun0 ( x ) word  word2 fun1(a b) ...
+#	# Becomes:
+#	#  fun0(x)
+#	#  word
+#	#  word2
+#	#  fun(a,b)
+#	#  ....
+#	# 1st sed: remove excess space, insert newlines at end of functions
+#	# 2nd sed: insert newlines before functions that are preceded by words
+#	# 3nd sed: function? no: split words to lines. yes: comma parameters.
+#	echo "$@" | tr '\t' ' ' | \
+#		sed -e 's/   */ /g' \
+#			-e 's/ *\([()]\) */\1/g' \
+#			-e 's/)/)\
+#/g' | \
+#		sed -e 's/ \([^ ][^ ]*\)(/\
+#\1(/' | \
+#		sed -e '/[()]/bfun' -e 's/ /\n/g' -e ':fun' -e 's/ /,/g'
+#}
+#
+#eval_param() {
+#	expression_list "$@" | \
+#	while read exp
+#	do
+#		case "$exp" in
+#			*"("*)
+#				$(echo "$exp" | tr '(),' '   ')
+#			;;
+#			*)
+#				echo "$exp"
+#			;;
+#		esac
+#	done
+#}
 
 # ------------------------------------------------------------------------------
 # Keep information about the current primary command
@@ -2995,14 +3000,25 @@ rules_custom() {
 	# ----------------------------------------------------------------------
 	
 	local sp=
+	local oIFS="${IFS}"
+	local -a args=()
 	for sp in ${my_server_ports}
 	do
 		local proto=
 		local sport=
 		
-		IFS="/" read proto sport <<EOF
-$sp
-EOF
+		# this code is 21% faster than the next
+		args=()
+		IFS="/" args=( $sp )
+		IFS="${oIFS}"
+		local proto=${args[0]}
+		local sport=${args[1]}
+
+		# the code above is 21% faster than this
+#		IFS="/" read proto sport <<EOF
+#$sp
+#EOF
+		# echo >&2 "Parsing '${sp}' to proto='${proto}' and sport='${sport}'"
 		
 		local cp=
 		for cp in ${my_client_ports}
@@ -3806,7 +3822,7 @@ version() {
 		ENABLE_IPV6=0
 		FIREHOL_DEFAULT_NAMESPACE=ipv4
 		FIREHOL_NS_CURR=$FIREHOL_DEFAULT_NAMESPACE
-		FIREHOL_NS_STACK=
+		FIREHOL_NS_STACK=()
 		FIREHOL_NS_PREP=
 		warning "Running version 5 config. Update configuration to version 6 for IPv6 support. See http://firehol.org/upgrade/#config-version-${FIREHOL_VERSION}"
 	fi
@@ -3827,10 +3843,10 @@ interface() {
 	# --- reset namespace
 	if [ "${FIREHOL_NS_PREP}" != "" ]
 	then
-		FIREHOL_NS_STACK=${FIREHOL_NS_PREP}
+		FIREHOL_NS_STACK=(${FIREHOL_NS_PREP})
 		FIREHOL_NS_CURR=${FIREHOL_NS_PREP}
 	else
-		FIREHOL_NS_STACK=${FIREHOL_DEFAULT_NAMESPACE}
+		FIREHOL_NS_STACK=(${FIREHOL_DEFAULT_NAMESPACE})
 		FIREHOL_NS_CURR=${FIREHOL_DEFAULT_NAMESPACE}
 	fi
 	FIREHOL_NS_PREP=
@@ -3889,10 +3905,10 @@ router() {
 	# --- reset namespace
 	if [ "${FIREHOL_NS_PREP}" != "" ]
 	then
-		FIREHOL_NS_STACK=${FIREHOL_NS_PREP}
+		FIREHOL_NS_STACK=(${FIREHOL_NS_PREP})
 		FIREHOL_NS_CURR=${FIREHOL_NS_PREP}
 	else
-		FIREHOL_NS_STACK=${FIREHOL_DEFAULT_NAMESPACE}
+		FIREHOL_NS_STACK=(${FIREHOL_DEFAULT_NAMESPACE})
 		FIREHOL_NS_CURR=${FIREHOL_DEFAULT_NAMESPACE}
 	fi
 	FIREHOL_NS_PREP=
@@ -4026,35 +4042,31 @@ run_fast() {
 		n=table
 	fi
 	
-	if [ "z$1" = "z-t" ]
+	if [ "z${1}" = "z-t" ]
 	then
-		local t="$2"
+		local t="${2}"
 		shift 2
 	fi
 	
 	case "$1" in
-		-P)	echo ":$2 $3 [0:0]" >>$FIREHOL_DIR/fast/${n}.${t}.policy
+		-P)	echo ":$2 $3 [0:0]" >>"${FIREHOL_DIR}/fast/${n}.${t}.policy"
 			;;
 		
-		-N)	echo ":$2 - [0:0]" >>$FIREHOL_DIR/fast/${n}.${t}.chains
+		-N)	echo ":$2 - [0:0]" >>"${FIREHOL_DIR}/fast/${n}.${t}.chains"
 			;;
 		
-		-A)	${CAT_CMD} <<EOFA >>$FIREHOL_DIR/fast/${n}.${t}.rules
-${@}
-EOFA
+		-A|-I)	echo "${*}" >>"${FIREHOL_DIR}/fast/${n}.${t}.rules"
+#${CAT_CMD} <<EOF >>"${FIREHOL_DIR}/fast/${n}.${t}.rules"
+#${@}
+#EOF
 			;;
 			
-		-I)	${CAT_CMD} <<EOFI >>$FIREHOL_DIR/fast/${n}.${t}.rules
-${@}
-EOFI
-			;;
-		
 		# if it is none of the above, we execute it normally.
-		*)	echo "Ignoring command '${cmd} -t ${t} ${@}'"
+		*)	echo >&2 "Ignoring command '${cmd} -t ${t} ${@}'"
 			;;
 	esac
 	
-	test ! -f $FIREHOL_DIR/fast/${n}s/${t} && ${TOUCH_CMD} $FIREHOL_DIR/fast/${n}s/${t}
+	test ! -f "${FIREHOL_DIR}/fast/${n}s/${t}" && ${TOUCH_CMD} "${FIREHOL_DIR}/fast/${n}s/${t}"
 	return 0
 }
 
@@ -4560,15 +4572,12 @@ load_kernel_module() {
 # kernel modules to load, during activation-phase.
 require_kernel_module() {
 	local new="${1}"
-	
-	local m=
-	for m in ${FIREHOL_KERNEL_MODULES}
-	do
-		test "${m}" = "${new}" && return 0
-	done
-	
-	set_work_function "Adding kernel module '${new}' in the list of kernel modules to load"
-	FIREHOL_KERNEL_MODULES="${FIREHOL_KERNEL_MODULES} ${new}"
+
+	if [ -z "${FIREHOL_KERNEL_MODULES[$new]}" ]
+	then
+		set_work_function "Adding kernel module '${new}' in the list of kernel modules to load"
+		FIREHOL_KERNEL_MODULES[$new]="1"
+	fi
 	
 	return 0
 }
@@ -5423,11 +5432,13 @@ rule() {
 					fi
 					if running_ipv4; then
 						test ${softwarnings} -eq 1 -a ! "${src4}" = "default" && softwarning "Overwritting param: src4 '${src4}' becomes '${1}'"
-						local src4=$(ipv4 eval_param "${1}")
+						#local src4=$(ipv4 eval_param "${1}")
+						local src4="${1}"
 					fi
 					if running_ipv6; then
 						test ${softwarnings} -eq 1 -a ! "${src6}" = "default" && softwarning "Overwritting param: src6 '${src6}' becomes '${1}'"
-						local src6=$(ipv6 eval_param "${1}")
+						# local src6=$(ipv6 eval_param "${1}")
+						local src6="${1}"
 					fi
 				else
 					if running_ipv4; then
@@ -5448,11 +5459,13 @@ rule() {
 					fi
 					if running_ipv4; then
 						test ${softwarnings} -eq 1 -a ! "${dst4}" = "default" && softwarning "Overwritting param: dst4 '${dst4}' becomes '${1}'"
-						local dst4=$(ipv4 eval_param "${1}")
+						#local dst4=$(ipv4 eval_param "${1}")
+						local dst4="${1}"
 					fi
 					if running_ipv6; then
 						test ${softwarnings} -eq 1 -a ! "${dst6}" = "default" && softwarning "Overwritting param: dst6 '${dst6}' becomes '${1}'"
-						local dst6=$(ipv6 eval_param "${1}")
+						#local dst6=$(ipv6 eval_param "${1}")
+						local dst6="${1}"
 					fi
 				fi
 				pop_namespace
@@ -5490,11 +5503,13 @@ rule() {
 					fi
 					if running_ipv4; then
 						test ${softwarnings} -eq 1 -a ! "${dst4}" = "default" && softwarning "Overwritting param: dst4 '${dst4}' becomes '${1}'"
-						local dst4=$(ipv4 eval_param "${1}")
+						# local dst4=$(ipv4 eval_param "${1}")
+						local dst4="${1}"
 					fi
 					if running_ipv6; then
 						test ${softwarnings} -eq 1 -a ! "${dst6}" = "default" && softwarning "Overwritting param: dst6 '${dst6}' becomes '${1}'"
-						local dst6=$(ipv6 eval_param "${1}")
+						#local dst6=$(ipv6 eval_param "${1}")
+						local dst6="${1}"
 					fi
 				else
 					if running_ipv4; then
@@ -5515,11 +5530,13 @@ rule() {
 					fi
 					if running_ipv4; then
 						test ${softwarnings} -eq 1 -a ! "${src4}" = "default" && softwarning "Overwritting param: src6 '${src4}' becomes '${1}'"
-						local src4=$(ipv4 eval_param "${1}")
+						#local src4=$(ipv4 eval_param "${1}")
+						local src4="${1}"
 					fi
 					if running_ipv6; then
 						test ${softwarnings} -eq 1 -a ! "${src6}" = "default" && softwarning "Overwritting param: src6 '${src6}' becomes '${1}'"
-						local src6=$(ipv6 eval_param "${1}")
+						#local src6=$(ipv6 eval_param "${1}")
+						local src6="${1}"
 					fi
 				fi
 				pop_namespace
@@ -6293,6 +6310,36 @@ rule() {
 	test "${src6}" = "default" && local src6="any"
 	test "${dst6}" = "default" && local dst6="any"
 
+	if [ ! "${src4}" = "any" ]
+	then
+		src4=${src4//reserved_ips()/${RESERVED_IPV4}}
+		src4=${src4//private_ips()/${PRIVATE_IPV4}}
+		src4=${src4//multicast_ips()/${MULTICAST_IPV4}}
+		src4=${src4//unroutable_ips()/${UNROUTABLE_IPV4}}
+	fi
+	if [ ! "${dst4}" = "any" ]
+	then
+		dst4=${dst4//reserved_ips()/${RESERVED_IPV4}}
+		dst4=${dst4//private_ips()/${PRIVATE_IPV4}}
+		dst4=${dst4//multicast_ips()/${MULTICAST_IPV4}}
+		dst4=${dst4//unroutable_ips()/${UNROUTABLE_IPV4}}
+	fi
+
+	if [ ! "${src6}" = "any" ]
+	then
+		src6=${src6//reserved_ips()/${RESERVED_IPV6}}
+		src6=${src6//private_ips()/${PRIVATE_IPV6}}
+		src6=${src6//multicast_ips()/${MULTICAST_IPV6}}
+		src6=${src6//unroutable_ips()/${UNROUTABLE_IPV6}}
+	fi
+	if [ ! "${dst6}" = "any" ]
+	then
+		dst6=${dst6//reserved_ips()/${RESERVED_IPV6}}
+		dst6=${dst6//private_ips()/${PRIVATE_IPV6}}
+		dst6=${dst6//multicast_ips()/${MULTICAST_IPV6}}
+		dst6=${dst6//unroutable_ips()/${UNROUTABLE_IPV6}}
+	fi
+
 	# ----------------------------------------------------------------------------------
 	# Do we have negative contitions?
 	# If yes, we have to:
@@ -6685,6 +6732,11 @@ rule() {
 			;;
 	esac
 	
+	# keep a list of all ip versions we need
+	local ipvall=
+	running_ipv4 && local ipvall="ipv4"
+	running_ipv6 && local ipvall="${ipvall} ipv6"
+
 	# uid
 	local tuid=
 	for tuid in ${uid}
@@ -6925,111 +6977,75 @@ rule() {
 				local -a mc_arg=("-m" "mac" "--mac-source" "${mc}")
 				;;
 		esac
-	
-	if running_ipv4; then
-		# src4
-		local s=
-		for s in ${src4}
-		do
-			local -a s_arg=()
-			case ${s} in
-				any|ANY)
-					;;
 
-				*)
-					local -a s_arg=("-s" "${s}")
-					;;
-			esac
+	# ipvall	
+	local ipv=
+	for ipv in ${ipvall}
+	do
+		case "${ipv}" in
+			ipv4)
+				local iptables="iptables"
+				local src="${src4}"
+				local dst="${dst4}"
+				;;
 
-		# dst4
-		local d=
-		for d in ${dst4}
-		do
-			local -a d_arg=()
-			case ${d} in
-				any|ANY)
-					;;
+			ipv6)
+				local iptables="ip6tables"
+				local src="${src6}"
+				local dst="${dst6}"
+				;;
+		esac
 
-				*)
-					local -a d_arg=("-d" "${d}")
-					;;
-			esac
+	# src
+	local s=
+	for s in ${src}
+	do
+		local -a s_arg=()
+		case ${s} in
+			any|ANY)
+				;;
 
-		# build the command
-		declare -a basecmd=("${inf_arg[@]}" "${outf_arg[@]}" "${physdev_arg[@]}" "${inph_arg[@]}" "${outph_arg[@]}" "${limit_arg[@]}" "${iplimit_arg[@]}" "${proto_arg[@]}" "${s_arg[@]}" "${sp_arg[@]}" "${d_arg[@]}" "${dp_arg[@]}" "${owner_arg[@]}" "${uid_arg[@]}" "${gid_arg[@]}" "${pid_arg[@]}" "${sid_arg[@]}" "${cmd_arg[@]}" "${addrtype_arg[@]}" "${stp_arg[@]}" "${dtp_arg[@]}" "${state_arg[@]}" "${mc_arg[@]}" "${mark_arg[@]}" "${tos_arg[@]}" "${dscp_arg[@]}")
+			*)
+				local -a s_arg=("-s" "${s}")
+				;;
+		esac
 
-		if [ "$logrule" = "limit" ]
-		then
-			iptables ${table} -A "${chain}" "${basecmd[@]}" ${custom} -m limit --limit "${FIREHOL_LOG_FREQUENCY}" --limit-burst "${FIREHOL_LOG_BURST}" -j ${FIREHOL_LOG_MODE} ${FIREHOL_LOG_OPTIONS} "${logopts_arg[@]}"
-		elif [ "$logrule" = "normal" ]
-		then
-			iptables ${table} -A "${chain}" "${basecmd[@]}" ${custom} -j ${FIREHOL_LOG_MODE} ${FIREHOL_LOG_OPTIONS} "${logopts_arg[@]}"
-		fi
+	# dst
+	local d=
+	for d in ${dst}
+	do
+		local -a d_arg=()
+		case ${d} in
+			any|ANY)
+				;;
 
-		if [ ! -z "${accounting}" ]
-		then
-			iptables ${table} -A "${chain}" "${basecmd[@]}" ${custom} -m nfacct --nfacct-name "${accounting}"
-		fi
+			*)
+				local -a d_arg=("-d" "${d}")
+				;;
+		esac
 
-		# do it!
-		rule_action_param iptables "${action}" "${pr}" "${statenot}" "${state}" "${table}" "${action_param[@]}" -- ${table} -A "${chain}" "${basecmd[@]}" ${custom} || local failed=$[failed + 1]
+	# build the command
+	declare -a basecmd=("${inf_arg[@]}" "${outf_arg[@]}" "${physdev_arg[@]}" "${inph_arg[@]}" "${outph_arg[@]}" "${limit_arg[@]}" "${iplimit_arg[@]}" "${proto_arg[@]}" "${s_arg[@]}" "${sp_arg[@]}" "${d_arg[@]}" "${dp_arg[@]}" "${owner_arg[@]}" "${uid_arg[@]}" "${gid_arg[@]}" "${pid_arg[@]}" "${sid_arg[@]}" "${cmd_arg[@]}" "${addrtype_arg[@]}" "${stp_arg[@]}" "${dtp_arg[@]}" "${state_arg[@]}" "${mc_arg[@]}" "${mark_arg[@]}" "${tos_arg[@]}" "${dscp_arg[@]}")
 
-		done # dst4
-		done # src4
+	if [ "$logrule" = "limit" ]
+	then
+		${iptables} ${table} -A "${chain}" "${basecmd[@]}" ${custom} -m limit --limit "${FIREHOL_LOG_FREQUENCY}" --limit-burst "${FIREHOL_LOG_BURST}" -j ${FIREHOL_LOG_MODE} ${FIREHOL_LOG_OPTIONS} "${logopts_arg[@]}"
+	elif [ "$logrule" = "normal" ]
+	then
+		${iptables} ${table} -A "${chain}" "${basecmd[@]}" ${custom} -j ${FIREHOL_LOG_MODE} ${FIREHOL_LOG_OPTIONS} "${logopts_arg[@]}"
 	fi
 
-	if running_ipv6; then
-		# src6
-		local s=
-		for s in ${src6}
-		do
-			local -a s_arg=()
-			case ${s} in
-				any|ANY)
-					;;
-
-				*)
-					local -a s_arg=("-s" "${s}")
-					;;
-			esac
-
-		# dst6
-		local d=
-		for d in ${dst6}
-		do
-			local -a d_arg=()
-			case ${d} in
-				any|ANY)
-					;;
-
-				*)
-					local -a d_arg=("-d" "${d}")
-					;;
-			esac
-
-		# build the command
-		declare -a basecmd=("${inf_arg[@]}" "${outf_arg[@]}" "${physdev_arg[@]}" "${inph_arg[@]}" "${outph_arg[@]}" "${limit_arg[@]}" "${iplimit_arg[@]}" "${proto_arg[@]}" "${s_arg[@]}" "${sp_arg[@]}" "${d_arg[@]}" "${dp_arg[@]}" "${owner_arg[@]}" "${uid_arg[@]}" "${gid_arg[@]}" "${pid_arg[@]}" "${sid_arg[@]}" "${cmd_arg[@]}" "${addrtype_arg[@]}" "${stp_arg[@]}" "${dtp_arg[@]}" "${state_arg[@]}" "${mc_arg[@]}" "${mark_arg[@]}" "${tos_arg[@]}" "${dscp_arg[@]}")
-
-		if [ "$logrule" = "limit" ]
-		then
-			ip6tables ${table} -A "${chain}" "${basecmd[@]}" ${custom} -m limit --limit "${FIREHOL_LOG_FREQUENCY}" --limit-burst "${FIREHOL_LOG_BURST}" -j ${FIREHOL_LOG_MODE} ${FIREHOL_LOG_OPTIONS} "${logopts_arg[@]}"
-		elif [ "$logrule" = "normal" ]
-		then
-			ip6tables ${table} -A "${chain}" "${basecmd[@]}" ${custom}  -j ${FIREHOL_LOG_MODE} ${FIREHOL_LOG_OPTIONS} "${logopts_arg[@]}"
-		fi
-
-		if [ ! -z "${accounting}" ]
-		then
-			iptables ${table} -A "${chain}" "${basecmd[@]}" ${custom} -m nfacct --nfacct-name "${accounting}"
-		fi
-
-		# do it!
-		rule_action_param ip6tables "${action}" "${pr}" "${statenot}" "${state}" "${table}" "${action_param[@]}" -- ${table} -A "${chain}" "${basecmd[@]}" ${custom} || local failed=$[failed + 1]
-
-		done # dst6
-		done # src6
+	if [ ! -z "${accounting}" ]
+	then
+		${iptables} ${table} -A "${chain}" "${basecmd[@]}" ${custom} -m nfacct --nfacct-name "${accounting}"
 	fi
 
+	# do it!
+	rule_action_param ${iptables} "${action}" "${pr}" "${statenot}" "${state}" "${table}" "${action_param[@]}" -- ${table} -A "${chain}" "${basecmd[@]}" ${custom} || local failed=$[failed + 1]
+
+	done # dst
+	done # src
+	done # ipvall
 	done # mac
 	done # dport
 	done # sport
@@ -8970,7 +8986,7 @@ initialize_firewall() {
 		load_kernel_module ip6_tables
 	fi
 	
-	for m in ${FIREHOL_KERNEL_MODULES}
+	for m in ${!FIREHOL_KERNEL_MODULES[*]}
 	do
 		postprocess -ne -ns load_kernel_module $m
 	done
