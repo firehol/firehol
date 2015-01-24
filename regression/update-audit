@@ -1,0 +1,60 @@
+#!/bin/sh
+
+if [ $# -ne 2 ]
+then
+  echo "Usage: update-audit id-of-audited-results tests/.../test.conf"
+  echo ""
+  echo "  e.g. update-audit master tests/bugfixes/issue041.conf"
+  echo ""
+  echo "Adds or updates the audit sections in a test configuration"
+  echo "using run results from output/id-of-audited-results/.../test.out"
+  echo "files for both IPv4 and IPv6"
+  exit 1
+fi
+
+set -e
+
+id="$1"
+shift
+testfile="$1"
+shift
+
+outfile=$(echo $testfile | sed -e 's/\.conf$/.out/' -e 's;^tests/;;')
+out4="output/$id/ipv4/$outfile"
+out6="output/$id/ipv6/$outfile"
+
+if [ ! -f "$out4" ]
+then
+   echo "Missing $out4"
+   exit 1
+fi
+
+if [ ! -f "$out6" ]
+then
+   echo "Missing $out6"
+   exit 1
+fi
+
+if grep -q "^audit_results_ipv4" "$testfile"
+then
+  sed -i -e '/^audit_results_ipv4/ {' -e 'p' -e "r $out4" -e 'a}' -e '}' \
+         -e '/^audit_results_ipv4/,/^}/d' $testfile
+else
+  echo "" >> "$testfile"
+  echo "audit_results_ipv4() {" >> "$testfile"
+  cat "$out4" >> "$testfile"
+  echo "}" >> "$testfile"
+fi
+
+if grep -q "^audit_results_ipv6" "$testfile"
+then
+  sed -i -e '/^audit_results_ipv6/ {' -e 'p' -e "r $out6" -e 'a}' -e '}' \
+         -e '/^audit_results_ipv6/,/^}/d' $testfile
+else
+  echo "" >> "$testfile"
+  echo "audit_results_ipv6() {" >> "$testfile"
+  cat "$out6" >> "$testfile"
+  echo "}" >> "$testfile"
+fi
+
+
