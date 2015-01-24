@@ -6,10 +6,23 @@ my %tables = ();
 my $table = undef;
 
 my $skipnat = undef;
-if (@ARGV > 0 and $ARGV[0] eq "-n") {
-  $skipnat = 1;
-  shift @ARGV;
+my $noadvancedmark = undef;
+
+my @newarg = ();
+while (defined(my $arg = shift @ARGV)) {
+  if ($arg =~ /^-/) {
+    if ($arg eq "--skipnat") {
+      $skipnat = 1;
+    } elsif ($arg eq "--noadvancedmark") {
+      $noadvancedmark = 1;
+    } else {
+      die "Unknown option $arg\n";
+    }
+  } else {
+    push @newarg, $arg;
+  }
 }
+@ARGV = @newarg;
 
 while (<>) {
   # Remove comments
@@ -36,10 +49,14 @@ while (<>) {
   # Hide state/conntrack differences
   s/-m state --state/-m conntrack --ctstate/g;
 
+  s/--mark 0x580\/0x1fc0/--mark 0x16/ if ($noadvancedmark);
+
   # New table starts
   $table = $_ if (/^\*/);
 
   die "No table for line $_" unless $table;
+
+  next if ($noadvancedmark and $table eq "*mangle" and /-mark --nfmask 0xffffffff --ctmask 0xffffffff/);
   push @{$tables{$table}}, $_;
 }
 

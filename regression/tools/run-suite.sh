@@ -157,12 +157,18 @@ do
   mkdir -p $outdir/ipv4-no-nat/$d || exit
 done < $MYTMP/list
 
+audit_opts=""
+if ! grep -q "^marksreset" "$prog"; then
+  audit_opts="$audit_opts --noadvancedmark"
+fi
+
 while read testfile
 do
   i=$(echo $testfile | sed -e s'/.conf$//')
   d=$(dirname $i)
   f=$(basename $i)
-  cfgfile="$outdir/tests/$d/$f.conf"
+  origfile="tests/$d/$f.conf"
+  cfgfile="$outdir/$origfile"
   logfile="$outdir/tests/$d/$f.log"
   v4out="$outdir/ipv4/$d/$f.out"
   v6out="$outdir/ipv6/$d/$f.out"
@@ -171,7 +177,7 @@ do
   v6aud="$outdir/ipv6/$d/$f.aud"
   v4nnaud="$outdir/ipv4-no-nat/$d/$f.aud"
 
-  echo "  Running $cfgfile"
+  echo "  Running $origfile"
   cp "$here/tests/$testfile" "$cfgfile"
 
   audit4=""
@@ -182,8 +188,8 @@ do
     test -f "$here/tests/$sigsfile" && gpg --verify "$here/tests/$sigsfile" "$here/tests/$testfile"
     sed -ne '/audit_results_ipv4()/,/^}/p' "$here/tests/$testfile" \
          | sed -e '1d' -e '$d' \
-         | tools/reorg-save > "$v4aud"
-    tools/reorg-save -n "$v4aud" > "$v4nnaud"
+         | tools/reorg-save $audit_opts > "$v4aud"
+    tools/reorg-save $audit_opts --skipnat "$v4aud" > "$v4nnaud"
   fi
 
   audit6=""
@@ -193,7 +199,7 @@ do
       audit6="Y"
       sed -ne '/audit_results_ipv6()/,/^}/p' "$here/tests/$testfile" \
            | sed -e '1d' -e '$d' \
-           | tools/reorg-save > "$v6aud"
+           | tools/reorg-save $audit_opts > "$v6aud"
     fi
   fi
 
@@ -214,9 +220,9 @@ do
   sed -i -e '/^COMMAND/s/ both iptables_cmd/ iptables_cmd/' "$logfile"
   sed -i -e 's;/sbin/iptables;iptables_cmd;' "$logfile"
   sed -i -e 's/-m state --state/-m conntrack --ctstate/g' "$logfile"
-  tools/reorg-save "$v4out".tmp > "$v4out"
-  tools/reorg-save -n "$v4out".tmp > "$v4nnout"
-  tools/reorg-save "$v6out".tmp > "$v6out"
+  tools/reorg-save $audit_opts "$v4out".tmp > "$v4out"
+  tools/reorg-save $audit_opts --skipnat "$v4out".tmp > "$v4nnout"
+  tools/reorg-save $audit_opts "$v6out".tmp > "$v6out"
   rm -f "$v4out".tmp "$v6out".tmp
   auditrun=0
   auditfail=0
@@ -258,3 +264,4 @@ do
     echo "    audit passed $auditrun/$auditrun"
   fi
 done < $MYTMP/list
+echo "  Outdir: $outdir"
