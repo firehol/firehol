@@ -309,7 +309,7 @@ mark_value() {
 		return 1
 	fi
 
-	for x in ${@}
+	for x in ${@//,/ }
 	do
 		local x=$[ x + 1 - 1 ]
 		if [ $x -gt ${MARKS_MAX[$name]} -o $x -lt 0 ]
@@ -1921,8 +1921,12 @@ EOF
 }
 
 find_port_masks() {
+	# echo >&2 "${FUNCNAME} ${@}"
 	local from=$(($1))
 	local to=$(($2))
+	
+	test -z "$from" && local from="$to"
+	test -z "$from" && return 1
 	
 	if [ -z "$to" ]
 	then
@@ -1972,15 +1976,24 @@ find_port_masks() {
 }
 
 expand_ports() {
-	while [ ! -z "$1" ]
+	# echo >&2 "${FUNCNAME} ${@}"
+	local i=
+	for i in ${@//,/ }
 	do
-		local p=`echo $1 | $tr_cmd ":-" "  "`
-		case $p in
+		case "${i}" in
 			any|all)
-				echo $p
+				echo "${i}"
 				;;
-			
-			*)	find_port_masks $p
+
+			*:*)
+				find_port_masks ${i//:/ }
+				;;
+
+			*-*)
+				find_port_masks ${i//-/ }
+				;;
+
+			*)	find_port_masks ${i}
 				;;
 		esac
 		shift
@@ -2002,6 +2015,7 @@ match46() {
 
 match_count=0
 match() {
+	# echo >&2 "${FUNCNAME} ${@}"
 	match_count=$[match_count + 1]
 
 	if [ "z$1" = "z-ns" ]
@@ -2021,8 +2035,7 @@ match() {
 	local dst=any
 	local ip=any
 	local tos=any
-	local mark=any
-	local marktype=
+	local mark=
 	local srcmac=any
 	local dstmac=any
 	local class=$class_name
@@ -2093,71 +2106,58 @@ match() {
 				local proto="$1"
 				;;
 				
-			tos|priority)
-				local tos="$2"
+			tos)
+				local tos="${2//,/ }"
 				shift
 				;;
 				
 			connmark|connmarks)
-				test ! "${mark}" = "any" && warning "Overwritting mark '${marktype}/${mark}' with 'connmark/${2}'"
-				local marktype="connmark"
-				local mark="$2"
+				local mark="${mark} $(mark_value connmark ${2//,/ })"
 				shift
 				;;
 				
 			mark|marks)
-				test ! "${mark}" = "any" && warning "Overwritting mark '${marktype}/${mark}' with 'usermark/${2}'"
-				local marktype="usermark"
-				local mark="$2"
+				local mark="${mark} $(mark_value usermark ${2//,/ })"
 				shift
 				;;
 				
 			custommark|custommarks)
-				test ! "${mark}" = "any" && warning "Overwritting mark '${marktype}/${mark}' with '${2}/${3}'"
-				local marktype="$2"
-				local mark="$3"
+				local mark="${mark} $(mark_value $2 ${3//,/ })"
 				shift 2
-				if [ -z "${MARKS_MASKS[$marktype]}" ]
-				then
-					error "Mark type '${marktype}' is not defined."
-					return 1
-				fi
 				;;
 				
 			rawmark|rawmarks)
-				test ! "${mark}" = "any" && warning "Overwritting mark '${marktype}/${mark}' with '${2}'"
-				local marktype=
-				local mark="$2"
+				local mark="${mark} ${2//,/ }"
 				shift
 				;;
 				
 			proto|protocol|protocols)
-				local proto="$2"
+				local proto="${2//,/ }"
 				shift
 				;;
 			
 			port|ports)
-				local port="$2"
+				local port="${2//,/ }"
 				shift
 				;;
 			
 			sport|sports)
-				local sport="$2"
+				local sport="${2//,/ }"
 				shift
 				;;
 			
 			dport|dports)
-				local dport="$2"
+				local dport="${2//,/ }"
 				shift
 				;;
 			
 			src)
-				local src="$2"
+				local src="${2//,/ }"
 				shift
 				;;
 			
 			dst)
-				local dst="$2"
+				local dst="${2//,/ }"
 				shift
 				;;
 			
@@ -2167,7 +2167,7 @@ match() {
 				;;
 			
 			ip|ips|net|nets|host|hosts)
-				local ip="$2"
+				local ip="${2//,/ }"
 				shift
 				;;
 			
@@ -2206,12 +2206,14 @@ match() {
 				;;
 
 			srcmac|smac)
-				local srcmac=`echo "$2" | sed -e "s/://g"`
+				local srcmac="${2//,/ }"
+				local srcmac="${srcmac//:/}"
 				shift
 				;;
 
 			dstmac|dmac)
-				local dstmac=`echo "$2" | sed -e "s/://g"`
+				local dstmac="${2//,/ }"
+				local dstmac="${dstmac//:/}"
 				shift
 				;;
 
@@ -2222,6 +2224,8 @@ match() {
 		shift
 	done
 	
+	test -z "${mark}" && local mark="any"
+
 	# if reverse, flip src/dst sport/dport
 	if [ $reverse -eq 1 ]
 	then
@@ -2244,16 +2248,9 @@ match() {
 		class_matchid=$((class_matchid + 1))
 	fi
 	
-	local p=`echo $port | $tr_cmd "," " "`; local port=`expand_ports $p`
-	local p=`echo $sport | $tr_cmd "," " "`; local sport=`expand_ports $p`
-	local p=`echo $dport | $tr_cmd "," " "`; local dport=`expand_ports $p`
-	
-	local proto=`echo $proto | $tr_cmd "," " "`;
-	local ip=`echo $ip | $tr_cmd "," " "`;
-	local src=`echo $src | $tr_cmd "," " "`;
-	local dst=`echo $dst | $tr_cmd "," " "`;
-	local mark=`echo $mark | $tr_cmd "," " "`;
-	local tos=`echo $tos | $tr_cmd "," " "`;
+	local port="$(expand_ports $port)"
+	local sport="$(expand_ports $sport)"
+	local dport="$(expand_ports $dport)"
 	
 	[ -z "$proto" ]	&& error "Cannot accept empty protocol."		&& return 1
 	[ -z "$port" ]	&& error "Cannot accept empty ports."			&& return 1
@@ -2264,8 +2261,8 @@ match() {
 	[ -z "$ip" ]	&& error "Cannot accept empty IPs."			&& return 1
 	[ -z "$tos" ]	&& error "Cannot accept empty TOS."			&& return 1
 	[ -z "$mark" ]	&& error "Cannot accept empty MARK."			&& return 1
-	[ -z "$srcmac" ]	&& error "Cannot accept empty source MAC."		&& return 1
-	[ -z "$dstmac" ]	&& error "Cannot accept empty destination MAC."		&& return 1
+	[ -z "$srcmac" ] && error "Cannot accept empty source MAC."		&& return 1
+	[ -z "$dstmac" ] && error "Cannot accept empty destination MAC."	&& return 1
 	
 	[ ! "$port" = "any" -a ! "$sport" = "any" ]	&& error "Cannot match 'port' and 'sport'." && exit 1
 	[ ! "$port" = "any" -a ! "$dport" = "any" ]	&& error "Cannot match 'port' and 'dport'." && exit 1
@@ -2603,14 +2600,9 @@ match() {
 											local mark_arg=
 											case "$tmark" in
 												any)	;;
-												*)	if [ -z "${marktype}" ]
-													then
-														# local mark_arg="handle $tmark fw"
-														local mark_arg="u32 match mark `echo "$tmark" | tr "/" " "`"
-													else
-														# local mark_arg="u32 match mark $[tmark << ${MARKS_SHIFT[$marktype]}] ${MARKS_MASKS[$marktype]}"
-														local mark_arg="u32 match mark $(mark_value $marktype $tmark)"
-													fi
+												*)
+													# local mark_arg="handle $tmark fw"
+													local mark_arg="u32 match mark ${tmark//\// }"
 													;;
 											esac
 											

@@ -198,7 +198,7 @@ mark_value() {
 		return 1
 	fi
 
-	for x in ${@}
+	for x in ${@//,/ }
 	do
 		local x=$[ x + 1 - 1 ]
 		if [ $x -gt ${MARKS_MAX[$name]} -o $x -lt 0 ]
@@ -535,18 +535,18 @@ gateway() {
 				;;
 
 			gateway|gw|via)
-				local gw="${2}"
+				local gw="${2//,/ }"
 				shift
 				;;
 
 			src|from)
-				local src="${2}"
+				local src="${2//,/ }"
 				shift
 				;;
 
 			check)
 				local check="${2}"
-				local dst="${3}"
+				local dst="${3//,/ }"
 				shift 2
 				;;
 
@@ -1326,21 +1326,16 @@ rules() {
 					mark)
 						if [ -z "${marktype}" ]
 						then
-							mark+=("$1")
+							mark+=( ${1//,/ } )
 						else
-							local x=
-							for x in $1
-							do
-								# mark+=(`printf "0x%x/${MARKS_MASKS[$marktype]}" "$[x << ${MARKS_SHIFT[$marktype]}]"`)
-								mark+=( $(mark_value $marktype $x) )
-							done
+							mark+=( $(mark_value $marktype ${1//,/ }) )
 						fi
 						;;
 
-					tos) tos+=("$1");;
-					src) src+=("$1");;
-					dst) dst+=("$1");;
-					inface) inface+=("$1");;
+					tos) tos+=( ${1//,/ } );;
+					src) src+=( ${1//,/ } );;
+					dst) dst+=( ${1//,/ } );;
+					inface) inface+=( ${1//,/ } );;
 				esac
 				;;
 		esac

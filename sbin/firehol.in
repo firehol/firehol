@@ -220,7 +220,7 @@ mark_value() {
 		return 1
 	fi
 
-	for x in ${@}
+	for x in ${@//,/ }
 	do
 		local x=$[ x + 1 - 1 ]
 		if [ $x -gt ${MARKS_MAX[$name]} -o $x -lt 0 ]
@@ -5322,7 +5322,7 @@ rule() {
 						fi
 					fi
 					test ${softwarnings} -eq 1 -a ! "${inface}" = "any" && softwarning "Overwritting param: inface '${inface}' becomes '${1}'"
-					local inface="${1}"
+					local inface="${1//,/ }"
 				else
 					local outfacenot=
 					if [ "${1}" = "not" -o "${1}" = "NOT" ]
@@ -5336,7 +5336,7 @@ rule() {
 						fi
 					fi
 					test ${softwarnings} -eq 1 -a ! "${outface}" = "any" && softwarning "Overwritting param: outface '${outface}' becomes '${1}'"
-					local outface="${1}"
+					local outface="${1//,/ }"
 				fi
 				shift
 				;;
@@ -5357,7 +5357,7 @@ rule() {
 						fi
 					fi
 					test ${softwarnings} -eq 1 -a ! "${outface}" = "any" && softwarning "Overwritting param: outface '${outface}' becomes '${1}'"
-					local outface="${1}"
+					local outface="${1//,/ }"
 				else
 					local infacenot=
 					if [ "${1}" = "not" -o "${1}" = "NOT" ]
@@ -5371,7 +5371,7 @@ rule() {
 						fi
 					fi
 					test ${softwarnings} -eq 1 -a ! "${inface}" = "any" && softwarning "Overwritting param: inface '${inface}' becomes '${1}'"
-					local inface="${1}"
+					local inface="${1//,/ }"
 				fi
 				shift
 				;;
@@ -5387,7 +5387,7 @@ rule() {
 						local physinnot="!"
 					fi
 					test ${softwarnings} -eq 1 -a ! "${physin}" = "any" && softwarning "Overwritting param: physin '${physin}' becomes '${1}'"
-					local physin="${1}"
+					local physin="${1//,/ }"
 				else
 					local physoutnot=
 					if [ "${1}" = "not" -o "${1}" = "NOT" ]
@@ -5396,7 +5396,7 @@ rule() {
 						local physoutnot="!"
 					fi
 					test ${softwarnings} -eq 1 -a ! "${physout}" = "any" && softwarning "Overwritting param: physout '${physout}' becomes '${1}'"
-					local physout="${1}"
+					local physout="${1//,/ }"
 				fi
 				shift
 				;;
@@ -5412,7 +5412,7 @@ rule() {
 						local physoutnot="!"
 					fi
 					test ${softwarnings} -eq 1 -a ! "${physout}" = "any" && softwarning "Overwritting param: physout '${physout}' becomes '${1}'"
-					local physout="${1}"
+					local physout="${1//,/ }"
 				else
 					local physinnot=
 					if [ "${1}" = "not" -o "${1}" = "NOT" ]
@@ -5421,7 +5421,7 @@ rule() {
 						local physinnot="!"
 					fi
 					test ${softwarnings} -eq 1 -a ! "${physin}" = "any" && softwarning "Overwritting param: physin '${physin}' becomes '${1}'"
-					local physin="${1}"
+					local physin="${1//,/ }"
 				fi
 				shift
 				;;
@@ -5435,7 +5435,7 @@ rule() {
 					test ${nomac} -eq 0 && local macnot="!"
 				fi
 				test ${softwarnings} -eq 1 -a ! "${mac}" = "any" && softwarning "Overwritting param: mac '${mac}' becomes '${1}'"
-				test ${nomac} -eq 0 && local mac="${1}"
+				test ${nomac} -eq 0 && local mac="${1//,/ }"
 				shift
 				;;
 				
@@ -5471,12 +5471,12 @@ rule() {
 					if running_ipv4; then
 						test ${softwarnings} -eq 1 -a ! "${src4}" = "default" && softwarning "Overwritting param: src4 '${src4}' becomes '${1}'"
 						#local src4=$(ipv4 eval_param "${1}")
-						local src4="${1}"
+						local src4="${1//,/ }"
 					fi
 					if running_ipv6; then
 						test ${softwarnings} -eq 1 -a ! "${src6}" = "default" && softwarning "Overwritting param: src6 '${src6}' becomes '${1}'"
 						# local src6=$(ipv6 eval_param "${1}")
-						local src6="${1}"
+						local src6="${1//,/ }"
 					fi
 				else
 					if running_ipv4; then
@@ -5498,12 +5498,12 @@ rule() {
 					if running_ipv4; then
 						test ${softwarnings} -eq 1 -a ! "${dst4}" = "default" && softwarning "Overwritting param: dst4 '${dst4}' becomes '${1}'"
 						#local dst4=$(ipv4 eval_param "${1}")
-						local dst4="${1}"
+						local dst4="${1//,/ }"
 					fi
 					if running_ipv6; then
 						test ${softwarnings} -eq 1 -a ! "${dst6}" = "default" && softwarning "Overwritting param: dst6 '${dst6}' becomes '${1}'"
 						#local dst6=$(ipv6 eval_param "${1}")
-						local dst6="${1}"
+						local dst6="${1//,/ }"
 					fi
 				fi
 				pop_namespace
@@ -5542,12 +5542,12 @@ rule() {
 					if running_ipv4; then
 						test ${softwarnings} -eq 1 -a ! "${dst4}" = "default" && softwarning "Overwritting param: dst4 '${dst4}' becomes '${1}'"
 						# local dst4=$(ipv4 eval_param "${1}")
-						local dst4="${1}"
+						local dst4="${1//,/ }"
 					fi
 					if running_ipv6; then
 						test ${softwarnings} -eq 1 -a ! "${dst6}" = "default" && softwarning "Overwritting param: dst6 '${dst6}' becomes '${1}'"
 						#local dst6=$(ipv6 eval_param "${1}")
-						local dst6="${1}"
+						local dst6="${1//,/ }"
 					fi
 				else
 					if running_ipv4; then
@@ -5569,12 +5569,12 @@ rule() {
 					if running_ipv4; then
 						test ${softwarnings} -eq 1 -a ! "${src4}" = "default" && softwarning "Overwritting param: src6 '${src4}' becomes '${1}'"
 						#local src4=$(ipv4 eval_param "${1}")
-						local src4="${1}"
+						local src4="${1//,/ }"
 					fi
 					if running_ipv6; then
 						test ${softwarnings} -eq 1 -a ! "${src6}" = "default" && softwarning "Overwritting param: src6 '${src6}' becomes '${1}'"
 						#local src6=$(ipv6 eval_param "${1}")
-						local src6="${1}"
+						local src6="${1//,/ }"
 					fi
 				fi
 				pop_namespace
@@ -5642,7 +5642,7 @@ rule() {
 						local sportnot="!"
 					fi
 					test ${softwarnings} -eq 1 -a ! "${sport}" = "any" && softwarning "Overwritting param: sport '${sport}' becomes '${1}'"
-					local sport="${1}"
+					local sport="${1//,/ }"
 				else
 					local dportnot=
 					if [ "${1}" = "not" -o "${1}" = "NOT" ]
@@ -5651,7 +5651,7 @@ rule() {
 						local dportnot="!"
 					fi
 					test ${softwarnings} -eq 1 -a ! "${dport}" = "any" && softwarning "Overwritting param: dport '${dport}' becomes '${1}'"
-					local dport="${1}"
+					local dport="${1//,/ }"
 				fi
 				shift
 				;;
@@ -5667,7 +5667,7 @@ rule() {
 						local dportnot="!"
 					fi
 					test ${softwarnings} -eq 1 -a ! "${dport}" = "any" && softwarning "Overwritting param: dport '${dport}' becomes '${1}'"
-					local dport="${1}"
+					local dport="${1//,/ }"
 				else
 					local sportnot=
 					if [ "${1}" = "not" -o "${1}" = "NOT" ]
@@ -5676,7 +5676,7 @@ rule() {
 						local sportnot="!"
 					fi
 					test ${softwarnings} -eq 1 -a ! "${sport}" = "any" && softwarning "Overwritting param: sport '${sport}' becomes '${1}'"
-					local sport="${1}"
+					local sport="${1//,/ }"
 				fi
 				shift
 				;;
@@ -5690,7 +5690,7 @@ rule() {
 					local protonot="!"
 				fi
 				test ${softwarnings} -eq 1 -a ! "${proto}" = "any" && softwarning "Overwritting param: proto '${proto}' becomes '${1}'"
-				local proto="${1}"
+				local proto="${1//,/ }"
 				shift
 				;;
 				
@@ -5705,13 +5705,7 @@ rule() {
 					local marknot="!"
 				fi
 				test ${softwarnings} -eq 1 -a ! "${mark}" = "any" && softwarning "Overwritting param: mark '${mark}' becomes ${markname} '${1}'"
-				local mark=
-				local num=
-				for num in ${1}
-				do
-					#local mark="${mark} $[num << ${MARKS_SHIFT[$markname]}]/${MARKS_MASKS[$markname]}"
-					local mark="${mark} $(mark_value $markname $num)"
-				done
+				local mark="${mark} $(mark_value $markname ${1//,/ })"
 				shift
 				;;
 				
@@ -5724,13 +5718,7 @@ rule() {
 					local marknot="!"
 				fi
 				test ${softwarnings} -eq 1 -a ! "${mark}" = "any" && softwarning "Overwritting param: mark '${mark}' becomes usermark '${1}'"
-				local mark=
-				local num=
-				for num in ${1}
-				do
-					#local mark="${mark} $[num << ${MARKS_SHIFT[usermark]}]/${MARKS_MASKS[usermark]}"
-					local mark="${mark} $(mark_value usermark $num)"
-				done
+				local mark="${mark} $(mark_value usermark ${1//,/ })"
 				shift
 				;;
 				
@@ -5743,13 +5731,7 @@ rule() {
 					local marknot="!"
 				fi
 				test ${softwarnings} -eq 1 -a ! "${mark}" = "any" && softwarning "Overwritting param: mark '${mark}' becomes connmark '${1}'"
-				local mark=
-				local num=
-				for num in ${1}
-				do
-					#local mark="${mark} $[num << ${MARKS_SHIFT[connmark]}]/${MARKS_MASKS[connmark]}"
-					local mark="${mark} $(mark_value connmark $num)"
-				done
+				local mark="${mark} $(mark_value connmark ${1//,/ })"
 				shift
 				;;
 				
@@ -5762,7 +5744,7 @@ rule() {
 					local marknot="!"
 				fi
 				test ${softwarnings} -eq 1 -a ! "${mark}" = "any" && softwarning "Overwritting param: mark '${mark}' becomes '${1}'"
-				local mark="${1}"
+				local mark="${1//,/ }"
 				shift
 				;;
 				
@@ -5775,7 +5757,7 @@ rule() {
 					local tosnot="!"
 				fi
 				test ${softwarnings} -eq 1 -a ! "${tos}" = "any" && softwarning "Overwritting param: tos '${tos}' becomes '${1}'"
-				local tos="${1}"
+				local tos="${1//,/ }"
 				shift
 				;;
 				
@@ -5788,13 +5770,13 @@ rule() {
 					local dscpnot="!"
 				fi
 				test ${softwarnings} -eq 1 -a ! "${dscp}" = "any" && softwarning "Overwritting param: dscp '${dscp}' becomes '${1}'"
-				local dscp="${1}"
+				local dscp="${1//,/ }"
 				shift
 				
 				if [ "${dscp}" = "class" ]
 				then
 					local dscptype="-class"
-					local dscp="${1}"
+					local dscp="${1//,/ }"
 					shift
 				fi
 				;;
@@ -6094,7 +6076,7 @@ rule() {
 					test ${noowner} -eq 0 && local uidnot="!"
 				fi
 				test ${softwarnings} -eq 1 -a ! "${uid}" = "any" && softwarning "Overwritting param: uid '${uid}' becomes '${1}'"
-				test ${noowner} -eq 0 && local uid="${1}"
+				test ${noowner} -eq 0 && local uid="${1//,/ }"
 				shift
 				;;
 				
@@ -6107,7 +6089,7 @@ rule() {
 					test ${noowner} -eq 0 && local gidnot="!"
 				fi
 				test ${softwarnings} -eq 1 -a ! "${gid}" = "any" && softwarning "Overwritting param: gid '${gid}' becomes '${1}'"
-				test ${noowner} -eq 0 && local gid="${1}"
+				test ${noowner} -eq 0 && local gid="${1//,/ }"
 				shift
 				;;
 				
@@ -6120,7 +6102,7 @@ rule() {
 					test ${noowner} -eq 0 && local pidnot="!"
 				fi
 				test ${softwarnings} -eq 1 -a ! "${pid}" = "any" && softwarning "Overwritting param: pid '${pid}' becomes '${1}'"
-				test ${noowner} -eq 0 && local pid="${1}"
+				test ${noowner} -eq 0 && local pid="${1//,/ }"
 				shift
 				;;
 				
@@ -6133,7 +6115,7 @@ rule() {
 					test ${noowner} -eq 0 && local sidnot="!"
 				fi
 				test ${softwarnings} -eq 1 -a ! "${sid}" = "any" && softwarning "Overwritting param: sid '${sid}' becomes '${1}'"
-				test ${noowner} -eq 0 && local sid="${1}"
+				test ${noowner} -eq 0 && local sid="${1//,/ }"
 				shift
 				;;
 				
