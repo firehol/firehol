@@ -161,6 +161,23 @@ LB_DEFAULT_IPV=4
 cd "${LB_RUN_DIR}" || exit 1
 LB_DIR="`mktemp -d "${LB_RUN_DIR}/temp-XXXXXXXXXX"`" || exit 1
 
+
+# -----------------------------------------------------------------------------
+# Default FireHOL marks
+
+declare -A MARKS_BITS='([connmark]="6" [usermark]="7" )'
+declare -A MARKS_MASKS='([connmark]="0x0000003f" [usermark]="0x00001fc0" )'
+declare -A MARKS_MAX='([connmark]="63" [usermark]="127" )'
+declare -A MARKS_SHIFT='([connmark]="0" [usermark]="6" )'
+
+FIREHOL_SPOOL_DIR="/var/spool/firehol"
+if [ -f "${FIREHOL_SPOOL_DIR}/marks.conf" ]
+then
+	source "${FIREHOL_SPOOL_DIR}/marks.conf" || exit 1
+fi
+
+# -----------------------------------------------------------------------------
+
 LB_RESULT_CODE=1
 lb_exit() {
 	cd /tmp
@@ -1160,6 +1177,8 @@ rules() {
 	local -a dst=()
 	local -a inface=()
 
+	local marktype=
+
 	local action=
 	local table=
 	local not=
@@ -1191,7 +1210,28 @@ rules() {
 				local action="${1}"
 				;;
 
-			mark|connmark)
+			rawmark)
+				local marktype=
+				local cmd="mark"
+				;;
+
+			mark)
+				local marktype="usermark"
+				local cmd="mark"
+				;;
+
+			custommark)
+				local marktype="${2}"; shift
+				local cmd="mark"
+				if [ -z "${MARKS_BITS[$marktype]}" ]
+				then
+					error "Mark type '${marktype}' is not defined."
+					exit 1
+				fi
+				;;
+
+			connmark)
+				local marktype="connmark"
 				local cmd="mark"
 				;;
 
@@ -1237,18 +1277,27 @@ rules() {
 
 			loadfile)
 				case "${cmd}" in
-					mark) mark+=(`loadfile "${2}"`);;
-					tos) tos+=(`loadfile "${2}"`);;
 					src) src+=(`loadfile "${2}"`);;
 					dst) dst+=(`loadfile "${2}"`);;
-					inface) inface+=(`loadfile "${2}"`);;
 				esac
 				shift
 				;;
 
 			*)
 				case "${cmd}" in
-					mark) mark+=("$1");;
+					mark)
+						if [ -z "${marktype}" ]
+						then
+							mark+=("$1")
+						else
+							local x=
+							for x in $1
+							do
+								mark+=(`printf "0x%x/${MARKS_MASKS[$marktype]}" "$[x << ${MARKS_SHIFT[$marktype]}]"`)
+							done
+						fi
+						;;
+
 					tos) tos+=("$1");;
 					src) src+=("$1");;
 					dst) dst+=("$1");;
@@ -1391,7 +1440,8 @@ normalize_rules() {
 		-e "s| tos 2 | tos mincost |g" \
 		-e "s| tos 4 | tos reliability |g" \
 		-e "s| tos 8 | tos throughput |g" \
-		-e "s| tos 10 | tos lowdelay |g"
+		-e "s| tos 10 | tos lowdelay |g" \
+		-e "s|0x0\+|0x|g"
 }
 
 finalize_rules() {

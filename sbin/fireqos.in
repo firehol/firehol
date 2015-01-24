@@ -273,6 +273,22 @@ server_tcp_ports="tcp/any"
 server_udp_ports="udp/any"
 server_surfing_ports="tcp/0:1023"
 
+# -----------------------------------------------------------------------------
+# Default FireHOL marks
+
+declare -A MARKS_BITS='([connmark]="6" [usermark]="7" )'
+declare -A MARKS_MASKS='([connmark]="0x0000003f" [usermark]="0x00001fc0" )'
+declare -A MARKS_MAX='([connmark]="63" [usermark]="127" )'
+declare -A MARKS_SHIFT='([connmark]="0" [usermark]="6" )'
+
+FIREHOL_SPOOL_DIR="/var/spool/firehol"
+if [ -f "${FIREHOL_SPOOL_DIR}/marks.conf" ]
+then
+	source "${FIREHOL_SPOOL_DIR}/marks.conf" || exit 1
+fi
+
+# -----------------------------------------------------------------------------
+
 save() {
 	[ ! $interface_save -eq 1 ] && return 0
 
@@ -1967,6 +1983,7 @@ match() {
 	local ip=any
 	local tos=any
 	local mark=any
+	local marktype=
 	local srcmac=any
 	local dstmac=any
 	local class=$class_name
@@ -2042,7 +2059,35 @@ match() {
 				shift
 				;;
 				
+			connmark|connmarks)
+				test ! "${mark}" = "any" && warning "Overwritting mark '${marktype}/${mark}' with 'connmark/${2}'"
+				local marktype="connmark"
+				local mark="$2"
+				shift
+				;;
+				
 			mark|marks)
+				test ! "${mark}" = "any" && warning "Overwritting mark '${marktype}/${mark}' with 'usermark/${2}'"
+				local marktype="usermark"
+				local mark="$2"
+				shift
+				;;
+				
+			custommark|custommarks)
+				test ! "${mark}" = "any" && warning "Overwritting mark '${marktype}/${mark}' with '${2}/${3}'"
+				local marktype="$2"
+				local mark="$3"
+				shift 2
+				if [ -z "${MARKS_BITS[$marktype]}" ]
+				then
+					error "Mark type '${marktype}' is not defined."
+					return 1
+				fi
+				;;
+				
+			rawmark|rawmarks)
+				test ! "${mark}" = "any" && warning "Overwritting mark '${marktype}/${mark}' with '${2}'"
+				local marktype=
 				local mark="$2"
 				shift
 				;;
@@ -2460,22 +2505,22 @@ match() {
 										case "$ttos" in
 											any)	;;
 											
-											min-delay|minimize-delay|minimum-delay|low-delay|interactive)
+											lowdelay|min-delay|minimize-delay|minimum-delay|low-delay|interactive)
 												local tos_value="0x10"
 												local tos_mask="0x10"
 												;;
 												
-											maximize-throughput|maximum-throughput|max-throughput|high-throughput|bulk)
+											throughput|maximize-throughput|maximum-throughput|max-throughput|high-throughput|bulk)
 												local tos_value="0x08"
 												local tos_mask="0x08"
 												;;
 												
-											maximize-reliability|maximum-reliability|max-reliability|reliable)
+											reliability|maximize-reliability|maximum-reliability|max-reliability|reliable)
 												local tos_value="0x04"
 												local tos_mask="0x04"
 												;;
 												
-											min-cost|minimize-cost|minimum-cost|low-cost|cheap)
+											mincost|min-cost|minimize-cost|minimum-cost|low-cost|cheap)
 												local tos_value="0x02"
 												local tos_mask="0x02"
 												;;
@@ -2515,11 +2560,17 @@ match() {
 										local tmark=
 										for tmark in $mark
 										do
+											# http://mailman.ds9a.nl/pipermail/lartc/2007q3/021364.html
 											local mark_arg=
 											case "$tmark" in
 												any)	;;
-												
-												*)	local mark_arg="handle $tmark fw"
+												*)	if [ -z "${marktype}" ]
+													then
+														# local mark_arg="handle $tmark fw"
+														local mark_arg="u32 match mark `echo "$tmark" | tr "/" " "`"
+													else
+														local mark_arg="u32 match mark $[tmark << ${MARKS_SHIFT[$marktype]}] ${MARKS_MASKS[$marktype]}"
+													fi
 													;;
 											esac
 											
@@ -2557,7 +2608,7 @@ match() {
 														[ -z "$proto_arg$ip_arg$src_arg$dst_arg$port_arg$sport_arg$dport_arg$tos_arg$ack_arg$syn_arg" ] && local u32=
 													fi
 													
-													[ ! -z "$u32" -a ! -z "$mark_arg" ] && local mark_arg="and $mark_arg"
+													# [ ! -z "$u32" -a ! -z "$mark_arg" ] && local mark_arg="and $mark_arg"
 													
 													local estimator=
 													if [ ! -z "$estimator_interval" -a ! -z "$estimator_decay" ]
