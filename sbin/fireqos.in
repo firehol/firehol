@@ -287,6 +287,45 @@ then
 	source "${FIREHOL_SPOOL_DIR}/marks.conf" || exit 1
 fi
 
+mark_value() {
+	local name="${1}"; shift
+	local x=
+
+	if [ -z "${name}" ]
+	then
+		error "Cannot find the value of mark with name '${name}'."
+		return 1
+	fi
+
+	if [ -z "${1}" ]
+	then
+		error "Empty mark value given for mark ${name}."
+		return 1
+	fi
+
+	if [ -z "${MARKS_MASKS[$name]}" ]
+	then
+		error "Mark $name does not exist."
+		return 1
+	fi
+
+	for x in ${@}
+	do
+		local x=$[ x + 1 - 1 ]
+		if [ $x -gt ${MARKS_MAX[$name]} -o $x -lt 0 ]
+		then
+			error "Cannot get mark $name of value $x. Mark $name is configured to get values from 0 to ${MARKS_MAX[$name]}. Change firehol-defaults.conf to add more."
+			return 1
+		fi
+
+		#echo "$[ x << ${MARKS_SHIFT[$name]} ]/${MARKS_MASKS[$name]}"
+		printf "0x%08x/${MARKS_MASKS[$name]}\n" "$[ x << ${MARKS_SHIFT[$name]} ]"
+	done
+
+	return 0
+}
+
+
 # -----------------------------------------------------------------------------
 
 save() {
@@ -2078,7 +2117,7 @@ match() {
 				local marktype="$2"
 				local mark="$3"
 				shift 2
-				if [ -z "${MARKS_BITS[$marktype]}" ]
+				if [ -z "${MARKS_MASKS[$marktype]}" ]
 				then
 					error "Mark type '${marktype}' is not defined."
 					return 1
@@ -2569,7 +2608,8 @@ match() {
 														# local mark_arg="handle $tmark fw"
 														local mark_arg="u32 match mark `echo "$tmark" | tr "/" " "`"
 													else
-														local mark_arg="u32 match mark $[tmark << ${MARKS_SHIFT[$marktype]}] ${MARKS_MASKS[$marktype]}"
+														# local mark_arg="u32 match mark $[tmark << ${MARKS_SHIFT[$marktype]}] ${MARKS_MASKS[$marktype]}"
+														local mark_arg="u32 match mark $(mark_value $marktype $tmark)"
 													fi
 													;;
 											esac

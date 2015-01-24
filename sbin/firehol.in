@@ -198,6 +198,43 @@ markdef() {
 	MARKS_TOTAL_BITS=$[ MARKS_TOTAL_BITS + bits ]
 }
 
+mark_value() {
+	local name="${1}"; shift
+	local x=
+
+	if [ -z "${name}" ]
+	then
+		error "Cannot find the value of mark with name '${name}'."
+		return 1
+	fi
+
+	if [ -z "${1}" ]
+	then
+		error "Empty mark value given for mark ${name}."
+		return 1
+	fi
+
+	if [ -z "${MARKS_MASKS[$name]}" ]
+	then
+		error "Mark $name does not exist."
+		return 1
+	fi
+
+	for x in ${@}
+	do
+		local x=$[ x + 1 - 1 ]
+		if [ $x -gt ${MARKS_MAX[$name]} -o $x -lt 0 ]
+		then
+			error "Cannot get mark $name of value $x. Mark $name is configured to get values from 0 to ${MARKS_MAX[$name]}. Change firehol-defaults.conf to add more."
+			return 1
+		fi
+
+		# echo "$[ x << ${MARKS_SHIFT[$name]} ]/${MARKS_MASKS[$name]}"
+		printf "0x%08x/${MARKS_MASKS[$name]}\n" "$[ x << ${MARKS_SHIFT[$name]} ]"
+	done
+
+	return 0
+}
 
 # ------------------------------------------------------------------------------
 # XXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXX
@@ -3282,7 +3319,8 @@ tproxy() {
 	
 	if [ -z "${FIREHOL_TPROXY_MARK}" ]
 	then
-		FIREHOL_TPROXY_MARK="$[ MARKS_MAX[usermark] << MARKS_SHIFT[usermark] ]/${MARKS_MASKS[usermark]}"
+		#FIREHOL_TPROXY_MARK="$[ MARKS_MAX[usermark] << MARKS_SHIFT[usermark] ]/${MARKS_MASKS[usermark]}"
+		FIREHOL_TPROXY_MARK="$(mark_value usermark MARKS_MAX[usermark])"
 	fi
 
 	local tproxy_action_options="tproxy-mark $FIREHOL_TPROXY_MARK"
@@ -3583,13 +3621,14 @@ connmark() {
 
 	set_work_function "Setting up rules for CONNMARK"
 	
-	if [ "${num}" -lt 0 -o "${num}" -gt "${MARKS_MAX[connmark]}" ]
-	then
-		error "FireHOL is configured to use $[${MARKS_MAX[connmark]} + 1] connmarks (from 0 to ${MARKS_MAX[connmark]})."
-		return 1
-	fi
-
-	local mark="$[num << ${MARKS_SHIFT[connmark]}]/${MARKS_MASKS[connmark]}"
+	#if [ "${num}" -lt 0 -o "${num}" -gt "${MARKS_MAX[connmark]}" ]
+	#then
+	#	error "FireHOL is configured to use $[${MARKS_MAX[connmark]} + 1] connmarks (from 0 to ${MARKS_MAX[connmark]})."
+	#	return 1
+	#fi
+	#
+	#local mark="$[num << ${MARKS_SHIFT[connmark]}]/${MARKS_MASKS[connmark]}"
+	local mark="$(mark_value connmark $num)"
 
 	local chain=
 	for chain in ${where}
@@ -3623,13 +3662,14 @@ custommark() {
 	
 	set_work_function "Setting up rules for MARK"
 	
-	if [ "${num}" -lt 0 -o "${num}" -gt "${MARKS_MAX[$name]}" ]
-	then
-		error "FireHOL is configured to use $[${MARKS_MAX[$name]} + 1] $name (from 0 to ${MARKS_MAX[$name]})."
-		return 1
-	fi
-
-	local mark="$[num << ${MARKS_SHIFT[$name]}]/${MARKS_MASKS[$name]}"
+	#if [ "${num}" -lt 0 -o "${num}" -gt "${MARKS_MAX[$name]}" ]
+	#then
+	#	error "FireHOL is configured to use $[${MARKS_MAX[$name]} + 1] $name (from 0 to ${MARKS_MAX[$name]})."
+	#	return 1
+	#fi
+	#
+	#local mark="$[num << ${MARKS_SHIFT[$name]}]/${MARKS_MASKS[$name]}"
+	local mark="$(mark_value $name $num)"
 
 	rule table mangle chain "${where}" custom '-m conntrack --ctstate NEW' "${@}" action MARK to "${mark}" || return 1
 	
@@ -5669,7 +5709,8 @@ rule() {
 				local num=
 				for num in ${1}
 				do
-					local mark="${mark} $[num << ${MARKS_SHIFT[$markname]}]/${MARKS_MASKS[$markname]}"
+					#local mark="${mark} $[num << ${MARKS_SHIFT[$markname]}]/${MARKS_MASKS[$markname]}"
+					local mark="${mark} $(mark_value $markname $num)"
 				done
 				shift
 				;;
@@ -5687,7 +5728,8 @@ rule() {
 				local num=
 				for num in ${1}
 				do
-					local mark="${mark} $[num << ${MARKS_SHIFT[usermark]}]/${MARKS_MASKS[usermark]}"
+					#local mark="${mark} $[num << ${MARKS_SHIFT[usermark]}]/${MARKS_MASKS[usermark]}"
+					local mark="${mark} $(mark_value usermark $num)"
 				done
 				shift
 				;;
@@ -5705,7 +5747,8 @@ rule() {
 				local num=
 				for num in ${1}
 				do
-					local mark="${mark} $[num << ${MARKS_SHIFT[connmark]}]/${MARKS_MASKS[connmark]}"
+					#local mark="${mark} $[num << ${MARKS_SHIFT[connmark]}]/${MARKS_MASKS[connmark]}"
+					local mark="${mark} $(mark_value connmark $num)"
 				done
 				shift
 				;;
@@ -7089,7 +7132,7 @@ softwarning() {
 	echo >&2
 	echo >&2 "--------------------------------------------------------------------------------"
 	echo >&2 "WARNING"
-	echo >&2 "WHAT   : ${work_function}"
+	echo >&2 "WHEN   : ${work_function}"
 	echo >&2 "WHY    :" "$@"
 	printf >&2 "COMMAND: "; printf >&2 "%q " "${work_realcmd[@]}"; echo >&2
 	echo >&2 "MODE   :" "${FIREHOL_NS_CURR}"
@@ -7113,7 +7156,7 @@ error() {
 	echo >&2
 	echo >&2 "--------------------------------------------------------------------------------"
 	echo >&2 "ERROR #: ${work_error}"
-	echo >&2 "WHAT   : ${work_function}"
+	echo >&2 "WHEN   : ${work_function}"
 	echo >&2 "WHY    :" "$@"
 	printf >&2 "COMMAND: "; printf >&2 "%q " "${work_realcmd[@]}"; echo >&2
 	echo >&2 "MODE   :" "${FIREHOL_NS_CURR}"
