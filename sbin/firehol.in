@@ -5666,9 +5666,13 @@ rule() {
 					shift
 					local marknot="!"
 				fi
-				test ${softwarnings} -eq 1 -a ! "${mark}" = "any" && softwarning "Overwritting param: mark '${mark}' becomes '${1}'"
-				local num="${1}"
-				local mark="$[num << ${MARKS_SHIFT[$markname]}]/${MARKS_MASKS[$markname]}"
+				test ${softwarnings} -eq 1 -a ! "${mark}" = "any" && softwarning "Overwritting param: mark '${mark}' becomes ${markname} '${1}'"
+				local mark=
+				local num=
+				for num in ${1}
+				do
+					local mark="${mark} $[num << ${MARKS_SHIFT[$markname]}]/${MARKS_MASKS[$markname]}"
+				done
 				shift
 				;;
 				
@@ -5680,9 +5684,13 @@ rule() {
 					shift
 					local marknot="!"
 				fi
-				test ${softwarnings} -eq 1 -a ! "${mark}" = "any" && softwarning "Overwritting param: mark '${mark}' becomes '${1}'"
-				local num="${1}"
-				local mark="$[num << ${MARKS_SHIFT[usermark]}]/${MARKS_MASKS[usermark]}"
+				test ${softwarnings} -eq 1 -a ! "${mark}" = "any" && softwarning "Overwritting param: mark '${mark}' becomes usermark '${1}'"
+				local mark=
+				local num=
+				for num in ${1}
+				do
+					local mark="${mark} $[num << ${MARKS_SHIFT[usermark]}]/${MARKS_MASKS[usermark]}"
+				done
 				shift
 				;;
 				
@@ -5694,9 +5702,13 @@ rule() {
 					shift
 					local marknot="!"
 				fi
-				test ${softwarnings} -eq 1 -a ! "${mark}" = "any" && softwarning "Overwritting param: mark '${mark}' becomes '${1}'"
-				local num="${1}"
-				local mark="$[num << ${MARKS_SHIFT[connmark]}]/${MARKS_MASKS[connmark]}"
+				test ${softwarnings} -eq 1 -a ! "${mark}" = "any" && softwarning "Overwritting param: mark '${mark}' becomes connmark '${1}'"
+				local mark=
+				local num=
+				for num in ${1}
+				do
+					local mark="${mark} $[num << ${MARKS_SHIFT[connmark]}]/${MARKS_MASKS[connmark]}"
+				done
 				shift
 				;;
 				
