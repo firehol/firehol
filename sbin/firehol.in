@@ -1338,15 +1338,15 @@ declare -a FIREHOL_NS_STACK=()
 FIREHOL_NS_CURR=${FIREHOL_DEFAULT_NAMESPACE}
 FIREHOL_NS_PREP=
 
-peek_namespace() {
-	local ns="${FIREHOL_NS_STACK[0]}"
-	if [ "$ns" = "" ]
-	then
-		echo ${FIREHOL_DEFAULT_NAMESPACE}
-	else
-		echo $ns
-	fi
-}
+#peek_namespace() {
+#	local ns="${FIREHOL_NS_STACK[0]}"
+#	if [ "$ns" = "" ]
+#	then
+#		echo ${FIREHOL_DEFAULT_NAMESPACE}
+#	else
+#		echo $ns
+#	fi
+#}
 
 push_namespace() {
 	if [ "$1" != "ipv4" -a "$1" != "ipv6" -a "$1" != "both" ]
@@ -1364,10 +1364,9 @@ push_namespace() {
 	#echo >&2 "${FUNCNAME} ${@} - namespace stack : '${FIREHOL_NS_STACK[*]}' - call stack : '${FUNCNAME[*]}' - line ${FIREHOL_LINEID}"
 	return 0
 }
-
 pop_namespace() {
 	FIREHOL_NS_STACK=(${FIREHOL_NS_STACK[@]:1})
-	FIREHOL_NS_CURR="${FIREHOL_NS_STACK[0]}"
+	FIREHOL_NS_CURR=${FIREHOL_NS_STACK[0]-${FIREHOL_DEFAULT_NAMESPACE}}
 
 	#echo >&2 "${FUNCNAME} : pops '${FIREHOL_NS_CURR}' - namespace stack : '${FIREHOL_NS_STACK[*]}' - call stack : '${FUNCNAME[*]}' - line ${FIREHOL_LINEID}"
 	return 0
