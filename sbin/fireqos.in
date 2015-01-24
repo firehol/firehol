@@ -113,6 +113,10 @@ COLOR_BGPURPLE="\e[45m"
 COLOR_BGCYAN="\e[46m"
 COLOR_BGWHITE="\e[47m"
 COLOR_BOLD="\e[1m"
+COLOR_DIM="\e[2m"
+COLOR_UNDERLINED="\e[4m"
+COLOR_BLINK="\e[5m"
+COLOR_INVERTED="\e[7m"
 
 # Check for external commands
 require_cmd() {
@@ -150,6 +154,8 @@ require_cmd sed || exit 1
 require_cmd tr || exit 1
 require_cmd touch || exit 1
 require_cmd logger || exit 1
+require_cmd mkdir || exit 1
+require_cmd rm || exit 1
 
 
 # service definitions
@@ -478,7 +484,7 @@ fireqos_exit() {
 			else
 				runcmd $tc_cmd qdisc del dev $interface_realdev root >/dev/null 2>&1
 			fi
-			rm $FIREQOS_DIR/$interface_name.conf 2>/dev/null
+			$rm_cmd $FIREQOS_DIR/$interface_name.conf 2>/dev/null
 			
 			local a=
 			local ifs="`fireqos_active_interfaces`"
@@ -505,7 +511,7 @@ fireqos_exit() {
 	fi
 	echo >&2 "bye..."
 	
-	[ -f "${FIREQOS_LOCK_FILE}" ] && rm -f "${FIREQOS_LOCK_FILE}" >/dev/null 2>&1
+	[ -f "${FIREQOS_LOCK_FILE}" ] && $rm_cmd -f "${FIREQOS_LOCK_FILE}" >/dev/null 2>&1
 
 	enable trap
 	enable exit
@@ -1260,7 +1266,7 @@ interface_close() {
 		source "${FIREQOS_SAVE}.run"
 
 		# delete the file, we don't need it any more
-		rm "${FIREQOS_SAVE}.run"
+		$rm_cmd "${FIREQOS_SAVE}.run"
 
 		# continue running this interface_close function, to close the output interface too
 	fi
@@ -1535,7 +1541,7 @@ interface() {
 	class_ipv6=$interface_ipv6
 	class_name=root
 	
-	[ -f "${FIREQOS_DIR}/${interface_name}.conf" ] && rm "${FIREQOS_DIR}/${interface_name}.conf"
+	[ -f "${FIREQOS_DIR}/${interface_name}.conf" ] && $rm_cmd "${FIREQOS_DIR}/${interface_name}.conf"
 	$cat_cmd >"${FIREQOS_DIR}/${interface_name}.conf" <<EOF
 interface_name="$interface_name"
 interface_rate="$interface_rate"
@@ -2703,7 +2709,7 @@ clear_everything() {
 		# remove existing qdisc from all devices
 		runcmd $tc_cmd qdisc del dev $iface ingress >/dev/null 2>&1
 		runcmd $tc_cmd qdisc del dev $iface root >/dev/null 2>&1
-		rm "$FIREQOS_DIR/ifaces/$iface"
+		$rm_cmd "$FIREQOS_DIR/ifaces/$iface"
 	done
 	
 	# remove all FireQOS IFB devices
@@ -2713,7 +2719,7 @@ clear_everything() {
 		echo >&2 "removed IFB device"
 		
 		runcmd $ip_cmd link del dev $iface name $iface type ifb >/dev/null 2>&1
-		rm "$FIREQOS_DIR/ifbs/$iface"
+		$rm_cmd "$FIREQOS_DIR/ifbs/$iface"
 	done
 	
 	for iface in `fireqos_active_interfaces`
@@ -2721,7 +2727,7 @@ clear_everything() {
 		printf >&2 " %16.16s: " $iface
 		echo >&2 "cleared status info"
 		
-		rm $FIREQOS_DIR/$iface.conf
+		$rm_cmd $FIREQOS_DIR/$iface.conf
 	done
 	
 	echo >&2 
@@ -2755,7 +2761,7 @@ clear_all_qos_on_all_interfaces() {
             cd $FIREQOS_DIR
             if [ $? -eq 0 ]
             then
-                    rm interfaces *.conf 2>/dev/null
+                    $rm_cmd interfaces *.conf 2>/dev/null
             fi
 			echo >&2 " - cleared FireQOS status"
     fi
@@ -2790,7 +2796,7 @@ cleanup_stats() {
 	local x=
 	for x in `ls $FIREQOS_DIR/$FIREQOS_STATS_ID.* 2>/dev/null`
 	do
-		rm $x
+		$rm_cmd $x
 	done
 }
 
@@ -2922,7 +2928,7 @@ htb_stats() {
 }
 EOF
 	local awk_script="`cat $FIREQOS_DIR/$FIREQOS_STATS_ID.stats.awk`"
-	rm $FIREQOS_DIR/$FIREQOS_STATS_ID.stats.awk
+	$rm_cmd $FIREQOS_DIR/$FIREQOS_STATS_ID.stats.awk
 	
 	# attempt to shrink the list horizontally
 	# find how many digits we need
@@ -3166,7 +3172,7 @@ remove_monitor() {
 	
 	echo >&2 "bye..."
 	
-	[ -f "${FIREQOS_LOCK_FILE}" ] && rm -f "${FIREQOS_LOCK_FILE}" >/dev/null 2>&1
+	[ -f "${FIREQOS_LOCK_FILE}" ] && $rm_cmd -f "${FIREQOS_LOCK_FILE}" >/dev/null 2>&1
 }
 
 add_monitor() {	
@@ -3477,15 +3483,15 @@ fi
 
 if [ ! -d "${FIREQOS_DIR}" ]
 then
-	mkdir -p "${FIREQOS_DIR}" || exit 1
+	$mkdir_cmd -p "${FIREQOS_DIR}" || exit 1
 fi
 if [ ! -d "${FIREQOS_DIR}/ifbs" ]
 then
-	mkdir -p "${FIREQOS_DIR}/ifbs" || exit 1
+	$mkdir_cmd -p "${FIREQOS_DIR}/ifbs" || exit 1
 fi
 if [ ! -d "${FIREQOS_DIR}/ifaces" ]
 then
-	mkdir -p "${FIREQOS_DIR}/ifaces" || exit 1
+	$mkdir_cmd -p "${FIREQOS_DIR}/ifaces" || exit 1
 fi
 
 FIREQOS_DEFAULT_QDISC="fq_codel"
