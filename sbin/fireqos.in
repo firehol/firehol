@@ -1365,6 +1365,8 @@ interface46() {
 	ipv46 interface "${@}"
 }
 
+FIREQOS_ENABLE_CONNMARK_SAVE_RESTORE=${FIREQOS_ENABLE_CONNMARK_SAVE_RESTORE-0}
+
 interface_count=0
 interface() {
 	if [ "$3" = "both" -o "$3" = "bidirectional" ]
@@ -1524,7 +1526,9 @@ interface() {
 		tc ignore-error qdisc del dev $interface_dev ingress
 		tc qdisc add dev $interface_dev ingress
 		
-		tc filter add dev $interface_dev parent ffff: protocol all prio 39999 u32 match u32 0 0 action mirred egress redirect dev $interface_realdev
+		local cm=
+		[ ${FIREQOS_ENABLE_CONNMARK_SAVE_RESTORE} -eq 1 ] && local cm="action xt -j CONNMARK --restore-mark"
+		tc filter add dev $interface_dev parent ffff: protocol all prio 39999 u32 match u32 0 0 ${cm} action mirred egress redirect dev $interface_realdev
 	fi
 	
 	interface_classid="$interface_major:1"
@@ -1532,6 +1536,11 @@ interface() {
 	# Add the root class for the interface
 	tc class add dev $interface_realdev parent $interface_major: classid $interface_classid htb $rate $ceil $burst $cburst $quantum
 	
+	if [ $interface_inout = output -a ${FIREQOS_ENABLE_CONNMARK_SAVE_RESTORE} -eq 1 ]
+	then
+		tc filter add dev $interface_realdev parent $interface_major: protocol ip prio 0 u32 match u32 0 0 classid $interface_classid action xt -j CONNMARK --save-mark
+	fi
+
 	interface_filters_to="$interface_major:0"
 	
 	parent_push interface
