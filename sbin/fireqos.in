@@ -1296,6 +1296,7 @@ interface_close() {
 
 		# move the exiting file to a new place, to avoid recursion
 		mv "${FIREQOS_SAVE}" "${FIREQOS_SAVE}.run"
+		# cat "${FIREQOS_SAVE}.run"
 
 		# close the existing, input, interface
 		interface_close
@@ -1696,18 +1697,22 @@ class() {
 	if [ "$1" = "group" ]
 	then
 		shift
-		
+
 		# if this is the end of a group class
 		if [ "$1" = "end" ]
 		then
 			shift
-			
+
 			if [ $parent_stack_size -le 1 ]
 			then
 				error "No open class group to end."
 				exit 1
 			fi
 			
+			# make sure we don't save these statements too
+			local isave=$interface_save
+			interface_save=0
+
 			if [ $parent_default_added -eq 0 ]
 			then
 				class default
@@ -1718,6 +1723,9 @@ class() {
 			match all class default flowid $parent_major:$parent_default_class prio 0xfffe
 			
 			check_committed_rate
+
+			# restore the previous save status
+			interface_save=$isave
 
 			if [ $parent_stab -eq 1 ]
 			then
