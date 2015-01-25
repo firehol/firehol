@@ -1365,8 +1365,14 @@ interface46() {
 	ipv46 interface "${@}"
 }
 
-FIREQOS_CONNMARK_SAVE="${FIREQOS_CONNMARK_SAVE-}"
+#
+## supports only 'xt'
+#FIREQOS_CONNMARK_SAVE="${FIREQOS_CONNMARK_SAVE-}"
+
+# supports either 'act_connmark' or empty
+# 'act_connmark' needs kernel module act_connmark
 FIREQOS_CONNMARK_RESTORE="${FIREQOS_CONNMARK_RESTORE-}"
+FIREQOS_MARKS_ON_INPUT_USED=0
 
 interface_count=0
 interface() {
@@ -1528,8 +1534,19 @@ interface() {
 		tc qdisc add dev $interface_dev ingress
 		
 		local cm=
-		[ "${FIREQOS_CONNMARK_RESTORE}" = "xt"       ] && local cm="action xt -j CONNMARK --restore-mark"
-		[ "${FIREQOS_CONNMARK_RESTORE}" = "connmark" ] && local cm="action connmark"
+		case "${FIREQOS_CONNMARK_RESTORE}" in
+			act_connmark) 
+				local cm="action connmark"
+				;;
+			#xt)
+			#	local cm="action xt -j CONNMARK --restore-mark"
+			#	;;
+
+			*)
+				error "Unknown connmark restoration method '${FIREQOS_CONNMARK_RESTORE}'."
+				return 1
+				;;
+		esac
 		tc filter add dev $interface_dev parent ffff: protocol all prio 39999 u32 match u32 0 0 ${cm} action mirred egress redirect dev $interface_realdev
 	fi
 	
@@ -1538,13 +1555,13 @@ interface() {
 	# Add the root class for the interface
 	tc class add dev $interface_realdev parent $interface_major: classid $interface_classid htb $rate $ceil $burst $cburst $quantum
 	
-	if [ $interface_inout = output ]
-	then
-		if [ "${FIREQOS_CONNMARK_SAVE}" = "xt" ]
-		then
-			tc filter add dev $interface_realdev parent $interface_major: protocol ip prio 0 u32 match u32 0 0 classid $interface_classid action xt -j CONNMARK --save-mark
-		fi
-	fi
+	#if [ $interface_inout = output ]
+	#then
+	#	if [ "${FIREQOS_CONNMARK_SAVE}" = "xt" ]
+	#	then
+	#		tc filter add dev $interface_realdev parent $interface_major: protocol ip prio 0 u32 match u32 0 0 classid $interface_classid action xt -j CONNMARK --save-mark
+	#	fi
+	#fi
 
 	interface_filters_to="$interface_major:0"
 	
@@ -2244,7 +2261,15 @@ match() {
 		shift
 	done
 	
-	test -z "${mark}" && local mark="any"
+	if [ -z "${mark}" ]
+	then
+		local mark="any"
+	else
+		if [ $interface_inout = input -a -z "${FIREQOS_CONNMARK_RESTORE}" ]
+		then
+			FIREQOS_MARKS_ON_INPUT_USED=$[FIREQOS_MARKS_ON_INPUT_USED + 1]
+		fi
+	fi
 
 	# if reverse, flip src/dst sport/dport
 	if [ $reverse -eq 1 ]
@@ -2755,31 +2780,31 @@ clear_all_qos_on_all_interfaces() {
 	echo >&2 "Clearing all QoS on all interfaces..."
 	echo >&2 
 	
-    local dev=
-    for dev in `cat /proc/net/dev | grep ':' |  cut -d ':' -f 1 | sed "s/ //g" | grep -v "^lo$"`
-    do
+	local dev=
+	for dev in `$cat_cmd /proc/net/dev | $grep_cmd ':' |  $cut_cmd -d ':' -f 1 | $sed_cmd "s/ //g" | $grep_cmd -v "^lo$"`
+	do
 		printf >&2 " %16.16s: " $dev
 		echo >&2 "cleared traffic control"
 
-        # remove existing qdisc from all devices
-        tc ignore-error qdisc del dev $dev ingress >/dev/null 2>&1
-        tc ignore-error qdisc del dev $dev root >/dev/null 2>&1
-    done
-    
+		# remove existing qdisc from all devices
+		tc ignore-error qdisc del dev $dev ingress >/dev/null 2>&1
+		tc ignore-error qdisc del dev $dev root >/dev/null 2>&1
+	done
+	
 	echo >&2
-    rmmod ifb 2>/dev/null
+	rmmod ifb 2>/dev/null
 	echo >&2 " - removed all IFB devices"
-    
-    if [ -d $FIREQOS_DIR ]
-    then
-            cd $FIREQOS_DIR
-            if [ $? -eq 0 ]
-            then
-                    $rm_cmd interfaces *.conf 2>/dev/null
-            fi
-			echo >&2 " - cleared FireQOS status"
-    fi
-    return 0
+	
+	if [ -d $FIREQOS_DIR ]
+	then
+		cd $FIREQOS_DIR
+		if [ $? -eq 0 ]
+		then
+			$rm_cmd interfaces *.conf 2>/dev/null
+		fi
+		echo >&2 " - cleared FireQOS status"
+	fi
+	return 0
 }
 
 check_root() {
@@ -3542,16 +3567,28 @@ enable trap					# Enable the trap buildin shell command.
 
 interface_close					# close the last interface.
 
-echo
-echo "  Traffic is classified:"
-echo
-echo "      - on $interface_count interfaces"
-echo "      - to $class_count classes"
-echo "      - by $match_count FireQOS matches"
-echo
-echo "  $tc_count TC commands executed"
-echo
-echo "All Done! Enjoy..."
+if [ ${FIREQOS_MARKS_ON_INPUT_USED} -gt 0 ]
+then
+	echo >&2
+	echo >&2 -e "${COLOR_BGRED}${COLOR_WHITE} WARNING ${COLOR_RESET}"
+	echo >&2 -e "There have been encounted ${FIREQOS_MARKS_ON_INPUT_USED} rule(s) than match MARKs in incoming traffic."
+	echo >&2 -e "These statements will not match incoming packets without adding:${COLOR_BOLD}"
+	echo >&2 -e "FIREQOS_CONNMARK_RESTORE=\"act_connmark\""
+	echo >&2 -e "${COLOR_RESET}in your config. This however requires the act_connmark kernel module."
+	echo >&2 -e "For more information check: https://github.com/ktsaou/firehol/issues/49"
+	echo >&2 -e "${COLOR_RESET}"
+fi
+
+echo >&2
+echo >&2 "  Traffic is classified:"
+echo >&2
+echo >&2 "      - on $interface_count interfaces"
+echo >&2 "      - to $class_count classes"
+echo >&2 "      - by $match_count FireQOS matches"
+echo >&2
+echo >&2 "  $tc_count TC commands executed"
+echo >&2
+echo >&2 "All Done! Enjoy..."
 
 # inform the trap everything is ok
 FIREQOS_COMPLETED=1
