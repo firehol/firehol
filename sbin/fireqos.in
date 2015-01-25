@@ -571,9 +571,9 @@ runcmd() {
 
 	if [ $debug -eq 1 ]
 	then
-		echo -e -n "#$COLOR_YELLOW"
 		printf " %q" "${@}"
-		echo -e "$COLOR_RESET"
+		printf "\n"
+		return 0
 	fi
 	
 	"${@}"
@@ -597,9 +597,9 @@ tc() {
 	
 	if [ $debug -eq 1 ]
 	then
-		echo -e -n "#$COLOR_YELLOW"
 		printf " %q" $tc_cmd "${@}"
-		echo -e "$COLOR_RESET"
+		printf "\n"
+		return 0
 	fi
 	
 	if [ $noerror -eq 1 ]
@@ -616,8 +616,8 @@ tc() {
 			echo >&2
 			echo >&2 "ERROR:"
 			echo >&2 "tc failed with error $ret, while executing the command:"
-			printf "%q " $tc_cmd "${@}"
-			echo
+			printf >&2 "%q " $tc_cmd "${@}"
+			echo >&2
 			echo >&2
 			echo >&2 -e "$COLOR_RESET"
 			exit 1
@@ -633,118 +633,156 @@ rate2bps() {
 	local r="$1"
 	local p="$2" # is assumed to be the base rate in bytes per second
 	
-	# calculate it in bits per second (highest resolution)
-	case "$r" in
-		+([0-9])kbps)
-			local label="Kilobytes per second"
-			local identifier="kbps"
-			local multiplier=$((8 * 1024))
-			;;
+	# # convert $r to kbit / sec ; the default rate in fireqos
 
-		+([0-9])Kbps)
-			local label="Kilobytes per second"
-			local identifier="Kbps"
-			local multiplier=$((8 * 1024))
-			;;
+	# Gbit / sec
+	r="${r//gbit/ * 1000 * 1000}"
+	r="${r//Gbit/ * 1000 * 1000}"
 
-		+([0-9])mbps)
-			local label="Megabytes per second"
-			local identifier="mbps"
-			local multiplier=$((8 * 1024 * 1024))
-			;;
+	# Mbit / sec
+	r="${r//mbit/ * 1000}"
+	r="${r//Mbit/ * 1000}"
 
-		+([0-9])Mbps)
-			local label="Megabytes per second"
-			local identifier="Mbps"
-			local multiplier=$((8 * 1024 * 1024))
-			;;
+	# kbit / sec 
+	r="${r//kbit/}"
+	r="${r//Kbit/}"
 
-		+([0-9])gbps)
-			local label="Gigabytes per second"
-			local identifier="gbps"
-			local multiplier=$((8 * 1024 * 1024 * 1024))
-			;;
+	# GBytes / sec
+	r="${r//gbps/ * 8 * 1024 * 1024 * 1024 / 1000}"
+	r="${r//Gbps/ * 8 * 1024 * 1024 * 1024 / 1000}"
 
-		+([0-9])Gbps)
-			local label="Gigabytes per second"
-			local identifier="Gbps"
-			local multiplier=$((8 * 1024 * 1024 * 1024))
-			;;
+	# MBytes / sec
+	r="${r//mbps/ * 8 * 1024 * 1024 / 1000}"
+	r="${r//Mbps/ * 8 * 1024 * 1024 / 1000}"
 
-		+([0-9])bit)
-			local label="bits per second"
-			local identifier="bit"
-			local multiplier=1
-			;;
+	# kBytes / sec
+	r="${r//kbps/ * 8 * 1024 / 1000}"
+	r="${r//Kbps/ * 8 * 1024 / 1000}"
 
-		+([0-9])kbit)
-			local label="Kilobits per second"
-			local identifier="kbit"
-			local multiplier=1000
-			;;
+	# Bytes / sec
+	r="${r//bps/ * 8 / 1000}"
+	r="${r//Bps/ * 8 / 1000}"
 
-		+([0-9])Kbit)
-			local label="Kilobits per second"
-			local identifier="Kbit"
-			local multiplier=1000
-			;;
+	# percentage of $p
+	r="${r//%/ * 8 * $p / 100 / 1000}"
 
-		+([0-9])mbit)
-			local label="Megabits per second"
-			local identifier="mbit"
-			local multiplier=1000000
-			;;
+	# convert $r to bytes / sec ; the default rate in tc
+	echo "$((r * 1000 / 8))"
 
-		+([0-9])Mbit)
-			local label="Megabits per second"
-			local identifier="Mbit"
-			local multiplier=1000000
-			;;
+	# # calculate it in bits per second (highest resolution)
+	# case "$r" in
+	# 	+([0-9])kbps)
+	# 		local label="Kilobytes per second"
+	# 		local identifier="kbps"
+	# 		local multiplier=$((8 * 1024))
+	# 		;;
 
-		+([0-9])gbit)
-			local label="Gigabits per second"
-			local identifier="gbit"
-			local multiplier=1000000000
-			;;
+	# 	+([0-9])Kbps)
+	# 		local label="Kilobytes per second"
+	# 		local identifier="Kbps"
+	# 		local multiplier=$((8 * 1024))
+	# 		;;
 
-		+([0-9])Gbit)
-			local label="Gigabits per second"
-			local identifier="Gbit"
-			local multiplier=1000000000
-			;;
+	# 	+([0-9])mbps)
+	# 		local label="Megabytes per second"
+	# 		local identifier="mbps"
+	# 		local multiplier=$((8 * 1024 * 1024))
+	# 		;;
 
-		+([0-9])bps)
-			local label="Bytes per second"
-			local identifier="bps"
-			local multiplier=8
-			;;
+	# 	+([0-9])Mbps)
+	# 		local label="Megabytes per second"
+	# 		local identifier="Mbps"
+	# 		local multiplier=$((8 * 1024 * 1024))
+	# 		;;
 
-		+([0-9])%)
-			local label="Percent"
-			local identifier="bps"
-			local multiplier=8
-			r=$((p * multiplier * `echo $r | $sed_cmd "s/%//g"` / 100))
-			;;
+	# 	+([0-9])gbps)
+	# 		local label="Gigabytes per second"
+	# 		local identifier="gbps"
+	# 		local multiplier=$((8 * 1024 * 1024 * 1024))
+	# 		;;
 
-		+([0-9]))
-			local label="Kilobits per second"
-			local identifier="Kbit"
-			local multiplier=1000
-			r=$(( r * multiplier ))
-			;;
+	# 	+([0-9])Gbps)
+	# 		local label="Gigabytes per second"
+	# 		local identifier="Gbps"
+	# 		local multiplier=$((8 * 1024 * 1024 * 1024))
+	# 		;;
 
-		*)	
-			echo >&2 "Invalid rate '${r}' given."
-			return 1
-			;;
-	esac
+	# 	+([0-9])bit)
+	# 		local label="bits per second"
+	# 		local identifier="bit"
+	# 		local multiplier=1
+	# 		;;
+
+	# 	+([0-9])kbit)
+	# 		local label="Kilobits per second"
+	# 		local identifier="kbit"
+	# 		local multiplier=1000
+	# 		;;
+
+	# 	+([0-9])Kbit)
+	# 		local label="Kilobits per second"
+	# 		local identifier="Kbit"
+	# 		local multiplier=1000
+	# 		;;
+
+	# 	+([0-9])mbit)
+	# 		local label="Megabits per second"
+	# 		local identifier="mbit"
+	# 		local multiplier=1000000
+	# 		;;
+
+	# 	+([0-9])Mbit)
+	# 		local label="Megabits per second"
+	# 		local identifier="Mbit"
+	# 		local multiplier=1000000
+	# 		;;
+
+	# 	+([0-9])gbit)
+	# 		local label="Gigabits per second"
+	# 		local identifier="gbit"
+	# 		local multiplier=1000000000
+	# 		;;
+
+	# 	+([0-9])Gbit)
+	# 		local label="Gigabits per second"
+	# 		local identifier="Gbit"
+	# 		local multiplier=1000000000
+	# 		;;
+
+	# 	+([0-9])bps)
+	# 		local label="Bytes per second"
+	# 		local identifier="bps"
+	# 		local multiplier=8
+	# 		;;
+
+	# 	+([0-9])%)
+	# 		local label="Percent"
+	# 		local identifier="bps"
+	# 		local multiplier=8
+	# 		#r=$((p * multiplier * `echo $r | $sed_cmd "s/%//g"` / 100))
+	# 		r=$((p * multiplier * ${r//%/} / 100))
+	# 		;;
+
+	# 	+([0-9]))
+	# 		local label="Kilobits per second"
+	# 		local identifier="Kbit"
+	# 		local multiplier=1000
+	# 		r=$(( r * multiplier ))
+	# 		;;
+
+	# 	*)	
+	# 		echo >&2 "Invalid rate '${r}' given."
+	# 		return 1
+	# 		;;
+	# esac
 	
-        local n="`echo "$r" | $sed_cmd "s|$identifier| * $multiplier|g"`"
+	# #local n="`echo "$r" | $sed_cmd "s|$identifier| * $multiplier|g"`"
+	# #eval "local o=\$(($n / 8))"
+	# #echo "$o"
+
+	# # evaluate it in bytes per second (the default for a rate in tc)
+	# echo $(( ${r//$identifier/ * $multiplier} / 8))
 	
-	# evaluate it in bytes per second (the default for a rate in tc)
-        eval "local o=\$(($n / 8))"
-	
-	echo "$o"
 	return 0
 }
 
@@ -1218,9 +1256,9 @@ check_constrains() {
 check_committed_rate() {
 	if [ $parent_rate -ge $parent_sumrate ]
 	then
-		echo -e ": $class_tabs${COLOR_BLUE}${COLOR_BOLD}committed rate $((parent_sumrate * 8 / 1000))kbit ($((parent_sumrate * 100 / parent_rate))%), the remaining $(((parent_rate - parent_sumrate)*8/1000))kbit will be spare bandwidth.${COLOR_RESET}"
+		echo >&2 -e ": $class_tabs${COLOR_BLUE}${COLOR_BOLD}committed rate $((parent_sumrate * 8 / 1000))kbit ($((parent_sumrate * 100 / parent_rate))%), the remaining $(((parent_rate - parent_sumrate)*8/1000))kbit will be spare bandwidth.${COLOR_RESET}"
 	else
-		echo -e ": $class_tabs${COLOR_RED}${COLOR_BOLD}committed rate $((parent_sumrate * 8 / 1000))kbit, ($((parent_sumrate * 100 / parent_rate))%), overbooked by $((-(parent_rate - parent_sumrate)*8/1000))kbit. PLEASE FIX.${COLOR_RESET}"
+		echo >&2 -e ": $class_tabs${COLOR_RED}${COLOR_BOLD}committed rate $((parent_sumrate * 8 / 1000))kbit, ($((parent_sumrate * 100 / parent_rate))%), overbooked by $((-(parent_rate - parent_sumrate)*8/1000))kbit. PLEASE FIX.${COLOR_RESET}"
 	fi
 }
 
@@ -1299,7 +1337,7 @@ interface_close() {
 		echo "interface_classes_monitor='$interface_classes_monitor'" >>"${FIREQOS_DIR}/${interface_name}.conf"
 	fi
 	
-	echo
+	echo >&2
 	parent_clear
 	
 	interface_major=1
@@ -1394,7 +1432,7 @@ interface() {
 
 	interface_close
 	
-	printf ": ${FUNCNAME} %s" "$*"
+	printf >&2 ": ${FUNCNAME} %s" "$*"
 	
 	interface_dev="$1"; shift
 	interface_name="$1"; shift
@@ -1516,7 +1554,7 @@ interface() {
 	[ ! -z "$interface_quantum" ]			&& local quantum="quantum $interface_quantum"
 	[ ! -z "$interface_r2q" ]			&& local r2q="r2q $interface_r2q"
 	
-	echo -e " $COLOR_BOLD$COLOR_BLUE($interface_realdev, $((interface_rate*8/1000))kbit, MTU $interface_mtu, quantum $interface_quantum)$COLOR_RESET"
+	echo >&2 -e " $COLOR_BOLD$COLOR_BLUE($interface_realdev, $((interface_rate*8/1000))kbit, MTU $interface_mtu, quantum $interface_quantum)$COLOR_RESET"
 	
 	# remember we used this interface
 	echo "$interface_name" >$FIREQOS_DIR/ifaces/$interface_realdev
@@ -1699,7 +1737,7 @@ class() {
 		class_group=1
 	fi
 	
-	printf ": $class_tabs${FUNCNAME} %s" "$*"
+	printf >&2 ": $class_tabs${FUNCNAME} %s" "$*"
 	
 	class_name="$1"; shift
 	
@@ -1814,9 +1852,9 @@ class() {
 	
 	if [ $class_group -eq 1 -a ! -z "$stab" ]
 	then
-		echo -e " $info_color$COLOR_BOLD($class_classid, $((class_rate*8/1000))kbit, prio $class_prio, MTU $class_mtu, quantum $class_quantum)$COLOR_RESET"
+		echo >&2 -e " $info_color$COLOR_BOLD($class_classid, $((class_rate*8/1000))kbit, prio $class_prio, MTU $class_mtu, quantum $class_quantum)$COLOR_RESET"
 	else
-		echo -e " $info_color$COLOR_BOLD($class_classid, $((class_rate*8/1000))kbit, prio $class_prio)$COLOR_RESET"
+		echo >&2 -e " $info_color$COLOR_BOLD($class_classid, $((class_rate*8/1000))kbit, prio $class_prio)$COLOR_RESET"
 	fi
 	
 	# keep track of all classes in the interface, so that the matches can name them to get their flowid
@@ -2065,7 +2103,7 @@ match() {
 		[ $interface_save -eq 1 ] && save ${FUNCNAME} "$@"
 	fi
 
-	[ $FIREQOS_DEBUG -eq 1 -o $FIREQOS_SHOW_MATCHES -eq 1 ] && echo ":		${FUNCNAME} $*"
+	[ $FIREQOS_DEBUG -eq 1 -o $FIREQOS_SHOW_MATCHES -eq 1 ] && echo >&2 -e "${COLOR_GREEN}:		${FUNCNAME} $*${COLOR_RESET}"
 	
 	local proto=any
 	local port=any
@@ -2407,77 +2445,77 @@ match() {
 			local syn_arg=
 			local proto_arg=
 			case $tproto in
-					any)	;;
+				any)	;;
+				
+				all)
+					local proto_arg="match ip$ipvx protocol 0 0x00"
+					;;
+				
+				ipv6|IPv6)
+					local proto_arg="match ip$ipvx protocol 41 0xff"
+					;;
+						
+				icmp|ICMP)
+					if [ "$ipvx" = "6" ]
+					then
+						local proto_arg="match ip$ipvx protocol 58 0xff"
+					else
+						local proto_arg="match ip$ipvx protocol 1 0xff"
+					fi
+					;;
+						
+				tcp|TCP)
+					local proto_arg="match ip$ipvx protocol 6 0xff"
 					
-					all)
-							local proto_arg="match ip$ipvx protocol 0 0x00"
-							;;
+					# http://www.lartc.org/lartc.html#LARTC.ADV-FILTER
+					if [ $ack -eq 1 ]
+					then
+						if [ "$ipvx" = "6" ]
+						then
+							local ack_arg="match u8 0x10 0xff at nexthdr+13"
+							error "I don't know how to match ACKs in ipv6"
+							exit 1
+						else
+							local ack_arg="match u8 0x05 0x0f at 0 match u16 0x0000 0xffc0 at 2 match u8 0x10 0xff at 33"
+						fi
+					fi
 					
-					ipv6|IPv6)
-							local proto_arg="match ip$ipvx protocol 41 0xff"
-							;;
+					if [ $syn -eq 1 ]
+					then
+						if [ "$ipvx" = "6" ]
+						then
+							# I figured this out, based on the ACK match
+							local syn_arg="match u8 0x02 0x02 at nexthdr+13"
 							
-					icmp|ICMP)
-							if [ "$ipvx" = "6" ]
-							then
-								local proto_arg="match ip$ipvx protocol 58 0xff"
-							else
-								local proto_arg="match ip$ipvx protocol 1 0xff"
-							fi
-							;;
-							
-					tcp|TCP)
-							local proto_arg="match ip$ipvx protocol 6 0xff"
-							
-							# http://www.lartc.org/lartc.html#LARTC.ADV-FILTER
-							if [ $ack -eq 1 ]
-							then
-								if [ "$ipvx" = "6" ]
-								then
-									local ack_arg="match u8 0x10 0xff at nexthdr+13"
-									error "I don't know how to match ACKs in ipv6"
-									exit 1
-								else
-									local ack_arg="match u8 0x05 0x0f at 0 match u16 0x0000 0xffc0 at 2 match u8 0x10 0xff at 33"
-								fi
-							fi
-							
-							if [ $syn -eq 1 ]
-							then
-								if [ "$ipvx" = "6" ]
-								then
-									# I figured this out, based on the ACK match
-									local syn_arg="match u8 0x02 0x02 at nexthdr+13"
-									
-									error "I don't know how to match SYNs in ipv6"
-									exit 1
-								else
-									# I figured this out, based on the ACK match
-									local syn_arg="match u8 0x02 0x02 at 33"
-								fi
-							fi
-							;;
-					
-					udp|UDP)
-							local proto_arg="match ip$ipvx protocol 17 0xff"
-							;;
-					
-					gre|GRE)
-							local proto_arg="match ip$ipvx protocol 47 0xff"
-							;;
+							error "I don't know how to match SYNs in ipv6"
+							exit 1
+						else
+							# I figured this out, based on the ACK match
+							local syn_arg="match u8 0x02 0x02 at 33"
+						fi
+					fi
+					;;
+				
+				udp|UDP)
+					local proto_arg="match ip$ipvx protocol 17 0xff"
+					;;
+				
+				gre|GRE)
+					local proto_arg="match ip$ipvx protocol 47 0xff"
+					;;
 
-					+([0-9]))
-							local proto_arg="match ip$ipvx protocol $tproto 0xff"
-							;;
-					
-					*)		local pid=`$cat_cmd /etc/protocols | $egrep_cmd -i "^$tproto[[:space:]]" | tail -n 1 | $sed_cmd "s/[[:space:]]\+/ /g" | $cut_cmd -d ' ' -f 2`
-							if [ -z "$pid" ]
-							then
-								error "Cannot find protocol '$tproto' in /etc/protocols."
-								return 1
-							fi
-							local proto_arg="match ip$ipvx protocol $pid 0xff"
-							;;
+				+([0-9]))
+					local proto_arg="match ip$ipvx protocol $tproto 0xff"
+					;;
+				
+				*)	local pid=`$cat_cmd /etc/protocols | $egrep_cmd -i "^$tproto[[:space:]]" | tail -n 1 | $sed_cmd "s/[[:space:]]\+/ /g" | $cut_cmd -d ' ' -f 2`
+					if [ -z "$pid" ]
+					then
+						error "Cannot find protocol '$tproto' in /etc/protocols."
+						return 1
+					fi
+					local proto_arg="match ip$ipvx protocol $pid 0xff"
+					;;
 			esac
 			
 			local tip=
@@ -2824,12 +2862,12 @@ check_root() {
 show_interfaces() {
 	if [ -d $FIREQOS_DIR ]
 	then
-		echo
-		echo "The following interfaces are available:"
+		echo >&2
+		echo >&2 "The following interfaces are available:"
 		fireqos_active_interfaces
-		echo
+		echo >&2
 	else
-		echo "No interfaces have been configured."
+		echo >&2 "No interfaces have been configured."
 	fi
 }
 
@@ -3368,7 +3406,7 @@ monitor() {
 	# add_monitor() adds a trap that will remove the monitor on exit
 }
 
-$cat_cmd <<EOF
+$cat_cmd >&2 <<EOF
 FireQOS $VERSION
 (C) 2013-2014 Costa Tsaousis, GPL
 
