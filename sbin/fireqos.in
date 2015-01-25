@@ -1543,8 +1543,11 @@ interface() {
 			#	;;
 
 			*)
-				error "Unknown connmark restoration method '${FIREQOS_CONNMARK_RESTORE}'."
-				return 1
+				if [ ! -z "${FIREQOS_CONNMARK_RESTORE}" ]
+				then
+					error "Unknown connmark restoration method '${FIREQOS_CONNMARK_RESTORE}'."
+					return 1
+				fi
 				;;
 		esac
 		tc filter add dev $interface_dev parent ffff: protocol all prio 39999 u32 match u32 0 0 ${cm} action mirred egress redirect dev $interface_realdev
