@@ -57,7 +57,7 @@ export LC_ALL=C
 # let everyone read our status info
 umask 022
 
-me="$0"
+PROGRAM_FILE="$0"
 
 # enabled extended pattern matching in bash
 shopt -s extglob
@@ -95,28 +95,32 @@ FIREQOS_SHOW_MATCHES=0
 FIREQOS_BALANCED_PRIO=4
 
 
-COLOR_RESET="\e[0m"
-COLOR_BLACK="\e[30m"
-COLOR_RED="\e[31m"
-COLOR_GREEN="\e[32m"
-COLOR_YELLOW="\e[33m"
-COLOR_BLUE="\e[34m"
-COLOR_PURPLE="\e[35m"
-COLOR_CYAN="\e[36m"
-COLOR_WHITE="\e[37m"
-COLOR_BGBLACK="\e[40m"
-COLOR_BGRED="\e[41m"
-COLOR_BGGREEN="\e[42m"
-COLOR_BGYELLOW="\e[43m"
-COLOR_BGBLUE="\e[44m"
-COLOR_BGPURPLE="\e[45m"
-COLOR_BGCYAN="\e[46m"
-COLOR_BGWHITE="\e[47m"
-COLOR_BOLD="\e[1m"
-COLOR_DIM="\e[2m"
-COLOR_UNDERLINED="\e[4m"
-COLOR_BLINK="\e[5m"
-COLOR_INVERTED="\e[7m"
+# Enable colors
+if [ $[$(tput colors 2>/dev/null)] -ge 8 ]
+then
+	COLOR_RESET="\e[0m"
+	COLOR_BLACK="\e[30m"
+	COLOR_RED="\e[31m"
+	COLOR_GREEN="\e[32m"
+	COLOR_YELLOW="\e[33m"
+	COLOR_BLUE="\e[34m"
+	COLOR_PURPLE="\e[35m"
+	COLOR_CYAN="\e[36m"
+	COLOR_WHITE="\e[37m"
+	COLOR_BGBLACK="\e[40m"
+	COLOR_BGRED="\e[41m"
+	COLOR_BGGREEN="\e[42m"
+	COLOR_BGYELLOW="\e[43m"
+	COLOR_BGBLUE="\e[44m"
+	COLOR_BGPURPLE="\e[45m"
+	COLOR_BGCYAN="\e[46m"
+	COLOR_BGWHITE="\e[47m"
+	COLOR_BOLD="\e[1m"
+	COLOR_DIM="\e[2m"
+	COLOR_UNDERLINED="\e[4m"
+	COLOR_BLINK="\e[5m"
+	COLOR_INVERTED="\e[7m"
+fi
 
 # Check for external commands
 require_cmd() {
@@ -342,7 +346,9 @@ save() {
 	then
 		local ipv="ipv$ipv"
 	fi
+	config_line -ne
 	(
+		printf "FORCE_CONFIG_LINEID=\"${LAST_CONFIG_LINE}\"\n"
 		printf "%q " $ipv "$@"
 		printf "\n"
 	) >>"${FIREQOS_SAVE}"
@@ -550,11 +556,36 @@ syslog() {
 	return 0
 }
 
+# Find in the BASH execution stack, the line and the source file that has called us.
+# Before first use the variable PROGRAM_FILE should be set to the file to be excluded.
+# It also sets the variable LAST_CONFIG_LINE on each run.
+FORCE_CONFIG_LINEID=
+LAST_CONFIG_LINE=
+config_line() {
+	if [ ! -z "${FORCE_CONFIG_LINEID}" ]
+	then
+		LAST_CONFIG_LINE="${FORCE_CONFIG_LINEID}"
+	else
+		# find the config line in the BASH stack
+		# start from 2
+		#   0 is this line
+		#   1 is the caller - our line for sure
+		#   2 is the caller's caller - possibly a config file line
+		local i= all=${#BASH_SOURCE}
+		for (( i = 2; i < $all; i++ ))
+		do
+			[ ! "${BASH_SOURCE[$i]}" = "${PROGRAM_FILE}" ] && break
+		done
+		LAST_CONFIG_LINE="${BASH_LINENO[$[i-1]]}@${BASH_SOURCE[$i]}: ${FUNCNAME[$[i-1]]}:"
+	fi
+	test ! "z$1" = "z-ne" && echo "${LAST_CONFIG_LINE}"
+}
+
 error() {
 	echo >&2 -e "$COLOR_RED$COLOR_BOLD"
 	echo >&2
 	echo >&2
-	echo >&2 "ERROR:"
+	echo >&2 "ERROR: $(config_line)"
 	echo -e >&2 "$@"
 	echo >&2
 	echo >&2 -e "$COLOR_RESET"
@@ -562,7 +593,10 @@ error() {
 }
 
 warning() {
-	echo >&2 -e ":	${COLOR_YELLOW}${COLOR_BOLD}WARNING! $* ${COLOR_RESET}"
+	echo >&2
+	echo >&2 -e " ${COLOR_YELLOW}${COLOR_BOLD}WARNING: $(config_line)"
+	echo >&2 -e " $* ${COLOR_RESET}"
+	echo >&2
 }
 
 runcmd() {
@@ -1303,6 +1337,7 @@ interface_close() {
 
 		# run the new, output, interface
 		source "${FIREQOS_SAVE}.run"
+		FORCE_CONFIG_LINEID=
 
 		# delete the file, we don't need it any more
 		$rm_cmd "${FIREQOS_SAVE}.run"
@@ -3423,7 +3458,7 @@ EOF
 show_usage() {
 local msg="
 
-${COLOR_YELLOW}${COLOR_BOLD}$me${COLOR_RESET} ${COLOR_BLUE}${COLOR_BOLD}action${COLOR_RESET}
+${COLOR_YELLOW}${COLOR_BOLD}${PROGRAM_FILE}${COLOR_RESET} ${COLOR_BLUE}${COLOR_BOLD}action${COLOR_RESET}
 
 ${COLOR_BLUE}${COLOR_BOLD}action${COLOR_RESET} can be one of:
 
@@ -3607,7 +3642,7 @@ runcmd $modprobe_cmd ifb numifbs=0 >/dev/null 2>&1
 
 # Run the configuration
 enable -n trap					# Disable the trap buildin shell command.
-source ${FIREQOS_CONFIG} "$@"			# Run the configuration as a normal script.
+{ source ${FIREQOS_CONFIG} "$@"; }		# Run the configuration as a normal script.
 if [ $? -ne 0 ]
 then
 	exit 1
