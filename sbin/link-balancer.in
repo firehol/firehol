@@ -29,7 +29,7 @@
 # it seems that pppd ip-up.d script need this
 export PATH="$PATH:/sbin:/usr/sbin:/usr/local/sbin"
 
-LB_FILE="${0}"
+PROGRAM_FILE="${0}"
 
 get_version() {
 	GIT_REF='$Format:%d,commit-%h$'
@@ -53,28 +53,32 @@ get_version() {
 }
 VERSION=$(get_version)
 
-COLOR_RESET="\e[0m"
-COLOR_BLACK="\e[30m"
-COLOR_RED="\e[31m"
-COLOR_GREEN="\e[32m"
-COLOR_YELLOW="\e[33m"
-COLOR_BLUE="\e[34m"
-COLOR_PURPLE="\e[35m"
-COLOR_CYAN="\e[36m"
-COLOR_WHITE="\e[37m"
-COLOR_BGBLACK="\e[40m"
-COLOR_BGRED="\e[41m"
-COLOR_BGGREEN="\e[42m"
-COLOR_BGYELLOW="\e[43m"
-COLOR_BGBLUE="\e[44m"
-COLOR_BGPURPLE="\e[45m"
-COLOR_BGCYAN="\e[46m"
-COLOR_BGWHITE="\e[47m"
-COLOR_BOLD="\e[1m"
-COLOR_DIM="\e[2m"
-COLOR_UNDERLINED="\e[4m"
-COLOR_BLINK="\e[5m"
-COLOR_INVERTED="\e[7m"
+# Enable colors
+if [ $[$(tput colors 2>/dev/null)] -ge 8 ]
+then
+	COLOR_RESET="\e[0m"
+	COLOR_BLACK="\e[30m"
+	COLOR_RED="\e[31m"
+	COLOR_GREEN="\e[32m"
+	COLOR_YELLOW="\e[33m"
+	COLOR_BLUE="\e[34m"
+	COLOR_PURPLE="\e[35m"
+	COLOR_CYAN="\e[36m"
+	COLOR_WHITE="\e[37m"
+	COLOR_BGBLACK="\e[40m"
+	COLOR_BGRED="\e[41m"
+	COLOR_BGGREEN="\e[42m"
+	COLOR_BGYELLOW="\e[43m"
+	COLOR_BGBLUE="\e[44m"
+	COLOR_BGPURPLE="\e[45m"
+	COLOR_BGCYAN="\e[46m"
+	COLOR_BGWHITE="\e[47m"
+	COLOR_BOLD="\e[1m"
+	COLOR_DIM="\e[2m"
+	COLOR_UNDERLINED="\e[4m"
+	COLOR_BLINK="\e[5m"
+	COLOR_INVERTED="\e[7m"
+fi
 
 # Make sure only root can run us.
 if [ ! "${UID}" = 0 ]
@@ -277,6 +281,31 @@ mark_value() {
 
 # -----------------------------------------------------------------------------
 
+# Find in the BASH execution stack, the line and the source file that has called us.
+# Before first use the variable PROGRAM_FILE should be set to the file to be excluded.
+# It also sets the variable LAST_CONFIG_LINE on each run.
+FORCE_CONFIG_LINEID=
+LAST_CONFIG_LINE=
+config_line() {
+	if [ ! -z "${FORCE_CONFIG_LINEID}" ]
+	then
+		LAST_CONFIG_LINE="${FORCE_CONFIG_LINEID}"
+	else
+		# find the config line in the BASH stack
+		# start from 2
+		#   0 is this line
+		#   1 is the caller - our line for sure
+		#   2 is the caller's caller - possibly a config file line
+		local i= all=${#BASH_SOURCE}
+		for (( i = 2; i < $all; i++ ))
+		do
+			[ ! "${BASH_SOURCE[$i]}" = "${PROGRAM_FILE}" ] && break
+		done
+		LAST_CONFIG_LINE="${BASH_LINENO[$[i-1]]}@${BASH_SOURCE[$i]}: ${FUNCNAME[$[i-1]]}:"
+	fi
+	test ! "z$1" = "z-ne" && echo "${LAST_CONFIG_LINE}"
+}
+
 LB_RESULT_CODE=1
 lb_exit() {
 	cd /tmp
@@ -346,20 +375,22 @@ DEBUGCMD() {
 }
 
 warning() {
-	log "WARNING ${LB_LINEID}@${LB_CONFIG}: ${@}"
+	local line="$(config_line)"
+	log "WARNING ${line} ${@}"
 
 	echo >&2
-	echo >&2 -e "${COLOR_YELLOW}${COLOR_BOLD}WARNING ${LB_LINEID}@${LB_CONFIG}: $@ ${COLOR_RESET}"
+	echo >&2 -e "${COLOR_YELLOW}${COLOR_BOLD}WARNING ${line} $@ ${COLOR_RESET}"
 	echo >&2
 	
 	return 0
 }
 
 error() {
-	log "ERROR ${LB_LINEID}@${LB_CONFIG}: ${@}"
+	local line="$(config_line)"
+	log "ERROR ${line} ${@}"
 
 	echo >&2
-	echo >&2 -e "${COLOR_RED}${COLOR_BOLD}ERROR ${LB_LINEID}@${LB_CONFIG}: $@ ${COLOR_RESET}"
+	echo >&2 -e "${COLOR_RED}${COLOR_BOLD}ERROR ${line} $@ ${COLOR_RESET}"
 	echo >&2
 	
 	exit 1
@@ -910,7 +941,7 @@ default() {
 
 	if [ -z "${LB_GATEWAYS[$gw]}" ]
 	then
-		warning "${FUNCNAME} '${gw}' on '${work_table}': Unknown gateway '${gw}' requested."
+		warning "'${gw}' on '${work_table}': Unknown gateway '${gw}' requested."
 		return 1
 	fi
 
@@ -922,13 +953,13 @@ default() {
 
 	if [ "${LB_GATEWAYS[$gw]}" = "0" ]
 	then
-		warning "${FUNCNAME} '${gw}' on '${work_table}': Ignoring gateway '${gw}', it is not alive."
+		warning "'${gw}' on '${work_table}': Ignoring gateway '${gw}', it is not alive."
 		return 1
 	fi
 
 	if [ ! -s "${LB_DIR}/gateway.${gw}.paths" ]
 	then
-		warning "${FUNCNAME} '${gw}' on '${work_table}': Gateway '${gw}' does not have any routes."
+		warning "'${gw}' on '${work_table}': Gateway '${gw}' does not have any routes."
 		return 1
 	fi
 
@@ -1429,7 +1460,7 @@ rules() {
 
 	if [ "${#mark[*]}${#tos[*]}${#src[*]}${#dst[*]}${#inface[*]}" = "00000" ]
 	then
-		warning "${FUNCNAME} statement gives no rules."
+		warning "No rules generated."
 		return 1
 	fi
 
@@ -1673,7 +1704,7 @@ help() {
 $cat_cmd <<EOFHELP
 Modes:
 
-   ${LB_FILE} boot [seconds]
+   ${PROGRAM_FILE} boot [seconds]
 
      - default 'seconds' is 300 (run every 5 mins)
 
@@ -1682,17 +1713,17 @@ Modes:
    To exit screen without stopping it, press: Control-a then d.
 
 
-   ${LB_FILE} loop [seconds]
+   ${PROGRAM_FILE} loop [seconds]
 
    like above, but run in foreground, not in a screen session.
 
 
-   ${LB_FILE} -h|--help
+   ${PROGRAM_FILE} -h|--help
 
    Present this help file.
 
 
-   ${LB_FILE} [-t|--test] [-f|--fast] [-d|--debug]
+   ${PROGRAM_FILE} [-t|--test] [-f|--fast] [-d|--debug]
 
     -t or --test
 
@@ -1863,7 +1894,7 @@ policy
 # providers:
 # Run:
 #
-#  ${LB_FILE} asips ONE_IP_OF_YOUR_PROVIDER
+#  ${PROGRAM_FILE} asips ONE_IP_OF_YOUR_PROVIDER
 #
 # LinkBalancer will query RIPE to find all the IPs of your provider.
 # So you can add:
@@ -1875,7 +1906,7 @@ policy
 # You can also have all the IPs in separate files:
 # Run:
 #
-#  ${LB_FILE} asips ONE_IP_OF_YOUR_PROVIDER_1 >/etc/firehol/PROVIDER1_IPS
+#  ${PROGRAM_FILE} asips ONE_IP_OF_YOUR_PROVIDER_1 >/etc/firehol/PROVIDER1_IPS
 #
 # Then:
 	rules dst loadfile PROVIDER1_IPS table dsl1
@@ -1950,51 +1981,10 @@ fi
 printf >&2 "\n\n###############################################################################\n"
 printf >&2 "PROCESSING CONFIGURATION\n"
 
-# add a line number at each configuration line
-$cat_cmd >"${LB_DIR}/config.awk" <<'EOF'
-$1 == "ipv4" { printf "LB_LINEID=${LINENO} " }
-$1 == "ipv6" { printf "LB_LINEID=${LINENO} " }
-$1 == "gateway" { printf "LB_LINEID=${LINENO} " }
-$1 == "table" { printf "LB_LINEID=${LINENO} " }
-$1 == "rules" { printf "LB_LINEID=${LINENO} " }
-$1 == "policy" { printf "LB_LINEID=${LINENO} " }
-$1 == "gateway4" { printf "LB_LINEID=${LINENO} " }
-$1 == "table4" { printf "LB_LINEID=${LINENO} " }
-$1 == "rules4" { printf "LB_LINEID=${LINENO} " }
-$1 == "policy4" { printf "LB_LINEID=${LINENO} " }
-$1 == "gateway6" { printf "LB_LINEID=${LINENO} " }
-$1 == "table6" { printf "LB_LINEID=${LINENO} " }
-$1 == "rules6" { printf "LB_LINEID=${LINENO} " }
-$1 == "policy6" { printf "LB_LINEID=${LINENO} " }
-$1 == "default" { printf "LB_LINEID=${LINENO} " }
-$1 == "fallback" { printf "LB_LINEID=${LINENO} " }
-$1 == "src" { printf "LB_LINEID=${LINENO} " }
-$1 == "dst" { printf "LB_LINEID=${LINENO} " }
-$1 == "mark" { printf "LB_LINEID=${LINENO} " }
-$1 == "fwmark" { printf "LB_LINEID=${LINENO} " }
-$1 == "connmark" { printf "LB_LINEID=${LINENO} " }
-$1 == "tos" { printf "LB_LINEID=${LINENO} " }
-$1 == "from" { printf "LB_LINEID=${LINENO} " }
-$1 == "to" { printf "LB_LINEID=${LINENO} " }
-$1 == "not" { printf "LB_LINEID=${LINENO} " }
-{ print }
-EOF
-
-$cat_cmd "${LB_CONFIG}" |\
-	$sed_cmd ':x; /\\$/ { N; s/\\\n//; tx }' |\
-	$awk_cmd -f "${LB_DIR}/config.awk" >"${LB_DIR}/config.script"
-
-$cat_cmd >>"${LB_DIR}/config.script" <<EOF2
-# do not return failure if the last command failed.
-echo >/dev/null
-EOF2
-
 # process the script
-LB_LINEID="INIT"
 enable -n trap			# Disable the trap buildin shell command.
-source "${LB_DIR}/config.script" || exit 1
+{ source "${LB_CONFIG}"; } || exit 1
 enable trap
-LB_LINEID="FIN"
 
 # apply the changes
 printf >&2 "\n\n###############################################################################\n"
