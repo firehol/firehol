@@ -3482,17 +3482,18 @@ blacklist() {
 
 		case "${x}" in
 			ipset:*)
-				x="-m set --match-set ${x/ipset:/}"
+				x="${x/ipset:/}"
+				test -z "${FIREHOL_IPSETS_USED[$x]}" && FIREHOL_IPSETS_USED[$x]="USED"
 				if [ ${full} -eq 1 ]
 				then
-					iptables_both -I INPUT   ${x} src -j BL_IN_BI
-					iptables_both -I FORWARD ${x} src -j BL_IN_BI
+					iptables_both -I INPUT   -m set --match-set ${x} src -j BL_IN_BI
+					iptables_both -I FORWARD -m set --match-set ${x} src -j BL_IN_BI
 					
-					iptables_both -I OUTPUT  ${x} dst -j BL_OUT_BI
-					iptables_both -I FORWARD ${x} dst -j BL_OUT_BI  
+					iptables_both -I OUTPUT  -m set --match-set ${x} dst -j BL_OUT_BI
+					iptables_both -I FORWARD -m set --match-set ${x} dst -j BL_OUT_BI  
 				else
-					iptables_both -I INPUT   ${x} src -j BL_IN_UNI
-					iptables_both -I FORWARD ${x} src -j BL_IN_UNI
+					iptables_both -I INPUT   -m set --match-set ${x} src -j BL_IN_UNI
+					iptables_both -I FORWARD -m set --match-set ${x} src -j BL_IN_UNI
 				fi
 				;;
 			*)
@@ -3777,6 +3778,203 @@ tcpmss() {
 		done
 	fi
 	
+	return 0
+}
+
+
+FIREHOL_IPSET_HASHSIZE_DEFAULT="1024"
+FIREHOL_IPSET_MAXELEM_DEFAULT="65536"
+
+# keep track of all the ipsets the firewall uses
+declare -A FIREHOL_IPSETS_USED=()
+
+# this is a wrapper around ipset
+# it has the same syntax
+ipset() {
+	work_realcmd_helper $FUNCNAME "$@"
+
+	local cmd="${1}" name="${2}"
+	shift 2
+
+	if [ "${cmd}" = "create" ]
+	then
+		local type="${1}" inet="inet" hashsize="${FIREHOL_IPSET_HASHSIZE_DEFAULT}" maxelem="${FIREHOL_IPSET_MAXELEM_DEFAULT}"
+		shift
+
+		if [ ! -z "${FIREHOL_IPSETS_USED[$name]}" ]
+		then
+			error "ipset ${name} already exists."
+			return 1
+		fi
+
+		if running_both
+		then
+			error "Cannot run ipset for both IPv4 and IPv6 at the same time."
+			return 1
+		elif running_ipv6
+		then
+			inet="inet6"
+		fi
+
+		while [ ! -z "${1}" ]
+		do
+			case "${1}" in
+				hashsize)
+					hashsize="${2}"
+					shift
+					;;
+
+				maxelem)
+					maxelem="${2}"
+					shift
+					;;
+
+				file)
+					local file="${2}"
+					shift
+					[ ! -f "${file}" ] && file="${FIREHOL_CONFIG_DIR}/${file}"
+					if [ ! -f "${file}" ]
+					then
+						error "${FUNCNAME}: cannot find file '${file}'."
+						return 1
+					fi
+					${CAT_CMD} "${file}" |\
+						${SED_CMD} -e "s/#.*$//g" -e "s/[\t\\ ]\+/ /g" -e "s/ \+$//g" -e "s/^ \+//g" |\
+						${SORT_CMD} -u >>"${FIREHOL_DIR}/ipset.${name}.ips"
+					;;
+
+				*)	echo "${1}" >>"${FIREHOL_DIR}/ipset.${name}.ips"
+					;;
+			esac
+			shift
+		done
+
+		echo "create ${name} ${type} family ${inet} hashsize ${hashsize} maxelem ${maxelem}" >"${FIREHOL_DIR}/ipset.${name}.rules"
+		echo "flush ${name}" >>"${FIREHOL_DIR}/ipset.${name}.rules"
+		FIREHOL_IPSETS_USED[$name]="CREATED"
+
+		if [ ! -s "${FIREHOL_DIR}/ipset.${name}.ips" ]
+		then
+			warning "${FUNCNAME} ${name}: does not have any data."
+			return 0
+		fi
+
+		while read
+		do
+			echo "add ${name} ${REPLY}"
+		done <"${FIREHOL_DIR}/ipset.${name}.ips" >>"${FIREHOL_DIR}/ipset.${name}.rules"
+	else
+		test -z "${FIREHOL_IPSETS_USED[$name]}" && FIREHOL_IPSETS_USED[$name]="USED"
+
+		postprocess ${IPSET_CMD} ${cmd} ${name} "${@}"
+	fi
+}
+
+ipsets_apply() {
+	local from="${1}" base="${FIREHOL_DIR}" only_non_existing=0 x= list
+
+	# if we have nothing to do, return
+	# if we are called with 'spool', FIREHOL_IPSETS_USED is empty and we will load it from the spool file
+	# otherwise, if FIREHOL_IPSETS_USED is empty and the mode is START, there is nothing to be done
+	[ ! "${from}" = "spool" -a "${#FIREHOL_IPSETS_USED[@]}" -eq 0 ] && return 0
+
+	if [ -z "${IPSET_CMD}" ]
+	then
+		require_cmd ipset || exit 1
+		list=$( ${IPSET_CMD} list -n 2>/dev/null )
+		if [ $? -ne 0 ]
+		then
+			echo >&2 "Your ipset command ${IPSET_CMD} does not seem to be a recent version. Please upgrade to use ipset with FireHOL."
+			exit 1
+		fi
+	fi
+
+	if [ "${from}" = "spool" ]
+	then
+		base="${FIREHOL_SPOOL_DIR}"
+		only_non_existing=1
+
+		if [ -f "${FIREHOL_SPOOL_DIR}/ipsets.conf" ]
+		then
+			source "${FIREHOL_SPOOL_DIR}/ipsets.conf"
+			if [ $? -ne 0 ]
+			then
+				warning "Cannot load ${FIREHOL_SPOOL_DIR}/ipsets.conf"
+				return 1
+			fi
+		fi
+
+		echo >&2 -n "FireHOL: Restoring ipsets from ${FIREHOL_SPOOL_DIR}... "
+	else
+		echo >&2 -n "FireHOL: Activating ipsets... "
+	fi
+
+	# take a list of all active ipsets
+	# and mark each one that we have too as existing
+	for x in ${list}
+	do
+		if [ "${FIREHOL_IPSETS_USED[$x]}" = "CREATED" ]
+		then
+			FIREHOL_IPSETS_USED[$x]="EXISTS"
+		fi
+	done
+
+	for x in ${!FIREHOL_IPSETS_USED[@]}
+	do
+		# did we had an ipset helper for this ipset?
+		[ ! -s "${base}/ipset.${x}.rules" ] && continue
+
+		# shall we restore this ipset?
+		if [ "${FIREHOL_IPSETS_USED[$x]}" = "EXISTS" ]
+		then
+			test $only_non_existing -eq 1 && continue
+
+			# add all the rules except the create one
+			${CAT_CMD} "${base}/ipset.${x}.rules" |\
+				${GREP_CMD} -v "^create ${x}" >>"${FIREHOL_DIR}/ipsets.restore"
+		else
+			# copy the generated rules to the ipset restoration file
+			${CAT_CMD} "${base}/ipset.${x}.rules" >>"${FIREHOL_DIR}/ipsets.restore"
+		fi
+
+		FIREHOL_IPSETS_USED[$x]="RESTORED"
+	done
+
+	if [ -s "${FIREHOL_DIR}/ipsets.restore" ]
+	then
+		"${IPSET_CMD}" restore <"${FIREHOL_DIR}/ipsets.restore"
+		if [ $? -ne 0 ]
+		then
+			error "${FUNCNAME}: Cannot apply generated ipset rules."
+			return 1
+		else
+			echo >&2 "OK"
+		fi
+
+		if [ ! "${from}" = "spool" ]
+		then
+			# save the list and the new rules to our spool directory
+			for x in ${!FIREHOL_IPSETS_USED[@]}
+			do
+				if [ "${FIREHOL_IPSETS_USED[$x]}" = "RESTORED" ]
+				then
+					cp -p "${base}/ipset.${x}.rules" "${FIREHOL_SPOOL_DIR}/ipset.${x}.rules"
+					FIREHOL_IPSETS_USED[$x]="CREATED"
+
+				elif [ "${FIREHOL_IPSETS_USED[$x]}" = "EXISTS" ]
+				then
+					FIREHOL_IPSETS_USED[$x]="CREATED"
+				fi
+			done
+
+			declare -p FIREHOL_IPSETS_USED >"${FIREHOL_SPOOL_DIR}/ipsets.conf"
+			cp "${FIREHOL_DIR}/ipsets.restore" "${FIREHOL_SPOOL_DIR}/last.ipsets.restore"
+			${IPSET_CMD} save >"${FIREHOL_SPOOL_DIR}/last.ipsets.save"
+		fi
+	else
+		echo >&2 "OK (already exist)"
+	fi
+
 	return 0
 }
 
@@ -6328,7 +6526,9 @@ rule() {
 			do
 				case "${s}" in
 					ipset:*)
-						${iptables} ${table} -A "${negative_chain}" -m set --match-set "${s/ipset:/}" src -j RETURN
+						s="${s/ipset:/}"
+						test -z "${FIREHOL_IPSETS_USED[$s]}" && FIREHOL_IPSETS_USED[$s]="USED"
+						${iptables} ${table} -A "${negative_chain}" -m set --match-set "${s}" src -j RETURN
 						;;
 					*)
 						${iptables} ${table} -A "${negative_chain}" -s "${s}" -j RETURN
@@ -6351,7 +6551,9 @@ rule() {
 			do
 				case "${d}" in
 					ipset:*)
-						${iptables} ${table} -A "${negative_chain}" -m set --match-set "${d/ipset:/}" dst -j RETURN
+						d="${d/ipset:/}"
+						test -z "${FIREHOL_IPSETS_USED[$d]}" && FIREHOL_IPSETS_USED[$d]="USED"
+						${iptables} ${table} -A "${negative_chain}" -m set --match-set "${d}" dst -j RETURN
 						;;
 					*)
 						${iptables} ${table} -A "${negative_chain}" -d "${d}" -j RETURN
@@ -6837,7 +7039,9 @@ rule() {
 				;;
 
 			ipset:*)
-				s_arg=("-m" "set" "--match-set" "${s/ipset:/}" "src")
+				s="${s/ipset:/}"
+				test -z "${FIREHOL_IPSETS_USED[$s]}" && FIREHOL_IPSETS_USED[$s]="USED"
+				s_arg=("-m" "set" "--match-set" "${s}" "src")
 				;;
 
 			*)
@@ -6854,7 +7058,9 @@ rule() {
 				;;
 
 			ipset:*)
-				d_arg=("-m" "set" "--match-set" "${d/ipset:/}" "dst")
+				d="${d/ipset:/}"
+				test -z "${FIREHOL_IPSETS_USED[$d]}" && FIREHOL_IPSETS_USED[$d]="USED"
+				d_arg=("-m" "set" "--match-set" "${d}" "dst")
 				;;
 
 			*)
@@ -7430,6 +7636,8 @@ firehol_can_restore_saved_firewall() {
 	test ! -z "`${FIND_CMD} "${FIREHOL_SERVICES_DIR}" -newer "${FIREHOL_LAST_SUCCESSFUL_COMMAND}"`" \
 		&& warning "${FIREHOL_SERVICES_DIR} has updated files. Cannot restore saved firewall." \
 		&& return 5
+
+	ipsets_apply spool || return 6
 
 	return 0
 }
@@ -8807,7 +9015,7 @@ then
 		FIREHOL_ACTIVATED_SUCCESSFULLY=1
 		exit 0
 	fi
-	warning "Starting the firewall normally..."
+	# warning "Starting the firewall normally..."
 fi
 
 
@@ -9084,7 +9292,6 @@ echo
 
 # XXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXX
 
-
 if [ ${FIREHOL_FAST_ACTIVATION} -eq 1 ]
 then
 	if [ ${FIREHOL_TRY} -eq 1 -a "$[FIREHOL_WAIT_USER_BEFORE_TRY]" -gt 60 ]
@@ -9128,6 +9335,9 @@ then
 		exit 1
 	fi
 	
+	# apply the new ipsets
+	ipsets_apply || exit 1
+
 	syslog info "Activating new firewall from ${FIREHOL_CONFIG} (translated to ${FIREHOL_COMMAND_COUNTER} iptables rules)."
 	echo -n $"FireHOL: Fast activating new firewall:"
 	
@@ -9203,6 +9413,9 @@ else
 		exit 1
 	fi
 	
+	# apply the new ipsets
+	ipsets_apply || exit 1
+
 	syslog info "Activating new firewall from ${FIREHOL_CONFIG} (translated to ${FIREHOL_COMMAND_COUNTER} iptables rules)."
 	echo -n $"FireHOL: Activating new firewall (${FIREHOL_COMMAND_COUNTER} rules):"
 	
