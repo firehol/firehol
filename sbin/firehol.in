@@ -4886,24 +4886,24 @@ rule_action_param() {
 		statenot="${4}" \
 		state="${5}" \
 		table="${6}" \
-		count=0
+		count=0 val=
 	shift 6
 	local -a action_param=()
 	
 	# All arguments until the separator are the parameters of the action
-	while [ ! -z "${1}" -a ! "A${1}" = "A--" ]
+	for val in "${@}"
 	do
-		action_param[$count]="${1}"
-		shift
+		[ "A${val}" = "A--" ] && break
 		
-		count=$[count + 1]
+		action_param[$count]="${val}"
+		((count += 1))
 	done
-	
+	shift $[count + 1]
+
 	# If we don't have a seperator, generate an error
-	local sep="${1}"; shift
-	if [ ! "A${sep}" = "A--" ]
+	if [ ! "A${val}" = "A--" ]
 	then
-		error "Internal Error, in parsing action_param parameters ($FUNCNAME '${action}' '${protocol}' '${statenot}' '${state}' '${table}' '${action_param[@]}' ${sep} '$@')."
+		error "Internal Error, in parsing action_param parameters ($FUNCNAME '${action}' '${protocol}' '${statenot}' '${state}' '${table}' '${action_param[@]}' '$@')."
 		return 1
 	fi
 	
@@ -6524,7 +6524,8 @@ rule() {
 		uid_arg=() owner_arg=() gid_arg=() pid_arg=() sid_arg=() cmd_arg=() \
 		mark_arg=() tos_arg=() dscp_arg=() proto_arg=() \
 		inf_arg=() outf_arg=() inph_arg=() physdev_arg=() outph_arg=() \
-		mc_arg=() s_arg=() d_arg=() sp_arg=() dp_arg=()
+		mc_arg=() s_arg=() d_arg=() sp_arg=() dp_arg=() \
+		basecmd=()
 
 	local 	logrule= ipvall= \
 		tuid= tgid= tpid= tsid= tcmd= \
@@ -6857,7 +6858,7 @@ rule() {
 		esac
 	
 	# build the command
-	declare -a basecmd=("${inf_arg[@]}" "${outf_arg[@]}" "${physdev_arg[@]}" "${inph_arg[@]}" "${outph_arg[@]}" "${limit_arg[@]}" "${iplimit_arg[@]}" "${proto_arg[@]}" "${s_arg[@]}" "${sp_arg[@]}" "${d_arg[@]}" "${dp_arg[@]}" "${owner_arg[@]}" "${uid_arg[@]}" "${gid_arg[@]}" "${pid_arg[@]}" "${sid_arg[@]}" "${cmd_arg[@]}" "${addrtype_arg[@]}" "${stp_arg[@]}" "${dtp_arg[@]}" "${state_arg[@]}" "${mc_arg[@]}" "${mark_arg[@]}" "${tos_arg[@]}" "${dscp_arg[@]}")
+	basecmd=("${inf_arg[@]}" "${outf_arg[@]}" "${physdev_arg[@]}" "${inph_arg[@]}" "${outph_arg[@]}" "${limit_arg[@]}" "${iplimit_arg[@]}" "${proto_arg[@]}" "${s_arg[@]}" "${sp_arg[@]}" "${d_arg[@]}" "${dp_arg[@]}" "${owner_arg[@]}" "${uid_arg[@]}" "${gid_arg[@]}" "${pid_arg[@]}" "${sid_arg[@]}" "${cmd_arg[@]}" "${addrtype_arg[@]}" "${stp_arg[@]}" "${dtp_arg[@]}" "${state_arg[@]}" "${mc_arg[@]}" "${mark_arg[@]}" "${tos_arg[@]}" "${dscp_arg[@]}")
 
 	if [ "$logrule" = "limit" ]
 	then
