@@ -351,6 +351,10 @@ FIREHOL_NOTIFICATION_PROGRAM="${FIREHOL_NOTIFICATION_PROGRAM}"
 # Default: 1
 FIREHOL_FAST_ACTIVATION="${FIREHOL_FAST_ACTIVATION-1}"
 
+# Only when FIREHOL_FAST_ACTIVATION=1, this value is the time in
+# seconds, to wait for just an ENTER before trying the new firewall.
+FIREHOL_WAIT_USER_BEFORE_TRY=600
+
 # If set to 0, firehol will not try to load the required kernel modules
 # Generally, FireHOL is able to detect if a module is compiled in the
 # kernel, even if this is set to 1.
@@ -9051,6 +9055,15 @@ echo
 
 if [ ${FIREHOL_FAST_ACTIVATION} -eq 1 ]
 then
+	if [ "$[FIREHOL_WAIT_USER_BEFORE_TRY]" -gt 60 ]
+	then
+		syslog info "Waiting user to try the new firewall."
+		echo >&2
+		echo >&2 "Your firewall is ready to be fast-activated..."
+		echo >&2 "If you don't continue, no changes will have been made to your firewall."
+		read >&2 -p "Activate the firewall? (just press enter to confirm or Control-C to stop) : " -t ${FIREHOL_WAIT_USER_BEFORE_TRY} -e || exit 1
+	fi
+
 	# construct the iptables-restore file from the splitted ones.
 	cd $FIREHOL_DIR/fast/tables || exit 1
 	for firehol_table in `ls`
