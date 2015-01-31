@@ -9055,7 +9055,7 @@ echo
 
 if [ ${FIREHOL_FAST_ACTIVATION} -eq 1 ]
 then
-	if [ "$[FIREHOL_WAIT_USER_BEFORE_TRY]" -gt 60 ]
+	if [ ${FIREHOL_TRY} -eq 1 -a "$[FIREHOL_WAIT_USER_BEFORE_TRY]" -gt 60 ]
 	then
 		syslog info "Waiting user to try the new firewall."
 		echo >&2
