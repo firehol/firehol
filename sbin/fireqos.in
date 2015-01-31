@@ -25,6 +25,16 @@
 #       See the file COPYING for details.
 #
 
+if [ $(( ${BASH_VERSINFO[0]} )) -lt 4 ]
+then
+	echo >&2 
+	echo >&2 "FireQOS requires BASH version 4 or later."
+	echo >&2 "You are running version: ${BASH_VERSION}"
+	echo >&2 "Please upgrade."
+	echo >&2 
+	exit 1
+fi
+
 # make sure sbin is included in the path
 # it seems that pppd ip-up.d script need this
 export PATH="$PATH:/sbin:/usr/sbin:/usr/local/sbin"
@@ -3643,11 +3653,14 @@ runcmd $modprobe_cmd ifb numifbs=0 >/dev/null 2>&1
 # Run the configuration
 enable -n trap					# Disable the trap buildin shell command.
 { source ${FIREQOS_CONFIG} "$@"; }		# Run the configuration as a normal script.
-if [ $? -ne 0 ]
+ret=$?
+enable trap					# Enable the trap buildin shell command.
+
+if [ $ret -ne 0 ]
 then
+	error "Processing of '${FIREQOS_CONFIG}' failed with code $ret."
 	exit 1
 fi
-enable trap					# Enable the trap buildin shell command.
 
 interface_close					# close the last interface.
 
