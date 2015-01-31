@@ -1461,7 +1461,7 @@ rules() {
 	if [ "${#mark[*]}${#tos[*]}${#src[*]}${#dst[*]}${#inface[*]}" = "00000" ]
 	then
 		warning "No rules generated."
-		return 1
+		return 0
 	fi
 
 	if [ ! -z "${table}" ]
