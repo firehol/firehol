@@ -3475,25 +3475,40 @@ blacklist() {
 	
 	set_work_function "Generating blacklist rules"
 	
-	local z= x=
-	for z in ${@//,/ }
+	local x=
+	for x in ${@//,/ }
 	do
-		for x in ${z}
-		do
-			set_work_function "Blacklisting '${x}'"
-			
-			if [ ${full} -eq 1 ]
-			then
-				iptables_both -I INPUT   -s ${x} -j BL_IN_BI
-				iptables_both -I FORWARD -s ${x} -j BL_IN_BI
-				
-				iptables_both -I OUTPUT  -d ${x} -j BL_OUT_BI
-				iptables_both -I FORWARD -d ${x} -j BL_OUT_BI  
-			else
-				iptables_both -I INPUT   -s ${x} -j BL_IN_UNI
-				iptables_both -I FORWARD -s ${x} -j BL_IN_UNI
-			fi
-		done
+		set_work_function "Blacklisting '${x}'"
+
+		case "${x}" in
+			ipset:*)
+				x="-m set --match-set ${x/ipset:/}"
+				if [ ${full} -eq 1 ]
+				then
+					iptables_both -I INPUT   ${x} src -j BL_IN_BI
+					iptables_both -I FORWARD ${x} src -j BL_IN_BI
+					
+					iptables_both -I OUTPUT  ${x} dst -j BL_OUT_BI
+					iptables_both -I FORWARD ${x} dst -j BL_OUT_BI  
+				else
+					iptables_both -I INPUT   ${x} src -j BL_IN_UNI
+					iptables_both -I FORWARD ${x} src -j BL_IN_UNI
+				fi
+				;;
+			*)
+				if [ ${full} -eq 1 ]
+				then
+					iptables_both -I INPUT   -s ${x} -j BL_IN_BI
+					iptables_both -I FORWARD -s ${x} -j BL_IN_BI
+					
+					iptables_both -I OUTPUT  -d ${x} -j BL_OUT_BI
+					iptables_both -I FORWARD -d ${x} -j BL_OUT_BI  
+				else
+					iptables_both -I INPUT   -s ${x} -j BL_IN_UNI
+					iptables_both -I FORWARD -s ${x} -j BL_IN_UNI
+				fi
+				;;
+		esac
 	done
 	
 	return 0
@@ -5333,12 +5348,10 @@ rule() {
 					fi
 					if running_ipv4; then
 						test ${softwarnings} -eq 1 -a ! "${src4}" = "default" && softwarning "Overwritting param: src4 '${src4}' becomes '${1}'"
-						#src4=$(ipv4 eval_param "${1}")
 						src4="${1//,/ }"
 					fi
 					if running_ipv6; then
 						test ${softwarnings} -eq 1 -a ! "${src6}" = "default" && softwarning "Overwritting param: src6 '${src6}' becomes '${1}'"
-						#src6=$(ipv6 eval_param "${1}")
 						src6="${1//,/ }"
 					fi
 				else
@@ -5352,12 +5365,10 @@ rule() {
 					fi
 					if running_ipv4; then
 						test ${softwarnings} -eq 1 -a ! "${dst4}" = "default" && softwarning "Overwritting param: dst4 '${dst4}' becomes '${1}'"
-						#dst4=$(ipv4 eval_param "${1}")
 						dst4="${1//,/ }"
 					fi
 					if running_ipv6; then
 						test ${softwarnings} -eq 1 -a ! "${dst6}" = "default" && softwarning "Overwritting param: dst6 '${dst6}' becomes '${1}'"
-						#dst6=$(ipv6 eval_param "${1}")
 						dst6="${1//,/ }"
 					fi
 				fi
@@ -5388,12 +5399,10 @@ rule() {
 					fi
 					if running_ipv4; then
 						test ${softwarnings} -eq 1 -a ! "${dst4}" = "default" && softwarning "Overwritting param: dst4 '${dst4}' becomes '${1}'"
-						#dst4=$(ipv4 eval_param "${1}")
 						dst4="${1//,/ }"
 					fi
 					if running_ipv6; then
 						test ${softwarnings} -eq 1 -a ! "${dst6}" = "default" && softwarning "Overwritting param: dst6 '${dst6}' becomes '${1}'"
-						#dst6=$(ipv6 eval_param "${1}")
 						dst6="${1//,/ }"
 					fi
 				else
@@ -5407,12 +5416,10 @@ rule() {
 					fi
 					if running_ipv4; then
 						test ${softwarnings} -eq 1 -a ! "${src4}" = "default" && softwarning "Overwritting param: src6 '${src4}' becomes '${1}'"
-						#src4=$(ipv4 eval_param "${1}")
 						src4="${1//,/ }"
 					fi
 					if running_ipv6; then
 						test ${softwarnings} -eq 1 -a ! "${src6}" = "default" && softwarning "Overwritting param: src6 '${src6}' becomes '${1}'"
-						#src6=$(ipv6 eval_param "${1}")
 						src6="${1//,/ }"
 					fi
 				fi
@@ -6312,19 +6319,22 @@ rule() {
 		
 		if [ ! -z "${srcnot}" ]
 		then
-			local s=
-			if running_ipv4; then
-				for s in ${src4}
-				do
-					iptables ${table} -A "${negative_chain}" -s "${s}" -j RETURN
-				done
-			fi
-			if running_ipv6; then
-				for s in ${src6}
-				do
-					ip6tables ${table} -A "${negative_chain}" -s "${s}" -j RETURN
-				done
-			fi
+			local s= src= iptables=
+
+			running_ipv6 && { iptables="ip6tables"; src="${src6}"; }
+			running_ipv4 && { iptables="iptables"; src="${src4}"; }
+
+			for s in ${src}
+			do
+				case "${s}" in
+					ipset:*)
+						${iptables} ${table} -A "${negative_chain}" -m set --match-set "${s/ipset:/}" src -j RETURN
+						;;
+					*)
+						${iptables} ${table} -A "${negative_chain}" -s "${s}" -j RETURN
+						;;
+				esac
+			done
 			srcnot=
 			src4=any
 			src6=any
@@ -6332,19 +6342,22 @@ rule() {
 		
 		if [ ! -z "${dstnot}" ]
 		then
-			local d=
-			if running_ipv4; then
-				for d in ${dst4}
-				do
-					iptables ${table} -A "${negative_chain}" -d "${d}" -j RETURN
-				done
-			fi
-			if running_ipv6; then
-				for d in ${dst6}
-				do
-					ip6tables ${table} -A "${negative_chain}" -d "${d}" -j RETURN
-				done
-			fi
+			local d= dst= iptables=
+
+			running_ipv6 && { iptables="ip6tables"; dst="${dst6}"; }
+			running_ipv4 && { iptables="iptables"; dst="${dst4}"; }
+
+			for d in ${dst}
+			do
+				case "${d}" in
+					ipset:*)
+						${iptables} ${table} -A "${negative_chain}" -m set --match-set "${d/ipset:/}" dst -j RETURN
+						;;
+					*)
+						${iptables} ${table} -A "${negative_chain}" -d "${d}" -j RETURN
+						;;
+				esac
+			done
 			dstnot=
 			dst4=any
 			dst6=any
@@ -6823,6 +6836,10 @@ rule() {
 				s_arg=()
 				;;
 
+			ipset:*)
+				s_arg=("-m" "set" "--match-set" "${s/ipset:/}" "src")
+				;;
+
 			*)
 				s_arg=("-s" "${s}")
 				;;
@@ -6834,6 +6851,10 @@ rule() {
 		case ${d} in
 			any|ANY)
 				d_arg=()
+				;;
+
+			ipset:*)
+				d_arg=("-m" "set" "--match-set" "${d/ipset:/}" "dst")
 				;;
 
 			*)
