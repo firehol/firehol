@@ -3916,6 +3916,9 @@ ipset46() { both ipset "${@}"; }
 ipset() {
 	work_realcmd_helper $FUNCNAME "$@"
 
+	# make sure we have the command
+	test -z "${IPSET_CMD}" && ipset_cmd >/dev/null 2>&1 </dev/null
+
 	local cmd="${1}" name="${2}"
 	shift 2
 
@@ -8108,6 +8111,9 @@ case "${arg}" in
 		name="${1}"
 		shift
 
+		# make sure we have the command
+		test -z "${IPSET_CMD}" && ipset_cmd >/dev/null 2>&1 </dev/null
+		
 		found=0
 		for x in $( eval "ipset_cmd ${IPSET_LIST_NAMES_CMD}" )
 		do
