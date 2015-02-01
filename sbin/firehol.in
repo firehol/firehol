@@ -3829,8 +3829,12 @@ ipset() {
 					shift
 					;;
 
-				file)
-					local file="${2}"
+				file|ipfile|ipsfile|netfile|netsfile)
+					local file="${2}" final_cmd="${CAT_CMD}"
+
+					[ "${1}" = "ipfile" -o "${1}" = "ipsfile" ] && final_cmd="${GREP_CMD} -v /"
+					[ "${1}" = "netfile" -o "${1}" = "netsfile" ] && final_cmd="${GREP_CMD} /"
+
 					shift
 					[ ! -f "${file}" ] && file="${FIREHOL_CONFIG_DIR}/${file}"
 					if [ ! -f "${file}" ]
@@ -3840,6 +3844,8 @@ ipset() {
 					fi
 					${CAT_CMD} "${file}" |\
 						${SED_CMD} -e "s/#.*$//g" -e "s/[\t\\ ]\+/ /g" -e "s/ \+$//g" -e "s/^ \+//g" |\
+						${GREP_CMD} -v "^$" |\
+						${final_cmd} |\
 						${SORT_CMD} -u >>"${FIREHOL_DIR}/ipset.${name}.ips"
 					;;
 
