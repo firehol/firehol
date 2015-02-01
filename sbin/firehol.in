@@ -572,6 +572,12 @@ FIREHOL_LOG_BURST="5"
 # Default: 1
 FIREHOL_DROP_ORPHAN_TCP_ACK_FIN=1
 
+# ----------------------------------------------------------------------
+# IPSET SUPPORT
+
+# check 'man ipset'
+FIREHOL_IPSET_HASHSIZE_DEFAULT="1024"
+FIREHOL_IPSET_MAXELEM_DEFAULT="65536"
 
 # ----------------------------------------------------------------------
 # DEFAULT IP SETS
@@ -3782,9 +3788,6 @@ tcpmss() {
 }
 
 
-FIREHOL_IPSET_HASHSIZE_DEFAULT="1024"
-FIREHOL_IPSET_MAXELEM_DEFAULT="65536"
-
 # keep track of all the ipsets the firewall uses
 declare -A FIREHOL_IPSETS_USED=()
 
@@ -3816,6 +3819,7 @@ ipset() {
 			inet="inet6"
 		fi
 
+		local opts=""
 		while [ ! -z "${1}" ]
 		do
 			case "${1}" in
@@ -3829,35 +3833,63 @@ ipset() {
 					shift
 					;;
 
-				file|ipfile|ipsfile|netfile|netsfile)
-					local file="${2}" final_cmd="${CAT_CMD}"
-
-					[ "${1}" = "ipfile" -o "${1}" = "ipsfile" ] && final_cmd="${GREP_CMD} -v /"
-					[ "${1}" = "netfile" -o "${1}" = "netsfile" ] && final_cmd="${GREP_CMD} /"
-
-					shift
-					[ ! -f "${file}" ] && file="${FIREHOL_CONFIG_DIR}/${file}"
-					if [ ! -f "${file}" ]
-					then
-						error "${FUNCNAME}: cannot find file '${file}'."
-						return 1
-					fi
-					${CAT_CMD} "${file}" |\
-						${SED_CMD} -e "s/#.*$//g" -e "s/[\t\\ ]\+/ /g" -e "s/ \+$//g" -e "s/^ \+//g" |\
-						${GREP_CMD} -v "^$" |\
-						${final_cmd} |\
-						${SORT_CMD} -u >>"${FIREHOL_DIR}/ipset.${name}.ips"
-					;;
-
-				*)	echo "${1}" >>"${FIREHOL_DIR}/ipset.${name}.ips"
+				*)
+					opts="${opts} ${1}"
 					;;
 			esac
 			shift
 		done
 
-		echo "create ${name} ${type} family ${inet} hashsize ${hashsize} maxelem ${maxelem}" >"${FIREHOL_DIR}/ipset.${name}.rules"
+		echo "create ${name} ${type} family ${inet} hashsize ${hashsize} maxelem ${maxelem} ${opts}" >"${FIREHOL_DIR}/ipset.${name}.rules"
 		echo "flush ${name}" >>"${FIREHOL_DIR}/ipset.${name}.rules"
 		FIREHOL_IPSETS_USED[$name]="CREATED"
+
+	elif [ "${cmd}" = "add" ]
+	then
+		if [ ! "${FIREHOL_IPSETS_USED[$name]}" = "CREATED" ]
+		then
+			error "${FUNCNAME}: Cannot add IPs to ipset '${name}'. The ipset must be created first."
+			return 1
+		fi
+
+		local ip="${1}" x=
+		shift
+
+		for x in ${ip}
+		do
+			echo "add ${name} ${x} ${*}" >>"${FIREHOL_DIR}/ipset.${name}.rules"
+		done
+
+	elif [ "${cmd}" = "addfile" ]
+	then
+		if [ ! "${FIREHOL_IPSETS_USED[$name]}" = "CREATED" ]
+		then
+			error "${FUNCNAME}: Cannot add IPs to ipset '${name}'. The ipset must be created first."
+			return 1
+		fi
+
+		local file= opts= final_cmd="${CAT_CMD}"
+
+		[ "${1}" = "ip"  -o "${1}" = "ips"  ] && final_cmd="${GREP_CMD} -v /" && shift
+		[ "${1}" = "net" -o "${1}" = "nets" ] && final_cmd="${GREP_CMD} /" && shift
+
+		file="${1}"
+		shift
+		opts="${*}"
+
+		[ ! -f "${file}" ] && file="${FIREHOL_CONFIG_DIR}/${file}"
+		if [ ! -f "${file}" ]
+		then
+			error "${FUNCNAME}: cannot find file '${file}'."
+			return 1
+		fi
+
+		# cleanup the file
+		${CAT_CMD} "${file}" |\
+			${SED_CMD} -e "s/#.*$//g" -e "s/[\t\\ ]\+/ /g" -e "s/ \+$//g" -e "s/^ \+//g" |\
+			${EGREP_CMD} "^[0-9\.:/\-]+$" |\
+			${final_cmd} |\
+			${SORT_CMD} -u >"${FIREHOL_DIR}/ipset.${name}.ips"
 
 		if [ ! -s "${FIREHOL_DIR}/ipset.${name}.ips" ]
 		then
@@ -3867,8 +3899,9 @@ ipset() {
 
 		while read
 		do
-			echo "add ${name} ${REPLY}"
+			echo "add ${name} ${REPLY} ${opts}"
 		done <"${FIREHOL_DIR}/ipset.${name}.ips" >>"${FIREHOL_DIR}/ipset.${name}.rules"
+
 	else
 		test -z "${FIREHOL_IPSETS_USED[$name]}" && FIREHOL_IPSETS_USED[$name]="USED"
 
