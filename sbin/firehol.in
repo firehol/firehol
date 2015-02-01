@@ -165,6 +165,16 @@ markdef() {
 	while [ ! -z "${1}" ]
 	do
 		case "${1}" in
+			default)
+				saverestore=1
+				stateful=1
+				;;
+
+			classic)
+				saverestore=0
+				stateful=0
+				;;
+				
 			save|restore|permanent)
 				saverestore=1
 				;;
@@ -492,7 +502,7 @@ FIREHOL_TRUST_LOOPBACK=1
 #
 # NOTES ABOUT markdef OPTIONS
 #
-# default is : stateful permanent
+# default is : stateful permanent or default
 #              in this mode, only NEW packets of connections need
 #              to be marked. ESTABLISHED and RELATED packets
 #              will automatically get the same mark too.
@@ -512,7 +522,7 @@ FIREHOL_TRUST_LOOPBACK=1
 #              all the packets that are encountered after the marked
 #              packet and are part of the same socket.
 #
-#            - stateless temporary
+#            - stateless temporary or classic
 #              In this mode, only whatever the helper statement matches
 #              will get the mark. Nothing else.
 #
