@@ -3787,6 +3787,35 @@ tcpmss() {
 	return 0
 }
 
+ipset_addfile() {
+	local name="${1}" file= opts= final_cmd="${CAT_CMD}"
+	shift
+
+	[ "${1}" = "ip"  -o "${1}" = "ips"  ] && final_cmd="${GREP_CMD} -v /" && shift
+	[ "${1}" = "net" -o "${1}" = "nets" ] && final_cmd="${GREP_CMD} /" && shift
+
+	file="${1}"
+	shift
+	opts="${*}"
+
+	[ ! -f "${file}" ] && file="${FIREHOL_CONFIG_DIR}/${file}"
+	if [ ! -f "${file}" ]
+	then
+		error "${FUNCNAME}: Cannot find file '${file}'."
+		return 1
+	fi
+
+	# cleanup the file
+	${CAT_CMD} "${file}" |\
+		${SED_CMD} -e "s/#.*$//g" -e "s/[\t\\ ]\+/ /g" -e "s/ \+$//g" -e "s/^ \+//g" |\
+		${EGREP_CMD} "^[0-9\.:/\-]+$" |\
+		${final_cmd} |\
+		${SORT_CMD} -u |\
+		while read
+		do
+			echo "add ${name} ${REPLY} ${opts}"
+		done
+}
 
 # keep track of all the ipsets the firewall uses
 declare -A FIREHOL_IPSETS_USED=()
@@ -3855,7 +3884,7 @@ ipset() {
 		local ip="${1}" x=
 		shift
 
-		for x in ${ip}
+		for x in ${ip//,/ }
 		do
 			echo "add ${name} ${x} ${*}" >>"${FIREHOL_DIR}/ipset.${name}.rules"
 		done
@@ -3868,40 +3897,7 @@ ipset() {
 			return 1
 		fi
 
-		local file= opts= final_cmd="${CAT_CMD}"
-
-		[ "${1}" = "ip"  -o "${1}" = "ips"  ] && final_cmd="${GREP_CMD} -v /" && shift
-		[ "${1}" = "net" -o "${1}" = "nets" ] && final_cmd="${GREP_CMD} /" && shift
-
-		file="${1}"
-		shift
-		opts="${*}"
-
-		[ ! -f "${file}" ] && file="${FIREHOL_CONFIG_DIR}/${file}"
-		if [ ! -f "${file}" ]
-		then
-			error "${FUNCNAME}: cannot find file '${file}'."
-			return 1
-		fi
-
-		# cleanup the file
-		${CAT_CMD} "${file}" |\
-			${SED_CMD} -e "s/#.*$//g" -e "s/[\t\\ ]\+/ /g" -e "s/ \+$//g" -e "s/^ \+//g" |\
-			${EGREP_CMD} "^[0-9\.:/\-]+$" |\
-			${final_cmd} |\
-			${SORT_CMD} -u >"${FIREHOL_DIR}/ipset.${name}.ips"
-
-		if [ ! -s "${FIREHOL_DIR}/ipset.${name}.ips" ]
-		then
-			warning "${FUNCNAME} ${name}: does not have any data."
-			return 0
-		fi
-
-		while read
-		do
-			echo "add ${name} ${REPLY} ${opts}"
-		done <"${FIREHOL_DIR}/ipset.${name}.ips" >>"${FIREHOL_DIR}/ipset.${name}.rules"
-
+		ipset_addfile "${name}" "${@}" >>"${FIREHOL_DIR}/ipset.${name}.rules" || return 1
 	else
 		test -z "${FIREHOL_IPSETS_USED[$name]}" && FIREHOL_IPSETS_USED[$name]="USED"
 
@@ -8021,6 +8017,44 @@ case "${arg}" in
 		test ! -z "${1}" && test ${1} != "--" && softwarning "Arguments after parameter '${arg}' are ignored."
 		FIREHOL_MODE="DEBUG"
 		FIREHOL_CONF_SHOW=1
+		;;
+
+	ipset_update_from_file)
+		require_cmd ipset || exit 1
+		name="${1}"
+		shift
+
+		if [[ $(${IPSET_CMD} list -n) =~ "${name}" ]]
+		then
+			tmp=$(${MKTEMP_CMD}) || exit 1
+			ipset_addfile "${name}" "${@}" >${tmp}
+			if [ $? -ne 0 ]
+			then
+				rm ${tmp}
+				echo >&2 "Cannot update ipset '${name}'."
+				exit 1
+			fi
+			if [ ! -s ${tmp} ]
+			then
+				rm ${tmp}
+				echo >&2 "File contains nothing for us."
+				exit 1
+			fi
+			${IPSET_CMD} flush ${name}
+			${IPSET_CMD} restore <${tmp}
+			if [ $? -ne 0 ]
+			then
+				rm ${tmp}
+				echo >&2 "Failed to update ipset '${name}'"
+				exit 1
+			fi
+			echo >&2 "Updated ipset '${name}' (with $(( $(cat ${tmp} | wc -l) )) IPs)."
+			rm ${tmp}
+			exit 0
+		else
+			echo >&2 "There is no ipset collection named '${name}'."
+		fi
+		exit 1
 		;;
 	
 	*)	if [ ! -z "${arg}" -a -f "${arg}" ]
