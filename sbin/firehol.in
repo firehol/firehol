@@ -583,11 +583,25 @@ FIREHOL_LOG_BURST="5"
 FIREHOL_DROP_ORPHAN_TCP_ACK_FIN=1
 
 # ----------------------------------------------------------------------
-# IPSET SUPPORT
+# IPSET OPTIONS
 
-# check 'man ipset'
-FIREHOL_IPSET_HASHSIZE_DEFAULT="1024"
-FIREHOL_IPSET_MAXELEM_DEFAULT="65536"
+# A recent ipset command uses these:
+IPSET_CREATE_CMD="create"
+IPSET_FLUSH_CMD="flush"
+IPSET_ADD_CMD="add"
+IPSET_SAVE_CMD="save"
+IPSET_RESTORE_CMD="restore"
+IPSET_CREATE_IPV6_OPTS="family inet6"
+IPSET_LIST_NAMES_CMD="list -n"
+
+# older versions use these
+#IPSET_CREATE_CMD="-N"
+#IPSET_FLUSH_CMD="-F"
+#IPSET_ADD_CMD="-A"
+#IPSET_SAVE_CMD="--save"
+#IPSET_RESTORE_CMD="--restore"
+#IPSET_CREATE_IPV6_OPTS="" # No ipv6 support
+#IPSET_LIST_NAMES_CMD="--list | grep Name: | cut -d: -f 2"
 
 # ----------------------------------------------------------------------
 # DEFAULT IP SETS
@@ -3887,7 +3901,7 @@ ipset_addfile() {
 		${SORT_CMD} -u |\
 		while read
 		do
-			echo "add ${name} ${REPLY} ${opts}"
+			echo "${IPSET_ADD_CMD} ${name} ${REPLY} ${opts}"
 		done
 }
 
@@ -3905,81 +3919,83 @@ ipset() {
 	local cmd="${1}" name="${2}"
 	shift 2
 
-	if [ "${cmd}" = "create" ]
-	then
-		local type="${1}" inet="inet" hashsize="${FIREHOL_IPSET_HASHSIZE_DEFAULT}" maxelem="${FIREHOL_IPSET_MAXELEM_DEFAULT}"
-		shift
-
-		if [ ! -z "${FIREHOL_IPSETS_USED[$name]}" ]
-		then
-			error "ipset ${name} already exists."
-			return 1
-		fi
-
-		if running_both
-		then
-			error "Cannot run ipset for both IPv4 and IPv6 at the same time."
-			return 1
-		elif running_ipv6
-		then
-			inet="inet6"
-		fi
-
-		local opts=""
-		while [ ! -z "${1}" ]
-		do
-			case "${1}" in
-				hashsize)
-					hashsize="${2}"
-					shift
-					;;
-
-				maxelem)
-					maxelem="${2}"
-					shift
-					;;
-
-				*)
-					opts="${opts} ${1}"
-					;;
-			esac
+	case "${cmd}" in
+		create|-N|--create)
+			local type="${1}" inet=
 			shift
-		done
 
-		echo "create ${name} ${type} family ${inet} hashsize ${hashsize} maxelem ${maxelem} ${opts}" >"${FIREHOL_DIR}/ipset.${name}.rules"
-		echo "flush ${name}" >>"${FIREHOL_DIR}/ipset.${name}.rules"
-		FIREHOL_IPSETS_USED[$name]="CREATED"
+			if [ ! -z "${FIREHOL_IPSETS_USED[$name]}" ]
+			then
+				error "ipset ${name} already exists."
+				return 1
+			fi
 
-	elif [ "${cmd}" = "add" ]
+			if running_both
+			then
+				error "Cannot run ipset for both IPv4 and IPv6 at the same time."
+				return 1
+			elif running_ipv6
+			then
+				inet="${IPSET_CREATE_IPV6_OPTS}"
+			fi
+
+			local opts="${*}"
+
+			echo "${IPSET_CREATE_CMD} ${name} ${type} ${inet} ${opts}" >"${FIREHOL_DIR}/ipset.${name}.rules"
+			echo "${IPSET_FLUSH_CMD} ${name}" >>"${FIREHOL_DIR}/ipset.${name}.rules"
+			FIREHOL_IPSETS_USED[$name]="CREATED"
+			;;
+
+		add|-A|--add)
+			if [ ! "${FIREHOL_IPSETS_USED[$name]}" = "CREATED" ]
+			then
+				error "${FUNCNAME}: Cannot add IPs to ipset '${name}'. The ipset must be created first."
+				return 1
+			fi
+
+			local ip="${1}" x=
+			shift
+
+			for x in ${ip//,/ }
+			do
+				echo "${IPSET_ADD_CMD} ${name} ${x} ${*}" >>"${FIREHOL_DIR}/ipset.${name}.rules"
+			done
+			;;
+
+		addfile|--addfile)
+			if [ ! "${FIREHOL_IPSETS_USED[$name]}" = "CREATED" ]
+			then
+				error "${FUNCNAME}: Cannot add IPs to ipset '${name}'. The ipset must be created first."
+				return 1
+			fi
+
+			ipset_addfile "${name}" "${@}" >>"${FIREHOL_DIR}/ipset.${name}.rules" || return 1
+			;;
+
+		*)
+			test -z "${FIREHOL_IPSETS_USED[$name]}" && FIREHOL_IPSETS_USED[$name]="USED"
+
+			# make sure we have the command
+			test -z "${IPSET_CMD}" && ipset_cmd >/dev/null 2>&1 </dev/null
+			
+			postprocess ${IPSET_CMD} ${cmd} ${name} "${@}"
+			;;
+	esac
+}
+
+ipset_cmd() {
+	if [ -z "${IPSET_CMD}" ]
 	then
-		if [ ! "${FIREHOL_IPSETS_USED[$name]}" = "CREATED" ]
+		require_cmd ipset || exit 1
+		list=$( eval "${IPSET_CMD} ${IPSET_LIST_NAMES_CMD}" )
+		if [ $? -ne 0 ]
 		then
-			error "${FUNCNAME}: Cannot add IPs to ipset '${name}'. The ipset must be created first."
-			return 1
+			echo >&2 "Your ipset command ${IPSET_CMD} does not seem to be compatible. Please adapt firehol-defaults.conf for it."
+			exit 1
 		fi
-
-		local ip="${1}" x=
-		shift
-
-		for x in ${ip//,/ }
-		do
-			echo "add ${name} ${x} ${*}" >>"${FIREHOL_DIR}/ipset.${name}.rules"
-		done
-
-	elif [ "${cmd}" = "addfile" ]
-	then
-		if [ ! "${FIREHOL_IPSETS_USED[$name]}" = "CREATED" ]
-		then
-			error "${FUNCNAME}: Cannot add IPs to ipset '${name}'. The ipset must be created first."
-			return 1
-		fi
-
-		ipset_addfile "${name}" "${@}" >>"${FIREHOL_DIR}/ipset.${name}.rules" || return 1
-	else
-		test -z "${FIREHOL_IPSETS_USED[$name]}" && FIREHOL_IPSETS_USED[$name]="USED"
-
-		postprocess ${IPSET_CMD} ${cmd} ${name} "${@}"
 	fi
+
+	${IPSET_CMD} "${@}"
 }
 
 ipsets_apply() {
@@ -3990,17 +4006,9 @@ ipsets_apply() {
 	# otherwise, if FIREHOL_IPSETS_USED is empty and the mode is START, there is nothing to be done
 	[ ! "${from}" = "spool" -a "${#FIREHOL_IPSETS_USED[@]}" -eq 0 ] && return 0
 
-	if [ -z "${IPSET_CMD}" ]
-	then
-		require_cmd ipset || exit 1
-		list=$( ${IPSET_CMD} list -n 2>/dev/null )
-		if [ $? -ne 0 ]
-		then
-			echo >&2 "Your ipset command ${IPSET_CMD} does not seem to be a recent version. Please upgrade to use ipset with FireHOL."
-			exit 1
-		fi
-	fi
-
+	# make sure we have the command
+	test -z "${IPSET_CMD}" && ipset_cmd >/dev/null 2>&1 </dev/null
+	
 	if [ "${from}" = "spool" ]
 	then
 		base="${FIREHOL_SPOOL_DIR}"
@@ -4043,7 +4051,7 @@ ipsets_apply() {
 
 			# add all the rules except the create one
 			${CAT_CMD} "${base}/ipset.${x}.rules" |\
-				${GREP_CMD} -v "^create ${x}" >>"${FIREHOL_DIR}/ipsets.restore"
+				${GREP_CMD} -v "^${IPSET_CREATE_CMD} ${x} " >>"${FIREHOL_DIR}/ipsets.restore"
 		else
 			# copy the generated rules to the ipset restoration file
 			${CAT_CMD} "${base}/ipset.${x}.rules" >>"${FIREHOL_DIR}/ipsets.restore"
@@ -4054,7 +4062,7 @@ ipsets_apply() {
 
 	if [ -s "${FIREHOL_DIR}/ipsets.restore" ]
 	then
-		"${IPSET_CMD}" restore <"${FIREHOL_DIR}/ipsets.restore"
+		${IPSET_CMD} ${IPSET_RESTORE_CMD} <"${FIREHOL_DIR}/ipsets.restore"
 		if [ $? -ne 0 ]
 		then
 			error "${FUNCNAME}: Cannot apply generated ipset rules."
@@ -4081,7 +4089,7 @@ ipsets_apply() {
 
 			declare -p FIREHOL_IPSETS_USED >"${FIREHOL_SPOOL_DIR}/ipsets.conf"
 			cp "${FIREHOL_DIR}/ipsets.restore" "${FIREHOL_SPOOL_DIR}/last.ipsets.restore"
-			${IPSET_CMD} save >"${FIREHOL_SPOOL_DIR}/last.ipsets.save"
+			${IPSET_CMD} ${IPSET_SAVE_CMD} >"${FIREHOL_SPOOL_DIR}/last.ipsets.save"
 		fi
 	else
 		echo >&2 "OK (already exist)"
@@ -8097,38 +8105,37 @@ case "${arg}" in
 		;;
 
 	ipset_update_from_file)
-		require_cmd ipset || exit 1
 		name="${1}"
 		shift
 
 		found=0
-		for x in $(${IPSET_CMD} list -n)
+		for x in $( eval "ipset_cmd ${IPSET_LIST_NAMES_CMD}" )
 		do
 			[ "$x" = "${name}" ] && found=1 && break
 		done
 		if [ $found -eq 1 ]
 		then
 			tmp=$(${MKTEMP_CMD} "${FIREHOL_DIR}/ipset-XXXXXXXXXX") || exit 1
-			echo "flush ${name}" >${tmp}
+			echo "${IPSET_FLUSH_CMD} ${name}" >${tmp}
 			ipset_addfile "${name}" "${@}" >>${tmp}
 			if [ $? -ne 0 ]
 			then
 				echo >&2 "Cannot update ipset '${name}'."
 				exit 1
 			fi
-			${IPSET_CMD} restore <${tmp}
+			${IPSET_CMD} ${IPSET_RESTORE_CMD} <${tmp}
 			if [ $? -ne 0 ]
 			then
 				echo >&2 "Failed to update ipset '${name}'"
 				exit 1
 			fi
-			echo >&2 "Updated ipset '${name}' (with $(( $(cat ${tmp} | wc -l) )) IPs)."
+			echo >&2 "Updated ipset '${name}' with $(( $(cat ${tmp} | wc -l) - 1 )) IPs."
 
 			# keep it for restoration
 			if [ -f "${FIREHOL_SPOOL_DIR}/ipset.${name}.rules" ]
 			then
 				${CAT_CMD} "${FIREHOL_SPOOL_DIR}/ipset.${name}.rules" |\
-					${GREP_CMD} "^create " >${tmp}.save
+					${GREP_CMD} "^${IPSET_CREATE_CMD} ${name} " >${tmp}.save
 				${CAT_CMD} ${tmp} >>${tmp}.save
 				cp ${tmp}.save "${FIREHOL_SPOOL_DIR}/ipset.${name}.rules"
 			fi
