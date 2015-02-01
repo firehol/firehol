@@ -28,6 +28,7 @@
 if [ $(( ${BASH_VERSINFO[0]} )) -lt 4 ]
 then
 	echo >&2 
+	echo >&2 "ERROR:"
 	echo >&2 "FireHOL requires BASH version 4 or later."
 	echo >&2 "You are running version: ${BASH_VERSION}"
 	echo >&2 "Please upgrade."
@@ -78,7 +79,7 @@ EOF
 if [ ! "${UID}" = 0 ]
 then
 	echo >&2
-	echo >&2
+	echo >&2 "ERROR:"
 	echo >&2 "Only user root can run FireHOL."
 	echo >&2
 	exit 1
@@ -139,8 +140,6 @@ ispoweroftwo() {
 
 marksreset() { markdef clear; }
 markdef() {
-	# echo >&2 "${FUNCNAME} ${*}"
-
 	if [ "$1" = "reset" -o "$1" = "clear" ]
 	then
 		MARKS_BITS=()
@@ -192,7 +191,7 @@ markdef() {
 				;;
 
 			*)
-				echo >&2 "${FUNCNAME}: Unknown keyword '${1}'."
+				echo >&2 "ERROR in ${FUNCNAME}: Unknown keyword '${1}'."
 				exit 1
 				;;
 		esac
@@ -201,7 +200,7 @@ markdef() {
 
 	if [ ! -z "${MARKS_MASKS[$name]}" ]
 	then
-		echo >&2 "Mark type '${name}' already exists with mask ${MARKS_MASKS[$name]}. Please use 'marksreset' to reset them before re-defining them."
+		echo >&2 "ERROR in ${FUNCNAME}: Mark type '${name}' already exists with mask ${MARKS_MASKS[$name]}. Please use 'marksreset' to reset them before re-defining them."
 		exit 1
 	fi
 
@@ -212,7 +211,7 @@ markdef() {
 
 	if ! ispoweroftwo $max
 	then
-		echo >&2 "Max value $max of mark '$name' is not a power of 2."
+		echo >&2 "ERROR in ${FUNCNAME}: Max value $max of mark '$name' is not a power of 2."
 		exit 1
 	fi
 
@@ -221,7 +220,7 @@ markdef() {
 
 	if [ $max -lt 1 -o $max -gt $[ 0xffffffff ] ]
 	then
-		echo >&2 "Max value $max of mark '$name' is out of bounds."
+		echo >&2 "ERROR in ${FUNCNAME}: Max value $max of mark '$name' is out of bounds."
 		exit 1
 	fi
 
@@ -230,13 +229,13 @@ markdef() {
 
 	if [ $bits -eq 0 ]
 	then
-		echo >&2 "INTERNAL ERROR: Cannot figure out the bits set of value $max."
+		echo >&2 "ERROR in ${FUNCNAME}: INTERNAL ERROR: Cannot figure out the bits set of value $max."
 		exit 1
 	fi
 
 	if [ $[ bits + MARKS_TOTAL_BITS ] -gt 32 ]
 	then
-		echo >&2 "Too many masks were requested. Cannot proceed. Please use fewer."
+		echo >&2 "ERROR in ${FUNCNAME}: Too many masks were requested. Cannot proceed. Please use fewer."
 		exit 1
 	fi
 
@@ -261,10 +260,6 @@ markdef() {
 			MARKS_SAVERESTORE_STATELESS_MASK=$(printf "0x%08x" $[MARKS_SAVERESTORE_STATELESS_MASK | mask])
 		fi
 	fi
-
-	# echo "Mark $name with $[MARKS_MAX[$name] + 1] possible values (from 0 to ${MARKS_MAX[$name]}), uses ${MARKS_BITS[$name]} bits, has mask ${MARKS_MASKS[$name]} and values should be shifted by ${MARKS_SHIFT[$name]} bits"
-	# declare -p MARKS_BITS MARKS_MASKS MARKS_MAX MARKS_SHIFT MARKS_STATEFUL MARKS_SAVERESTORE MARKS_SAVERESTORE_STATEFUL_MASK MARKS_SAVERESTORE_STATELESS_MASK >&2
-
 	MARKS_TOTAL_BITS=$[ MARKS_TOTAL_BITS + bits ]
 }
 
@@ -649,14 +644,14 @@ FIREHOL_LOCK_FILE="${FIREHOL_RUN_DIR}/firehol.lck"
 # make sure the defaults include a connmark
 if [ -z "${MARKS_MASKS[connmark]}" ]
 then
-	echo >&2 "File ${FIREHOL_CONFIG_DIR}/marks.conf does not define a 'connmark' definition."
+	echo >&2 "ERROR: File ${FIREHOL_CONFIG_DIR}/marks.conf does not define a 'connmark' definition."
 	exit 1
 fi
 
 # make sure the defaults include a usermark
 if [ -z "${MARKS_MASKS[usermark]}" ]
 then
-	echo >&2 "File ${FIREHOL_CONFIG_DIR}/marks.conf does not define a 'usermark' definition."
+	echo >&2 "ERROR: File ${FIREHOL_CONFIG_DIR}/marks.conf does not define a 'usermark' definition."
 	exit 1
 fi
 
@@ -899,8 +894,8 @@ zcat_cmd() {
 	fi
 	
 	echo >&2 " "
-	echo >&2 " IMPORTANT WARNING:"
-	echo >&2 " ------------------"
+	echo >&2 " WARNING:"
+	echo >&2 " --------"
 	echo >&2 " FireHOL cannot find any of the commands: zcat, gzcat, gzip."
 	echo >&2 " Make sure you have one of these available in the system path."
 	echo >&2 " "
@@ -919,8 +914,8 @@ gawk_cmd() {
 	fi
 	
 	echo >&2 " "
-	echo >&2 " IMPORTANT WARNING:"
-	echo >&2 " ------------------"
+	echo >&2 " WARNING:"
+	echo >&2 " --------"
 	echo >&2 " FireHOL cannot find any of the commands: gawk, awk."
 	echo >&2 " Make sure you have one of these available in the system path."
 	echo >&2 " "
@@ -947,8 +942,8 @@ modprobe_cmd() {
 	fi
 	
 	echo >&2 " "
-	echo >&2 " IMPORTANT WARNING:"
-	echo >&2 " ------------------"
+	echo >&2 " WARNING:"
+	echo >&2 " --------"
 	echo >&2 " FireHOL cannot find any of the commands: modprobe, insmod."
 	echo >&2 " Make sure you have one of these available in the system path."
 	echo >&2 " "
@@ -972,7 +967,7 @@ firehol_concurrent_run_lock() {
 	${FLOCK_CMD} -n 200
 	if [ $? -ne 0 ]
 	then
-		echo >&2 "FireHOL is already running. Exiting..."
+		echo >&2 "ERROR: FireHOL is already running. Exiting..."
 		exit 1
 	fi
 	return 0
@@ -1044,7 +1039,7 @@ if ! FIREHOL_DIR="`${MKTEMP_CMD} -d "${FIREHOL_RUN_DIR}/firehol-XXXXXXXXXX"`"
 then
 	echo >&2
 	echo >&2
-	echo >&2 "Cannot create temporary directory."
+	echo >&2 "ERROR: Cannot create temporary directory in ${FIREHOL_RUN_DIR}. Make sure you have a working mktemp."
 	echo >&2
 	exit 1
 fi
@@ -1073,8 +1068,8 @@ firehol_exit() {
 	local restored="NO"
 	if [ \( -f "${FIREHOL_SAVED}" -o -f "${FIREHOL_SAVED6}" \) -a "${FIREHOL_MODE}" = "START" ]
 	then
-		echo
-		echo -n $"FireHOL: Restoring old firewall:"
+		echo >&2
+		echo >&2 -n $"FireHOL: Restoring old firewall:"
 		local status4=0
 		local status6=0
 		if [ $ENABLE_IPV4 -eq 1 ]
@@ -1095,13 +1090,13 @@ firehol_exit() {
 			restored="FAILED"
 			failure $"FireHOL: Restoring old firewall:"
 		fi
-		echo
+		echo >&2
 	fi
 	
 	# remove the temporary directory created for this session
 	if [ ${FIREHOL_ACTIVATED_SUCCESSFULLY} -eq 0 -a ${FIREHOL_CLEAN_TMP} -eq 0 ]
 	then
-		echo "FireHOL: temporary files left in ${FIREHOL_DIR}"
+		echo >&2 "FireHOL: temporary files left in ${FIREHOL_DIR}"
 	else
 		test -d "${FIREHOL_DIR}" && ${RM_CMD} -rf "${FIREHOL_DIR}"
 	fi
@@ -1254,7 +1249,6 @@ mark_value() {
 			return 1
 		fi
 
-		# echo "$[ x << ${MARKS_SHIFT[$name]} ]/${MARKS_MASKS[$name]}"
 		printf "0x%08x/${MARKS_MASKS[$name]}\n" "$[ x << ${MARKS_SHIFT[$name]} ]"
 	done
 
@@ -3071,7 +3065,7 @@ do
 	
 	if [ ! -O "${f}" ]
 	then
-		echo >&2 " >>> Ignoring service in '${FIREHOL_SERVICES_DIR}/${f}' because it is not owned by root."
+		echo >&2 " WARNING >>> Ignoring service in '${FIREHOL_SERVICES_DIR}/${f}' because it is not owned by root."
 		continue
 	fi
 	
@@ -3079,22 +3073,22 @@ do
 	"${EXPR_CMD}" ${n} + 0 >/dev/null 2>&1
 	if [ $? -ne 0 ]
 	then
-		echo >&2 " >>> Ignoring service in '${FIREHOL_SERVICES_DIR}/${f}' due to malformed header."
+		echo >&2 " WARNING >>> Ignoring service in '${FIREHOL_SERVICES_DIR}/${f}' due to malformed header."
 	elif [ ${n} -ne ${FIREHOL_SERVICES_API} ]
 	then
-		echo >&2 " >>> Ignoring service '${FIREHOL_SERVICES_DIR}/${f}' due to incompatible API version."
+		echo >&2 " WARNING >>> Ignoring service '${FIREHOL_SERVICES_DIR}/${f}' due to incompatible API version."
 	else
 		n=`"${HEAD_CMD}" -n 1 "${f}" | "${CUT_CMD}" -d ':' -f 3`
 		"${EXPR_CMD}" ${n} + 0 >/dev/null 2>&1
 		if [ $? -ne 0 ]
 		then
-			echo >&2 " >>> Ignoring service in '${FIREHOL_SERVICES_DIR}/${f}' due to malformed API minor number."
+			echo >&2 " WARNING >>> Ignoring service in '${FIREHOL_SERVICES_DIR}/${f}' due to malformed API minor number."
 		else
 			source ${f}
 			ret=$?
 			if [ ${ret} -ne 0 ]
 			then
-				echo >&2 " >>> Service in '${FIREHOL_SERVICES_DIR}/${f}' returned code ${ret}."
+				echo >&2 " WARNING >>> Service in '${FIREHOL_SERVICES_DIR}/${f}' returned code ${ret}."
 				continue
 			fi
 		fi
@@ -4113,7 +4107,7 @@ ipsets_apply() {
 			ipset_save_active_to_spool
 		fi
 	else
-		echo >&2 "OK (already exist)"
+		echo >&2 "OK (already exist, not updated IPs)"
 	fi
 
 	return 0
@@ -4374,7 +4368,7 @@ run_fast() {
 			;;
 			
 		# if it is none of the above, we execute it normally.
-		*)	echo >&2 "Ignoring command '${cmd} -t ${t} ${@}'"
+		*)	echo >&2 "WARNING: Ignoring command '${cmd} -t ${t} ${@}'"
 			;;
 	esac
 	
@@ -4751,8 +4745,8 @@ else
 	if [ ! ${FIREHOL_LOAD_KERNEL_MODULES} -eq 0 ]
 	then
 		echo >&2 " "
-		echo >&2 " IMPORTANT WARNING:"
-		echo >&2 " ------------------"
+		echo >&2 " WARNING:"
+		echo >&2 " --------"
 		echo >&2 " FireHOL cannot find your current kernel configuration."
 		echo >&2 " Please, either compile your kernel with /proc/config,"
 		echo >&2 " or make sure there is a valid kernel config in:"
@@ -6328,7 +6322,7 @@ rule() {
 				then
 					test ${softwarnings} -eq 1 -a ! -z "${log}" && softwarning "Overwritting param: log '${log}/${logtxt}' becomes 'normal/${2}'"
 					log=normal
-					logtxt="`echo ${2} | ${TR_CMD} " " "_"`"
+					logtxt="${2// /_}"
 				fi
 				shift 2
 				if [ "${1}" = "level" ]
@@ -6345,7 +6339,7 @@ rule() {
 				then
 					test ${softwarnings} -eq 1 -a ! -z "${log}" && softwarning "Overwritting param: log '${log}/${logtxt}' becomes 'limit/${2}'"
 					log=limit
-					logtxt="`echo ${2} | ${TR_CMD} " " "_"`"
+					logtxt="${2// /_}"
 				fi
 				shift 2
 				if [ "${1}" = "level" ]
@@ -7357,7 +7351,7 @@ runtime_error() {
 			
 			echo >&2
 			echo >&2
-			echo >&2 "*** unsupported final status type '${1}'. Assuming it is 'ERROR'"
+			echo >&2 "WARNING: unsupported final status type '${1}'. Assuming it is 'ERROR'"
 			echo >&2
 			echo >&2
 			;;
@@ -7709,7 +7703,7 @@ fixed_save() {
 
 FIREHOL_LAST_SUCCESSFUL_COMMAND="${FIREHOL_SPOOL_DIR}/firehol-last-ok-command"
 firehol_save_activated_firewall() {
-	echo -n $"FireHOL: Saving activated firewall to ${FIREHOL_SPOOL_DIR}:"
+	echo >&2 -n $"FireHOL: Saving activated firewall to ${FIREHOL_SPOOL_DIR}:"
 	
 	if [ -f "${FIREHOL_SPOOL_DIR}/ipv4.enable" ]
 	then
@@ -7717,7 +7711,7 @@ firehol_save_activated_firewall() {
 		if [ ! $? -eq 0 ]
 		then
 			failure $"FireHOL: Saving activated firewall to ${FIREHOL_SPOOL_DIR}:"
-			echo
+			echo >&2
 			return 1
 		fi
 		
@@ -7733,7 +7727,7 @@ firehol_save_activated_firewall() {
 		if [ ! $? -eq 0 ]
 		then
 			failure $"FireHOL: Saving activated firewall to ${FIREHOL_SPOOL_DIR}:"
-			echo
+			echo >&2
 			return 1
 		fi
 		
@@ -7747,7 +7741,7 @@ firehol_save_activated_firewall() {
 	printf "\n" >>"${FIREHOL_LAST_SUCCESSFUL_COMMAND}"
 
 	success $"FireHOL: Saving activated firewall to ${FIREHOL_SPOOL_DIR}:"
-	echo
+	echo >&2
 	
 	return 0
 }
@@ -7793,7 +7787,7 @@ firehol_can_restore_saved_firewall() {
 firehol_restore_last_activated_firewall() {
 	firehol_can_restore_saved_firewall || return 2
 
-	echo -n $"FireHOL: Restoring last activated firewall from ${FIREHOL_SPOOL_DIR}:"
+	echo >&2 -n $"FireHOL: Restoring last activated firewall from ${FIREHOL_SPOOL_DIR}:"
 
 	if [ -x "${FIREHOL_SPOOL_DIR}/firewall_restore_commands.sh" ]
 	then
@@ -7829,7 +7823,7 @@ firehol_restore_last_activated_firewall() {
 	fi
 
 	success $"FireHOL: Saving activated firewall to ${FIREHOL_SPOOL_DIR}:"
-	echo
+	echo >&2
 	return 0
 }
 
@@ -7846,10 +7840,11 @@ firehol_restore_last_activated_firewall() {
 # ------------------------------------------------------------------------------
 # On non RedHat machines we need success() and failure()
 success() {
-	printf " OK"
+	printf >&2 " OK"
 }
+
 failure() {
-	echo " FAILED"
+	echo >&2 " FAILED"
 }
 
 # ------------------------------------------------------------------------------
@@ -7933,7 +7928,7 @@ case "${arg}" in
 		FIREHOL_MODE="STOP"
 		test ! -z "${1}" && warning "Arguments after parameter '${arg}' are ignored."
 
-		echo -n $"FireHOL: Clearing Firewall:"
+		echo >&2 -n $"FireHOL: Clearing Firewall:"
 		if [ $ENABLE_IPV4 -eq 1 ]; then
 			load_kernel_module ip_tables
 			tables=`${CAT_CMD} /proc/net/ip_tables_names`
@@ -7969,7 +7964,7 @@ case "${arg}" in
 			done
 		fi
 		success $"FireHOL: Clearing Firewall:"
-		echo
+		echo >&2
 		
 		exit 0
 		;;
@@ -8061,7 +8056,7 @@ case "${arg}" in
 		fi
 		
 		syslog info "Starting PANIC mode (SSH SOURCE_IP=${ssh_src} SOURCE_PORTS=${ssh_sport} DESTINATION_PORTS=${ssh_dport})"
-		echo -n $"FireHOL: Blocking all communications:"
+		echo >&2 -n $"FireHOL: Blocking all communications:"
 		if [ $ENABLE_IPV4 -eq 1 ]; then
 			load_kernel_module ip_tables
 			tables=`${CAT_CMD} /proc/net/ip_tables_names`
@@ -8115,7 +8110,7 @@ case "${arg}" in
 			done
 		fi
 		success $"FireHOL: Blocking all communications:"
-		echo
+		echo >&2
 		
 		exit 0
 		;;
@@ -8214,7 +8209,7 @@ case "${arg}" in
 					;;
 
 				*)
-					echo "Cannot accept command line argument '${1}' here."
+					echo >&2 "Cannot accept command line argument '${1}' here."
 					exit 1
 					;;
 			esac
@@ -8382,9 +8377,9 @@ if [ "${FIREHOL_MODE}" = "START" -o "${FIREHOL_MODE}" = "DEBUG" ]
 then
 	if [ ! -f "${FIREHOL_CONFIG}" ]
 	then
-		echo -n $"FireHOL config ${FIREHOL_CONFIG} not found:"
+		echo >&2 -n $"FireHOL config ${FIREHOL_CONFIG} not found:"
 		failure $"FireHOL config ${FIREHOL_CONFIG} not found:"
-		echo
+		echo >&2
 		exit 1
 	fi
 fi
@@ -9174,7 +9169,7 @@ firehol_concurrent_run_lock
 
 # --- Initialization -----------------------------------------------------------
 
-echo -n $"FireHOL: Saving your running firewall to a temporary file:"
+echo >&2 -n $"FireHOL: Saving your running firewall to a temporary file:"
 if [ $ENABLE_IPV4 -eq 1 ]
 then
 	fixed_save ${IPTABLES_SAVE_CMD} >${FIREHOL_SAVED}.new
@@ -9197,11 +9192,11 @@ then
 	test -f ${FIREHOL_SAVED6}.new && mv ${FIREHOL_SAVED6}.new ${FIREHOL_SAVED6}
 
 	success $"FireHOL: Saving your running firewall to a temporary file:"
-	echo
+	echo >&2
 else
 	${RM_CMD} -f "${FIREHOL_SAVED}" "${FIREHOL_SAVED6}"
 	failure $"FireHOL: Saving your running firewall to a temporary file:"
-	echo
+	echo >&2
 	exit 1
 fi
 
@@ -9431,7 +9426,7 @@ firewall_policy6() {
 
 # XXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXX
 
-echo -n $"FireHOL: Processing file ${FIREHOL_CONFIG}:"
+echo >&2 -n $"FireHOL: Processing file ${FIREHOL_CONFIG}:"
 ret=0
 
 # check if the user has given any iptables commands directly.
@@ -9480,15 +9475,15 @@ close_master	|| ret=$[ret + 1]
 
 if [ ${work_error} -gt 0 -o $ret -gt 0 ]
 then
+	failure $"FireHOL: Processing file ${FIREHOL_CONFIG}:"
+	echo >&2
 	echo >&2
 	echo >&2 "NOTICE: No changes made to your firewall."
-	failure $"FireHOL: Processing file ${FIREHOL_CONFIG}:"
-	echo
 	exit 1
 fi
 
 success $"FireHOL: Processing file ${FIREHOL_CONFIG}:"
-echo
+echo >&2
 
 # XXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXX
 
@@ -9542,7 +9537,7 @@ then
 	fi
 
 	syslog info "Activating new firewall from ${FIREHOL_CONFIG} (translated to ${FIREHOL_COMMAND_COUNTER} iptables rules)."
-	echo -n $"FireHOL: Fast activating new firewall:"
+	echo >&2 -n $"FireHOL: Fast activating new firewall:"
 	
 	initialize_firewall
 	
@@ -9623,7 +9618,7 @@ else
 	fi
 
 	syslog info "Activating new firewall from ${FIREHOL_CONFIG} (translated to ${FIREHOL_COMMAND_COUNTER} iptables rules)."
-	echo -n $"FireHOL: Activating new firewall (${FIREHOL_COMMAND_COUNTER} rules):"
+	echo >&2 -n $"FireHOL: Activating new firewall (${FIREHOL_COMMAND_COUNTER} rules):"
 	
 	initialize_firewall
 	
@@ -9641,7 +9636,7 @@ fi
 if [ ${work_runtime_error} -gt 0 ]
 then
 	failure $"FireHOL: Activating new firewall:"
-	echo
+	echo >&2
 	
 	syslog err "Activation of new firewall failed."
 	# The trap will restore the firewall we saved above.
@@ -9661,7 +9656,7 @@ then
 	exit 1
 fi
 success $"FireHOL: Activating new firewall (${FIREHOL_COMMAND_COUNTER} rules):"
-echo
+echo >&2
 syslog info "Activation of new firewall succeeded."
 
 if [ ${FIREHOL_TRY} -eq 1 ]
@@ -9669,7 +9664,7 @@ then
 	syslog info "Waiting user to commit the new firewall."
 	read -p "Keep the firewall? (type 'commit' to accept - 30 seconds timeout) : " -t 30 -e
 	ret=$?
-	echo
+	echo >&2
 	if [ ! $ret -eq 0 -o ! "${REPLY}" = "commit" ]
 	then
 		syslog err "User did not confirm the new firewall."
@@ -9677,7 +9672,7 @@ then
 		
 		exit 1
 	else
-		echo "Successfull activation of FireHOL firewall."
+		echo >&2 "Successfull activation of FireHOL firewall."
 		syslog info "User committed new firewall."
 	fi
 fi
@@ -9747,51 +9742,51 @@ then
 			fi
 		else
 			error "Cannot find where to save iptables file. Please set FIREHOL_AUTOSAVE."
-			echo
+			echo >&2
 			exit 1
 		fi
 	fi
 	if [ $ENABLE_IPV6 -eq 1 -a -z "${FIREHOL_AUTOSAVE6}" ]
 	then
 		error "Cannot find where to save ip6tables file. Please set FIREHOL_AUTOSAVE6."
-		echo
+		echo >&2
 		exit 1
 	fi
 	
 	if [ $ENABLE_IPV4 -eq 1 ]
 	then
-		echo -n $"FireHOL: Saving firewall to ${FIREHOL_AUTOSAVE}:"
+		echo >&2 -n $"FireHOL: Saving firewall to ${FIREHOL_AUTOSAVE}:"
 	
 		cat "${FIREHOL_SPOOL_DIR}/ipv4.rules" >${FIREHOL_AUTOSAVE}
 		if [ ! $? -eq 0 ]
 		then
 			syslog err "Failed to save new firewall to '${FIREHOL_AUTOSAVE}'."
 			failure $"FireHOL: Saving firewall to ${FIREHOL_AUTOSAVE}:"
-			echo
+			echo >&2
 			exit 1
 		fi
 
 		syslog info "New firewall saved to '${FIREHOL_AUTOSAVE}'."
 		success $"FireHOL: Saving firewall to ${FIREHOL_AUTOSAVE}:"
-		echo
+		echo >&2
 	fi
 
 	if [ $ENABLE_IPV6 -eq 1 ]
 	then
-		echo -n $"FireHOL: Saving IPv6 firewall to ${FIREHOL_AUTOSAVE6}:"
+		echo >&2 -n $"FireHOL: Saving IPv6 firewall to ${FIREHOL_AUTOSAVE6}:"
 	
 		cat "${FIREHOL_SPOOL_DIR}/ipv6.rules" >${FIREHOL_AUTOSAVE6}
 		if [ ! $? -eq 0 ]
 		then
 			syslog err "Failed to save new IPv6 firewall to '${FIREHOL_AUTOSAVE6}'."
 			failure $"FireHOL: Saving IPv6 firewall to ${FIREHOL_AUTOSAVE6}:"
-			echo
+			echo >&2
 			exit 1
 		fi
 
 		syslog info "New IPv6 firewall saved to '${FIREHOL_AUTOSAVE6}'."
 		success $"FireHOL: Saving IPv6 firewall to ${FIREHOL_AUTOSAVE6}:"
-		echo
+		echo >&2
 	fi
 	
 	exit 0
