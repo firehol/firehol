@@ -3148,6 +3148,9 @@ action() {
 	return 0
 }
 
+masquerade4() { ipv4 masquerade "${@}"; }
+masquerade6() { ipv6 masquerade "${@}"; }
+masquerade46() { both masquerade "${@}"; }
 masquerade() {
 	work_realcmd_helper ${FUNCNAME} "$@"
 	
@@ -3171,6 +3174,9 @@ masquerade() {
 }
 
 transparent_proxy_count=0
+transparent_proxy4() { ipv4 transparent_proxy "${@}"; }
+transparent_proxy6() { ipv6 transparent_proxy "${@}"; }
+transparent_proxy46() { both transparent_proxy "${@}"; }
 transparent_proxy() {
 	work_realcmd_helper $FUNCNAME "$@"
 	
@@ -3211,6 +3217,9 @@ transparent_proxy() {
 	return 0
 }
 
+transparent_squid4() { ipv4 transparent_squid "${@}"; }
+transparent_squid6() { ipv6 transparent_squid "${@}"; }
+transparent_squid46() { both transparent_squid "${@}"; }
 transparent_squid() {
 	transparent_proxy 80 "$@"
 }
@@ -3245,6 +3254,10 @@ tproxy_setup_ip_route() {
 }
 
 tproxy_count=0
+
+tproxy4() { ipv4 tproxy "${@}"; }
+tproxy6() { ipv6 tproxy "${@}"; }
+tproxy46() { both tproxy "${@}"; }
 tproxy() {
 	work_realcmd_helper $FUNCNAME "$@"
 	
@@ -3356,6 +3369,9 @@ nat_helper() {
 	return 0
 }
 
+nat4() { ipv4 nat "${@}"; }
+nat6() { ipv6 nat "${@}"; }
+nat46() { both nat "${@}"; }
 nat() {
 	work_realcmd_helper $FUNCNAME "$@"
 	
@@ -3364,6 +3380,9 @@ nat() {
 	nat_helper "$@"
 }
 
+snat4() { ipv4 snat "${@}"; }
+snat6() { ipv6 snat "${@}"; }
+snat46() { both snat "${@}"; }
 snat() {
 	work_realcmd_helper $FUNCNAME "$@"
 	
@@ -3375,6 +3394,9 @@ snat() {
 	nat_helper "to-source" "${to}" "$@"
 }
 
+dnat4() { ipv4 dnat "${@}"; }
+dnat6() { ipv6 dnat "${@}"; }
+dnat46() { both dnat "${@}"; }
 dnat() {
 	work_realcmd_helper $FUNCNAME "$@"
 	
@@ -3386,6 +3408,9 @@ dnat() {
 	nat_helper "to-destination" "${to}" "$@"
 }
 
+redirect4() { ipv4 redirect "${@}"; }
+redirect6() { ipv6 redirect "${@}"; }
+redirect46() { both redirect "${@}"; }
 redirect() {
 	work_realcmd_helper $FUNCNAME "$@"
 	
@@ -3399,6 +3424,9 @@ redirect() {
 
 wrongmac_chain=0
 wrongmac6_chain=0
+mac4() { ipv4 mac "${@}"; }
+mac6() { ipv6 mac "${@}"; }
+mac46() { both mac "${@}"; }
 mac() {
 	work_realcmd_helper $FUNCNAME "$@"
 	
@@ -3440,6 +3468,9 @@ mac() {
 
 # blacklist creates two types of blacklists: unidirectional or bidirectional
 blacklist_chain=0
+blacklist4() { ipv4 blacklist "${@}"; }
+blacklist6() { ipv6 blacklist "${@}"; }
+blacklist46() { both blacklist "${@}"; }
 blacklist() {
 	work_realcmd_helper ${FUNCNAME} "$@"
 	
@@ -3541,6 +3572,9 @@ blacklist() {
 }
 
 classify_count=0
+classify4() { ipv4 classify "${@}"; }
+classify6() { ipv6 classify "${@}"; }
+classify46() { both classify "${@}"; }
 classify() {
 	work_realcmd_helper $FUNCNAME "$@"
 	
@@ -3559,6 +3593,9 @@ classify() {
 	return 0
 }
 
+connmark4() { ipv4 connmark "${@}"; }
+connmark6() { ipv6 connmark "${@}"; }
+connmark46() { both connmark "${@}"; }
 connmark() {
 	work_realcmd_helper $FUNCNAME "$@"
 	
@@ -3618,6 +3655,9 @@ connmark() {
 	return 0
 }
 
+custommark4() { ipv4 custommark "${@}"; }
+custommark6() { ipv6 custommark "${@}"; }
+custommark46() { both custommark "${@}"; }
 custommark() {
 	work_realcmd_helper $FUNCNAME "$@"
 	
@@ -3647,11 +3687,17 @@ custommark() {
 	return 0
 }
 
+mark4() { ipv4 mark "${@}"; }
+mark6() { ipv6 mark "${@}"; }
+mark46() { both mark "${@}"; }
 mark() {
 	custommark usermark "${@}"
 }
 
 tos_count=0
+tos4() { ipv4 tos "${@}"; }
+tos6() { ipv6 tos "${@}"; }
+tos46() { both tos "${@}"; }
 tos() {
 	work_realcmd_helper $FUNCNAME "$@"
 	
@@ -3676,6 +3722,9 @@ tos() {
 }
 
 # from http://blog.edseek.com/~jasonb/articles/traffic_shaping/scenarios.html
+tosfix4() { ipv4 tosfix "${@}"; }
+tosfix6() { ipv6 tosfix "${@}"; }
+tosfix46() { both tosfix "${@}"; }
 tosfix() {
 	work_realcmd_helper $FUNCNAME "$@"
 	
@@ -3705,6 +3754,9 @@ tosfix() {
 }
 
 dscp_count=0
+dscp4() { ipv4 dscp "${@}"; }
+dscp6() { ipv6 dscp "${@}"; }
+dscp46() { both dscp "${@}"; }
 dscp() {
 	work_realcmd_helper $FUNCNAME "$@"
 	
@@ -3745,6 +3797,9 @@ dscp() {
 	return 0
 }
 
+tcpmss4() { ipv4 tcpmss "${@}"; }
+tcpmss6() { ipv6 tcpmss "${@}"; }
+tcpmss46() { both tcpmss "${@}"; }
 tcpmss() {
 	work_realcmd_helper $FUNCNAME "$@"
 	
@@ -3841,6 +3896,9 @@ declare -A FIREHOL_IPSETS_USED=()
 
 # this is a wrapper around ipset
 # it has the same syntax
+ipset4() { ipv4 ipset "${@}"; }
+ipset6() { ipv6 ipset "${@}"; }
+ipset46() { both ipset "${@}"; }
 ipset() {
 	work_realcmd_helper $FUNCNAME "$@"
 
