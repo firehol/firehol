@@ -3451,9 +3451,21 @@ blacklist() {
 	if [ ${blacklist_chain} -eq 0 ]
 	then
 		set_work_function "Generating blacklist chains"
-		
+
+		local -a logopts_arg=()
+		if [ "${FIREHOL_LOG_MODE}" = "ULOG" ]
+		then
+			logopts_arg=("--ulog-prefix=${FIREHOL_LOG_PREFIX}BLACKLIST:")
+		elif [ "${FIREHOL_LOG_MODE}" = "NFLOG" ]
+		then
+			logopts_arg=("--nflog-prefix=${FIREHOL_LOG_PREFIX}BLACKLIST:")
+		else
+			logopts_arg=("--log-level" "${FIREHOL_LOG_LEVEL}" "--log-prefix=${FIREHOL_LOG_PREFIX}BLACKLIST:")
+		fi
+
 		# Blacklist INPUT unidirectional
 		iptables_both -t filter -N BL_IN_UNI	# INPUT
+		iptables_both -A BL_IN_UNI -m limit --limit "${FIREHOL_LOG_FREQUENCY}" --limit-burst "${FIREHOL_LOG_BURST}" -j ${FIREHOL_LOG_MODE} ${FIREHOL_LOG_OPTIONS} "${logopts_arg[@]}"
 		iptables_both -A BL_IN_UNI -m conntrack --ctstate NEW -j DROP
 		iptables_both -A BL_IN_UNI -j DROP
 		
@@ -3461,19 +3473,16 @@ blacklist() {
 		
 		# Blacklist INPUT bidirectional
 		iptables_both -t filter -N BL_IN_BI	# INPUT
+		iptables_both -A BL_IN_BI -m limit --limit "${FIREHOL_LOG_FREQUENCY}" --limit-burst "${FIREHOL_LOG_BURST}" -j ${FIREHOL_LOG_MODE} ${FIREHOL_LOG_OPTIONS} "${logopts_arg[@]}"
 		iptables_both -A BL_IN_BI -m conntrack --ctstate NEW -j DROP
 		iptables_both -A BL_IN_BI -j DROP
 		
 		# Blacklist OUTPUT/FORWARD bidirectional
 		iptables_both -t filter -N BL_OUT_BI	# OUTPUT and FORWARD
+		iptables_both -A BL_OUT_BI -m limit --limit "${FIREHOL_LOG_FREQUENCY}" --limit-burst "${FIREHOL_LOG_BURST}" -j ${FIREHOL_LOG_MODE} ${FIREHOL_LOG_OPTIONS} "${logopts_arg[@]}"
 		iptables_both -A BL_OUT_BI -m conntrack --ctstate NEW -p tcp -j REJECT #--reject-with tcp-reset
-		if running_ipv4; then
-			iptables -A BL_OUT_BI -m conntrack --ctstate NEW -j REJECT --reject-with icmp-host-unreachable
-		fi
-		if running_ipv6; then
-			iptables -A BL_OUT_BI -m conntrack --ctstate NEW -j REJECT --reject-with icmp6-addr-unreachable
-		fi
-
+		running_ipv4 && iptables -A BL_OUT_BI -m conntrack --ctstate NEW -j REJECT --reject-with icmp-host-unreachable
+		running_ipv6 && ip6tables -A BL_OUT_BI -m conntrack --ctstate NEW -j REJECT --reject-with icmp6-addr-unreachable
 		iptables_both -A BL_OUT_BI -j REJECT
 		
 		blacklist_chain=1
@@ -8055,7 +8064,7 @@ case "${arg}" in
 				${CAT_CMD} ${tmp} >>${tmp}.save
 				cp ${tmp}.save "${FIREHOL_SPOOL_DIR}/ipset.${name}.rules"
 			fi
-			
+
 			# make the exit handler exit with 0
 			FIREHOL_ACTIVATED_SUCCESSFULLY=1
 			exit 0
