@@ -8024,32 +8024,40 @@ case "${arg}" in
 		name="${1}"
 		shift
 
-		if [[ $(${IPSET_CMD} list -n) =~ "${name}" ]]
+		found=0
+		for x in $(${IPSET_CMD} list -n)
+		do
+			[ "$x" = "${name}" ] && found=1 && break
+		done
+		if [ $found -eq 1 ]
 		then
-			tmp=$(${MKTEMP_CMD}) || exit 1
-			ipset_addfile "${name}" "${@}" >${tmp}
+			tmp=$(${MKTEMP_CMD} "${FIREHOL_DIR}/ipset-XXXXXXXXXX") || exit 1
+			echo "flush ${name}" >${tmp}
+			ipset_addfile "${name}" "${@}" >>${tmp}
 			if [ $? -ne 0 ]
 			then
-				rm ${tmp}
 				echo >&2 "Cannot update ipset '${name}'."
 				exit 1
 			fi
-			if [ ! -s ${tmp} ]
-			then
-				rm ${tmp}
-				echo >&2 "File contains nothing for us."
-				exit 1
-			fi
-			${IPSET_CMD} flush ${name}
 			${IPSET_CMD} restore <${tmp}
 			if [ $? -ne 0 ]
 			then
-				rm ${tmp}
 				echo >&2 "Failed to update ipset '${name}'"
 				exit 1
 			fi
 			echo >&2 "Updated ipset '${name}' (with $(( $(cat ${tmp} | wc -l) )) IPs)."
-			rm ${tmp}
+
+			# keep it for restoration
+			if [ -f "${FIREHOL_SPOOL_DIR}/ipset.${name}.rules" ]
+			then
+				${CAT_CMD} "${FIREHOL_SPOOL_DIR}/ipset.${name}.rules" |\
+					${GREP_CMD} "^create " >${tmp}.save
+				${CAT_CMD} ${tmp} >>${tmp}.save
+				cp ${tmp}.save "${FIREHOL_SPOOL_DIR}/ipset.${name}.rules"
+			fi
+			
+			# make the exit handler exit with 0
+			FIREHOL_ACTIVATED_SUCCESSFULLY=1
 			exit 0
 		else
 			echo >&2 "There is no ipset collection named '${name}'."
