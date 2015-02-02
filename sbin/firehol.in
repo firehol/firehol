@@ -1064,12 +1064,72 @@ syslog() {
 	return 0
 }
 
+# Enable colors
+if [ $[$(tput colors 2>/dev/null)] -ge 8 ]
+then
+	COLOR_RESET="\e[0m"
+	COLOR_BLACK="\e[30m"
+	COLOR_RED="\e[31m"
+	COLOR_GREEN="\e[32m"
+	COLOR_YELLOW="\e[33m"
+	COLOR_BLUE="\e[34m"
+	COLOR_PURPLE="\e[35m"
+	COLOR_CYAN="\e[36m"
+	COLOR_WHITE="\e[37m"
+	COLOR_BGBLACK="\e[40m"
+	COLOR_BGRED="\e[41m"
+	COLOR_BGGREEN="\e[42m"
+	COLOR_BGYELLOW="\e[43m"
+	COLOR_BGBLUE="\e[44m"
+	COLOR_BGPURPLE="\e[45m"
+	COLOR_BGCYAN="\e[46m"
+	COLOR_BGWHITE="\e[47m"
+	COLOR_BOLD="\e[1m"
+	COLOR_DIM="\e[2m"
+	COLOR_UNDERLINED="\e[4m"
+	COLOR_BLINK="\e[5m"
+	COLOR_INVERTED="\e[7m"
+fi
+
+declare -a FIREHOL_PROGRESS_MESSAGES=()
+progress() {
+	printf >&2 "FireHOL: ${*}... "
+	FIREHOL_PROGRESS_MESSAGES=("${*}" "${FIREHOL_PROGRESS_MESSAGES[@]}")
+	syslog info "${*} started"
+}
+
+success() {
+	if [ ! -z "${1}" ]
+	then
+		echo >&2 " OK (${*})"
+		syslog info "${FIREHOL_PROGRESS_MESSAGES[0]} succeeded with message: ${*}"
+	else
+		echo >&2 " OK"
+		syslog info "${FIREHOL_PROGRESS_MESSAGES[0]} succeeded"
+	fi
+	unset FIREHOL_PROGRESS_MESSAGES[0]
+	FIREHOL_PROGRESS_MESSAGES=("${FIREHOL_PROGRESS_MESSAGES[@]}")
+}
+
+failure() {
+	if [ ! -z "${1}" ]
+	then
+		echo >&2 " FAILED (${*})"
+		syslog err "${FIREHOL_PROGRESS_MESSAGES[0]} failed with message: ${*}"
+	else
+		echo >&2 " FAILED"
+		syslog err "${FIREHOL_PROGRESS_MESSAGES[0]} failed"
+	fi
+	unset FIREHOL_PROGRESS_MESSAGES[0]
+	FIREHOL_PROGRESS_MESSAGES=("${FIREHOL_PROGRESS_MESSAGES[@]}")
+}
+
 firehol_exit() {
 	local restored="NO"
 	if [ \( -f "${FIREHOL_SAVED}" -o -f "${FIREHOL_SAVED6}" \) -a "${FIREHOL_MODE}" = "START" ]
 	then
 		echo >&2
-		echo >&2 -n $"FireHOL: Restoring old firewall:"
+		progress "Restoring old firewall"
 		local status4=0
 		local status6=0
 		if [ $ENABLE_IPV4 -eq 1 ]
@@ -1085,12 +1145,11 @@ firehol_exit() {
 		if [ $status4 -eq 0 -a $status6 -eq 0 ]
 		then
 			restored="OK"
-			success $"FireHOL: Restoring old firewall:"
+			success # "Restoring old firewall"
 		else
 			restored="FAILED"
-			failure $"FireHOL: Restoring old firewall:"
+			failure # "Restoring old firewall"
 		fi
-		echo >&2
 	fi
 	
 	# remove the temporary directory created for this session
@@ -1258,6 +1317,7 @@ mark_value() {
 # Find in the BASH execution stack, the line and the source file that has called us.
 # Before first use the variable PROGRAM_FILE should be set to the file to be excluded.
 # It also sets the variable LAST_CONFIG_LINE on each run.
+declare -A PROGRAM_CONFIG_FILES=()
 config_line() {
 	if [ ! -z "${FORCE_CONFIG_LINEID}" ]
 	then
@@ -1268,12 +1328,18 @@ config_line() {
 		#   0 is this line
 		#   1 is the caller - our line for sure
 		#   2 is the caller's caller - possibly a config file line
-		local i= all=${#BASH_SOURCE}
+		local i= all=${#BASH_SOURCE} cfg=
 		for (( i = 2; i < $all; i++ ))
 		do
 			[ ! "${BASH_SOURCE[$i]}" = "${PROGRAM_FILE}" ] && break
 		done
-		LAST_CONFIG_LINE="${BASH_LINENO[$[i-1]]}@${BASH_SOURCE[$i]}: ${FUNCNAME[$[i-1]]}:"
+		cfg="${BASH_SOURCE[$i]}"
+		if [ ! "${cfg}" = "${PROGRAM_CONFIG}" -a -z "${PROGRAM_CONFIG_FILES[$cfg]}" ]
+		then
+			syslog info "Processing configuration file '${cfg}'..."
+			PROGRAM_CONFIG_FILES[$cfg]=1
+		fi
+		LAST_CONFIG_LINE="${BASH_LINENO[$[i-1]]}@${cfg}: ${FUNCNAME[$[i-1]]}:"
 	fi
 	test ! "z$1" = "z-ne" && echo "${LAST_CONFIG_LINE}"
 }
@@ -4039,9 +4105,9 @@ ipsets_apply() {
 			fi
 		fi
 
-		echo >&2 -n "FireHOL: Restoring ipsets from ${FIREHOL_SPOOL_DIR}... "
+		progress "Restoring ipsets from '${FIREHOL_SPOOL_DIR}'"
 	else
-		echo >&2 -n "FireHOL: Activating ipsets... "
+		progress "Activating ipsets"
 	fi
 
 	# take a list of all active ipsets
@@ -4083,7 +4149,7 @@ ipsets_apply() {
 			error "${FUNCNAME}: Cannot apply generated ipset rules."
 			return 1
 		else
-			echo >&2 "OK"
+			success
 		fi
 
 		if [ ! "${from}" = "spool" ]
@@ -4107,7 +4173,7 @@ ipsets_apply() {
 			ipset_save_active_to_spool
 		fi
 	else
-		echo >&2 "OK (already exist, not updated IPs)"
+		success "sets already exist, not updated IPs"
 	fi
 
 	return 0
@@ -7703,15 +7769,14 @@ fixed_save() {
 
 FIREHOL_LAST_SUCCESSFUL_COMMAND="${FIREHOL_SPOOL_DIR}/firehol-last-ok-command"
 firehol_save_activated_firewall() {
-	echo >&2 -n $"FireHOL: Saving activated firewall to ${FIREHOL_SPOOL_DIR}:"
+	progress "Saving activated firewall to '${FIREHOL_SPOOL_DIR}'"
 	
 	if [ -f "${FIREHOL_SPOOL_DIR}/ipv4.enable" ]
 	then
 		fixed_save ${IPTABLES_SAVE_CMD} >"${FIREHOL_SPOOL_DIR}/ipv4.rules"
 		if [ ! $? -eq 0 ]
 		then
-			failure $"FireHOL: Saving activated firewall to ${FIREHOL_SPOOL_DIR}:"
-			echo >&2
+			failure # "Saving activated firewall to '${FIREHOL_SPOOL_DIR}'"
 			return 1
 		fi
 		
@@ -7726,8 +7791,7 @@ firehol_save_activated_firewall() {
 		fixed_save ${IP6TABLES_SAVE_CMD} >"${FIREHOL_SPOOL_DIR}/ipv6.rules"
 		if [ ! $? -eq 0 ]
 		then
-			failure $"FireHOL: Saving activated firewall to ${FIREHOL_SPOOL_DIR}:"
-			echo >&2
+			failure # "Saving activated firewall to '${FIREHOL_SPOOL_DIR}'"
 			return 1
 		fi
 		
@@ -7740,8 +7804,7 @@ firehol_save_activated_firewall() {
 	printf "%q " "${FIREHOL_ARGS[@]}" >"${FIREHOL_LAST_SUCCESSFUL_COMMAND}"
 	printf "\n" >>"${FIREHOL_LAST_SUCCESSFUL_COMMAND}"
 
-	success $"FireHOL: Saving activated firewall to ${FIREHOL_SPOOL_DIR}:"
-	echo >&2
+	success # "Saving activated firewall to '${FIREHOL_SPOOL_DIR}'"
 	
 	return 0
 }
@@ -7787,7 +7850,7 @@ firehol_can_restore_saved_firewall() {
 firehol_restore_last_activated_firewall() {
 	firehol_can_restore_saved_firewall || return 2
 
-	echo >&2 -n $"FireHOL: Restoring last activated firewall from ${FIREHOL_SPOOL_DIR}:"
+	progress "Restoring last activated firewall from '${FIREHOL_SPOOL_DIR}'"
 
 	if [ -x "${FIREHOL_SPOOL_DIR}/firewall_restore_commands.sh" ]
 	then
@@ -7795,7 +7858,7 @@ firehol_restore_last_activated_firewall() {
 		if [ $? -ne 0 ]
 			then
 			warning "Failed to execute restoration script."
-			failure $"FireHOL: Restoring last activated firewall from ${FIREHOL_SPOOL_DIR}:"
+			failure # "Restoring last activated firewall from '${FIREHOL_SPOOL_DIR}'"
 			return 3
 		fi
 	fi
@@ -7806,7 +7869,7 @@ firehol_restore_last_activated_firewall() {
 		if [ $? -ne 0 ]
 			then
 			warning "Failed to restore IPv4 rules."
-			failure $"FireHOL: Restoring last activated firewall from ${FIREHOL_SPOOL_DIR}:"
+			failure # "Restoring last activated firewall from '${FIREHOL_SPOOL_DIR}'"
 			return 3
 		fi
 	fi
@@ -7817,13 +7880,12 @@ firehol_restore_last_activated_firewall() {
 		if [ $? -ne 0 ]
 			then
 			warning "Failed to restore IPv6 rules."
-			failure $"FireHOL: Restoring last activated firewall from ${FIREHOL_SPOOL_DIR}:"
+			failure # "Restoring last activated firewall from '${FIREHOL_SPOOL_DIR}'"
 			return 3
 		fi
 	fi
 
-	success $"FireHOL: Saving activated firewall to ${FIREHOL_SPOOL_DIR}:"
-	echo >&2
+	success # "Saving activated firewall to '${FIREHOL_SPOOL_DIR}'"
 	return 0
 }
 
@@ -7836,22 +7898,6 @@ firehol_restore_last_activated_firewall() {
 # ------------------------------------------------------------------------------
 # XXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXX
 # ------------------------------------------------------------------------------
-
-# ------------------------------------------------------------------------------
-# On non RedHat machines we need success() and failure()
-success() {
-	printf >&2 " OK"
-}
-
-failure() {
-	echo >&2 " FAILED"
-}
-
-# ------------------------------------------------------------------------------
-# A small part bellow is copied from /etc/init.d/iptables
-
-# On RedHat systems this will define success() and failure()
-test -f /etc/init.d/functions && . /etc/init.d/functions
 
 kernel_maj_min() {
 	local kmaj kmin IFS=.-
@@ -7888,6 +7934,8 @@ fi
 # ------------------------------------------------------------------------------
 # XXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXX
 # ------------------------------------------------------------------------------
+
+syslog info "FireHOL started from '$PWD' with: ${0} ${*}"
 
 arg="${1}"
 shift
@@ -7928,7 +7976,7 @@ case "${arg}" in
 		FIREHOL_MODE="STOP"
 		test ! -z "${1}" && warning "Arguments after parameter '${arg}' are ignored."
 
-		echo >&2 -n $"FireHOL: Clearing Firewall:"
+		progress "Clearing firewall"
 		if [ $ENABLE_IPV4 -eq 1 ]; then
 			load_kernel_module ip_tables
 			tables=`${CAT_CMD} /proc/net/ip_tables_names`
@@ -7963,9 +8011,7 @@ case "${arg}" in
 				done
 			done
 		fi
-		success $"FireHOL: Clearing Firewall:"
-		echo >&2
-		
+		success # "Clearing firewall"
 		exit 0
 		;;
 	
@@ -8056,7 +8102,7 @@ case "${arg}" in
 		fi
 		
 		syslog info "Starting PANIC mode (SSH SOURCE_IP=${ssh_src} SOURCE_PORTS=${ssh_sport} DESTINATION_PORTS=${ssh_dport})"
-		echo >&2 -n $"FireHOL: Blocking all communications:"
+		progress "Blocking all communications"
 		if [ $ENABLE_IPV4 -eq 1 ]; then
 			load_kernel_module ip_tables
 			tables=`${CAT_CMD} /proc/net/ip_tables_names`
@@ -8109,9 +8155,7 @@ case "${arg}" in
 				done
 			done
 		fi
-		success $"FireHOL: Blocking all communications:"
-		echo >&2
-		
+		success # "Blocking all communications"
 		exit 0
 		;;
 	
@@ -8377,9 +8421,7 @@ if [ "${FIREHOL_MODE}" = "START" -o "${FIREHOL_MODE}" = "DEBUG" ]
 then
 	if [ ! -f "${FIREHOL_CONFIG}" ]
 	then
-		echo >&2 -n $"FireHOL config ${FIREHOL_CONFIG} not found:"
-		failure $"FireHOL config ${FIREHOL_CONFIG} not found:"
-		echo >&2
+		echo >&2 " ERROR: FireHOL config '${FIREHOL_CONFIG}' not found."
 		exit 1
 	fi
 fi
@@ -9169,7 +9211,10 @@ firehol_concurrent_run_lock
 
 # --- Initialization -----------------------------------------------------------
 
-echo >&2 -n $"FireHOL: Saving your running firewall to a temporary file:"
+# let the config_line know our main configuration file
+PROGRAM_CONFIG="${FIREHOL_CONFIG}"
+
+progress "Saving active firewall to a temporary file"
 if [ $ENABLE_IPV4 -eq 1 ]
 then
 	fixed_save ${IPTABLES_SAVE_CMD} >${FIREHOL_SAVED}.new
@@ -9191,12 +9236,10 @@ then
 	test -f ${FIREHOL_SAVED}.new && mv ${FIREHOL_SAVED}.new ${FIREHOL_SAVED}
 	test -f ${FIREHOL_SAVED6}.new && mv ${FIREHOL_SAVED6}.new ${FIREHOL_SAVED6}
 
-	success $"FireHOL: Saving your running firewall to a temporary file:"
-	echo >&2
+	success # "Saving active firewall to a temporary file"
 else
 	${RM_CMD} -f "${FIREHOL_SAVED}" "${FIREHOL_SAVED6}"
-	failure $"FireHOL: Saving your running firewall to a temporary file:"
-	echo >&2
+	failure # "Saving active firewall to a temporary file"
 	exit 1
 fi
 
@@ -9426,7 +9469,7 @@ firewall_policy6() {
 
 # XXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXX
 
-echo >&2 -n $"FireHOL: Processing file ${FIREHOL_CONFIG}:"
+progress "Processing file '${FIREHOL_CONFIG}'"
 ret=0
 
 # check if the user has given any iptables commands directly.
@@ -9475,15 +9518,14 @@ close_master	|| ret=$[ret + 1]
 
 if [ ${work_error} -gt 0 -o $ret -gt 0 ]
 then
-	failure $"FireHOL: Processing file ${FIREHOL_CONFIG}:"
+	failure # "Processing file '${FIREHOL_CONFIG}'"
 	echo >&2
 	echo >&2
 	echo >&2 "NOTICE: No changes made to your firewall."
 	exit 1
 fi
 
-success $"FireHOL: Processing file ${FIREHOL_CONFIG}:"
-echo >&2
+success # "Processing file '${FIREHOL_CONFIG}'"
 
 # XXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXX
 
@@ -9496,6 +9538,7 @@ then
 		echo >&2 "Your firewall is ready to be fast-activated..."
 		echo >&2 "If you don't continue, no changes will have been made to your firewall."
 		read >&2 -p "Activate the firewall? (just press enter to confirm or Control-C to stop) : " -t ${FIREHOL_WAIT_USER_BEFORE_TRY} -e || exit 1
+		echo >&2
 	fi
 
 	# construct the iptables-restore file from the splitted ones.
@@ -9536,8 +9579,7 @@ then
 		ipsets_apply || exit 1
 	fi
 
-	syslog info "Activating new firewall from ${FIREHOL_CONFIG} (translated to ${FIREHOL_COMMAND_COUNTER} iptables rules)."
-	echo >&2 -n $"FireHOL: Fast activating new firewall:"
+	progress "Fast activating new firewall"
 	
 	initialize_firewall
 	
@@ -9618,7 +9660,7 @@ else
 	fi
 
 	syslog info "Activating new firewall from ${FIREHOL_CONFIG} (translated to ${FIREHOL_COMMAND_COUNTER} iptables rules)."
-	echo >&2 -n $"FireHOL: Activating new firewall (${FIREHOL_COMMAND_COUNTER} rules):"
+	progress "Activating new firewall (${FIREHOL_COMMAND_COUNTER} rules)"
 	
 	initialize_firewall
 	
@@ -9635,9 +9677,7 @@ fi
 
 if [ ${work_runtime_error} -gt 0 ]
 then
-	failure $"FireHOL: Activating new firewall:"
-	echo >&2
-	
+	failure # "Activating new firewall"
 	syslog err "Activation of new firewall failed."
 	# The trap will restore the firewall we saved above.
 	
@@ -9655,9 +9695,7 @@ then
 
 	exit 1
 fi
-success $"FireHOL: Activating new firewall (${FIREHOL_COMMAND_COUNTER} rules):"
-echo >&2
-syslog info "Activation of new firewall succeeded."
+success # "Activating new firewall (${FIREHOL_COMMAND_COUNTER} rules)"
 
 if [ ${FIREHOL_TRY} -eq 1 ]
 then
@@ -9755,38 +9793,34 @@ then
 	
 	if [ $ENABLE_IPV4 -eq 1 ]
 	then
-		echo >&2 -n $"FireHOL: Saving firewall to ${FIREHOL_AUTOSAVE}:"
+		progress "Saving firewall to '${FIREHOL_AUTOSAVE}'"
 	
 		cat "${FIREHOL_SPOOL_DIR}/ipv4.rules" >${FIREHOL_AUTOSAVE}
 		if [ ! $? -eq 0 ]
 		then
 			syslog err "Failed to save new firewall to '${FIREHOL_AUTOSAVE}'."
-			failure $"FireHOL: Saving firewall to ${FIREHOL_AUTOSAVE}:"
-			echo >&2
+			failure # "Saving firewall to '${FIREHOL_AUTOSAVE}'"
 			exit 1
 		fi
 
 		syslog info "New firewall saved to '${FIREHOL_AUTOSAVE}'."
-		success $"FireHOL: Saving firewall to ${FIREHOL_AUTOSAVE}:"
-		echo >&2
+		success # "Saving firewall to '${FIREHOL_AUTOSAVE}'"
 	fi
 
 	if [ $ENABLE_IPV6 -eq 1 ]
 	then
-		echo >&2 -n $"FireHOL: Saving IPv6 firewall to ${FIREHOL_AUTOSAVE6}:"
+		progress "Saving IPv6 firewall to '${FIREHOL_AUTOSAVE6}'"
 	
 		cat "${FIREHOL_SPOOL_DIR}/ipv6.rules" >${FIREHOL_AUTOSAVE6}
 		if [ ! $? -eq 0 ]
 		then
 			syslog err "Failed to save new IPv6 firewall to '${FIREHOL_AUTOSAVE6}'."
-			failure $"FireHOL: Saving IPv6 firewall to ${FIREHOL_AUTOSAVE6}:"
-			echo >&2
+			failure # "Saving IPv6 firewall to '${FIREHOL_AUTOSAVE6}'"
 			exit 1
 		fi
 
 		syslog info "New IPv6 firewall saved to '${FIREHOL_AUTOSAVE6}'."
-		success $"FireHOL: Saving IPv6 firewall to ${FIREHOL_AUTOSAVE6}:"
-		echo >&2
+		success # "Saving IPv6 firewall to '${FIREHOL_AUTOSAVE6}'"
 	fi
 	
 	exit 0
