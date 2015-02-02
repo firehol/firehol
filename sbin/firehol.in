@@ -5570,6 +5570,8 @@ rule_action_param() {
 }
 
 rule() {
+	#echo >&2 "${FUNCNAME}: ${*}"
+
 	# defining these local variables together speeds FireHOL up by 4%
 	local	failed=0 \
 		table= chain= \
@@ -5593,7 +5595,8 @@ rule() {
 		failed=0 reverse=0 \
 		swi=0 swo=0 \
 		custom= \
-		accounting=
+		accounting= \
+		inout=
 	
 	# if set to 1, all owner module options will be ignored
 	local noowner=0
@@ -6508,6 +6511,24 @@ rule() {
 				shift 2
 				;;
 				
+			customin|CUSTOMIN|custom-in|CUSTOM-IN)
+				if [ "${inout}" = "in" ]
+				then
+					test ${softwarnings} -eq 1 -a ! -z "${custom}" && softwarning "Overwritting param: custom '${custom}' becomes '${2}'"
+					custom="${2}"
+				fi
+				shift 2
+				;;
+				
+			customout|CUSTOMOUT|custom-out|CUSTOM-OUT)
+				if [ "${inout}" = "out" ]
+				then
+					test ${softwarnings} -eq 1 -a ! -z "${custom}" && softwarning "Overwritting param: custom '${custom}' becomes '${2}'"
+					custom="${2}"
+				fi
+				shift 2
+				;;
+				
 			log|LOG)
 				if [ ${nolog} -eq 0 ]
 				then
@@ -6557,6 +6578,7 @@ rule() {
 				;;
 				
 			in)	# this is incoming traffic - ignore packet ownership
+				inout="in"
 				noowner=1
 				nomirror=0
 				nomac=0
@@ -6564,6 +6586,7 @@ rule() {
 				;;
 				
 			out)	# this is outgoing traffic - ignore packet ownership if not in an interface
+				inout="out"
 				if [ ! "${work_cmd}" = "interface" ]
 				then
 					noowner=1
