@@ -5610,7 +5610,7 @@ rule() {
 	# if set to 1, log and loglimit are ignored.
 	local nolog=0
 	
-	# if set to 1, detection algorithm about overwritting optional rule
+	# if set to 1, detection algorithm about overwriting optional rule
 	# parameters will take place.
 	local softwarnings=1
 	
@@ -5626,13 +5626,13 @@ rule() {
 				;;
 				
 			table|TABLE)
-				test ${softwarnings} -eq 1 -a ! -z "${table}" && softwarning "Overwritting param: ${1} '${chain}' becomes '${2}'"
+				test ${softwarnings} -eq 1 -a ! -z "${table}" && softwarning "Overwriting param: ${1} '${chain}' becomes '${2}'"
 				table="-t ${2}"
 				shift 2
 				;;
 				
 			chain|CHAIN)
-				test ${softwarnings} -eq 1 -a ! -z "${chain}" && softwarning "Overwritting param: ${1} '${chain}' becomes '${2}'"
+				test ${softwarnings} -eq 1 -a ! -z "${chain}" && softwarning "Overwriting param: ${1} '${chain}' becomes '${2}'"
 				chain="${2}"
 				shift 2
 				;;
@@ -5652,7 +5652,7 @@ rule() {
 							work_inface="${1}"
 						fi
 					fi
-					test ${softwarnings} -eq 1 -a ! "${inface}" = "any" && softwarning "Overwritting param: inface '${inface}' becomes '${1}'"
+					test ${softwarnings} -eq 1 -a ! "${inface}" = "any" && softwarning "Overwriting param: inface '${inface}' becomes '${1}'"
 					inface="${1//,/ }"
 				else
 					outfacenot=
@@ -5666,7 +5666,7 @@ rule() {
 							work_outface="$1"
 						fi
 					fi
-					test ${softwarnings} -eq 1 -a ! "${outface}" = "any" && softwarning "Overwritting param: outface '${outface}' becomes '${1}'"
+					test ${softwarnings} -eq 1 -a ! "${outface}" = "any" && softwarning "Overwriting param: outface '${outface}' becomes '${1}'"
 					outface="${1//,/ }"
 				fi
 				shift
@@ -5687,7 +5687,7 @@ rule() {
 							work_outface="${1}"
 						fi
 					fi
-					test ${softwarnings} -eq 1 -a ! "${outface}" = "any" && softwarning "Overwritting param: outface '${outface}' becomes '${1}'"
+					test ${softwarnings} -eq 1 -a ! "${outface}" = "any" && softwarning "Overwriting param: outface '${outface}' becomes '${1}'"
 					outface="${1//,/ }"
 				else
 					infacenot=
@@ -5701,7 +5701,7 @@ rule() {
 							work_inface="${1}"
 						fi
 					fi
-					test ${softwarnings} -eq 1 -a ! "${inface}" = "any" && softwarning "Overwritting param: inface '${inface}' becomes '${1}'"
+					test ${softwarnings} -eq 1 -a ! "${inface}" = "any" && softwarning "Overwriting param: inface '${inface}' becomes '${1}'"
 					inface="${1//,/ }"
 				fi
 				shift
@@ -5717,7 +5717,7 @@ rule() {
 						shift
 						physinnot="!"
 					fi
-					test ${softwarnings} -eq 1 -a ! "${physin}" = "any" && softwarning "Overwritting param: physin '${physin}' becomes '${1}'"
+					test ${softwarnings} -eq 1 -a ! "${physin}" = "any" && softwarning "Overwriting param: physin '${physin}' becomes '${1}'"
 					physin="${1//,/ }"
 				else
 					physoutnot=
@@ -5726,7 +5726,7 @@ rule() {
 						shift
 						physoutnot="!"
 					fi
-					test ${softwarnings} -eq 1 -a ! "${physout}" = "any" && softwarning "Overwritting param: physout '${physout}' becomes '${1}'"
+					test ${softwarnings} -eq 1 -a ! "${physout}" = "any" && softwarning "Overwriting param: physout '${physout}' becomes '${1}'"
 					physout="${1//,/ }"
 				fi
 				shift
@@ -5742,7 +5742,7 @@ rule() {
 						shift
 						physoutnot="!"
 					fi
-					test ${softwarnings} -eq 1 -a ! "${physout}" = "any" && softwarning "Overwritting param: physout '${physout}' becomes '${1}'"
+					test ${softwarnings} -eq 1 -a ! "${physout}" = "any" && softwarning "Overwriting param: physout '${physout}' becomes '${1}'"
 					physout="${1//,/ }"
 				else
 					physinnot=
@@ -5751,7 +5751,7 @@ rule() {
 						shift
 						physinnot="!"
 					fi
-					test ${softwarnings} -eq 1 -a ! "${physin}" = "any" && softwarning "Overwritting param: physin '${physin}' becomes '${1}'"
+					test ${softwarnings} -eq 1 -a ! "${physin}" = "any" && softwarning "Overwriting param: physin '${physin}' becomes '${1}'"
 					physin="${1//,/ }"
 				fi
 				shift
@@ -5765,7 +5765,7 @@ rule() {
 					shift
 					test ${nomac} -eq 0 && macnot="!"
 				fi
-				test ${softwarnings} -eq 1 -a ! "${mac}" = "any" && softwarning "Overwritting param: mac '${mac}' becomes '${1}'"
+				test ${softwarnings} -eq 1 -a ! "${mac}" = "any" && softwarning "Overwriting param: mac '${mac}' becomes '${1}'"
 				test ${nomac} -eq 0 && mac="${1//,/ }"
 				shift
 				;;
@@ -5792,11 +5792,11 @@ rule() {
 						running_ipv6 && src6not="!"
 					fi
 					if running_ipv4; then
-						test ${softwarnings} -eq 1 -a ! "${src4}" = "default" && softwarning "Overwritting param: src4 '${src4}' becomes '${1}'"
+						test ${softwarnings} -eq 1 -a ! "${src4}" = "default" && softwarning "Overwriting param: src4 '${src4}' becomes '${1}'"
 						src4="${1//,/ }"
 					fi
 					if running_ipv6; then
-						test ${softwarnings} -eq 1 -a ! "${src6}" = "default" && softwarning "Overwritting param: src6 '${src6}' becomes '${1}'"
+						test ${softwarnings} -eq 1 -a ! "${src6}" = "default" && softwarning "Overwriting param: src6 '${src6}' becomes '${1}'"
 						src6="${1//,/ }"
 					fi
 				else
@@ -5809,11 +5809,11 @@ rule() {
 						running_ipv6 && dst6not="!"
 					fi
 					if running_ipv4; then
-						test ${softwarnings} -eq 1 -a ! "${dst4}" = "default" && softwarning "Overwritting param: dst4 '${dst4}' becomes '${1}'"
+						test ${softwarnings} -eq 1 -a ! "${dst4}" = "default" && softwarning "Overwriting param: dst4 '${dst4}' becomes '${1}'"
 						dst4="${1//,/ }"
 					fi
 					if running_ipv6; then
-						test ${softwarnings} -eq 1 -a ! "${dst6}" = "default" && softwarning "Overwritting param: dst6 '${dst6}' becomes '${1}'"
+						test ${softwarnings} -eq 1 -a ! "${dst6}" = "default" && softwarning "Overwriting param: dst6 '${dst6}' becomes '${1}'"
 						dst6="${1//,/ }"
 					fi
 				fi
@@ -5843,11 +5843,11 @@ rule() {
 						running_ipv6 && dst6not="!"
 					fi
 					if running_ipv4; then
-						test ${softwarnings} -eq 1 -a ! "${dst4}" = "default" && softwarning "Overwritting param: dst4 '${dst4}' becomes '${1}'"
+						test ${softwarnings} -eq 1 -a ! "${dst4}" = "default" && softwarning "Overwriting param: dst4 '${dst4}' becomes '${1}'"
 						dst4="${1//,/ }"
 					fi
 					if running_ipv6; then
-						test ${softwarnings} -eq 1 -a ! "${dst6}" = "default" && softwarning "Overwritting param: dst6 '${dst6}' becomes '${1}'"
+						test ${softwarnings} -eq 1 -a ! "${dst6}" = "default" && softwarning "Overwriting param: dst6 '${dst6}' becomes '${1}'"
 						dst6="${1//,/ }"
 					fi
 				else
@@ -5860,11 +5860,11 @@ rule() {
 						running_ipv6 && src6not="!"
 					fi
 					if running_ipv4; then
-						test ${softwarnings} -eq 1 -a ! "${src4}" = "default" && softwarning "Overwritting param: src6 '${src4}' becomes '${1}'"
+						test ${softwarnings} -eq 1 -a ! "${src4}" = "default" && softwarning "Overwriting param: src6 '${src4}' becomes '${1}'"
 						src4="${1//,/ }"
 					fi
 					if running_ipv6; then
-						test ${softwarnings} -eq 1 -a ! "${src6}" = "default" && softwarning "Overwritting param: src6 '${src6}' becomes '${1}'"
+						test ${softwarnings} -eq 1 -a ! "${src6}" = "default" && softwarning "Overwriting param: src6 '${src6}' becomes '${1}'"
 						src6="${1//,/ }"
 					fi
 				fi
@@ -5882,7 +5882,7 @@ rule() {
 						shift
 						srctypenot="!"
 					fi
-					test ${softwarnings} -eq 1 -a ! "${srctype}" = "" && softwarning "Overwritting param: srctype '${srctype}' becomes '${1}'"
+					test ${softwarnings} -eq 1 -a ! "${srctype}" = "" && softwarning "Overwriting param: srctype '${srctype}' becomes '${1}'"
 					srctype="`echo ${1} | ${SED_CMD} -e "s|^ \+||" -e "s| \+\$||" -e "s| \+|,|g" | ${TR_CMD} a-z A-Z`"
 				else
 					dsttypenot=
@@ -5891,7 +5891,7 @@ rule() {
 						shift
 						dsttypenot="!"
 					fi
-					test ${softwarnings} -eq 1 -a ! "${dsttype}" = "" && softwarning "Overwritting param: dsttype '${dsttype}' becomes '${1}'"
+					test ${softwarnings} -eq 1 -a ! "${dsttype}" = "" && softwarning "Overwriting param: dsttype '${dsttype}' becomes '${1}'"
 					dsttype="`echo ${1} | ${SED_CMD} -e "s|^ \+||" -e "s| \+\$||" -e "s| \+|,|g" | ${TR_CMD} a-z A-Z`"
 				fi
 				shift
@@ -5907,7 +5907,7 @@ rule() {
 						shift
 						dsttypenot="!"
 					fi
-					test ${softwarnings} -eq 1 -a ! "${dsttype}" = "" && softwarning "Overwritting param: dsttype '${dsttype}' becomes '${1}'"
+					test ${softwarnings} -eq 1 -a ! "${dsttype}" = "" && softwarning "Overwriting param: dsttype '${dsttype}' becomes '${1}'"
 					dsttype="`echo ${1} | ${SED_CMD} -e "s|^ \+||" -e "s| \+\$||" -e "s| \+|,|g" | ${TR_CMD} a-z A-Z`"
 				else
 					srctypenot=
@@ -5916,7 +5916,7 @@ rule() {
 						shift
 						srctypenot="!"
 					fi
-					test ${softwarnings} -eq 1 -a ! "${srctype}" = "" && softwarning "Overwritting param: srctype '${srctype}' becomes '${1}'"
+					test ${softwarnings} -eq 1 -a ! "${srctype}" = "" && softwarning "Overwriting param: srctype '${srctype}' becomes '${1}'"
 					srctype="`echo ${1} | ${SED_CMD} -e "s|^ \+||" -e "s| \+\$||" -e "s| \+|,|g" | ${TR_CMD} a-z A-Z`"
 				fi
 				shift
@@ -5932,7 +5932,7 @@ rule() {
 						shift
 						sportnot="!"
 					fi
-					test ${softwarnings} -eq 1 -a ! "${sport}" = "any" && softwarning "Overwritting param: sport '${sport}' becomes '${1}'"
+					test ${softwarnings} -eq 1 -a ! "${sport}" = "any" && softwarning "Overwriting param: sport '${sport}' becomes '${1}'"
 					sport="${1//,/ }"
 				else
 					dportnot=
@@ -5941,7 +5941,7 @@ rule() {
 						shift
 						dportnot="!"
 					fi
-					test ${softwarnings} -eq 1 -a ! "${dport}" = "any" && softwarning "Overwritting param: dport '${dport}' becomes '${1}'"
+					test ${softwarnings} -eq 1 -a ! "${dport}" = "any" && softwarning "Overwriting param: dport '${dport}' becomes '${1}'"
 					dport="${1//,/ }"
 				fi
 				shift
@@ -5957,7 +5957,7 @@ rule() {
 						shift
 						dportnot="!"
 					fi
-					test ${softwarnings} -eq 1 -a ! "${dport}" = "any" && softwarning "Overwritting param: dport '${dport}' becomes '${1}'"
+					test ${softwarnings} -eq 1 -a ! "${dport}" = "any" && softwarning "Overwriting param: dport '${dport}' becomes '${1}'"
 					dport="${1//,/ }"
 				else
 					sportnot=
@@ -5966,7 +5966,7 @@ rule() {
 						shift
 						sportnot="!"
 					fi
-					test ${softwarnings} -eq 1 -a ! "${sport}" = "any" && softwarning "Overwritting param: sport '${sport}' becomes '${1}'"
+					test ${softwarnings} -eq 1 -a ! "${sport}" = "any" && softwarning "Overwriting param: sport '${sport}' becomes '${1}'"
 					sport="${1//,/ }"
 				fi
 				shift
@@ -5980,7 +5980,7 @@ rule() {
 					shift
 					protonot="!"
 				fi
-				test ${softwarnings} -eq 1 -a ! "${proto}" = "any" && softwarning "Overwritting param: proto '${proto}' becomes '${1}'"
+				test ${softwarnings} -eq 1 -a ! "${proto}" = "any" && softwarning "Overwriting param: proto '${proto}' becomes '${1}'"
 				proto="${1//,/ }"
 				shift
 				;;
@@ -5995,7 +5995,7 @@ rule() {
 					shift
 					marknot="!"
 				fi
-				test ${softwarnings} -eq 1 -a ! "${mark}" = "any" && softwarning "Overwritting param: mark '${mark}' becomes ${markname} '${1}'"
+				test ${softwarnings} -eq 1 -a ! "${mark}" = "any" && softwarning "Overwriting param: mark '${mark}' becomes ${markname} '${1}'"
 				mark="${mark} $(mark_value $markname ${1//,/ })"
 				shift
 				;;
@@ -6008,7 +6008,7 @@ rule() {
 					shift
 					marknot="!"
 				fi
-				test ${softwarnings} -eq 1 -a ! "${mark}" = "any" && softwarning "Overwritting param: mark '${mark}' becomes usermark '${1}'"
+				test ${softwarnings} -eq 1 -a ! "${mark}" = "any" && softwarning "Overwriting param: mark '${mark}' becomes usermark '${1}'"
 				mark="${mark} $(mark_value usermark ${1//,/ })"
 				shift
 				;;
@@ -6021,7 +6021,7 @@ rule() {
 					shift
 					marknot="!"
 				fi
-				test ${softwarnings} -eq 1 -a ! "${mark}" = "any" && softwarning "Overwritting param: mark '${mark}' becomes connmark '${1}'"
+				test ${softwarnings} -eq 1 -a ! "${mark}" = "any" && softwarning "Overwriting param: mark '${mark}' becomes connmark '${1}'"
 				mark="${mark} $(mark_value connmark ${1//,/ })"
 				shift
 				;;
@@ -6034,7 +6034,7 @@ rule() {
 					shift
 					marknot="!"
 				fi
-				test ${softwarnings} -eq 1 -a ! "${mark}" = "any" && softwarning "Overwritting param: mark '${mark}' becomes '${1}'"
+				test ${softwarnings} -eq 1 -a ! "${mark}" = "any" && softwarning "Overwriting param: mark '${mark}' becomes '${1}'"
 				mark="${1//,/ }"
 				shift
 				;;
@@ -6047,7 +6047,7 @@ rule() {
 					shift
 					tosnot="!"
 				fi
-				test ${softwarnings} -eq 1 -a ! "${tos}" = "any" && softwarning "Overwritting param: tos '${tos}' becomes '${1}'"
+				test ${softwarnings} -eq 1 -a ! "${tos}" = "any" && softwarning "Overwriting param: tos '${tos}' becomes '${1}'"
 				tos="${1//,/ }"
 				shift
 				;;
@@ -6060,7 +6060,7 @@ rule() {
 					shift
 					dscpnot="!"
 				fi
-				test ${softwarnings} -eq 1 -a ! "${dscp}" = "any" && softwarning "Overwritting param: dscp '${dscp}' becomes '${1}'"
+				test ${softwarnings} -eq 1 -a ! "${dscp}" = "any" && softwarning "Overwriting param: dscp '${dscp}' becomes '${1}'"
 				dscp="${1//,/ }"
 				shift
 				
@@ -6073,7 +6073,7 @@ rule() {
 				;;
 				
 			action|ACTION)
-				test ${softwarnings} -eq 1 -a ! -z "${action}" && softwarning "Overwritting param: action '${action}' becomes '${2}'"
+				test ${softwarnings} -eq 1 -a ! -z "${action}" && softwarning "Overwriting param: action '${action}' becomes '${2}'"
 				action="${2}"
 				shift 2
 				
@@ -6435,7 +6435,7 @@ rule() {
 					shift
 					statenot="!"
 				fi
-				test ${softwarnings} -eq 1 -a ! -z "${state}" && softwarning "Overwritting param: state '${state}' becomes '${1}'"
+				test ${softwarnings} -eq 1 -a ! -z "${state}" && softwarning "Overwriting param: state '${state}' becomes '${1}'"
 				state="${1}"
 				shift
 				;;
@@ -6448,7 +6448,7 @@ rule() {
 					shift
 					test ${noowner} -eq 0 && uidnot="!"
 				fi
-				test ${softwarnings} -eq 1 -a ! "${uid}" = "any" && softwarning "Overwritting param: uid '${uid}' becomes '${1}'"
+				test ${softwarnings} -eq 1 -a ! "${uid}" = "any" && softwarning "Overwriting param: uid '${uid}' becomes '${1}'"
 				test ${noowner} -eq 0 && uid="${1//,/ }"
 				shift
 				;;
@@ -6461,7 +6461,7 @@ rule() {
 					shift
 					test ${noowner} -eq 0 && gidnot="!"
 				fi
-				test ${softwarnings} -eq 1 -a ! "${gid}" = "any" && softwarning "Overwritting param: gid '${gid}' becomes '${1}'"
+				test ${softwarnings} -eq 1 -a ! "${gid}" = "any" && softwarning "Overwriting param: gid '${gid}' becomes '${1}'"
 				test ${noowner} -eq 0 && gid="${1//,/ }"
 				shift
 				;;
@@ -6474,7 +6474,7 @@ rule() {
 					shift
 					test ${noowner} -eq 0 && pidnot="!"
 				fi
-				test ${softwarnings} -eq 1 -a ! "${pid}" = "any" && softwarning "Overwritting param: pid '${pid}' becomes '${1}'"
+				test ${softwarnings} -eq 1 -a ! "${pid}" = "any" && softwarning "Overwriting param: pid '${pid}' becomes '${1}'"
 				test ${noowner} -eq 0 && pid="${1//,/ }"
 				shift
 				;;
@@ -6487,7 +6487,7 @@ rule() {
 					shift
 					test ${noowner} -eq 0 && sidnot="!"
 				fi
-				test ${softwarnings} -eq 1 -a ! "${sid}" = "any" && softwarning "Overwritting param: sid '${sid}' becomes '${1}'"
+				test ${softwarnings} -eq 1 -a ! "${sid}" = "any" && softwarning "Overwriting param: sid '${sid}' becomes '${1}'"
 				test ${noowner} -eq 0 && sid="${1//,/ }"
 				shift
 				;;
@@ -6500,13 +6500,13 @@ rule() {
 					shift
 					test ${noowner} -eq 0 && cmdnot="!"
 				fi
-				test ${softwarnings} -eq 1 -a ! "${cmd}" = "any" && softwarning "Overwritting param: cmd '${cmd}' becomes '${1}'"
+				test ${softwarnings} -eq 1 -a ! "${cmd}" = "any" && softwarning "Overwriting param: cmd '${cmd}' becomes '${1}'"
 				test ${noowner} -eq 0 && cmd="${1}"
 				shift
 				;;
 				
 			custom|CUSTOM)
-				test ${softwarnings} -eq 1 -a ! -z "${custom}" && softwarning "Overwritting param: custom '${custom}' becomes '${2}'"
+				test ${softwarnings} -eq 1 -a ! -z "${custom}" && softwarning "Overwriting param: custom '${custom}' becomes '${2}'"
 				custom="${2}"
 				shift 2
 				;;
@@ -6514,7 +6514,7 @@ rule() {
 			customin|CUSTOMIN|custom-in|CUSTOM-IN)
 				if [ "${inout}" = "in" ]
 				then
-					test ${softwarnings} -eq 1 -a ! -z "${custom}" && softwarning "Overwritting param: custom '${custom}' becomes '${2}'"
+					test ${softwarnings} -eq 1 -a ! -z "${custom}" && softwarning "Overwriting param: custom '${custom}' becomes '${2}'"
 					custom="${2}"
 				fi
 				shift 2
@@ -6523,7 +6523,7 @@ rule() {
 			customout|CUSTOMOUT|custom-out|CUSTOM-OUT)
 				if [ "${inout}" = "out" ]
 				then
-					test ${softwarnings} -eq 1 -a ! -z "${custom}" && softwarning "Overwritting param: custom '${custom}' becomes '${2}'"
+					test ${softwarnings} -eq 1 -a ! -z "${custom}" && softwarning "Overwriting param: custom '${custom}' becomes '${2}'"
 					custom="${2}"
 				fi
 				shift 2
@@ -6532,7 +6532,7 @@ rule() {
 			log|LOG)
 				if [ ${nolog} -eq 0 ]
 				then
-					test ${softwarnings} -eq 1 -a ! -z "${log}" && softwarning "Overwritting param: log '${log}/${logtxt}' becomes 'normal/${2}'"
+					test ${softwarnings} -eq 1 -a ! -z "${log}" && softwarning "Overwriting param: log '${log}/${logtxt}' becomes 'normal/${2}'"
 					log=normal
 					logtxt="${2// /_}"
 				fi
@@ -6549,7 +6549,7 @@ rule() {
 			loglimit|LOGLIMIT)
 				if [ ${nolog} -eq 0 ]
 				then
-					test ${softwarnings} -eq 1 -a ! -z "${log}" && softwarning "Overwritting param: log '${log}/${logtxt}' becomes 'limit/${2}'"
+					test ${softwarnings} -eq 1 -a ! -z "${log}" && softwarning "Overwriting param: log '${log}/${logtxt}' becomes 'limit/${2}'"
 					log=limit
 					logtxt="${2// /_}"
 				fi
@@ -6564,14 +6564,14 @@ rule() {
 				;;
 				
 			limit|LIMIT)
-				test ${softwarnings} -eq 1 -a ! -z "${limit}" && softwarning "Overwritting param: limit '${limit}' becomes '${2}'"
+				test ${softwarnings} -eq 1 -a ! -z "${limit}" && softwarning "Overwriting param: limit '${limit}' becomes '${2}'"
 				limit="${2}"
 				burst="${3}"
 				shift 3
 				;;
 				
 			iplimit|IPLIMIT)
-				test ${softwarnings} -eq 1 -a ! -z "${iplimit}" && softwarning "Overwritting param: iplimit '${iplimit}' becomes '${2}'"
+				test ${softwarnings} -eq 1 -a ! -z "${iplimit}" && softwarning "Overwriting param: iplimit '${iplimit}' becomes '${2}'"
 				iplimit="${2}"
 				iplimit_mask="${3}"
 				shift 3
