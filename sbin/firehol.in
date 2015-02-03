@@ -558,6 +558,7 @@ FIREHOL_LOG_OPTIONS=""
 # FireHOL can prefix each log with a keyword.
 # Default: empty
 FIREHOL_LOG_PREFIX=""
+FIREHOL_LOG_ESCAPE="\""
 
 # Used only for FIREHOL_LOG_MODE="LOG"
 # The syslog level to be used when logging packets.
@@ -3625,12 +3626,12 @@ blacklist() {
 		local -a logopts_arg=()
 		if [ "${FIREHOL_LOG_MODE}" = "ULOG" ]
 		then
-			logopts_arg=("--ulog-prefix=${FIREHOL_LOG_PREFIX}BLACKLIST:")
+			logopts_arg=("--ulog-prefix=${FIREHOL_LOG_ESCAPE}${FIREHOL_LOG_PREFIX}BLACKLIST:${FIREHOL_LOG_ESCAPE}")
 		elif [ "${FIREHOL_LOG_MODE}" = "NFLOG" ]
 		then
-			logopts_arg=("--nflog-prefix=${FIREHOL_LOG_PREFIX}BLACKLIST:")
+			logopts_arg=("--nflog-prefix=${FIREHOL_LOG_ESCAPE}${FIREHOL_LOG_PREFIX}BLACKLIST:${FIREHOL_LOG_ESCAPE}")
 		else
-			logopts_arg=("--log-level" "${FIREHOL_LOG_LEVEL}" "--log-prefix=${FIREHOL_LOG_PREFIX}BLACKLIST:")
+			logopts_arg=("--log-level" "${FIREHOL_LOG_LEVEL}" "--log-prefix=${FIREHOL_LOG_ESCAPE}${FIREHOL_LOG_PREFIX}BLACKLIST:${FIREHOL_LOG_ESCAPE}")
 		fi
 
 		# Blacklist INPUT unidirectional
@@ -5437,12 +5438,12 @@ rule_action_param() {
 								local -a logopts_arg=()
 								if [ "${FIREHOL_LOG_MODE}" = "ULOG" ]
 								then
-									logopts_arg=("--ulog-prefix=${FIREHOL_LOG_PREFIX}LIMIT_OVERFLOW:")
+									logopts_arg=("--ulog-prefix=${FIREHOL_LOG_ESCAPE}${FIREHOL_LOG_PREFIX}LIMIT_OVERFLOW:${FIREHOL_LOG_ESCAPE}")
 								elif [ "${FIREHOL_LOG_MODE}" = "NFLOG" ]
 								then
-									logopts_arg=("--nflog-prefix=${FIREHOL_LOG_PREFIX}LIMIT_OVERFLOW:")
+									logopts_arg=("--nflog-prefix=${FIREHOL_LOG_ESCAPE}${FIREHOL_LOG_PREFIX}LIMIT_OVERFLOW:${FIREHOL_LOG_ESCAPE}")
 								else
-									logopts_arg=("--log-level" "${FIREHOL_LOG_LEVEL}" "--log-prefix=${FIREHOL_LOG_PREFIX}LIMIT_OVERFLOW:")
+									logopts_arg=("--log-level" "${FIREHOL_LOG_LEVEL}" "--log-prefix=${FIREHOL_LOG_ESCAPE}${FIREHOL_LOG_PREFIX}LIMIT_OVERFLOW:${FIREHOL_LOG_ESCAPE}")
 								fi
 								$iptables_cmd ${table} -A "${accept_limit_chain}" -m limit --limit "${FIREHOL_LOG_FREQUENCY}" --limit-burst "${FIREHOL_LOG_BURST}" -j ${FIREHOL_LOG_MODE} ${FIREHOL_LOG_OPTIONS} "${logopts_arg[@]}"
 								
@@ -7163,12 +7164,12 @@ rule() {
 	# log mode selection
 	if [ "${FIREHOL_LOG_MODE}" = "ULOG" ]
 	then
-		logopts_arg=("--ulog-prefix=${FIREHOL_LOG_PREFIX}${logtxt}:")
+		logopts_arg=("--ulog-prefix=${FIREHOL_LOG_ESCAPE}${FIREHOL_LOG_PREFIX}${logtxt}:${FIREHOL_LOG_ESCAPE}")
 	elif [ "${FIREHOL_LOG_MODE}" = "NFLOG" ]
 	then
-		logopts_arg=("--nflog-prefix=${FIREHOL_LOG_PREFIX}${logtxt}:")
+		logopts_arg=("--nflog-prefix=${FIREHOL_LOG_ESCAPE}${FIREHOL_LOG_PREFIX}${logtxt}:${FIREHOL_LOG_ESCAPE}")
 	else
-		logopts_arg=("--log-level" "${loglevel}" "--log-prefix=${FIREHOL_LOG_PREFIX}${logtxt}:")
+		logopts_arg=("--log-level" "${loglevel}" "--log-prefix=${FIREHOL_LOG_ESCAPE}${FIREHOL_LOG_PREFIX}${logtxt}:${FIREHOL_LOG_ESCAPE}")
 	fi
 
 	# log / loglimit
@@ -8600,6 +8601,7 @@ then
 	fi
 fi
 
+[ ${FIREHOL_FAST_ACTIVATION} -eq 0 ] && FIREHOL_LOG_ESCAPE=
 
 # ------------------------------------------------------------------------------
 # XXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXX
