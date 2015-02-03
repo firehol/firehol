@@ -6188,7 +6188,7 @@ rule() {
 								to|to-source|--to-source)
 									action_param=( "${action_param[@]}" "--to-source" "${2}" )
 									# ports need a protocol: either tcp or udp (or both if unset)
-									test ! -z "${2/*:/}" -a "${proto}" = "any" && proto="tcp udp"
+									[[ "${2}" =~ ":" ]] && [ "${proto}" = "any" ] && proto="tcp udp"
 									hasto=1
 									shift 2
 									;;
@@ -6228,7 +6228,7 @@ rule() {
 								to|to-destination|--to-destination)
 									action_param=( "${action_param[@]}" "--to-destination" "${2}" )
 									# ports need a protocol: either tcp or udp (or both if unset)
-									test ! -z "${2/*:/}" -a "${proto}" = "any" && proto="tcp udp"
+									[[ "${2}" =~ ":" ]] && [ "${proto}" = "any" ] && proto="tcp udp"
 									hasto=1
 									shift 2
 									;;
@@ -6268,7 +6268,7 @@ rule() {
 								to|to-port|--to-port|to-ports|--to-ports)
 									action_param=( "${action_param[@]}" "--to-ports" "${2}" )
 									# ports need a protocol: either tcp or udp (or both if unset)
-									test ! -z "${2/*:/}" -a "${proto}" = "any" && proto="tcp udp"
+									test "${proto}" = "any" && proto="tcp udp"
 									hasto=1
 									shift 2
 									;;
