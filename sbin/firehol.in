@@ -8447,7 +8447,7 @@ case "${arg}" in
 			${IPSET_CMD} ${IPSET_RESTORE_OPTION} <"${FIREHOL_DIR}/ipsets.restore"
 			if [ $? -ne 0 ]
 			then
-				echo >&2 "Failed to update ipset '${name}'"
+				failure # "Updating ipset '${name}' with options: ${*}"
 				exit 1
 			fi
 
