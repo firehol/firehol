@@ -6866,24 +6866,37 @@ rule() {
 		
 		if [ ! -z "${srcnot}" ]
 		then
-			local s= src= iptables=
+			local s= src= iptables= ipvall= ipv=
 
-			running_ipv6 && { iptables="ip6tables"; src="${src6}"; }
-			running_ipv4 && { iptables="iptables"; src="${src4}"; }
+			running_ipv6 && ipvall="${ipvall} ipv6"
+			running_ipv4 && ipvall="${ipvall} ipv4"
 
-			for s in ${src}
+			for ipv in ${ipvall}
 			do
-				case "${s}" in
-					ipset:*)
-						[ ${IPSET_WARNING} -eq 1 ] && ipset_warning
-						s="${s/ipset:/}"
-						test -z "${FIREHOL_IPSETS_USED[$s]}" && FIREHOL_IPSETS_USED[$s]="USED"
-						${iptables} ${table} -A "${negative_chain}" -m set --match-set "${s}" src -j RETURN
+				case "${ipv}" in
+					ipv4)	iptables="iptables"
+						src="${src4}"
 						;;
-					*)
-						${iptables} ${table} -A "${negative_chain}" -s "${s}" -j RETURN
+
+					ipv6)	iptables="ip6tables"
+						src="${src6}"
 						;;
 				esac
+
+				for s in ${src}
+				do
+					case "${s}" in
+						ipset:*)
+							[ ${IPSET_WARNING} -eq 1 ] && ipset_warning
+							s="${s/ipset:/}"
+							test -z "${FIREHOL_IPSETS_USED[$s]}" && FIREHOL_IPSETS_USED[$s]="USED"
+							${iptables} ${table} -A "${negative_chain}" -m set --match-set "${s}" src -j RETURN
+							;;
+						*)
+							${iptables} ${table} -A "${negative_chain}" -s "${s}" -j RETURN
+							;;
+					esac
+				done
 			done
 			srcnot=
 			src4=any
@@ -6892,24 +6905,37 @@ rule() {
 		
 		if [ ! -z "${dstnot}" ]
 		then
-			local d= dst= iptables=
+			local d= dst= iptables= ipvall= ipv=
 
-			running_ipv6 && { iptables="ip6tables"; dst="${dst6}"; }
-			running_ipv4 && { iptables="iptables"; dst="${dst4}"; }
+			running_ipv6 && ipvall="${ipvall} ipv6"
+			running_ipv4 && ipvall="${ipvall} ipv4"
 
-			for d in ${dst}
+			for ipv in ${ipvall}
 			do
-				case "${d}" in
-					ipset:*)
-						[ ${IPSET_WARNING} -eq 1 ] && ipset_warning
-						d="${d/ipset:/}"
-						test -z "${FIREHOL_IPSETS_USED[$d]}" && FIREHOL_IPSETS_USED[$d]="USED"
-						${iptables} ${table} -A "${negative_chain}" -m set --match-set "${d}" dst -j RETURN
+				case "${ipv}" in
+					ipv4)	iptables="iptables"
+						dst="${dst4}"
 						;;
-					*)
-						${iptables} ${table} -A "${negative_chain}" -d "${d}" -j RETURN
+
+					ipv6)	iptables="ip6tables"
+						dst="${dst6}"
 						;;
 				esac
+
+				for d in ${dst}
+				do
+					case "${d}" in
+						ipset:*)
+							[ ${IPSET_WARNING} -eq 1 ] && ipset_warning
+							d="${d/ipset:/}"
+							test -z "${FIREHOL_IPSETS_USED[$d]}" && FIREHOL_IPSETS_USED[$d]="USED"
+							${iptables} ${table} -A "${negative_chain}" -m set --match-set "${d}" dst -j RETURN
+							;;
+						*)
+							${iptables} ${table} -A "${negative_chain}" -d "${d}" -j RETURN
+							;;
+					esac
+				done
 			done
 			dstnot=
 			dst4=any
