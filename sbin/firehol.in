@@ -8436,7 +8436,7 @@ case "${arg}" in
 			ipset_addfile "${name}" "${@}" >>${tmp}
 			if [ $? -ne 0 ]
 			then
-				echo >&2 "Cannot update ipset '${name}'."
+				failure # "Updating ipset '${name}' with options: ${*}"
 				exit 1
 			fi
 
