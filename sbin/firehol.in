@@ -4171,6 +4171,7 @@ ipset_remove_all_tmp_sets() {
 		do
 			${IPSET_CMD} ${IPSET_DESTROY_OPTION} "${x}" >/dev/null 2>&1
 		done
+		FIREHOL_IPSET_TMP_SETS=()
 	fi
 }
 
