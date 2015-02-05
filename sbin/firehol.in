@@ -8434,15 +8434,14 @@ case "${arg}" in
 			${IPSET_CMD} ${IPSET_SAVE_OPTION} ${name} >${tmp}.old
 
 			# find the create statement
-			if [ -f "${FIREHOL_SPOOL_DIR}/ipset.${name}.rules" ]
+			${EGREP_CMD} "^(${IPSET_CREATE_OPTION}|create|-N|--create) " <${tmp}.old >${tmp}
+
+			if [ ! -s ${tmp} -a -f "${FIREHOL_SPOOL_DIR}/ipset.${name}.rules" ]
 			then
-				# from the rules we generated previously
-				${CAT_CMD} "${FIREHOL_SPOOL_DIR}/ipset.${name}.rules" |\
-					${GREP_CMD} "^${IPSET_CREATE_OPTION} ${name} " >${tmp}
-			else
-				# or from the active ipset in the system
-				cat ${tmp}.old |\
-					${EGREP_CMD} "^(${IPSET_CREATE_OPTION}|create|-N|--create) " >${tmp}
+				# try the rules we generated previously
+				${GREP_CMD} "^${IPSET_CREATE_OPTION} ${name} " \
+					<"${FIREHOL_SPOOL_DIR}/ipset.${name}.rules" \
+					>${tmp}
 			fi
 
 			# do we have a 'create' statement?
