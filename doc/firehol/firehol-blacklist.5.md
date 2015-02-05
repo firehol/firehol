@@ -8,9 +8,8 @@ firehol-blacklist - set up a unidirectional or bidirectional blacklist
 
 # SYNOPSIS
 
-blacklist [ full | all ] *ip*...
+blacklist [ *type* ] [ inface *name* ] [ log *"text"* ] [ loglimit *"text"* ] *ip*...
 
-blacklist { input | them | him | her | it | this | these } *ip*...
 
 # DESCRIPTION
 
@@ -18,18 +17,22 @@ blacklist { input | them | him | her | it | this | these } *ip*...
 The `blacklist` helper command creates a blacklist for the *ip* list given
 (which can be in quotes or not).
 
-If the type `full` or one of its aliases is supplied, or no type is
-given, a bidirectional stateless blacklist will be generated. The
-firewall will REJECT all traffic going to the IP addresses and DROP all
-traffic coming from them.
+If the type `full` or `all` is supplied (or no type at all), a bidirectional
+stateless blacklist will be generated. The firewall will REJECT all traffic
+going to the IP addresses and DROP all traffic coming from them.
 
-If the type `input` or one of its aliases is supplied, a unidirectional
-stateful blacklist will be generated. Connections can be initiated to
-such IP addresses, but the IP addresses will not be able to connect to
-the firewall or hosts protected by it.
+If the type `input` or `him`, `her`, `it`, `this`, `these` is supplied,
+a unidirectional stateful blacklist will be generated. Connections can be
+established to such IP addresses, but the IP addresses will not be able to
+connect to the firewall or hosts protected by it.
 
-Any blacklists will affect all router and interface definitions. They
-must be declared before the first router or interface.
+Using `log` or `loglimit`, the `text` will be logged when matching packets
+are found.
+
+Using `inface`, the blacklist will be created on the interface `name` only
+(this includes forwarded traffic).
+
+Blacklists must be declared before the first router or interface.
 
 
 # EXAMPLES
@@ -37,6 +40,7 @@ must be declared before the first router or interface.
 ~~~~
 blacklist full 192.0.2.1 192.0.2.2
 blacklist input "192.0.2.3 192.0.2.4"
+blacklist full inface eth0 log "BADGUY" 192.0.1.1 192.0.1.2
 ~~~~
 
 # SEE ALSO
