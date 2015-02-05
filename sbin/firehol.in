@@ -4163,6 +4163,11 @@ ipset_to_temp_and_swap() {
 	echo "${IPSET_DESTROY_OPTION} ${tmpname}"
 }
 
+ipset_done_all_tmp_sets() {
+	# empty temp variables to prevent cleanup from running at exit
+	FIREHOL_IPSET_TMP_SETS=()
+}
+
 ipset_remove_all_tmp_sets() {
 	if [ ${ENABLE_IPSET} -eq 1 ]
 	then
@@ -4171,7 +4176,7 @@ ipset_remove_all_tmp_sets() {
 		do
 			${IPSET_CMD} ${IPSET_DESTROY_OPTION} "${x}" >/dev/null 2>&1
 		done
-		FIREHOL_IPSET_TMP_SETS=()
+		ipset_done_all_tmp_sets
 	fi
 }
 
@@ -4258,6 +4263,7 @@ ipsets_apply() {
 			ipset_remove_all_tmp_sets
 			return 1
 		else
+			ipset_done_all_tmp_sets
 			success
 		fi
 
@@ -8477,6 +8483,7 @@ case "${arg}" in
 				ipset_remove_all_tmp_sets
 				exit 1
 			fi
+			ipset_done_all_tmp_sets
 
 			# let the user know
 			success "$(( $(cat ${tmp} | wc -l) - 2 )) IPs" # "Updating ipset '${name}' with options: ${*}"
@@ -8485,12 +8492,41 @@ case "${arg}" in
 			${IPSET_CMD} ${IPSET_SAVE_OPTION} ${name} >${tmp}.new
 
 			# sort the two sets
+			# we use the files saved from ipset, so that if the kernel is
+			# making something magic to them (it does not currently),
+			# we will compare what the kernel actually sees.
 			${SORT_CMD} <${tmp}.new >${tmp}.new.sorted
 			${SORT_CMD} <${tmp}.old >${tmp}.old.sorted
 
-			echo "Differences in the ipset ${name}:"
-			diff ${tmp}.old.sorted ${tmp}.new.sorted
-			test $? -eq 0 && echo "No differences - the new set is exactly the same with the old."
+			diff ${tmp}.old.sorted ${tmp}.new.sorted |\
+				${SED_CMD} -e "s|[\t ]\+| |g" -e "s|^ \+||g" -e "s| \+$||g" \
+					   -e "s|^\([<>]\) [^[:space:]]* ${name} \([0-9a-fA-F/\.:-]\+\) .*$|\1 \2|g" \
+				           -e "s|^\([<>]\) [^[:space:]]* ${name} \([0-9a-fA-F/\.:-]\+\)$|\1 \2|g" |\
+				${EGREP_CMD} "^[<>] [0-9a-fA-F/\.:-]+$" >${tmp}.diff
+
+			echo
+			
+			if [ ! -s ${tmp}.diff ]
+			then
+				echo " >> No differences - the new set is exactly the same with the old."
+			else
+				cat ${tmp}.diff | ${GREP_CMD} "^< " | ${SED_CMD} "s|^< ||g" | ${TR_CMD} "\n" " " >${tmp}.removed
+				cat ${tmp}.diff | ${GREP_CMD} "^> " | ${SED_CMD} "s|^> ||g" | ${TR_CMD} "\n" " " >${tmp}.added
+
+				if [ -s ${tmp}.removed ]
+				then
+					echo -n " < Removed: "
+					cat ${tmp}.removed
+					echo
+				fi
+				if [ -s ${tmp}.added ]
+				then
+					echo -n " > Added  : "
+					cat ${tmp}.added
+					echo
+				fi
+			fi
+			echo
 
 			# keep it for restoration
 			if [ -f "${FIREHOL_SPOOL_DIR}/ipset.${name}.rules" ]

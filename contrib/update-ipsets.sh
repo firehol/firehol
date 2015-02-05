@@ -271,32 +271,32 @@ update openbl 10 ipv4 ip \
 	remove_comments
 
 # TOR is necessary hostile, you may need this just for sensitive services
-update tor $[23*60] ipv4 ip \
+update tor $[12*60-10] ipv4 ip \
 	"http://rules.emergingthreats.net/blockrules/emerging-tor.rules?r=${RANDOM}" \
 	snort_alert_rules_to_ipv4
 
 # http://doc.emergingthreats.net/bin/view/Main/CompromisedHost
-update compromised $[23*60] ipv4 ip \
+update compromised $[12*60-10] ipv4 ip \
 	"http://rules.emergingthreats.net/blockrules/compromised-ips.txt?r=${RANDOM}" \
 	remove_comments
 
 # includes botnet, spamhaus and dshield
-update emerging_block $[23*60] ipv4 net \
+update emerging_block $[12*60-10] ipv4 net \
 	"http://rules.emergingthreats.net/fwrules/emerging-Block-IPs.txt?r=${RANDOM}" \
 	remove_comments
 
 # Command & Control botnet servers by www.shadowserver.org
-update botnet $[23*60] ipv4 ip \
+update botnet $[12*60-10] ipv4 ip \
 	"http://rules.emergingthreats.net/fwrules/emerging-PIX-CC.rules?r=${RANDOM}" \
 	pix_deny_rules_to_ipv4
 
 # Spam networks identified by www.spamhaus.org
-update spamhaus $[23*60] ipv4 net \
+update spamhaus $[12*60-10] ipv4 net \
 	"http://rules.emergingthreats.net/fwrules/emerging-PIX-DROP.rules?r=${RANDOM}" \
 	pix_deny_rules_to_ipv4
 
 # Top 20 attackers by www.dshield.org
-update dshield $[23*60] ipv4 net \
+update dshield $[12*60-10] ipv4 net \
 	"http://rules.emergingthreats.net/fwrules/emerging-PIX-DSHIELD.rules?r=${RANDOM}" \
 	pix_deny_rules_to_ipv4
 
