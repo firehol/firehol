@@ -244,6 +244,27 @@ pix_deny_rules_to_ipv4() {
 # YOU HAVE TO UPDATE YOUR firehol.conf TO BLACKLIST ANY OF THESE.
 # Check: https://github.com/ktsaou/firehol/wiki/FireHOL-support-for-ipset
 
+# EXAMPLE FOR firehol.conf:
+#
+# ipv4 ipset create  openbl hash:ip
+#      ipset addfile openbl ipsets/openbl.ipset
+#
+# ipv4 ipset create  tor hash:ip
+#      ipset addfile tor ipsets/tor.ipset
+#
+# ipv4 ipset create  compromised hash:ip
+#      ipset addfile compromised ipsets/compromised.ipset
+#
+# ipv4 ipset create emerging_block hash:net
+#      ipset addfile emerging_block ipsets/emerging_block.netset
+#
+# ipv4 blacklist full \
+#         ipset:openbl \
+#         ipset:tor \
+#         ipset:emerging_block \
+#         ipset:compromised \
+#
+
 # www.openbl.org
 update openbl 10 ipv4 ip \
 	"http://www.openbl.org/lists/base.txt?r=${RANDOM}" \
