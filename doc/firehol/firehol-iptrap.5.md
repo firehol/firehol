@@ -38,7 +38,7 @@ the traffic that is matched to this service. See
 # EXAMPLES
 
 ~~~~
-iptrap4 src trap 3600 inface eth0 proto tcp dport 80
+iptrap4 src trap 3600 inface eth0 proto tcp dport 80 log "TRAPPED HTTP"
 ~~~~
 
 # SEE ALSO
