@@ -8,7 +8,7 @@ firehol-blacklist - set up a unidirectional or bidirectional blacklist
 
 # SYNOPSIS
 
-blacklist [ *type* ] [ inface *name* ] [ log *"text"* ] [ loglimit *"text"* ] *ip*...
+{ blacklist | blacklist4 | blacklist6 } [ *type* ] [ inface *device* ] [ log *"text"* ] [ loglimit *"text"* ] [ accounting *accounting_name* ] *ip*... [ except *rule-params* ]
 
 
 # DESCRIPTION
@@ -29,8 +29,15 @@ connect to the firewall or hosts protected by it.
 Using `log` or `loglimit`, the `text` will be logged when matching packets
 are found.
 
-Using `inface`, the blacklist will be created on the interface `name` only
+Using `inface`, the blacklist will be created on the interface `device` only
 (this includes forwarded traffic).
+
+`accounting` will update the NFACCT accounting with the name given.
+
+If the keyword `except` is found, then all the parameters following it are
+rules to match packets that should excluded from the blacklist (i.e. they
+are a whitelist for this blacklist). See [firehol-params(5)][] for more
+details.
 
 Blacklists must be declared before the first router or interface.
 
