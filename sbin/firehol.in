@@ -394,7 +394,7 @@ FIREHOL_ESTABLISHED_ACTIVATION_ACCEPT="${FIREHOL_ESTABLISHED_ACTIVATION_ACCEPT-1
 # Default: 0
 FIREHOL_NAT="${FIREHOL_NAT-0}"
 
-# Set this to 1 to enable rooting of packets in the kernel
+# Set this to 1 to enable routing of packets in the kernel
 # It will be enabled automatically if routers are defined in the firewall
 # Default: 0
 FIREHOL_ROUTING="${FIREHOL_ROUTING-0}"
@@ -2156,7 +2156,7 @@ server_sane_ports="tcp/6566"
 client_sane_ports="default"
 helper_sane="sane"
 
-server_sip_ports="udp/5060"
+server_sip_ports="tcp/5060 udp/5060"
 client_sip_ports="5060 default"
 helper_sip="sip"
 
@@ -3664,8 +3664,8 @@ blacklist() {
 
 	set_work_function "Generating blacklist chains ${chain} in/out"
 
-	iptables_both -t filter -N "${chain}.in"
-	rule table filter chain "${chain}.in" in "${logopts_arg[@]}" action DROP
+	iptables_both -t mangle -N "${chain}.in"
+	rule table mangle chain "${chain}.in" in "${logopts_arg[@]}" action DROP
 
 	# ---
 
@@ -3676,25 +3676,78 @@ blacklist() {
 
 		set_work_function "Generating blacklist rules"
 
-		rule table filter chain INPUT   in          "${inface[@]}" src "${*}" state NEW action "${chain}.in" || return 1
-		rule table filter chain FORWARD in          "${inface[@]}" src "${*}" state NEW action "${chain}.in" || return 1
+		rule table mangle chain PREROUTING in "${inface[@]}" src "${*}" state NEW action "${chain}.in" || return 1
 
 	else
 		# bi-directional stateless
 		# none connects from/to these hosts
 
+		# iptables does not accept REJECT on mangle - we are forced to use filter for this
 		iptables_both -t filter -N "${chain}.out"
 		running_ipv4 && ipv4 rule table filter chain "${chain}.out" out "${logopts_arg[@]}" action REJECT with icmp-host-unreachable
 		running_ipv6 && ipv6 rule table filter chain "${chain}.out" out "${logopts_arg[@]}" action REJECT with icmp6-addr-unreachable
 
 		set_work_function "Generating blacklist rules"
 
-		rule table filter chain INPUT   in          "${inface[@]}" src "${*}" action "${chain}.in" || return 1
-		rule table filter chain FORWARD in          "${inface[@]}" src "${*}" action "${chain}.in" || return 1
-
-		rule table filter chain OUTPUT  out reverse "${inface[@]}" src "${*}" action "${chain}.out" || return 1
-		rule table filter chain FORWARD out reverse "${inface[@]}" src "${*}" action "${chain}.out" || return 1
+		rule table mangle chain PREROUTING  in          "${inface[@]}" src "${*}" action "${chain}.in" || return 1
+		rule table filter chain OUTPUT      out reverse "${inface[@]}" src "${*}" action "${chain}.out" || return 1
 	fi
+
+	return 0
+}
+
+FIREHOL_IPTRAP_COUNTER=0
+iptrap4() { ipv4 iptrap "${@}"; }
+iptrap6() { ipv6 iptrap "${@}"; }
+iptrap46() { both iptrap "${@}"; }
+iptrap() {
+	work_realcmd_helper ${FUNCNAME} "$@"
+	
+	set_work_function -ne "Initializing $FUNCNAME"
+	
+	require_work clear || ( error "$FUNCNAME cannot be used in '${work_cmd}'. Put it before any '${work_cmd}' definition."; return 1 )
+	running_both       && error "$FUNCNAME cannot be used in both IPv4 and IPv6. Please give use either iptrap4 or iptrap6." && return 1
+
+	local type="${1}" ipset="${2}" timeout="${3}" chain=
+	local -a args=() logopts_arg=(log "TRAP")
+	shift 3
+
+	if [ ${ENABLE_IPSET} -ne 1 ]
+	then
+		error "$FUNCNAME requires ipset but ut is not enabled. Do you have ipset installed?"
+		return 1
+	fi
+
+	while [ ! -z "${1}" ]
+	do
+		case "${1}" in
+			log|loglimit)
+				logopts_arg=("${1}" "${2}")
+				shift
+				;;
+
+			*)	args=("${args[@]}" "${1}")
+				;;
+		esac
+		shift
+	done
+
+	test -z "${FIREHOL_IPSETS_USED[$ipset]}" && FIREHOL_IPSETS_USED[$ipset]="USED"
+
+	FIREHOL_IPTRAP_COUNTER=$[ FIREHOL_IPTRAP_COUNTER + 1 ]
+	chain="IPTRAP.${FIREHOL_IPTRAP_COUNTER}"
+
+	set_work_function "Generating trap chain ${chain}"
+
+	iptables_both -t mangle -N "${chain}"
+	iptables_both -t mangle -A "${chain}" -j SET --add-set ${ipset} ${type} --exist --timeout ${timeout}
+	rule table mangle chain "${chain}" in "${logopts_arg[@]}" action DROP
+
+	# ---
+
+	set_work_function "Generating iptrap matching rules"
+
+	rule table mangle chain PREROUTING in state NEW "${args[@]}" action "${chain}" || return 1
 
 	return 0
 }
