@@ -149,6 +149,18 @@ update() {
 		return 1
 	fi
 
+	if [ -f "${install}.source" ]
+	then
+		diff "${install}.source" "${tmp}" >/dev/null 2>&1
+		if [ $? -eq 0 ]
+		then
+			# they are the same
+			rm "${tmp}"
+			test ${SILENT} -ne 1 && echo >&2 "Downloaded file for ${ipset}, is the same with the previous one."
+			return 0
+		fi
+	fi
+
 	test ${SILENT} -ne 1 && echo >&2 "Saving ${ipset} to ${install}.source"
 	mv "${tmp}" "${install}.source" || return 1
 
