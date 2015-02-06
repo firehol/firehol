@@ -3732,7 +3732,15 @@ iptrap() {
 		shift
 	done
 
-	test -z "${FIREHOL_IPSETS_USED[$ipset]}" && FIREHOL_IPSETS_USED[$ipset]="USED"
+	if [ -z "${FIREHOL_IPSETS_USED[$ipset]}" ]
+	then
+		if [ "${type//,/ }" = "src dst" -o "${type//,/ }" = "dst src" ]
+		then
+			ipset create ${ipset} hash:ip,ip timeout 3600 counters
+		else
+			ipset create ${ipset} hash:ip timeout 3600 counters
+		fi
+	fi
 
 	FIREHOL_IPTRAP_COUNTER=$[ FIREHOL_IPTRAP_COUNTER + 1 ]
 	chain="IPTRAP.${FIREHOL_IPTRAP_COUNTER}"
@@ -3741,7 +3749,7 @@ iptrap() {
 
 	iptables_both -t mangle -N "${chain}"
 	iptables_both -t mangle -A "${chain}" -j SET --add-set ${ipset} ${type} --exist --timeout ${timeout}
-	rule table mangle chain "${chain}" in "${logopts_arg[@]}" action DROP
+	rule table mangle chain "${chain}" in "${logopts_arg[@]}" action RETURN
 
 	# ---
 
