@@ -27,7 +27,10 @@ the ipset will not be reset (emptied) when the firewall is restarted.
 
 `timeout` is the duration in seconds of the lifetime of each IP
 address in the ipset. Every matching packet will refresh this duration
-for the IP address in the ipset.
+for the IP address in the ipset. The Linux kernel will automatically remove
+the IP from the ipset when this time expires. The user may monitor the
+remaining time for each IP, by running `ipset list NAME` (where `NAME` is
+the `ipset` parameter given in the `iptrap` command).
 
 The *rule-params* define a set of rule parameters to restrict
 the traffic that is matched to this service. See
