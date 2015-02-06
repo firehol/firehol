@@ -35,6 +35,10 @@ the traffic that is matched to this service. See
 
 `iptrap` is hooked on PREROUTING so it is only useful for incoming traffic.
 
+`iptrap` cannot setup both IPv4 and IPv6 traps with one call. The reason
+is that the `ipset` can either be IPv4 or IPv6.
+
+
 # EXAMPLES
 
 ~~~~
