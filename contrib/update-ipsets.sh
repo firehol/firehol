@@ -278,7 +278,7 @@ pix_deny_rules_to_ipv4() {
 #
 
 # www.openbl.org
-update openbl 10 ipv4 ip \
+update openbl $[4*60-10] ipv4 ip \
 	"http://www.openbl.org/lists/base.txt?r=${RANDOM}" \
 	remove_comments
 
