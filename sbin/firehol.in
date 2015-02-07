@@ -3673,14 +3673,14 @@ blacklist() {
 		esac
 	done
 
-	# Now in $src we have all the positive IPs
-	# and in $* all the negative rules
+	# Now in $src[@] we have all the positive IPs
+	# and in $@ the excepted rules
 
 
 	chain="BLACKLIST.${name}.${FIREHOL_BLACKLIST_COUNTER}"
-	set_work_function "Generating blacklist chains ${chain} in/out"
+	set_work_function "Generating blacklist input chain"
 
-	# create the input chain
+	# create the input chain (common for both stateless and stateful)
 	iptables_both -t mangle -N "${chain}.in"
 
 	# add the excepted rules
@@ -3689,13 +3689,33 @@ blacklist() {
 	# add the accounting rules
 	test ! -z "${accounting}" && ( iptables_both -t mangle -A "${chain}.in" -m nfacct --nfacct-name "${accounting}" || return 1 )
 
-	# drop the traffic
+	# drop the traffic (input)
 	rule table mangle chain "${chain}.in" in "${logopts_in_arg[@]}" action DROP || return 1
 
-	# create the output chain, if we need it
-	if [ ${mode} -ne 0 ]
+	# ---
+
+	# send traffic from the main flow to the generated chains
+	if [ ${mode} -eq 0 ]
 	then
-		# iptables does not accept REJECT on mangle - we are forced to use filter for this
+		# uni-directional stateful
+		# we will be able to connect to them, they will not be able to connect to us
+
+		set_work_function "Generating unidirectional blacklist rules"
+
+		rule table mangle chain PREROUTING in "${inface[@]}" src "${src[*]}" state NEW action "${chain}.in" || return 1
+
+	else
+		# bi-directional stateless
+		# no traffic from/to them
+
+		set_work_function "Blacklist input from them"
+
+		rule table mangle chain PREROUTING  in          "${inface[@]}" src "${src[*]}" action "${chain}.in" || return 1
+
+
+		set_work_function "Generating output chain"
+
+		# create the output chain
 		iptables_both -t filter -N "${chain}.out"
 
 		# add the excepted rules
@@ -3717,27 +3737,13 @@ blacklist() {
 			rule table filter chain "${chain}.out" out "${logopts_out_arg[@]}" action REJECT with icmp6-addr-unreachable
 			pop_namespace
 		fi
-	fi
 
-	# ---
-
-	# send traffic from the main flow to the generated chains
-	if [ ${mode} -eq 0 ]
-	then
-		# uni-directional stateful
-		# we will be able to connect to them, they will not be able to connect to us
-
-		set_work_function "Generating unidirectional blacklist rules"
-
-		rule table mangle chain PREROUTING in "${inface[@]}" src "${src[*]}" state NEW action "${chain}.in" || return 1
-
-	else
 		# bi-directional stateless
 		# none connects from/to these hosts
 
 		set_work_function "Generating bidirectional blacklist rules"
 
-		rule table mangle chain PREROUTING  in          "${inface[@]}" src "${src[*]}" action "${chain}.in" || return 1
+		# iptables does not accept REJECT on mangle - we are forced to use filter for this
 		rule table filter chain OUTPUT      out reverse "${inface[@]}" src "${src[*]}" action "${chain}.out" || return 1
 	fi
 
@@ -3769,6 +3775,11 @@ iptrap() {
 	while [ ! -z "${1}" ]
 	do
 		case "${1}" in
+			except|EXCEPT)
+				shift
+				break
+				;;
+
 			log|loglimit)
 				logopts_arg=("${1}" "${2}")
 				shift
@@ -3779,6 +3790,10 @@ iptrap() {
 		esac
 		shift
 	done
+
+	# Now in $args[@] we have all the positive IPs
+	# and in $@ the excepted rules
+
 
 	if [ -z "${FIREHOL_IPSETS_USED[$ipset]}" ]
 	then
@@ -3795,8 +3810,16 @@ iptrap() {
 
 	set_work_function "Generating trap chain ${chain}"
 
+	# create the chain
 	iptables_both -t mangle -N "${chain}"
+
+	# add the excepted rules
+	test ! -z "${1}" && ( rule table mangle chain "${chain}" in action RETURN "${@}" || return 1 )
+
+	# do the job
 	iptables_both -t mangle -A "${chain}" -j SET --add-set ${ipset} ${type} --exist --timeout ${timeout}
+
+	# log and return
 	rule table mangle chain "${chain}" in "${logopts_arg[@]}" action RETURN
 
 	# ---
@@ -4221,6 +4244,19 @@ ipset() {
 
 			local ip="${1}" x=
 			shift
+
+			if [ "${FIREHOL_IPSETS_IPV[$name]}" = "ipv6" ]
+			then
+				ip=${ip//reserved_ips()/${RESERVED_IPV6}}
+				ip=${ip//private_ips()/${PRIVATE_IPV6}}
+				ip=${ip//multicast_ips()/${MULTICAST_IPV6}}
+				ip=${ip//unroutable_ips()/${UNROUTABLE_IPV6}}
+			else
+				ip=${ip//reserved_ips()/${RESERVED_IPV4}}
+				ip=${ip//private_ips()/${PRIVATE_IPV4}}
+				ip=${ip//multicast_ips()/${MULTICAST_IPV4}}
+				ip=${ip//unroutable_ips()/${UNROUTABLE_IPV4}}
+			fi
 
 			for x in ${ip//,/ }
 			do
