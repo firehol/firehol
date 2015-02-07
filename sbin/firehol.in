@@ -3619,7 +3619,7 @@ blacklist() {
 	
 	FIREHOL_BLACKLIST_COUNTER=$[ FIREHOL_BLACKLIST_COUNTER + 1 ]
 	local mode=1 chain= name="bi" accounting=
-	local -a inface=() src=() logopts_arg=(log "BLACKLIST")
+	local -a inface=() src=() logopts_in_arg=(log "BLACKLIST-IN") logopts_out_arg=(log "BLACKLIST-OUT")
 
 	case "${1}" in
 		them|him|her|it|this|these|input)
@@ -3640,27 +3640,29 @@ blacklist() {
 	while [ ! -z "${1}" ]
 	do
 		case "${1}" in
-			except)
+			except|EXCEPT)
 				shift
 				break
 				;;
 
-			log)
-				logopts_arg=(log "${2}")
+			log|LOG)
+				logopts_in_arg=(log "${2}-IN")
+				logopts_out_arg=(log "${2}-OUT")
 				shift 2
 				;;
 
-			loglimit)
-				logopts_arg=(loglimit "${2}")
+			loglimit|LOGLIMIT)
+				logopts_in_arg=(loglimit "${2}-IN")
+				logopts_out_arg=(loglimit "${2}-OUT")
 				shift 2
 				;;
 
-			acct|accounting)
+			acct|accounting|ACCT|ACCOUNTING)
 				accounting="${2}"
 				shift 2
 				;;
 
-			inface)
+			inface|INFACE)
 				inface=(inface "${2}")
 				shift 2
 				;;
@@ -3688,7 +3690,7 @@ blacklist() {
 	test ! -z "${accounting}" && ( iptables_both -t mangle -A "${chain}.in" -m nfacct --nfacct-name "${accounting}" || return 1 )
 
 	# drop the traffic
-	rule table mangle chain "${chain}.in" in "${logopts_arg[@]}" action DROP || return 1
+	rule table mangle chain "${chain}.in" in "${logopts_in_arg[@]}" action DROP || return 1
 
 	# create the output chain, if we need it
 	if [ ${mode} -ne 0 ]
@@ -3705,14 +3707,14 @@ blacklist() {
 		if running_ipv4
 		then
 			push_namespace ipv4
-			rule table filter chain "${chain}.out" out "${logopts_arg[@]}" action REJECT with icmp-host-unreachable
+			rule table filter chain "${chain}.out" out "${logopts_out_arg[@]}" action REJECT with icmp-host-unreachable
 			pop_namespace
 		fi
 
 		if running_ipv6
 		then
 			push_namespace ipv4
-			rule table filter chain "${chain}.out" out "${logopts_arg[@]}" action REJECT with icmp6-addr-unreachable
+			rule table filter chain "${chain}.out" out "${logopts_out_arg[@]}" action REJECT with icmp6-addr-unreachable
 			pop_namespace
 		fi
 	fi
