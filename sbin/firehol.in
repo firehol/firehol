@@ -5773,7 +5773,7 @@ rule() {
 		swi=0 swo=0 \
 		custom= \
 		accounting= \
-		inout=
+		inout= x=
 	
 	# if set to 1, all owner module options will be ignored
 	local noowner=0
@@ -5792,7 +5792,7 @@ rule() {
 	local softwarnings=1
 	
 	# set it, in order to be local
-	local -a action_param=()
+	local -a action_param=() tmparray=()
 	
 	while [ ! -z "${1}" ]
 	do
@@ -6060,7 +6060,8 @@ rule() {
 						srctypenot="!"
 					fi
 					test ${softwarnings} -eq 1 -a ! "${srctype}" = "" && softwarning "Overwriting param: srctype '${srctype}' becomes '${1}'"
-					srctype="`echo ${1} | ${SED_CMD} -e "s|^ \+||" -e "s| \+\$||" -e "s| \+|,|g" | ${TR_CMD} a-z A-Z`"
+					tmparray=( ${1^^} ); srctype="${tmparray[*]}"; srctype="${srctype// /,}"
+					#srctype="`echo ${1} | ${SED_CMD} -e "s|^ \+||" -e "s| \+\$||" -e "s| \+|,|g" | ${TR_CMD} a-z A-Z`"
 				else
 					dsttypenot=
 					if [ "${1}" = "not" -o "${1}" = "NOT" ]
@@ -6069,7 +6070,8 @@ rule() {
 						dsttypenot="!"
 					fi
 					test ${softwarnings} -eq 1 -a ! "${dsttype}" = "" && softwarning "Overwriting param: dsttype '${dsttype}' becomes '${1}'"
-					dsttype="`echo ${1} | ${SED_CMD} -e "s|^ \+||" -e "s| \+\$||" -e "s| \+|,|g" | ${TR_CMD} a-z A-Z`"
+					tmparray=( ${1^^} ); dsttype="${tmparray[*]}"; dsttype="${dsttype// /,}"
+					#dsttype="`echo ${1} | ${SED_CMD} -e "s|^ \+||" -e "s| \+\$||" -e "s| \+|,|g" | ${TR_CMD} a-z A-Z`"
 				fi
 				shift
 				;;
@@ -6085,7 +6087,8 @@ rule() {
 						dsttypenot="!"
 					fi
 					test ${softwarnings} -eq 1 -a ! "${dsttype}" = "" && softwarning "Overwriting param: dsttype '${dsttype}' becomes '${1}'"
-					dsttype="`echo ${1} | ${SED_CMD} -e "s|^ \+||" -e "s| \+\$||" -e "s| \+|,|g" | ${TR_CMD} a-z A-Z`"
+					tmparray=( ${1^^} ); dsttype="${tmparray[*]}"; dsttype="${dsttype// /,}"
+					#dsttype="`echo ${1} | ${SED_CMD} -e "s|^ \+||" -e "s| \+\$||" -e "s| \+|,|g" | ${TR_CMD} a-z A-Z`"
 				else
 					srctypenot=
 					if [ "${1}" = "not" -o "${1}" = "NOT" ]
@@ -6094,7 +6097,8 @@ rule() {
 						srctypenot="!"
 					fi
 					test ${softwarnings} -eq 1 -a ! "${srctype}" = "" && softwarning "Overwriting param: srctype '${srctype}' becomes '${1}'"
-					srctype="`echo ${1} | ${SED_CMD} -e "s|^ \+||" -e "s| \+\$||" -e "s| \+|,|g" | ${TR_CMD} a-z A-Z`"
+					tmparray=( ${1^^} ); srctype="${tmparray[*]}"; srctype="${srctype// /,}"
+					#srctype="`echo ${1} | ${SED_CMD} -e "s|^ \+||" -e "s| \+\$||" -e "s| \+|,|g" | ${TR_CMD} a-z A-Z`"
 				fi
 				shift
 				;;
@@ -6173,7 +6177,11 @@ rule() {
 					marknot="!"
 				fi
 				test ${softwarnings} -eq 1 -a ! "${mark}" = "any" && softwarning "Overwriting param: mark '${mark}' becomes ${markname} '${1}'"
-				mark="${mark} $(mark_value $markname ${1//,/ })"
+				mark=
+				for x in ${1//,/ }
+				do
+					mark="${mark[@]}" "$(mark_value $markname ${x})"
+				done
 				shift
 				;;
 				
@@ -6186,7 +6194,11 @@ rule() {
 					marknot="!"
 				fi
 				test ${softwarnings} -eq 1 -a ! "${mark}" = "any" && softwarning "Overwriting param: mark '${mark}' becomes usermark '${1}'"
-				mark="${mark} $(mark_value usermark ${1//,/ })"
+				mark=
+				for x in ${1//,/ }
+				do
+					mark="${mark[@]}" "$(mark_value usermark ${x})"
+				done
 				shift
 				;;
 				
@@ -6199,7 +6211,11 @@ rule() {
 					marknot="!"
 				fi
 				test ${softwarnings} -eq 1 -a ! "${mark}" = "any" && softwarning "Overwriting param: mark '${mark}' becomes connmark '${1}'"
-				mark="${mark} $(mark_value connmark ${1//,/ })"
+				mark=
+				for x in ${1//,/ }
+				do
+					mark="${mark[@]}" "$(mark_value connmark ${x})"
+				done
 				shift
 				;;
 				
@@ -6824,6 +6840,9 @@ rule() {
 		esac
 	done
 	
+	# ----------------------------------------------------------------------------------
+	# Validations
+
 	test -z "${table}" && table="-t filter"
 	
 	# If the user did not specified a rejection message,
@@ -6834,7 +6853,6 @@ rule() {
 	# to change the protocol "any" to "tcp any"
 	
 	test "${action}" = "REJECT" -a "${action_param[1]}" = "auto" -a "${proto}" = "any" && proto="tcp any"
-	
 	
 	# we cannot accept empty strings to a few parameters, since this
 	# will prevent us from generating a rule (due to nested BASH loops).
@@ -6855,6 +6873,9 @@ rule() {
 	test -z "${pid}"	&& error "Cannot accept an empty 'pid'."	&& return 1
 	test -z "${sid}"	&& error "Cannot accept an empty 'sid'."	&& return 1
 	test -z "${cmd}"	&& error "Cannot accept an empty 'cmd'."	&& return 1
+	test -z "${mark}"	&& error "Cannot accept an empty 'mark'."	&& return 1
+	test -z "${tos}"	&& error "Cannot accept an empty 'tos'."	&& return 1
+	test -z "${dscp}"	&& error "Cannot accept an empty 'dscp'."	&& return 1
 
 	local physbridge="--physdev-is-bridged"
 	if [ ! "${work_cmd}" = "router" -a ! "${physin}${physout}" = "anyany" ]
@@ -6945,7 +6966,62 @@ rule() {
 	fi
 
 	# ----------------------------------------------------------------------------------
-	# Do we have negative contitions?
+	# Preparations for the main loop
+
+	local -a \
+		addrtype_arg=() stp_arg=() dtp_arg=() state_arg=() \
+		limit_arg=() iplimit_arg=() logopts_arg=() \
+		uid_arg=() owner_arg=() gid_arg=() pid_arg=() sid_arg=() cmd_arg=() \
+		mark_arg=() tos_arg=() dscp_arg=() proto_arg=() \
+		inf_arg=() outf_arg=() inph_arg=() physdev_arg=() outph_arg=() \
+		mc_arg=() s_arg=() d_arg=() sp_arg=() dp_arg=() \
+		basecmd=()
+
+	local 	logrule= ipvall= \
+		tuid= tgid= tpid= tsid= tcmd= \
+		tmark= ttos= tdscp= pr= \
+		inf= outf= inph= outph= \
+		mc= ipv= iptables= src= dst= s= d= sp= dp= \
+		negative_chain= negative_action= \
+		DYNAMIC_CHAIN_COUNTER
+
+	# log mode selection
+	if [ "${FIREHOL_LOG_MODE}" = "ULOG" ]
+	then
+		logopts_arg=("--ulog-prefix=${FIREHOL_LOG_ESCAPE}${FIREHOL_LOG_PREFIX}${logtxt}:${FIREHOL_LOG_ESCAPE}")
+	elif [ "${FIREHOL_LOG_MODE}" = "NFLOG" ]
+	then
+		logopts_arg=("--nflog-prefix=${FIREHOL_LOG_ESCAPE}${FIREHOL_LOG_PREFIX}${logtxt}:${FIREHOL_LOG_ESCAPE}")
+	else
+		logopts_arg=("--log-level" "${loglevel}" "--log-prefix=${FIREHOL_LOG_ESCAPE}${FIREHOL_LOG_PREFIX}${logtxt}:${FIREHOL_LOG_ESCAPE}")
+	fi
+
+	# log / loglimit
+	case "${log}" in
+		'')
+			logrule=none
+			;;
+
+		limit)
+			logrule=limit
+			;;
+
+		normal)
+			logrule=normal
+			;;
+
+		*)
+			error "Unknown log value '${log}'."
+			;;
+	esac
+	
+	# keep a list of all ip versions we need
+	running_ipv4 && ipvall="ipv4"
+	running_ipv6 && ipvall="${ipvall} ipv6"
+
+
+	# ----------------------------------------------------------------------------------
+	# Do we have negative conditions?
 	# If yes, we have to:
 	#
 	# case 1: If the action is a chain.
@@ -6968,7 +7044,8 @@ rule() {
 			# if the action is a chain name, then just add the negative
 			# expressions to this chain. Nothing more.
 			
-			local negative_chain="${action}" negative_action=
+			negative_chain="${action}"
+			negative_action=
 		else
 			# if the action is a native iptables action, then create
 			# an intermidiate chain to store the negative expression,
@@ -6976,7 +7053,6 @@ rule() {
 			
 			# In this case, bellow we add after all negatives, the original
 			# action of the rule.
-			local DYNAMIC_CHAIN_COUNTER
 			get_next_dynamic_counter DYNAMIC_CHAIN_COUNTER
 			negative_chain="${chain}.${DYNAMIC_CHAIN_COUNTER}"
 			
@@ -6985,10 +7061,8 @@ rule() {
 			action="${negative_chain}"
 		fi
 		
-		
 		if [ ! -z "${infacenot}" ]
 		then
-			local inf=
 			for inf in ${inface}
 			do
 				iptables_both ${table} -A "${negative_chain}" -i "${inf}" -j RETURN
@@ -6999,7 +7073,6 @@ rule() {
 	
 		if [ ! -z "${outfacenot}" ]
 		then
-			local outf=
 			for outf in ${outface}
 			do
 				iptables_both ${table} -A "${negative_chain}" -o "${outf}" -j RETURN
@@ -7010,7 +7083,6 @@ rule() {
 		
 		if [ ! -z "${physinnot}" ]
 		then
-			local inph=
 			for inph in ${physin}
 			do
 				iptables_both ${table} -A "${negative_chain}" -m physdev ${physbridge} --physdev-in "${inph}" -j RETURN
@@ -7021,7 +7093,6 @@ rule() {
 	
 		if [ ! -z "${physoutnot}" ]
 		then
-			local outph=
 			for outph in ${physout}
 			do
 				iptables_both ${table} -A "${negative_chain}" -m physdev ${physbridge} --physdev-out "${outph}" -j RETURN
@@ -7032,10 +7103,9 @@ rule() {
 		
 		if [ ! -z "${macnot}" ]
 		then
-			local m=
-			for m in ${mac}
+			for mc in ${mac}
 			do
-				iptables_both ${table} -A "${negative_chain}" -m mac --mac-source "${m}" -j RETURN
+				iptables_both ${table} -A "${negative_chain}" -m mac --mac-source "${mc}" -j RETURN
 			done
 			macnot=
 			mac=any
@@ -7043,11 +7113,6 @@ rule() {
 		
 		if [ ! -z "${srcnot}" ]
 		then
-			local s= src= iptables= ipvall= ipv=
-
-			running_ipv6 && ipvall="${ipvall} ipv6"
-			running_ipv4 && ipvall="${ipvall} ipv4"
-
 			for ipv in ${ipvall}
 			do
 				case "${ipv}" in
@@ -7082,11 +7147,6 @@ rule() {
 		
 		if [ ! -z "${dstnot}" ]
 		then
-			local d= dst= iptables= ipvall= ipv=
-
-			running_ipv6 && ipvall="${ipvall} ipv6"
-			running_ipv4 && ipvall="${ipvall} ipv4"
-
 			for ipv in ${ipvall}
 			do
 				case "${ipv}" in
@@ -7127,7 +7187,6 @@ rule() {
 				return 1
 			fi
 			
-			local pr=
 			for pr in ${proto}
 			do
 				iptables_both ${table} -A "${negative_chain}" -p "${pr}" -j RETURN
@@ -7144,7 +7203,6 @@ rule() {
 				return 1
 			fi
 			
-			local sp= pr=
 			for sp in ${sport}
 			do
 				for pr in ${proto}
@@ -7164,7 +7222,6 @@ rule() {
 				return 1
 			fi
 			
-			local dp= pr=
 			for dp in ${dport}
 			do
 				for pr in ${proto}
@@ -7178,7 +7235,6 @@ rule() {
 		
 		if [ ! -z "${uidnot}" ]
 		then
-			local tuid=
 			for tuid in ${uid}
 			do
 				iptables_both ${table} -A "${negative_chain}" -m owner --uid-owner "${tuid}" -j RETURN
@@ -7189,7 +7245,6 @@ rule() {
 		
 		if [ ! -z "${gidnot}" ]
 		then
-			local tgid=
 			for tgid in ${gid}
 			do
 				iptables_both ${table} -A "${negative_chain}" -m owner --gid-owner "${tgid}" -j RETURN
@@ -7200,7 +7255,6 @@ rule() {
 		
 		if [ ! -z "${pidnot}" ]
 		then
-			local tpid=
 			for tpid in ${pid}
 			do
 				iptables_both ${table} -A "${negative_chain}" -m owner --pid-owner "${tpid}" -j RETURN
@@ -7211,7 +7265,6 @@ rule() {
 		
 		if [ ! -z "${sidnot}" ]
 		then
-			local tsid=
 			for tsid in ${sid}
 			do
 				iptables_both ${table} -A "${negative_chain}" -m owner --sid-owner "${tsid}" -j RETURN
@@ -7222,7 +7275,6 @@ rule() {
 		
 		if [ ! -z "${cmdnot}" ]
 		then
-			local tcmd=
 			for tcmd in ${cmd}
 			do
 				iptables_both ${table} -A "${negative_chain}" -m owner --cmd-owner "${tcmd}" -j RETURN
@@ -7233,7 +7285,6 @@ rule() {
 		
 		if [ ! -z "${marknot}" ]
 		then
-			local tmark=
 			for tmark in ${mark}
 			do
 				iptables_both ${table} -A "${negative_chain}" -m mark --mark "${tmark}" -j RETURN
@@ -7244,7 +7295,6 @@ rule() {
 		
 		if [ ! -z "${tosnot}" ]
 		then
-			local ttos=
 			for ttos in ${tos}
 			do
 				iptables_both ${table} -A "${negative_chain}" -m tos --tos "${ttos}" -j RETURN
@@ -7255,7 +7305,6 @@ rule() {
 		
 		if [ ! -z "${dscpnot}" ]
 		then
-			local tdscp=
 			for tdscp in ${dscp}
 			do
 				iptables_both ${table} -A "${negative_chain}" -m dscp --dscp${dscptype} "${tdscp}" -j RETURN
@@ -7267,50 +7316,50 @@ rule() {
 		
 		# in case this is temporary chain we created for the negative expression,
 		# just make it have the final action of the rule.
-		if [ ! -z "${negative_action}" ]
-		then
-			local pr=
-			local -a proto_arg=()
+		# ipvall
+		for ipv in ${ipvall}
+		do
+			case "${ipv}" in
+				ipv4) iptables="iptables";;
+				ipv6) iptables="ip6tables";;
+			esac
+
 			for pr in ${proto}
 			do
 				case ${pr} in
 					any|ANY)
+						proto_arg=()
 						;;
 					
 					*)
 						proto_arg=("-p" "${pr}")
 						;;
 				esac
-				
-				if running_ipv4; then
-					rule_action_param iptables "${negative_action}" "${pr}" "" "" "${table}" "${action_param[@]}" -- ${table} -A "${negative_chain}" "${proto_arg[@]}" || failed=$[failed + 1]
-				fi
-				if running_ipv6; then
-					rule_action_param ip6tables "${negative_action}" "${pr}" "" "" "${table}" "${action_param[@]}" -- ${table} -A "${negative_chain}" "${proto_arg[@]}" || failed=$[failed + 1]
-				fi
-				action_param=()
+
+				# since this is the target of the positive rules,
+				# logging and accounting can be attached here				
+				[ "$logrule" = "limit"  ] && ${iptables} ${table} -A "${negative_chain}" -m limit --limit "${FIREHOL_LOG_FREQUENCY}" --limit-burst "${FIREHOL_LOG_BURST}" -j ${FIREHOL_LOG_MODE} ${FIREHOL_LOG_OPTIONS} "${logopts_arg[@]}"
+				[ "$logrule" = "normal" ] && ${iptables} ${table} -A "${negative_chain}" -j ${FIREHOL_LOG_MODE} ${FIREHOL_LOG_OPTIONS} "${logopts_arg[@]}"
+				[ ! -z "${accounting}"  ] && ${iptables} ${table} -A "${negative_chain}" -m nfacct --nfacct-name "${accounting}"
+
+				# the original action of the rule
+				test ! -z "${negative_action}" && ( rule_action_param ${iptables} "${negative_action}" "${pr}" "" "" "${table}" "${action_param[@]}" -- ${table} -A "${negative_chain}" "${proto_arg[@]}" || failed=$[failed + 1] )
 			done
-		fi
+		done
+
+		# The positive rules will just send traffic to a
+		# chains - there is not need for params
+		action_param=()
+
+		# disable logging and accounting
+		# already did it above
+		logrule=none
+		accounting=
 	fi
 	
 	
 	# ----------------------------------------------------------------------------------
 	# Process the positive rules
-
-	local -a \
-		addrtype_arg=() stp_arg=() dtp_arg=() state_arg=() \
-		limit_arg=() iplimit_arg=() logopts_arg=() \
-		uid_arg=() owner_arg=() gid_arg=() pid_arg=() sid_arg=() cmd_arg=() \
-		mark_arg=() tos_arg=() dscp_arg=() proto_arg=() \
-		inf_arg=() outf_arg=() inph_arg=() physdev_arg=() outph_arg=() \
-		mc_arg=() s_arg=() d_arg=() sp_arg=() dp_arg=() \
-		basecmd=()
-
-	local 	logrule= ipvall= \
-		tuid= tgid= tpid= tsid= tcmd= \
-		tmark= ttos= tdscp= pr= \
-		inf= outf= inph= outph= \
-		mc= ipv= iptables= src= dst= s= d= sp= dp=
 
 	# addrtype (srctype, dsttype)
 	if [ ! -z "${srctype}${dsttype}" ]
@@ -7336,40 +7385,6 @@ rule() {
 
 	# iplimit
 	[ ! -z "${iplimit}" ] && iplimit_arg=("-m" "iplimit" "--iplimit-above" "${iplimit}" "--iplimit-mask" "${iplimit_mask}")
-
-	# log mode selection
-	if [ "${FIREHOL_LOG_MODE}" = "ULOG" ]
-	then
-		logopts_arg=("--ulog-prefix=${FIREHOL_LOG_ESCAPE}${FIREHOL_LOG_PREFIX}${logtxt}:${FIREHOL_LOG_ESCAPE}")
-	elif [ "${FIREHOL_LOG_MODE}" = "NFLOG" ]
-	then
-		logopts_arg=("--nflog-prefix=${FIREHOL_LOG_ESCAPE}${FIREHOL_LOG_PREFIX}${logtxt}:${FIREHOL_LOG_ESCAPE}")
-	else
-		logopts_arg=("--log-level" "${loglevel}" "--log-prefix=${FIREHOL_LOG_ESCAPE}${FIREHOL_LOG_PREFIX}${logtxt}:${FIREHOL_LOG_ESCAPE}")
-	fi
-
-	# log / loglimit
-	case "${log}" in
-		'')
-			logrule=none
-			;;
-
-		limit)
-			logrule=limit
-			;;
-
-		normal)
-			logrule=normal
-			;;
-
-		*)
-			error "Unknown log value '${log}'."
-			;;
-	esac
-	
-	# keep a list of all ip versions we need
-	running_ipv4 && ipvall="ipv4"
-	running_ipv6 && ipvall="${ipvall} ipv6"
 
 	# uid
 	for tuid in ${uid}
@@ -7651,23 +7666,14 @@ rule() {
 		esac
 	
 	# build the command
-	basecmd=("${inf_arg[@]}" "${outf_arg[@]}" "${physdev_arg[@]}" "${inph_arg[@]}" "${outph_arg[@]}" "${limit_arg[@]}" "${iplimit_arg[@]}" "${proto_arg[@]}" "${s_arg[@]}" "${sp_arg[@]}" "${d_arg[@]}" "${dp_arg[@]}" "${owner_arg[@]}" "${uid_arg[@]}" "${gid_arg[@]}" "${pid_arg[@]}" "${sid_arg[@]}" "${cmd_arg[@]}" "${addrtype_arg[@]}" "${stp_arg[@]}" "${dtp_arg[@]}" "${state_arg[@]}" "${mc_arg[@]}" "${mark_arg[@]}" "${tos_arg[@]}" "${dscp_arg[@]}")
+	basecmd=("${inf_arg[@]}" "${outf_arg[@]}" "${physdev_arg[@]}" "${inph_arg[@]}" "${outph_arg[@]}" "${limit_arg[@]}" "${iplimit_arg[@]}" "${proto_arg[@]}" "${s_arg[@]}" "${sp_arg[@]}" "${d_arg[@]}" "${dp_arg[@]}" "${owner_arg[@]}" "${uid_arg[@]}" "${gid_arg[@]}" "${pid_arg[@]}" "${sid_arg[@]}" "${cmd_arg[@]}" "${addrtype_arg[@]}" "${stp_arg[@]}" "${dtp_arg[@]}" "${state_arg[@]}" "${mc_arg[@]}" "${mark_arg[@]}" "${tos_arg[@]}" "${dscp_arg[@]}" ${custom})
 
-	if [ "$logrule" = "limit" ]
-	then
-		${iptables} ${table} -A "${chain}" "${basecmd[@]}" ${custom} -m limit --limit "${FIREHOL_LOG_FREQUENCY}" --limit-burst "${FIREHOL_LOG_BURST}" -j ${FIREHOL_LOG_MODE} ${FIREHOL_LOG_OPTIONS} "${logopts_arg[@]}"
-	elif [ "$logrule" = "normal" ]
-	then
-		${iptables} ${table} -A "${chain}" "${basecmd[@]}" ${custom} -j ${FIREHOL_LOG_MODE} ${FIREHOL_LOG_OPTIONS} "${logopts_arg[@]}"
-	fi
-
-	if [ ! -z "${accounting}" ]
-	then
-		${iptables} ${table} -A "${chain}" "${basecmd[@]}" ${custom} -m nfacct --nfacct-name "${accounting}"
-	fi
+	[ "$logrule" = "limit"  ] && ${iptables} ${table} -A "${chain}" "${basecmd[@]}" -m limit --limit "${FIREHOL_LOG_FREQUENCY}" --limit-burst "${FIREHOL_LOG_BURST}" -j ${FIREHOL_LOG_MODE} ${FIREHOL_LOG_OPTIONS} "${logopts_arg[@]}"
+	[ "$logrule" = "normal" ] && ${iptables} ${table} -A "${chain}" "${basecmd[@]}" -j ${FIREHOL_LOG_MODE} ${FIREHOL_LOG_OPTIONS} "${logopts_arg[@]}"
+	[ ! -z "${accounting}"  ] && ${iptables} ${table} -A "${chain}" "${basecmd[@]}" -m nfacct --nfacct-name "${accounting}"
 
 	# do it!
-	rule_action_param ${iptables} "${action}" "${pr}" "${statenot}" "${state}" "${table}" "${action_param[@]}" -- ${table} -A "${chain}" "${basecmd[@]}" ${custom} || failed=$[failed + 1]
+	rule_action_param ${iptables} "${action}" "${pr}" "${statenot}" "${state}" "${table}" "${action_param[@]}" -- ${table} -A "${chain}" "${basecmd[@]}" || failed=$[failed + 1]
 
 	done # dport
 	done # sport
