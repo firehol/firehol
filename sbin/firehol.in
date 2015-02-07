@@ -593,6 +593,14 @@ IPSET_RESTORE_OPTION="restore"
 IPSET_CREATE_IPV6_OPTION="family inet6"
 IPSET_LIST_NAMES_EVAL="list -n"
 
+# The default options to be passed to ipset
+# when the iptrap helper creates the ipset
+IPTRAP_DEFAULT_IPSET_OPTIONS="timeout 3600 counters"
+
+# older versions do not support the 'counters' option
+# even older versions do not support the 'timeout' option
+#IPTRAP_DEFAULT_IPSET_OPTIONS="timeout 3600"
+
 # older versions use these
 #IPSET_CREATE_OPTION="-N"
 #IPSET_DESTROY_OPTION="-X"
@@ -604,6 +612,7 @@ IPSET_LIST_NAMES_EVAL="list -n"
 #IPSET_RESTORE_OPTION="-R"
 #IPSET_CREATE_IPV6_OPTION="" # No ipv6 support
 #IPSET_LIST_NAMES_EVAL="-L | grep Name: | cut -d: -f 2"
+
 
 # ----------------------------------------------------------------------
 # DEFAULT IP SETS
@@ -3799,9 +3808,9 @@ iptrap() {
 	then
 		if [ "${type//,/ }" = "src dst" -o "${type//,/ }" = "dst src" ]
 		then
-			ipset create ${ipset} hash:ip,ip timeout 3600 counters prevent_reset_on_restart
+			ipset create ${ipset} hash:ip,ip ${IPTRAP_DEFAULT_IPSET_OPTIONS} prevent_reset_on_restart
 		else
-			ipset create ${ipset} hash:ip timeout 3600 counters prevent_reset_on_restart
+			ipset create ${ipset} hash:ip ${IPTRAP_DEFAULT_IPSET_OPTIONS} prevent_reset_on_restart
 		fi
 	fi
 
