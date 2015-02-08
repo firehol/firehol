@@ -3701,7 +3701,7 @@ blacklist() {
 	iptables_both -t mangle -N "${chain}.in"
 
 	# add the excepted rules
-	test ! -z "${1}" && ( rule nonot table mangle chain "${chain}.in" in action RETURN "${@}" || return 1 )
+	test ! -z "${1}" && ( rule return_negatives_in_place ignore_empty_positive table mangle chain "${chain}.in" in action RETURN "${@}" || return 1 )
 
 	# add the accounting rules
 	test ! -z "${accounting}" && ( iptables_both -t mangle -A "${chain}.in" -m nfacct --nfacct-name "${accounting}" || return 1 )
@@ -3851,7 +3851,7 @@ iptrap() {
 	iptables_both -t mangle -N "${chain}"
 
 	# add the excepted rules
-	test ! -z "${1}" && ( rule nonot table mangle chain "${chain}" in action RETURN "${@}" || return 1 )
+	test ! -z "${1}" && ( rule return_negatives_in_place ignore_empty_positive table mangle chain "${chain}" in action RETURN "${@}" || return 1 )
 
 	# do the job
 	if [ ${undo} -eq 1 ]
@@ -3860,7 +3860,12 @@ iptrap() {
 		iptables_both -t mangle -A "${chain}" -j SET --del-set ${ipset} ${type}
 	else
 		# add the ip
-		iptables_both -t mangle -A "${chain}" -j SET --add-set ${ipset} ${type} --exist --timeout ${timeout}
+		if [ -z "${timeout}" -o "${timeout}" = "default" ]
+		then
+			iptables_both -t mangle -A "${chain}" -j SET --add-set ${ipset} ${type}
+		else
+			iptables_both -t mangle -A "${chain}" -j SET --add-set ${ipset} ${type} --exist --timeout ${timeout}
+		fi
 	fi
 
 	# log and return
@@ -5897,7 +5902,7 @@ rule() {
 	local nolog=0
 	
 	# if set to 1, negative expressions will give an error
-	local nonot=0
+	local nonot=0 return_negatives_in_place=0 ignore_empty_positive=0
 
 	# if set to 1, detection algorithm about overwriting optional rule
 	# parameters will take place.
@@ -5911,6 +5916,16 @@ rule() {
 		case "${1}" in
 			nonot|NONOT)
 				nonot=1
+				shift
+				;;
+
+			return_negatives_in_place)
+				return_negatives_in_place=1
+				shift
+				;;
+
+			ignore_empty_positive)
+				ignore_empty_positive=1
 				shift
 				;;
 
@@ -7100,6 +7115,7 @@ rule() {
 		inf= outf= inph= outph= \
 		mc= ipv= iptables= src= dst= s= d= sp= dp= \
 		negative_chain= negative_action= \
+		not= \
 		DYNAMIC_CHAIN_COUNTER
 
 	# log mode selection
@@ -7162,13 +7178,27 @@ rule() {
 			return 1
 		fi
 
-		if [ ${action_is_chain} -eq 1 ]
+		if [ ${return_negatives_in_place} -eq 1 ]
+		then
+			# we can implement negatives by entering
+			# RETURN rules in the main flow.
+			# this should only be done on dedicated chains
+			# i.e. chains that they will end at the positive
+			# rules
+
+			negative_chain="${chain}"
+			negative_action=
+			not="!"
+
+		elif [ ${action_is_chain} -eq 1 ]
 		then
 			# if the action is a chain name, then just add the negative
 			# expressions to this chain. Nothing more.
 			
 			negative_chain="${action}"
 			negative_action=
+			not=
+
 		else
 			# if the action is a native iptables action, then create
 			# an intermidiate chain to store the negative expression,
@@ -7182,13 +7212,14 @@ rule() {
 			iptables_both ${table} -N "${negative_chain}"
 			negative_action="${action}"
 			action="${negative_chain}"
+			not=
 		fi
 		
 		if [ ! -z "${infacenot}" ]
 		then
 			for inf in ${inface}
 			do
-				iptables_both ${table} -A "${negative_chain}" -i "${inf}" -j RETURN
+				iptables_both ${table} -A "${negative_chain}" ${not} -i "${inf}" -j RETURN
 			done
 			infacenot=
 			inface=any
@@ -7198,7 +7229,7 @@ rule() {
 		then
 			for outf in ${outface}
 			do
-				iptables_both ${table} -A "${negative_chain}" -o "${outf}" -j RETURN
+				iptables_both ${table} -A "${negative_chain}" ${not} -o "${outf}" -j RETURN
 			done
 			outfacenot=
 			outface=any
@@ -7208,7 +7239,7 @@ rule() {
 		then
 			for inph in ${physin}
 			do
-				iptables_both ${table} -A "${negative_chain}" -m physdev ${physbridge} --physdev-in "${inph}" -j RETURN
+				iptables_both ${table} -A "${negative_chain}" -m physdev ${physbridge} ${not} --physdev-in "${inph}" -j RETURN
 			done
 			physinnot=
 			physin=any
@@ -7218,7 +7249,7 @@ rule() {
 		then
 			for outph in ${physout}
 			do
-				iptables_both ${table} -A "${negative_chain}" -m physdev ${physbridge} --physdev-out "${outph}" -j RETURN
+				iptables_both ${table} -A "${negative_chain}" -m physdev ${physbridge} ${not} --physdev-out "${outph}" -j RETURN
 			done
 			physoutnot=
 			physout=any
@@ -7228,7 +7259,7 @@ rule() {
 		then
 			for mc in ${mac}
 			do
-				iptables_both ${table} -A "${negative_chain}" -m mac --mac-source "${mc}" -j RETURN
+				iptables_both ${table} -A "${negative_chain}" -m mac ${not} --mac-source "${mc}" -j RETURN
 			done
 			macnot=
 			mac=any
@@ -7255,10 +7286,10 @@ rule() {
 							[ ${IPSET_WARNING} -eq 1 ] && ipset_warning
 							s="${s/ipset:/}"
 							test -z "${FIREHOL_IPSETS_USED[$s]}" && FIREHOL_IPSETS_USED[$s]="USED"
-							${iptables} ${table} -A "${negative_chain}" -m set --match-set "${s}" src -j RETURN
+							${iptables} ${table} -A "${negative_chain}" -m set ${not} --match-set "${s}" src -j RETURN
 							;;
 						*)
-							${iptables} ${table} -A "${negative_chain}" -s "${s}" -j RETURN
+							${iptables} ${table} -A "${negative_chain}" ${not} -s "${s}" -j RETURN
 							;;
 					esac
 				done
@@ -7289,10 +7320,10 @@ rule() {
 							[ ${IPSET_WARNING} -eq 1 ] && ipset_warning
 							d="${d/ipset:/}"
 							test -z "${FIREHOL_IPSETS_USED[$d]}" && FIREHOL_IPSETS_USED[$d]="USED"
-							${iptables} ${table} -A "${negative_chain}" -m set --match-set "${d}" dst -j RETURN
+							${iptables} ${table} -A "${negative_chain}" -m set ${not} --match-set "${d}" dst -j RETURN
 							;;
 						*)
-							${iptables} ${table} -A "${negative_chain}" -d "${d}" -j RETURN
+							${iptables} ${table} -A "${negative_chain}" ${not} -d "${d}" -j RETURN
 							;;
 					esac
 				done
@@ -7312,7 +7343,7 @@ rule() {
 			
 			for pr in ${proto}
 			do
-				iptables_both ${table} -A "${negative_chain}" -p "${pr}" -j RETURN
+				iptables_both ${table} -A "${negative_chain}" ${not} -p "${pr}" -j RETURN
 			done
 			protonot=
 			proto=any
@@ -7330,7 +7361,7 @@ rule() {
 			do
 				for pr in ${proto}
 				do
-					iptables_both ${table} -A "${negative_chain}" -p "${pr}" --sport "${sp}" -j RETURN
+					iptables_both ${table} -A "${negative_chain}" -p "${pr}" ${not} --sport "${sp}" -j RETURN
 				done
 			done
 			sportnot=
@@ -7349,7 +7380,7 @@ rule() {
 			do
 				for pr in ${proto}
 				do
-					iptables_both ${table} -A "${negative_chain}" -p "${pr}" --dport "${dp}" -j RETURN
+					iptables_both ${table} -A "${negative_chain}" -p "${pr}" ${not} --dport "${dp}" -j RETURN
 				done
 			done
 			dportnot=
@@ -7360,7 +7391,7 @@ rule() {
 		then
 			for tuid in ${uid}
 			do
-				iptables_both ${table} -A "${negative_chain}" -m owner --uid-owner "${tuid}" -j RETURN
+				iptables_both ${table} -A "${negative_chain}" -m owner ${not} --uid-owner "${tuid}" -j RETURN
 			done
 			uidnot=
 			uid=any
@@ -7370,7 +7401,7 @@ rule() {
 		then
 			for tgid in ${gid}
 			do
-				iptables_both ${table} -A "${negative_chain}" -m owner --gid-owner "${tgid}" -j RETURN
+				iptables_both ${table} -A "${negative_chain}" -m owner ${not} --gid-owner "${tgid}" -j RETURN
 			done
 			gidnot=
 			gid=any
@@ -7380,7 +7411,7 @@ rule() {
 		then
 			for tpid in ${pid}
 			do
-				iptables_both ${table} -A "${negative_chain}" -m owner --pid-owner "${tpid}" -j RETURN
+				iptables_both ${table} -A "${negative_chain}" -m owner ${not} --pid-owner "${tpid}" -j RETURN
 			done
 			pidnot=
 			pid=any
@@ -7390,7 +7421,7 @@ rule() {
 		then
 			for tsid in ${sid}
 			do
-				iptables_both ${table} -A "${negative_chain}" -m owner --sid-owner "${tsid}" -j RETURN
+				iptables_both ${table} -A "${negative_chain}" -m owner ${not} --sid-owner "${tsid}" -j RETURN
 			done
 			sidnot=
 			sid=any
@@ -7400,7 +7431,7 @@ rule() {
 		then
 			for tcmd in ${cmd}
 			do
-				iptables_both ${table} -A "${negative_chain}" -m owner --cmd-owner "${tcmd}" -j RETURN
+				iptables_both ${table} -A "${negative_chain}" -m owner ${not} --cmd-owner "${tcmd}" -j RETURN
 			done
 			cmdnot=
 			cmd=any
@@ -7410,7 +7441,7 @@ rule() {
 		then
 			for tmark in ${mark}
 			do
-				iptables_both ${table} -A "${negative_chain}" -m mark --mark "${tmark}" -j RETURN
+				iptables_both ${table} -A "${negative_chain}" -m mark ${not} --mark "${tmark}" -j RETURN
 			done
 			marknot=
 			mark=any
@@ -7420,7 +7451,7 @@ rule() {
 		then
 			for ttos in ${tos}
 			do
-				iptables_both ${table} -A "${negative_chain}" -m tos --tos "${ttos}" -j RETURN
+				iptables_both ${table} -A "${negative_chain}" -m tos ${not} --tos "${ttos}" -j RETURN
 			done
 			tosnot=
 			tos=any
@@ -7430,57 +7461,59 @@ rule() {
 		then
 			for tdscp in ${dscp}
 			do
-				iptables_both ${table} -A "${negative_chain}" -m dscp --dscp${dscptype} "${tdscp}" -j RETURN
+				iptables_both ${table} -A "${negative_chain}" -m dscp ${not} --dscp${dscptype} "${tdscp}" -j RETURN
 			done
 			dscpnot=
 			dscp=any
 		fi
 		
-		
-		# in case this is temporary chain we created for the negative expression,
-		# just make it have the final action of the rule.
-		# ipvall
-		for ipv in ${ipvall}
-		do
-			case "${ipv}" in
-				ipv4) iptables="iptables";;
-				ipv6) iptables="ip6tables";;
-			esac
-
-			for pr in ${proto}
+		if [ ! -z "${negative_action}" ]
+		then
+			# in case this is temporary chain we created for the negative expression,
+			# just make it have the final action of the rule.
+			# ipvall
+			for ipv in ${ipvall}
 			do
-				case ${pr} in
-					any|ANY)
-						proto_arg=()
-						;;
-					
-					*)
-						proto_arg=("-p" "${pr}")
-						;;
+				case "${ipv}" in
+					ipv4) iptables="iptables";;
+					ipv6) iptables="ip6tables";;
 				esac
 
-				# since this is the target of the positive rules,
-				# logging and accounting can be attached here				
-				[ "$logrule" = "limit"  ] && ${iptables} ${table} -A "${negative_chain}" -m limit --limit "${FIREHOL_LOG_FREQUENCY}" --limit-burst "${FIREHOL_LOG_BURST}" -j ${FIREHOL_LOG_MODE} ${FIREHOL_LOG_OPTIONS} "${logopts_arg[@]}"
-				[ "$logrule" = "normal" ] && ${iptables} ${table} -A "${negative_chain}" -j ${FIREHOL_LOG_MODE} ${FIREHOL_LOG_OPTIONS} "${logopts_arg[@]}"
-				[ ! -z "${accounting}"  ] && ${iptables} ${table} -A "${negative_chain}" -m nfacct --nfacct-name "${accounting}"
+				for pr in ${proto}
+				do
+					case ${pr} in
+						any|ANY)
+							proto_arg=()
+							;;
+						
+						*)
+							proto_arg=("-p" "${pr}")
+							;;
+					esac
 
-				# the original action of the rule
-				test ! -z "${negative_action}" && ( rule_action_param ${iptables} "${negative_action}" "${pr}" "" "" "${table}" "${action_param[@]}" -- ${table} -A "${negative_chain}" "${proto_arg[@]}" || failed=$[failed + 1] )
+					# since this is the target of the positive rules,
+					# logging and accounting can be attached here				
+					[ "$logrule" = "limit"  ] && ( ${iptables} ${table} -A "${negative_chain}" -m limit --limit "${FIREHOL_LOG_FREQUENCY}" --limit-burst "${FIREHOL_LOG_BURST}" -j ${FIREHOL_LOG_MODE} ${FIREHOL_LOG_OPTIONS} "${logopts_arg[@]}" || failed=$[failed + 1] )
+					[ "$logrule" = "normal" ] && ( ${iptables} ${table} -A "${negative_chain}" -j ${FIREHOL_LOG_MODE} ${FIREHOL_LOG_OPTIONS} "${logopts_arg[@]}" || failed=$[failed + 1] )
+					[ ! -z "${accounting}"  ] && ( ${iptables} ${table} -A "${negative_chain}" -m nfacct --nfacct-name "${accounting}" || failed=$[failed + 1] )
+
+					# the original action of the rule
+					rule_action_param ${iptables} "${negative_action}" "${pr}" "" "" "${table}" "${action_param[@]}" -- ${table} -A "${negative_chain}" "${proto_arg[@]}" || failed=$[failed + 1]
+				done
 			done
-		done
 
-		# The positive rules will just send traffic to a
-		# chains - there is not need for params
-		action_param=()
+			# The positive rules will just send traffic to a
+			# chains - there is not need for params
+			action_param=()
 
-		# disable logging and accounting
-		# already did it above
-		logrule=none
-		accounting=
+			# disable logging and accounting
+			# already did it above
+			logrule=none
+			accounting=
+		fi
 	fi
 	
-	
+
 	# ----------------------------------------------------------------------------------
 	# Process the positive rules
 
@@ -7791,9 +7824,11 @@ rule() {
 	# build the command
 	basecmd=("${inf_arg[@]}" "${outf_arg[@]}" "${physdev_arg[@]}" "${inph_arg[@]}" "${outph_arg[@]}" "${limit_arg[@]}" "${iplimit_arg[@]}" "${proto_arg[@]}" "${s_arg[@]}" "${sp_arg[@]}" "${d_arg[@]}" "${dp_arg[@]}" "${owner_arg[@]}" "${uid_arg[@]}" "${gid_arg[@]}" "${pid_arg[@]}" "${sid_arg[@]}" "${cmd_arg[@]}" "${addrtype_arg[@]}" "${stp_arg[@]}" "${dtp_arg[@]}" "${state_arg[@]}" "${mc_arg[@]}" "${mark_arg[@]}" "${tos_arg[@]}" "${dscp_arg[@]}" ${custom})
 
-	[ "$logrule" = "limit"  ] && ${iptables} ${table} -A "${chain}" "${basecmd[@]}" -m limit --limit "${FIREHOL_LOG_FREQUENCY}" --limit-burst "${FIREHOL_LOG_BURST}" -j ${FIREHOL_LOG_MODE} ${FIREHOL_LOG_OPTIONS} "${logopts_arg[@]}"
-	[ "$logrule" = "normal" ] && ${iptables} ${table} -A "${chain}" "${basecmd[@]}" -j ${FIREHOL_LOG_MODE} ${FIREHOL_LOG_OPTIONS} "${logopts_arg[@]}"
-	[ ! -z "${accounting}"  ] && ${iptables} ${table} -A "${chain}" "${basecmd[@]}" -m nfacct --nfacct-name "${accounting}"
+	[ -z "${basecmd[*]}" -a ${ignore_empty_positive} -eq 1 ] && continue
+
+	[ "$logrule" = "limit"  ] && ( ${iptables} ${table} -A "${chain}" "${basecmd[@]}" -m limit --limit "${FIREHOL_LOG_FREQUENCY}" --limit-burst "${FIREHOL_LOG_BURST}" -j ${FIREHOL_LOG_MODE} ${FIREHOL_LOG_OPTIONS} "${logopts_arg[@]}" || failed=$[failed + 1] )
+	[ "$logrule" = "normal" ] && ( ${iptables} ${table} -A "${chain}" "${basecmd[@]}" -j ${FIREHOL_LOG_MODE} ${FIREHOL_LOG_OPTIONS} "${logopts_arg[@]}" || failed=$[failed + 1] )
+	[ ! -z "${accounting}"  ] && ( ${iptables} ${table} -A "${chain}" "${basecmd[@]}" -m nfacct --nfacct-name "${accounting}" || failed=$[failed + 1] )
 
 	# do it!
 	rule_action_param ${iptables} "${action}" "${pr}" "${statenot}" "${state}" "${table}" "${action_param[@]}" -- ${table} -A "${chain}" "${basecmd[@]}" || failed=$[failed + 1]
@@ -9022,12 +9057,17 @@ You can now start typing firehol configuration directives.
 Special interactive commands: help, show, quit
 
 EOF
-	
+	HISTFILE="${HOME}/.firehol_history"
+	test ! -f ${HISTFILE} && touch ${HISTFILE}
+	history -r
+
 	while [ 1 = 1 ]
 	do
-		echo -en "${COLOR_RESET}#${COLOR_GREEN} FireHOL ${COLOR_RESET}[${COLOR_BOLD}${COLOR_BLUE}${work_cmd}${COLOR_RESET}:${COLOR_CYAN}${work_name}${COLOR_RESET}]"
-		read -p " > " -e -r
+		prompt="${COLOR_RESET}#${COLOR_GREEN} FireHOL ${COLOR_RESET}[${COLOR_BOLD}${COLOR_BLUE}${work_cmd}${COLOR_RESET}:${COLOR_CYAN}${work_name}${COLOR_RESET}] > "
+		eval "read -ep \$'${prompt}' -e -r REPLY"
 		test -z "${REPLY}" && continue
+		history -s "${REPLY}"
+		history -w
 
 		set_work_function -ne "Executing user input"
 		
@@ -9051,7 +9091,8 @@ Additionaly, you can use the following commands:
 	quit	to show the interactively given configuration file
 		and quit.
 	
-	in	same as typing: interface eth0 internet
+	in|in4|in6
+		same as typing: interface(4|6) eth0 world
 		This is used as a shortcut to get into the server/client
 		mode in which you can test the rules for certain
 		services.
@@ -9067,7 +9108,7 @@ EOF
 				break
 				;;
 				
-			quit)
+			quit|exit)
 				echo
 				${CAT_CMD} "${FIREHOL_TEMP_CONFIG}"
 				echo
@@ -9075,7 +9116,17 @@ EOF
 				;;
 				
 			in)
-				REPLY="interface eth0 internet"
+				REPLY="interface eth0 world"
+				continue
+				;;
+				
+			in4)
+				REPLY="interface4 eth0 world"
+				continue
+				;;
+				
+			in6)
+				REPLY="interface6 eth0 world"
 				continue
 				;;
 				
