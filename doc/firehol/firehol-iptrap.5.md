@@ -8,9 +8,9 @@ firehol-iptrap - dynamically put IP addresses in an ipset
 
 # SYNOPSIS
 
-{ iptrap | iptrap4 | iptrap6 } *type* *ipset* *timeout* [*rule-params*] [ except [*rule-params*] ]...
+{ iptrap | iptrap4 | iptrap6 } *ipset* *type* *timeout* [*rule-params*] [ except [*rule-params*] ]...
 
-{ ipuntrap | ipuntrap4 | ipuntrap6 } *type* *ipset* [*rule-params*] [ except [*rule-params*] ]...
+{ ipuntrap | ipuntrap4 | ipuntrap6 } *ipset* *type* [*rule-params*] [ except [*rule-params*] ]...
 
 # DESCRIPTION
 
@@ -21,6 +21,8 @@ firehol-iptrap - dynamically put IP addresses in an ipset
 
 Both helpers do not affect the flow of traffic. They do not `ACCEPT`,
 `REJECT`, `DROP` packets or affect the firewall in any way.
+
+`ipset` is the name of the ipset to use.
 
 `type` selects which of the IP addresses of the matching packets will be used
 (added or removed from the ipset). `type` can be `src`, `dst`, `src,dst`,

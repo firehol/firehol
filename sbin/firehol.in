@@ -3819,12 +3819,12 @@ iptrap() {
 	if [ "$1" = "undo" ]
 	then
 		undo=1
-		type="${2}"
-		ipset="${3}"
+		ipset="${2}"
+		type="${3}"
 		logopts_arg=(log "UNTRAP")
 	else
-		type="${1}"
-		ipset="${2}"
+		ipset="${1}"
+		type="${2}"
 		timeout="${3}"
 		logopts_arg=(log "TRAP")
 	fi
@@ -3833,6 +3833,12 @@ iptrap() {
 	if [ ${ENABLE_IPSET} -ne 1 ]
 	then
 		error "${FUNCNAME} requires ipset but ut is not enabled. Do you have ipset installed?"
+		return 1
+	fi
+
+	if [ ! "${type}" = "src" -a ! "${type}" = "dst" -a ! "${type}" = "src,dst" -a ! "${type}" = "dst,src" ]
+	then
+		error "${FUNCNAME}: Invalid type '${type}' for ipset with name '${name}'. Type can be one of: src dst src,dst dst,src"
 		return 1
 	fi
 
@@ -5931,6 +5937,7 @@ rule() {
 		swi=0 swo=0 \
 		custom= \
 		accounting= \
+		ipsetnot= ipsetname= ipsetflags= ipsetopts= \
 		inout= x=
 	
 	# if set to 1, all owner module options will be ignored
@@ -6440,6 +6447,62 @@ rule() {
 					shift
 				fi
 				;;
+
+			ipset|IPSET)
+				shift
+				ipsetnot=
+				if [ "${1}" = "not" -o "${1}" = "NOT" ]
+				then
+					shift
+					ipsetnot="!"
+				fi
+				ipsetname="${1}"
+				ipsetflags="${2}"
+				shift 2
+				ipsetopts=
+				while [ ! -z "${1}" ]
+				do
+					case "${1}" in
+						options)
+							ipsetopts="${ipsetopts} ${2}"
+							shift 2
+							;;
+
+						bytes-above|bytes-gt)
+							ipsetopts="${ipsetopts} --bytes-gt ${2}"
+							shift 2
+							;;
+
+						bytes|bytes-eq)
+							ipsetopts="${ipsetopts} --bytes-eq ${2}"
+							shift 2
+							;;
+
+						bytes-below|bytes-lt)
+							ipsetopts="${ipsetopts} --bytes-lt ${2}"
+							shift 2
+							;;
+
+						packets-above|packets-gt)
+							ipsetopts="${ipsetopts} --packets-gt ${2}"
+							shift 2
+							;;
+
+						packets|packets-eq)
+							ipsetopts="${ipsetopts} --packets-eq ${2}"
+							shift 2
+							;;
+
+						packets-below|packets-lt)
+							ipsetopts="${ipsetopts} --packets-lt ${2}"
+							shift 2
+							;;
+
+						*)	break
+							;;
+					esac
+				done
+				;;
 				
 			action|ACTION)
 				test ${softwarnings} -eq 1 -a ! -z "${action}" && softwarning "Overwriting param: action '${action}' becomes '${2}'"
@@ -6789,6 +6852,45 @@ rule() {
 						action="TARPIT"
 						;;
 						
+					set|SET)
+						action="SET"
+						local hasadd=0 hasdel=0
+						while [ ! -z "${1}" ]
+						do
+							case "${1}" in
+								add|set|add-set|--add-set)
+									action_param=( "${action_param[@]}" "--add-set" "${2}" "${3}" )
+									hasadd=1
+									shift 3
+									;;
+
+								del|unset|remove|del-set|--del-set)
+									action_param=( "${action_param[@]}" "--del-set" "${2}" "${3}" )
+									hasdel=1
+									shift 3
+									;;
+
+								exist|--exist)
+									action_param=( "${action_param[@]}" "--exist" )
+									shift
+									;;
+
+								timeout|--timeout)
+									action_param=( "${action_param[@]}" "--timeout" "${2}" )
+									shift 2
+									;;
+
+								*)	break
+									;;
+							esac
+						done
+						if [ $hasadd -eq 0 -a $hasdel -eq 0 ]
+						then
+							error "${action} requires either 'add' or 'del' argument with at least name and type."
+							return 1
+						fi
+						;;
+
 					*)
 						chain_exists "${action}"
 						local action_is_chain=$?
@@ -7151,7 +7253,7 @@ rule() {
 		mark_arg=() tos_arg=() dscp_arg=() proto_arg=() \
 		inf_arg=() outf_arg=() inph_arg=() physdev_arg=() outph_arg=() \
 		mc_arg=() s_arg=() d_arg=() sp_arg=() dp_arg=() \
-		basecmd=()
+		ipset_arg=() basecmd=()
 
 	local 	logrule= ipvall= \
 		tuid= tgid= tpid= tsid= tcmd= \
@@ -7586,6 +7688,9 @@ rule() {
 	# iplimit
 	[ ! -z "${iplimit}" ] && iplimit_arg=("-m" "iplimit" "--iplimit-above" "${iplimit}" "--iplimit-mask" "${iplimit_mask}")
 
+	# ipset
+	[ ! -z "${ipsetname}" ] && ipset_arg=("-m" "set" ${ipsetnot} "--match-set" "${ipsetname}" "${ipsetflags}" ${ipsetopts})
+
 	# uid
 	for tuid in ${uid}
 	do
@@ -7866,7 +7971,11 @@ rule() {
 		esac
 	
 	# build the command
-	basecmd=("${inf_arg[@]}" "${outf_arg[@]}" "${physdev_arg[@]}" "${inph_arg[@]}" "${outph_arg[@]}" "${limit_arg[@]}" "${iplimit_arg[@]}" "${proto_arg[@]}" "${s_arg[@]}" "${sp_arg[@]}" "${d_arg[@]}" "${dp_arg[@]}" "${owner_arg[@]}" "${uid_arg[@]}" "${gid_arg[@]}" "${pid_arg[@]}" "${sid_arg[@]}" "${cmd_arg[@]}" "${addrtype_arg[@]}" "${stp_arg[@]}" "${dtp_arg[@]}" "${state_arg[@]}" "${mc_arg[@]}" "${mark_arg[@]}" "${tos_arg[@]}" "${dscp_arg[@]}" ${custom})
+	basecmd=("${inf_arg[@]}"     "${outf_arg[@]}"  "${physdev_arg[@]}" "${inph_arg[@]}"  "${outph_arg[@]}" "${limit_arg[@]}" \
+		"${iplimit_arg[@]}"  "${proto_arg[@]}" "${s_arg[@]}"       "${sp_arg[@]}"    "${d_arg[@]}"     "${dp_arg[@]}" \
+		"${owner_arg[@]}"    "${uid_arg[@]}"   "${gid_arg[@]}"     "${pid_arg[@]}"   "${sid_arg[@]}"   "${cmd_arg[@]}" \
+		"${addrtype_arg[@]}" "${stp_arg[@]}"   "${dtp_arg[@]}"     "${state_arg[@]}" "${mc_arg[@]}"    "${mark_arg[@]}" \
+		"${tos_arg[@]}"      "${dscp_arg[@]}"  "${ipset_arg[@]}"    ${custom})
 
 	[ -z "${basecmd[*]}" -a ${ignore_empty_positive} -eq 1 ] && continue
 
