@@ -34,6 +34,12 @@ time expires. The user may monitor the remaining time for each IP, by running
 `ipset list NAME` (where `NAME` is the `ipset` parameter given in the `iptrap`
 command).
 
+The timeout value `default` will not set any timeout. The ipset default will be
+used.
+
+A timeout of `0` (zero), writes to the ipset permanently (this is a feature of
+the ipset command, not the ipset FireHOL helper).
+
 The *rule-params* define a set of rule parameters to restrict
 the traffic that is matched to this helper. See
 [firehol-params(5)][] for more details.

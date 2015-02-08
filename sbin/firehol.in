@@ -3213,6 +3213,9 @@ ecn_shame() {
 }
 
 # define custom actions
+action4() { ipv4 action "${@}"; }
+action6() { ipv6 action "${@}"; }
+action46() { both action "${@}"; }
 action() {
 	work_realcmd_helper ${FUNCNAME} "${@}"
 	
@@ -3220,40 +3223,65 @@ action() {
 	
 	require_work clear || ( error "${FUNCNAME} cannot be used in '${work_cmd}'. Put it before any '${work_cmd}' definition."; return 1 )
 	
+	local name="${1}" type= tables="filter" t=
+	local -a args=()
+	shift
+
+	if [ "${1}" = "table" -o "${1}" = "tables" ]
+	then
+		tables="${2}"
+		shift 2
+	fi
+
+	create_chain filter ${name} || return 1
+
 	while [ ! -z "${1}" ]
 	do
-		local what="${1}"; shift
-		
-		case "${what}" in
-			chain)	local name="${1}"; shift
-				local act="${1}"; shift
-				
-				if [ -z "${name}" ]
-				then
-					error "Cannot create an action chain without a name."
-					return 1
-				fi
-				
-				if [ -z "${act}" ]
-				then
-					error "Cannot create the action chain(s) '$name' without a default action."
-					return 1
-				fi
-				
-				local nm=
-				for nm in $name
+		type="${1}"
+		shift
+
+		args=()
+		while [ ! -z "${1}" -a ! "${1}" = "next" ]
+		do
+			args=( "${args[@]}" "${1}" )
+			shift
+		done
+		[ "${1}" = "next" ] && shift
+
+		case "${type}" in
+			chain|action)
+				for t in ${tables//,/ }
 				do
-					create_chain filter ${nm}
-					rule table filter chain ${nm} action "${act}"
+					set_work_function "${FUNCNAME}: rules for type ${type} under table ${t}: ${args[@]}"
+					rule table ${t} chain "${name}" action "${args[0]}" || return 1
 				done
 				;;
-				
-			*)	error "Cannot understand ${FUNCNAME} '${what}'."
+
+			rule)
+				for t in ${tables//,/ }
+				do
+					set_work_function "${FUNCNAME}: rules for type ${type} under table ${t}: ${args[@]}"
+					rule table ${t} chain "${name}" "${args[@]}" || return 1
+				done
+				;;
+
+			iptrap)
+				local ipt1="${args[0]}" ipt2="${args[1]}" ipt3="${args[2]}"
+				unset args[0] args[1] args[2]
+				for t in ${tables//,/ }
+				do
+					set_work_function "${FUNCNAME}: rules for type ${type} under table ${t}: ${args[@]}"
+					iptrap "${ipt1}" "${ipt2}" "${ipt3}" chain "${name}" table ${t} "${args[@]}" || return 1
+				done
+				;;
+
+			*)
+				error "${FUNCNAME}: Unknown action type '${type}'. Format is: ${FUNCNAME} name type type_parameters"
 				return 1
 				;;
 		esac
 	done
-	
+
 	return 0
 }
 
@@ -3785,7 +3813,7 @@ iptrap() {
 	require_work clear || ( error "${FUNCNAME} cannot be used in '${work_cmd}'. Put it before any '${work_cmd}' definition."; return 1 )
 	running_both       && error "${FUNCNAME} cannot be used in both IPv4 and IPv6. Please give use either iptrap4 or iptrap6." && return 1
 
-	local type= ipset= timeout= chain= tables="mangle" undo=0 action="RETURN" define_action= t=
+	local type= ipset= timeout= chain= tables="mangle" undo=0 action="RETURN" t= link_to="PREROUTING"
 	local -a args=() logopts_arg=()
 
 	if [ "$1" = "undo" ]
@@ -3811,8 +3839,8 @@ iptrap() {
 	while [ ! -z "${1}" ]
 	do
 		case "${1}" in
-			define_action)
-				define_action="${2}"
+			chain)
+				link_to="${2}"
 				shift
 				;;
 
@@ -3856,13 +3884,8 @@ iptrap() {
 		fi
 	fi
 
-	if [ ! -z "${define_action}" ]
-	then
-		chain="${define_action}"
-	else
-		FIREHOL_IPTRAP_COUNTER=$[ FIREHOL_IPTRAP_COUNTER + 1 ]
-		chain="IPTRAP.${FIREHOL_IPTRAP_COUNTER}"
-	fi
+	FIREHOL_IPTRAP_COUNTER=$[ FIREHOL_IPTRAP_COUNTER + 1 ]
+	chain="IPTRAP.${FIREHOL_IPTRAP_COUNTER}"
 
 	for t in ${tables//,/ }
 	do
@@ -3894,18 +3917,8 @@ iptrap() {
 
 		# ---
 
-		if [ ! -z "${define_action}" ]
-		then
-			if [ ! -z "${args[*]}" ]
-			then
-				error "${FUNCNAME}: there cannot be link parameters when creating just an action. Link params given found: ${args[*]}"
-				return 1
-			fi
-		else
-			set_work_function "Generating iptrap matching rules in table ${t} PREROUTING"
-
-			rule table ${t} chain PREROUTING in "${args[@]}" action "${chain}" || return 1
-		fi
+		set_work_function "Generating iptrap matching rules in table ${t} chain ${link_to}"
+		rule table ${t} chain ${link_to} in "${args[@]}" action "${chain}" || return 1
 	done
 
 	return 0
