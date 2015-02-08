@@ -126,4 +126,4 @@ and its aliases). Only use group types on their own line.
 * [firehol-router(5)][keyword-firehol-router] - router definition
 * [FireHOL Website](http://firehol.org/)
 * [FireHOL Online PDF Manual](http://firehol.org/firehol-manual.pdf)
-* [FireHOL Online HTML Manual](http://firehol.org/manual)
+* [FireHOL Online Documentation](http://firehol.org/documentation/)

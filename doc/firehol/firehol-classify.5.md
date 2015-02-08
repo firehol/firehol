@@ -40,5 +40,5 @@ declared before the first router or interface.
 * tc(8) - show / manipulate traffic control settings
 * [FireHOL Website](http://firehol.org/)
 * [FireHOL Online PDF Manual](http://firehol.org/firehol-manual.pdf)
-* [FireHOL Online HTML Manual](http://firehol.org/manual)
+* [FireHOL Online Documentation](http://firehol.org/documentation/)
 * [Linux Advanced Routing & Traffic Control HOWTO](http://lartc.org/howto/)

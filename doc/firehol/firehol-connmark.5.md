@@ -67,5 +67,5 @@ pick the correct routing table based on the mark on the packets.
 * ip(8) - show / manipulate routing, devices, policy routing and tunnels
 * [FireHOL Website](http://firehol.org/)
 * [FireHOL Online PDF Manual](http://firehol.org/firehol-manual.pdf)
-* [FireHOL Online HTML Manual](http://firehol.org/manual)
+* [FireHOL Online Documentation](http://firehol.org/documentation/)
 * [Linux Advanced Routing & Traffic Control HOWTO](http://lartc.org/howto/)

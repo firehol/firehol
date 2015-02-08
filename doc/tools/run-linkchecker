@@ -1,0 +1,24 @@
+#!/bin/sh
+
+cp fireqos/fireqos-manual.html . || exit 1
+
+linkchecker -a -F html fireqos-manual.html $IGNORE
+rm -f fireqos-manual.html
+mv linkchecker-out.html linkchecker-fireqos.html
+
+cp firehol/firehol-manual.html . || exit 1
+
+# These are denied by robots.txt or cannot otherwise be checked automatically
+IGNORE="$IGNORE --ignore-url=archive.org/"
+IGNORE="$IGNORE --ignore-url=samba.org/"
+IGNORE="$IGNORE --ignore-url=vmware.com/"
+IGNORE="$IGNORE --ignore-url=rhyolite.com/"
+
+# These do a permanent redirect but the existig URL makes more sense
+IGNORE="$IGNORE --ignore-url=hylafax.org/"
+
+linkchecker -a -F html firehol-manual.html $IGNORE
+rm -f firehol-manual.html
+mv linkchecker-out.html linkchecker-firehol.html
+
+echo "Results: linkchecker-firehol.html and linkchecker-fireqos.html"

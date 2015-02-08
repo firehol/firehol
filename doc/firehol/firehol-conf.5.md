@@ -269,4 +269,4 @@ definitions (i.e. before the first interface is defined).
 * [firehol-actions(5)][] - actions for rules
 * [FireHOL Website](http://firehol.org/)
 * [FireHOL Online PDF Manual](http://firehol.org/firehol-manual.pdf)
-* [FireHOL Online HTML Manual](http://firehol.org/manual)
+* [FireHOL Online Documentation](http://firehol.org/documentation/)
