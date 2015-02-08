@@ -12,6 +12,14 @@ firehol-iptrap - dynamically put IP addresses in an ipset
 
 { ipuntrap | ipuntrap4 | ipuntrap6 } *ipset* *type* [*rule-params*] [ except [*rule-params*] ]...
 
+<!--
+extra-manpage: firehol-iptrap4.5
+extra-manpage: firehol-iptrap6.5
+extra-manpage: firehol-ipuntrap.5
+extra-manpage: firehol-ipuntrap4.5
+extra-manpage: firehol-ipuntrap6.5
+  -->
+
 # DESCRIPTION
 
 
@@ -67,27 +75,27 @@ with the variable IPTRAP_DEFAULT_IPSET_OPTIONS.
 # EXAMPLES
 
 ~~~~
-# Example: mini-IDS
-# add to the ipset `trap` for an hour (3600 seconds) all IPs from all packets
-# comming from eth0 and going to tcp/3306 (mysql).
-iptrap4 src trap 3600 inface eth0 proto tcp dport 3306 log "TRAPPED HTTP"
-# block them
-blacklist4 full inface eth0 log "BLOCKED" src ipset:trap except src ipset:whitelist
+ # Example: mini-IDS
+ # add to the ipset `trap` for an hour (3600 seconds) all IPs from all packets
+ # comming from eth0 and going to tcp/3306 (mysql).
+ iptrap4 src trap 3600 inface eth0 proto tcp dport 3306 log "TRAPPED HTTP"
+ # block them
+ blacklist4 full inface eth0 log "BLOCKED" src ipset:trap except src ipset:whitelist
 
-# Example: ipuntrap
-ipuntrap4 src trap inface eth0 src ipset:trap proto tcp dport 80 log "UNTRAPPED HTTP"
+ # Example: ipuntrap
+ ipuntrap4 src trap inface eth0 src ipset:trap proto tcp dport 80 log "UNTRAPPED HTTP"
 
-# Example: a knock
-# The user will be able to knock at tcp/12345
-iptrap4 src knock1 30 inface eth0 proto tcp dport 12345 log "KNOCK STEP 1"
-# in 30 seconds knock at tcp/23456
-iptrap4 src knock2 60 inface eth0 proto tcp dport 23456 src ipset:knock1 log "KNOCK STEP 2"
-# in 60 seconds knock at tcp/34566
-iptrap4 src knock3 90 inface eth0 proto tcp dport 34567 src ipset:knock2 log "KNOCK STEP 3"
-#
-# and in 90 seconds ssh
-interface ...
-      server ssh accept src ipset:knock3
+ # Example: a knock
+ # The user will be able to knock at tcp/12345
+ iptrap4 src knock1 30 inface eth0 proto tcp dport 12345 log "KNOCK STEP 1"
+ # in 30 seconds knock at tcp/23456
+ iptrap4 src knock2 60 inface eth0 proto tcp dport 23456 src ipset:knock1 log "KNOCK STEP 2"
+ # in 60 seconds knock at tcp/34566
+ iptrap4 src knock3 90 inface eth0 proto tcp dport 34567 src ipset:knock2 log "KNOCK STEP 3"
+ #
+ # and in 90 seconds ssh
+ interface ...
+     server ssh accept src ipset:knock3
 ~~~~
 
 # SEE ALSO
@@ -96,4 +104,4 @@ interface ...
 * [firehol.conf(5)][] - FireHOL configuration
 * [FireHOL Website](http://firehol.org/)
 * [FireHOL Online PDF Manual](http://firehol.org/firehol-manual.pdf)
-* [FireHOL Online HTML Manual](http://firehol.org/manual)
+* [FireHOL Online Documentation](http://firehol.org/documentation/)

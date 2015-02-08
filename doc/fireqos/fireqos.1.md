@@ -102,7 +102,7 @@ requeues
 
 * [fireqos.conf(5)][] - FireQOS configuration file
 * [FireHOL Website](http://firehol.org/)
-* [FireHOL Online PDF Manual](http://firehol.org/firehol-manual.pdf)
-* [FireHOL Online HTML Manual](http://firehol.org/manual)
+* [FireQOS Online PDF Manual](http://firehol.org/fireqos-manual.pdf)
+* [FireQOS Online Documentation](http://firehol.org/documentation/)
 * [tc(8)](http://lartc.org/manpages/tc.html) - show / manipulate traffic control settings
 * [tcpdump(8)](http://www.tcpdump.org/manpages/tcpdump.1.html) - show / manipulate traffic control settings

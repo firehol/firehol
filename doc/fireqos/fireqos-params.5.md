@@ -47,5 +47,5 @@ priority
 * [fireqos-params-class(5)][] - QOS class parameters
 * [fireqos-params-match(5)][] - QOS match parameters
 * [FireHOL Website](http://firehol.org/)
-* [FireHOL Online PDF Manual](http://firehol.org/firehol-manual.pdf)
-* [FireHOL Online HTML Manual](http://firehol.org/manual)
+* [FireQOS Online PDF Manual](http://firehol.org/fireqos-manual.pdf)
+* [FireQOS Online Documentation](http://firehol.org/documentation/)

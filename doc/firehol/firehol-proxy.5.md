@@ -69,4 +69,4 @@ transparent_squid "80 3128 8080" "squid privoxy root bin" \
 * [firehol-nat(5)][] - nat, snat, dnat, redirect config helpers
 * [FireHOL Website](http://firehol.org/)
 * [FireHOL Online PDF Manual](http://firehol.org/firehol-manual.pdf)
-* [FireHOL Online HTML Manual](http://firehol.org/manual)
+* [FireHOL Online Documentation](http://firehol.org/documentation/)

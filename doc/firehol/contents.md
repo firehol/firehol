@@ -1,5 +1,5 @@
 % FireHOL Reference
-% Copyright (c) 2004,2013-2014 Costa Tsaousis <costa@tsaousis.org>; Copyright (c) 2012-2014 Phil Whineray <phil@sanewall.org>
+% Copyright (c) 2004,2013-2015 Costa Tsaousis <costa@firehol.org>; Copyright (c) 2012-2015 Phil Whineray <phil@firehol.org>
 % Version VERSION (Built DATE)
 
 \newpage
@@ -59,6 +59,7 @@ and also as
 * [firehol-classify(5)](firehol-classify.5.md)
 * [firehol-connmark(5)](firehol-connmark.5.md)
 * [firehol-dscp(5)](firehol-dscp.5.md)
+* [firehol-iptrap(5)](firehol-iptrap.5.md)
 * [firehol-mac(5)](firehol-mac.5.md)
 * [firehol-mark(5)](firehol-mark.5.md)
 * [firehol-nat(5)](firehol-nat.5.md)

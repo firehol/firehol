@@ -51,4 +51,4 @@ interface eth0 intranet src 192.0.2.0/24
 * [firehol-router(5)][keyword-firehol-router] - router definition
 * [FireHOL Website](http://firehol.org/)
 * [FireHOL Online PDF Manual](http://firehol.org/firehol-manual.pdf)
-* [FireHOL Online HTML Manual](http://firehol.org/manual)
+* [FireHOL Online Documentation](http://firehol.org/documentation/)

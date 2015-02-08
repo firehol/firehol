@@ -211,7 +211,7 @@ SERVICE cvspserver
 
 SERVICE darkstat
 	NAME Darkstat network traffic analyser
-	HOME http://unix4lyfe.org/darkstat/
+	HOME https://unix4lyfe.org/darkstat/
 	EXAMPLE
 		server darkstat accept
 
@@ -352,7 +352,7 @@ SERVICE dict
 
 SERVICE distcc
 	NAME Distributed CC
-	HOME  http://distcc.samba.org/
+	HOME  https://code.google.com/p/distcc/
 	WIKI  http://en.wikipedia.org/wiki/Distcc
 	EXAMPLE
 		server distcc accept
@@ -500,7 +500,7 @@ SERVICE https
 
 SERVICE hylafax
 	NAME HylaFAX
-	HOME  http://www.hylafax.org
+	HOME  http://www.hylafax.org/
 	WIKI  http://en.wikipedia.org/wiki/Hylafax
 	CPORT many
 	SPORT many
@@ -575,7 +575,7 @@ SERVICE imaps
 
 SERVICE ipsecnatt
 	NAME NAT traversal and IPsec
-	WIKI  http://en.wikipedia.org/wiki/NAT_traversal#NAT_traversal_and_IPsec
+	WIKI  http://en.wikipedia.org/wiki/NAT_traversal#IPsec_traversal_across_NAT
 
 SERVICE ipv6error
 	NAME ICMPv6 Error Handling
@@ -924,7 +924,7 @@ SERVICE nis
 		firewall, then add the nis service and restart the firewall.
 		-
 		This service was added to FireHOL by
-		[Carlos Rodrigues](http://sourceforge.net/p/firehol/feature-requests/20).
+		[Carlos Rodrigues](http://sourceforge.net/p/firehol/feature-requests/20/).
 		His comments regarding this implementation, are:
 		-
 		These rules work for client access only!

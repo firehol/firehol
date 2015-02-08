@@ -251,5 +251,5 @@ interface eth0 lan output rate 1Gbit
 * [fireqos.conf(5)][] - FireQOS configuration file
 * [fireqos-match(5)][keyword-fireqos-match] - QOS traffic match
 * [FireHOL Website](http://firehol.org/)
-* [FireHOL Online PDF Manual](http://firehol.org/firehol-manual.pdf)
-* [FireHOL Online HTML Manual](http://firehol.org/manual)
+* [FireQOS Online PDF Manual](http://firehol.org/fireqos-manual.pdf)
+* [FireQOS Online Documentation](http://firehol.org/documentation/)

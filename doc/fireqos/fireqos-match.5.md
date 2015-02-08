@@ -100,6 +100,6 @@ without the `class` parameters, all traffic would be classified into
 * [fireqos-interface(5)][keyword-fireqos-interface] - QOS interface definition
 * [fireqos-class(5)][keyword-fireqos-class-definition] - QOS class definition
 * [FireHOL Website](http://firehol.org/)
-* [FireHOL Online PDF Manual](http://firehol.org/firehol-manual.pdf)
-* [FireHOL Online HTML Manual](http://firehol.org/manual)
+* [FireQOS Online PDF Manual](http://firehol.org/fireqos-manual.pdf)
+* [FireQOS Online Documentation](http://firehol.org/documentation/)
 * [tc(8)](http://lartc.org/manpages/tc.html) - show / manipulate traffic control settings

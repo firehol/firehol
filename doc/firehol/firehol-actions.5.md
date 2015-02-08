@@ -106,7 +106,7 @@ IP, to the smtp server:
 ## accept with knock *name*
 
 `accept with knock` allows easy integration with
-[knockd](http://www.zeroflux.org/knock/), a server that allows you
+[knockd](http://www.zeroflux.org/projects/knock/), a server that allows you
 to control access to services by sending certain packets to "knock"
 on the door, before the door is opened for service.
 
@@ -349,4 +349,4 @@ tcp-reset
 * [firehol-params(5)][] - optional rule parameters
 * [FireHOL Website](http://firehol.org/)
 * [FireHOL Online PDF Manual](http://firehol.org/firehol-manual.pdf)
-* [FireHOL Online HTML Manual](http://firehol.org/manual)
+* [FireHOL Online Documentation](http://firehol.org/documentation/)

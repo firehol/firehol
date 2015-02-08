@@ -157,7 +157,7 @@ redirect-to *port*[-*range*]
 * [firehol-masquerade(5)][keyword-firehol-masquerade] - masquerade helper
 * [FireHOL Website](http://firehol.org/)
 * [FireHOL Online PDF Manual](http://firehol.org/firehol-manual.pdf)
-* [FireHOL Online HTML Manual](http://firehol.org/manual)
+* [FireHOL Online Documentation](http://firehol.org/documentation/)
 * [NAT HOWTO](http://www.netfilter.org/documentation/HOWTO/NAT-HOWTO-6.html)
 * [netfilter flow diagram][netfilter flow diagram]
 

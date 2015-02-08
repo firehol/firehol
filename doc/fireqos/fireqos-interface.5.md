@@ -82,5 +82,5 @@ traffic:
 * [fireqos-class(5)][keyword-fireqos-class-definition] - QOS class definition
 * [fireqos-params-class(5)][] - QOS class parameters
 * [FireHOL Website](http://firehol.org/)
-* [FireHOL Online PDF Manual](http://firehol.org/firehol-manual.pdf)
-* [FireHOL Online HTML Manual](http://firehol.org/manual)
+* [FireQOS Online PDF Manual](http://firehol.org/fireqos-manual.pdf)
+* [FireQOS Online Documentation](http://firehol.org/documentation/)

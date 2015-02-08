@@ -56,4 +56,4 @@ blacklist full inface eth0 log "BADGUY" 192.0.1.1 192.0.1.2
 * [firehol.conf(5)][] - FireHOL configuration
 * [FireHOL Website](http://firehol.org/)
 * [FireHOL Online PDF Manual](http://firehol.org/firehol-manual.pdf)
-* [FireHOL Online HTML Manual](http://firehol.org/manual)
+* [FireHOL Online Documentation](http://firehol.org/documentation/)
