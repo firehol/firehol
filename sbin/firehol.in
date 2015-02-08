@@ -3785,7 +3785,7 @@ iptrap() {
 	require_work clear || ( error "${FUNCNAME} cannot be used in '${work_cmd}'. Put it before any '${work_cmd}' definition."; return 1 )
 	running_both       && error "${FUNCNAME} cannot be used in both IPv4 and IPv6. Please give use either iptrap4 or iptrap6." && return 1
 
-	local undo=0 type= ipset= timeout= chain=
+	local type= ipset= timeout= chain= tables="mangle" undo=0 action="RETURN" define_action= t=
 	local -a args=() logopts_arg=()
 
 	if [ "$1" = "undo" ]
@@ -3795,7 +3795,6 @@ iptrap() {
 		ipset="${3}"
 		logopts_arg=(log "UNTRAP")
 	else
-		undo=0
 		type="${1}"
 		ipset="${2}"
 		timeout="${3}"
@@ -3812,6 +3811,21 @@ iptrap() {
 	while [ ! -z "${1}" ]
 	do
 		case "${1}" in
+			define_action)
+				define_action="${2}"
+				shift
+				;;
+
+			table|tables|TABLE|TABLES)
+				tables="${2}"
+				shift
+				;;
+
+			action|ACTION)
+				action="${2}"
+				shift
+				;;
+
 			except|EXCEPT)
 				shift
 				break
@@ -3842,40 +3856,57 @@ iptrap() {
 		fi
 	fi
 
-	FIREHOL_IPTRAP_COUNTER=$[ FIREHOL_IPTRAP_COUNTER + 1 ]
-	chain="IPTRAP.${FIREHOL_IPTRAP_COUNTER}"
-
-	set_work_function "Generating trap chain ${chain}"
-
-	# create the chain
-	iptables_both -t mangle -N "${chain}"
-
-	# add the excepted rules
-	test ! -z "${1}" && ( rule return_negatives_in_place ignore_empty_positive table mangle chain "${chain}" in action RETURN "${@}" || return 1 )
-
-	# do the job
-	if [ ${undo} -eq 1 ]
+	if [ ! -z "${define_action}" ]
 	then
-		# remove the ip
-		iptables_both -t mangle -A "${chain}" -j SET --del-set ${ipset} ${type}
+		chain="${define_action}"
 	else
-		# add the ip
-		if [ -z "${timeout}" -o "${timeout}" = "default" ]
-		then
-			iptables_both -t mangle -A "${chain}" -j SET --add-set ${ipset} ${type}
-		else
-			iptables_both -t mangle -A "${chain}" -j SET --add-set ${ipset} ${type} --exist --timeout ${timeout}
-		fi
+		FIREHOL_IPTRAP_COUNTER=$[ FIREHOL_IPTRAP_COUNTER + 1 ]
+		chain="IPTRAP.${FIREHOL_IPTRAP_COUNTER}"
 	fi
 
-	# log and return
-	rule table mangle chain "${chain}" in "${logopts_arg[@]}" action RETURN
+	for t in ${tables//,/ }
+	do
+		set_work_function "Generating trap chain ${chain} in table ${t}"
 
-	# ---
+		# create the chain
+		iptables_both -t ${t} -N "${chain}"
 
-	set_work_function "Generating iptrap matching rules"
+		# add the excepted rules
+		test ! -z "${1}" && ( rule return_negatives_in_place ignore_empty_positive table ${t} chain "${chain}" in action RETURN "${@}" || return 1 )
 
-	rule table mangle chain PREROUTING in state NEW "${args[@]}" action "${chain}" || return 1
+		# do the job
+		if [ ${undo} -eq 1 ]
+		then
+			# remove the ip
+			iptables_both -t ${t} -A "${chain}" -j SET --del-set ${ipset} ${type}
+		else
+			# add the ip
+			if [ -z "${timeout}" -o "${timeout}" = "default" ]
+			then
+				iptables_both -t ${t} -A "${chain}" -j SET --add-set ${ipset} ${type}
+			else
+				iptables_both -t ${t} -A "${chain}" -j SET --add-set ${ipset} ${type} --exist --timeout ${timeout}
+			fi
+		fi
+
+		# log and return
+		rule table ${t} chain "${chain}" in "${logopts_arg[@]}" action "${action}"
+
+		# ---
+
+		if [ ! -z "${define_action}" ]
+		then
+			if [ ! -z "${args[*]}" ]
+			then
+				error "${FUNCNAME}: there cannot be link parameters when creating just an action. Link params given found: ${args[*]}"
+				return 1
+			fi
+		else
+			set_work_function "Generating iptrap matching rules in table ${t} PREROUTING"
+
+			rule table ${t} chain PREROUTING in "${args[@]}" action "${chain}" || return 1
+		fi
+	done
 
 	return 0
 }
@@ -9131,12 +9162,10 @@ EOF
 				;;
 				
 			*)
-				${CAT_CMD} <<EOF
+				echo -e "# \/\/\/\/\/\/\/\/\/\/\/\/\/\/\/\/\/\/\/\/\/\/\/\/\/\/\/\/\/\/\/\/\/\/\/\/\/\/\/"
+				echo -e "# Cmd Line : ${FORCE_CONFIG_LINEID}"
+				echo -e "# Command  : ${COLOR_YELLOW}${REPLY}${COLOR_RESET}"
 
-# \/\/\/\/\/\/\/\/\/\/\/\/\/\/\/\/\/\/\/\/\/\/\/\/\/\/\/\/\/\/\/\/\/\/\/\/\/\/\/
-# Cmd Line : ${FORCE_CONFIG_LINEID}
-# Command  : ${REPLY}
-EOF
 				eval "${@}"
 				if [ $? -gt 0 ]
 				then
