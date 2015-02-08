@@ -12,6 +12,14 @@ firehol-iptrap - dynamically put IP addresses in an ipset
 
 { ipuntrap | ipuntrap4 | ipuntrap6 } *type* *ipset* [*rule-params*] [ except [*rule-params*] ]...
 
+<!--
+extra-manpage: firehol-iptrap4.5
+extra-manpage: firehol-iptrap6.5
+extra-manpage: firehol-ipuntrap.5
+extra-manpage: firehol-ipuntrap4.5
+extra-manpage: firehol-ipuntrap6.5
+  -->
+
 # DESCRIPTION
 
 

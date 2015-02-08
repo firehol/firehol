@@ -29,6 +29,7 @@ MANUALMAN_GENERATED = \
 	man/man5/firehol-group.5 \
 	man/man5/firehol-interface.5 \
 	man/man5/firehol-iptables.5 \
+	man/man5/firehol-iptrap.5 \
 	man/man5/firehol-mac.5 \
 	man/man5/firehol-mark.5 \
 	man/man5/firehol-masquerade.5 \
@@ -70,6 +71,11 @@ MANUALMAN_GENERATED_INDIRECT = \
 	man/man5/firehol-interface4.5 \
 	man/man5/firehol-interface46.5 \
 	man/man5/firehol-interface6.5 \
+	man/man5/firehol-iptrap4.5 \
+	man/man5/firehol-iptrap6.5 \
+	man/man5/firehol-ipuntrap.5 \
+	man/man5/firehol-ipuntrap4.5 \
+	man/man5/firehol-ipuntrap6.5 \
 	man/man5/firehol-ip6tables.5 \
 	man/man5/firehol-ipv4.5 \
 	man/man5/firehol-ipv6.5 \
