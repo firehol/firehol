@@ -8,9 +8,9 @@ firehol-iptrap - dynamically put IP addresses in an ipset
 
 # SYNOPSIS
 
-{ iptrap | iptrap4 | iptrap6 } *ipset* *type* *timeout* [*rule-params*] [ except [*rule-params*] ]...
+{ iptrap | iptrap4 | iptrap6 } *ipset* *type* *seconds* [ timeout | counters ] [*rule-params*] [ except [*rule-params*] ]...
 
-{ ipuntrap | ipuntrap4 | ipuntrap6 } *ipset* *type* [*rule-params*] [ except [*rule-params*] ]...
+{ ipuntrap | ipuntrap4 | ipuntrap6 } *ipset* *type* [ timeout | counters ] [*rule-params*] [ except [*rule-params*] ]...
 
 <!--
 extra-manpage: firehol-iptrap4.5
@@ -36,7 +36,7 @@ Both helpers do not affect the flow of traffic. They do not `ACCEPT`,
 (added or removed from the ipset). `type` can be `src`, `dst`, `src,dst`,
 `dst,src`. If type is a pair, then the ipset must be an ipset of pairs too.
 
-`timeout` is required by `iptrap` and gives the duration in seconds of the
+`seconds` is required by `iptrap` and gives the duration in seconds of the
 lifetime of each IP address that is added to `ipset`. Every matching packet
 will refresh this duration for the IP address in the ipset.
 The Linux kernel will automatically remove the IP from the ipset when this
@@ -44,15 +44,22 @@ time expires. The user may monitor the remaining time for each IP, by running
 `ipset list NAME` (where `NAME` is the `ipset` parameter given in the `iptrap`
 command).
 
-The timeout value `default` will not set any timeout. The ipset default will be
+The seconds value `default` will not set any seconds. The ipset default will be
 used.
 
-A timeout of `0` (zero), writes to the ipset permanently (this is a feature of
+A seconds of `0` (zero), writes to the ipset permanently (this is a feature of
 the ipset command, not the ipset FireHOL helper).
 
 The *rule-params* define a set of rule parameters to restrict
 the traffic that is matched to this helper. See
 [firehol-params(5)][] for more details.
+
+The keywords `timeout` and `counters` are mutualy exclusive. `timeout` is the
+default and means that each IP address every time is matched its timeout will
+be refreshed, while `counters` means that its packets and bytes counters will
+be refreshed. Unfortunately the kernel either re-add the IP in the ipset
+with the new timeout - but its counters will be lost, or just the counters
+will be updated, but the timeout will not be refreshed.
 
 `except` *rule-params* are used to exclude traffic, i.e. traffic that normally
 is matched by the first set of *rule-params*, will be excluded if matched by

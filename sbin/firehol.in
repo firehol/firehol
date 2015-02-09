@@ -3813,10 +3813,10 @@ iptrap() {
 	require_work clear || ( error "${FUNCNAME} cannot be used in '${work_cmd}'. Put it before any '${work_cmd}' definition."; return 1 )
 	running_both       && error "${FUNCNAME} cannot be used in both IPv4 and IPv6. Please give use either iptrap4 or iptrap6." && return 1
 
-	local type= ipset= timeout= chain= tables="mangle" undo=0 action="RETURN" t= link_to="PREROUTING"
+	local type= ipset= timeout= chain= tables="mangle" undo=0 action="RETURN" t= link_to="PREROUTING" mode="TIMEOUT"
 	local -a args=() logopts_arg=()
 
-	if [ "$1" = "undo" ]
+	if [ "${1}" = "undo" ]
 	then
 		undo=1
 		ipset="${2}"
@@ -3845,6 +3845,14 @@ iptrap() {
 	while [ ! -z "${1}" ]
 	do
 		case "${1}" in
+			counters)
+				mode="COUNTERS"
+				;;
+
+			timeout)
+				mode="TIMEOUT"
+				;;
+
 			chain)
 				link_to="${2}"
 				shift
@@ -3909,17 +3917,24 @@ iptrap() {
 			# remove the ip
 			iptables_both -t ${t} -A "${chain}" -j SET --del-set ${ipset} ${type}
 		else
+			if [ "${mode}" = "COUNTERS" ]
+			then
+				# this command updates the counters
+				# but its presence mean that the timer is not updated
+				iptables_both -t ${t} -A "${chain}" -m set --match-set ${ipset} ${type} -j RETURN || return 1
+			fi
+
 			# add the ip
 			if [ -z "${timeout}" -o "${timeout}" = "default" ]
 			then
-				iptables_both -t ${t} -A "${chain}" -j SET --add-set ${ipset} ${type}
+				iptables_both -t ${t} -A "${chain}" -j SET --add-set ${ipset} ${type} --exist || return 1
 			else
-				iptables_both -t ${t} -A "${chain}" -j SET --add-set ${ipset} ${type} --exist --timeout ${timeout}
+				iptables_both -t ${t} -A "${chain}" -j SET --add-set ${ipset} ${type} --exist --timeout ${timeout} || return 1
 			fi
 		fi
 
 		# log and return
-		rule table ${t} chain "${chain}" in "${logopts_arg[@]}" action "${action}"
+		rule table ${t} chain "${chain}" in "${logopts_arg[@]}" action "${action}" || return 1
 
 		# ---
 
