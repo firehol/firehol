@@ -626,11 +626,13 @@ IPSET_LIST_NAMES_EVAL="list -n"
 
 # The default options to be passed to ipset
 # when the iptrap helper creates the ipset
-IPTRAP_DEFAULT_IPSET_OPTIONS="timeout 3600 counters"
+IPTRAP_DEFAULT_IPSET_TIMEOUT_OPTIONS="timeout 3600"
+IPTRAP_DEFAULT_IPSET_COUNTERS_OPTIONS="timeout 3600 counters"
 
 # older versions do not support the 'counters' option
 # even older versions do not support the 'timeout' option
-#IPTRAP_DEFAULT_IPSET_OPTIONS="timeout 3600"
+#IPTRAP_DEFAULT_IPSET_TIMEOUT_OPTIONS="timeout 3600"
+#IPTRAP_DEFAULT_IPSET_COUNTERS_OPTIONS="" # not supported
 
 # older versions use these
 #IPSET_CREATE_OPTION="-N"
@@ -3797,6 +3799,8 @@ blacklist() {
 
 FIREHOL_IPTRAP_COUNTER=0
 
+declare -A FIREHOL_IPTRAP_MODE=()
+
 ipuntrap4() { ipv4 iptrap undo "${@}"; }
 ipuntrap6() { ipv6 iptrap undo "${@}"; }
 ipuntrap46() { both iptrap undo "${@}"; }
@@ -3841,6 +3845,9 @@ iptrap() {
 		error "${FUNCNAME}: Invalid type '${type}' for ipset with name '${name}'. Type can be one of: src dst src,dst dst,src"
 		return 1
 	fi
+
+	# get the last mode used
+	[ ! -z "${FIREHOL_IPTRAP_MODE[$ipset]}" ] && mode="${FIREHOL_IPTRAP_MODE[$ipset]}"
 
 	while [ ! -z "${1}" ]
 	do
@@ -3887,14 +3894,29 @@ iptrap() {
 	# Now in $args[@] we have all the positive IPs
 	# and in $@ the excepted rules
 
+	# check if the user changed mode
+	if [ ! -z "${FIREHOL_IPTRAP_MODE[$ipset]}" ]
+	then
+		if [ ! "${FIREHOL_IPTRAP_MODE[$ipset]}" = "${mode}" ]
+		then
+			warning "${FUNCNAME}: ipset '${ipset}' was previously used with option ${FIREHOL_IPTRAP_MODE[$ipset]}, while now ${mode} is requested."
+		fi
+	else
+		# remember the mode if this ipset
+		FIREHOL_IPTRAP_MODE[$ipset]="${mode}"
+	fi
 
+	# if the ipset does not exist, create it
 	if [ -z "${FIREHOL_IPSETS_USED[$ipset]}" ]
 	then
+		local opts="${IPTRAP_DEFAULT_IPSET_TIMEOUT_OPTIONS}"
+		test "${mode}" = "COUNTERS" && opts="${IPTRAP_DEFAULT_IPSET_COUNTERS_OPTIONS}"
+
 		if [ "${type//,/ }" = "src dst" -o "${type//,/ }" = "dst src" ]
 		then
-			ipset create ${ipset} hash:ip,ip ${IPTRAP_DEFAULT_IPSET_OPTIONS} prevent_reset_on_restart
+			ipset create ${ipset} hash:ip,ip ${opts} prevent_reset_on_restart
 		else
-			ipset create ${ipset} hash:ip ${IPTRAP_DEFAULT_IPSET_OPTIONS} prevent_reset_on_restart
+			ipset create ${ipset} hash:ip ${opts} prevent_reset_on_restart
 		fi
 	fi
 
@@ -4294,6 +4316,7 @@ ipset_save_active_to_spool() {
 declare -A FIREHOL_IPSETS_USED=()
 declare -A FIREHOL_IPSETS_IPV=()
 declare -A FIREHOL_IPSETS_KEEP=()
+FIREHOL_IPSETS_RESPECT_KEEP=1
 
 # this is a wrapper around ipset
 # it has the same syntax
@@ -4495,7 +4518,7 @@ ipsets_apply() {
 		if [ "${FIREHOL_IPSETS_USED[$x]}" = "EXISTS" ]
 		then
 			test $restoring -eq 1 && continue
-			test "${FIREHOL_IPSETS_KEEP[$x]}" = "1" && continue
+			test ${FIREHOL_IPSETS_RESPECT_KEEP} -eq 1 && "${FIREHOL_IPSETS_KEEP[$x]}" = "1" && continue
 
 			ipset_to_temp_and_swap "${x}" <"${base}/ipset.${x}.rules" >>"${FIREHOL_DIR}/ipsets.restore"
 		else
@@ -8620,15 +8643,26 @@ fi
 
 syslog info "FireHOL started from '$PWD' with: ${0} ${*}"
 
+while [ ! -z "${1}" ]
+do
+	case "${1}" in
+		fast)	FIREHOL_FAST_ACTIVATION=1
+			;;
+
+		nofast)	FIREHOL_FAST_ACTIVATION=0
+			;;
+
+		reset-ipsets|reset_ipsets)
+			FIREHOL_IPSETS_RESPECT_KEEP=0
+			;;
+			
+		*) 	break;;
+	esac
+	shift
+done
+
 arg="${1}"
 shift
-
-if [ "${arg}" = "nofast" ]
-then
-	FIREHOL_FAST_ACTIVATION=0
-	arg="${1}"
-	shift
-fi
 
 case "${arg}" in
 	explain)
@@ -9027,7 +9061,21 @@ case "${arg}" in
 		emit_version
 
 		${CAT_CMD} <<EOF
-FireHOL supports the following command line arguments (only one of them):
+
+FireHOL supports the following options (before any command):
+
+	fast		enables FIREHOL_FAST_ACTIVATION
+
+	nofast 		disables FIREHOL_FAST_ACTIVATION
+
+	reset-ipsets 	removes and recreates all ipsets used.
+			dynamic ipsets (such as the ones created
+			by the iptrap helper), are not recreated
+			so that they will keep their data.
+			this option recreates them.
+
+
+FireHOL supports the following commands (only one of them):
 
 	start		to activate the firewall configuration.
 			The configuration is expected to be found in
