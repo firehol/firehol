@@ -4518,7 +4518,7 @@ ipsets_apply() {
 		if [ "${FIREHOL_IPSETS_USED[$x]}" = "EXISTS" ]
 		then
 			test $restoring -eq 1 && continue
-			test ${FIREHOL_IPSETS_RESPECT_KEEP} -eq 1 && "${FIREHOL_IPSETS_KEEP[$x]}" = "1" && continue
+			[ ${FIREHOL_IPSETS_RESPECT_KEEP} -eq 1 -a "${FIREHOL_IPSETS_KEEP[$x]}" = "1" ] && continue
 
 			ipset_to_temp_and_swap "${x}" <"${base}/ipset.${x}.rules" >>"${FIREHOL_DIR}/ipsets.restore"
 		else
