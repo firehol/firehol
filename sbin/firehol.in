@@ -3277,6 +3277,16 @@ action() {
 				done
 				;;
 
+			ipuntrap)
+				local ipt1="${args[0]}" ipt2="${args[1]}"
+				unset args[0] args[1]
+				for t in ${tables//,/ }
+				do
+					set_work_function "${FUNCNAME}: rules for type ${type} under table ${t}: ${args[@]}"
+					ipuntrap "${ipt1}" "${ipt2}" chain "${name}" table ${t} "${args[@]}" || return 1
+				done
+				;;
+
 			*)
 				error "${FUNCNAME}: Unknown action type '${type}'. Format is: ${FUNCNAME} name type type_parameters"
 				return 1
@@ -3757,7 +3767,7 @@ blacklist() {
 
 		set_work_function "Blacklist input from them"
 
-		rule table mangle chain PREROUTING  in          "${inface[@]}" src "${src[*]}" action "${chain}.in" || return 1
+		rule table mangle chain PREROUTING  in "${inface[@]}" src "${src[*]}" action "${chain}.in" || return 1
 
 
 		set_work_function "Generating output chain"
@@ -3800,6 +3810,7 @@ blacklist() {
 FIREHOL_IPTRAP_COUNTER=0
 
 declare -A FIREHOL_IPTRAP_MODE=()
+declare -A FIREHOL_IPTRAP_METHOD=()
 
 ipuntrap4() { ipv4 iptrap undo "${@}"; }
 ipuntrap6() { ipv6 iptrap undo "${@}"; }
@@ -3817,7 +3828,7 @@ iptrap() {
 	require_work clear || ( error "${FUNCNAME} cannot be used in '${work_cmd}'. Put it before any '${work_cmd}' definition."; return 1 )
 	running_both       && error "${FUNCNAME} cannot be used in both IPv4 and IPv6. Please give use either iptrap4 or iptrap6." && return 1
 
-	local type= ipset= timeout= chain= tables="mangle" undo=0 action="RETURN" t= link_to="PREROUTING" mode="TIMEOUT"
+	local type= ipset= timeout= chain= method= tables="mangle" undo=0 action="RETURN" t= link_to="PREROUTING" mode="TIMEOUT" x=
 	local -a args=() logopts_arg=()
 
 	if [ "${1}" = "undo" ]
@@ -3840,11 +3851,24 @@ iptrap() {
 		return 1
 	fi
 
-	if [ ! "${type}" = "src" -a ! "${type}" = "dst" -a ! "${type}" = "src,dst" -a ! "${type}" = "dst,src" ]
-	then
-		error "${FUNCNAME}: Invalid type '${type}' for ipset with name '${name}'. Type can be one of: src dst src,dst dst,src"
-		return 1
-	fi
+	# validate type and generate default ipset storage method
+	for x in ${type//,/ }
+	do
+		case "${x}" in
+			src|dst)
+				if [ ! -z "${method}" ]
+				then
+					method="${method},ip"
+				else
+					method="hash:ip"
+				fi
+				;;
+			*)
+				error "${FUNCNAME}: invalid type '${x}'. It can either be 'src' or 'dst'."
+				return 1
+				;;
+		esac
+	done
 
 	# get the last mode used
 	[ ! -z "${FIREHOL_IPTRAP_MODE[$ipset]}" ] && mode="${FIREHOL_IPTRAP_MODE[$ipset]}"
@@ -3852,15 +3876,20 @@ iptrap() {
 	while [ ! -z "${1}" ]
 	do
 		case "${1}" in
-			counters)
+			method|METHOD)
+				method="${2}"
+				shift
+				;;
+
+			counters|COUNTERS)
 				mode="COUNTERS"
 				;;
 
-			timeout)
+			timeout|TIMEOUT)
 				mode="TIMEOUT"
 				;;
 
-			chain)
+			chain|CHAIN)
 				link_to="${2}"
 				shift
 				;;
@@ -3880,7 +3909,7 @@ iptrap() {
 				break
 				;;
 
-			log|loglimit)
+			log|loglimit|LOG|LOGLIMIT)
 				logopts_arg=("${1}" "${2}")
 				shift
 				;;
@@ -3894,7 +3923,7 @@ iptrap() {
 	# Now in $args[@] we have all the positive IPs
 	# and in $@ the excepted rules
 
-	# check if the user changed mode
+	# check if the caller changed the update mode of the ipset
 	if [ ! -z "${FIREHOL_IPTRAP_MODE[$ipset]}" ]
 	then
 		if [ ! "${FIREHOL_IPTRAP_MODE[$ipset]}" = "${mode}" ]
@@ -3906,18 +3935,25 @@ iptrap() {
 		FIREHOL_IPTRAP_MODE[$ipset]="${mode}"
 	fi
 
+	# check if the caller changed the storage method of the ipset
+	if [ ! -z "${FIREHOL_IPTRAP_METHOD[$ipset]}" ]
+	then
+		if [ ! "${FIREHOL_IPTRAP_METHOD[$ipset]}" = "${method}" ]
+		then
+			warning "${FUNCNAME}: ipset '${ipset}' was previously used with storage method ${FIREHOL_IPTRAP_METHOD[$ipset]}, while now ${method} is requested."
+		fi
+	else
+		# remember the mode if this ipset
+		FIREHOL_IPTRAP_METHOD[$ipset]="${method}"
+	fi
+
 	# if the ipset does not exist, create it
 	if [ -z "${FIREHOL_IPSETS_USED[$ipset]}" ]
 	then
 		local opts="${IPTRAP_DEFAULT_IPSET_TIMEOUT_OPTIONS}"
 		test "${mode}" = "COUNTERS" && opts="${IPTRAP_DEFAULT_IPSET_COUNTERS_OPTIONS}"
 
-		if [ "${type//,/ }" = "src dst" -o "${type//,/ }" = "dst src" ]
-		then
-			ipset create ${ipset} hash:ip,ip ${opts} prevent_reset_on_restart
-		else
-			ipset create ${ipset} hash:ip ${opts} prevent_reset_on_restart
-		fi
+		ipset create ${ipset} ${method} ${opts} prevent_reset_on_restart
 	fi
 
 	FIREHOL_IPTRAP_COUNTER=$[ FIREHOL_IPTRAP_COUNTER + 1 ]
@@ -6506,6 +6542,11 @@ rule() {
 							shift 2
 							;;
 
+						no-counters)
+							ipsetopts="${ipsetopts} ! --update-counters ! --update-subcounters"
+							shift
+							;;
+							
 						bytes-above|bytes-gt)
 							ipsetopts="${ipsetopts} --bytes-gt ${2}"
 							shift 2
@@ -6513,6 +6554,11 @@ rule() {
 
 						bytes|bytes-eq)
 							ipsetopts="${ipsetopts} --bytes-eq ${2}"
+							shift 2
+							;;
+
+						bytes-different-than|bytes-not-eq)
+							ipsetopts="${ipsetopts} ! --bytes-eq ${2}"
 							shift 2
 							;;
 
@@ -6528,6 +6574,11 @@ rule() {
 
 						packets|packets-eq)
 							ipsetopts="${ipsetopts} --packets-eq ${2}"
+							shift 2
+							;;
+
+						packets-different-than|packets-not-eq)
+							ipsetopts="${ipsetopts} ! --packets-eq ${2}"
 							shift 2
 							;;
 
@@ -7470,7 +7521,7 @@ rule() {
 							[ ${IPSET_WARNING} -eq 1 ] && ipset_warning
 							s="${s/ipset:/}"
 							test -z "${FIREHOL_IPSETS_USED[$s]}" && FIREHOL_IPSETS_USED[$s]="USED"
-							${iptables} ${table} -A "${negative_chain}" -m set ${not} --match-set "${s}" src -j RETURN
+							${iptables} ${table} -A "${negative_chain}" -m set ${not} --match-set "${s}" src "!" --update-counters "!" --update-subcounters -j RETURN
 							;;
 						*)
 							${iptables} ${table} -A "${negative_chain}" ${not} -s "${s}" -j RETURN
@@ -7504,7 +7555,7 @@ rule() {
 							[ ${IPSET_WARNING} -eq 1 ] && ipset_warning
 							d="${d/ipset:/}"
 							test -z "${FIREHOL_IPSETS_USED[$d]}" && FIREHOL_IPSETS_USED[$d]="USED"
-							${iptables} ${table} -A "${negative_chain}" -m set ${not} --match-set "${d}" dst -j RETURN
+							${iptables} ${table} -A "${negative_chain}" -m set ${not} --match-set "${d}" dst "!" --update-counters "!" --update-subcounters -j RETURN
 							;;
 						*)
 							${iptables} ${table} -A "${negative_chain}" ${not} -d "${d}" -j RETURN
@@ -7954,7 +8005,7 @@ rule() {
 				[ ${IPSET_WARNING} -eq 1 ] && ipset_warning
 				s="${s/ipset:/}"
 				test -z "${FIREHOL_IPSETS_USED[$s]}" && FIREHOL_IPSETS_USED[$s]="USED"
-				s_arg=("-m" "set" "--match-set" "${s}" "src")
+				s_arg=("-m" "set" "--match-set" "${s}" "src" "!" "--update-counters" "!" "--update-subcounters")
 				;;
 
 			*)
@@ -7974,7 +8025,7 @@ rule() {
 				[ ${IPSET_WARNING} -eq 1 ] && ipset_warning
 				d="${d/ipset:/}"
 				test -z "${FIREHOL_IPSETS_USED[$d]}" && FIREHOL_IPSETS_USED[$d]="USED"
-				d_arg=("-m" "set" "--match-set" "${d}" "dst")
+				d_arg=("-m" "set" "--match-set" "${d}" "dst" "!" "--update-counters" "!" "--update-subcounters")
 				;;
 
 			*)

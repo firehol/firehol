@@ -8,9 +8,9 @@ firehol-iptrap - dynamically put IP addresses in an ipset
 
 # SYNOPSIS
 
-{ iptrap | iptrap4 | iptrap6 } *ipset* *type* *seconds* [ timeout | counters ] [*rule-params*] [ except [*rule-params*] ]...
+{ iptrap | iptrap4 | iptrap6 } *ipset* *type* *seconds* [ timeout | counters ] [ method **method** ] [*rule-params*] [ except [*rule-params*] ]...
 
-{ ipuntrap | ipuntrap4 | ipuntrap6 } *ipset* *type* [ timeout | counters ] [*rule-params*] [ except [*rule-params*] ]...
+{ ipuntrap | ipuntrap4 | ipuntrap6 } *ipset* *type* [ timeout | counters ] [ method **method** ] [*rule-params*] [ except [*rule-params*] ]...
 
 <!--
 extra-manpage: firehol-iptrap4.5
@@ -34,7 +34,7 @@ Both helpers do not affect the flow of traffic. They do not `ACCEPT`,
 
 `type` selects which of the IP addresses of the matching packets will be used
 (added or removed from the ipset). `type` can be `src`, `dst`, `src,dst`,
-`dst,src`. If type is a pair, then the ipset must be an ipset of pairs too.
+`dst,src`, etc. If type is a pair, then the ipset must be an ipset of pairs too.
 
 `seconds` is required by `iptrap` and gives the duration in seconds of the
 lifetime of each IP address that is added to `ipset`. Every matching packet
@@ -50,16 +50,25 @@ used.
 A seconds of `0` (zero), writes to the ipset permanently (this is a feature of
 the ipset command, not the ipset FireHOL helper).
 
-The *rule-params* define a set of rule parameters to restrict
-the traffic that is matched to this helper. See
-[firehol-params(5)][] for more details.
-
 The keywords `timeout` and `counters` are mutualy exclusive. `timeout` is the
 default and means that each IP address every time is matched its timeout will
 be refreshed, while `counters` means that its packets and bytes counters will
 be refreshed. Unfortunately the kernel either re-add the IP in the ipset
 with the new timeout - but its counters will be lost, or just the counters
 will be updated, but the timeout will not be refreshed.
+
+`method` is defines the storage method of the underlying ipset. It accepts all
+the types the ipset commands accepts.
+
+`method` and `type` should match. For example if method is `hash:ip` then
+method should be either `src` or `dst`. If method is `hash:ip,ip` then
+method should be either `src,dst` or `dst,src`. If method is `hash:ip,port,ip`
+method should be `src,src,dst` or `src,dst,dst` or `dst,src,src` or `dst,dst,src`.
+For more information check the manual page of the ipset command.
+
+The *rule-params* define a set of rule parameters to restrict
+the traffic that is matched to this helper. See
+[firehol-params(5)][] for more details.
 
 `except` *rule-params* are used to exclude traffic, i.e. traffic that normally
 is matched by the first set of *rule-params*, will be excluded if matched by

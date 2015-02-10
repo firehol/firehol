@@ -47,7 +47,7 @@ router myrouter
 There is no limit on the number of actions that can be linked together.
 
 `type` can be `chain` or `action` (`chain` and `action` are aliases),
-`rule` or `ipset`.
+`rule`, `iptrap` or 'ipuntrap'.
 
 
 ## Chain type actions
@@ -149,15 +149,49 @@ actions, like this:
 
 
 ~~~~
-action TRAP_AND_REJECT \
-	rule iptrap src policytrap 30 inface wan0 \
+ # a simple version of TRAP_AND_REJECT
+ # this uses just 2 ipsets, one for counting packets (policytrap)
+ # and one to store the banned IPs (trap).
+ # it also needs a ipset called whitelist, for excluded source IPs.
+ # it will ban IPs when they have 50+ reject packets
+ action4 TRAP_AND_REJECT \
+	rule iptrap src policytrap 30 inface "${wan}" \
 		src not "${UNROUTABLE_IPS} ipset:whitelist" \
 		state NEW log "POLICY TRAP" \
+    next iptrap trap src 86400 \
+        state NEW log "POLICY TRAP - BANNED" \
+        ipset policytrap src no-counters packets-above 50 \
 	next action reject
 
-interface any world
+ # a complete TRAP_AND_REJECT
+ # this uses 3 ipset, one for keeping track of the rejected sockets
+ # per source IP (called 'sockets'), one for counting the sockets
+ # per source IP (called 'suspects') and one to store the banned IPs
+ # (called 'trap').
+ # it also needs a ipset called whitelist, for excluded source IPs.
+ # it will ban IPs when they have 3 or more rejected sockets
+ action4 TRAP_AND_REJECT \
+    iptrap sockets src,dst,dst 3600 method hash:ip,port,ip counters \
+        state NEW log "TRAP AND REJECT - NEW SOCKET" \
+        inface "${wan}" \
+        src not "${UNROUTABLE_IPS} ipset:whitelist" \
+    next iptrap suspects src 3600 counters \
+        state NEW log "TRAP AND REJECT - NEW SUSPECT" \
+        ipset sockets src,dst,dst no-counters packets 1 \
+    next iptrap trap src 86400 \
+        state NEW log "TRAP AND REJECT - BANNED" \
+        ipset suspects src no-counters packets-above 2 \
+    next action REJECT
+
+ interface any world
 	policy TRAP_AND_REJECT
-    server smtp accept
+	protection bad-packets
+	...
+
+ router wan2lan inface "${wan}" outface "${lan}"
+ 	policy TRAP_AND_REJECT
+ 	protection bad-packets
+ 	...
 ~~~~
 
 Since we used the action TRAP_AND_REJECT as an interface policy, it will
