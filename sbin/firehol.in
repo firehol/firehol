@@ -335,6 +335,10 @@ FIREHOL_SPOOL_DIR="/var/spool/firehol"
 # Default: /var/run/firehol
 FIREHOL_RUN_DIR="/var/run/firehol"
 
+# show a spinner during processing that shows
+# number of iptables statements generated
+FIREHOL_ENABLE_SPINNER=${FIREHOL_ENABLE_SPINNER-0}
+
 # Restore instead of Start when possible.
 # If set to 1, FireHOL will actually do a 'restore' when a
 # 'start' is requested.
@@ -3692,34 +3696,34 @@ blacklist() {
 	
 	while [ ! -z "${1}" ]
 	do
-		case "${1}" in
-			src|SRC)
+		case "${1,,}" in
+			src)
 				shift
 				;;
 
-			except|EXCEPT)
+			except)
 				shift
 				break
 				;;
 
-			log|LOG)
+			log)
 				logopts_in_arg=(log "${2}-IN")
 				logopts_out_arg=(log "${2}-OUT")
 				shift 2
 				;;
 
-			loglimit|LOGLIMIT)
+			loglimit)
 				logopts_in_arg=(loglimit "${2}-IN")
 				logopts_out_arg=(loglimit "${2}-OUT")
 				shift 2
 				;;
 
-			acct|accounting|ACCT|ACCOUNTING)
+			acct|accounting)
 				accounting="${2}"
 				shift 2
 				;;
 
-			inface|INFACE)
+			inface)
 				inface=(inface "${2}")
 				shift 2
 				;;
@@ -3741,7 +3745,7 @@ blacklist() {
 	iptables_both -t mangle -N "${chain}.in"
 
 	# add the excepted rules
-	test ! -z "${1}" && ( rule return_negatives_in_place ignore_empty_positive table mangle chain "${chain}.in" in action RETURN "${@}" || return 1 )
+	test ! -z "${1}" && ( rule table mangle chain "${chain}.in" in action RETURN "${@}" || return 1 )
 
 	# add the accounting rules
 	test ! -z "${accounting}" && ( iptables_both -t mangle -A "${chain}.in" -m nfacct --nfacct-name "${accounting}" || return 1 )
@@ -3967,7 +3971,7 @@ iptrap() {
 		iptables_both -t ${t} -N "${chain}"
 
 		# add the excepted rules
-		test ! -z "${1}" && ( rule return_negatives_in_place ignore_empty_positive table ${t} chain "${chain}" in action RETURN "${@}" || return 1 )
+		test ! -z "${1}" && ( rule table ${t} chain "${chain}" in action RETURN "${@}" || return 1 )
 
 		# do the job
 		if [ ${undo} -eq 1 ]
@@ -4065,8 +4069,8 @@ connmark() {
 			interface)
 				if [ ${MARKS_STATEFUL[connmark]} -eq 1 ]
 				then
-					rule table mangle chain PREROUTING  custom '-m conntrack --ctstate NEW' inface  "${@}" action MARK to "${mark}" || return 1
-					rule table mangle chain POSTROUTING custom '-m conntrack --ctstate NEW' outface "${@}" action MARK to "${mark}" || return 1
+					rule table mangle chain PREROUTING  state NEW inface  "${@}" action MARK to "${mark}" || return 1
+					rule table mangle chain POSTROUTING state NEW outface "${@}" action MARK to "${mark}" || return 1
 				else
 					rule table mangle chain PREROUTING  inface  "${@}" action MARK to "${mark}" || return 1
 					rule table mangle chain POSTROUTING outface "${@}" action MARK to "${mark}" || return 1
@@ -4076,7 +4080,7 @@ connmark() {
 			*)
 				if [ ${MARKS_STATEFUL[connmark]} -eq 1 ]
 				then
-					rule table mangle chain "${chain}" custom '-m conntrack --ctstate NEW' "${@}" action MARK to "${mark}" || return 1
+					rule table mangle chain "${chain}" state NEW "${@}" action MARK to "${mark}" || return 1
 				else
 					rule table mangle chain "${chain}" action MARK to "${mark}" || return 1
 				fi
@@ -4111,7 +4115,7 @@ custommark() {
 
 	if [ ${MARKS_STATEFUL[$name]} -eq 1 ]
 	then
-		rule table mangle chain "${where}" custom '-m conntrack --ctstate NEW' "${@}" action MARK to "${mark}" || return 1
+		rule table mangle chain "${where}" state NEW "${@}" action MARK to "${mark}" || return 1
 	else
 		rule table mangle chain "${where}" "${@}" action MARK to "${mark}" || return 1
 	fi
@@ -4431,7 +4435,7 @@ ipset() {
 				ip=${ip//unroutable_ips()/${UNROUTABLE_IPV4}}
 			fi
 
-			for x in ${ip//,/ }
+			for x in ${ip}
 			do
 				echo "${IPSET_ADD_OPTION} ${name} ${x} ${*}" >>"${FIREHOL_DIR}/ipset.${name}.rules"
 			done
@@ -4883,8 +4887,8 @@ iptables() {
 		run_fast iptables "${@}"
 	else
 		postprocess -ns "${IPTABLES_CMD}" "${@}"
-		FIREHOL_COMMAND_COUNTER=$[FIREHOL_COMMAND_COUNTER + 1]
 	fi
+	FIREHOL_COMMAND_COUNTER=$[FIREHOL_COMMAND_COUNTER + 1]
 	
 	return 0
 }
@@ -5758,18 +5762,18 @@ close_all_groups() {
 
 # rule_action_param() should only be used within rule() - no other place
 
+declare -A SMART_REJECT_CREATED=()
 FIREHOL_ACCEPT_CHAIN_COUNT=0
 rule_action_param() {
 	# echo >&2 "    >>> ${FUNCNAME}: ${*}"
 
 	local	iptables_cmd="${1}" \
 		action="${2}" \
-		protocol="${3}" \
-		statenot="${4}" \
-		state="${5}" \
-		table="${6}" \
+		statenot="${3}" \
+		state="${4}" \
+		table="${5}" \
 		count=0 val=
-	shift 6
+	shift 5
 	local -a action_param=()
 	
 	# All arguments until the separator are the parameters of the action
@@ -5785,7 +5789,7 @@ rule_action_param() {
 	# If we don't have a seperator, generate an error
 	if [ ! "A${val}" = "A--" ]
 	then
-		error "Internal Error, in parsing action_param parameters (${FUNCNAME} '${action}' '${protocol}' '${statenot}' '${state}' '${table}' '${action_param[@]}' '${@}')."
+		error "Internal Error, in parsing action_param parameters (${FUNCNAME} '${action}' '${statenot}' '${state}' '${table}' '${action_param[@]}' '${@}')."
 		return 1
 	fi
 	
@@ -5968,20 +5972,46 @@ rule_action_param() {
 			fi
 			;;
 			
-		REJECT)
-			if [ "${action_param[1]}" = "auto" ]
+		SMART_REJECT)
+			local key="${iptables_cmd} ${table}"
+			key=${key// /_}; key=${key//-/_}; key=${key//\//_}
+			if [ -z "${SMART_REJECT_CREATED[$key]}" ]
 			then
-				if [ "${protocol}" = "tcp" -o "${protocol}" = "TCP" ]
-				then
-					action_param=("--reject-with" "tcp-reset")
-				else
-					action_param=()
-				fi
+				SMART_REJECT_CREATED[$key]="1"
+				$iptables_cmd ${table} -N SMART_REJECT
+				$iptables_cmd ${table} -A SMART_REJECT -p tcp -j REJECT --reject-with tcp-reset
+				$iptables_cmd ${table} -A SMART_REJECT -j REJECT
 			fi
 			;;
 	esac
 	
 	$iptables_cmd "${@}" -j "${action}" "${action_param[@]}"
+}
+
+PROGRAM_SPINNER_SPACES='                                                                                                '
+PROGRAM_SPINNER_BACKSPACES='\b\b\b\b\b\b\b\b\b\b\b\b\b\b\b\b\b\b\b\b\b\b\b\b\b\b\b\b\b\b\b\b\b\b\b\b\b\b\b\b\b\b\b\b\b\b\b\b\b\b\b\b\b\b\b\b\b\b\b\b\b\b\b\b\b\b\b\b\b\b\b\b\b\b\b\b\b\b\b'
+PROGRAM_SPINNER_LAST=0
+PROGRAM_SPINNER='|/-\'
+PROGRAM_SPINNER_RUNNING=0
+PROGRAM_SPINNER_PREFIX="iptables rules:"
+spinner()
+{
+	local t="${PROGRAM_SPINNER_PREFIX} ${1}"
+	printf >&2 "${PROGRAM_SPINNER_BACKSPACES:0:$PROGRAM_SPINNER_LAST}"
+	PROGRAM_SPINNER_LAST=$(( (${#t} + 5) * 2 ))
+	local temp=${PROGRAM_SPINNER#?}
+	printf >&2 "[${t} %c] " "${PROGRAM_SPINNER}"
+	PROGRAM_SPINNER=$temp${PROGRAM_SPINNER%"$temp"}
+	PROGRAM_SPINNER_RUNNING=1
+}
+
+spinner_end() {
+	local last=$((PROGRAM_SPINNER_LAST / 2))
+	printf >&2 "${PROGRAM_SPINNER_BACKSPACES:0:$PROGRAM_SPINNER_LAST}"
+	printf >&2 "${PROGRAM_SPINNER_SPACES:0:$last}"
+	printf >&2 "${PROGRAM_SPINNER_BACKSPACES:0:$PROGRAM_SPINNER_LAST}"
+	PROGRAM_SPINNER_RUNNING=0
+	PROGRAM_SPINNER_LAST=0
 }
 
 rule() {
@@ -5990,20 +6020,20 @@ rule() {
 	# defining these local variables together speeds FireHOL up by 4%
 	local	failed=0 \
 		table= chain= \
-		inface=any infacenot= outface=any outfacenot= \
-		physin=any physinnot= physout=any physoutnot= \
-		mac=any macnot= \
-		src4=default src4not= dst4=default dst4not= \
-		src6=default src6not= dst6=default dst6not= \
+		inface=(any) infacenot= outface=(any) outfacenot= \
+		physin=(any) physinnot= physout=(any) physoutnot= \
+		mac=(any) macnot= \
+		src4=(default) src4not= dst4=(default) dst4not= \
+		src6=(default) src6not= dst6=(default) dst6not= \
 		srctype= srctypenot= dsttype= dsttypenot= \
-		sport=any sportnot= dport=any dportnot= \
-		proto=any protonot= \
-		uid=any uidnot= gid=any gidnot= \
-		pid=any pidnot= sid=any sidnot= \
-		cmd=any cmdnot= \
-		mark=any marknot= markname= \
-		dscp=any dscptype= dscpnot= \
-		tos=any tosnot= \
+		sport=(any) sportnot= dport=(any) dportnot= \
+		proto=(any) protonot= \
+		uid=(any) uidnot= gid=(any) gidnot= \
+		pid=(any) pidnot= sid=(any) sidnot= \
+		cmd=(any) cmdnot= \
+		mark=(any) marknot= markname= \
+		dscp=(any) dscptype= dscpnot= \
+		tos=(any) tosnot= \
 		log= logtxt= loglevel= \
 		limit= burst= iplimit= iplimit_mask= \
 		action= state= statenot= \
@@ -6012,7 +6042,7 @@ rule() {
 		custom= \
 		accounting= \
 		ipsetnot= ipsetname= ipsetflags= ipsetopts= \
-		inout= x=
+		inout= x= param= not=
 	
 	# if set to 1, all owner module options will be ignored
 	local noowner=0
@@ -6026,9 +6056,6 @@ rule() {
 	# if set to 1, log and loglimit are ignored.
 	local nolog=0
 	
-	# if set to 1, negative expressions will give an error
-	local nonot=0 return_negatives_in_place=0 ignore_empty_positive=0
-
 	# if set to 1, detection algorithm about overwriting optional rule
 	# parameters will take place.
 	local softwarnings=1
@@ -6038,498 +6065,377 @@ rule() {
 	
 	while [ ! -z "${1}" ]
 	do
-		case "${1}" in
-			nonot|NONOT)
-				nonot=1
-				shift
-				;;
+		param="${1,,}" # to lowercase
 
-			return_negatives_in_place)
-				return_negatives_in_place=1
-				shift
-				;;
+		not=
+		if [ "${2,,}" = "not" ]
+		then
+			not="!"
+			shift 2
+		else
+			shift
+		fi
 
-			ignore_empty_positive)
-				ignore_empty_positive=1
-				shift
-				;;
+		case "${param}" in
+			reverse)		reverse=1 ;;
+			nolog)			nolog=1 ;;
+			noowner)		noowner=1 ;;
+			softwarnings)		softwarnings=1 ;;
+			nosoftwarnings)		softwarnings=0 ;;
+			set_work_inface)	swi=1 ;;
+			set_work_outface)	swo=1 ;;
 
-			reverse|REVERSE)
-				reverse=1
-				shift
+			in)	# this is incoming traffic - ignore packet ownership
+				inout="in"
+				noowner=1
+				nomirror=0
+				nomac=0
 				;;
 				
-			table|TABLE)
-				test ${softwarnings} -eq 1 -a ! -z "${table}" && softwarning "Overwriting param: ${1} '${chain}' becomes '${2}'"
-				table="-t ${2}"
-				shift 2
-				;;
-				
-			chain|CHAIN)
-				test ${softwarnings} -eq 1 -a ! -z "${chain}" && softwarning "Overwriting param: ${1} '${chain}' becomes '${2}'"
-				chain="${2}"
-				shift 2
-				;;
-				
-			inface|INFACE)
-				shift
-				if [ ${reverse} -eq 0 ]
+			out)	# this is outgoing traffic - ignore packet ownership if not in an interface
+				inout="out"
+				if [ ! "${work_cmd}" = "interface" ]
 				then
-					infacenot=
-					if [ "${1}" = "not" -o "${1}" = "NOT" ]
-					then
-						shift
-						infacenot="!"
-					else
-						if [ ${swi} -eq 1 ]
-						then
-							work_inface="${1}"
-						fi
-					fi
-					test ${softwarnings} -eq 1 -a ! "${inface}" = "any" && softwarning "Overwriting param: inface '${inface}' becomes '${1}'"
-					inface="${1//,/ }"
+					noowner=1
 				else
-					outfacenot=
-					if [ "${1}" = "not" -o "${1}" = "NOT" ]
-					then
-						shift
-						outfacenot="!"
-					else
-						if [ ${swo} -eq 1 ]
-						then
-							work_outface="$1"
-						fi
-					fi
-					test ${softwarnings} -eq 1 -a ! "${outface}" = "any" && softwarning "Overwriting param: outface '${outface}' becomes '${1}'"
-					outface="${1//,/ }"
+					nomirror=1
 				fi
+				nomac=1
+				;;
+				
+			table)	test ${softwarnings} -eq 1 -a ! -z "${table}" && softwarning "Overwriting param: ${1} '${chain}' becomes '${1}'"
+				table="-t ${1}"
 				shift
 				;;
 				
-			outface|OUTFACE)
+			chain)	test ${softwarnings} -eq 1 -a ! -z "${chain}" && softwarning "Overwriting param: ${1} '${chain}' becomes '${1}'"
+				chain="${1}"
 				shift
-				if [ ${reverse} -eq 0 ]
+				;;
+				
+			inface|outface)
+				if [ \( "${param}" = "inface" -a ${reverse} -eq 0 \) -o \( "${param}" = "outface" -a ${reverse} -eq 1 \) ]
 				then
-					outfacenot=
-					if [ "${1}" = "not" -o "${1}" = "NOT" ]
-					then
-						shift
-						outfacenot="!"
-					else
-						if [ ${swo} -eq 1 ]
-						then
-							work_outface="${1}"
-						fi
-					fi
-					test ${softwarnings} -eq 1 -a ! "${outface}" = "any" && softwarning "Overwriting param: outface '${outface}' becomes '${1}'"
-					outface="${1//,/ }"
+					infacenot="${not}"
+					test ${softwarnings} -eq 1 -a ! "${inface[*]}" = "any" && softwarning "Overwriting param: inface '${inface[*]}' becomes '${1}'"
+					inface=(${1//,/ })
+					[ -z "${infacenot}" -a ${swi} -eq 1 ] && work_inface="${inface[*]}"
+					test -z "${inface[*]}"	&& error "Cannot accept an empty 'inface'."	&& return 1
 				else
-					infacenot=
-					if [ "${1}" = "not" -o "${1}" = "NOT" ]
-					then
-						shift
-						infacenot="!"
-					else
-						if [ ${swi} -eq 1 ]
-						then
-							work_inface="${1}"
-						fi
-					fi
-					test ${softwarnings} -eq 1 -a ! "${inface}" = "any" && softwarning "Overwriting param: inface '${inface}' becomes '${1}'"
-					inface="${1//,/ }"
+					outfacenot="${not}"
+					test ${softwarnings} -eq 1 -a ! "${outface[*]}" = "any" && softwarning "Overwriting param: outface '${inface[*]}' becomes '${1}'"
+					outface=(${1//,/ })
+					[ -z "${outfacenot}" -a ${swo} -eq 1 ] && work_outface="${outface[*]}"
+					test -z "${outface[*]}"	&& error "Cannot accept an empty 'outface'."	&& return 1
 				fi
 				shift
 				;;
 				
-			physin|PHYSIN)
-				shift
-				if [ ${reverse} -eq 0 ]
+			physin|physout)
+				if [ \( "${param}" = "physin" -a ${reverse} -eq 0 \) -o \( "${param}" = "physout" -a ${reverse} -eq 1 \) ]
 				then
-					physinnot=
-					if [ "${1}" = "not" -o "${1}" = "NOT" ]
-					then
-						shift
-						physinnot="!"
-					fi
-					test ${softwarnings} -eq 1 -a ! "${physin}" = "any" && softwarning "Overwriting param: physin '${physin}' becomes '${1}'"
-					physin="${1//,/ }"
+					physinnot="${not}"
+					test ${softwarnings} -eq 1 -a ! "${physin[*]}" = "any" && softwarning "Overwriting param: physin '${physin[*]}' becomes '${1}'"
+					physin=(${1//,/ })
+					test -z "${physin[*]}"	&& error "Cannot accept an empty 'physin'."	&& return 1
 				else
-					physoutnot=
-					if [ "${1}" = "not" -o "${1}" = "NOT" ]
-					then
-						shift
-						physoutnot="!"
-					fi
-					test ${softwarnings} -eq 1 -a ! "${physout}" = "any" && softwarning "Overwriting param: physout '${physout}' becomes '${1}'"
-					physout="${1//,/ }"
+					physoutnot="${not}"
+					test ${softwarnings} -eq 1 -a ! "${physout[*]}" = "any" && softwarning "Overwriting param: physout '${physout[*]}' becomes '${1}'"
+					physout=(${1//,/ })
+					test -z "${physout[*]}"	&& error "Cannot accept an empty 'physout'."	&& return 1
 				fi
 				shift
 				;;
 				
-			physout|PHYSOUT)
+			mac)
+				macnot="${not}"
+				test ${softwarnings} -eq 1 -a ! "${mac[*]}" = "any" && softwarning "Overwriting param: mac '${mac[*]}' becomes '${1}'"
+				test ${nomac} -eq 0 && mac=(${1//,/ })
 				shift
-				if [ ${reverse} -eq 0 ]
-				then
-					physoutnot=
-					if [ "${1}" = "not" -o "${1}" = "NOT" ]
-					then
-						shift
-						physoutnot="!"
-					fi
-					test ${softwarnings} -eq 1 -a ! "${physout}" = "any" && softwarning "Overwriting param: physout '${physout}' becomes '${1}'"
-					physout="${1//,/ }"
-				else
-					physinnot=
-					if [ "${1}" = "not" -o "${1}" = "NOT" ]
-					then
-						shift
-						physinnot="!"
-					fi
-					test ${softwarnings} -eq 1 -a ! "${physin}" = "any" && softwarning "Overwriting param: physin '${physin}' becomes '${1}'"
-					physin="${1//,/ }"
-				fi
-				shift
+				test -z "${mac[*]}"	&& error "Cannot accept an empty 'mac'."	&& return 1
 				;;
 				
-			mac|MAC)
-				shift
-				macnot=
-				if [ "${1}" = "not" -o "${1}" = "NOT" ]
+			src|src4|src6|dst|dst4|dst6)
+				if [ "${param//*4/4}" = "4" ]
 				then
-					shift
-					test ${nomac} -eq 0 && macnot="!"
-				fi
-				test ${softwarnings} -eq 1 -a ! "${mac}" = "any" && softwarning "Overwriting param: mac '${mac}' becomes '${1}'"
-				test ${nomac} -eq 0 && mac="${1//,/ }"
-				shift
-				;;
-				
-			src|SRC|source|SOURCE|src4|src6)
-				if [ "${1}" = "src4" ]
+					push_namespace ipv4 || return 1
+				elif [ "${param//*6/6}" = "6" ]
 				then
-					if ! push_namespace ipv4; then return 1; fi
-				elif [ "${1}" = "src6" ]
-				then
-					if ! push_namespace ipv6; then return 1; fi
+					push_namespace ipv6 || return 1
 				else
 					push_namespace "${FIREHOL_NS_CURR}"
 				fi
-				shift
-				if [ ${reverse} -eq 0 ]
+				if [ \( "${param//src*/src}" = "src" -a ${reverse} -eq 0 \) -o \( "${param/dst*/dst}" = "dst" -a ${reverse} -eq 1 \) ]
 				then
-					running_ipv4 && src4not=
-					running_ipv6 && src6not=
-					if [ "${1}" = "not" -o "${1}" = "NOT" ]
-					then
-						shift
-						running_ipv4 && src4not="!"
-						running_ipv6 && src6not="!"
-					fi
 					if running_ipv4; then
-						test ${softwarnings} -eq 1 -a ! "${src4}" = "default" && softwarning "Overwriting param: src4 '${src4}' becomes '${1}'"
-						src4="${1//,/ }"
+						src4not="${not}"
+						test ${softwarnings} -eq 1 -a ! "${src4[*]}" = "default" && softwarning "Overwriting param: src4 '${src4[*]}' becomes '${1}'"
+						src4=(${1//,/ })
+						test -z "${src4[*]}"	&& error "Cannot accept an empty 'src4'."	&& return 1
 					fi
 					if running_ipv6; then
-						test ${softwarnings} -eq 1 -a ! "${src6}" = "default" && softwarning "Overwriting param: src6 '${src6}' becomes '${1}'"
-						src6="${1//,/ }"
+						src6not="${not}"
+						test ${softwarnings} -eq 1 -a ! "${src6[*]}" = "default" && softwarning "Overwriting param: src6 '${src6[*]}' becomes '${1}'"
+						src6=(${1//,/ })
+						test -z "${src6[*]}"	&& error "Cannot accept an empty 'src6'."	&& return 1
 					fi
 				else
-					running_ipv4 && dst4not=
-					running_ipv6 && dst6not=
-					if [ "${1}" = "not" -o "${1}" = "NOT" ]
-					then
-						shift
-						running_ipv4 && dst4not="!"
-						running_ipv6 && dst6not="!"
-					fi
 					if running_ipv4; then
-						test ${softwarnings} -eq 1 -a ! "${dst4}" = "default" && softwarning "Overwriting param: dst4 '${dst4}' becomes '${1}'"
-						dst4="${1//,/ }"
+						dst4not="${not}"
+						test ${softwarnings} -eq 1 -a ! "${dst4[*]}" = "default" && softwarning "Overwriting param: dst4 '${dst4[*]}' becomes '${1}'"
+						dst4=(${1//,/ })
+						test -z "${dst4[*]}"	&& error "Cannot accept an empty 'dst4'."	&& return 1
 					fi
 					if running_ipv6; then
-						test ${softwarnings} -eq 1 -a ! "${dst6}" = "default" && softwarning "Overwriting param: dst6 '${dst6}' becomes '${1}'"
-						dst6="${1//,/ }"
+						dst6not="${not}"
+						test ${softwarnings} -eq 1 -a ! "${dst6[*]}" = "default" && softwarning "Overwriting param: dst6 '${dst6[*]}' becomes '${1}'"
+						dst6=(${1//,/ })
+						test -z "${dst6[*]}"	&& error "Cannot accept an empty 'dst6'."	&& return 1
 					fi
 				fi
 				pop_namespace
 				shift
 				;;
 				
-			dst|DST|destination|DESTINATION|dst4|dst6)
-				if [ "${1}" = "dst4" ]
+			srctype|dsttype)
+				if [ \( "${param}" = "srctype" -a ${reverse} -eq 0 \) -o \( "${param}" = "dsttype" -a ${reverse} -eq 1 \) ]
 				then
-					if ! push_namespace ipv4; then return 1; fi
-				elif [ "${1}" = "dst6" ]
-				then
-					if ! push_namespace ipv6; then return 1; fi
-				else
-					push_namespace "${FIREHOL_NS_CURR}"
-				fi
-				shift
-				if [ ${reverse} -eq 0 ]
-				then
-					running_ipv4 && dst4not=
-					running_ipv6 && dst6not=
-					if [ "${1}" = "not" -o "${1}" = "NOT" ]
-					then
-						shift
-						running_ipv4 && dst4not="!"
-						running_ipv6 && dst6not="!"
-					fi
-					if running_ipv4; then
-						test ${softwarnings} -eq 1 -a ! "${dst4}" = "default" && softwarning "Overwriting param: dst4 '${dst4}' becomes '${1}'"
-						dst4="${1//,/ }"
-					fi
-					if running_ipv6; then
-						test ${softwarnings} -eq 1 -a ! "${dst6}" = "default" && softwarning "Overwriting param: dst6 '${dst6}' becomes '${1}'"
-						dst6="${1//,/ }"
-					fi
-				else
-					running_ipv4 && src4not=
-					running_ipv6 && src6not=
-					if [ "${1}" = "not" -o "${1}" = "NOT" ]
-					then
-						shift
-						running_ipv4 && src4not="!"
-						running_ipv6 && src6not="!"
-					fi
-					if running_ipv4; then
-						test ${softwarnings} -eq 1 -a ! "${src4}" = "default" && softwarning "Overwriting param: src6 '${src4}' becomes '${1}'"
-						src4="${1//,/ }"
-					fi
-					if running_ipv6; then
-						test ${softwarnings} -eq 1 -a ! "${src6}" = "default" && softwarning "Overwriting param: src6 '${src6}' becomes '${1}'"
-						src6="${1//,/ }"
-					fi
-				fi
-				pop_namespace
-				shift
-				;;
-				
-			srctype|SRCTYPE|sourcetype|SOURCETYPE)
-				shift
-				if [ ${reverse} -eq 0 ]
-				then
-					srctypenot=
-					if [ "${1}" = "not" -o "${1}" = "NOT" ]
-					then
-						shift
-						srctypenot="!"
-					fi
-					test ${softwarnings} -eq 1 -a ! "${srctype}" = "" && softwarning "Overwriting param: srctype '${srctype}' becomes '${1}'"
+					srctypenot="${not}"
+					test ${softwarnings} -eq 1 -a ! -z "${srctype[*]}" && softwarning "Overwriting param: srctype '${srctype[*]}' becomes '${1}'"
 					tmparray=( ${1^^} ); srctype="${tmparray[*]}"; srctype="${srctype// /,}"
-					#srctype="`echo ${1} | ${SED_CMD} -e "s|^ \+||" -e "s| \+\$||" -e "s| \+|,|g" | ${TR_CMD} a-z A-Z`"
 				else
-					dsttypenot=
-					if [ "${1}" = "not" -o "${1}" = "NOT" ]
-					then
-						shift
-						dsttypenot="!"
-					fi
-					test ${softwarnings} -eq 1 -a ! "${dsttype}" = "" && softwarning "Overwriting param: dsttype '${dsttype}' becomes '${1}'"
+					dsttypenot="${not}"
+					test ${softwarnings} -eq 1 -a ! -z "${dsttype}" && softwarning "Overwriting param: dsttype '${dsttype}' becomes '${1}'"
 					tmparray=( ${1^^} ); dsttype="${tmparray[*]}"; dsttype="${dsttype// /,}"
-					#dsttype="`echo ${1} | ${SED_CMD} -e "s|^ \+||" -e "s| \+\$||" -e "s| \+|,|g" | ${TR_CMD} a-z A-Z`"
 				fi
 				shift
 				;;
 				
-			dsttype|DSTTYPE|destinationtype|DESTINATIONTYPE)
-				shift
-				if [ ${reverse} -eq 0 ]
+			sport|dport)
+				if [ \( "${param}" = "sport" -a ${reverse} -eq 0 \) -o \( "${param}" = "dport" -a ${reverse} -eq 1 \) ]
 				then
-					dsttypenot=
-					if [ "${1}" = "not" -o "${1}" = "NOT" ]
-					then
-						shift
-						dsttypenot="!"
-					fi
-					test ${softwarnings} -eq 1 -a ! "${dsttype}" = "" && softwarning "Overwriting param: dsttype '${dsttype}' becomes '${1}'"
-					tmparray=( ${1^^} ); dsttype="${tmparray[*]}"; dsttype="${dsttype// /,}"
-					#dsttype="`echo ${1} | ${SED_CMD} -e "s|^ \+||" -e "s| \+\$||" -e "s| \+|,|g" | ${TR_CMD} a-z A-Z`"
+					sportnot="${not}"
+					test ${softwarnings} -eq 1 -a ! "${sport[*]}" = "any" && softwarning "Overwriting param: sport '${sport[*]}' becomes '${1}'"
+					sport=(${1//,/ })
+					test -z "${sport[*]}"	&& error "Cannot accept an empty 'sport'."	&& return 1
 				else
-					srctypenot=
-					if [ "${1}" = "not" -o "${1}" = "NOT" ]
-					then
-						shift
-						srctypenot="!"
-					fi
-					test ${softwarnings} -eq 1 -a ! "${srctype}" = "" && softwarning "Overwriting param: srctype '${srctype}' becomes '${1}'"
-					tmparray=( ${1^^} ); srctype="${tmparray[*]}"; srctype="${srctype// /,}"
-					#srctype="`echo ${1} | ${SED_CMD} -e "s|^ \+||" -e "s| \+\$||" -e "s| \+|,|g" | ${TR_CMD} a-z A-Z`"
+					dportnot="${not}"
+					test ${softwarnings} -eq 1 -a ! "${dport[*]}" = "any" && softwarning "Overwriting param: dport '${dport[*]}' becomes '${1}'"
+					dport=(${1//,/ })
+					test -z "${dport[*]}"	&& error "Cannot accept an empty 'dport'."	&& return 1
 				fi
 				shift
 				;;
-				
-			sport|SPORT|sourceport|SOURCEPORT)
+
+			proto|protocol)
+				protonot="${not}"
+				test ${softwarnings} -eq 1 -a ! "${proto[*]}" = "any" && softwarning "Overwriting param: proto '${proto[*]}' becomes '${1}'"
+				proto=(${1//,/ })
 				shift
-				if [ ${reverse} -eq 0 ]
-				then
-					sportnot=
-					if [ "${1}" = "not" -o "${1}" = "NOT" ]
-					then
-						shift
-						sportnot="!"
-					fi
-					test ${softwarnings} -eq 1 -a ! "${sport}" = "any" && softwarning "Overwriting param: sport '${sport}' becomes '${1}'"
-					sport="${1//,/ }"
-				else
-					dportnot=
-					if [ "${1}" = "not" -o "${1}" = "NOT" ]
-					then
-						shift
-						dportnot="!"
-					fi
-					test ${softwarnings} -eq 1 -a ! "${dport}" = "any" && softwarning "Overwriting param: dport '${dport}' becomes '${1}'"
-					dport="${1//,/ }"
-				fi
-				shift
+				test -z "${proto[*]}"	&& error "Cannot accept an empty 'proto'."	&& return 1
 				;;
 				
-			dport|DPORT|destinationport|DESTINATIONPORT)
-				shift
-				if [ ${reverse} -eq 0 ]
-				then
-					dportnot=
-					if [ "${1}" = "not" -o "${1}" = "NOT" ]
-					then
-						shift
-						dportnot="!"
-					fi
-					test ${softwarnings} -eq 1 -a ! "${dport}" = "any" && softwarning "Overwriting param: dport '${dport}' becomes '${1}'"
-					dport="${1//,/ }"
-				else
-					sportnot=
-					if [ "${1}" = "not" -o "${1}" = "NOT" ]
-					then
-						shift
-						sportnot="!"
-					fi
-					test ${softwarnings} -eq 1 -a ! "${sport}" = "any" && softwarning "Overwriting param: sport '${sport}' becomes '${1}'"
-					sport="${1//,/ }"
-				fi
-				shift
-				;;
-				
-			proto|PROTO|protocol|PROTOCOL)
-				shift
-				protonot=
-				if [ "${1}" = "not" -o "${1}" = "NOT" ]
-				then
-					shift
-					protonot="!"
-				fi
-				test ${softwarnings} -eq 1 -a ! "${proto}" = "any" && softwarning "Overwriting param: proto '${proto}' becomes '${1}'"
-				proto="${1//,/ }"
-				shift
-				;;
-				
-			custommark|CUSTOMMARK)
-				shift
-				markname="${1}"
-				shift
-				marknot=
-				if [ "${1}" = "not" -o "${1}" = "NOT" ]
-				then
-					shift
-					marknot="!"
-				fi
-				test ${softwarnings} -eq 1 -a ! "${mark}" = "any" && softwarning "Overwriting param: mark '${mark}' becomes ${markname} '${1}'"
+			custommark)
+				marknot="${not}"
+				markname="${1}"; shift
+				test ${softwarnings} -eq 1 -a ! "${mark[*]}" = "any" && softwarning "Overwriting param: mark '${mark[*]}' becomes ${markname} '${1}'"
 				mark=
 				for x in ${1//,/ }
 				do
-					mark="${mark[@]}" "$(mark_value $markname ${x})"
+					mark=("${mark[@]}" "$(mark_value $markname ${x})")
 				done
+				test -z "${mark[*]}"	&& error "Cannot accept an empty 'mark'."	&& return 1
 				shift
 				;;
 				
-			mark|MARK)
-				shift
-				marknot=
-				if [ "${1}" = "not" -o "${1}" = "NOT" ]
-				then
-					shift
-					marknot="!"
-				fi
-				test ${softwarnings} -eq 1 -a ! "${mark}" = "any" && softwarning "Overwriting param: mark '${mark}' becomes usermark '${1}'"
+			mark)
+				marknot="${not}"
+				test ${softwarnings} -eq 1 -a ! "${mark[*]}" = "any" && softwarning "Overwriting param: mark '${mark[*]}' becomes usermark '${1}'"
 				mark=
 				for x in ${1//,/ }
 				do
-					mark="${mark[@]}" "$(mark_value usermark ${x})"
+					mark=("${mark[@]}" "$(mark_value usermark ${x})")
 				done
+				test -z "${mark[*]}"	&& error "Cannot accept an empty 'mark'."	&& return 1
 				shift
 				;;
 				
-			connmark|CONNMARK)
-				shift
-				marknot=
-				if [ "${1}" = "not" -o "${1}" = "NOT" ]
-				then
-					shift
-					marknot="!"
-				fi
-				test ${softwarnings} -eq 1 -a ! "${mark}" = "any" && softwarning "Overwriting param: mark '${mark}' becomes connmark '${1}'"
+			connmark)
+				marknot="${not}"
+				test ${softwarnings} -eq 1 -a ! "${mark[*]}" = "any" && softwarning "Overwriting param: mark '${mark[*]}' becomes connmark '${1}'"
 				mark=
 				for x in ${1//,/ }
 				do
-					mark="${mark[@]}" "$(mark_value connmark ${x})"
+					mark=("${mark[@]}" "$(mark_value connmark ${x})")
 				done
+				test -z "${mark[*]}"	&& error "Cannot accept an empty 'mark'."	&& return 1
 				shift
 				;;
 				
-			rawmark|RAWMARK)
-				shift
-				marknot=
-				if [ "${1}" = "not" -o "${1}" = "NOT" ]
-				then
-					shift
-					marknot="!"
-				fi
-				test ${softwarnings} -eq 1 -a ! "${mark}" = "any" && softwarning "Overwriting param: mark '${mark}' becomes '${1}'"
-				mark="${1//,/ }"
+			rawmark)
+				marknot="${not}"
+				test ${softwarnings} -eq 1 -a ! "${mark[*]}" = "any" && softwarning "Overwriting param: mark '${mark[*]}' becomes '${1}'"
+				mark=(${1//,/ })
+				test -z "${mark[*]}"	&& error "Cannot accept an empty 'mark'."	&& return 1
 				shift
 				;;
 				
-			tos|TOS)
-				shift
-				tosnot=
-				if [ "${1}" = "not" -o "${1}" = "NOT" ]
-				then
-					shift
-					tosnot="!"
-				fi
-				test ${softwarnings} -eq 1 -a ! "${tos}" = "any" && softwarning "Overwriting param: tos '${tos}' becomes '${1}'"
-				tos="${1//,/ }"
+			tos)
+				tosnot="${not}"
+				test ${softwarnings} -eq 1 -a ! "${tos[*]}" = "any" && softwarning "Overwriting param: tos '${tos[*]}' becomes '${1}'"
+				tos=(${1//,/ })
+				test -z "${tos[*]}"	&& error "Cannot accept an empty 'tos'."	&& return 1
 				shift
 				;;
 				
-			dscp|DSCP)
+			dscp)
+				dscpnot="${not}"
+				test ${softwarnings} -eq 1 -a ! "${dscp[*]}" = "any" && softwarning "Overwriting param: dscp '${dscp[*]}' becomes '${1}'"
+				dscp=(${1//,/ })
 				shift
-				dscpnot=
-				if [ "${1}" = "not" -o "${1}" = "NOT" ]
-				then
-					shift
-					dscpnot="!"
-				fi
-				test ${softwarnings} -eq 1 -a ! "${dscp}" = "any" && softwarning "Overwriting param: dscp '${dscp}' becomes '${1}'"
-				dscp="${1//,/ }"
-				shift
-				
-				if [ "${dscp}" = "class" ]
+				if [ "${dscp[*]}" = "class" ]
 				then
 					dscptype="-class"
-					dscp="${1//,/ }"
+					dscp=(${1//,/ })
 					shift
 				fi
+				test -z "${dscp[*]}"	&& error "Cannot accept an empty 'dscp'."	&& return 1
 				;;
 
-			ipset|IPSET)
+			state)
+				statenot="${not}"
+				test ${softwarnings} -eq 1 -a ! -z "${state}" && softwarning "Overwriting param: state '${state}' becomes '${1}'"
+				state="${1^^}"
 				shift
-				ipsetnot=
-				if [ "${1}" = "not" -o "${1}" = "NOT" ]
+				;;
+				
+			user|uid)
+				uidnot="${not}"
+				test ${softwarnings} -eq 1 -a ! "${uid[*]}" = "any" && softwarning "Overwriting param: uid '${uid[*]}' becomes '${1}'"
+				uid=(${1//,/ })
+				test -z "${uid[*]}"	&& error "Cannot accept an empty 'uid'."	&& return 1
+				shift
+				;;
+				
+			group|gid)
+				gidnot="${not}"
+				test ${softwarnings} -eq 1 -a ! "${gid[*]}" = "any" && softwarning "Overwriting param: gid '${gid[*]}' becomes '${1}'"
+				gid=(${1//,/ })
+				test -z "${gid[*]}"	&& error "Cannot accept an empty 'gid'."	&& return 1
+				shift
+				;;
+				
+			process|pid)
+				pidnot="${not}"
+				test ${softwarnings} -eq 1 -a ! "${pid[*]}" = "any" && softwarning "Overwriting param: pid '${pid[*]}' becomes '${1}'"
+				pid=(${1//,/ })
+				test -z "${pid[*]}"	&& error "Cannot accept an empty 'pid'."	&& return 1
+				shift
+				;;
+				
+			session|sid)
+				sidnot="${not}"
+				test ${softwarnings} -eq 1 -a ! "${sid[*]}" = "any" && softwarning "Overwriting param: sid '${sid[*]}' becomes '${1}'"
+				sid=(${1//,/ })
+				test -z "${sid[*]}"	&& error "Cannot accept an empty 'sid'."	&& return 1
+				shift
+				;;
+				
+			command|cmd)
+				cmdnot="${not}"
+				test ${softwarnings} -eq 1 -a ! "${cmd[*]}" = "any" && softwarning "Overwriting param: cmd '${cmd[*]}' becomes '${1}'"
+				cmd=(${1//,/ })
+				test -z "${cmd[*]}"	&& error "Cannot accept an empty 'cmd'."	&& return 1
+				shift
+				;;
+				
+			custom)
+				test ${softwarnings} -eq 1 -a ! -z "${custom}" && softwarning "Overwriting param: custom '${custom}' becomes '${1}'"
+				custom="${1}"
+				shift
+				;;
+				
+			customin|custom-in)
+				if [ "${inout}" = "in" ]
 				then
-					shift
-					ipsetnot="!"
+					test ${softwarnings} -eq 1 -a ! -z "${custom}" && softwarning "Overwriting param: custom '${custom}' becomes '${1}'"
+					custom="${1}"
 				fi
+				shift
+				;;
+				
+			customout|custom-out)
+				if [ "${inout}" = "out" ]
+				then
+					test ${softwarnings} -eq 1 -a ! -z "${custom}" && softwarning "Overwriting param: custom '${custom}' becomes '${1}'"
+					custom="${1}"
+				fi
+				shift
+				;;
+				
+			log)
+				if [ ${nolog} -eq 0 ]
+				then
+					test ${softwarnings} -eq 1 -a ! -z "${log}" && softwarning "Overwriting param: log '${log}/${logtxt}' becomes 'normal/${1}'"
+					log=normal
+					logtxt="${1// /_}"
+				fi
+				shift
+				if [ "${1}" = "level" ]
+				then
+					loglevel="${2}"
+					shift 2
+				else
+					loglevel="${FIREHOL_LOG_LEVEL}"
+				fi
+				;;
+				
+			loglimit)
+				if [ ${nolog} -eq 0 ]
+				then
+					test ${softwarnings} -eq 1 -a ! -z "${log}" && softwarning "Overwriting param: log '${log}/${logtxt}' becomes 'limit/${1}'"
+					log=limit
+					logtxt="${1// /_}"
+				fi
+				shift
+				if [ "${1}" = "level" ]
+				then
+					loglevel="${2}"
+					shift 2
+				else
+					loglevel="${FIREHOL_LOG_LEVEL}"
+				fi
+				;;
+				
+			limit)
+				test ${softwarnings} -eq 1 -a ! -z "${limit}" && softwarning "Overwriting param: limit '${limit}' becomes '${1}'"
+				limit="${1}"
+				burst="${2}"
+				shift 2
+				;;
+				
+			iplimit)
+				test ${softwarnings} -eq 1 -a ! -z "${iplimit}" && softwarning "Overwriting param: iplimit '${iplimit}' becomes '${1}'"
+				iplimit="${1}"
+				iplimit_mask="${2}"
+				shift 2
+				;;
+				
+			acct|accounting)
+				if [ ${ENABLE_ACCOUNTING} -eq 1 ]
+				then
+					accounting="$2"
+					FIREHOL_NFACCT[$accounting]="1"
+				elif [ ${ACCOUNTING_WARNING} -eq 1 ]
+				then
+					softwarning "Accounting is requested, but accounting is disabled. Is nfacct installed?"
+					ACCOUNTING_WARNING=0
+				fi
+				shift
+				;;
+				
+			ipset)
+				ipsetnot="${not}"
 				ipsetname="${1}"
 				ipsetflags="${2}"
 				shift 2
@@ -6593,10 +6499,11 @@ rule() {
 				done
 				;;
 				
-			action|ACTION)
+			action)
 				test ${softwarnings} -eq 1 -a ! -z "${action}" && softwarning "Overwriting param: action '${action}' becomes '${2}'"
-				action="${2}"
-				shift 2
+				test ${softwarnings} -eq 1 -a ! -z "${not}" && softwarning "Cannot negate an action. 'not' ignored."
+				action="${1}"
+				shift
 				
 				action_param=()
 				local action_is_chain=0
@@ -6987,219 +6894,6 @@ rule() {
 				esac
 				;;
 			
-			state|STATE)
-				shift
-				statenot=
-				if [ "${1}" = "not" -o "${1}" = "NOT" ]
-				then
-					shift
-					statenot="!"
-				fi
-				test ${softwarnings} -eq 1 -a ! -z "${state}" && softwarning "Overwriting param: state '${state}' becomes '${1}'"
-				state="${1}"
-				shift
-				;;
-				
-			user|USER|uid|UID)
-				shift
-				uidnot=
-				if [ "${1}" = "not" -o "${1}" = "NOT" ]
-				then
-					shift
-					test ${noowner} -eq 0 && uidnot="!"
-				fi
-				test ${softwarnings} -eq 1 -a ! "${uid}" = "any" && softwarning "Overwriting param: uid '${uid}' becomes '${1}'"
-				test ${noowner} -eq 0 && uid="${1//,/ }"
-				shift
-				;;
-				
-			group|GROUP|gid|GID)
-				shift
-				gidnot=
-				if [ "${1}" = "not" -o "${1}" = "NOT" ]
-				then
-					shift
-					test ${noowner} -eq 0 && gidnot="!"
-				fi
-				test ${softwarnings} -eq 1 -a ! "${gid}" = "any" && softwarning "Overwriting param: gid '${gid}' becomes '${1}'"
-				test ${noowner} -eq 0 && gid="${1//,/ }"
-				shift
-				;;
-				
-			process|PROCESS|pid|PID)
-				shift
-				pidnot=
-				if [ "${1}" = "not" -o "${1}" = "NOT" ]
-				then
-					shift
-					test ${noowner} -eq 0 && pidnot="!"
-				fi
-				test ${softwarnings} -eq 1 -a ! "${pid}" = "any" && softwarning "Overwriting param: pid '${pid}' becomes '${1}'"
-				test ${noowner} -eq 0 && pid="${1//,/ }"
-				shift
-				;;
-				
-			session|SESSION|sid|SID)
-				shift
-				sidnot=
-				if [ "${1}" = "not" -o "${1}" = "NOT" ]
-				then
-					shift
-					test ${noowner} -eq 0 && sidnot="!"
-				fi
-				test ${softwarnings} -eq 1 -a ! "${sid}" = "any" && softwarning "Overwriting param: sid '${sid}' becomes '${1}'"
-				test ${noowner} -eq 0 && sid="${1//,/ }"
-				shift
-				;;
-				
-			command|COMMAND|cmd|CMD)
-				shift
-				cmdnot=
-				if [ "${1}" = "not" -o "${1}" = "NOT" ]
-				then
-					shift
-					test ${noowner} -eq 0 && cmdnot="!"
-				fi
-				test ${softwarnings} -eq 1 -a ! "${cmd}" = "any" && softwarning "Overwriting param: cmd '${cmd}' becomes '${1}'"
-				test ${noowner} -eq 0 && cmd="${1}"
-				shift
-				;;
-				
-			custom|CUSTOM)
-				test ${softwarnings} -eq 1 -a ! -z "${custom}" && softwarning "Overwriting param: custom '${custom}' becomes '${2}'"
-				custom="${2}"
-				shift 2
-				;;
-				
-			customin|CUSTOMIN|custom-in|CUSTOM-IN)
-				if [ "${inout}" = "in" ]
-				then
-					test ${softwarnings} -eq 1 -a ! -z "${custom}" && softwarning "Overwriting param: custom '${custom}' becomes '${2}'"
-					custom="${2}"
-				fi
-				shift 2
-				;;
-				
-			customout|CUSTOMOUT|custom-out|CUSTOM-OUT)
-				if [ "${inout}" = "out" ]
-				then
-					test ${softwarnings} -eq 1 -a ! -z "${custom}" && softwarning "Overwriting param: custom '${custom}' becomes '${2}'"
-					custom="${2}"
-				fi
-				shift 2
-				;;
-				
-			log|LOG)
-				if [ ${nolog} -eq 0 ]
-				then
-					test ${softwarnings} -eq 1 -a ! -z "${log}" && softwarning "Overwriting param: log '${log}/${logtxt}' becomes 'normal/${2}'"
-					log=normal
-					logtxt="${2// /_}"
-				fi
-				shift 2
-				if [ "${1}" = "level" ]
-				then
-					loglevel="${2}"
-					shift 2
-				else
-					loglevel="${FIREHOL_LOG_LEVEL}"
-				fi
-				;;
-				
-			loglimit|LOGLIMIT)
-				if [ ${nolog} -eq 0 ]
-				then
-					test ${softwarnings} -eq 1 -a ! -z "${log}" && softwarning "Overwriting param: log '${log}/${logtxt}' becomes 'limit/${2}'"
-					log=limit
-					logtxt="${2// /_}"
-				fi
-				shift 2
-				if [ "${1}" = "level" ]
-				then
-					loglevel="${2}"
-					shift 2
-				else
-					loglevel="${FIREHOL_LOG_LEVEL}"
-				fi
-				;;
-				
-			limit|LIMIT)
-				test ${softwarnings} -eq 1 -a ! -z "${limit}" && softwarning "Overwriting param: limit '${limit}' becomes '${2}'"
-				limit="${2}"
-				burst="${3}"
-				shift 3
-				;;
-				
-			iplimit|IPLIMIT)
-				test ${softwarnings} -eq 1 -a ! -z "${iplimit}" && softwarning "Overwriting param: iplimit '${iplimit}' becomes '${2}'"
-				iplimit="${2}"
-				iplimit_mask="${3}"
-				shift 3
-				;;
-				
-			in)	# this is incoming traffic - ignore packet ownership
-				inout="in"
-				noowner=1
-				nomirror=0
-				nomac=0
-				shift
-				;;
-				
-			out)	# this is outgoing traffic - ignore packet ownership if not in an interface
-				inout="out"
-				if [ ! "${work_cmd}" = "interface" ]
-				then
-					noowner=1
-				else
-					nomirror=1
-				fi
-				nomac=1
-				shift
-				;;
-				
-			nolog)
-				nolog=1
-				shift
-				;;
-				
-			noowner)
-				noowner=1
-				shift
-				;;
-				
-			softwarnings)
-				softwarnings=1
-				shift
-				;;
-				
-			nosoftwarnings)
-				softwarnings=0
-				shift
-				;;
-				
-			set_work_inface|SET_WORK_INFACE)
-				swi=1
-				shift
-				;;
-				
-			set_work_outface|SET_WORK_OUTFACE)
-				swo=1
-				shift
-				;;
-
-			acct|accounting)
-				if [ ${ENABLE_ACCOUNTING} -eq 1 ]
-				then
-					accounting="$2"
-					FIREHOL_NFACCT[$accounting]="1"
-				elif [ ${ACCOUNTING_WARNING} -eq 1 ]
-				then
-					softwarning "Accounting is requested, but accounting is disabled. Is nfacct installed?"
-					ACCOUNTING_WARNING=0
-				fi
-				shift 2
-				;;
-				
 			*)
 				error "Cannot understand directive '${1}'."
 				return 1
@@ -7215,34 +6909,31 @@ rule() {
 	# If the user did not specified a rejection message,
 	# we have to be smart and produce a tcp-reset if the protocol
 	# is TCP and an ICMP port unreachable in all other cases.
-	# The special case here is the protocol "any".
-	# To accomplish the differentiation based on protocol we have
-	# to change the protocol "any" to "tcp any"
+	# we will change the action to SMART_REJECT
 	
-	test "${action}" = "REJECT" -a "${action_param[1]}" = "auto" -a "${proto}" = "any" && proto="tcp any"
-	
-	# we cannot accept empty strings to a few parameters, since this
-	# will prevent us from generating a rule (due to nested BASH loops).
-	test -z "${inface}"	&& error "Cannot accept an empty 'inface'."	&& return 1
-	test -z "${outface}"	&& error "Cannot accept an empty 'outface'."	&& return 1
-	test -z "${physin}"	&& error "Cannot accept an empty 'physin'."	&& return 1
-	test -z "${physout}"	&& error "Cannot accept an empty 'physout'."	&& return 1
-	test -z "${mac}"	&& error "Cannot accept an empty 'mac'."	&& return 1
-	test -z "${src4}"	&& error "Cannot accept an empty 'src4'."	&& return 1
-	test -z "${dst4}"	&& error "Cannot accept an empty 'dst4'."	&& return 1
-	test -z "${src6}"	&& error "Cannot accept an empty 'src6'."	&& return 1
-	test -z "${dst6}"	&& error "Cannot accept an empty 'dst6'."	&& return 1
-	test -z "${sport}"	&& error "Cannot accept an empty 'sport'."	&& return 1
-	test -z "${dport}"	&& error "Cannot accept an empty 'dport'."	&& return 1
-	test -z "${proto}"	&& error "Cannot accept an empty 'proto'."	&& return 1
-	test -z "${uid}"	&& error "Cannot accept an empty 'uid'."	&& return 1
-	test -z "${gid}"	&& error "Cannot accept an empty 'gid'."	&& return 1
-	test -z "${pid}"	&& error "Cannot accept an empty 'pid'."	&& return 1
-	test -z "${sid}"	&& error "Cannot accept an empty 'sid'."	&& return 1
-	test -z "${cmd}"	&& error "Cannot accept an empty 'cmd'."	&& return 1
-	test -z "${mark}"	&& error "Cannot accept an empty 'mark'."	&& return 1
-	test -z "${tos}"	&& error "Cannot accept an empty 'tos'."	&& return 1
-	test -z "${dscp}"	&& error "Cannot accept an empty 'dscp'."	&& return 1
+	if [ "${action}" = "REJECT" -a "${action_param[1]}" = "auto" ]
+	then
+		action="SMART_REJECT"
+		action_param=()
+	fi
+
+	if [ ${noowner} -eq 1 ]
+	then
+		uid=(any)
+		uidnot=
+
+		gid=(any)
+		gidnot=
+
+		sid=(any)
+		sidnot=
+
+		pid=(any)
+		pidnot=
+
+		cmd=(any)
+		cmdnot=
+	fi
 
 	local physbridge="--physdev-is-bridged"
 	if [ ! "${work_cmd}" = "router" -a ! "${physin}${physout}" = "anyany" ]
@@ -7270,22 +6961,22 @@ rule() {
 		else
 			dstnot="${dst4not}"
 		fi
-		if [ "${src4}" = "default" -a "${src6}" != "default" ]
+		if [ "${src4[*]}" = "default" -a "${src6[*]}" != "default" ]
 		then
 			error "Must specify src4 when specifying src6"	&& return 1
 		fi
 
-		if [ "${dst4}" = "default" -a "${dst6}" != "default" ]
+		if [ "${dst4[*]}" = "default" -a "${dst6[*]}" != "default" ]
 		then
 			error "Must specify dst4 when specifying dst6"	&& return 1
 		fi
 
-		if [ "${src6}" = "default" -a "${src4}" != "default" ]
+		if [ "${src6[*]}" = "default" -a "${src4[*]}" != "default" ]
 		then
 			error "Must specify src6 when specifying src4"	&& return 1
 		fi
 
-		if [ "${dst6}" = "default" -a "${dst4}" != "default" ]
+		if [ "${dst6[*]}" = "default" -a "${dst4[*]}" != "default" ]
 		then
 			error "Must specify dst6 when specifying dst4"	&& return 1
 		fi
@@ -7297,39 +6988,39 @@ rule() {
 		dstnot="${dst4not}"
 	fi
 
-	test "${src4}" = "default" && src4="any"
-	test "${dst4}" = "default" && dst4="any"
-	test "${src6}" = "default" && src6="any"
-	test "${dst6}" = "default" && dst6="any"
+	test "${src4[*]}" = "default" && src4=(any)
+	test "${dst4[*]}" = "default" && dst4=(any)
+	test "${src6[*]}" = "default" && src6=(any)
+	test "${dst6[*]}" = "default" && dst6=(any)
 
-	if [ ! "${src4}" = "any" ]
+	if [ ! "${src4[*]}" = "any" ]
 	then
-		src4=${src4//reserved_ips()/${RESERVED_IPV4}}
-		src4=${src4//private_ips()/${PRIVATE_IPV4}}
-		src4=${src4//multicast_ips()/${MULTICAST_IPV4}}
-		src4=${src4//unroutable_ips()/${UNROUTABLE_IPV4}}
+		src4=(${src4[*]//reserved_ips()/${RESERVED_IPV4}})
+		src4=(${src4[*]//private_ips()/${PRIVATE_IPV4}})
+		src4=(${src4[*]//multicast_ips()/${MULTICAST_IPV4}})
+		src4=(${src4[*]//unroutable_ips()/${UNROUTABLE_IPV4}})
 	fi
-	if [ ! "${dst4}" = "any" ]
+	if [ ! "${dst4[*]}" = "any" ]
 	then
-		dst4=${dst4//reserved_ips()/${RESERVED_IPV4}}
-		dst4=${dst4//private_ips()/${PRIVATE_IPV4}}
-		dst4=${dst4//multicast_ips()/${MULTICAST_IPV4}}
-		dst4=${dst4//unroutable_ips()/${UNROUTABLE_IPV4}}
+		dst4=(${dst4[*]//reserved_ips()/${RESERVED_IPV4}})
+		dst4=(${dst4[*]//private_ips()/${PRIVATE_IPV4}})
+		dst4=(${dst4[*]//multicast_ips()/${MULTICAST_IPV4}})
+		dst4=(${dst4[*]//unroutable_ips()/${UNROUTABLE_IPV4}})
 	fi
 
-	if [ ! "${src6}" = "any" ]
+	if [ ! "${src6[*]}" = "any" ]
 	then
-		src6=${src6//reserved_ips()/${RESERVED_IPV6}}
-		src6=${src6//private_ips()/${PRIVATE_IPV6}}
-		src6=${src6//multicast_ips()/${MULTICAST_IPV6}}
-		src6=${src6//unroutable_ips()/${UNROUTABLE_IPV6}}
+		src6=(${src6[*]//reserved_ips()/${RESERVED_IPV6}})
+		src6=(${src6[*]//private_ips()/${PRIVATE_IPV6}})
+		src6=(${src6[*]//multicast_ips()/${MULTICAST_IPV6}})
+		src6=(${src6[*]//unroutable_ips()/${UNROUTABLE_IPV6}})
 	fi
-	if [ ! "${dst6}" = "any" ]
+	if [ ! "${dst6[*]}" = "any" ]
 	then
-		dst6=${dst6//reserved_ips()/${RESERVED_IPV6}}
-		dst6=${dst6//private_ips()/${PRIVATE_IPV6}}
-		dst6=${dst6//multicast_ips()/${MULTICAST_IPV6}}
-		dst6=${dst6//unroutable_ips()/${UNROUTABLE_IPV6}}
+		dst6=(${dst6[*]//reserved_ips()/${RESERVED_IPV6}})
+		dst6=(${dst6[*]//private_ips()/${PRIVATE_IPV6}})
+		dst6=(${dst6[*]//multicast_ips()/${MULTICAST_IPV6}})
+		dst6=(${dst6[*]//unroutable_ips()/${UNROUTABLE_IPV6}})
 	fi
 
 	# ----------------------------------------------------------------------------------
@@ -7342,7 +7033,7 @@ rule() {
 		mark_arg=() tos_arg=() dscp_arg=() proto_arg=() \
 		inf_arg=() outf_arg=() inph_arg=() physdev_arg=() outph_arg=() \
 		mc_arg=() s_arg=() d_arg=() sp_arg=() dp_arg=() \
-		ipset_arg=() basecmd=()
+		ipset_arg=() basecmd=() constrained_args=()
 
 	local 	logrule= ipvall= \
 		tuid= tgid= tpid= tsid= tcmd= \
@@ -7388,44 +7079,213 @@ rule() {
 	running_ipv6 && ipvall="${ipvall} ipv6"
 
 
-	# ----------------------------------------------------------------------------------
-	# Do we have negative conditions?
-	# If yes, we have to:
+	# ---------------------------------------------------------------------
+	# BRANCH OPTIMIZATION
+	# 
+	# Facts: - the caller expects us to add statements to a chain and
+	#          perform the action only if all conditions are met - AND'd
+	#          (multiple options to the same condition which are OR'd).
 	#
-	# case 1: If the action is a chain.
-	#         Add to this chain positive RETURN statements matching all the negatives.
-	#         The positive rules will be added bellow to the same chain and will be
-	#         matched only if all RETURNs have not been matched.
+	#          example:
 	#
-	# case 2: If the action is not a chain.
-	#         Create a temporary chain, then add to this chain positive RETURN rules
-	#         matching the negatives, and append at its end the final action (which is
-	#         not a chain), then change the action of the positive rules to jump to
-	#         this temporary chain.
-	
-	
-	# ignore 'statenot', 'srctypenot', 'dsttypenot' since it is negated in the positive rules
-	if [ ! -z "${infacenot}${outfacenot}${physinnot}${physoutnot}${macnot}${srcnot}${dstnot}${sportnot}${dportnot}${protonot}${uidnot}${gidnot}${pidnot}${sidnot}${cmdnot}${marknot}${tosnot}${dscpnot}" ]
+	#           inface "eth0 eth1" outface eth2 =
+	#                ( ( inface=eth0 OR inface=eth1 ) AND outface=eth2 )
+	#
+	#          while
+	#
+	#           inface not "eth0 eth1" outface eth2 =
+	#                ( inface!=eth0 AND inface!=eth1 AND outface=eth2 )
+	#
+	#          All conditions that are negative and have only one possible
+	#          value to match, can be executed in the main loop (negative
+	#          and positive statements on the same command).
+	#
+	#        - we can only branch (i.e. create a chain and jump to it) only
+	#          if the action is not RETURN. If it is RETURN, then we have
+	#          only one exit point and we cannot do any complex expressions
+	#
+	#        - A branch is required when we have multiple values in
+	#          positive rules to avoid executing certain features multiple
+	#          times (I call these features: contrained parameters)
+	# 
+	#          These require branching:
+	# 
+	#            * log
+	#            * loglimit
+	#            * accounting
+	#            * limit
+	#            * iplimit
+	#            * ipset (not in src/dst)
+	#
+	#          We will not stop though if we are not allowed to branch
+	#          for them.
+	#
+	#          We will just issue a warning that the generated firewall is
+	#          not optimal.
+	#
+	# Let's calculate a few sums to help us take decisions:
+
+	local positive_single=0 negative_single=0 positive_multi=0 negative_multi=0 action_is_our_branch=0 placed_constrains_in_a_branch=0 have_constrains=0
+	#
+	# positive_single               - counts the number of positive parameters that have just one possible value
+	# negative_single               - counts the number of negative parameters that have just one possible value
+	# positive_multi                - counts the number of positive parameters that have multiple values
+	# negative_multi                - counts the number of negative parameters that have multiple values
+	# action_is_our_branch          - is set when we create our branch
+	# placed_constrains_in_a_branch - is set if we place the log, loglimit, accounting, limit, iplimit, ipset in our branch
+	# have_constrains               - is set when there are contrained parameters
+	#
+	if [ "${#inface[*]}" -gt 1 ]
 	then
-		if [ ${nonot} -eq 1 ]
+		if [ -z "${infacenot}" ]; then (( positive_multi += 1 )) ; else (( negative_multi += 1)) ; fi
+	else
+		if [ -z "${infacenot}" ]; then (( positive_single += 1 )); else (( negative_single += 1)); fi
+	fi
+	if [ "${#outface[*]}" -gt 1 ]
+	then
+		if [ -z "${outfacenot}" ]; then (( positive_multi += 1 )) ; else (( negative_multi += 1)) ; fi
+	else
+		if [ -z "${outfacenot}" ]; then (( positive_single += 1 )); else (( negative_single += 1)); fi
+	fi
+	if [ "${#physin[*]}" -gt 1 ]
+	then
+		if [ -z "${physinnot}" ]; then (( positive_multi += 1 )) ; else (( negative_multi += 1)) ; fi
+	else
+		if [ -z "${physinnot}" ]; then (( positive_single += 1 )); else (( negative_single += 1)); fi
+	fi
+	if [ "${#physout[*]}" -gt 1 ]
+	then
+		if [ -z "${physoutnot}" ]; then (( positive_multi += 1 )) ; else (( negative_multi += 1)) ; fi
+	else
+		if [ -z "${physoutnot}" ]; then (( positive_single += 1 )); else (( negative_single += 1)); fi
+	fi
+	if [ "${#mac[*]}" -gt 1 ]
+	then
+		if [ -z "${macnot}" ]; then (( positive_multi += 1 )) ; else (( negative_multi += 1)) ; fi
+	else
+		if [ -z "${macnot}" ]; then (( positive_single += 1 )); else (( negative_single += 1)); fi
+	fi
+	if [ "${#src4[*]}" -gt 1 ]
+	then
+		if [ -z "${srcnot}" ]; then (( positive_multi += 1 )) ; else (( negative_multi += 1)) ; fi
+	else
+		if [ -z "${srcnot}" ]; then (( positive_single += 1 )); else (( negative_single += 1)); fi
+	fi
+	if [ "${#dst4[*]}" -gt 1 ]
+	then
+		if [ -z "${dstnot}" ]; then (( positive_multi += 1 )) ; else (( negative_multi += 1)) ; fi
+	else
+		if [ -z "${dstnot}" ]; then (( positive_single += 1 )); else (( negative_single += 1)); fi
+	fi
+	if [ "${#src6[*]}" -gt 1 ]
+	then
+		if [ -z "${srcnot}" ]; then (( positive_multi += 1 )) ; else (( negative_multi += 1)) ; fi
+	else
+		if [ -z "${srcnot}" ]; then (( positive_single += 1 )); else (( negative_single += 1)); fi
+	fi
+	if [ "${#dst6[*]}" -gt 1 ]
+	then
+		if [ -z "${dstnot}" ]; then (( positive_multi += 1 )) ; else (( negative_multi += 1)) ; fi
+	else
+		if [ -z "${dstnot}" ]; then (( positive_single += 1 )); else (( negative_single += 1)); fi
+	fi
+	if [ "${#proto[*]}" -gt 1 ]
+	then
+		if [ -z "${protonot}" ]; then (( positive_multi += 1 )) ; else (( negative_multi += 1)) ; fi
+	else
+		if [ -z "${protonot}" ]; then (( positive_single += 1 )); else (( negative_single += 1)); fi
+	fi
+	if [ "${#sport[*]}" -gt 1 ]
+	then
+		if [ -z "${sportnot}" ]; then (( positive_multi += 1 )) ; else (( negative_multi += 1)) ; fi
+	else
+		if [ -z "${sportnot}" ]; then (( positive_single += 1 )); else (( negative_single += 1)); fi
+	fi
+	if [ "${#dport[*]}" -gt 1 ]
+	then
+		if [ -z "${dportnot}" ]; then (( positive_multi += 1 )) ; else (( negative_multi += 1)) ; fi
+	else
+		if [ -z "${dportnot}" ]; then (( positive_single += 1 )); else (( negative_single += 1)); fi
+	fi
+	if [ "${#mark[*]}" -gt 1 ]
+	then
+		if [ -z "${marknot}" ]; then (( positive_multi += 1 )) ; else (( negative_multi += 1)) ; fi
+	else
+		if [ -z "${marknot}" ]; then (( positive_single += 1 )); else (( negative_single += 1)); fi
+	fi
+	if [ "${#tos[*]}" -gt 1 ]
+	then
+		if [ -z "${tosnot}" ]; then (( positive_multi += 1 )) ; else (( negative_multi += 1)) ; fi
+	else
+		if [ -z "${tosnot}" ]; then (( positive_single += 1 )); else (( negative_single += 1)); fi
+	fi
+	if [ "${#dscp[*]}" -gt 1 ]
+	then
+		if [ -z "${dscpnot}" ]; then (( positive_multi += 1 )) ; else (( negative_multi += 1)) ; fi
+	else
+		if [ -z "${dscpnot}" ]; then (( positive_single += 1 )); else (( negative_single += 1)); fi
+	fi
+	if [ "${#uid[*]}" -gt 1 ]
+	then
+		if [ -z "${uidnot}" ]; then (( positive_multi += 1 )) ; else (( negative_multi += 1)) ; fi
+	else
+		if [ -z "${uidnot}" ]; then (( positive_single += 1 )); else (( negative_single += 1)); fi
+	fi
+	if [ "${#gid[*]}" -gt 1 ]
+	then
+		if [ -z "${gidnot}" ]; then (( positive_multi += 1 )) ; else (( negative_multi += 1)) ; fi
+	else
+		if [ -z "${gidnot}" ]; then (( positive_single += 1 )); else (( negative_single += 1)); fi
+	fi
+	if [ "${#sid[*]}" -gt 1 ]
+	then
+		if [ -z "${sidnot}" ]; then (( positive_multi += 1 )) ; else (( negative_multi += 1)) ; fi
+	else
+		if [ -z "${sidnot}" ]; then (( positive_single += 1 )); else (( negative_single += 1)); fi
+	fi
+	if [ "${#pid[*]}" -gt 1 ]
+	then
+		if [ -z "${pidnot}" ]; then (( positive_multi += 1 )) ; else (( negative_multi += 1)) ; fi
+	else
+		if [ -z "${pidnot}" ]; then (( positive_single += 1 )); else (( negative_single += 1)); fi
+	fi
+	if [ "${#cmd[*]}" -gt 1 ]
+	then
+		if [ -z "${cmdnot}" ]; then (( positive_multi += 1 )) ; else (( negative_multi += 1)) ; fi
+	else
+		if [ -z "${cmdnot}" ]; then (( positive_single += 1 )); else (( negative_single += 1)); fi
+	fi
+	# ignore 'state', 'srctype', 'dsttype' are not counted, since they are negated in the positive rules
+
+
+	# ---------------------------------------------------------------------
+	# prepare the arguments of the constrained parameters
+
+	# limit
+	[ ! -z "${limit}" ] && limit_arg=("-m" "limit" "--limit" "${limit}" "--limit-burst" "${burst}")
+
+	# iplimit
+	[ ! -z "${iplimit}" ] && iplimit_arg=("-m" "iplimit" "--iplimit-above" "${iplimit}" "--iplimit-mask" "${iplimit_mask}")
+
+	# ipset
+	[ ! -z "${ipsetname}" ] && ipset_arg=("-m" "set" ${ipsetnot} "--match-set" "${ipsetname}" "${ipsetflags}" ${ipsetopts})
+
+	constrained_args=("${limit_arg[@]}" "${iplimit_arg[@]}" "${ipset_arg[@]}" ${custom})
+
+	[ ! -z "${constrained_args[*]}" -o ! -z "${accounting}" -o "${logrule}" = "limit" -o "${logrule}" = "normal" ] && have_constrains=1
+
+	# ---------------------------------------------------------------------
+	# process the negative rules
+
+	if [ ${negative_multi} -gt 0 ]
+	then
+		if [ "${action}" = "RETURN" ]
 		then
-			error "Negative expressions are not allowed at this point."
+			error "iptables cannot do this! You have requested multiple values in a NOT rule. This is OK, except when the action is RETURN. You hit that case. Sorry..."
 			return 1
 		fi
 
-		if [ ${return_negatives_in_place} -eq 1 ]
-		then
-			# we can implement negatives by entering
-			# RETURN rules in the main flow.
-			# this should only be done on dedicated chains
-			# i.e. chains that they will end at the positive
-			# rules
-
-			negative_chain="${chain}"
-			negative_action=
-			not="!"
-
-		elif [ ${action_is_chain} -eq 1 ]
+		if [ ${action_is_chain} -eq 1 ]
 		then
 			# if the action is a chain name, then just add the negative
 			# expressions to this chain. Nothing more.
@@ -7448,69 +7308,72 @@ rule() {
 			negative_action="${action}"
 			action="${negative_chain}"
 			not=
+
+			# notify the positive rules that the action is our banch
+			action_is_our_branch=1
 		fi
 		
-		if [ ! -z "${infacenot}" ]
+		if [ ! -z "${infacenot}" -a "${#inface[*]}" -gt 1 ]
 		then
-			for inf in ${inface}
+			for inf in ${inface[*]}
 			do
 				iptables_both ${table} -A "${negative_chain}" ${not} -i "${inf}" -j RETURN
 			done
 			infacenot=
-			inface=any
+			inface=(any)
 		fi
 	
-		if [ ! -z "${outfacenot}" ]
+		if [ ! -z "${outfacenot}" -a "${#outface[*]}" -gt 1 ]
 		then
-			for outf in ${outface}
+			for outf in ${outface[*]}
 			do
 				iptables_both ${table} -A "${negative_chain}" ${not} -o "${outf}" -j RETURN
 			done
 			outfacenot=
-			outface=any
+			outface=(any)
 		fi
 		
-		if [ ! -z "${physinnot}" ]
+		if [ ! -z "${physinnot}" -a "${#physin[*]}" -gt 1 ]
 		then
-			for inph in ${physin}
+			for inph in ${physin[*]}
 			do
 				iptables_both ${table} -A "${negative_chain}" -m physdev ${physbridge} ${not} --physdev-in "${inph}" -j RETURN
 			done
 			physinnot=
-			physin=any
+			physin=(any)
 		fi
 	
-		if [ ! -z "${physoutnot}" ]
+		if [ ! -z "${physoutnot}" -a "${#physout[*]}" -gt 1 ]
 		then
-			for outph in ${physout}
+			for outph in ${physout[*]}
 			do
 				iptables_both ${table} -A "${negative_chain}" -m physdev ${physbridge} ${not} --physdev-out "${outph}" -j RETURN
 			done
 			physoutnot=
-			physout=any
+			physout=(any)
 		fi
 		
-		if [ ! -z "${macnot}" ]
+		if [ ! -z "${macnot}" -a "${#mac[*]}" -gt 1 ]
 		then
-			for mc in ${mac}
+			for mc in ${mac[*]}
 			do
 				iptables_both ${table} -A "${negative_chain}" -m mac ${not} --mac-source "${mc}" -j RETURN
 			done
 			macnot=
-			mac=any
+			mac=(any)
 		fi
 		
-		if [ ! -z "${srcnot}" ]
+		if [ ! -z "${srcnot}" -a \( "${#src4[*]}" -gt 1 -o "${#src6[*]}" -gt 1 \) ]
 		then
 			for ipv in ${ipvall}
 			do
 				case "${ipv}" in
 					ipv4)	iptables="iptables"
-						src="${src4}"
+						src="${src4[*]}"
 						;;
 
 					ipv6)	iptables="ip6tables"
-						src="${src6}"
+						src="${src6[*]}"
 						;;
 				esac
 
@@ -7530,21 +7393,21 @@ rule() {
 				done
 			done
 			srcnot=
-			src4=any
-			src6=any
+			src4=(any)
+			src6=(any)
 		fi
 		
-		if [ ! -z "${dstnot}" ]
+		if [ ! -z "${dstnot}" -a \( "${#dst4[*]}" -gt 1 -o "${#dst6[*]}" -gt 1 \) ]
 		then
 			for ipv in ${ipvall}
 			do
 				case "${ipv}" in
 					ipv4)	iptables="iptables"
-						dst="${dst4}"
+						dst="${dst4[*]}"
 						;;
 
 					ipv6)	iptables="ip6tables"
-						dst="${dst6}"
+						dst="${dst6[*]}"
 						;;
 				esac
 
@@ -7564,142 +7427,142 @@ rule() {
 				done
 			done
 			dstnot=
-			dst4=any
-			dst6=any
+			dst4=(any)
+			dst6=(any)
 		fi
 		
-		if [ ! -z "${protonot}" ]
+		if [ ! -z "${protonot}" -a "${#proto[*]}" -gt 1 ]
 		then
 			if [ ! -z "${sportnot}" -o ! -z "${dportnot}" ]
 			then
-				error "Cannot have negative protocol(s) and source/destination port(s)."
+				error "Cannot have negative protocol(s) and positive source/destination port(s)."
 				return 1
 			fi
 			
-			for pr in ${proto}
+			for pr in ${proto[*]}
 			do
 				iptables_both ${table} -A "${negative_chain}" ${not} -p "${pr}" -j RETURN
 			done
 			protonot=
-			proto=any
+			proto=(any)
 		fi
 		
-		if [ ! -z "${sportnot}" ]
+		if [ ! -z "${sportnot}" -a "${#sport[*]}" -gt 1 ]
 		then
 			if [ "${proto}" = "any" ]
 			then
-				error "Cannot have negative source port specification without protocol."
+				error "Cannot have negative source port without a protocol."
 				return 1
 			fi
 			
-			for sp in ${sport}
+			for sp in ${sport[*]}
 			do
-				for pr in ${proto}
+				for pr in ${proto[*]}
 				do
 					iptables_both ${table} -A "${negative_chain}" -p "${pr}" ${not} --sport "${sp}" -j RETURN
 				done
 			done
 			sportnot=
-			sport=any
+			sport=(any)
 		fi
 		
-		if [ ! -z "${dportnot}" ]
+		if [ ! -z "${dportnot}" -a "${#dport[*]}" -gt 1 ]
 		then
 			if [ "${proto}" = "any" ]
 			then
-				error "Cannot have negative destination port specification without protocol."
+				error "Cannot have negative destination port without a protocol."
 				return 1
 			fi
 			
-			for dp in ${dport}
+			for dp in ${dport[*]}
 			do
-				for pr in ${proto}
+				for pr in ${proto[*]}
 				do
 					iptables_both ${table} -A "${negative_chain}" -p "${pr}" ${not} --dport "${dp}" -j RETURN
 				done
 			done
 			dportnot=
-			dport=any
+			dport=(any)
 		fi
 		
-		if [ ! -z "${uidnot}" ]
+		if [ ! -z "${uidnot}" -a "${#uid[*]}" -gt 1 ]
 		then
-			for tuid in ${uid}
+			for tuid in ${uid[*]}
 			do
 				iptables_both ${table} -A "${negative_chain}" -m owner ${not} --uid-owner "${tuid}" -j RETURN
 			done
 			uidnot=
-			uid=any
+			uid=(any)
 		fi
 		
-		if [ ! -z "${gidnot}" ]
+		if [ ! -z "${gidnot}" -a "${#gid[*]}" -gt 1 ]
 		then
-			for tgid in ${gid}
+			for tgid in ${gid[*]}
 			do
 				iptables_both ${table} -A "${negative_chain}" -m owner ${not} --gid-owner "${tgid}" -j RETURN
 			done
 			gidnot=
-			gid=any
+			gid=(any)
 		fi
 		
-		if [ ! -z "${pidnot}" ]
+		if [ ! -z "${pidnot}" -a "${#pid[*]}" -gt 1 ]
 		then
-			for tpid in ${pid}
+			for tpid in ${pid[*]}
 			do
 				iptables_both ${table} -A "${negative_chain}" -m owner ${not} --pid-owner "${tpid}" -j RETURN
 			done
 			pidnot=
-			pid=any
+			pid=(any)
 		fi
 		
-		if [ ! -z "${sidnot}" ]
+		if [ ! -z "${sidnot}" -a "${#gid[*]}" -gt 1 ]
 		then
-			for tsid in ${sid}
+			for tsid in ${sid[*]}
 			do
 				iptables_both ${table} -A "${negative_chain}" -m owner ${not} --sid-owner "${tsid}" -j RETURN
 			done
 			sidnot=
-			sid=any
+			sid=(any)
 		fi
 		
-		if [ ! -z "${cmdnot}" ]
+		if [ ! -z "${cmdnot}" -a "${#cmd[*]}" -gt 1 ]
 		then
-			for tcmd in ${cmd}
+			for tcmd in ${cmd[*]}
 			do
 				iptables_both ${table} -A "${negative_chain}" -m owner ${not} --cmd-owner "${tcmd}" -j RETURN
 			done
 			cmdnot=
-			cmd=any
+			cmd=(any)
 		fi
 		
-		if [ ! -z "${marknot}" ]
+		if [ ! -z "${marknot}" -a "${#mark[*]}" -gt 1 ]
 		then
-			for tmark in ${mark}
+			for tmark in ${mark[*]}
 			do
 				iptables_both ${table} -A "${negative_chain}" -m mark ${not} --mark "${tmark}" -j RETURN
 			done
 			marknot=
-			mark=any
+			mark=(any)
 		fi
 		
-		if [ ! -z "${tosnot}" ]
+		if [ ! -z "${tosnot}" -a "${#tos[*]}" -gt 1 ]
 		then
-			for ttos in ${tos}
+			for ttos in ${tos[*]}
 			do
 				iptables_both ${table} -A "${negative_chain}" -m tos ${not} --tos "${ttos}" -j RETURN
 			done
 			tosnot=
-			tos=any
+			tos=(any)
 		fi
 		
-		if [ ! -z "${dscpnot}" ]
+		if [ ! -z "${dscpnot}" -a "${#dscp[*]}" -gt 1 ]
 		then
-			for tdscp in ${dscp}
+			for tdscp in ${dscp[*]}
 			do
 				iptables_both ${table} -A "${negative_chain}" -m dscp ${not} --dscp${dscptype} "${tdscp}" -j RETURN
 			done
 			dscpnot=
-			dscp=any
+			dscp=(any)
 		fi
 		
 		if [ ! -z "${negative_action}" ]
@@ -7707,6 +7570,7 @@ rule() {
 			# in case this is temporary chain we created for the negative expression,
 			# just make it have the final action of the rule.
 			# ipvall
+			
 			for ipv in ${ipvall}
 			do
 				case "${ipv}" in
@@ -7714,28 +7578,22 @@ rule() {
 					ipv6) iptables="ip6tables";;
 				esac
 
-				for pr in ${proto}
-				do
-					case ${pr} in
-						any|ANY)
-							proto_arg=()
-							;;
-						
-						*)
-							proto_arg=("-p" "${pr}")
-							;;
-					esac
+				# since this is the target of the positive rules,
+				# logging and accounting can be attached here				
+				[ "$logrule" = "limit"  ] && ( ${iptables} ${table} -A "${negative_chain}" -m limit --limit "${FIREHOL_LOG_FREQUENCY}" --limit-burst "${FIREHOL_LOG_BURST}" -j ${FIREHOL_LOG_MODE} ${FIREHOL_LOG_OPTIONS} "${logopts_arg[@]}" || failed=$[failed + 1] )
+				[ "$logrule" = "normal" ] && ( ${iptables} ${table} -A "${negative_chain}" -j ${FIREHOL_LOG_MODE} ${FIREHOL_LOG_OPTIONS} "${logopts_arg[@]}" || failed=$[failed + 1] )
+				[ ! -z "${accounting}"  ] && ( ${iptables} ${table} -A "${negative_chain}" -m nfacct --nfacct-name "${accounting}" || failed=$[failed + 1] )
 
-					# since this is the target of the positive rules,
-					# logging and accounting can be attached here				
-					[ "$logrule" = "limit"  ] && ( ${iptables} ${table} -A "${negative_chain}" -m limit --limit "${FIREHOL_LOG_FREQUENCY}" --limit-burst "${FIREHOL_LOG_BURST}" -j ${FIREHOL_LOG_MODE} ${FIREHOL_LOG_OPTIONS} "${logopts_arg[@]}" || failed=$[failed + 1] )
-					[ "$logrule" = "normal" ] && ( ${iptables} ${table} -A "${negative_chain}" -j ${FIREHOL_LOG_MODE} ${FIREHOL_LOG_OPTIONS} "${logopts_arg[@]}" || failed=$[failed + 1] )
-					[ ! -z "${accounting}"  ] && ( ${iptables} ${table} -A "${negative_chain}" -m nfacct --nfacct-name "${accounting}" || failed=$[failed + 1] )
-
-					# the original action of the rule
-					rule_action_param ${iptables} "${negative_action}" "${pr}" "" "" "${table}" "${action_param[@]}" -- ${table} -A "${negative_chain}" "${proto_arg[@]}" || failed=$[failed + 1]
-				done
+				# the original action of the rule
+				rule_action_param ${iptables} "${negative_action}" "" "" "${table}" "${action_param[@]}" -- ${table} -A "${negative_chain}" "${constrained_args[@]}" || failed=$[failed + 1]
 			done
+
+			# notify the positive rules that we have placed all constrains in the branch
+			placed_constrains_in_a_branch=1
+
+			# empty the contrained parameters
+			# so that the positive rules do not add them again
+			constrained_args=()
 
 			# The positive rules will just send traffic to a
 			# chains - there is not need for params
@@ -7747,12 +7605,72 @@ rule() {
 			accounting=
 		fi
 	fi
-	
+
+	# ----------------------------------------------------------------------------------
+	# If we have not placed the contrained parameters in the negative rules
+	# we may have to branch to put them here.
+	# 
+	# Since we are trying to avoid branching, we will do this, only if there are
+	# positive_multi rules
+
+	if [ ${have_constrains} -eq 1 -a ${positive_multi} -gt 0 ]
+	then
+		if [ "${action}" = "RETURN" ]
+		then
+			warning "Generated iptables rules may not be optimal."
+		else
+			echo >&2 "    >>> ${FUNCNAME}: MOVING CONSTRAINS TO BRANCH"
+
+			get_next_dynamic_counter DYNAMIC_CHAIN_COUNTER
+			constrains_chain="${chain}.${DYNAMIC_CHAIN_COUNTER}"
+			
+			iptables_both ${table} -N "${constrains_chain}"
+			constrains_action="${action}"
+			action="${constrains_chain}"
+
+			# notify the positive rules that the action is our banch
+			action_is_our_branch=1
+
+			for ipv in ${ipvall}
+			do
+				case "${ipv}" in
+					ipv4) iptables="iptables";;
+					ipv6) iptables="ip6tables";;
+				esac
+
+				# since this is the target of the positive rules,
+				# logging and accounting can be attached here				
+				[ "$logrule" = "limit"  ] && ( ${iptables} ${table} -A "${constrains_chain}" -m limit --limit "${FIREHOL_LOG_FREQUENCY}" --limit-burst "${FIREHOL_LOG_BURST}" -j ${FIREHOL_LOG_MODE} ${FIREHOL_LOG_OPTIONS} "${logopts_arg[@]}" || failed=$[failed + 1] )
+				[ "$logrule" = "normal" ] && ( ${iptables} ${table} -A "${constrains_chain}" -j ${FIREHOL_LOG_MODE} ${FIREHOL_LOG_OPTIONS} "${logopts_arg[@]}" || failed=$[failed + 1] )
+				[ ! -z "${accounting}"  ] && ( ${iptables} ${table} -A "${constrains_chain}" -m nfacct --nfacct-name "${accounting}" || failed=$[failed + 1] )
+
+				# the original action of the rule
+				rule_action_param ${iptables} "${constrains_chain}" "" "" "${table}" "${action_param[@]}" -- ${table} -A "${constrains_chain}" "${constrained_args[@]}" || failed=$[failed + 1]
+			done
+
+			# notify the positive rules that we have placed all constrains in the branch
+			placed_constrains_in_a_branch=1
+
+			# empty the contrained parameters
+			# so that the positive rules do not add them again
+			constrained_args=()
+
+			# The positive rules will just send traffic to a
+			# chains - there is not need for params
+			action_param=()
+
+			# disable logging and accounting
+			# already did it above
+			logrule=none
+			accounting=
+		fi
+	fi
 
 	# ----------------------------------------------------------------------------------
 	# Process the positive rules
 
 	# addrtype (srctype, dsttype)
+	# this accepts a comma separated list of type, so no need to loop
 	if [ ! -z "${srctype}${dsttype}" ]
 	then
 		addrtype_arg=("-m" "addrtype")
@@ -7771,17 +7689,25 @@ rule() {
 	# state
 	[ ! -z "${state}" ] && state_arg=("-m" "conntrack" ${statenot} "--ctstate" "${state}")
 
-	# limit
-	[ ! -z "${limit}" ] && limit_arg=("-m" "limit" "--limit" "${limit}" "--limit-burst" "${burst}")
+	# ipvall	
+	for ipv in ${ipvall}
+	do
+		case "${ipv}" in
+			ipv4)
+				iptables="iptables"
+				src="${src4[*]}"
+				dst="${dst4[*]}"
+				;;
 
-	# iplimit
-	[ ! -z "${iplimit}" ] && iplimit_arg=("-m" "iplimit" "--iplimit-above" "${iplimit}" "--iplimit-mask" "${iplimit_mask}")
-
-	# ipset
-	[ ! -z "${ipsetname}" ] && ipset_arg=("-m" "set" ${ipsetnot} "--match-set" "${ipsetname}" "${ipsetflags}" ${ipsetopts})
+			ipv6)
+				iptables="ip6tables"
+				src="${src6[*]}"
+				dst="${dst6[*]}"
+				;;
+		esac
 
 	# uid
-	for tuid in ${uid}
+	for tuid in ${uid[*]}
 	do
 		case ${tuid} in
 			any|ANY)
@@ -7791,12 +7717,12 @@ rule() {
 			
 			*)
 				owner_arg=("-m" "owner")
-				uid_arg=("--uid-owner" "${tuid}")
+				uid_arg=(${ownernot} "--uid-owner" "${tuid}")
 				;;
 		esac
 	
 	# gid
-	for tgid in ${gid}
+	for tgid in ${gid[*]}
 	do
 		case ${tgid} in
 			any|ANY)
@@ -7806,12 +7732,12 @@ rule() {
 			
 			*)
 				owner_arg=("-m" "owner")
-				gid_arg=("--gid-owner" "${tgid}")
+				gid_arg=(${ownernot} "--gid-owner" "${tgid}")
 				;;
 		esac
 	
 	# pid
-	for tpid in ${pid}
+	for tpid in ${pid[*]}
 	do
 		case ${tpid} in
 			any|ANY)
@@ -7821,12 +7747,12 @@ rule() {
 			
 			*)
 				owner_arg=("-m" "owner")
-				pid_arg=("--pid-owner" "${tpid}")
+				pid_arg=(${ownernot} "--pid-owner" "${tpid}")
 				;;
 		esac
 	
 	# sid
-	for tsid in ${sid}
+	for tsid in ${sid[*]}
 	do
 		case ${tsid} in
 			any|ANY)
@@ -7836,12 +7762,12 @@ rule() {
 			
 			*)
 				owner_arg=("-m" "owner")
-				sid_arg=("--sid-owner" "${tsid}")
+				sid_arg=(${ownernot} "--sid-owner" "${tsid}")
 				;;
 		esac
 	
 	# cmd
-	for tcmd in ${cmd}
+	for tcmd in ${cmd[*]}
 	do
 		case ${tcmd} in
 			any|ANY)
@@ -7851,12 +7777,12 @@ rule() {
 			
 			*)
 				owner_arg=("-m" "owner")
-				cmd_arg=("--cmd-owner" "${tcmd}")
+				cmd_arg=(${ownernot} "--cmd-owner" "${tcmd}")
 				;;
 		esac
 	
 	# mark
-	for tmark in ${mark}
+	for tmark in ${mark[*]}
 	do
 		case ${tmark} in
 			any|ANY)
@@ -7864,12 +7790,12 @@ rule() {
 				;;
 			
 			*)
-				mark_arg=("-m" "mark" "--mark" "${tmark}")
+				mark_arg=("-m" "mark" ${marknot} "--mark" "${tmark}")
 				;;
 		esac
 	
 	# tos
-	for ttos in ${tos}
+	for ttos in ${tos[*]}
 	do
 		case ${ttos} in
 			any|ANY)
@@ -7877,12 +7803,12 @@ rule() {
 				;;
 			
 			*)
-				tos_arg=("-m" "tos" "--tos" "${ttos}")
+				tos_arg=("-m" "tos" ${tosnot} "--tos" "${ttos}")
 				;;
 		esac
 	
 	# dscp
-	for tdscp in ${dscp}
+	for tdscp in ${dscp[*]}
 	do
 		case ${tdscp} in
 			any|ANY)
@@ -7890,12 +7816,12 @@ rule() {
 				;;
 			
 			*)
-				dscp_arg=("-m" "dscp" "--dscp${dscptype}" "${tdscp}")
+				dscp_arg=("-m" "dscp" ${dscpnot} "--dscp${dscptype}" "${tdscp}")
 				;;
 		esac
 	
 	# proto
-	for pr in ${proto}
+	for pr in ${proto[*]}
 	do
 		case ${pr} in
 			any|ANY)
@@ -7903,12 +7829,12 @@ rule() {
 				;;
 			
 			*)
-				proto_arg=("-p" "${pr}")
+				proto_arg=(${protonot} "-p" "${pr}")
 				;;
 		esac
 	
 	# inface
-	for inf in ${inface}
+	for inf in ${inface[*]}
 	do
 		case ${inf} in
 			any|ANY)
@@ -7916,12 +7842,12 @@ rule() {
 				;;
 			
 			*)
-				inf_arg=("-i" "${inf}")
+				inf_arg=(${infacenot} "-i" "${inf}")
 				;;
 		esac
 	
 	# outface
-	for outf in ${outface}
+	for outf in ${outface[*]}
 	do
 		case ${outf} in
 			any|ANY)
@@ -7929,12 +7855,12 @@ rule() {
 				;;
 			
 			*)
-				outf_arg=("-o" "${outf}")
+				outf_arg=(${outfacenot} "-o" "${outf}")
 				;;
 		esac
 	
 	# physin
-	for inph in ${physin}
+	for inph in ${physin[*]}
 	do
 		case ${inph} in
 			any|ANY)
@@ -7944,12 +7870,12 @@ rule() {
 			
 			*)
 				physdev_arg=("-m" "physdev" ${physbridge})
-				inph_arg=("--physdev-in" "${inph}")
+				inph_arg=(${physinnot} "--physdev-in" "${inph}")
 				;;
 		esac
 	
 	# physout
-	for outph in ${physout}
+	for outph in ${physout[*]}
 	do
 		case ${outph} in
 			any|ANY)
@@ -7959,12 +7885,12 @@ rule() {
 			
 			*)
 				physdev_arg=("-m" "physdev" ${physbridge})
-				outph_arg=("--physdev-out" "${outph}")
+				outph_arg=(${physoutnot} "--physdev-out" "${outph}")
 				;;
 		esac
 	
 	# mac
-	for mc in ${mac}
+	for mc in ${mac[*]}
 	do
 		case ${mc} in
 			any|ANY)
@@ -7972,24 +7898,7 @@ rule() {
 				;;
 			
 			*)
-				mc_arg=("-m" "mac" "--mac-source" "${mc}")
-				;;
-		esac
-
-	# ipvall	
-	for ipv in ${ipvall}
-	do
-		case "${ipv}" in
-			ipv4)
-				iptables="iptables"
-				src="${src4}"
-				dst="${dst4}"
-				;;
-
-			ipv6)
-				iptables="ip6tables"
-				src="${src6}"
-				dst="${dst6}"
+				mc_arg=("-m" "mac" ${macnot} "--mac-source" "${mc}")
 				;;
 		esac
 
@@ -8005,11 +7914,11 @@ rule() {
 				[ ${IPSET_WARNING} -eq 1 ] && ipset_warning
 				s="${s/ipset:/}"
 				test -z "${FIREHOL_IPSETS_USED[$s]}" && FIREHOL_IPSETS_USED[$s]="USED"
-				s_arg=("-m" "set" "--match-set" "${s}" "src" "!" "--update-counters" "!" "--update-subcounters")
+				s_arg=("-m" "set" ${srcnot} "--match-set" "${s}" "src" "!" "--update-counters" "!" "--update-subcounters")
 				;;
 
 			*)
-				s_arg=("-s" "${s}")
+				s_arg=(${srcnot} "-s" "${s}")
 				;;
 		esac
 
@@ -8025,16 +7934,16 @@ rule() {
 				[ ${IPSET_WARNING} -eq 1 ] && ipset_warning
 				d="${d/ipset:/}"
 				test -z "${FIREHOL_IPSETS_USED[$d]}" && FIREHOL_IPSETS_USED[$d]="USED"
-				d_arg=("-m" "set" "--match-set" "${d}" "dst" "!" "--update-counters" "!" "--update-subcounters")
+				d_arg=("-m" "set" ${dstnot} "--match-set" "${d}" "dst" "!" "--update-counters" "!" "--update-subcounters")
 				;;
 
 			*)
-				d_arg=("-d" "${d}")
+				d_arg=(${dstnot} "-d" "${d}")
 				;;
 		esac
 
 	# sport
-	for sp in ${sport}
+	for sp in ${sport[*]}
 	do
 		case ${sp} in
 			any|ANY)
@@ -8042,12 +7951,12 @@ rule() {
 				;;
 			
 			*)
-				sp_arg=("--sport" "${sp}")
+				sp_arg=(${sportnot} "--sport" "${sp}")
 				;;
 		esac
 	
 	# dport
-	for dp in ${dport}
+	for dp in ${dport[*]}
 	do
 		case ${dp} in
 			any|ANY)
@@ -8055,31 +7964,28 @@ rule() {
 				;;
 			
 			*)
-				dp_arg=("--dport" "${dp}")
+				dp_arg=(${dportnot} "--dport" "${dp}")
 				;;
 		esac
 	
 	# build the command
-	basecmd=("${inf_arg[@]}"     "${outf_arg[@]}"  "${physdev_arg[@]}" "${inph_arg[@]}"  "${outph_arg[@]}" "${limit_arg[@]}" \
-		"${iplimit_arg[@]}"  "${proto_arg[@]}" "${s_arg[@]}"       "${sp_arg[@]}"    "${d_arg[@]}"     "${dp_arg[@]}" \
-		"${owner_arg[@]}"    "${uid_arg[@]}"   "${gid_arg[@]}"     "${pid_arg[@]}"   "${sid_arg[@]}"   "${cmd_arg[@]}" \
-		"${addrtype_arg[@]}" "${stp_arg[@]}"   "${dtp_arg[@]}"     "${state_arg[@]}" "${mc_arg[@]}"    "${mark_arg[@]}" \
-		"${tos_arg[@]}"      "${dscp_arg[@]}"  "${ipset_arg[@]}"    ${custom})
-
-	[ -z "${basecmd[*]}" -a ${ignore_empty_positive} -eq 1 ] && continue
+	basecmd=("${inf_arg[@]}"        "${outf_arg[@]}"  "${physdev_arg[@]}" "${inph_arg[@]}"  "${outph_arg[@]}" "${proto_arg[@]}" \
+		"${s_arg[@]}"           "${sp_arg[@]}"    "${d_arg[@]}"       "${dp_arg[@]}"    "${mc_arg[@]}"    "${tos_arg[@]}" \
+		"${owner_arg[@]}"       "${uid_arg[@]}"   "${gid_arg[@]}"     "${pid_arg[@]}"   "${sid_arg[@]}"   "${cmd_arg[@]}" \
+		"${addrtype_arg[@]}"    "${stp_arg[@]}"   "${dtp_arg[@]}"     "${state_arg[@]}" "${mark_arg[@]}"  "${dscp_arg[@]}" \
+		"${constrained_args[@]}")
 
 	[ "$logrule" = "limit"  ] && ( ${iptables} ${table} -A "${chain}" "${basecmd[@]}" -m limit --limit "${FIREHOL_LOG_FREQUENCY}" --limit-burst "${FIREHOL_LOG_BURST}" -j ${FIREHOL_LOG_MODE} ${FIREHOL_LOG_OPTIONS} "${logopts_arg[@]}" || failed=$[failed + 1] )
 	[ "$logrule" = "normal" ] && ( ${iptables} ${table} -A "${chain}" "${basecmd[@]}" -j ${FIREHOL_LOG_MODE} ${FIREHOL_LOG_OPTIONS} "${logopts_arg[@]}" || failed=$[failed + 1] )
 	[ ! -z "${accounting}"  ] && ( ${iptables} ${table} -A "${chain}" "${basecmd[@]}" -m nfacct --nfacct-name "${accounting}" || failed=$[failed + 1] )
 
 	# do it!
-	rule_action_param ${iptables} "${action}" "${pr}" "${statenot}" "${state}" "${table}" "${action_param[@]}" -- ${table} -A "${chain}" "${basecmd[@]}" || failed=$[failed + 1]
+	rule_action_param ${iptables} "${action}" "${statenot}" "${state}" "${table}" "${action_param[@]}" -- ${table} -A "${chain}" "${basecmd[@]}" || failed=$[failed + 1]
 
 	done # dport
 	done # sport
 	done # dst
 	done # src
-	done # ipvall
 	done # mac
 	done # physout
 	done # physin
@@ -8094,12 +8000,15 @@ rule() {
 	done # pid
 	done # gid
 	done # uid
+	done # ipvall
 	
 	test ${failed} -gt 0 && error "There are ${failed} failed commands." && return 1
 	return 0
 }
 
 warning() {
+	test ${PROGRAM_SPINNER_RUNNING} -eq 1 && spinner_end
+
 	echo >&2
 	echo >&2 -e "${COLOR_YELLOW}WARNING${COLOR_RESET}: " "${@}"
 	echo >&2
@@ -8108,6 +8017,7 @@ warning() {
 }
 
 softwarning() {
+	test ${PROGRAM_SPINNER_RUNNING} -eq 1 && spinner_end
 	echo >&2
 	echo >&2 -e "--------------------------------------------------------------------------------"
 	echo >&2 -e "${COLOR_BOLD}${COLOR_YELLOW}WARNING${COLOR_RESET}"
@@ -8129,6 +8039,7 @@ softwarning() {
 # This command is directly called by other functions of FireHOL.
 
 error() {
+	test ${PROGRAM_SPINNER_RUNNING} -eq 1 && spinner_end
 	test "${FIREHOL_MODE}" = "START" && syslog err "Error '${@}' when '${work_function}' $(config_line)"
 	
 	work_error=$[work_error + 1]
@@ -8459,18 +8370,24 @@ show_work_realcmd() {
 }
 
 work_realcmd_primary() {
+	test ${FIREHOL_ENABLE_SPINNER} -eq 1 && spinner ${FIREHOL_COMMAND_COUNTER}
+	
 	config_line -ne
 	work_realcmd=("${@}")
 	test ${FIREHOL_CONF_SHOW} -eq 1 && show_work_realcmd 1
 }
 
 work_realcmd_secondary() {
+	test ${FIREHOL_ENABLE_SPINNER} -eq 1 && spinner ${FIREHOL_COMMAND_COUNTER}
+	
 	config_line -ne
 	work_realcmd=("${@}")
 	test ${FIREHOL_CONF_SHOW} -eq 1 && show_work_realcmd 2
 }
 
 work_realcmd_helper() {	
+	test ${FIREHOL_ENABLE_SPINNER} -eq 1 && spinner ${FIREHOL_COMMAND_COUNTER}
+	
 	config_line -ne
 	work_realcmd=("${@}")
 	test ${FIREHOL_CONF_SHOW} -eq 1 && show_work_realcmd 3
@@ -10418,6 +10335,7 @@ then
 	exit 1
 fi
 
+test ${FIREHOL_ENABLE_SPINNER} -eq 1 && spinner_end
 success # "Processing file '${FIREHOL_CONFIG}'"
 
 # XXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXX
