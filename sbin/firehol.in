@@ -7619,7 +7619,7 @@ rule() {
 		then
 			warning "Generated iptables rules may not be optimal."
 		else
-			echo >&2 "    >>> ${FUNCNAME}: MOVING CONSTRAINS TO BRANCH"
+			# echo >&2 "    >>> ${FUNCNAME}: MOVING CONSTRAINS TO BRANCH"
 
 			get_next_dynamic_counter DYNAMIC_CHAIN_COUNTER
 			constrains_chain="${chain}.${DYNAMIC_CHAIN_COUNTER}"
