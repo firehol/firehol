@@ -9330,7 +9330,10 @@ EOF
 
 	while [ 1 = 1 ]
 	do
-		prompt="${COLOR_RESET}#${COLOR_GREEN} FireHOL ${COLOR_RESET}[${COLOR_BOLD}${COLOR_BLUE}${work_cmd}${COLOR_RESET}:${COLOR_CYAN}${work_name}${COLOR_RESET}] > "
+		# \001 = begin ignoring characters
+		# \002 = end ignoring characters
+		# without the above codes, lines do not wrap properly (readline counts also the color escape codes)
+		prompt="\001${COLOR_RESET}\002#\001${COLOR_GREEN}\002 FireHOL \001${COLOR_RESET}\002[\001${COLOR_BOLD}${COLOR_BLUE}\002${work_cmd}\001${COLOR_RESET}\002:\001${COLOR_CYAN}\002${work_name}\001${COLOR_RESET}\002] > "
 		eval "read -ep \$'${prompt}' -e -r REPLY"
 		test -z "${REPLY}" && continue
 		history -s "${REPLY}"
