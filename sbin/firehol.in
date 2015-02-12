@@ -6038,8 +6038,6 @@ rule() {
 		sport=(any) sportnot= dport=(any) dportnot= \
 		proto=(any) protonot= \
 		uid=(any) uidnot= gid=(any) gidnot= \
-		pid=(any) pidnot= sid=(any) sidnot= \
-		cmd=(any) cmdnot= \
 		mark=(any) marknot= markname= \
 		dscp=(any) dscptype= dscpnot= \
 		tos=(any) tosnot= \
@@ -6323,38 +6321,16 @@ rule() {
 				test -z "${gid[*]}"	&& error "Cannot accept an empty 'gid'."	&& return 1
 				shift
 				;;
-				
-			process|pid)
-				pidnot="${not}"
-				test ${softwarnings} -eq 1 -a ! "${pid[*]}" = "any" && softwarning "Overwriting param: pid '${pid[*]}' becomes '${1}'"
-				pid=(${1//,/ })
-				test -z "${pid[*]}"	&& error "Cannot accept an empty 'pid'."	&& return 1
-				shift
-				;;
-				
-			session|sid)
-				sidnot="${not}"
-				test ${softwarnings} -eq 1 -a ! "${sid[*]}" = "any" && softwarning "Overwriting param: sid '${sid[*]}' becomes '${1}'"
-				sid=(${1//,/ })
-				test -z "${sid[*]}"	&& error "Cannot accept an empty 'sid'."	&& return 1
-				shift
-				;;
-				
-			command|cmd)
-				cmdnot="${not}"
-				test ${softwarnings} -eq 1 -a ! "${cmd[*]}" = "any" && softwarning "Overwriting param: cmd '${cmd[*]}' becomes '${1}'"
-				cmd=(${1//,/ })
-				test -z "${cmd[*]}"	&& error "Cannot accept an empty 'cmd'."	&& return 1
-				shift
-				;;
-				
+
 			custom)
+				test ${softwarnings} -eq 1 -a ! -z "${not}" && softwarning "Cannot negate a custom match. 'not' ignored."
 				test ${softwarnings} -eq 1 -a ! -z "${custom}" && softwarning "Overwriting param: custom '${custom}' becomes '${1}'"
 				custom="${1}"
 				shift
 				;;
 				
 			customin|custom-in)
+				test ${softwarnings} -eq 1 -a ! -z "${not}" && softwarning "Cannot negate a custom match. 'not' ignored."
 				if [ "${inout}" = "in" ]
 				then
 					test ${softwarnings} -eq 1 -a ! -z "${custom}" && softwarning "Overwriting param: custom '${custom}' becomes '${1}'"
@@ -6364,6 +6340,7 @@ rule() {
 				;;
 				
 			customout|custom-out)
+				test ${softwarnings} -eq 1 -a ! -z "${not}" && softwarning "Cannot negate a custom match. 'not' ignored."
 				if [ "${inout}" = "out" ]
 				then
 					test ${softwarnings} -eq 1 -a ! -z "${custom}" && softwarning "Overwriting param: custom '${custom}' becomes '${1}'"
@@ -6373,6 +6350,7 @@ rule() {
 				;;
 				
 			log)
+				test ${softwarnings} -eq 1 -a ! -z "${not}" && softwarning "Cannot negate a log. 'not' ignored."
 				if [ ${nolog} -eq 0 ]
 				then
 					test ${softwarnings} -eq 1 -a ! -z "${log}" && softwarning "Overwriting param: log '${log}/${logtxt}' becomes 'normal/${1}'"
@@ -6390,6 +6368,7 @@ rule() {
 				;;
 				
 			loglimit)
+				test ${softwarnings} -eq 1 -a ! -z "${not}" && softwarning "Cannot negate a log. 'not' ignored."
 				if [ ${nolog} -eq 0 ]
 				then
 					test ${softwarnings} -eq 1 -a ! -z "${log}" && softwarning "Overwriting param: log '${log}/${logtxt}' becomes 'limit/${1}'"
@@ -6407,6 +6386,7 @@ rule() {
 				;;
 				
 			limit)
+				test ${softwarnings} -eq 1 -a ! -z "${not}" && softwarning "Cannot negate a limit. 'not' ignored."
 				test ${softwarnings} -eq 1 -a ! -z "${limit}" && softwarning "Overwriting param: limit '${limit}' becomes '${1}'"
 				limit="${1}"
 				burst="${2}"
@@ -6414,6 +6394,7 @@ rule() {
 				;;
 				
 			connlimit|iplimit)
+				test ${softwarnings} -eq 1 -a ! -z "${not}" && softwarning "Cannot negate a connlimit. 'not' ignored."
 				test ${softwarnings} -eq 1 -a ! -z "${connlimit}" && softwarning "Overwriting param: connlimit '${connlimit}' becomes '${1}'"
 				connlimit="${1}"
 				connlimit_mask="${2}"
@@ -6421,6 +6402,7 @@ rule() {
 				;;
 				
 			acct|accounting)
+				test ${softwarnings} -eq 1 -a ! -z "${not}" && softwarning "Cannot negate an accounting. 'not' ignored."
 				if [ ${ENABLE_ACCOUNTING} -eq 1 ]
 				then
 					accounting="$2"
@@ -6904,15 +6886,6 @@ rule() {
 
 		gid=(any)
 		gidnot=
-
-		sid=(any)
-		sidnot=
-
-		pid=(any)
-		pidnot=
-
-		cmd=(any)
-		cmdnot=
 	fi
 
 	local physbridge="--physdev-is-bridged"
@@ -7009,14 +6982,14 @@ rule() {
 	local -a \
 		addrtype_arg=() stp_arg=() dtp_arg=() state_arg=() \
 		limit_arg=() connlimit_arg=() logopts_arg=() \
-		uid_arg=() owner_arg=() gid_arg=() pid_arg=() sid_arg=() cmd_arg=() \
+		uid_arg=() owner_arg=() gid_arg=() \
 		mark_arg=() tos_arg=() dscp_arg=() proto_arg=() \
 		inf_arg=() outf_arg=() inph_arg=() physdev_arg=() outph_arg=() \
 		mc_arg=() s_arg=() d_arg=() sp_arg=() dp_arg=() \
 		ipset_arg=() basecmd=() protected_args=()
 
 	local 	logrule= ipvall= \
-		tuid= tgid= tpid= tsid= tcmd= \
+		tuid= tgid= \
 		tmark= ttos= tdscp= pr= \
 		inf= outf= inph= outph= \
 		mc= ipv= iptables= src= dst= s= d= sp= dp= \
@@ -7221,24 +7194,6 @@ rule() {
 		if [ -z "${gidnot}" ]; then (( positive_multi += 1 )) ; else (( negative_multi += 1)) ; fi
 	else
 		if [ -z "${gidnot}" ]; then (( positive_single += 1 )); else (( negative_single += 1)); fi
-	fi
-	if [ "${#sid[*]}" -gt 1 ]
-	then
-		if [ -z "${sidnot}" ]; then (( positive_multi += 1 )) ; else (( negative_multi += 1)) ; fi
-	else
-		if [ -z "${sidnot}" ]; then (( positive_single += 1 )); else (( negative_single += 1)); fi
-	fi
-	if [ "${#pid[*]}" -gt 1 ]
-	then
-		if [ -z "${pidnot}" ]; then (( positive_multi += 1 )) ; else (( negative_multi += 1)) ; fi
-	else
-		if [ -z "${pidnot}" ]; then (( positive_single += 1 )); else (( negative_single += 1)); fi
-	fi
-	if [ "${#cmd[*]}" -gt 1 ]
-	then
-		if [ -z "${cmdnot}" ]; then (( positive_multi += 1 )) ; else (( negative_multi += 1)) ; fi
-	else
-		if [ -z "${cmdnot}" ]; then (( positive_single += 1 )); else (( negative_single += 1)); fi
 	fi
 	# ignore 'state', 'srctype', 'dsttype' are not counted, since they are negated in the positive rules
 
@@ -7491,36 +7446,6 @@ rule() {
 			gid=(any)
 		fi
 		
-		if [ ! -z "${pidnot}" -a "${#pid[*]}" -gt 1 ]
-		then
-			for tpid in ${pid[*]}
-			do
-				iptables_both ${table} -A "${negative_chain}" -m owner ${not} --pid-owner "${tpid}" -j RETURN
-			done
-			pidnot=
-			pid=(any)
-		fi
-		
-		if [ ! -z "${sidnot}" -a "${#gid[*]}" -gt 1 ]
-		then
-			for tsid in ${sid[*]}
-			do
-				iptables_both ${table} -A "${negative_chain}" -m owner ${not} --sid-owner "${tsid}" -j RETURN
-			done
-			sidnot=
-			sid=(any)
-		fi
-		
-		if [ ! -z "${cmdnot}" -a "${#cmd[*]}" -gt 1 ]
-		then
-			for tcmd in ${cmd[*]}
-			do
-				iptables_both ${table} -A "${negative_chain}" -m owner ${not} --cmd-owner "${tcmd}" -j RETURN
-			done
-			cmdnot=
-			cmd=(any)
-		fi
-		
 		if [ ! -z "${marknot}" -a "${#mark[*]}" -gt 1 ]
 		then
 			for tmark in ${mark[*]}
@@ -7724,51 +7649,6 @@ rule() {
 				;;
 		esac
 	
-	# pid
-	for tpid in ${pid[*]}
-	do
-		case ${tpid} in
-			any|ANY)
-				pid_arg=()
-				# do not reset owner_arg=() here
-				;;
-			
-			*)
-				owner_arg=("-m" "owner")
-				pid_arg=(${ownernot} "--pid-owner" "${tpid}")
-				;;
-		esac
-	
-	# sid
-	for tsid in ${sid[*]}
-	do
-		case ${tsid} in
-			any|ANY)
-				sid_arg=()
-				# do not reset owner_arg=() here
-				;;
-			
-			*)
-				owner_arg=("-m" "owner")
-				sid_arg=(${ownernot} "--sid-owner" "${tsid}")
-				;;
-		esac
-	
-	# cmd
-	for tcmd in ${cmd[*]}
-	do
-		case ${tcmd} in
-			any|ANY)
-				cmd_arg=()
-				# do not reset owner_arg=() here
-				;;
-			
-			*)
-				owner_arg=("-m" "owner")
-				cmd_arg=(${ownernot} "--cmd-owner" "${tcmd}")
-				;;
-		esac
-	
 	# mark
 	for tmark in ${mark[*]}
 	do
@@ -7959,7 +7839,7 @@ rule() {
 	# build the command
 	basecmd=("${inf_arg[@]}"        "${outf_arg[@]}"  "${physdev_arg[@]}" "${inph_arg[@]}"  "${outph_arg[@]}" "${proto_arg[@]}" \
 		"${s_arg[@]}"           "${sp_arg[@]}"    "${d_arg[@]}"       "${dp_arg[@]}"    "${mc_arg[@]}"    "${tos_arg[@]}" \
-		"${owner_arg[@]}"       "${uid_arg[@]}"   "${gid_arg[@]}"     "${pid_arg[@]}"   "${sid_arg[@]}"   "${cmd_arg[@]}" \
+		"${owner_arg[@]}"       "${uid_arg[@]}"   "${gid_arg[@]}"     \
 		"${addrtype_arg[@]}"    "${stp_arg[@]}"   "${dtp_arg[@]}"     "${state_arg[@]}" "${mark_arg[@]}"  "${dscp_arg[@]}" \
 		"${protected_args[@]}")
 
@@ -7983,9 +7863,6 @@ rule() {
 	done # dscp
 	done # tos
 	done # mark
-	done # cmd
-	done # sid
-	done # pid
 	done # gid
 	done # uid
 	done # ipvall
@@ -8419,10 +8296,7 @@ fixed_save() {
 	${CAT_CMD} ${tmp} |\
 		${SED_CMD} \
 			-e "s/--uid-owner !/! --uid-owner /g"	\
-			-e "s/--gid-owner !/! --gid-owner /g"	\
-			-e "s/--pid-owner !/! --pid-owner /g"	\
-			-e "s/--sid-owner !/! --sid-owner /g"	\
-			-e "s/--cmd-owner !/! --cmd-owner /g"
+			-e "s/--gid-owner !/! --gid-owner /g"
 	err=$?
 	
 	${RM_CMD} -f $tmp >/dev/null 2>&1

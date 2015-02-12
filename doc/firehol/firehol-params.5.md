@@ -55,9 +55,19 @@ dscp [not] *value* *class* *classid*
 
 mark [not] *id*
 
+connmark [not] *id*
+
+custommark [not] *name* *id*
+
+rawmark [not] *id*
+
 tos [not] *id*
 
 custom "*iptables-options*..."
+
+custom-in "*iptables-options*..."
+
+custom-out "*iptables-options*..."
 
 _Router Only_
 
@@ -81,11 +91,19 @@ log "log text" [level *loglevel*]
 
 loglimit "log text" [level *loglevel*]
 
-_Other_
+_Helpers Only_
 
 sport *port*
 
 dport *port*
+
+state *state*
+
+ipset [not] name flags [no-counters] [bytes-lt|bytes-eq|bytes-gt|bytes-not-eq *number*] [packets-lt|packets-eq|packets-gt|packets-not-eq *number*] [options *custom-ipset-options*]
+
+limit *limit* *burst*
+
+connlimit *limit* *mask*
 
 
 # DESCRIPTION
@@ -95,8 +113,28 @@ match they make. Not all parameters are accepted by all commands so you
 should check the individual commands for exclusions.
 
 All matches are made against the REQUEST. FireHOL automatically sets up
-the necessary  stateful rules to deal with replies in the reverse
+the necessary stateful rules to deal with replies in the reverse
 direction.
+
+All matches should be true for a statement to be executed. However,
+many matches support multiple values. In this case, at least one of the
+values must match.
+
+Example:
+
+~~~
+server smtp accept src 1.1.1.1 dst 2.2.2.2
+~~~
+
+In the above example all smtp requests coming in from 1.1.1.1 and
+going out to smtp server 2.2.2.2 will be matched.
+
+~~~
+server smtp accept src 1.1.1.1 dst 2.2.2.2,3.3.3.3
+~~~
+
+In the above example all smtp requests coming in from 1.1.1.1 and
+going out to either smtp server 2.2.2.2 or 3.3.3.3 will be matched.
 
 Use the keyword `not` to match any value other than the one(s) specified.
 
@@ -114,6 +152,15 @@ internal version will be used).
 
 Use `src` and `dst` to define the source and destination IP addresses of
 the request respectively. *host* defines the IP or IPs to be matched.
+
+*host* can also refer to an ipset, using this syntax: `ipset:NAME`,
+where NAME is the name of the ipset. The ipset has to be of type `hash:ip`
+for this match to work. The source IP or the destination IP will be used
+for the match, depending if the ipset is given as `src` or `dst`.
+
+IPs and ipsets can be mixed together, like this:
+`src 1.1.1.1,ipset:NAME1,2.2.2.2,ipset:NAME2`
+
 Examples:
 
 ~~~~
@@ -320,7 +367,7 @@ Specifying `level` (which takes the same values as FIREHOL\_LOG\_LEVEL)
 allows you to override the log level for a single rule.
 
 
-# LESSER USED PARAMETERS
+# HELPERS ONLY PARAMETERS
 
 ## dport, sport
 
