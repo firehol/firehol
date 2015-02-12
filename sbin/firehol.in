@@ -7645,7 +7645,7 @@ rule() {
 				[ ! -z "${accounting}"  ] && ( ${iptables} ${table} -A "${constrains_chain}" -m nfacct --nfacct-name "${accounting}" || failed=$[failed + 1] )
 
 				# the original action of the rule
-				rule_action_param ${iptables} "${constrains_chain}" "" "" "${table}" "${action_param[@]}" -- ${table} -A "${constrains_chain}" "${constrained_args[@]}" || failed=$[failed + 1]
+				rule_action_param ${iptables} "${constrains_action}" "" "" "${table}" "${action_param[@]}" -- ${table} -A "${constrains_chain}" "${constrained_args[@]}" || failed=$[failed + 1]
 			done
 
 			# notify the positive rules that we have placed all constrains in the branch
