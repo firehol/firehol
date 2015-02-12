@@ -7098,15 +7098,16 @@ rule() {
 	#
 	#          All conditions that are negative and have only one possible
 	#          value to match, can be executed in the main loop (negative
-	#          and positive statements on the same command).
+	#          and positive conditions on the same command).
 	#
 	#        - we can only branch (i.e. create a chain and jump to it) only
 	#          if the action is not RETURN. If it is RETURN, then we have
 	#          only one exit point and we cannot do any complex expressions
 	#
 	#        - A branch is required when we have multiple values in
-	#          positive rules to avoid executing certain features multiple
-	#          times (I call these features: contrained parameters)
+	#          positive conditions, to avoid executing certain features
+	#          multiple times (I call these features: constrained
+	#          parameters)
 	# 
 	#          These require branching:
 	# 
@@ -7133,7 +7134,7 @@ rule() {
 	# negative_multi                - counts the number of negative parameters that have multiple values
 	# action_is_our_branch          - is set when we create our branch
 	# placed_constrains_in_a_branch - is set if we place the log, loglimit, accounting, limit, iplimit, ipset in our branch
-	# have_constrains               - is set when there are contrained parameters
+	# have_constrains               - is set when there are constrained parameters
 	#
 	if [ "${#inface[*]}" -gt 1 ]
 	then
@@ -7272,7 +7273,7 @@ rule() {
 
 	constrained_args=("${limit_arg[@]}" "${iplimit_arg[@]}" "${ipset_arg[@]}" ${custom})
 
-	[ ! -z "${constrained_args[*]}" -o ! -z "${accounting}" -o "${logrule}" = "limit" -o "${logrule}" = "normal" ] && have_constrains=1
+	[ ! -z "${constrained_args[*]}" -o ! -z "${accounting}" -o "${logrule}" = "limit" -o "${logrule}" = "normal" -o ! -z "${custom}" ] && have_constrains=1
 
 	# ---------------------------------------------------------------------
 	# process the negative rules
