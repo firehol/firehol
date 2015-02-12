@@ -6044,7 +6044,7 @@ rule() {
 		dscp=(any) dscptype= dscpnot= \
 		tos=(any) tosnot= \
 		log= logtxt= loglevel= \
-		limit= burst= iplimit= iplimit_mask= \
+		limit= burst= connlimit= connlimit_mask= \
 		action= state= statenot= \
 		failed=0 reverse=0 \
 		swi=0 swo=0 \
@@ -6413,10 +6413,10 @@ rule() {
 				shift 2
 				;;
 				
-			iplimit)
-				test ${softwarnings} -eq 1 -a ! -z "${iplimit}" && softwarning "Overwriting param: iplimit '${iplimit}' becomes '${1}'"
-				iplimit="${1}"
-				iplimit_mask="${2}"
+			connlimit|iplimit)
+				test ${softwarnings} -eq 1 -a ! -z "${connlimit}" && softwarning "Overwriting param: connlimit '${connlimit}' becomes '${1}'"
+				connlimit="${1}"
+				connlimit_mask="${2}"
 				shift 2
 				;;
 				
@@ -6506,10 +6506,15 @@ rule() {
 				
 				action_param=()
 				local action_is_chain=0
-				case "${action}" in
-					accept|ACCEPT)
-						action="ACCEPT"
+				case "${action^^}" in
+
+					DENY)	action="DROP" ;;
+					DROP)	action="DROP" ;;
+					RETURN)	action="RETURN" ;;
+					NONE)	action="NONE" ;;
+					TARPIT)	action="TARPIT" ;;
 						
+					ACCEPT)	action="ACCEPT"
 						if [ "${1}" = "with" ]
 						then
 							shift
@@ -6545,12 +6550,7 @@ rule() {
 						fi
 						;;
 						
-					deny|DENY|drop|DROP)
-						action="DROP"
-						;;
-						
-					reject|REJECT)
-						action="REJECT"
+					REJECT)	action="REJECT"
 						if [ "${1}" = "with" ]
 						then
 							action_param=("--reject-with" "${2}")
@@ -6560,20 +6560,12 @@ rule() {
 						fi
 						;;
 						
-					return|RETURN)
-						action="RETURN"
-						;;
 						
-					mirror|MIRROR)
-						action="MIRROR"
+					MIRROR)	action="MIRROR"
 						test $nomirror -eq 1 && action="REJECT"
 						;;
 						
-					none|NONE)
-						action="NONE"
-						;;
-						
-					masquerade|MASQUERADE)
+					MASQUERADE)
 						action="MASQUERADE"
 						if [ ! "A${table}" = "A-t nat" ]
 						then
@@ -6601,8 +6593,7 @@ rule() {
 						done
 						;;
 
-					snat|SNAT)
-						action="SNAT"
+					SNAT)	action="SNAT"
 						if [ ! "A${table}" = "A-t nat" ]
 						then
 							error "${action} must on a the 'nat' table."
@@ -6641,8 +6632,7 @@ rule() {
 						fi
 						;;
 						
-					dnat|DNAT)
-						action="DNAT"
+					DNAT)	action="DNAT"
 						if [ ! "A${table}" = "A-t nat" ]
 						then
 							error "${action} must on a the 'nat' table."
@@ -6681,7 +6671,7 @@ rule() {
 						fi
 						;;
 						
-					redirect|REDIRECT)
+					REDIRECT)
 						action="REDIRECT"
 						if [ ! "A${table}" = "A-t nat" ]
 						then
@@ -6716,8 +6706,7 @@ rule() {
 						fi
 						;;
 						
-					tproxy|TPROXY)
-						action="TPROXY"
+					TPROXY)	action="TPROXY"
 						action_param=()
 						if [ "${1}" = "mark" -o "${1}" = "tproxy-mark" ]
 						then
@@ -6747,8 +6736,7 @@ rule() {
 						fi
 						;;
 						
-					tos|TOS)
-						action="TOS"
+					TOS)	action="TOS"
 						if [ "${1}" = "to" ]
 						then
 							action_param=("--set-tos" "${2}")
@@ -6764,8 +6752,7 @@ rule() {
 						fi
 						;;
 						
-					mark|MARK)
-						action="MARK"
+					MARK)	action="MARK"
 						if [ "${1}" = "to" ]
 						then
 							action_param=("--set-mark" "${2}")
@@ -6781,7 +6768,7 @@ rule() {
 						fi
 						;;
 						
-					connmark|CONNMARK)
+					CONNMARK)
 						action="CONNMARK"
 						case "${1}" in
 							to)
@@ -6820,8 +6807,7 @@ rule() {
 						fi
 						;;
 						
-					dscp|DSCP)
-						action="DSCP"
+					DSCP)	action="DSCP"
 						if [ "${1}" = "to" ]
 						then
 							if [ "${2}" = "class" ]
@@ -6843,12 +6829,7 @@ rule() {
 						fi
 						;;
 						
-					tarpit|TARPIT)
-						action="TARPIT"
-						;;
-						
-					set|SET)
-						action="SET"
+					SET)	action="SET"
 						local hasadd=0 hasdel=0
 						while [ ! -z "${1}" ]
 						do
@@ -7027,12 +7008,12 @@ rule() {
 
 	local -a \
 		addrtype_arg=() stp_arg=() dtp_arg=() state_arg=() \
-		limit_arg=() iplimit_arg=() logopts_arg=() \
+		limit_arg=() connlimit_arg=() logopts_arg=() \
 		uid_arg=() owner_arg=() gid_arg=() pid_arg=() sid_arg=() cmd_arg=() \
 		mark_arg=() tos_arg=() dscp_arg=() proto_arg=() \
 		inf_arg=() outf_arg=() inph_arg=() physdev_arg=() outph_arg=() \
 		mc_arg=() s_arg=() d_arg=() sp_arg=() dp_arg=() \
-		ipset_arg=() basecmd=() constrained_args=()
+		ipset_arg=() basecmd=() protected_args=()
 
 	local 	logrule= ipvall= \
 		tuid= tgid= tpid= tsid= tcmd= \
@@ -7040,7 +7021,7 @@ rule() {
 		inf= outf= inph= outph= \
 		mc= ipv= iptables= src= dst= s= d= sp= dp= \
 		negative_chain= negative_action= \
-		not= \
+		not= src_has_ipset=0 dst_has_ipset=0 \
 		DYNAMIC_CHAIN_COUNTER
 
 	# log mode selection
@@ -7105,7 +7086,7 @@ rule() {
 	#
 	#        - A branch is required when we have multiple values in
 	#          positive conditions, to avoid executing certain features
-	#          multiple times (I call these features: constrained
+	#          multiple times (I call these features: protected
 	#          parameters)
 	# 
 	#          These require branching:
@@ -7114,7 +7095,7 @@ rule() {
 	#            * loglimit
 	#            * accounting
 	#            * limit
-	#            * iplimit
+	#            * connlimit
 	#            * ipset (not in src/dst)
 	#
 	#          We will not stop though if we are not allowed to branch
@@ -7125,15 +7106,15 @@ rule() {
 	#
 	# Let's calculate a few sums to help us take decisions:
 
-	local positive_single=0 negative_single=0 positive_multi=0 negative_multi=0 action_is_our_branch=0 placed_constrains_in_a_branch=0 have_constrains=0
+	local positive_single=0 negative_single=0 positive_multi=0 negative_multi=0 action_is_our_branch=0 placed_protected_in_a_branch=0 have_protected=0
 	#
 	# positive_single               - counts the number of positive parameters that have just one possible value
 	# negative_single               - counts the number of negative parameters that have just one possible value
 	# positive_multi                - counts the number of positive parameters that have multiple values
 	# negative_multi                - counts the number of negative parameters that have multiple values
 	# action_is_our_branch          - is set when we create our branch
-	# placed_constrains_in_a_branch - is set if we place the log, loglimit, accounting, limit, iplimit, ipset in our branch
-	# have_constrains               - is set when there are constrained parameters
+	# placed_protected_in_a_branch  - is set if we place the log, loglimit, accounting, limit, connlimit, ipset in our branch
+	# have_protected                - is set when there are protected parameters
 	#
 	if [ "${#inface[*]}" -gt 1 ]
 	then
@@ -7171,24 +7152,28 @@ rule() {
 	else
 		if [ -z "${srcnot}" ]; then (( positive_single += 1 )); else (( negative_single += 1)); fi
 	fi
+	[[ "${src4[*]}" =~ 'ipset:' ]] && src_has_ipset=1
 	if [ "${#dst4[*]}" -gt 1 ]
 	then
 		if [ -z "${dstnot}" ]; then (( positive_multi += 1 )) ; else (( negative_multi += 1)) ; fi
 	else
 		if [ -z "${dstnot}" ]; then (( positive_single += 1 )); else (( negative_single += 1)); fi
 	fi
+	[[ "${dst4[*]}" =~ 'ipset:' ]] && dst_has_ipset=1
 	if [ "${#src6[*]}" -gt 1 ]
 	then
 		if [ -z "${srcnot}" ]; then (( positive_multi += 1 )) ; else (( negative_multi += 1)) ; fi
 	else
 		if [ -z "${srcnot}" ]; then (( positive_single += 1 )); else (( negative_single += 1)); fi
 	fi
+	[[ "${src6[*]}" =~ 'ipset:' ]] && src_has_ipset=1
 	if [ "${#dst6[*]}" -gt 1 ]
 	then
 		if [ -z "${dstnot}" ]; then (( positive_multi += 1 )) ; else (( negative_multi += 1)) ; fi
 	else
 		if [ -z "${dstnot}" ]; then (( positive_single += 1 )); else (( negative_single += 1)); fi
 	fi
+	[[ "${dst6[*]}" =~ 'ipset:' ]] && dst_has_ipset=1
 	if [ "${#proto[*]}" -gt 1 ]
 	then
 		if [ -z "${protonot}" ]; then (( positive_multi += 1 )) ; else (( negative_multi += 1)) ; fi
@@ -7259,20 +7244,21 @@ rule() {
 
 
 	# ---------------------------------------------------------------------
-	# prepare the arguments of the constrained parameters
+	# prepare the arguments of the protected parameters
 
 	# limit
 	[ ! -z "${limit}" ] && limit_arg=("-m" "limit" "--limit" "${limit}" "--limit-burst" "${burst}")
 
-	# iplimit
-	[ ! -z "${iplimit}" ] && iplimit_arg=("-m" "iplimit" "--iplimit-above" "${iplimit}" "--iplimit-mask" "${iplimit_mask}")
+	# connlimit
+	[ ! -z "${connlimit}" ] && connlimit_arg=("-m" "connlimit" "--connlimit-above" "${connlimit}" "--connlimit-mask" "${connlimit_mask}")
 
 	# ipset
 	[ ! -z "${ipsetname}" ] && ipset_arg=("-m" "set" ${ipsetnot} "--match-set" "${ipsetname}" "${ipsetflags}" ${ipsetopts})
 
-	constrained_args=("${limit_arg[@]}" "${iplimit_arg[@]}" "${ipset_arg[@]}" ${custom})
+	protected_args=("${limit_arg[@]}" "${connlimit_arg[@]}" "${ipset_arg[@]}" ${custom})
 
-	[ ! -z "${constrained_args[*]}" -o ! -z "${accounting}" -o "${logrule}" = "limit" -o "${logrule}" = "normal" -o ! -z "${custom}" ] && have_constrains=1
+	[ ! -z "${protected_args[*]}" -o ! -z "${accounting}" -o "${logrule}" = "limit" -o "${logrule}" = "normal" -o ! -z "${custom}" ] && have_protected=1
+
 
 	# ---------------------------------------------------------------------
 	# process the negative rules
@@ -7363,7 +7349,7 @@ rule() {
 			mac=(any)
 		fi
 		
-		if [ ! -z "${srcnot}" -a \( "${#src4[*]}" -gt 1 -o "${#src6[*]}" -gt 1 \) ]
+		if [ ! -z "${srcnot}" -a \( ${src_has_ipset} -eq 1 -o "${#src4[*]}" -gt 1 -o "${#src6[*]}" -gt 1 \) ]
 		then
 			for ipv in ${ipvall}
 			do
@@ -7397,7 +7383,7 @@ rule() {
 			src6=(any)
 		fi
 		
-		if [ ! -z "${dstnot}" -a \( "${#dst4[*]}" -gt 1 -o "${#dst6[*]}" -gt 1 \) ]
+		if [ ! -z "${dstnot}" -a \( ${dst_has_ipset} -eq 1 -o "${#dst4[*]}" -gt 1 -o "${#dst6[*]}" -gt 1 \) ]
 		then
 			for ipv in ${ipvall}
 			do
@@ -7585,15 +7571,15 @@ rule() {
 				[ ! -z "${accounting}"  ] && ( ${iptables} ${table} -A "${negative_chain}" -m nfacct --nfacct-name "${accounting}" || failed=$[failed + 1] )
 
 				# the original action of the rule
-				rule_action_param ${iptables} "${negative_action}" "" "" "${table}" "${action_param[@]}" -- ${table} -A "${negative_chain}" "${constrained_args[@]}" || failed=$[failed + 1]
+				rule_action_param ${iptables} "${negative_action}" "" "" "${table}" "${action_param[@]}" -- ${table} -A "${negative_chain}" "${protected_args[@]}" || failed=$[failed + 1]
 			done
 
-			# notify the positive rules that we have placed all constrains in the branch
-			placed_constrains_in_a_branch=1
+			# notify the positive rules that we have placed all protected params in the branch
+			placed_protected_in_a_branch=1
 
 			# empty the contrained parameters
 			# so that the positive rules do not add them again
-			constrained_args=()
+			protected_args=()
 
 			# The positive rules will just send traffic to a
 			# chains - there is not need for params
@@ -7613,20 +7599,22 @@ rule() {
 	# Since we are trying to avoid branching, we will do this, only if there are
 	# positive_multi rules
 
-	if [ ${have_constrains} -eq 1 -a ${positive_multi} -gt 0 ]
+	# TODO: we probably have to branch if src/dst include an ipset
+
+	if [ ${have_protected} -eq 1 -a ${positive_multi} -gt 0 ]
 	then
 		if [ "${action}" = "RETURN" ]
 		then
 			warning "Generated iptables rules may not be optimal."
 		else
-			# echo >&2 "    >>> ${FUNCNAME}: MOVING CONSTRAINS TO BRANCH"
+			# echo >&2 "    >>> ${FUNCNAME}: MOVING PROTECTED PARAMS TO BRANCH"
 
 			get_next_dynamic_counter DYNAMIC_CHAIN_COUNTER
-			constrains_chain="${chain}.${DYNAMIC_CHAIN_COUNTER}"
+			protected_chain="${chain}.${DYNAMIC_CHAIN_COUNTER}"
 			
-			iptables_both ${table} -N "${constrains_chain}"
-			constrains_action="${action}"
-			action="${constrains_chain}"
+			iptables_both ${table} -N "${protected_chain}"
+			protected_action="${action}"
+			action="${protected_chain}"
 
 			# notify the positive rules that the action is our banch
 			action_is_our_branch=1
@@ -7640,20 +7628,20 @@ rule() {
 
 				# since this is the target of the positive rules,
 				# logging and accounting can be attached here				
-				[ "$logrule" = "limit"  ] && ( ${iptables} ${table} -A "${constrains_chain}" -m limit --limit "${FIREHOL_LOG_FREQUENCY}" --limit-burst "${FIREHOL_LOG_BURST}" -j ${FIREHOL_LOG_MODE} ${FIREHOL_LOG_OPTIONS} "${logopts_arg[@]}" || failed=$[failed + 1] )
-				[ "$logrule" = "normal" ] && ( ${iptables} ${table} -A "${constrains_chain}" -j ${FIREHOL_LOG_MODE} ${FIREHOL_LOG_OPTIONS} "${logopts_arg[@]}" || failed=$[failed + 1] )
-				[ ! -z "${accounting}"  ] && ( ${iptables} ${table} -A "${constrains_chain}" -m nfacct --nfacct-name "${accounting}" || failed=$[failed + 1] )
+				[ "$logrule" = "limit"  ] && ( ${iptables} ${table} -A "${protected_chain}" -m limit --limit "${FIREHOL_LOG_FREQUENCY}" --limit-burst "${FIREHOL_LOG_BURST}" -j ${FIREHOL_LOG_MODE} ${FIREHOL_LOG_OPTIONS} "${logopts_arg[@]}" || failed=$[failed + 1] )
+				[ "$logrule" = "normal" ] && ( ${iptables} ${table} -A "${protected_chain}" -j ${FIREHOL_LOG_MODE} ${FIREHOL_LOG_OPTIONS} "${logopts_arg[@]}" || failed=$[failed + 1] )
+				[ ! -z "${accounting}"  ] && ( ${iptables} ${table} -A "${protected_chain}" -m nfacct --nfacct-name "${accounting}" || failed=$[failed + 1] )
 
 				# the original action of the rule
-				rule_action_param ${iptables} "${constrains_action}" "" "" "${table}" "${action_param[@]}" -- ${table} -A "${constrains_chain}" "${constrained_args[@]}" || failed=$[failed + 1]
+				rule_action_param ${iptables} "${protected_action}" "" "" "${table}" "${action_param[@]}" -- ${table} -A "${protected_chain}" "${protected_args[@]}" || failed=$[failed + 1]
 			done
 
-			# notify the positive rules that we have placed all constrains in the branch
-			placed_constrains_in_a_branch=1
+			# notify the positive rules that we have placed all protected in the branch
+			placed_protected_in_a_branch=1
 
 			# empty the contrained parameters
 			# so that the positive rules do not add them again
-			constrained_args=()
+			protected_args=()
 
 			# The positive rules will just send traffic to a
 			# chains - there is not need for params
@@ -7973,7 +7961,7 @@ rule() {
 		"${s_arg[@]}"           "${sp_arg[@]}"    "${d_arg[@]}"       "${dp_arg[@]}"    "${mc_arg[@]}"    "${tos_arg[@]}" \
 		"${owner_arg[@]}"       "${uid_arg[@]}"   "${gid_arg[@]}"     "${pid_arg[@]}"   "${sid_arg[@]}"   "${cmd_arg[@]}" \
 		"${addrtype_arg[@]}"    "${stp_arg[@]}"   "${dtp_arg[@]}"     "${state_arg[@]}" "${mark_arg[@]}"  "${dscp_arg[@]}" \
-		"${constrained_args[@]}")
+		"${protected_args[@]}")
 
 	[ "$logrule" = "limit"  ] && ( ${iptables} ${table} -A "${chain}" "${basecmd[@]}" -m limit --limit "${FIREHOL_LOG_FREQUENCY}" --limit-burst "${FIREHOL_LOG_BURST}" -j ${FIREHOL_LOG_MODE} ${FIREHOL_LOG_OPTIONS} "${logopts_arg[@]}" || failed=$[failed + 1] )
 	[ "$logrule" = "normal" ] && ( ${iptables} ${table} -A "${chain}" "${basecmd[@]}" -j ${FIREHOL_LOG_MODE} ${FIREHOL_LOG_OPTIONS} "${logopts_arg[@]}" || failed=$[failed + 1] )
