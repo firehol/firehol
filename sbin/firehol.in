@@ -1813,7 +1813,7 @@ both() {
 	if [ "${command}" = "interface" -o  "${command}" = "router" ]
 	then
 		# Old rules must be closed before these apply
-		FIREHOL_NS_PREP=$FIREHOL_DEFAULT_NAMESPACE
+		FIREHOL_NS_PREP=${FIREHOL_DEFAULT_NAMESPACE}
 		$command "${@}"
 		status=$?
 	else
@@ -4652,7 +4652,7 @@ version() {
 	then
 		ENABLE_IPV6=0
 		FIREHOL_DEFAULT_NAMESPACE=ipv4
-		FIREHOL_NS_CURR=$FIREHOL_DEFAULT_NAMESPACE
+		FIREHOL_NS_CURR=${FIREHOL_DEFAULT_NAMESPACE}
 		FIREHOL_NS_STACK=()
 		FIREHOL_NS_PREP=
 		warning "Running version 5 config. Update configuration to version 6 for IPv6 support. See http://firehol.org/upgrade/#config-version-${FIREHOL_VERSION}"
@@ -6165,15 +6165,6 @@ rule() {
 				;;
 				
 			src|src4|src6|dst|dst4|dst6)
-				if [ "${param//*4/4}" = "4" ]
-				then
-					push_namespace ipv4 || return 1
-				elif [ "${param//*6/6}" = "6" ]
-				then
-					push_namespace ipv6 || return 1
-				else
-					push_namespace "${FIREHOL_NS_CURR}"
-				fi
 				if [ \( "${param//src*/src}" = "src" -a ${reverse} -eq 0 \) -o \( "${param/dst*/dst}" = "dst" -a ${reverse} -eq 1 \) ]
 				then
 					if running_ipv4; then
@@ -6202,7 +6193,6 @@ rule() {
 						test -z "${dst6[*]}"	&& error "Cannot accept an empty 'dst6'."	&& return 1
 					fi
 				fi
-				pop_namespace
 				shift
 				;;
 				
