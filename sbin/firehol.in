@@ -616,6 +616,12 @@ FIREHOL_DROP_ORPHAN_TCP_ACK_FIN=1
 # ----------------------------------------------------------------------
 # IPSET OPTIONS
 
+# options that are appended to -m ipset matches when the ipset
+# is used instead of src and dst IPs.
+# The default is to prevent updating ipset counters
+# Default: ! --update-counters ! --update-subcounters
+IPSET_SRC_DST_OPTIONS="! --update-counters ! --update-subcounters"
+
 # A recent ipset command uses these:
 IPSET_CREATE_OPTION="create"
 IPSET_DESTROY_OPTION="destroy"
@@ -1636,7 +1642,10 @@ unroutable_ips() {
 	return 0
 }
 
-
+# TODO:
+# This is is problematic when ENABLE_IPx=0
+# is given in the config file and not in the
+# defaults
 if [ $ENABLE_IPV4 -eq 1 -a $ENABLE_IPV6 -eq 1 ]
 then
 	FIREHOL_DEFAULT_NAMESPACE=both
@@ -7385,7 +7394,7 @@ rule() {
 							[ ${IPSET_WARNING} -eq 1 ] && ipset_warning
 							s="${s/ipset:/}"
 							test -z "${FIREHOL_IPSETS_USED[$s]}" && FIREHOL_IPSETS_USED[$s]="USED"
-							${iptables} ${table} -A "${negative_chain}" -m set ${not} --match-set "${s}" src "!" --update-counters "!" --update-subcounters -j RETURN
+							${iptables} ${table} -A "${negative_chain}" -m set ${not} --match-set "${s}" src ${IPSET_SRC_DST_OPTIONS} -j RETURN
 							;;
 						*)
 							${iptables} ${table} -A "${negative_chain}" ${not} -s "${s}" -j RETURN
@@ -7419,7 +7428,7 @@ rule() {
 							[ ${IPSET_WARNING} -eq 1 ] && ipset_warning
 							d="${d/ipset:/}"
 							test -z "${FIREHOL_IPSETS_USED[$d]}" && FIREHOL_IPSETS_USED[$d]="USED"
-							${iptables} ${table} -A "${negative_chain}" -m set ${not} --match-set "${d}" dst "!" --update-counters "!" --update-subcounters -j RETURN
+							${iptables} ${table} -A "${negative_chain}" -m set ${not} --match-set "${d}" dst ${IPSET_SRC_DST_OPTIONS} -j RETURN
 							;;
 						*)
 							${iptables} ${table} -A "${negative_chain}" ${not} -d "${d}" -j RETURN
@@ -7915,7 +7924,7 @@ rule() {
 				[ ${IPSET_WARNING} -eq 1 ] && ipset_warning
 				s="${s/ipset:/}"
 				test -z "${FIREHOL_IPSETS_USED[$s]}" && FIREHOL_IPSETS_USED[$s]="USED"
-				s_arg=("-m" "set" ${srcnot} "--match-set" "${s}" "src" "!" "--update-counters" "!" "--update-subcounters")
+				s_arg=("-m" "set" ${srcnot} "--match-set" "${s}" "src" ${IPSET_SRC_DST_OPTIONS})
 				;;
 
 			*)
@@ -7935,7 +7944,7 @@ rule() {
 				[ ${IPSET_WARNING} -eq 1 ] && ipset_warning
 				d="${d/ipset:/}"
 				test -z "${FIREHOL_IPSETS_USED[$d]}" && FIREHOL_IPSETS_USED[$d]="USED"
-				d_arg=("-m" "set" ${dstnot} "--match-set" "${d}" "dst" "!" "--update-counters" "!" "--update-subcounters")
+				d_arg=("-m" "set" ${dstnot} "--match-set" "${d}" "dst" ${IPSET_SRC_DST_OPTIONS})
 				;;
 
 			*)
@@ -10284,7 +10293,17 @@ progress "Processing file '${FIREHOL_CONFIG}'"
 ret=0
 
 # check if the user has given any iptables commands directly.
-if [ ! -z "`${CAT_CMD} ${FIREHOL_CONFIG} | ${EGREP_CMD} "(${IPTABLES_CMD}|${IP6TABLES_CMD})"`" ]
+i="${IPTABLES_CMD}"
+if [ ! -z "${IP6TABLES_CMD}" ]
+then
+	if [ -z "${i}" ]
+	then
+		i="${IP6TABLES_CMD}"
+	else
+		i="(${i}|${IP6TABLES_CMD})"
+	fi
+fi
+if [ ! -z "`${CAT_CMD} ${FIREHOL_CONFIG} | ${EGREP_CMD} "${i}"`" ]
 then
 	echo >&2
 	echo >&2
