@@ -462,7 +462,7 @@ FIREHOL_AUTOSAVE6=
 
 # If enabled FireHOL will create a chain per server/client statement and jump
 # to it from the main flow. Normaly this jump is only required for clarity.
-# So it is adviced to leave this setting to 0, for a more efficient firewall.
+# So it is advised to leave this setting to 0, for a more efficient firewall.
 # Default: 0
 FIREHOL_CHAIN_PER_SERVICE=0
 
@@ -487,10 +487,10 @@ FIREHOL_PROTECTED_MATCHES=1
 # generated will be.
 # 'optimal' generates a production state firewall optimized for speed.
 # It makes FireHOL accept all packets of ESTABLISHED connections at the
-# beginning of the firewall, thus practicaly eliminating the need for
+# beginning of the firewall, thus practically eliminating the need for
 # filtering ESTABLISHED traffic. Packet filtering is only done for NEW
 # sockets.
-# 'accurate' generates a firewall that precicely matches all packets in both
+# 'accurate' generates a firewall that precisely matches all packets in both
 # directions: client->server and server->client
 # This setting affects logging, accounting and stateless rules.
 # When it is set to 'optimal', logginng will only log the first packet of NEW
@@ -525,7 +525,7 @@ FIREHOL_DEFAULT_CT_HELPERS=0
 # the stateful packet filtering in the 'raw' table, to restrict as much as
 # possible the flows the helper will use, however the 'raw' table lacks
 # certain features, like a FORWARD chain.
-# Thus, for helpers required when routing traffic you are adviced to define the
+# Thus, for helpers required when routing traffic you are advised to define the
 # router statements with src/dst parameters (since 'outface' cannot be defined
 # in the 'raw' table, FireHOL will only use 'inface', 'src' and 'dst' to limit
 # the use of the helper.)
@@ -2169,6 +2169,10 @@ client_microsoft_ds_ports="default"
 
 server_mms_ports="tcp/1755 udp/1755"
 client_mms_ports="default"
+helper_mms="mms"
+# this will produce warnings on most distribution
+# because the mms module is not there:
+# ALL_SHOULD_ALSO_RUN="${ALL_SHOULD_ALSO_RUN} mms"
 
 server_ms_ds_ports="${server_microsoft_ds_ports}"
 client_ms_ds_ports="${client_microsoft_ds_ports}"
