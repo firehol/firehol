@@ -1,3 +1,12 @@
+firehol (2.0.1) stable; urgency=low
+
+  *  Fix srcmac/dstmac with IPv6
+
+  *  Stop configs embedding iptables -I statements becoming corrupted.
+     - Fixes #41 by deleting activation rules by spec not number.
+
+ -- Phil Whineray <phil@sanewall.org>  Sun, 15 Feb 2015 15:07:00 +0100
+
 firehol (2.0.0) stable; urgency=low
 
   * No changes from 2.0.0-rc.3
