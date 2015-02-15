@@ -1,3 +1,21 @@
+firehol (3.0.0-rc.1) unstable; urgency=low
+
+  * Performance improvements
+    - Both the script and resulting firewalls are faster
+    - Choose original complete bi-directional or even faster runtime matching
+
+  * New firewall features
+    - ipset support and management
+    - IDS and port knocking with traps
+    - multiple mark definitions
+    - conntrack helpers
+    - experimental tproxy support
+    - separate default settings file
+
+  * Introduction of link-balancer script
+
+ -- Phil Whineray <phil@sanewall.org>  Fri, 15 Feb 2015 17:24:00 +0100
+
 firehol (2.0.0) stable; urgency=low
 
   * No changes from 2.0.0-rc.3

@@ -1,3 +1,24 @@
+2015/02/15:
+
+Release of version 3.0.0-rc.1
+
+This version introduces changes and improvements over a wide spectrum.
+
+- Performance improvements: both the script and resulting firewalls are
+  faster. Choose original complete bi-directional or even faster runtime
+  matching.
+
+New firewall features including:
+
+- ipset support and management
+- IDS and port knocking with traps
+- multiple mark definitions
+- conntrack helpers
+- experimental tproxy support
+- separate default settings file
+
+Introduction of link-balancer script.
+
 2014/10/24:
 
 Release of version 2.0.0
