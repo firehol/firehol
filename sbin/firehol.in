@@ -3437,7 +3437,7 @@ synproxy46() { both synproxy "${@}"; }
 synproxy() {
 	work_realcmd_helper ${FUNCNAME} "${@}"
 
-	local where="${1}" chain=
+	local where="${1}" chain= rchain=
 	shift
 
 	set_work_function -ne "Initializing ${FUNCNAME}"
@@ -3452,9 +3452,9 @@ synproxy() {
 	do
 		case "${chain^^}" in
 			PRE|PREROUTING)		error "There is no PREROUTING chain in table filter"; return 1 ;;
-			IN|INPUT)		chain="INPUT" ;;
+			IN|INPUT)		chain="INPUT"; rchain="OUTPUT" ;;
 			OUT|OUTPUT)		error "There is no point to setup SYNPROXY on OUTPUT"; return 1 ;;
-			PASS|FORWARD)		chain="FORWARD" ;;
+			PASS|FORWARD)		chain="FORWARD"; rchain="FORWARD" ;;
 			POST|POSTROUTING)	error "There is no POSTROUTING chain in table filter"; return 1 ;;
 		esac
 
@@ -3462,8 +3462,10 @@ synproxy() {
 		# most probably we will have to support tcp options per call for this helper
 
 		set_work_function -ne "Sending TCP packets to SYNPROXY"
-
 		rule table filter chain ${chain} insert_as ${FIREHOL_SYNPROXY_COUNTER} "${@}" proto tcp state INVALID,UNTRACKED action SYNPROXY --sack-perm --timestamp --wscale 7 --mss 1460 || return 1
+
+		set_work_function -ne "Allowing SYNPROXY to establish the connection"
+		rule table filter chain ${rchain} reverse "${@}" proto tcp state INVALID,UNTRACKED action ACCEPT
 	done
 
 	(( FIREHOL_SYNPROXY_COUNTER += 1 ))
@@ -6098,6 +6100,12 @@ close_master() {
 		ip6tables -A FORWARD -m conntrack --ctstate RELATED -p icmpv6 -j ACCEPT
 	fi
 
+	# TEST
+	# this should not match anything
+	#iptables -A INPUT -m conntrack --ctstate RELATED -j ACCEPT
+	#iptables -A OUTPUT -m conntrack --ctstate RELATED -j ACCEPT
+	#iptables -A FORWARD -m conntrack --ctstate RELATED -j ACCEPT
+
 	set_work_function "Setting default unmatched policy (options: UNMATCHED_INPUT_POLICY UNMATCHED_OUTPUT_POLICY UNMATCHED_ROUTER_POLICY)"
 
 	rule chain INPUT loglimit "IN-unknown" action ${UNMATCHED_INPUT_POLICY} || return 1
@@ -6702,6 +6710,10 @@ rule() {
 				;;
 				
 			src|src4|src6|dst|dst4|dst6)
+				if [ "${param/*4/4}" = "4" ]; then push_namespace ipv4 || return 1;
+				elif [ "${param/*6/6}" = "6" ]; then push_namespace ipv6 || return 1;
+				else push_namespace "${FIREHOL_NS_CURR}" || return 1; fi
+				
 				if [ \( "${param//src*/src}" = "src" -a ${reverse} -eq 0 \) -o \( "${param/dst*/dst}" = "dst" -a ${reverse} -eq 1 \) ]
 				then
 					if running_ipv4
@@ -6735,6 +6747,7 @@ rule() {
 					fi
 				fi
 				shift
+				pop_namespace
 				;;
 				
 			srctype|dsttype)
