@@ -511,7 +511,7 @@ FIREHOL_RULESET_MODE="accurate"
 #    flows used in the firewall, and/or
 # b) use the cthelper firehol helper to define the flows in firehol.conf
 # Default: 0 to disable conntrack automatic helper assignment by kernel
-FIREHOL_DEFAULT_CT_HELPERS=0
+FIREHOL_DEFAULT_CT_HELPERS=1
 
 # When enabling this option, FireHOL will create entries in the 'raw' table to
 # configure the conntrack helpers required (-j CT --helper).
@@ -524,16 +524,18 @@ FIREHOL_DEFAULT_CT_HELPERS=0
 # FireHOL will do its best to mimic the flow of traffic required to match
 # the stateful packet filtering in the 'raw' table, to restrict as much as
 # possible the flows the helper will use, however the 'raw' table lacks
-# certain features, like a FORWARD chain.
-# Thus, for helpers required when routing traffic you are advised to define the
-# router statements with src/dst parameters (since 'outface' cannot be defined
-# in the 'raw' table, FireHOL will only use 'inface', 'src' and 'dst' to limit
-# the use of the helper.)
+# certain features, like a FORWARD chain and is applied outside NAT.
+# This means we cannot match 'outface' in the raw table, and if you give
+# NATed IPs as 'src' or 'dst' to your 'interface' and 'router' statements,
+# FIREHOL_AUTO_CT_HELPERS=1 will not be able to match the traffic properly.
+# The same applies if you NAT the server ports.
+# In all these cases, you should use the cthelper FireHOL helper to
+# match the traffic properly.
 # Keep in mind that currently only sip, ftp, tftp, and sane helpers can be
 # configured using this method for IPv4 and IPv6, while irc and pptp only for
 # IPv4. For all others, this option is ignored.
 # Default: 1 to enable conntrack automatic helper assignment by FireHOL
-FIREHOL_AUTO_CT_HELPERS=1
+FIREHOL_AUTO_CT_HELPERS=0
 
 # If set to non-empty, FireHOL will apply a global reverse filtering on all
 # traffic. If you use connection tracker helpers, you should enable this.
@@ -3391,6 +3393,7 @@ fi
 # XXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXX
 # ------------------------------------------------------------------------------
 
+FIREHOL_CTHELPER_WARNING=0
 cthelper4() { ipv4 cthelper "${@}"; }
 cthelper6() { ipv6 cthelper "${@}"; }
 cthelper46() { both cthelper "${@}"; }
@@ -3403,6 +3406,12 @@ cthelper() {
 	set_work_function -ne "Initializing ${FUNCNAME}"
 	
 	require_work clear || ( error "${FUNCNAME} cannot be used in '${work_cmd}'. Put it before any '${work_cmd}' definition."; return 1 )
+
+	if [ ${FIREHOL_DEFAULT_CT_HELPERS} -eq 1 -a ${FIREHOL_CTHELPER_WARNING} -eq 0 ]
+	then
+		warning "Kernel automatic helper assignment on all traffic is enabled. You should set FIREHOL_DEFAULT_CT_HELPERS=0 to disable it since you are using cthelper to configure the helpers."
+		FIREHOL_CTHELPER_WARNING=1
+	fi
 
 	case "${helper}" in
 		amanda) ;;
