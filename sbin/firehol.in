@@ -3430,7 +3430,8 @@ fi
 # XXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXX
 # ------------------------------------------------------------------------------
 
-FIREHOL_SYNPROXY_COUNTER=1
+FIREHOL_SYNPROXY_OPTIONS="--sack-perm --timestamp --wscale 7 --mss 1460"
+FIREHOL_SYNPROXY_COUNTER=0
 synproxy4() { ipv4 synproxy "${@}"; }
 synproxy6() { ipv6 synproxy "${@}"; }
 synproxy46() { both synproxy "${@}"; }
@@ -3440,35 +3441,35 @@ synproxy() {
 	local where="${1}" chain= rchain=
 	shift
 
-	set_work_function -ne "Initializing ${FUNCNAME}"
+	(( FIREHOL_SYNPROXY_COUNTER += 1 ))
+	set_work_function -ne "Initializing ${FUNCNAME} No ${FIREHOL_SYNPROXY_COUNTER}"
 	
 	require_work clear || ( error "${FUNCNAME} cannot be used in '${work_cmd}'. Put it before any '${work_cmd}' definition."; return 1 )
 
 	set_work_function -ne "Untracking the SYNPROXY packets in table 'raw'"
 
-	rule table raw chain PREROUTING insert_as ${FIREHOL_SYNPROXY_COUNTER} "${@}" proto tcp custom '-m tcp --syn' action CT --notrack || return 1
+	rule table raw chain PREROUTING "${@}" proto tcp custom '-m tcp --syn' action CT --notrack || return 1
 
 	for chain in ${where//,/ }
 	do
 		case "${chain^^}" in
-			PRE|PREROUTING)		error "There is no PREROUTING chain in table filter"; return 1 ;;
+			PRE|PREROUTING)		error "SYNPROXY cannot be used in PREROUTING"; return 1 ;;
 			IN|INPUT)		chain="INPUT"; rchain="OUTPUT" ;;
 			OUT|OUTPUT)		error "There is no point to setup SYNPROXY on OUTPUT"; return 1 ;;
 			PASS|FORWARD)		chain="FORWARD"; rchain="FORWARD" ;;
-			POST|POSTROUTING)	error "There is no POSTROUTING chain in table filter"; return 1 ;;
+			POST|POSTROUTING)	error "SYNPROXY cannot be used in PREROUTING"; return 1 ;;
 		esac
 
 		# FIXME
 		# most probably we will have to support tcp options per call for this helper
 
 		set_work_function -ne "Sending TCP packets to SYNPROXY"
-		rule table filter chain ${chain} insert_as ${FIREHOL_SYNPROXY_COUNTER} "${@}" proto tcp state INVALID,UNTRACKED action SYNPROXY --sack-perm --timestamp --wscale 7 --mss 1460 || return 1
+		rule table filter chain ${chain} insert_as ${FIREHOL_SYNPROXY_COUNTER} "${@}" proto tcp state INVALID,UNTRACKED action SYNPROXY ${FIREHOL_SYNPROXY_OPTIONS} || return 1
 
 		set_work_function -ne "Allowing SYNPROXY to establish the connection"
-		rule table filter chain ${rchain} reverse "${@}" proto tcp state INVALID,UNTRACKED action ACCEPT
+		rule table filter chain ${rchain} insert_as ${FIREHOL_SYNPROXY_COUNTER} reverse "${@}" proto tcp state INVALID,UNTRACKED action ACCEPT
 	done
 
-	(( FIREHOL_SYNPROXY_COUNTER += 1 ))
 	FIREHOL_TCP_SYN_COOKIES=1
 	FIREHOL_TCP_TIMESTAMPS=1
 	FIREHOL_DROP_INVALID=1
@@ -6713,7 +6714,7 @@ rule() {
 				if [ "${param/*4/4}" = "4" ]; then push_namespace ipv4 || return 1;
 				elif [ "${param/*6/6}" = "6" ]; then push_namespace ipv6 || return 1;
 				else push_namespace "${FIREHOL_NS_CURR}" || return 1; fi
-				
+
 				if [ \( "${param//src*/src}" = "src" -a ${reverse} -eq 0 \) -o \( "${param/dst*/dst}" = "dst" -a ${reverse} -eq 1 \) ]
 				then
 					if running_ipv4
@@ -7081,6 +7082,12 @@ rule() {
 
 					SYNPROXY)
 						action="SYNPROXY"
+						if [ ! "${proto[*]}" = "tcp" ]
+						then
+							error "SYNPROXY cannot only be used with TCP, but proto is ${proto[*]}."
+							return 1
+						fi
+						require_protocol_with_action=("${proto[@]}")
 						while [ ! -z "${1}" ]
 						do
 							case "${1}" in
