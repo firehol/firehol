@@ -93,14 +93,15 @@ FIREHOL_DEFAULT_WORKING_DIRECTORY="${PWD}"
 # Make sure we don't get localized results
 export LC_ALL=C
 
+RUNNING_ON_TERMINAL=0
 if [ "z$1" = "z-nc" ]
 then
 	shift
 else
-	# Enable colors
-	if [ $[$(tput colors 2>/dev/null)] -ge 8 ]
+	test -t 1 && RUNNING_ON_TERMINAL=1
+	if [ -t 1 -a $[$(tput colors 2>/dev/null)] -ge 8 ]
 	then
-		FIREHOL_ENABLE_SPINNER=0
+		# Enable colors
 		COLOR_RESET="\e[0m"
 		COLOR_BLACK="\e[30m"
 		COLOR_RED="\e[31m"
@@ -796,6 +797,9 @@ MULTICAST_IPV4="224.0.0.0/4"
 MULTICAST_IPV6="FF00::/16"
 
 # --- END OF FIREHOL DEFAULTS ---
+
+# disable the spinner when we don't run on a terminal
+test ${RUNNING_ON_TERMINAL} -eq 0 && FIREHOL_ENABLE_SPINNER=0
 
 # load the defaults if they exist
 if [ -f "${FIREHOL_CONFIG_DIR}/firehol-defaults.conf" ]
@@ -3459,7 +3463,7 @@ synproxy() {
 
 		set_work_function -ne "Sending TCP packets to SYNPROXY"
 
-		rule table filter chain ${chain} insert_as ${FIREHOL_SYNPROXY_COUNTER} "${@}" proto tcp custom '-m tcp' state INVALID,UNTRACKED action SYNPROXY --sack-perm --timestamp --wscale 7 --mss 1460 || return 1
+		rule table filter chain ${chain} insert_as ${FIREHOL_SYNPROXY_COUNTER} "${@}" proto tcp state INVALID,UNTRACKED action SYNPROXY --sack-perm --timestamp --wscale 7 --mss 1460 || return 1
 	done
 
 	(( FIREHOL_SYNPROXY_COUNTER += 1 ))

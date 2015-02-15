@@ -64,7 +64,7 @@ get_version() {
 VERSION=$(get_version)
 
 # Enable colors
-if [ $[$(tput colors 2>/dev/null)] -ge 8 ]
+if [ -t 1 -a $[$(tput colors 2>/dev/null)] -ge 8 ]
 then
 	COLOR_RESET="\e[0m"
 	COLOR_BLACK="\e[30m"
@@ -358,7 +358,7 @@ trap lb_exit INT
 # -----------------------------------------------------------------------------
 # COMMON FUNCTIONS
 
-log() {
+syslog() {
 	if [ ${DRY_RUN} -eq 0 ]
 	then
 		$logger_cmd -p daemon.info -t "LinkBalancer" "${*}"
@@ -386,7 +386,7 @@ DEBUGCMD() {
 
 warning() {
 	local line="$(config_line)"
-	log "WARNING ${line} ${@}"
+	syslog "WARNING ${line} ${@}"
 
 	echo >&2
 	echo >&2 -e "${COLOR_YELLOW}${COLOR_BOLD}WARNING ${line} $@ ${COLOR_RESET}"
@@ -397,7 +397,7 @@ warning() {
 
 error() {
 	local line="$(config_line)"
-	log "ERROR ${line} ${@}"
+	syslog "ERROR ${line} ${@}"
 
 	echo >&2
 	echo >&2 -e "${COLOR_RED}${COLOR_BOLD}ERROR ${line} $@ ${COLOR_RESET}"
@@ -437,7 +437,7 @@ action() {
 		then
 			warning "Command: '${@}' exited with code $ret."
 		else
-			log "Successfuly run: '${@}'."
+			syslog "Successfuly run: '${@}'."
 		fi
 
 		return $ret
@@ -456,7 +456,7 @@ loadfile() {
 	local file="$1"; shift
 
 	cd "${LB_CONFIG_DIR}"
-	test ! -f "${file}" && log "WARNING: file '${file}' does not exist."
+	test ! -f "${file}" && syslog "WARNING: file '${file}' does not exist."
 	$cat_cmd "${file}" | sed -e "s/#.*$//g" | trim_spaces | $tr_cmd '\n' ' '
 	local ret=$?
 	cd "${LB_RUN_DIR}"
@@ -1117,7 +1117,7 @@ update_table() {
 			local context="fallback"
 
 			echo >&2 "   USING fallback gateways!"
-			log "Using fallback gateways for table ${table}."
+			syslog "Using fallback gateways for table ${table}."
 		fi
 	fi
 
@@ -1980,7 +1980,7 @@ do
 	shift
 done
 
-log "Started"
+syslog "Started"
 
 if [ ! -f "${LB_CONFIG}" ]
 then
