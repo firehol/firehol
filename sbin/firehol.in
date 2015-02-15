@@ -6702,51 +6702,32 @@ rule() {
 				;;
 				
 			src|src4|src6|dst|dst4|dst6)
-				local want=
 				if [ \( "${param//src*/src}" = "src" -a ${reverse} -eq 0 \) -o \( "${param/dst*/dst}" = "dst" -a ${reverse} -eq 1 \) ]
 				then
-					if [ "${param}" = "src4" -o "${param}" = "dst4" ]
-					then
-						want="src4"
-					elif [ "${param}" = "src6" -o "${param}" = "dst6" ]
-					then
-						want="src6"
-					else
-						running_ipv4 && want="src4"
-						running_ipv6 && want="src6"
-					fi
-
-					if [ "${want}" = "src4" ]
+					if running_ipv4
 					then
 						src4not="${not}"
 						test ${softwarnings} -eq 1 -a ! "${src4[*]}" = "default" && softwarning "Overwriting param: src4 '${src4[*]}' becomes '${1}'"
 						src4=(${1//,/ })
 						test -z "${src4[*]}"	&& error "Cannot accept an empty 'src4'."	&& return 1
-					else
+					fi
+					if running_ipv6
+					then
 						src6not="${not}"
 						test ${softwarnings} -eq 1 -a ! "${src6[*]}" = "default" && softwarning "Overwriting param: src6 '${src6[*]}' becomes '${1}'"
 						src6=(${1//,/ })
 						test -z "${src6[*]}"	&& error "Cannot accept an empty 'src6'."	&& return 1
 					fi
 				else
-					if [ "${param}" = "src4" -o "${param}" = "dst4" ]
-					then
-						want="dst4"
-					elif [ "${param}" = "src6" -o "${param}" = "dst6" ]
-					then
-						want="dst6"
-					else
-						running_ipv4 && want="dst4"
-						running_ipv6 && want="dst6"
-					fi
-
-					if [ "${want}" = "dst4" ]
+					if running_ipv4
 					then
 						dst4not="${not}"
 						test ${softwarnings} -eq 1 -a ! "${dst4[*]}" = "default" && softwarning "Overwriting param: dst4 '${dst4[*]}' becomes '${1}'"
 						dst4=(${1//,/ })
 						test -z "${dst4[*]}"	&& error "Cannot accept an empty 'dst4'."	&& return 1
-					else
+					fi
+					if running_ipv6
+					then
 						dst6not="${not}"
 						test ${softwarnings} -eq 1 -a ! "${dst6[*]}" = "default" && softwarning "Overwriting param: dst6 '${dst6[*]}' becomes '${1}'"
 						dst6=(${1//,/ })
