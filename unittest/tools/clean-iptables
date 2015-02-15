@@ -1,0 +1,68 @@
+#!/usr/bin/perl -w
+
+use strict;
+
+my %tables = ();
+my $table = undef;
+
+my $skipnat = undef;
+my $noadvancedmark = undef;
+
+my @newarg = ();
+while (defined(my $arg = shift @ARGV)) {
+  if ($arg =~ /^-/) {
+    if ($arg eq "--skipnat") {
+      $skipnat = 1;
+    } else {
+      die "Unknown option $arg\n";
+    }
+  } else {
+    push @newarg, $arg;
+  }
+}
+@ARGV = @newarg;
+
+while (<>) {
+  # Remove comments
+  next if (/^#/);
+  s/\r//g;
+  chomp;
+
+  # Set any packet counters to 0
+  s/\[[0-9][0-9]*:[0-9][0-9]*\]$/[0:0]/;
+
+  # Hide differences between icmpv6 and icmp
+  s/icmp6-/icmp-/;
+  s/ipv6-icmp/icmp/;
+
+  # Hide IPv4/IPv6 differences
+  s/::([0-9][0-9]*\.[0-9][0-9]*\.[0-9][0-9]*\.[0-9][0-9]*)\/128/$1\/32/;
+
+  # Hide state/conntrack differences
+  s/-m state --state/-m conntrack --ctstate/g;
+
+  # New table starts
+  $table = $_ if (/^\*/);
+
+  die "No table for line $_" unless $table;
+
+  push @{$tables{$table}}, $_;
+}
+
+if ($skipnat or not defined($tables{"*nat"})) {
+  my @fakenat = ();
+  push @fakenat, "*nat";
+  push @fakenat, ":PREROUTING ACCEPT [0:0]";
+  push @fakenat, ":INPUT ACCEPT [0:0]";
+  push @fakenat, ":OUTPUT ACCEPT [0:0]";
+  push @fakenat, ":POSTROUTING ACCEPT [0:0]";
+  push @fakenat, "COMMIT";
+  $tables{"*nat"} = \@fakenat;
+}
+
+foreach $table (sort(keys(%tables))) {
+  my @lines = @{$tables{$table}};
+  print "#\n";
+  print join("\n", @lines) . "\n";
+  print "#\n";
+}

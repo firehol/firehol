@@ -1,0 +1,265 @@
+#!/bin/bash
+
+haderror=""
+
+if [ "`id -r -u`" != "0" ]
+then
+  echo "Must be root"
+  echo ""
+  haderror="Y"
+fi
+
+if [ ! -x tools/clean-iptables ]
+then
+  echo "Executable tools/clean-iptables script not found"
+  echo ""
+  haderror="Y"
+fi
+
+if [ "$1" != "-ok" ]
+then
+  echo "Do no run on a production system!"
+  echo ""
+  echo "This script will wreck your existing firewall, ultimately leaving"
+  echo "it empty. It saves and restores /etc/firehol but it is recommended"
+  echo "that you keep your own backup."
+  echo ""
+  echo "If you are running remotely your session will get interrupted"
+  echo "Ensure you can re-establish control."
+  echo ""
+  echo "Re-run with '-ok' as a parameter to proceed"
+  echo ""
+  haderror="Y"
+else
+  shift
+fi
+
+if [ "$haderror" -o $# -lt 1 ]
+then
+  echo "Usage: sudo ./unittest -ok all|test-dir|test-dir/test.conf [...]"
+  exit 1
+fi
+
+if ! MYTMP="`mktemp -d -t firehol-unittest-XXXXXX`"
+then
+            echo >&2
+            echo >&2
+            echo >&2 "Cannot create temporary directory."
+            echo >&2
+            exit 1
+fi
+
+ETCSAVE=/etc/firehol.save$$
+
+myexit() {
+  test -f $MYTMP/save && iptables-restore < $MYTMP/save
+  test -f $MYTMP/save6 && ip6tables-restore < $MYTMP/save6
+  test -d $ETCSAVE && rm -rf /etc/firehol && mv $ETCSAVE /etc/firehol
+  rm -f /var/run/firehol.lck
+  rm -rf $MYTMP
+  exit 0
+}
+
+trap myexit INT
+trap myexit HUP
+trap myexit 0
+
+TESTDIR=`pwd`/
+export TESTDIR
+
+iptables-save > $MYTMP/save || exit
+ip6tables-save > $MYTMP/save6 || exit
+test -d /etc/firehol && mv /etc/firehol $ETCSAVE
+mkdir -p /etc/firehol/services
+
+if [ $# -eq 1 -a "$1" = "all" ]
+then
+  find firehol fireqos link-balancer -type f -name '*.conf' | sort > $MYTMP/all-tests
+else
+  find "$@" -type f -name '*.conf' | sort > $MYTMP/all-tests
+fi
+
+newext() {
+  echo "$2" | sed -e "s;\.conf$;.$1;"
+}
+
+clear_iptables() {
+  test -d $MYTMP || exit 3
+  cat > $MYTMP/reset <<-!
+	*nat
+	:PREROUTING ACCEPT [0:0]
+	:INPUT ACCEPT [0:0]
+	:OUTPUT ACCEPT [0:0]
+	:POSTROUTING ACCEPT [0:0]
+	COMMIT
+	*mangle
+	:PREROUTING ACCEPT [0:0]
+	:INPUT ACCEPT [0:0]
+	:FORWARD ACCEPT [0:0]
+	:OUTPUT ACCEPT [0:0]
+	:POSTROUTING ACCEPT [0:0]
+	COMMIT
+	*filter
+	:INPUT ACCEPT [0:0]
+	:FORWARD ACCEPT [0:0]
+	:OUTPUT ACCEPT [0:0]
+	COMMIT
+	!
+  iptables-restore < $MYTMP/reset
+  st1=$?
+
+  cat > $MYTMP/reset <<-!
+	*nat
+	:PREROUTING ACCEPT [0:0]
+	:INPUT ACCEPT [0:0]
+	:OUTPUT ACCEPT [0:0]
+	:POSTROUTING ACCEPT [0:0]
+	COMMIT
+	*mangle
+	:PREROUTING ACCEPT [0:0]
+	:INPUT ACCEPT [0:0]
+	:FORWARD ACCEPT [0:0]
+	:OUTPUT ACCEPT [0:0]
+	:POSTROUTING ACCEPT [0:0]
+	COMMIT
+	*filter
+	:INPUT ACCEPT [0:0]
+	:FORWARD ACCEPT [0:0]
+	:OUTPUT ACCEPT [0:0]
+	COMMIT
+	!
+  ip6tables-restore < $MYTMP/reset
+  st2=$?
+  rm -f /var/run/firehol.lck
+
+  if [ $st1 -ne 0 -o  $st2 -ne 0 ]
+  then
+    exit 2
+  fi
+}
+
+started=`date`
+errors=0
+total=0
+while read conf
+do
+  export conf
+  export pre_sh=$(newext pre.sh $conf)
+  export run_sh=$(newext run.sh $conf)
+  export post_sh=$(newext post.sh $conf)
+
+  export runlog=$(newext log $conf)
+  export out4=$(newext out4 $conf)
+  export out6=$(newext out6 $conf)
+  export aud4=$(newext aud4 $conf)
+  export aud6=$(newext aud6 $conf)
+
+  case $conf in
+    firehol*)
+      program=firehol
+    ;;
+    fireqos*)
+      program=fireqos
+    ;;
+    link-balancer*)
+      program=link-balancer
+    ;;
+    *)
+      program=
+    ;;
+  esac
+
+  if [ ! "$program" ]
+  then
+    echo "Cannot determine program for $conf"
+  else
+    script=../sbin/${program}.in
+    export script
+    total=$((total + 1))
+
+    # Define our configuration directory exactly as we want it
+    rm -rf /etc/firehol
+    if [ -x "$pre_sh" ]
+    then
+      # We can control completely with a testname.pre.sh
+      "$pre_sh" "$conf"
+    else
+      # Or just take the defaults
+      mkdir -p /etc/firehol/services
+    fi
+
+    # Run the script
+    if [ -x "$run_sh" ]
+    then
+      # We can control completely with a testname.pre.sh
+      "$run_sh" "$conf" > "$runlog" 2>&1 < /dev/null
+      status=$?
+    else
+      # Or just take the defaults
+      case $program in
+        firehol|fireqos)
+          "$script" "$conf" start > "$runlog" 2>&1 < /dev/null
+          status=$?
+        ;;
+        link-balancer)
+          cp "$conf" /etc/firehol/link-balancer.conf
+          "$script" > "$runlog" 2>&1 < /dev/null
+          status=$?
+        ;;
+      esac
+    fi
+
+    # If there are explicit post checks to be made, run them
+    if [ $status -eq 0 -a -x "$post_sh" ]
+    then
+      "$post_sh" "$conf"
+      status=$?
+    fi
+
+    # Compare running config to expected
+    if [ $status -ne 0 ]
+    then
+      errors=$((errors + 1))
+      echo "Unexpected run error - check $runlog"
+    else
+      case $program in
+        firehol)
+          iptables-save > "$out4".tmp
+          ip6tables-save > "$out6".tmp
+          tools/clean-iptables "$out4".tmp > "$out4"
+          tools/clean-iptables "$out6".tmp > "$out6"
+          rm -f "$out4".tmp "$out6".tmp
+          if ! cmp "$aud4" "$out4"
+          then
+            errors=$((errors + 1))
+          elif ! cmp "$aud6" "$out6"
+          then
+            errors=$((errors + 1))
+          fi
+        ;;
+        fireqos)
+          # TODO - dump running config
+          :
+        ;;
+        link-balancer)
+          # TODO - dump running config
+          :
+        ;;
+      esac
+    fi
+  fi
+
+  if [ "${SUDO_USER}" ]
+  then
+    test -f "$runlog" && chown -R "${SUDO_USER}" "$runlog"
+    test -f "$out4" && chown -R "${SUDO_USER}" "$out4"
+    test -f "$out6" && chown -R "${SUDO_USER}" "$out6"
+    test -f "$aud4" && chown -R "${SUDO_USER}" "$aud4"
+    test -f "$aud6" && chown -R "${SUDO_USER}" "$aud6"
+  fi
+done < $MYTMP/all-tests
+
+echo " Started: $started"
+echo "Finished: $(date)"
+echo "   Tests: ${total}"
+echo "  Errors: ${errors}"
