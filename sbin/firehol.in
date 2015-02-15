@@ -424,16 +424,6 @@ FIREHOL_FORWARD_ACTIVATION_POLICY="${FIREHOL_FORWARD_ACTIVATION_POLICY-ACCEPT}"
 # Default: 1
 FIREHOL_ESTABLISHED_ACTIVATION_ACCEPT="${FIREHOL_ESTABLISHED_ACTIVATION_ACCEPT-1}"
 
-# Set this to 1 have firehol load NAT kernel modules
-# It will be enabled automatically if nat commands are given in the firewall.
-# Default: 0
-FIREHOL_NAT="${FIREHOL_NAT-0}"
-
-# Set this to 1 to enable routing of packets in the kernel
-# It will be enabled automatically if routers are defined in the firewall.
-# Default: 0
-FIREHOL_ROUTING="${FIREHOL_ROUTING-0}"
-
 # If you want to restore the firewall using the iptables init script of
 # your distribution, set here the paths where it expects the rules.
 # These settings are only saved when 'save' is requested at the command line.
@@ -460,6 +450,39 @@ FIREHOL_AUTOSAVE6=
 # These affect the final firewall output.
 # They can also be set in the firewall config file.
 
+# This controls how 'optimal' or 'accurate' the iptables statements
+# generated will be.
+# 'optimal' generates a production state firewall optimized for speed.
+# It makes FireHOL accept all packets of ESTABLISHED connections at the
+# beginning of the firewall, thus practically eliminating the need for
+# filtering ESTABLISHED traffic. Packet filtering is only done for NEW
+# sockets.
+# 'accurate' generates a firewall that precisely matches all packets in both
+# directions: client->server and server->client
+# This setting affects logging, accounting and stateless rules.
+# When it is set to 'optimal', logginng will only log the first packet of NEW
+# sockets, accounting will only account the first packet of NEW sockets and
+# stateless rules are disabled.
+# When it is set to 'accurate', logging and accounting will be done for all
+# packets and stateless rules are enabled.
+# Default: accurate
+# Possible Values: optimal accurate
+FIREHOL_RULESET_MODE="accurate"
+
+# Should we drop all INVALID packets always?
+# INVALID packets as seen by the connection tracker.
+# Check also the next section (SYSTEM CONFIGURATION) for related options.
+# Default: 1
+FIREHOL_DROP_INVALID=1
+
+# If set to 1, FireHOL will silently drop orphan TCP packets with ACK,FIN set.
+# In modern kernels, the connection tracker detects closed sockets
+# and removes them from memory before receiving the FIN,ACK from the remote
+# party. This makes FireHOL log these packets when they will be received.
+# To silently drop these packets, enable this option.
+# Default: 1
+FIREHOL_DROP_ORPHAN_TCP_ACK_FIN=1
+
 # If enabled FireHOL will create a chain per server/client statement and jump
 # to it from the main flow. Normaly this jump is only required for clarity.
 # So it is advised to leave this setting to 0, for a more efficient firewall.
@@ -483,25 +506,6 @@ FIREHOL_SUPPORT_MULTIPORT=1
 # Default: 1
 FIREHOL_PROTECTED_MATCHES=1
 
-# This controls how 'optimal' or 'accurate' the iptables statements
-# generated will be.
-# 'optimal' generates a production state firewall optimized for speed.
-# It makes FireHOL accept all packets of ESTABLISHED connections at the
-# beginning of the firewall, thus practically eliminating the need for
-# filtering ESTABLISHED traffic. Packet filtering is only done for NEW
-# sockets.
-# 'accurate' generates a firewall that precisely matches all packets in both
-# directions: client->server and server->client
-# This setting affects logging, accounting and stateless rules.
-# When it is set to 'optimal', logginng will only log the first packet of NEW
-# sockets, accounting will only account the first packet of NEW sockets and
-# stateless rules are disabled.
-# When it is set to 'accurate', logging and accounting will be done for all
-# packets and stateless rules are enabled.
-# Default: accurate
-# Possible Values: optimal accurate
-FIREHOL_RULESET_MODE="accurate"
-
 # How to configure conntrack helper assignement?
 #
 # 'kernel'  = the kernel will attempt to match RELATED sockets for all
@@ -524,6 +528,11 @@ FIREHOL_RULESET_MODE="accurate"
 # Default: kernel
 FIREHOL_CONNTRACK_HELPERS_ASSIGNMENT="kernel"
 
+# If set to 0, FireHOL will NOT trust interface lo for all traffic, thus
+# a firewall could be set up on lo.
+# Default: 1
+FIREHOL_TRUST_LOOPBACK=1
+
 # If set to non-empty, FireHOL will apply a global reverse filtering on all
 # traffic. If you use connection tracker helpers, you should enable this.
 # Check: https://home.regit.org/netfilter-en/secure-use-of-helpers/
@@ -543,11 +552,6 @@ DEFAULT_INTERFACE_POLICY="DROP"
 # Possible Values: DROP REJECT RETURN or custom action
 DEFAULT_ROUTER_POLICY="RETURN"
 
-# Should we drop all INVALID packets always?
-# INVALID packets as seen by the connection tracker.
-# Default: 1
-FIREHOL_DROP_INVALID=1
-
 # At the end of the firewall, there may be packets not matched
 # anywhere. What to do with them?
 # Default: DROP
@@ -563,10 +567,53 @@ UNMATCHED_ROUTER_POLICY="DROP"
 # Default: 1024:65535
 DEFAULT_CLIENT_PORTS="1024:65535"
 
-# If set to 0, FireHOL will NOT trust interface lo for all traffic, thus
-# a firewall could be set up on lo.
-# Default: 1
-FIREHOL_TRUST_LOOPBACK=1
+
+# ----------------------------------------------------------------------
+# SYSTEM CONFIGURATION
+
+# Set this to 1 have firehol load NAT kernel modules
+# It will be enabled automatically if nat commands are given in the firewall.
+# Default: 0
+FIREHOL_NAT="${FIREHOL_NAT-0}"
+
+# Set this to 1 to enable routing of packets in the kernel
+# It will be enabled automatically if routers are defined in the firewall.
+# Default: 0
+FIREHOL_ROUTING="${FIREHOL_ROUTING-0}"
+
+# Make connection tracker use strick categorization of TCP packets.
+# When set to zero the packets that do not seem right will be marked as INVALID
+# instead of NEW. It will also improve ACK flood protection.
+# This sets net.netfilter.nf_conntrack_tcp_loose=0
+# The system default is 1, the firehol default is 0.
+# Default: 0
+FIREHOL_CONNTRACK_LOOSE_MATCHING=0
+
+# How many connection tracking sockets are supported?
+# The system default is 65536.
+# On busy servers you may need to increase this.
+# Keep in mind that each socket in the connection tracker takes 288 bytes.
+# Default: 65536
+FIREHOL_CONNTRACK_MAX="65536"
+
+# How many hash entries should the connection tracker have?
+# The system default is 16384.
+# On busy servers you may need to increase this. Keep in mind that each hash
+# entry takes 8 bytes, but somehow this is related to your CPU L3 cache size.
+# Default: 16384
+FIREHOL_CONNTRACK_HASHSIZE="16384"
+
+# required for synproxy
+# This will be automatically set to 1 if you use the synproxy helper.
+# This sets net.ipv4.tcp_syncookies=1
+# Default: 0
+FIREHOL_TCP_SYN_COOKIES=0
+
+# required for synproxy
+# This will be automatically set to 1 if you use the synproxy helper.
+# This sets net.ipv4.tcp_timestamps=1
+# Default: 0
+FIREHOL_TCP_TIMESTAMPS=0
 
 
 # ----------------------------------------------------------------------
@@ -674,13 +721,6 @@ FIREHOL_LOG_LEVEL="warning"
 FIREHOL_LOG_FREQUENCY="1/second"
 FIREHOL_LOG_BURST="5"
 
-# If set to 1, FireHOL will silently drop orphan TCP packets with ACK,FIN set.
-# In modern kernels, the connection tracker detects closed sockets
-# and removes them from memory before receiving the FIN,ACK from the remote
-# party. This makes FireHOL log these packets when they will be received.
-# To silently drop these packets, enable this option.
-# Default: 1
-FIREHOL_DROP_ORPHAN_TCP_ACK_FIN=1
 
 # ----------------------------------------------------------------------
 # IPSET OPTIONS
@@ -2301,7 +2341,7 @@ server_swat_ports="tcp/901"
 client_swat_ports="default"
 
 server_syslog_ports="udp/514"
-client_syslog_ports="syslog default"
+client_syslog_ports="514 default"
 
 server_telnet_ports="tcp/23"
 client_telnet_ports="default"
@@ -3380,6 +3420,49 @@ fi
 # XXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXX
 # ------------------------------------------------------------------------------
 
+FIREHOL_SYNPROXY_COUNTER=1
+synproxy4() { ipv4 synproxy "${@}"; }
+synproxy6() { ipv6 synproxy "${@}"; }
+synproxy46() { both synproxy "${@}"; }
+synproxy() {
+	work_realcmd_helper ${FUNCNAME} "${@}"
+
+	local where="${1}" chain=
+	shift
+
+	set_work_function -ne "Initializing ${FUNCNAME}"
+	
+	require_work clear || ( error "${FUNCNAME} cannot be used in '${work_cmd}'. Put it before any '${work_cmd}' definition."; return 1 )
+
+	set_work_function -ne "Untracking the SYNPROXY packets in table 'raw'"
+
+	rule table raw chain PREROUTING insert_as ${FIREHOL_SYNPROXY_COUNTER} "${@}" proto tcp custom '-m tcp --syn' action CT --notrack || return 1
+
+	for chain in ${where//,/ }
+	do
+		case "${chain^^}" in
+			PRE|PREROUTING)		error "There is no PREROUTING chain in table filter"; return 1 ;;
+			IN|INPUT)		chain="INPUT" ;;
+			OUT|OUTPUT)		error "There is no point to setup SYNPROXY on OUTPUT"; return 1 ;;
+			PASS|FORWARD)		chain="FORWARD" ;;
+			POST|POSTROUTING)	error "There is no POSTROUTING chain in table filter"; return 1 ;;
+		esac
+
+		# FIXME
+		# most probably we will have to support tcp options per call for this helper
+
+		set_work_function -ne "Sending TCP packets to SYNPROXY"
+
+		rule table filter chain ${chain} insert_as ${FIREHOL_SYNPROXY_COUNTER} "${@}" proto tcp custom '-m tcp' state INVALID,UNTRACKED action SYNPROXY --sack-perm --timestamp --wscale 7 --mss 1460 || return 1
+	done
+
+	(( FIREHOL_SYNPROXY_COUNTER += 1 ))
+	FIREHOL_TCP_SYN_COOKIES=1
+	FIREHOL_TCP_TIMESTAMPS=1
+	FIREHOL_DROP_INVALID=1
+	FIREHOL_CONNTRACK_LOOSE_MATCHING=0
+}
+
 FIREHOL_CTHELPER_WARNING=0
 cthelper4() { ipv4 cthelper "${@}"; }
 cthelper6() { ipv6 cthelper "${@}"; }
@@ -3446,16 +3529,16 @@ cthelper() {
 			;;
 	esac
 
-	case "${where}" in
-		in|input|INPUT)
+	case "${where^^}" in
+		IN|INPUT|PREROUTING)
 			rule table raw chain PREROUTING "${@}" action CT helper "${helper}" || return 1
 			;;
 
-		out|output|OUTPUT)
+		OUT|OUTPUT)
 			rule table raw chain OUTPUT "${@}" action CT helper "${helper}" || return 1
 			;;
 
-		both|bidirectional|inout)
+		BOTH|BIDIRECTIONAL|INOUT)
 			rule table raw chain PREROUTING     "${@}" action CT helper "${helper}" || return 1
 			rule table raw chain OUTPUT reverse "${@}" action CT helper "${helper}" || return 1
 			;;
@@ -3941,7 +4024,7 @@ blacklist() {
 	require_work clear || ( error "${FUNCNAME} cannot be used in '${work_cmd}'. Put it before any '${work_cmd}' definition."; return 1 )
 	
 	FIREHOL_BLACKLIST_COUNTER=$[ FIREHOL_BLACKLIST_COUNTER + 1 ]
-	local mode=1 chain= name="bi" accounting=
+	local mode=1 chain= name="bi" accounting= x=
 	local -a inface=() src=() logopts_in_arg=(log "BLACKLIST-IN") logopts_out_arg=(log "BLACKLIST-OUT")
 
 	case "${1}" in
@@ -4008,16 +4091,16 @@ blacklist() {
 	set_work_function "Generating blacklist input chain"
 
 	# create the input chain (common for both stateless and stateful)
-	iptables_both -t mangle -N "${chain}.in"
+	iptables_both -t filter -N "${chain}.in"
 
 	# add the excepted rules
-	test ! -z "${1}" && ( rule table mangle chain "${chain}.in" in action RETURN "${@}" || return 1 )
+	test ! -z "${1}" && ( rule table filter chain "${chain}.in" in action RETURN "${@}" || return 1 )
 
 	# add the accounting rules
-	test ! -z "${accounting}" && ( iptables_both -t mangle -A "${chain}.in" -m nfacct --nfacct-name "${accounting}" || return 1 )
+	test ! -z "${accounting}" && ( iptables_both -t filter -A "${chain}.in" -m nfacct --nfacct-name "${accounting}" || return 1 )
 
 	# drop the traffic (input)
-	rule table mangle chain "${chain}.in" in "${logopts_in_arg[@]}" action DROP || return 1
+	rule table filter chain "${chain}.in" in "${logopts_in_arg[@]}" action DROP || return 1
 
 	# ---
 
@@ -4029,7 +4112,10 @@ blacklist() {
 
 		set_work_function "Generating unidirectional blacklist rules"
 
-		rule table mangle chain PREROUTING in "${inface[@]}" src "${src[*]}" state NEW action "${chain}.in" || return 1
+		for x in INPUT FORWARD
+		do
+			rule table filter chain ${x} in "${inface[@]}" src "${src[*]}" state NEW action "${chain}.in" || return 1
+		done
 
 	else
 		# bi-directional stateless
@@ -4037,8 +4123,10 @@ blacklist() {
 
 		set_work_function "Blacklist input from them"
 
-		rule table mangle chain PREROUTING  in "${inface[@]}" src "${src[*]}" action "${chain}.in" || return 1
-
+		for x in INPUT FORWARD
+		do
+			rule table filter chain ${x}  in "${inface[@]}" src "${src[*]}" action "${chain}.in" || return 1
+		done
 
 		set_work_function "Generating output chain"
 
@@ -4071,7 +4159,10 @@ blacklist() {
 		set_work_function "Generating bidirectional blacklist rules"
 
 		# iptables does not accept REJECT on mangle - we are forced to use filter for this
-		rule table filter chain OUTPUT      out reverse "${inface[@]}" src "${src[*]}" action "${chain}.out" || return 1
+		for x in FORWARD OUTPUT
+		do
+			rule table filter chain ${x} out reverse "${inface[@]}" src "${src[*]}" action "${chain}.out" || return 1
+		done
 	fi
 
 	return 0
@@ -4098,7 +4189,7 @@ iptrap() {
 	require_work clear || ( error "${FUNCNAME} cannot be used in '${work_cmd}'. Put it before any '${work_cmd}' definition."; return 1 )
 	running_both       && error "${FUNCNAME} cannot be used in both IPv4 and IPv6. Please give use either iptrap4 or iptrap6." && return 1
 
-	local type= ipset= timeout= chain= method= tables="mangle" undo=0 action="RETURN" t= link_to="PREROUTING" mode="TIMEOUT" x=
+	local type= ipset= timeout= chain= method= tables="filter" undo=0 action="RETURN" t= link_to="INPUT FORWARD" mode="TIMEOUT" x=
 	local -a args=() logopts_arg=()
 
 	if [ "${1}" = "undo" ]
@@ -4266,8 +4357,11 @@ iptrap() {
 
 		# ---
 
-		set_work_function "Generating iptrap matching rules in table ${t} chain ${link_to}"
-		rule table ${t} chain ${link_to} in "${args[@]}" action "${chain}" || return 1
+		for x in ${link_to}
+		do
+			set_work_function "Generating iptrap matching rules in table ${t} chain ${x}"
+			rule table ${t} chain ${x} in "${args[@]}" action "${chain}" || return 1
+		done
 	done
 
 	return 0
@@ -4305,12 +4399,9 @@ connmark() {
 	
 	require_work clear || ( error "${FUNCNAME} cannot be used in '${work_cmd}'. Put it before any '${work_cmd}' definition."; return 1 )
 	
-	local 	num="${1}" \
-		where="${2}"
+	local 	num="${1}" where="${2}" chain=
 	shift 2
 
-	test -z "${where}" && where="OUTPUT POSTROUTING"
-	
 	if [ "${num}" = "save" ]
 	then
 		# backward compatibility - nothing to be done here
@@ -4323,21 +4414,29 @@ connmark() {
 		return 0
 	fi
 
-	set_work_function "Setting up rules for CONNMARK"
-	
 	local mark="$(mark_value connmark $num)"
 	test -z "${mark}" && work_error=$[work_error + 1] && return 1
 
-	local chain=
-	for chain in ${where}
+	test -z "${where}" && where="OUTPUT POSTROUTING"
+	for chain in ${where//,/ }
 	do
+		case "${chain^^}" in
+			PRE|PREROUTING)		chain="PREROUTING" ;;
+			IN|INPUT)		chain="INPUT" ;;
+			OUT|OUTPUT)		chain="OUTPUT" ;;
+			PASS|FORWARD)		chain="FORWARD" ;;
+			POST|POSTROUTING)	chain="POSTROUTING" ;;
+		esac
+
 		case "${chain}" in
 			interface)
 				if [ ${MARKS_STATEFUL[connmark]} -eq 1 ]
 				then
+					set_work_function "Setting up stateful rules for CONNMARK ${mark} for interface ${1}"
 					rule table mangle chain PREROUTING  state NEW inface  "${@}" action MARK to "${mark}" || return 1
 					rule table mangle chain POSTROUTING state NEW outface "${@}" action MARK to "${mark}" || return 1
 				else
+					set_work_function "Setting up stateless rules for CONNMARK ${mark} for interface ${1}"
 					rule table mangle chain PREROUTING  inface  "${@}" action MARK to "${mark}" || return 1
 					rule table mangle chain POSTROUTING outface "${@}" action MARK to "${mark}" || return 1
 				fi
@@ -4346,8 +4445,10 @@ connmark() {
 			*)
 				if [ ${MARKS_STATEFUL[connmark]} -eq 1 ]
 				then
+					set_work_function "Setting up stateful rules for CONNMARK ${mark} on chain ${chain}"
 					rule table mangle chain "${chain}" state NEW "${@}" action MARK to "${mark}" || return 1
 				else
+					set_work_function "Setting up stateless rules for CONNMARK ${mark} on chain ${chain}"
 					rule table mangle chain "${chain}" action MARK to "${mark}" || return 1
 				fi
 				;;
@@ -4367,24 +4468,32 @@ custommark() {
 	
 	require_work clear || ( error "${FUNCNAME} cannot be used in '${work_cmd}'. Put it before any '${work_cmd}' definition."; return 1 )
 	
-	local 	name="${1}" \
-		num="${2}" \
-		where="${3}"
+	local 	name="${1}" num="${2}" where="${3}" chain=
 	shift 3
 
-	test -z "${where}" && where=OUTPUT
-	
-	set_work_function "Setting up rules for MARK"
-	
 	local mark="$(mark_value $name $num)"
 	test -z "${mark}" && work_error=$[work_error + 1] && return 1
 
-	if [ ${MARKS_STATEFUL[$name]} -eq 1 ]
-	then
-		rule table mangle chain "${where}" state NEW "${@}" action MARK to "${mark}" || return 1
-	else
-		rule table mangle chain "${where}" "${@}" action MARK to "${mark}" || return 1
-	fi
+	test -z "${where}" && where="OUTPUT"
+	for chain in ${where//,/ }
+	do
+		case "${chain^^}" in
+			PRE|PREROUTING) 	chain="PREROUTING" ;;
+			IN|INPUT)		chain="INPUT" ;;
+			OUT|OUTPUT)		chain="OUTPUT" ;;
+			PASS|FORWARD)		chain="FORWARD" ;;
+			POST|POSTROUTING)	chain="POSTROUTING" ;;
+		esac
+
+		if [ ${MARKS_STATEFUL[$name]} -eq 1 ]
+		then
+			set_work_function "Setting up rules for stateful MARK ${mark} on chain ${chain}"
+			rule table mangle chain "${chain}" state NEW "${@}" action MARK to "${mark}" || return 1
+		else
+			set_work_function "Setting up rules for stateless MARK ${mark} on chain ${chain}"
+			rule table mangle chain "${chain}" "${@}" action MARK to "${mark}" || return 1
+		fi
+	done
 	
 	return 0
 }
@@ -4396,7 +4505,6 @@ mark() {
 	custommark usermark "${@}"
 }
 
-tos_count=0
 tos4() { ipv4 tos "${@}"; }
 tos6() { ipv6 tos "${@}"; }
 tos46() { both tos "${@}"; }
@@ -4407,23 +4515,30 @@ tos() {
 	
 	require_work clear || ( error "${FUNCNAME} cannot be used in '${work_cmd}'. Put it before any '${work_cmd}' definition."; return 1 )
 	
-	local 	num="${1}" \
-		where="${2}"
-	shift 2
+	local num="${1}" where="${2}" chain=
+	shift
 
-	test -z "${where}" && where=OUTPUT
-	
-	tos_count=$[tos_count + 1]
-	
-	set_work_function "Setting up rules for TOS"
-	
-	create_chain mangle "tos.${tos_count}" "${where}" "${@}" || return 1
-	iptables_both -t mangle -A "tos.${tos_count}" -j TOS --set-tos ${num}
+	test -z "${where}" && where="OUTPUT"
+	for chain in ${where//,/ }
+	do
+		case "${chain^^}" in
+			PRE|PREROUTING)		chain="PREROUTING" ;;
+			IN|INPUT)		chain="INPUT" ;;
+			OUT|OUTPUT)		chain="OUTPUT" ;;
+			PASS|FORWARD)		chain="FORWARD" ;;
+			POST|POSTROUTING)	chain="POSTROUTING" ;;
+		esac
+
+		set_work_function "Setting up rules for TOS on chain '${chain}'"
+		rule table mangle chain ${chain} "${@}" action TOS to "${num}"
+	done
 	
 	return 0
 }
 
 # from http://blog.edseek.com/~jasonb/articles/traffic_shaping/scenarios.html
+tosfix_created_chains4=0
+tosfix_created_chains6=0
 tosfix4() { ipv4 tosfix "${@}"; }
 tosfix6() { ipv6 tosfix "${@}"; }
 tosfix46() { both tosfix "${@}"; }
@@ -4434,28 +4549,63 @@ tosfix() {
 	
 	require_work clear || ( error "${FUNCNAME} cannot be used in '${work_cmd}'. Put it before any '${work_cmd}' definition."; return 1 )
 	
-	set_work_function "Fixing TOS for TCP ACK packets"
-	
-	iptables_both -t mangle -N ackfix
-	iptables_both -t mangle -A ackfix -m tos ! --tos Normal-Service -j RETURN
-	iptables_both -t mangle -A ackfix -p tcp -m length --length 0:128 -j TOS --set-tos Minimize-Delay
-	iptables_both -t mangle -A ackfix -p tcp -m length --length 128: -j TOS --set-tos Maximize-Throughput
-	iptables_both -t mangle -A ackfix -j RETURN
-	iptables_both -t mangle -I POSTROUTING -p tcp -m tcp --tcp-flags SYN,RST,ACK ACK -j ackfix
-	
-	set_work_function "Fixing TOS for Minimize-Delay packets"
-	
-	iptables_both -t mangle -N tosfix
-	iptables_both -t mangle -A tosfix -p tcp -m length --length 0:512 -j RETURN
-	iptables_both -t mangle -A tosfix -m limit --limit 2/s --limit-burst 10 -j RETURN
-	iptables_both -t mangle -A tosfix -j TOS --set-tos Maximize-Throughput
-	iptables_both -t mangle -A tosfix -j RETURN
-	iptables_both -t mangle -I POSTROUTING -p tcp -m tos --tos Minimize-Delay -j tosfix
-	
+	local where="${1}" x= chain=
+	shift
+
+	for x in ipv4 ipv6
+	do
+		local iptables_cmd=
+		case "${x}" in
+			ipv4)	running_ipv4 || continue
+				[ ${tosfix_created_chains4} -eq 1 ] && continue
+				tosfix_created_chains4=1
+				iptables_cmd="iptables"
+				;;
+			ipv6)	running_ipv6 || continue
+				[ ${tosfix_created_chains6} -eq 1 ] && continue
+				tosfix_created_chains6=1
+				iptables_cmd="ip6tables"
+				;;
+		esac
+
+		set_work_function "Creating ackfix chain for ${x}"
+
+		${iptables_cmd} -t mangle -N ackfix
+		${iptables_cmd} -t mangle -A ackfix -m tos ! --tos Normal-Service -j RETURN
+		${iptables_cmd} -t mangle -A ackfix -p tcp -m length --length 0:128 -j TOS --set-tos Minimize-Delay
+		${iptables_cmd} -t mangle -A ackfix -p tcp -m length --length 128: -j TOS --set-tos Maximize-Throughput
+		${iptables_cmd} -t mangle -A ackfix -j RETURN
+
+		set_work_function "Creating tosfix chain for ${x}"
+
+		${iptables_cmd} -t mangle -N tosfix
+		${iptables_cmd} -t mangle -A tosfix -p tcp -m length --length 0:512 -j RETURN
+		${iptables_cmd} -t mangle -A tosfix -m limit --limit 2/s --limit-burst 10 -j RETURN
+		${iptables_cmd} -t mangle -A tosfix -j TOS --set-tos Maximize-Throughput
+		${iptables_cmd} -t mangle -A tosfix -j RETURN
+	done
+
+	test -z "${where}" && where="PREROUTING POSTROUTING"
+	for chain in ${where//,/ }
+	do
+		case "${chain^^}" in
+			PRE|PREROUTING)		chain="PREROUTING" ;;
+			IN|INPUT)		chain="INPUT" ;;
+			OUT|OUTPUT)		chain="OUTPUT" ;;
+			PASS|FORWARD)		chain="FORWARD" ;;
+			POST|POSTROUTING)	chain="POSTROUTING" ;;
+		esac
+
+		set_work_function "Fixing TOS for TCP ACK packets"
+		rule table mangle chain ${chain} "${@}" proto tcp custom '-m tcp --tcp-flags SYN,RST,ACK ACK' action ackfix
+
+		set_work_function "Fixing TOS for Minimize-Delay packets"
+		rule table mangle chain ${chain} "${@}" proto tcp custom '-m tos --tos Minimize-Delay' action tosfix
+	done
+
 	return 0
 }
 
-dscp_count=0
 dscp4() { ipv4 dscp "${@}"; }
 dscp6() { ipv6 dscp "${@}"; }
 dscp46() { both dscp "${@}"; }
@@ -4466,9 +4616,7 @@ dscp() {
 	
 	require_work clear || ( error "${FUNCNAME} cannot be used in '${work_cmd}'. Put it before any '${work_cmd}' definition."; return 1 )
 	
-	local 	value="${1}" \
-		class= \
-		where=
+	local 	value="${1}" class= where=
 	shift
 	
 	if [ "${value}" = "class" ]
@@ -4481,20 +4629,26 @@ dscp() {
 	where="${1}"
 	shift
 
-	test -z "${where}" && where=OUTPUT
-	
-	dscp_count=$[dscp_count + 1]
-	
-	set_work_function "Setting up rules for setting DSCP"
-	
-	create_chain mangle "dscp.${dscp_count}" "${where}" "${@}" || return 1
-	
-	if [ ! -z "${class}" ]
-	then
-		iptables_both -t mangle -A "dscp.${dscp_count}" -j DSCP --set-dscp-class ${class}
-	else
-		iptables_both -t mangle -A "dscp.${dscp_count}" -j DSCP --set-dscp ${value}
-	fi
+	test -z "${where}" && where="OUTPUT"
+	for chain in ${where//,/ }
+	do
+		case "${chain^^}" in
+			PRE|PREROUTING)		chain="PREROUTING" ;;
+			IN|INPUT)		chain="INPUT" ;;
+			OUT|OUTPUT)		chain="OUTPUT" ;;
+			PASS|FORWARD)		chain="FORWARD" ;;
+			POST|POSTROUTING)	chain="POSTROUTING" ;;
+		esac
+
+		set_work_function "Setting up rules for setting DSCP"
+
+		if [ ! -z "${class}" ]
+		then
+			rule table mangle chain ${chain} "${@}" action DSCP to class ${class}
+		else
+			rule table mangle chain ${chain} "${@}" action DSCP to ${value}
+		fi
+	done
 	
 	return 0
 }
@@ -4507,9 +4661,7 @@ tcpmss() {
 	
 	set_work_function -ne "Initializing ${FUNCNAME}"
 	
-	local 	value="${1}" \
-		iface="$2" \
-		target=
+	local value="${1}" iface="$2" target=
 	
 	if [ -z "$iface" ]
 	then
@@ -4546,17 +4698,17 @@ tcpmss() {
 		return 1
 	fi
 	
-	if [ "$iface" = "all" ]
+	if [ "${iface}" = "all" ]
 	then
 		set_work_function "Initializing tcpmss for all interfaces"
 		
-		iptables_both -t mangle -A POSTROUTING -p tcp --tcp-flags SYN,RST SYN $target
+		iptables_both -t mangle -A POSTROUTING -p tcp -m tcp --tcp-flags SYN,RST SYN $target
 	else
 		local f=
 		for f in $iface
 		do
 			set_work_function "Initializing tcpmss for interface '${f}'"
-			iptables_both -t mangle -A POSTROUTING -o ${f} -p tcp --tcp-flags SYN,RST SYN $target
+			iptables_both -t mangle -A POSTROUTING -o ${f} -p tcp -m tcp --tcp-flags SYN,RST SYN $target
 		done
 	fi
 	
@@ -6440,7 +6592,7 @@ rule() {
 	# if set to 1, we will only process state NEW rules
 	local optimal=0
 	
-	local push_flow_inheritance_type=
+	local push_flow_inheritance_type= positive_rule_number=
 
 	while [ ! -z "${1}" ]
 	do
@@ -6467,6 +6619,7 @@ rule() {
 			optimal)		optimal=1 ;;
 			accurate)		optimal=0 ;;
 			push_flow_inheritance)	push_flow_inheritance_type="${1}"; shift ;;
+			insert_as)		positive_rule_number="${1}"; shift ;;
 
 			in)	# this is incoming traffic - ignore packet ownership
 				inout="in"
@@ -6907,10 +7060,38 @@ rule() {
 							error "${action} must on a the 'raw' table but table ${table} is given."
 							return 1
 						fi
-						case "${1}" in
-							helper) action_param=("--helper" "${2}"); shift 2 ;;
-							*) error "Unknown CT option '${2}'."; return 1 ;;
-						esac
+						while [ ! -z "${1}" ]
+						do
+							case "${1}" in
+								helper|--helper) action_param=("${action_param[@]}" "--helper" "${2}"); shift 2 ;;
+								notrack|--notrack) action_param=("${action_param[@]}" "--notrack"); shift ;;
+								*) break ;;
+							esac
+						done
+						if [ -z "${action_param[*]}" ]
+						then
+							error "${action} cannot work without any arguments."
+							return 1
+						fi
+						;;
+
+					SYNPROXY)
+						action="SYNPROXY"
+						while [ ! -z "${1}" ]
+						do
+							case "${1}" in
+								sack-perm|--sack-perm) action_param=("${action_param[@]}" "--sack-perm"); shift ;;
+								timestamp|--timestamp) action_param=("${action_param[@]}" "--timestamp"); shift ;;
+								wscale|--wscale)       action_param=("${action_param[@]}" "--wscale" "${2}"); shift 2 ;;
+								mss|--mss)             action_param=("${action_param[@]}" "--mss"    "${2}"); shift 2 ;;
+								*) break ;;
+							esac
+						done
+						if [ -z "${action_param[*]}" ]
+						then
+							error "${action} cannot work without any arguments."
+							return 1
+						fi
 						;;
 
 					ACCEPT)	action="ACCEPT"
@@ -8062,7 +8243,7 @@ rule() {
 	#
 	# If it is RETURN, it will be executed with the positive rules.
 
-	if [ ${positive_multi} -gt 0 -a \( ! "${logrule}" = "none" -o ! -z "${accounting}" \) -a ! "${action}" = "RETURN" ]
+	if [ \( ${positive_multi} -gt 0 -o ! -z "${positive_rule_number}" \) -a \( ! "${logrule}" = "none" -o ! -z "${accounting}" \) -a ! "${action}" = "RETURN" ]
 	then
 		local logging_chain= logging_action=
 
@@ -8473,12 +8654,21 @@ rule() {
 		"${addrtype_arg[@]}"    "${stp_arg[@]}"   "${dtp_arg[@]}"     "${state_arg[@]}" "${mark_arg[@]}"  "${dscp_arg[@]}" \
 		"${protected_args[@]}"  "${positive_args[@]}")
 
-	[ "$logrule" = "limit"  ] && ( ${iptables} -t ${table} -A "${chain}" "${basecmd[@]}" -m limit --limit "${FIREHOL_LOG_FREQUENCY}" --limit-burst "${FIREHOL_LOG_BURST}" -j ${FIREHOL_LOG_MODE} ${FIREHOL_LOG_OPTIONS} "${logopts_arg[@]}" || failed=$[failed + 1] )
-	[ "$logrule" = "normal" ] && ( ${iptables} -t ${table} -A "${chain}" "${basecmd[@]}" -j ${FIREHOL_LOG_MODE} ${FIREHOL_LOG_OPTIONS} "${logopts_arg[@]}" || failed=$[failed + 1] )
-	[ ! -z "${accounting}"  ] && ( ${iptables} -t ${table} -A "${chain}" "${basecmd[@]}" -m nfacct --nfacct-name "${accounting}" || failed=$[failed + 1] )
+	if [ -z "${positive_rule_number}" ]
+	then
+		[ "$logrule" = "limit"  ] && ( ${iptables} -t ${table} -A "${chain}" "${basecmd[@]}" -m limit --limit "${FIREHOL_LOG_FREQUENCY}" --limit-burst "${FIREHOL_LOG_BURST}" -j ${FIREHOL_LOG_MODE} ${FIREHOL_LOG_OPTIONS} "${logopts_arg[@]}" || failed=$[failed + 1] )
+		[ "$logrule" = "normal" ] && ( ${iptables} -t ${table} -A "${chain}" "${basecmd[@]}" -j ${FIREHOL_LOG_MODE} ${FIREHOL_LOG_OPTIONS} "${logopts_arg[@]}" || failed=$[failed + 1] )
+		[ ! -z "${accounting}"  ] && ( ${iptables} -t ${table} -A "${chain}" "${basecmd[@]}" -m nfacct --nfacct-name "${accounting}" || failed=$[failed + 1] )
+	fi
 
 	# do it!
-	rule_action_param ${iptables} "${action}" "${statenot}" "${state}" "${table}" "${action_param[@]}" -- -t ${table} -A "${chain}" "${basecmd[@]}" || failed=$[failed + 1]
+	if [ -z "${positive_rule_number}" ]
+	then
+		x="-A ${chain}"
+	else
+		x="-I ${chain} ${positive_rule_number}"
+	fi
+	rule_action_param ${iptables} "${action}" "${statenot}" "${state}" "${table}" "${action_param[@]}" -- -t ${table} ${x} "${basecmd[@]}" || failed=$[failed + 1]
 
 	done # dport
 	done # sport
@@ -10682,7 +10872,7 @@ initialize_firewall() {
 		postprocess -ne -ns load_kernel_module $m
 	done
 	
-	test $FIREHOL_ROUTING -eq 1 && postprocess -warn ${SYSCTL_CMD} -w "net.ipv4.ip_forward=1"
+	test ${FIREHOL_ROUTING} -eq 1 && postprocess -warn ${SYSCTL_CMD} -w "net.ipv4.ip_forward=1"
 	
 	if [ "${FIREHOL_CONNTRACK_HELPERS_ASSIGNMENT}" = "kernel" ]
 	then
@@ -10690,6 +10880,12 @@ initialize_firewall() {
 	else
 		postprocess -warn ${SYSCTL_CMD} -w "net.netfilter.nf_conntrack_helper=0"
 	fi
+
+	test ! -z "${FIREHOL_CONNTRACK_LOOSE_MATCHING}"	&& postprocess -warn ${SYSCTL_CMD} -e "net.netfilter.nf_conntrack_tcp_loose=${FIREHOL_CONNTRACK_LOOSE_MATCHING}"
+	test ! -z "${FIREHOL_TCP_SYN_COOKIES}"		&& postprocess -warn ${SYSCTL_CMD} -e "net.ipv4.tcp_syncookies=${FIREHOL_TCP_SYN_COOKIES}"
+	test ! -z "${FIREHOL_TCP_TIMESTAMPS}"		&& postprocess -warn ${SYSCTL_CMD} -e "net.ipv4.tcp_timestamps=${FIREHOL_TCP_TIMESTAMPS}"
+	test ! -z "${FIREHOL_CONNTRACK_MAX}" 		&& postprocess -warn ${SYSCTL_CMD} -e "net.netfilter.nf_conntrack_max=${FIREHOL_CONNTRACK_MAX}"
+	test ! -z "${FIREHOL_CONNTRACK_HASHSIZE}"	&& postprocess -warn ${SYSCTL_CMD} -e "echo ${FIREHOL_CONNTRACK_HASHSIZE} >/sys/module/nf_conntrack/parameters/hashsize"
 
 	for m in "${!FIREHOL_NFACCT[@]}"
 	do
@@ -10869,12 +11065,10 @@ firewall_policy_common() {
 	if [ "${FIREHOL_DROP_INVALID}" = "1" -o "${FIREHOL_RULESET_MODE}" = "optimal" ]
 	then
 		set_work_function "Droping ${iptables_cmd} connection tracker INVALID packets (option: FIREHOL_DROP_INVALID)"
-		${iptables_cmd} -t mangle -A PREROUTING -m conntrack --ctstate INVALID -j DROP
-		${iptables_cmd} -t mangle -A OUTPUT -m conntrack --ctstate INVALID -j DROP
 
-		# these are not required - we want to be protected from the outside only
-		#${iptables_cmd} -t filter -A INPUT -m conntrack --ctstate INVALID -j DROP
-		#${iptables_cmd} -t filter -A FORWARD -m conntrack --ctstate INVALID -j DROP
+		${iptables_cmd} -t filter -A INPUT -m conntrack --ctstate INVALID -j DROP
+		${iptables_cmd} -t filter -A OUTPUT -m conntrack --ctstate INVALID -j DROP
+		${iptables_cmd} -t filter -A FORWARD -m conntrack --ctstate INVALID -j DROP
 	fi
 
 	if [ "${FIREHOL_DROP_ORPHAN_TCP_ACK_FIN}" = "1" ]
@@ -10882,12 +11076,9 @@ firewall_policy_common() {
 		set_work_function "Silently droping TCP ACK+FIN packets (option: FIREHOL_DROP_ORPHAN_TCP_ACK_FIN)"
 
 		# Silently drop orphan TCP/ACK FIN packets
-		${iptables_cmd} -t mangle -A PREROUTING -p tcp --tcp-flags ALL ACK,FIN -m conntrack --ctstate NEW -j DROP
-		${iptables_cmd} -t mangle -A OUTPUT -p tcp --tcp-flags ALL ACK,FIN -m conntrack --ctstate NEW -j DROP
-
-		# these are not required - we want to be protected from the outside only
-		#${iptables_cmd} -t filter -A INPUT -p tcp --tcp-flags ALL ACK,FIN -m conntrack --ctstate NEW -j DROP
-		#${iptables_cmd} -t filter -A FORWARD -p tcp --tcp-flags ALL ACK,FIN -m conntrack --ctstate NEW -j DROP
+		${iptables_cmd} -t filter -A INPUT -p tcp --tcp-flags ALL ACK,FIN -m conntrack --ctstate NEW -j DROP
+		${iptables_cmd} -t filter -A OUTPUT -p tcp --tcp-flags ALL ACK,FIN -m conntrack --ctstate NEW -j DROP
+		${iptables_cmd} -t filter -A FORWARD -p tcp --tcp-flags ALL ACK,FIN -m conntrack --ctstate NEW -j DROP
 	fi
 
 	if [ ! -z ${FIREHOL_GLOBAL_RPFILTER} ]
