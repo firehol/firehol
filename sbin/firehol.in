@@ -502,40 +502,27 @@ FIREHOL_PROTECTED_MATCHES=1
 # Possible Values: optimal accurate
 FIREHOL_RULESET_MODE="accurate"
 
-# By default conntrack uses its helpers for all traffic matching some
-# predefined ports. For example the 'ftp' helper will check all traffic taking
-# place on tcp/21.
-# If this is set to 0, automatic conntrack helper assignment will be disabled
-# for all flows. Then you have 2 options:
-# a) set FIREHOL_AUTO_CT_HELPERS=1, which will enable the helpers only for the
-#    flows used in the firewall, and/or
-# b) use the cthelper firehol helper to define the flows in firehol.conf
-# Default: 0 to disable conntrack automatic helper assignment by kernel
-FIREHOL_DEFAULT_CT_HELPERS=1
-
-# When enabling this option, FireHOL will create entries in the 'raw' table to
-# configure the conntrack helpers required (-j CT --helper).
-# This will make the helpers use any of the ports defined in firehol. For
-# example, this definition:
-#    server_myftp_ports="tcp/2121"
-#    client_myftp_ports="default"
-#    helper_myftp="ftp"
-# will automatically configure the ftp conntrack helper to use tcp/2121.
-# FireHOL will do its best to mimic the flow of traffic required to match
-# the stateful packet filtering in the 'raw' table, to restrict as much as
-# possible the flows the helper will use, however the 'raw' table lacks
-# certain features, like a FORWARD chain and is applied outside NAT.
-# This means we cannot match 'outface' in the raw table, and if you give
-# NATed IPs as 'src' or 'dst' to your 'interface' and 'router' statements,
-# FIREHOL_AUTO_CT_HELPERS=1 will not be able to match the traffic properly.
-# The same applies if you NAT the server ports.
-# In all these cases, you should use the cthelper FireHOL helper to
-# match the traffic properly.
-# Keep in mind that currently only sip, ftp, tftp, and sane helpers can be
-# configured using this method for IPv4 and IPv6, while irc and pptp only for
-# IPv4. For all others, this option is ignored.
-# Default: 1 to enable conntrack automatic helper assignment by FireHOL
-FIREHOL_AUTO_CT_HELPERS=0
+# How to configure conntrack helper assignement?
+#
+# 'kernel'  = the kernel will attempt to match RELATED sockets for all
+#             conntrack helpers and all traffic matching its predefined rules.
+#             This is considered a security threat and should be avoided.
+#             Check: https://home.regit.org/netfilter-en/secure-use-of-helpers/
+#
+# 'firehol' = FireHOL will generate rules in the 'raw' table, using the -j CT
+#             target of iptables to match the flows of the statements
+#             the conntrack helpers are used.
+#             CAUSION: FireHOL generated statements are not NAT aware.
+#             You should only use this, if you don't NAT traffic that have to
+#             be seen by conntrack helpers to detect RELATED ports.
+#
+# 'manual'  = You configure conntrack helper assignement manually using
+#             the 'cthelper' firehol helper.
+#             In this case, neither the kernel nor FireHOL will do anything
+#             about conntrack helpers assignement. 
+#
+# Default: kernel
+FIREHOL_CONNTRACK_HELPERS_ASSIGNMENT="kernel"
 
 # If set to non-empty, FireHOL will apply a global reverse filtering on all
 # traffic. If you use connection tracker helpers, you should enable this.
@@ -3214,7 +3201,7 @@ rules_custom() {
 	# ----------------------------------------------------------------------
 
 	# do we have to create CT entries?
-	if [ ${FIREHOL_AUTO_CT_HELPERS} -eq 1 -a ! -z "${helpers}" ]
+	if [ "${FIREHOL_CONNTRACK_HELPERS_ASSIGNMENT}" = "firehol" -a ! -z "${helpers}" ]
 	then
 		for x in ${helpers}
 		do
@@ -3407,9 +3394,9 @@ cthelper() {
 	
 	require_work clear || ( error "${FUNCNAME} cannot be used in '${work_cmd}'. Put it before any '${work_cmd}' definition."; return 1 )
 
-	if [ ${FIREHOL_DEFAULT_CT_HELPERS} -eq 1 -a ${FIREHOL_CTHELPER_WARNING} -eq 0 ]
+	if [ ! "${FIREHOL_CONNTRACK_HELPERS_ASSIGNMENT}" = "manual" -a ${FIREHOL_CTHELPER_WARNING} -eq 0 ]
 	then
-		warning "Kernel automatic helper assignment on all traffic is enabled. You should set FIREHOL_DEFAULT_CT_HELPERS=0 to disable it since you are using cthelper to configure the helpers."
+		warning "Automatic helper assignment on all traffic is set to '${FIREHOL_CONNTRACK_HELPERS_ASSIGNMENT}'. You should set FIREHOL_CONNTRACK_HELPERS_ASSIGNMENT='manual' to disable it since you are using cthelper to configure the helpers."
 		FIREHOL_CTHELPER_WARNING=1
 	fi
 
@@ -5965,14 +5952,14 @@ close_master() {
 # required branches (the path) the flow of packets takes in the filter table.
 
 # we use this flow inheritance to re-construct the path in table 'raw' when
-# FIREHOL_AUTO_CT_HELPERS=1 and a helper is required to be configured.
+# FIREHOL_CONNTRACK_HELPERS_ASSIGNMENT=firehol and a helper is required to be configured.
 # So in table 'raw' we have only the part of the path that is really required.
 
 FIREHOL_FLOW_INHERITANCE_STACK_IN=()
 FIREHOL_FLOW_INHERITANCE_STACK_OUT=()
 
 reconstruct_flow_inheritance() {
-	test ${FIREHOL_AUTO_CT_HELPERS} -eq 0 && return 0
+	test ! "${FIREHOL_CONNTRACK_HELPERS_ASSIGNMENT}" = "firehol" && return 0
 
 	local type="${1}" table="${2}" chain="${3}" overwrite=() stack=() x= ns= new_chain=
 	shift 3
@@ -6014,7 +6001,7 @@ reconstruct_flow_inheritance() {
 }
 
 push_flow_inheritance() {
-	test ${FIREHOL_AUTO_CT_HELPERS} -eq 0 && return 0
+	test ! "${FIREHOL_CONNTRACK_HELPERS_ASSIGNMENT}" = "firehol" && return 0
 
 	local type="${1}" chain="${2}" infacenot="${3}" inface="${4}" outfacenot="${5}" outface="${6}" srcnot="${7}" src4="${8}" src6="${9}" dstnot="${10}" dst4="${11}" dst6="${12}"
 
@@ -6029,7 +6016,7 @@ push_flow_inheritance() {
 }
 
 pop_flow_inheritance() {
-	test ${FIREHOL_AUTO_CT_HELPERS} -eq 0 && return 0
+	test ! "${FIREHOL_CONNTRACK_HELPERS_ASSIGNMENT}" = "firehol" && return 0
 
 	local type="${1}" items_in=${#FIREHOL_FLOW_INHERITANCE_STACK_IN[*]} items_out=${#FIREHOL_FLOW_INHERITANCE_STACK_OUT[*]}
 
@@ -8767,7 +8754,7 @@ smart_function() {
 		create_chain alias filter "out_${mychain}" "out_${work_name}" || return 1
 		
 		# Create it in the raw table for the reconstruction to work
-		if [ ${FIREHOL_AUTO_CT_HELPERS} -eq 1 ]
+		if [ "${FIREHOL_CONNTRACK_HELPERS_ASSIGNMENT}" = "firehol" ]
 		then
 			create_chain alias raw "in_${mychain}" "in_${work_name}" || return 1
 			create_chain alias raw "out_${mychain}" "out_${work_name}" || return 1
@@ -10697,7 +10684,12 @@ initialize_firewall() {
 	
 	test $FIREHOL_ROUTING -eq 1 && postprocess -warn ${SYSCTL_CMD} -w "net.ipv4.ip_forward=1"
 	
-	postprocess -warn ${SYSCTL_CMD} -w "net.netfilter.nf_conntrack_helper=${FIREHOL_DEFAULT_CT_HELPERS}"
+	if [ "${FIREHOL_CONNTRACK_HELPERS_ASSIGNMENT}" = "kernel" ]
+	then
+		postprocess -warn ${SYSCTL_CMD} -w "net.netfilter.nf_conntrack_helper=1"
+	else
+		postprocess -warn ${SYSCTL_CMD} -w "net.netfilter.nf_conntrack_helper=0"
+	fi
 
 	for m in "${!FIREHOL_NFACCT[@]}"
 	do
