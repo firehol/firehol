@@ -1,13 +1,9 @@
 Unit Tests
 ==========
 
-WARNING
-:   Your firewall is cleared out before starting and after finishing
-    and will go through a number or arbitrary states. DO NOT RUN these tests
-    unless you are protected by a firewall elsewhere on your network.
-
-    You should backup your `/etc/firehol` directory as this is also
-    manipulated whilst the tests run.
+NOTE
+:   The `unittest` command uses namespaces to isolate itself and the
+    tests it runs from the running firewall.
 
 Run tests as:
 
