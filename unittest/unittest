@@ -16,27 +16,31 @@ then
   haderror="Y"
 fi
 
-if [ "$1" != "-ok" ]
+if [ "$1" = "-inns" ]
 then
-  echo "Do no run on a production system!"
-  echo ""
-  echo "This script will wreck your existing firewall, ultimately leaving"
-  echo "it empty. It saves and restores /etc/firehol but it is recommended"
-  echo "that you keep your own backup."
-  echo ""
-  echo "If you are running remotely your session will get interrupted"
-  echo "Ensure you can re-establish control."
-  echo ""
-  echo "Re-run with '-ok' as a parameter to proceed"
-  echo ""
-  haderror="Y"
-else
-  shift
+  mount -t tmpfs tmpfs /etc/firehol
+  if [ -f /etc/firehol/firehol.conf \
+    -o -f /etc/firehol/firehol-defaults.conf \
+    -o -f /etc/firehol/fireqos.conf \
+    -o -f /etc/firehol/link-balancer.conf \
+    -o -d /etc/firehol/services ]
+  then
+    echo "Namespace switch failed! Aborting!"
+    exit 1
+  else
+    echo "Running in separate namespace"
+    shift
+  fi
+elif [ ! "$haderror" ]
+then
+  echo "Unsharing namespaces"
+  unshare -m -n -- $0 -inns "$@"
+  exit
 fi
 
 if [ "$haderror" -o $# -lt 1 ]
 then
-  echo "Usage: sudo ./unittest -ok all|test-dir|test-dir/test.conf [...]"
+  echo "Usage: sudo ./unittest all|test-dir|test-dir/test.conf [...]"
   exit 1
 fi
 
@@ -52,9 +56,6 @@ fi
 ETCSAVE=/etc/firehol.save$$
 
 myexit() {
-  test -f $MYTMP/save && iptables-restore < $MYTMP/save
-  test -f $MYTMP/save6 && ip6tables-restore < $MYTMP/save6
-  test -d $ETCSAVE && rm -rf /etc/firehol && mv $ETCSAVE /etc/firehol
   rm -f /var/run/firehol.lck
   rm -rf $MYTMP
   exit 0
@@ -66,11 +67,6 @@ trap myexit 0
 
 TESTDIR=`pwd`/
 export TESTDIR
-
-iptables-save > $MYTMP/save || exit
-ip6tables-save > $MYTMP/save6 || exit
-test -d /etc/firehol && mv /etc/firehol $ETCSAVE
-mkdir -p /etc/firehol/services
 
 if [ $# -eq 1 -a "$1" = "all" ]
 then
@@ -178,7 +174,7 @@ do
     total=$((total + 1))
 
     # Define our configuration directory exactly as we want it
-    rm -rf /etc/firehol
+    rm -rf /etc/firehol/*
     if [ -x "$pre_sh" ]
     then
       # We can control completely with a testname.pre.sh
