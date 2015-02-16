@@ -517,7 +517,7 @@ FIREHOL_PROTECTED_MATCHES=1
 # 'firehol' = FireHOL will generate rules in the 'raw' table, using the -j CT
 #             target of iptables to match the flows of the statements
 #             the conntrack helpers are used.
-#             CAUSION: FireHOL generated statements are not NAT aware.
+#             CAUTION: FireHOL generated statements are not NAT aware.
 #             You should only use this, if you don't NAT traffic that have to
 #             be seen by conntrack helpers to detect RELATED ports.
 #
@@ -3431,6 +3431,7 @@ fi
 # ------------------------------------------------------------------------------
 
 FIREHOL_SYNPROXY_OPTIONS="--sack-perm --timestamp --wscale 7 --mss 1460"
+FIREHOL_SYNPROXY_LOG=1
 FIREHOL_SYNPROXY_COUNTER=0
 synproxy4() { ipv4 synproxy "${@}"; }
 synproxy6() { ipv6 synproxy "${@}"; }
@@ -3438,7 +3439,7 @@ synproxy46() { both synproxy "${@}"; }
 synproxy() {
 	work_realcmd_helper ${FUNCNAME} "${@}"
 
-	local where="${1}" chain= rchain=
+	local where="${1}" chain= rchain= in=() dnat=() redirect=() use= log=()
 	shift
 
 	(( FIREHOL_SYNPROXY_COUNTER += 1 ))
@@ -3446,17 +3447,44 @@ synproxy() {
 	
 	require_work clear || ( error "${FUNCNAME} cannot be used in '${work_cmd}'. Put it before any '${work_cmd}' definition."; return 1 )
 
+	use="in"
+	while [ ! -z "${1}" ]
+	do
+		case "${1,,}" in
+			input)		use="in" ;;
+			dnat)		use="dnat" ;;
+			redirect)	use="redirect" ;;
+			*)		case "${use}" in
+						in)		in=("${in[@]}" "${1}") ;;
+						dnat)		dnat=("${dnat[@]}" "${1}") ;;
+						redirect)	redirect=("${redirect[@]}" "${1}") ;;
+					esac
+					;;
+		esac
+		shift
+	done
+	#echo >&2 "IN: ${in[*]}"
+	#echo >&2 "DNAT: ${dnat[*]}"
+	#echo >&2 "REDIRECT: ${redirect[*]}"
+
 	set_work_function -ne "Untracking the SYNPROXY packets in table 'raw'"
 
-	rule table raw chain PREROUTING "${@}" proto tcp custom '-m tcp --syn' action CT --notrack || return 1
+	test ${FIREHOL_SYNPROXY_LOG} -eq 1 && log=(loglimit "SYNPROXY RAW INPUT")
+	rule table raw chain PREROUTING "${in[@]}" proto tcp custom '-m tcp --syn' action CT --notrack "${log[@]}" || return 1
 
 	for chain in ${where//,/ }
 	do
 		case "${chain^^}" in
 			PRE|PREROUTING)		error "SYNPROXY cannot be used in PREROUTING"; return 1 ;;
-			IN|INPUT)		chain="INPUT"; rchain="OUTPUT" ;;
+			IN|INPUT)		chain="INPUT"; rchain="OUTPUT"
+						if [ ! -z "${dnat[*]}" ]
+						then
+							error "dnat can be used in synproxy, only if 'pass' / 'FORWARD' mode."
+							return 1
+						fi
+						;;
 			OUT|OUTPUT)		error "There is no point to setup SYNPROXY on OUTPUT"; return 1 ;;
-			PASS|FORWARD)		chain="FORWARD"; rchain="FORWARD" ;;
+			PASS|FORWARD)		chain="FORWARD"; rchain="OUTPUT" ;;
 			POST|POSTROUTING)	error "SYNPROXY cannot be used in PREROUTING"; return 1 ;;
 		esac
 
@@ -3464,10 +3492,45 @@ synproxy() {
 		# most probably we will have to support tcp options per call for this helper
 
 		set_work_function -ne "Sending TCP packets to SYNPROXY"
-		rule table filter chain ${chain} insert_as ${FIREHOL_SYNPROXY_COUNTER} "${@}" proto tcp state INVALID,UNTRACKED action SYNPROXY ${FIREHOL_SYNPROXY_OPTIONS} || return 1
+		test ${FIREHOL_SYNPROXY_LOG} -eq 1 && log=(loglimit "SYNPROXY TARGET")
+		rule table filter chain ${chain} insert_as ${FIREHOL_SYNPROXY_COUNTER} "${in[@]}" proto tcp state INVALID,UNTRACKED action SYNPROXY ${FIREHOL_SYNPROXY_OPTIONS} "${log[@]}" || return 1
 
-		set_work_function -ne "Allowing SYNPROXY to establish the connection"
-		rule table filter chain ${rchain} insert_as ${FIREHOL_SYNPROXY_COUNTER} reverse "${@}" proto tcp state INVALID,UNTRACKED action ACCEPT
+		set_work_function -ne "Allowing SYNPROXY to establish the connection, using packets it sends (OUTPUT chain)"
+		test ${FIREHOL_SYNPROXY_LOG} -eq 1 && log=(loglimit "SYNPROXY REPLY")
+		rule table filter chain ${rchain} insert_as ${FIREHOL_SYNPROXY_COUNTER} reverse "${in[@]}" proto tcp state INVALID,UNTRACKED action ACCEPT "${log[@]}" || return 1
+		
+		if [ "${chain}" = "FORWARD" ]
+		then
+			# FORWARD mode NAT
+
+			if [ ! -z "${dnat[*]}" ]
+			then
+				# Verified this works
+				set_work_function -ne "Creating DNAT rule for SYPROXY to reach the target server"
+				test ${FIREHOL_SYNPROXY_LOG} -eq 1 && log=(loglimit "SYNPROXY DNAT")
+				rule table nat chain OUTPUT "${in[@]}" proto tcp state NEW action dnat "${dnat[@]}" nosoftwarnings inface any "${log[@]}" || return 1
+			fi
+
+			if [ ! -z "${redirect[*]}" ]
+			then
+				# FIXME
+				# Not tested yet
+				set_work_function -ne "Creating DNAT rule for SYPROXY to reach the target server"
+				test ${FIREHOL_SYNPROXY_LOG} -eq 1 && log=(loglimit "SYNPROXY REDIRECT")
+				rule table nat chain OUTPUT "${in[@]}" proto tcp state NEW action redirect "${redirect[@]}" nosoftwarnings inface any "${log[@]}" || return 1
+			fi
+		else
+			# INPUT mode NAT
+
+			if [ ! -z "${redirect[*]}" ]
+			then
+				# FIXME
+				# Not working yet
+				set_work_function -ne "Creating DNAT rule for SYPROXY to reach the target server"
+				test ${FIREHOL_SYNPROXY_LOG} -eq 1 && log=(loglimit "SYNPROXY REDIRECT")
+				rule table nat chain OUTPUT "${in[@]}" proto tcp state NEW action redirect "${redirect[@]}" nosoftwarnings inface any dst 127.0.0.1 "${log[@]}" || return 1
+			fi
+		fi
 	done
 
 	FIREHOL_TCP_SYN_COOKIES=1
@@ -7630,7 +7693,7 @@ rule() {
 		inf= outf= inph= outph= \
 		mc= ipv= iptables= src= dst= s= d= sp= dp= \
 		not= src_has_ipset=0 dst_has_ipset=0 \
-		DYNAMIC_CHAIN_COUNTER
+		DYNAMIC_CHAIN_COUNTER insert_update=
 
 	# log mode selection
 	if [ "${FIREHOL_LOG_MODE}" = "ULOG" ]
@@ -8424,6 +8487,18 @@ rule() {
 	# state
 	[ ! -z "${state}" ] && state_arg=("-m" "conntrack" ${statenot} "--ctstate" "${state}")
 
+	if [ -z "${positive_rule_number}" ]
+	then
+		insert_update="-A ${chain}"
+	else
+		if [ ${positive_rule_number} -gt 1 ]
+		then
+			insert_update="-I ${chain} ${positive_rule_number}"
+		else
+			insert_update="-I ${chain}"
+		fi
+	fi
+
 	# ipvall	
 	for ipv in ${ipvall}
 	do
@@ -8673,13 +8748,7 @@ rule() {
 	fi
 
 	# do it!
-	if [ -z "${positive_rule_number}" ]
-	then
-		x="-A ${chain}"
-	else
-		x="-I ${chain} ${positive_rule_number}"
-	fi
-	rule_action_param ${iptables} "${action}" "${statenot}" "${state}" "${table}" "${action_param[@]}" -- -t ${table} ${x} "${basecmd[@]}" || failed=$[failed + 1]
+	rule_action_param ${iptables} "${action}" "${statenot}" "${state}" "${table}" "${action_param[@]}" -- -t ${table} ${insert_update} "${basecmd[@]}" || failed=$[failed + 1]
 
 	done # dport
 	done # sport
@@ -11071,25 +11140,30 @@ firewall_policy_common() {
 	# ${iptables_cmd} -t filter -A OUTPUT -m conntrack --ctstate RELATED -j ACCEPT
 	# ${iptables_cmd} -t filter -A FORWARD -m conntrack --ctstate RELATED -j ACCEPT
 
+	if [ "${FIREHOL_DROP_ORPHAN_TCP_ACK_FIN}" = "1" ]
+	then
+		set_work_function "Silently droping TCP ACK+FIN packets (option: FIREHOL_DROP_ORPHAN_TCP_ACK_FIN)"
+
+		# Silently drop orphan TCP/ACK FIN packets
+		# before droping INVALID below, otherwise these will be logged as INVALID too
+		${iptables_cmd} -t filter -A INPUT -p tcp --tcp-flags ALL ACK,FIN -m conntrack --ctstate NEW,INVALID -j DROP
+		${iptables_cmd} -t filter -A OUTPUT -p tcp --tcp-flags ALL ACK,FIN -m conntrack --ctstate NEW,INVALID -j DROP
+		${iptables_cmd} -t filter -A FORWARD -p tcp --tcp-flags ALL ACK,FIN -m conntrack --ctstate NEW,INVALID -j DROP
+	fi
+
 	# Drop all invalid packets.
 	# Netfilter HOWTO suggests to DROP all INVALID packets.
 	if [ "${FIREHOL_DROP_INVALID}" = "1" -o "${FIREHOL_RULESET_MODE}" = "optimal" ]
 	then
 		set_work_function "Droping ${iptables_cmd} connection tracker INVALID packets (option: FIREHOL_DROP_INVALID)"
 
-		${iptables_cmd} -t filter -A INPUT -m conntrack --ctstate INVALID -j DROP
-		${iptables_cmd} -t filter -A OUTPUT -m conntrack --ctstate INVALID -j DROP
-		${iptables_cmd} -t filter -A FORWARD -m conntrack --ctstate INVALID -j DROP
-	fi
+		rule table filter chain INPUT state INVALID action DROP loglimit "INVALID IN"
+		rule table filter chain OUTPUT state INVALID action DROP loglimit "INVALID OUT"
+		rule table filter chain FORWARD state INVALID action DROP loglimit "INVALID PASS"
 
-	if [ "${FIREHOL_DROP_ORPHAN_TCP_ACK_FIN}" = "1" ]
-	then
-		set_work_function "Silently droping TCP ACK+FIN packets (option: FIREHOL_DROP_ORPHAN_TCP_ACK_FIN)"
-
-		# Silently drop orphan TCP/ACK FIN packets
-		${iptables_cmd} -t filter -A INPUT -p tcp --tcp-flags ALL ACK,FIN -m conntrack --ctstate NEW -j DROP
-		${iptables_cmd} -t filter -A OUTPUT -p tcp --tcp-flags ALL ACK,FIN -m conntrack --ctstate NEW -j DROP
-		${iptables_cmd} -t filter -A FORWARD -p tcp --tcp-flags ALL ACK,FIN -m conntrack --ctstate NEW -j DROP
+		#${iptables_cmd} -t filter -A INPUT -m conntrack --ctstate INVALID -j DROP
+		#${iptables_cmd} -t filter -A OUTPUT -m conntrack --ctstate INVALID -j DROP
+		#${iptables_cmd} -t filter -A FORWARD -m conntrack --ctstate INVALID -j DROP
 	fi
 
 	if [ ! -z ${FIREHOL_GLOBAL_RPFILTER} ]
@@ -11103,7 +11177,9 @@ firewall_policy() {
 	test ${firewall_policy_applied} -eq 1 && return 0
 
 	firewall_policy_applied=1
+	push_namespace ipv4
 	firewall_policy_common iptables
+	pop_namespace
 }
 
 firewall_policy6_applied=0
@@ -11111,7 +11187,9 @@ firewall_policy6() {
 	test ${firewall_policy6_applied} -eq 1 && return 0
 
 	firewall_policy6_applied=1
+	push_namespace ipv6
 	firewall_policy_common ip6tables
+	pop_namespace
 }
 
 
