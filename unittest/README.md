@@ -57,10 +57,22 @@ The scripts have access to these environment variables:
 * `run_sh` - the run script path
 * `post_sh` - the post-run script path
 * `runlog` - the logfile where command output should go
-* `out4` - the iptables output (FireHOL tests only)
-* `out6` - the ip6tables output (FireHOL tests only)
-* `aud4` - the expected iptables output (FireHOL tests only)
-* `aud6` -the expected ip6tables output (FireHOL tests only)
+
+FireHOL scripts can use these:
+
+* `out4` - the iptables output
+* `out6` - the ip6tables output
+* `aud4` - the expected iptables output
+* `aud6` -the expected ip6tables output
+
+FireQOS scripts can use these:
+
+* `outqdisc` - the tc qdisc output
+* `outclass` - the tc class output
+* `outfilter` - the tc filter output
+* `audqdisc` - the expected tc qdisc output
+* `audclass` - the expected tc class output
+* `audfilter` - the expected tc filter output
 
 If any script returns an error the standard output checks are skipped.
 Otherwise following checks are made:
@@ -80,7 +92,14 @@ For FireHOL tests
     equivalent `10.0.0.1`.
 
 For FireQOS tests
-:   TODO
+:   The files `mytest.qdisc.out`, `mytest.class.out` ands
+    `mytest.filter.out` will be compared to the output
+    of `tc [type] show dev veth0` to check that the expected
+    traffic control configuration has been produced and is running.
+
+    Note the use of `veth0` which is set up automatically and is
+    the only device which will be checked, so it must be the
+    interface used in test configurations.
 
 For Link Balancer tests
 :   TODO

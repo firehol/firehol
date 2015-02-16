@@ -1,0 +1,3 @@
+class htb 1:11 parent 1:1 leaf 11: prio 0 rate 11000bit ceil 999000bit burst 1599b cburst 1599b 
+class htb 1:5000 parent 1:1 leaf 12: prio 1 rate 11000bit ceil 999000bit burst 1599b cburst 1599b 
+class htb 1:1 root rate 999000bit ceil 999000bit burst 1599b cburst 1599b 

@@ -35,6 +35,7 @@ doc/service-links
 doc/tools/pandoc-post
 sbin/firehol
 sbin/fireqos
+sbin/link-balancer
 *.xz
 *.gz
 *.bz2

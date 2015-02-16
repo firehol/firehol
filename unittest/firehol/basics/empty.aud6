@@ -4,19 +4,22 @@
 :FORWARD DROP [0:0]
 :OUTPUT DROP [0:0]
 -A INPUT -i lo -j ACCEPT
+-A INPUT -p tcp -m tcp --tcp-flags FIN,SYN,RST,PSH,ACK,URG FIN,ACK -m conntrack --ctstate INVALID,NEW -j DROP
+-A INPUT -m conntrack --ctstate INVALID -m limit --limit 1/sec -j LOG --log-prefix "INVALID_IN:"
 -A INPUT -m conntrack --ctstate INVALID -j DROP
--A INPUT -p tcp -m tcp --tcp-flags FIN,SYN,RST,PSH,ACK,URG FIN,ACK -m conntrack --ctstate NEW -j DROP
 -A INPUT -p icmp -m conntrack --ctstate RELATED -j ACCEPT
 -A INPUT -m limit --limit 1/sec -j LOG --log-prefix "IN-unknown:"
 -A INPUT -j DROP
+-A FORWARD -p tcp -m tcp --tcp-flags FIN,SYN,RST,PSH,ACK,URG FIN,ACK -m conntrack --ctstate INVALID,NEW -j DROP
+-A FORWARD -m conntrack --ctstate INVALID -m limit --limit 1/sec -j LOG --log-prefix "INVALID_PASS:"
 -A FORWARD -m conntrack --ctstate INVALID -j DROP
--A FORWARD -p tcp -m tcp --tcp-flags FIN,SYN,RST,PSH,ACK,URG FIN,ACK -m conntrack --ctstate NEW -j DROP
 -A FORWARD -p icmp -m conntrack --ctstate RELATED -j ACCEPT
 -A FORWARD -m limit --limit 1/sec -j LOG --log-prefix "PASS-unknown:"
 -A FORWARD -j DROP
 -A OUTPUT -o lo -j ACCEPT
+-A OUTPUT -p tcp -m tcp --tcp-flags FIN,SYN,RST,PSH,ACK,URG FIN,ACK -m conntrack --ctstate INVALID,NEW -j DROP
+-A OUTPUT -m conntrack --ctstate INVALID -m limit --limit 1/sec -j LOG --log-prefix "INVALID_OUT:"
 -A OUTPUT -m conntrack --ctstate INVALID -j DROP
--A OUTPUT -p tcp -m tcp --tcp-flags FIN,SYN,RST,PSH,ACK,URG FIN,ACK -m conntrack --ctstate NEW -j DROP
 -A OUTPUT -p icmp -m conntrack --ctstate RELATED -j ACCEPT
 -A OUTPUT -m limit --limit 1/sec -j LOG --log-prefix "OUT-unknown:"
 -A OUTPUT -j DROP

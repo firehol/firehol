@@ -29,6 +29,7 @@ then
     exit 1
   else
     echo "Running in separate namespace"
+    ip link add veth0 type veth peer name veth1
     shift
   fi
 elif [ ! "$haderror" ]
@@ -145,10 +146,18 @@ do
   export post_sh=$(newext post.sh $conf)
 
   export runlog=$(newext log $conf)
+
   export out4=$(newext out4 $conf)
   export out6=$(newext out6 $conf)
   export aud4=$(newext aud4 $conf)
   export aud6=$(newext aud6 $conf)
+
+  export outqdisc=$(newext qdisc.out $conf)
+  export outclass=$(newext class.out $conf)
+  export outfilter=$(newext filter.out $conf)
+  export audqdisc=$(newext qdisc.aud $conf)
+  export audclass=$(newext class.aud $conf)
+  export audfilter=$(newext filter.aud $conf)
 
   case $conf in
     firehol*)
@@ -234,8 +243,19 @@ do
           fi
         ;;
         fireqos)
-          # TODO - dump running config
-          :
+          sudo tc qdisc show dev veth0 > "$outqdisc"
+          sudo tc class show dev veth0 > "$outclass"
+          sudo tc filter show dev veth0 > "$outfilter"
+          if ! cmp "$audqdisc" "$outqdisc"
+          then
+            errors=$((errors + 1))
+          elif ! cmp "$audclass" "$outclass"
+          then
+            errors=$((errors + 1))
+          elif ! cmp "$audfilter" "$outfilter"
+          then
+            errors=$((errors + 1))
+          fi
         ;;
         link-balancer)
           # TODO - dump running config
