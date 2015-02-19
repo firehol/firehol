@@ -106,7 +106,7 @@ FIREQOS_BALANCED_PRIO=4
 
 
 # Enable colors
-if [ -t 1 -a $[$(tput colors 2>/dev/null)] -ge 8 ]
+if [ -t 2 -a $[$(tput colors 2>/dev/null)] -ge 8 ]
 then
 	COLOR_RESET="\e[0m"
 	COLOR_BLACK="\e[30m"
