@@ -3368,8 +3368,12 @@ rules_custom() {
 		# up to the helper to figure out if the traffic we see is really RELATED to an ESTABLISHED
 		# socket or not).
 
-		rule ${in}          action "${@}" chain "${in}_${mychain}"  helper ${x} state RELATED || return 1
-		rule ${out} reverse action "${@}" chain "${out}_${mychain}" helper ${x} state RELATED || return 1
+		# Note
+		# ESTABLISHED connections matching is required at this point, because the replies of RELATED sockets
+		# will not be accepted by the connection tracker. Example: ftp (test without client all accept)
+
+		rule ${in}          action "${@}" chain "${in}_${mychain}"  helper ${x} state RELATED,ESTABLISHED || return 1
+		rule ${out} reverse action "${@}" chain "${out}_${mychain}" helper ${x} state RELATED,ESTABLISHED || return 1
 	done
 
 	return 0
@@ -3447,13 +3451,64 @@ fi
 # XXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXX
 # ------------------------------------------------------------------------------
 
+setup_lo_rpfilter=0
+declare -A setup_lo_route_interfaces=()
+setup_lo_for_synproxy() {
+
+	# disable rpfilter for lo
+	if [ ${setup_lo_rpfilter} -eq 0 ]
+	then
+		postprocess -warn ${SYSCTL_CMD} -w net.ipv4.conf.lo.rp_filter=0
+		setup_lo_rpfilter=1
+	fi
+
+	local x=
+	for x in "${@}"
+	do
+		if [ -z "${setup_lo_route_interfaces[$x]}" ]
+		then
+			postprocess -ne sysctl -w net.ipv4.conf.${x}.route_localnet=1
+			syslog info "Enabling net.ipv4.conf.${x}.route_localnet=1."
+			setup_lo_route_interfaces[$x]=1
+		fi
+	done
+
+	return 0
+}
+
+finalize_synproxy() {
+	local oldns= x= ipvall=
+
+	[ ${synproxy_hooks_added4} -eq 1 ] && ipvall="${ipvall} ipv4"
+	[ ${synproxy_hooks_added6} -eq 1 ] && ipvall="${ipvall} ipv6"
+
+	for x in ${ipvall}
+	do
+		oldns="${FIREHOL_NS_CURR}"
+		FIREHOL_NS_CURR="${x}"
+
+		set_work_function -ne "Prevent SYNPROXY->SERVER SYN from traversing the nat table"
+		rule table nat chain SYNPROXY2SERVER_PRE action ACCEPT || return 1
+		rule table nat chain SYNPROXY2SERVER_OUT action ACCEPT || return 1
+
+		set_work_function -ne "Orphan SYN packet from SYNPROXY"
+		rule table filter chain SYNPROXY2SERVER_IN  action DROP loglimit "ORPHAN SYNPROXY->SERVER filter.IN" || return 1
+		rule table filter chain SYNPROXY2SERVER_OUT action DROP loglimit "ORPHAN SYNPROXY->SERVER filter.OUT" || return 1
+
+		FIREHOL_NS_CURR="${oldns}"
+	done
+}
+
+synproxy_hooks_added4=0
+synproxy_hooks_added6=0
+synproxy_mark=
 synproxy4() { ipv4 synproxy "${@}"; }
 synproxy6() { ipv6 synproxy "${@}"; }
 synproxy46() { both synproxy "${@}"; }
 synproxy() {
 	work_realcmd_helper ${FUNCNAME} "${@}"
 
-	local where="${1}" chain= match=() action= action_args=() log=() inface=() dst=() overwrite=() x=
+	local where="${1}" chain= match=() action= action_args=() log=() inface=() dst=() overwrite=() x= outface= dohooks=0
 	shift
 
 	set_work_function -ne "Initializing ${FUNCNAME}"
@@ -3464,7 +3519,7 @@ synproxy() {
 	do
 		case "${1,,}" in
 			dnat|redirect|accept|reject|drop)
-				action="${1}"; shift
+				action="${1^^}"; shift
 				action_args=("${@}")
 				break
 				;;
@@ -3506,9 +3561,46 @@ synproxy() {
 		return 1
 	fi
 
+	if running_both
+	then
+		error "Cannot setup SYNPROXY for both IPv4 and IPv6 at the same time."
+		return 1
+	fi
+
+	if [ ${synproxy_hooks_added4} -eq 0 -a ${synproxy_hooks_added6} -eq 0 ]
+	then
+		# make sure we have a synproxy mark
+		if [ -z "${MARKS_MASKS[synproxy]}" ]
+		then
+			markdef synproxy 2 temporary stateless || return 1
+		fi
+		synproxy_mark=$(mark_value synproxy 1)
+	fi
+
+	if running_ipv4;
+	then
+		test ${synproxy_hooks_added4} -eq 0 && dohooks=1
+		synproxy_hooks_added4=1
+	fi
+
+	if running_ipv6;
+	then
+		test ${synproxy_hooks_added6} -eq 0 && dohooks=1
+		synproxy_hooks_added6=1
+	fi
+
+	if [ ${dohooks} -eq 1 ]
+	then
+		create_chain nat    SYNPROXY2SERVER_PRE PREROUTING proto tcp state NEW rawmark ${synproxy_mark}
+		create_chain nat    SYNPROXY2SERVER_OUT OUTPUT     proto tcp state NEW rawmark ${synproxy_mark}
+
+		create_chain filter SYNPROXY2SERVER_IN  INPUT      proto tcp state NEW rawmark ${synproxy_mark}
+		create_chain filter SYNPROXY2SERVER_OUT OUTPUT     proto tcp state NEW rawmark ${synproxy_mark}
+	fi
+
 	set_work_function -ne "Untracking the SYNPROXY packets in table 'raw'"
 
-	test ${FIREHOL_SYNPROXY_LOG} -eq 1 && log=(loglimit "SYNPROXY UNTRACE")
+	test ${FIREHOL_SYNPROXY_LOG} -eq 1 && log=(loglimit "CLIENT->SYNPROXY SYN NOTRACK")
 	rule table raw chain PREROUTING "${match[@]}" proto tcp custom '-m tcp --syn' outface any physout any action CT --notrack "${log[@]}" || return 1
 
 	# based on where the user wants us to hook the SYNPROXY
@@ -3521,6 +3613,8 @@ synproxy() {
 
 			IN|INPUT)		chain="INPUT"
 						overwrite=(outface any physout any)
+						outface="lo"
+						[ "${action}" = "DNAT" ] && outface="any"
 						;;
 
 			OUT|OUTPUT)		error "There is no point to setup SYNPROXY on OUTPUT"
@@ -3528,6 +3622,7 @@ synproxy() {
 						;;
 
 			PASS|FORWARD)		chain="FORWARD"
+						outface="any"
 						overwrite=()
 						;;
 
@@ -3540,19 +3635,23 @@ synproxy() {
 		# most probably we will have to support tcp options per call for this helper
 
 		set_work_function -ne "Sending client's SYN packets to SYNPROXY in filter.${chain}"
-		test ${FIREHOL_SYNPROXY_LOG} -eq 1 && log=(loglimit "SYNPROXY CORE")
-		rule table filter chain ${chain} insert "${match[@]}" ${overwrite[@]} proto tcp state INVALID,UNTRACKED action SYNPROXY ${FIREHOL_SYNPROXY_OPTIONS} "${log[@]}" || return 1
+		test ${FIREHOL_SYNPROXY_LOG} -eq 1 && log=(loglimit "CLIENT->SYNPROXY SYN or ACK")
+		rule table filter chain ${chain} "${match[@]}" ${overwrite[@]} proto tcp state INVALID,UNTRACKED action SYNPROXY ${FIREHOL_SYNPROXY_OPTIONS} "${log[@]}" || return 1
 
 		set_work_function -ne "Sending SYNPROXY's ACK packets to client in filter.OUTPUT"
-		test ${FIREHOL_SYNPROXY_LOG} -eq 1 && log=(loglimit "SYNPROXY REPLY")
-		rule table filter chain OUTPUT insert reverse "${match[@]}" ${overwrite[@]} proto tcp state INVALID,UNTRACKED action ACCEPT "${log[@]}" || return 1
+		test ${FIREHOL_SYNPROXY_LOG} -eq 1 && log=(loglimit "SYNPROXY->CLIENT ACK")
+		rule table filter chain OUTPUT reverse "${match[@]}" ${overwrite[@]} proto tcp state INVALID,UNTRACKED action ACCEPT "${log[@]}" || return 1
 		
 		# Once the client receives the ACK from SYNPROXY, it will send an ACK back.
 		# This ACK will be routed again to SYNPROXY (it will be UNTRACKED too).
 		# Once SYNPROXY receives this ACK packet from the client, it will send a SYN to the real server.
 		# This SYN packet will be sent via OUTPUT chain. If it goes to localhost, it will be routed via device lo.
 
-		case "${action^^}" in
+		set_work_function -ne "MARK SYN packet from SYNPROXY to SERVER"
+		test ${FIREHOL_SYNPROXY_LOG} -eq 1 && log=(loglimit "SYNPROXY->SERVER SYN MARK")
+		rule table mangle chain OUTPUT "${match[@]}" proto tcp state NEW action MARK to ${synproxy_mark} nosoftwarnings inface any physin any outface ${outface} physout any "${log[@]}" || return 1
+
+		case "${action}" in
 			DNAT)
 				# DNAT
 				# Practically we use 'dst' and a possibly defined 'dport' to make the DNAT on the OUTPUT.
@@ -3561,69 +3660,44 @@ synproxy() {
 				# src and sport will only survive this DNAT, making it impossible to match it.
 				# So, we mark the packet before the DNAT (matching dst and original dport) and accept it after the DNAT.
 
-				# make sure we have a synproxy mark
-				if [ -z "${MARKS_MASKS[synproxy]}" ]
-				then
-					markdef synproxy 2 temporary stateless || return 1
-				fi
-
-				set_work_function -ne "MARK SYN packet from SYNPROXY"
-				test ${FIREHOL_SYNPROXY_LOG} -eq 1 && log=(loglimit "SYNPROXY DNAT MARK")
-				rule table mangle chain OUTPUT "${match[@]}" proto tcp state NEW action MARK to $(mark_value synproxy 1) nosoftwarnings inface any physin any outface any physout any "${log[@]}" || return 1
-
 				set_work_function -ne "DNAT for SYNPROXY"
-				test ${FIREHOL_SYNPROXY_LOG} -eq 1 && log=(loglimit "SYNPROXY DNAT")
-				rule table nat chain OUTPUT "${match[@]}" proto tcp state NEW action ${action} "${action_args[@]}" nosoftwarnings inface any physin any "${log[@]}" || return 1
+				test ${FIREHOL_SYNPROXY_LOG} -eq 1 && log=(loglimit "SYNPROXY->SERVER SYN DNAT")
+				rule table nat chain SYNPROXY2SERVER_OUT "${match[@]}" proto tcp action ${action} "${action_args[@]}" nosoftwarnings inface any physin any outface any physout any "${log[@]}" || return 1
 
-				set_work_function -ne "ACCEPT SYN packet from SYNPROXY"
-				test ${FIREHOL_SYNPROXY_LOG} -eq 1 && log=(loglimit "SYNPROXY DNAT ACCEPT")
-				rule table filter chain OUTPUT proto tcp state NEW action ACCEPT custommark synproxy 1 nosoftwarnings inface any physin any outface any physout any "${log[@]}" || return 1
+				# now match the new destination
+
+				local ip=${action_args[1]/:*/}
+				test ! -z "${ip}" && ip="dst ${ip}"
+
+				local port=${action_args[1]/*:/}
+				test "${port}" = "${action_args[1]}" && port=
+				test ! -z "${port}" && port="dport ${port}"
+
+				test ${FIREHOL_SYNPROXY_LOG} -eq 1 && log=(loglimit "SYNPROXY->SERVER SYN DNAT'd OUT")
+				rule table filter chain SYNPROXY2SERVER_OUT "${match[@]}" proto tcp action ACCEPT "${log[@]}" nosoftwarnings inface any physin any outface any physout any ${ip} ${port} || return 1
 				;;
 
 			REDIRECT)
 				# REDIRECT
+
 				# this requires routing device lo
-
-				if [ ! "${FIREHOL_TRUST_LOOPBACK}" = "strict" ]
-				then
-					error "SYNPROXY and REDIRECT require routing device lo. FireHOL will enable it for the interfaces required (${inface[@]}). However you have to set FIREHOL_TRUST_LOOPBACK='strict' in your config or firehol-defaults.conf"
-					return 1
-				fi
-
-				# enable routing lo
-				if [ -z "${inface[*]}" ]
-				then
-					# this would enable routing of lo on all devices
-					# the user should do it himself.
-					# postprocess -ne sysctl -w net.ipv4.conf.all.route_localnet=1
-					# postprocess -ne sysctl -w net.ipv4.conf.default.route_localnet=1
-					# syslog info "Will enable net.ipv4.conf.all.route_localnet=1 and net.ipv4.conf.default.route_localnet=1 via sysctl."
-					error "Please give specific 'inface' interfaces to this statement. FireHOL will enable routing device lo for these interfaces to implement this SYNPROXY."
-				else
-					for x in ${inface[@]}
-					do
-						postprocess -ne sysctl -w net.ipv4.conf.${x}.route_localnet=1
-						syslog info "Once firewall is activated, FireHOL will enable net.ipv4.conf.${x}.route_localnet=1 via sysctl (required for SYNPROXY)."
-					done
-				fi
+				setup_lo_for_synproxy "${inface[@]}" || return 1
 
 				set_work_function -ne "REDIRECT for SYNPROXY"
-				test ${FIREHOL_SYNPROXY_LOG} -eq 1 && log=(loglimit "SYNPROXY REDIRECT")
-				rule table nat chain OUTPUT "${match[@]}" proto tcp state NEW action ${action} "${action_args[@]}" nosoftwarnings inface any physin any outface lo physout any "${log[@]}" || return 1
+				test ${FIREHOL_SYNPROXY_LOG} -eq 1 && log=(loglimit "SYNPROXY->SERVER SYN REDIRECT")
+				rule table nat chain SYNPROXY2SERVER_OUT "${match[@]}" proto tcp action ${action} "${action_args[@]}" "${log[@]}" nosoftwarnings inface any physin any outface lo physout any || return 1
 
-				# src, dst, sport and the new dport can be matched on OUTPUT with outface=lo and on INPUT with inface=lo, both with dst = localhost
-				# we could instruct the users to create a lo interface in firehol.conf
-				# Of course, it is too complicated to do it there, so let's do it here...
+				local localhost=
+				running_ipv4 && localhost="127.0.0.0/8"
+				running_ipv6 && localhost="::1"
 
-				set_work_function -ne "Allow loopback REDIRECT for SYNPROXY"
-				running_ipv4 && x="127.0.0.1"
-				running_ipv6 && x="::1"
+				set_work_function -ne "ACCEPT SYN packet from SYNPROXY to lo OUT"
+				test ${FIREHOL_SYNPROXY_LOG} -eq 1 && log=(loglimit "SYNPROXY->SERVER SYN lo OUT")
+				rule table filter chain SYNPROXY2SERVER_OUT "${match[@]}" proto tcp action ACCEPT "${log[@]}" nosoftwarnings inface any physin any outface lo physout any dst "${localhost}" dport ${action_args[1]} || return 1
 
-				test ${FIREHOL_SYNPROXY_LOG} -eq 1 && log=(loglimit "SYNPROXY REDIRECT LOOPBACK OUT")
-				rule table filter chain OUTPUT "${match[@]}" proto tcp state NEW action ACCEPT "${log[@]}" nosoftwarnings dst ${x} dport ${action_args[1]} inface any physin any outface lo physout any || return 1
-
-				test ${FIREHOL_SYNPROXY_LOG} -eq 1 && log=(loglimit "SYNPROXY REDIRECT LOOPBACK IN")
-				rule table filter chain INPUT "${match[@]}" proto tcp state NEW action ACCEPT "${log[@]}" nosoftwarnings dst ${x} dport ${action_args[1]} inface lo physin any outface any physout any || return 1
+				set_work_function -ne "ACCEPT SYN packet from SYNPROXY lo IN"
+				test ${FIREHOL_SYNPROXY_LOG} -eq 1 && log=(loglimit "SYNPROXY->SERVER SYN lo IN")
+				rule table filter chain SYNPROXY2SERVER_IN "${match[@]}" proto tcp action ACCEPT "${log[@]}" nosoftwarnings inface lo physin any outface any physout any dst "${localhost}"  dport ${action_args[1]} || return 1
 				;;
 
 			*)
@@ -3631,13 +3705,26 @@ synproxy() {
 				# we allow an action to be defined, since this traffic is now in device lo !
 				# Practically we use 'dst' and a possibly defined 'dport' to take the action on OUTPUT.
 
-				set_work_function -ne "ACTION ${action[@]} rules for SYNPROXY"
+				# this requires routing device lo
+				setup_lo_for_synproxy "${inface[@]}" || return 1
 
-				test ${FIREHOL_SYNPROXY_LOG} -eq 1 && log=(loglimit "SYNPROXY ACTION ${action[@]} OUT")
-				rule table filter chain OUTPUT "${match[@]}" proto tcp state NEW action ${action} "${action_args[@]}" nosoftwarnings inface any physin any outface any physout any "${log[@]}" || return 1
-				
-				test ${FIREHOL_SYNPROXY_LOG} -eq 1 && log=(loglimit "SYNPROXY ACTION ${action[@]} IN")
-				rule table filter chain INPUT "${match[@]}" proto tcp state NEW action "${action}" "${action_args[@]}" nosoftwarnings inface any physin any outface any physout any "${log[@]}" || return 1
+				set_work_function -ne "ACTION ${action} rules for SYNPROXY"
+
+				# FIXME
+				# we have to check that the action exists in mangle
+
+				if [ "${chain}" = "INPUT" ]
+				then
+					# verified
+					test ${FIREHOL_SYNPROXY_LOG} -eq 1 && log=(loglimit "SYNPROXY->SERVER SYN ACTION ${action} OUT")
+					rule table filter chain SYNPROXY2SERVER_OUT "${match[@]}" proto tcp action "${action}" "${action_args[@]}" "${log[@]}" nosoftwarnings inface any physin any outface lo physout any || return 1
+
+					test ${FIREHOL_SYNPROXY_LOG} -eq 1 && log=(loglimit "SYNPROXY->SERVER SYN ACTION ${action} IN")
+					rule table filter chain SYNPROXY2SERVER_IN "${match[@]}" proto tcp action "${action}" "${action_args[@]}" "${log[@]}" nosoftwarnings inface lo physin any outface any physout any || return 1
+				else
+					test ${FIREHOL_SYNPROXY_LOG} -eq 1 && log=(loglimit "SYNPROXY->SERVER SYN ACTION ${action} OUT")
+					rule table filter chain SYNPROXY2SERVER_OUT insert "${match[@]}" proto tcp action "${action}" "${action_args[@]}" nosoftwarnings inface any physin any outface any physout any "${log[@]}" || return 1
+				fi
 				;;
 		esac
 	done
@@ -3763,7 +3850,10 @@ action() {
 		shift 2
 	fi
 
-	create_chain filter ${name} || return 1
+	for t in ${tables/,/ }
+	do
+		create_chain ${t} ${name} || return 1
+	done
 
 	while [ ! -z "${1}" ]
 	do
@@ -3937,7 +4027,7 @@ tproxy_setup_ip_route() {
 		# remove the existing rules from the ip route table
 		postprocess -ne ${IP_CMD} -f $x route flush table $FIREHOL_TPROXY_IP_ROUTE_TABLE
 
-		# add the ip rule to match the mask and forward it to the proper ip route table for tproxy
+		# add the ip rule to match the mark and forward it to the proper ip route table for tproxy
 		postprocess -warn ${IP_CMD} -f $x rule add from all fwmark $FIREHOL_TPROXY_MARK lookup $FIREHOL_TPROXY_IP_ROUTE_TABLE
 
 		# add the route to forward all traffic to lo, on the ip route table for tproxy
@@ -5489,8 +5579,6 @@ iptables() {
 	# if the caller is not from the program file, get the config line calling us
 	[ ! "${BASH_SOURCE[1]}" = "${PROGRAM_FILE}" ] && work_realcmd_helper ${FUNCNAME} "${@}"
 
-	[ $firewall_policy_applied -eq 0 ] && firewall_policy
-	
 	if [ $FIREHOL_FAST_ACTIVATION -eq 1 ]
 	then
 		run_fast iptables "${@}"
@@ -5506,8 +5594,6 @@ ip6tables() {
 	# if the caller is not from the program file, get the config line calling us
 	[ ! "${BASH_SOURCE[1]}" = "${PROGRAM_FILE}" ] && work_realcmd_helper ${FUNCNAME} "${@}"
 
-	[ $firewall_policy6_applied -eq 0 ] && firewall_policy6
-	
 	if [ $FIREHOL_FAST_ACTIVATION -eq 1 ]
 	then
 		run_fast ip6tables "${@}"
@@ -6232,7 +6318,8 @@ close_router() {
 
 close_master() {
 	set_work_function "Finilizing firewall policies"
-	FIREHOL_FILTERING_STARTED=0
+
+	finalize_synproxy
 
 	if [ ! "${MARKS_SAVERESTORE_STATEFUL_MASK}" = "0x00000000" ]
 	then
@@ -6290,6 +6377,36 @@ close_master() {
 	rule chain INPUT loglimit "IN-unknown" action ${UNMATCHED_INPUT_POLICY} || return 1
 	rule chain OUTPUT loglimit "OUT-unknown" action ${UNMATCHED_OUTPUT_POLICY} || return 1
 	rule chain FORWARD loglimit "PASS-unknown" action ${UNMATCHED_ROUTER_POLICY} || return 1
+
+	# ---------------------------------------------------------------------
+	# execute all postprocessing commands for this firewall
+
+	test ${FIREHOL_ROUTING} -eq 1 && ( postprocess -warn ${SYSCTL_CMD} -w "net.ipv4.ip_forward=1" || return 1 )
+	
+	if [ "${FIREHOL_CONNTRACK_HELPERS_ASSIGNMENT}" = "kernel" ]
+	then
+		postprocess -warn ${SYSCTL_CMD} -w "net.netfilter.nf_conntrack_helper=1" || return 1
+	else
+		postprocess -warn ${SYSCTL_CMD} -w "net.netfilter.nf_conntrack_helper=0" || return 1
+	fi
+
+	test ! -z "${FIREHOL_CONNTRACK_LOOSE_MATCHING}"	&& ( postprocess -warn ${SYSCTL_CMD} -e "net.netfilter.nf_conntrack_tcp_loose=${FIREHOL_CONNTRACK_LOOSE_MATCHING}" || return 1 )
+	test ! -z "${FIREHOL_TCP_SYN_COOKIES}"		&& ( postprocess -warn ${SYSCTL_CMD} -e "net.ipv4.tcp_syncookies=${FIREHOL_TCP_SYN_COOKIES}" || return 1 )
+	test ! -z "${FIREHOL_TCP_TIMESTAMPS}"		&& ( postprocess -warn ${SYSCTL_CMD} -e "net.ipv4.tcp_timestamps=${FIREHOL_TCP_TIMESTAMPS}" || return 1 )
+	test ! -z "${FIREHOL_CONNTRACK_MAX}" 		&& ( postprocess -warn ${SYSCTL_CMD} -e "net.netfilter.nf_conntrack_max=${FIREHOL_CONNTRACK_MAX}" || return 1 )
+	test ! -z "${FIREHOL_CONNTRACK_HASHSIZE}"	&& ( postprocess -warn postprocess_echo_to ${FIREHOL_CONNTRACK_HASHSIZE} /sys/module/nf_conntrack/parameters/hashsize || return 1 )
+
+	for m in "${!FIREHOL_NFACCT[@]}"
+	do
+		# -ne here because nfacct will generate an error
+		# if the object already exists.
+		postprocess -ne "${NFACCT_CMD}" add "${m}" || return 1
+	done
+
+	# FIXME
+	# ipsets_apply() should generate post-processing commands
+	# which should be added here
+
 	return 0
 }
 
@@ -7946,25 +8063,25 @@ rule() {
 	if [ ${FIREHOL_SUPPORT_MULTIPORT} -ne 0 ]
 	then
 		# if there only source or destination ports, we can use multiport
-		if [ "${sport[*]}" = "any" -a ! "${dport[*]}" = "any" -a "${#dport[*]}" -gt 1 ]
+		if [ "${sport[*]}" = "any" -a ! "${dport[*]}" = "any" -a "${#dport[*]}" -gt 1 -a "${#dport[*]}" -lt 7 ]
 		then
-			dp="${dport[*]}"
+			dp="${dport[*]//-/:}"
 			positive_args=("${positive_args[@]}" "-m" "multiport" ${dportnot} "--destination-ports" "${dp// /,}")
 			dportnot=
 			dport=(any)
 			sp=
 
-		elif [ "${dport[*]}" = "any" -a ! "${sport[*]}" = "any" -a "${#sport[*]}" -gt 1 ]
+		elif [ "${dport[*]}" = "any" -a ! "${sport[*]}" = "any" -a "${#sport[*]}" -gt 1 -a "${#sport[*]}" -lt 7 ]
 		then
-			sp="${sport[*]}"
+			sp="${sport[*]//-/:}"
 			positive_args=("${positive_args[@]}" "-m" "multiport" ${sportnot} "--source-ports" "${sp// /,}")
 			sportnot=
 			sport=(any)
 			dp=
 
-		elif [ "${dport[*]}" = "${sport[*]}" -a ! "${sport[*]}" = "any" -a "${sportnot}" = "${dportnot}" -a "${#sport[*]}" -gt 1 ]
+		elif [ "${dport[*]}" = "${sport[*]}" -a ! "${sport[*]}" = "any" -a "${sportnot}" = "${dportnot}" -a "${#sport[*]}" -gt 1 -a "${#sport[*]}" -lt 7 ]
 		then
-			sp="${sport[*]}"
+			sp="${sport[*]//-/:}"
 			positive_args=("${positive_args[@]}" "-m" "multiport" ${sportnot} "--ports" "${sp// /,}")
 			sportnot=
 			sport=(any)
@@ -8226,6 +8343,9 @@ rule() {
 							test -z "${FIREHOL_IPSETS_USED[$s]}" && FIREHOL_IPSETS_USED[$s]="USED"
 							${iptables} -t ${table} -A "${negative_chain}" -m set ${not} --match-set "${s}" src ${IPSET_SRC_DST_OPTIONS} -j RETURN
 							;;
+						*-*)
+							${iptables} -t ${table} -A "${negative_chain}" -m iprange ${not} --src-range "${s}" -j RETURN
+							;;
 						*)
 							${iptables} -t ${table} -A "${negative_chain}" ${not} -s "${s}" -j RETURN
 							;;
@@ -8259,6 +8379,9 @@ rule() {
 							d="${d/ipset:/}"
 							test -z "${FIREHOL_IPSETS_USED[$d]}" && FIREHOL_IPSETS_USED[$d]="USED"
 							${iptables} -t ${table} -A "${negative_chain}" -m set ${not} --match-set "${d}" dst ${IPSET_SRC_DST_OPTIONS} -j RETURN
+							;;
+						*-*)
+							${iptables} -t ${table} -A "${negative_chain}" -m iprange ${not} --dst-range "${d}" -j RETURN
 							;;
 						*)
 							${iptables} -t ${table} -A "${negative_chain}" ${not} -d "${d}" -j RETURN
@@ -8299,7 +8422,7 @@ rule() {
 			do
 				for pr in ${proto[*]}
 				do
-					iptables_both -t ${table} -A "${negative_chain}" -p "${pr}" ${not} --sport "${sp}" -j RETURN
+					iptables_both -t ${table} -A "${negative_chain}" -p "${pr}" ${not} --sport "${sp//-/:}" -j RETURN
 				done
 			done
 			sportnot=
@@ -8318,7 +8441,7 @@ rule() {
 			do
 				for pr in ${proto[*]}
 				do
-					iptables_both -t ${table} -A "${negative_chain}" -p "${pr}" ${not} --dport "${dp}" -j RETURN
+					iptables_both -t ${table} -A "${negative_chain}" -p "${pr}" ${not} --dport "${dp//-/:}" -j RETURN
 				done
 			done
 			dportnot=
@@ -8797,6 +8920,10 @@ rule() {
 				s_arg=("-m" "set" ${srcnot} "--match-set" "${s}" "src" ${IPSET_SRC_DST_OPTIONS})
 				;;
 
+			*-*)
+				s_arg=("-m" "iprange" ${srcnot} "--src-range" "${s}")
+				;;
+
 			*)
 				s_arg=(${srcnot} "-s" "${s}")
 				;;
@@ -8817,6 +8944,10 @@ rule() {
 				d_arg=("-m" "set" ${dstnot} "--match-set" "${d}" "dst" ${IPSET_SRC_DST_OPTIONS})
 				;;
 
+			*-*)
+				d_arg=("-m" "iprange" ${dstnot} "--dst-range" "${d}")
+				;;
+
 			*)
 				d_arg=(${dstnot} "-d" "${d}")
 				;;
@@ -8831,7 +8962,7 @@ rule() {
 				;;
 			
 			*)
-				sp_arg=(${sportnot} "--sport" "${sp}")
+				sp_arg=(${sportnot} "--sport" "${sp//-/:}")
 				;;
 		esac
 	
@@ -8844,7 +8975,7 @@ rule() {
 				;;
 			
 			*)
-				dp_arg=(${dportnot} "--dport" "${dp}")
+				dp_arg=(${dportnot} "--dport" "${dp//-/:}")
 				;;
 		esac
 	
@@ -9325,7 +9456,12 @@ show_work_realcmd() {
 FIREHOL_FILTERING_STARTED=0
 work_realcmd_primary() {
 	test ${FIREHOL_ENABLE_SPINNER} -eq 1 && spinner ${FIREHOL_COMMAND_COUNTER}
-	FIREHOL_FILTERING_STARTED=1
+	
+	if [ ${FIREHOL_FILTERING_STARTED} -eq 0 ]
+	then
+		FIREHOL_FILTERING_STARTED=1
+		firewall_filtering_policy
+	fi
 
 	config_line -ne
 	work_realcmd=("${@}")
@@ -9595,8 +9731,7 @@ shift
 case "${arg}" in
 	explain)
 		test ! -z "${1}" && warning "Arguments after parameter '${arg}' are ignored."
-		firewall_policy_applied=1
-		firewall_policy6_applied=1
+		FIREHOL_FILTERING_STARTED=1
 		FIREHOL_FAST_ACTIVATION=0
 		FIREHOL_MODE="EXPLAIN"
 		;;
@@ -11067,7 +11202,7 @@ fi
 # clear all chains
 firehol_filter_chains=
 firehol_filter6_chains=
-initialize_firewall() {
+prepare_firewall_for_activation() {
 	load_kernel_module ip_tables
 	load_kernel_module nf_conntrack
 	if [ $ENABLE_IPV6 -eq 1 ]
@@ -11080,28 +11215,6 @@ initialize_firewall() {
 		postprocess -ne -ns load_kernel_module $m
 	done
 	
-	test ${FIREHOL_ROUTING} -eq 1 && postprocess -warn ${SYSCTL_CMD} -w "net.ipv4.ip_forward=1"
-	
-	if [ "${FIREHOL_CONNTRACK_HELPERS_ASSIGNMENT}" = "kernel" ]
-	then
-		postprocess -warn ${SYSCTL_CMD} -w "net.netfilter.nf_conntrack_helper=1"
-	else
-		postprocess -warn ${SYSCTL_CMD} -w "net.netfilter.nf_conntrack_helper=0"
-	fi
-
-	test ! -z "${FIREHOL_CONNTRACK_LOOSE_MATCHING}"	&& postprocess -warn ${SYSCTL_CMD} -e "net.netfilter.nf_conntrack_tcp_loose=${FIREHOL_CONNTRACK_LOOSE_MATCHING}"
-	test ! -z "${FIREHOL_TCP_SYN_COOKIES}"		&& postprocess -warn ${SYSCTL_CMD} -e "net.ipv4.tcp_syncookies=${FIREHOL_TCP_SYN_COOKIES}"
-	test ! -z "${FIREHOL_TCP_TIMESTAMPS}"		&& postprocess -warn ${SYSCTL_CMD} -e "net.ipv4.tcp_timestamps=${FIREHOL_TCP_TIMESTAMPS}"
-	test ! -z "${FIREHOL_CONNTRACK_MAX}" 		&& postprocess -warn ${SYSCTL_CMD} -e "net.netfilter.nf_conntrack_max=${FIREHOL_CONNTRACK_MAX}"
-	test ! -z "${FIREHOL_CONNTRACK_HASHSIZE}"	&& postprocess -warn postprocess_echo_to ${FIREHOL_CONNTRACK_HASHSIZE} /sys/module/nf_conntrack/parameters/hashsize
-
-	for m in "${!FIREHOL_NFACCT[@]}"
-	do
-		# -ne here because nfacct will generate an error
-		# if the object already exists.
-		postprocess -ne "${NFACCT_CMD}" add "${m}"
-	done
-
 	# Find all tables supported
 	local t= tables= tables6= chains= c= policy=
 	if [ $ENABLE_IPV4 -eq 1 ]; then
@@ -11190,7 +11303,7 @@ initialize_firewall() {
 }
 
 # drop everything
-finalize_firewall() {
+finalize_activated_firewall() {
 	# Make it drop everything on table 'filter'.
 	local c=
 	if [ $ENABLE_IPV4 -eq 1 ]; then
@@ -11235,7 +11348,7 @@ finalize_firewall() {
 # this will be run when the first iptables command get executed in pre-process mode.
 # so that its commands are prepended to the other iptables commands of the firewall
 
-firewall_policy_common() {
+firewall_filtering_policy_common() {
 	local iptables_cmd="${1}"
 	
 	set_work_function "Applying ${iptables_cmd} firewall activation policy (options: FIREHOL_INPUT_ACTIVATION_POLICY FIREHOL_OUTPUT_ACTIVATION_POLICY FIREHOL_FORWARD_ACTIVATION_POLICY)"
@@ -11316,24 +11429,22 @@ firewall_policy_common() {
 	fi
 }
 
-firewall_policy_applied=0
-firewall_policy() {
-	test ${firewall_policy_applied} -eq 1 && return 0
+firewall_filtering_policy() {
+	local oldns="${FIREHOL_NS_CURR}"
 
-	firewall_policy_applied=1
-	push_namespace ipv4
-	firewall_policy_common iptables
-	pop_namespace
-}
+	if [ ${ENABLE_IPV4} -eq 1 ]
+	then
+		FIREHOL_NS_CURR="ipv4"
+		firewall_filtering_policy_common iptables
+	fi
 
-firewall_policy6_applied=0
-firewall_policy6() {
-	test ${firewall_policy6_applied} -eq 1 && return 0
+	if [ ${ENABLE_IPV6} -eq 1 ]
+	then
+		FIREHOL_NS_CURR="ipv6"
+		firewall_filtering_policy_common ip6tables
+	fi
 
-	firewall_policy6_applied=1
-	push_namespace ipv6
-	firewall_policy_common ip6tables
-	pop_namespace
+	FIREHOL_NS_CURR="${oldns}"
 }
 
 
@@ -11390,11 +11501,11 @@ source_status=$?
 FORCE_CONFIG_LINEID="FIN"
 LAST_CONFIG_LINE="${FORCE_CONFIG_LINEID}"
 
+close_cmd		|| ret=$[ret + 1]
+close_master		|| ret=$[ret + 1]
+
 enable trap			# Enable the trap buildin shell command.
 enable exit			# Enable the exit buildin shell command.
-
-close_cmd	|| ret=$[ret + 1]
-close_master	|| ret=$[ret + 1]
 
 if [ ${work_error} -gt 0 -o $ret -gt 0 ]
 then
@@ -11458,7 +11569,7 @@ then
 					#done
 					for s in INVALID UNTRACKED NEW ESTABLISHED RELATED SNAT DNAT
 					do
-						prepare_iptables_log_arg "${firehol_table}.${c}.state=${s}"
+						prepare_iptables_log_arg "${firehol_table}.${c}.${s}"
 						echo "-I ${c} -m conntrack --ctstate ${s} -j ${FIREHOL_LOG_MODE} ${FIREHOL_LOG_IPTABLES_ARG[@]}"
 					done
 				done
@@ -11498,7 +11609,7 @@ then
 
 	progress "Fast activating new firewall"
 	
-	initialize_firewall
+	prepare_firewall_for_activation
 	
 	# execute any postprocessing commands
 	# in FAST_ACTIVATION the output file does not have any iptables commands
@@ -11557,7 +11668,7 @@ then
 
 				# the rest of the script will restore the original firewall
 			else
-				finalize_firewall
+				finalize_activated_firewall
 			fi
 		fi
 	fi
@@ -11579,7 +11690,7 @@ else
 	syslog info "Activating new firewall from ${FIREHOL_CONFIG} (translated to ${FIREHOL_COMMAND_COUNTER} iptables rules)."
 	progress "Activating new firewall (${FIREHOL_COMMAND_COUNTER} rules)"
 	
-	initialize_firewall
+	prepare_firewall_for_activation
 	
 	file close 21
 	source "${FIREHOL_OUTPUT}" "${@}"
@@ -11587,7 +11698,7 @@ else
 	then
 		work_runtime_error=$[work_runtime_error+1]
 	else
-		finalize_firewall
+		finalize_activated_firewall
 	fi
 fi
 
