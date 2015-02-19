@@ -542,8 +542,8 @@ FIREHOL_SYNPROXY_OPTIONS="--sack-perm --timestamp --wscale 7 --mss 1460"
 
 # Shall the SYNPROXY FireHOL helper log the packets as they pass during
 # the various phases?
-# Default: 1 - for experimentation
-FIREHOL_SYNPROXY_LOG=1
+# Default: 0
+FIREHOL_SYNPROXY_LOG=0
 
 # Trust loopback?
 # loose     = Trust device lo unconditionally
@@ -3487,6 +3487,16 @@ finalize_synproxy() {
 		oldns="${FIREHOL_NS_CURR}"
 		FIREHOL_NS_CURR="${x}"
 
+		set_work_function -ne "Prevent SYNPROXY->SERVER SYN from traversing the raw table"
+		rule table raw chain SYNPROXY2SERVER_PRE action ACCEPT || return 1
+		rule table raw chain SYNPROXY2SERVER_OUT action ACCEPT || return 1
+
+		#set_work_function -ne "Prevent SYNPROXY->SERVER SYN from traversing the mangle table"
+		#rule table mangle chain SYNPROXY2SERVER_PRE  action ACCEPT || return 1
+		#rule table mangle chain SYNPROXY2SERVER_IN   action ACCEPT || return 1
+		#rule table mangle chain SYNPROXY2SERVER_OUT  action ACCEPT || return 1
+		#rule table mangle chain SYNPROXY2SERVER_POST action ACCEPT || return 1
+
 		set_work_function -ne "Prevent SYNPROXY->SERVER SYN from traversing the nat table"
 		rule table nat chain SYNPROXY2SERVER_PRE action ACCEPT || return 1
 		rule table nat chain SYNPROXY2SERVER_OUT action ACCEPT || return 1
@@ -3591,11 +3601,32 @@ synproxy() {
 
 	if [ ${dohooks} -eq 1 ]
 	then
-		create_chain nat    SYNPROXY2SERVER_PRE PREROUTING proto tcp state NEW rawmark ${synproxy_mark}
-		create_chain nat    SYNPROXY2SERVER_OUT OUTPUT     proto tcp state NEW rawmark ${synproxy_mark}
+		# all these chains are traversed by the packet sent by the SYNPROXY to the SERVER
+		# the PREROUTING and INPUT ones are traversed in case of REDIRECT
 
-		create_chain filter SYNPROXY2SERVER_IN  INPUT      proto tcp state NEW rawmark ${synproxy_mark}
-		create_chain filter SYNPROXY2SERVER_OUT OUTPUT     proto tcp state NEW rawmark ${synproxy_mark}
+		# we will make sure that packets entering these chains do not return back
+		# thus, synproxy will not interact with the rest of the firewall.
+
+		# no state in raw - it is always INVALID.
+		create_chain raw    SYNPROXY2SERVER_PRE  PREROUTING  proto tcp rawmark ${synproxy_mark}
+		create_chain raw    SYNPROXY2SERVER_OUT  OUTPUT      proto tcp rawmark ${synproxy_mark}
+
+		# mangle does not harm.
+		# it can be used for marking packets which can then be used for NAT, but NAT is blocked for
+		# synproxy. we prefer to keep mangling open - it might be needed in several cases.
+
+		# mangle.INPUT and mangle.POSTROUTING are needed for CONNMARKs
+		#create_chain mangle SYNPROXY2SERVER_PRE  PREROUTING  proto tcp state NEW rawmark ${synproxy_mark}
+		#create_chain mangle SYNPROXY2SERVER_IN   INPUT       proto tcp state NEW rawmark ${synproxy_mark}
+		#create_chain mangle SYNPROXY2SERVER_OUT  OUTPUT      proto tcp state NEW rawmark ${synproxy_mark}
+		#create_chain mangle SYNPROXY2SERVER_POST POSTROUTING proto tcp state NEW rawmark ${synproxy_mark}
+
+		create_chain nat    SYNPROXY2SERVER_PRE  PREROUTING  proto tcp state NEW rawmark ${synproxy_mark}
+		create_chain nat    SYNPROXY2SERVER_OUT  OUTPUT      proto tcp state NEW rawmark ${synproxy_mark}
+		# we leave nat.POSTROUTING since it mey be need for SNAT
+
+		create_chain filter SYNPROXY2SERVER_IN   INPUT       proto tcp state NEW rawmark ${synproxy_mark}
+		create_chain filter SYNPROXY2SERVER_OUT  OUTPUT      proto tcp state NEW rawmark ${synproxy_mark}
 	fi
 
 	set_work_function -ne "Untracking the SYNPROXY packets in table 'raw'"
@@ -3636,11 +3667,11 @@ synproxy() {
 
 		set_work_function -ne "Sending client's SYN packets to SYNPROXY in filter.${chain}"
 		test ${FIREHOL_SYNPROXY_LOG} -eq 1 && log=(loglimit "CLIENT->SYNPROXY SYN or ACK")
-		rule table filter chain ${chain} "${match[@]}" ${overwrite[@]} proto tcp state INVALID,UNTRACKED action SYNPROXY ${FIREHOL_SYNPROXY_OPTIONS} "${log[@]}" || return 1
+		rule table filter chain ${chain} "${match[@]}" ${overwrite[@]} proto tcp state INVALID,UNTRACKED "${log[@]}" action SYNPROXY ${FIREHOL_SYNPROXY_OPTIONS} || return 1
 
 		set_work_function -ne "Sending SYNPROXY's ACK packets to client in filter.OUTPUT"
 		test ${FIREHOL_SYNPROXY_LOG} -eq 1 && log=(loglimit "SYNPROXY->CLIENT ACK")
-		rule table filter chain OUTPUT reverse "${match[@]}" ${overwrite[@]} proto tcp state INVALID,UNTRACKED action ACCEPT "${log[@]}" || return 1
+		rule table filter chain OUTPUT reverse "${match[@]}" ${overwrite[@]} proto tcp state INVALID,UNTRACKED "${log[@]}" action ACCEPT || return 1
 		
 		# Once the client receives the ACK from SYNPROXY, it will send an ACK back.
 		# This ACK will be routed again to SYNPROXY (it will be UNTRACKED too).
@@ -3649,7 +3680,7 @@ synproxy() {
 
 		set_work_function -ne "MARK SYN packet from SYNPROXY to SERVER"
 		test ${FIREHOL_SYNPROXY_LOG} -eq 1 && log=(loglimit "SYNPROXY->SERVER SYN MARK")
-		rule table mangle chain OUTPUT "${match[@]}" proto tcp state NEW action MARK to ${synproxy_mark} nosoftwarnings inface any physin any outface ${outface} physout any "${log[@]}" || return 1
+		rule table mangle chain OUTPUT "${match[@]}" proto tcp state NEW "${log[@]}" action MARK to ${synproxy_mark} nosoftwarnings inface any physin any outface ${outface} physout any || return 1
 
 		case "${action}" in
 			DNAT)
@@ -3661,8 +3692,8 @@ synproxy() {
 				# So, we mark the packet before the DNAT (matching dst and original dport) and accept it after the DNAT.
 
 				set_work_function -ne "DNAT for SYNPROXY"
-				test ${FIREHOL_SYNPROXY_LOG} -eq 1 && log=(loglimit "SYNPROXY->SERVER SYN DNAT")
-				rule table nat chain SYNPROXY2SERVER_OUT "${match[@]}" proto tcp action ${action} "${action_args[@]}" nosoftwarnings inface any physin any outface any physout any "${log[@]}" || return 1
+				test ${FIREHOL_SYNPROXY_LOG} -eq 1 && log=(loglimit "SYNPROXY->SERVER DNAT")
+				rule table nat chain SYNPROXY2SERVER_OUT "${match[@]}" proto tcp "${log[@]}" nosoftwarnings action ${action} "${action_args[@]}" inface any physin any outface any physout any || return 1
 
 				# now match the new destination
 
@@ -3673,8 +3704,8 @@ synproxy() {
 				test "${port}" = "${action_args[1]}" && port=
 				test ! -z "${port}" && port="dport ${port}"
 
-				test ${FIREHOL_SYNPROXY_LOG} -eq 1 && log=(loglimit "SYNPROXY->SERVER SYN DNAT'd OUT")
-				rule table filter chain SYNPROXY2SERVER_OUT "${match[@]}" proto tcp action ACCEPT "${log[@]}" nosoftwarnings inface any physin any outface any physout any ${ip} ${port} || return 1
+				test ${FIREHOL_SYNPROXY_LOG} -eq 1 && log=(loglimit "SYNPROXY->SERVER DNAT'd OUT")
+				rule table filter chain SYNPROXY2SERVER_OUT "${match[@]}" proto tcp "${log[@]}" action ACCEPT nosoftwarnings inface any physin any outface any physout any ${ip} ${port} || return 1
 				;;
 
 			REDIRECT)
@@ -3684,20 +3715,20 @@ synproxy() {
 				setup_lo_for_synproxy "${inface[@]}" || return 1
 
 				set_work_function -ne "REDIRECT for SYNPROXY"
-				test ${FIREHOL_SYNPROXY_LOG} -eq 1 && log=(loglimit "SYNPROXY->SERVER SYN REDIRECT")
-				rule table nat chain SYNPROXY2SERVER_OUT "${match[@]}" proto tcp action ${action} "${action_args[@]}" "${log[@]}" nosoftwarnings inface any physin any outface lo physout any || return 1
+				test ${FIREHOL_SYNPROXY_LOG} -eq 1 && log=(loglimit "SYNPROXY->SERVER REDIRECT")
+				rule table nat chain SYNPROXY2SERVER_OUT "${match[@]}" proto tcp "${log[@]}" nosoftwarnings action ${action} "${action_args[@]}" inface any physin any outface lo physout any || return 1
 
 				local localhost=
 				running_ipv4 && localhost="127.0.0.0/8"
 				running_ipv6 && localhost="::1"
 
 				set_work_function -ne "ACCEPT SYN packet from SYNPROXY to lo OUT"
-				test ${FIREHOL_SYNPROXY_LOG} -eq 1 && log=(loglimit "SYNPROXY->SERVER SYN lo OUT")
-				rule table filter chain SYNPROXY2SERVER_OUT "${match[@]}" proto tcp action ACCEPT "${log[@]}" nosoftwarnings inface any physin any outface lo physout any dst "${localhost}" dport ${action_args[1]} || return 1
+				test ${FIREHOL_SYNPROXY_LOG} -eq 1 && log=(loglimit "SYNPROXY->SERVER lo OUT")
+				rule table filter chain SYNPROXY2SERVER_OUT "${match[@]}" proto tcp "${log[@]}" action ACCEPT nosoftwarnings inface any physin any outface lo physout any dst "${localhost}" dport ${action_args[1]} || return 1
 
 				set_work_function -ne "ACCEPT SYN packet from SYNPROXY lo IN"
-				test ${FIREHOL_SYNPROXY_LOG} -eq 1 && log=(loglimit "SYNPROXY->SERVER SYN lo IN")
-				rule table filter chain SYNPROXY2SERVER_IN "${match[@]}" proto tcp action ACCEPT "${log[@]}" nosoftwarnings inface lo physin any outface any physout any dst "${localhost}"  dport ${action_args[1]} || return 1
+				test ${FIREHOL_SYNPROXY_LOG} -eq 1 && log=(loglimit "SYNPROXY->SERVER lo IN")
+				rule table filter chain SYNPROXY2SERVER_IN "${match[@]}" proto tcp "${log[@]}" action ACCEPT nosoftwarnings inface lo physin any outface any physout any dst "${localhost}"  dport ${action_args[1]} || return 1
 				;;
 
 			*)
@@ -3715,15 +3746,14 @@ synproxy() {
 
 				if [ "${chain}" = "INPUT" ]
 				then
-					# verified
-					test ${FIREHOL_SYNPROXY_LOG} -eq 1 && log=(loglimit "SYNPROXY->SERVER SYN ACTION ${action} OUT")
-					rule table filter chain SYNPROXY2SERVER_OUT "${match[@]}" proto tcp action "${action}" "${action_args[@]}" "${log[@]}" nosoftwarnings inface any physin any outface lo physout any || return 1
+					test ${FIREHOL_SYNPROXY_LOG} -eq 1 && log=(loglimit "SYNPROXY->SERVER ACTION ${action^^} OUT")
+					rule table filter chain SYNPROXY2SERVER_OUT "${match[@]}" proto tcp "${log[@]}" nosoftwarnings action "${action}" "${action_args[@]}" inface any physin any outface lo physout any || return 1
 
-					test ${FIREHOL_SYNPROXY_LOG} -eq 1 && log=(loglimit "SYNPROXY->SERVER SYN ACTION ${action} IN")
-					rule table filter chain SYNPROXY2SERVER_IN "${match[@]}" proto tcp action "${action}" "${action_args[@]}" "${log[@]}" nosoftwarnings inface lo physin any outface any physout any || return 1
+					test ${FIREHOL_SYNPROXY_LOG} -eq 1 && log=(loglimit "SYNPROXY->SERVER ACTION ${action^^} IN")
+					rule table filter chain SYNPROXY2SERVER_IN "${match[@]}" proto tcp "${log[@]}" nosoftwarnings action "${action}" "${action_args[@]}" inface lo physin any outface any physout any || return 1
 				else
-					test ${FIREHOL_SYNPROXY_LOG} -eq 1 && log=(loglimit "SYNPROXY->SERVER SYN ACTION ${action} OUT")
-					rule table filter chain SYNPROXY2SERVER_OUT insert "${match[@]}" proto tcp action "${action}" "${action_args[@]}" nosoftwarnings inface any physin any outface any physout any "${log[@]}" || return 1
+					test ${FIREHOL_SYNPROXY_LOG} -eq 1 && log=(loglimit "SYNPROXY->SERVER ACTION ${action^^} OUT")
+					rule table filter chain SYNPROXY2SERVER_OUT "${match[@]}" proto tcp "${log[@]}" nosoftwarnings action "${action}" "${action_args[@]}" inface any physin any outface any physout any || return 1
 				fi
 				;;
 		esac
