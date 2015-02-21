@@ -1056,7 +1056,7 @@ update_table() {
 	# 3. if none of the above is present, we do nothing
 
 	local routing_filter_cmd="cat"
-	if [ -f "${LB_DIR}/table.${table}.origin_routes.${LB_IPV}" -a \( -f "${LB_DIR}/table.${table}.default.${LB_IPV}" -o -f "${LB_DIR}/table.${table}.origin_default.${LB_IPV}" \) ]
+	if [ -f "${LB_DIR}/table.${table}.origin_routes.${LB_IPV}" -a \( -f "${LB_DIR}/table.${table}.default.${LB_IPV}" -o -f "${LB_DIR}/table.${table}.fallback.${LB_IPV}" -o -f "${LB_DIR}/table.${table}.origin_default.${LB_IPV}" \) ]
 	then
 		# we do both routes copy and set default gateway
 		local routing_filter_cmd="$cat_cmd"
