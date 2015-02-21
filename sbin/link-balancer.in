@@ -132,7 +132,6 @@ require_cmd rm || exit 1
 require_cmd ping || exit 1
 require_cmd ping6 || exit 1
 require_cmd traceroute || exit 1
-require_cmd traceroute6 || exit 1
 require_cmd sort || exit 1
 require_cmd awk || exit 1
 require_cmd mktemp || exit 1
@@ -575,8 +574,8 @@ check_traceroute() {
 	local src="$2"
 	local dst="$3"
 	
-	local cmd="$traceroute_cmd"
-	test "${LB_IPV}" = "6" && local cmd="$traceroute6_cmd"
+	local cmd="$traceroute_cmd -4"
+	test "${LB_IPV}" = "6" && local cmd="$traceroute_cmd -6"
 	
 	local found="`run $cmd -i "${dev}" -r -s ${src} -w ${CHECK_TRACEROUTE_WAIT} -Tn -p ${CHECK_TRACEROUTE_PORT} ${dst} | grep ${dst}`"
 	test ! -z "${found}" && return 0
