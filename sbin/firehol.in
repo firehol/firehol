@@ -3518,7 +3518,9 @@ synproxy46() { both synproxy "${@}"; }
 synproxy() {
 	work_realcmd_helper ${FUNCNAME} "${@}"
 
-	local where="${1}" chain= match=() action= action_args=() log=() inface=() dst=() overwrite=() x= outface= dohooks=0
+	local	where="${1}" chain= match=() action= action_args=() log=() \
+		inface=() dst=() overwrite_in=() overwrite_out=() \
+		x= dohooks=0
 	shift
 
 	set_work_function -ne "Initializing ${FUNCNAME}"
@@ -3631,7 +3633,7 @@ synproxy() {
 
 	set_work_function "CLIENT->SERVER SYN packet untracking at table 'raw'"
 	test ${FIREHOL_SYNPROXY_LOG} -eq 1 && log=(loglimit "CLIENT->SYNPROXY SYN NOTRACK")
-	rule table raw chain PREROUTING "${match[@]}" proto tcp custom '-m tcp --syn' outface any physout any action CT --notrack "${log[@]}" || return 1
+	rule table raw chain PREROUTING "${match[@]}" proto tcp custom '-m tcp --syn' nosoftwarnings outface any physout any action CT --notrack "${log[@]}" || return 1
 
 	# based on where the user wants us to hook the SYNPROXY
 	for chain in ${where//,/ }
@@ -3642,9 +3644,14 @@ synproxy() {
 						;;
 
 			IN|INPUT)		chain="INPUT"
-						overwrite=(outface any physout any)
-						outface="lo"
-						[ "${action}" = "DNAT" ] && outface="any"
+						if [ "${action}" = "DNAT" ]
+						then
+							overwrite_in=(nosoftwarnings outface any physout any)
+							overwrite_out=()
+						else
+							overwrite_in=(outface any physout any)
+							overwrite_out=(outface lo)
+						fi
 						;;
 
 			OUT|OUTPUT)		error "There is no point to setup SYNPROXY on OUTPUT"
@@ -3652,8 +3659,8 @@ synproxy() {
 						;;
 
 			PASS|FORWARD)		chain="FORWARD"
-						outface="any"
-						overwrite=()
+						overwrite_in=()
+						overwrite_out=()
 						;;
 
 			POST|POSTROUTING)	error "SYNPROXY cannot be used in POSTROUTING"
@@ -3666,11 +3673,11 @@ synproxy() {
 
 		set_work_function "CLIENT->SERVER untracked SYN (or ACK) packet intercepted by SYNPROXY at filter.${chain}"
 		test ${FIREHOL_SYNPROXY_LOG} -eq 1 && log=(loglimit "CLIENT->SYNPROXY SYN or ACK")
-		rule table filter chain ${chain} "${match[@]}" ${overwrite[@]} proto tcp state INVALID,UNTRACKED "${log[@]}" action SYNPROXY ${FIREHOL_SYNPROXY_OPTIONS} || return 1
+		rule table filter chain ${chain} "${match[@]}" ${overwrite_in[@]} proto tcp state INVALID,UNTRACKED "${log[@]}" action SYNPROXY ${FIREHOL_SYNPROXY_OPTIONS} || return 1
 
 		set_work_function "SYNPROXY->CLIENT ACK packet at filter.OUTPUT"
 		test ${FIREHOL_SYNPROXY_LOG} -eq 1 && log=(loglimit "SYNPROXY->CLIENT ACK")
-		rule table filter chain OUTPUT reverse "${match[@]}" ${overwrite[@]} proto tcp state INVALID,UNTRACKED "${log[@]}" action ACCEPT || return 1
+		rule table filter chain OUTPUT reverse "${match[@]}" ${overwrite_out[@]} proto tcp state INVALID,UNTRACKED "${log[@]}" action ACCEPT nosoftwarnings outface any physout any || return 1
 		
 		# Once the client receives the ACK from SYNPROXY, it will send an ACK back.
 		# This ACK will be routed again to SYNPROXY (it will be UNTRACKED too).
@@ -3679,7 +3686,7 @@ synproxy() {
 
 		set_work_function "SYNPROXY->SERVER marking SYN packet at mangle.OUTPUT"
 		test ${FIREHOL_SYNPROXY_LOG} -eq 1 && log=(loglimit "SYNPROXY->SERVER SYN MARK")
-		rule table mangle chain OUTPUT "${match[@]}" proto tcp state NEW "${log[@]}" action MARK to ${synproxy_mark} nosoftwarnings inface any physin any outface ${outface} physout any || return 1
+		rule table mangle chain OUTPUT "${match[@]}" proto tcp state NEW "${log[@]}" action MARK to ${synproxy_mark} nosoftwarnings inface any physin any || return 1
 
 		case "${action}" in
 			DNAT)
@@ -3692,7 +3699,7 @@ synproxy() {
 
 				set_work_function "SYNPROXY->SERVER DNATing SYN packet at nat.OUTPUT"
 				test ${FIREHOL_SYNPROXY_LOG} -eq 1 && log=(loglimit "SYNPROXY->SERVER DNAT")
-				rule table nat chain SYNPROXY2SERVER_OUT "${match[@]}" proto tcp "${log[@]}" nosoftwarnings action ${action} "${action_args[@]}" inface any physin any outface any physout any || return 1
+				rule table nat chain SYNPROXY2SERVER_OUT "${match[@]}" proto tcp "${log[@]}" nosoftwarnings action ${action} "${action_args[@]}" inface any physin any || return 1
 
 				# now match the new destination
 
@@ -3705,7 +3712,7 @@ synproxy() {
 
 				set_work_function "SYNPROXY->SERVER accepting DNAT'd SYN packet at filter.OUTPUT"
 				test ${FIREHOL_SYNPROXY_LOG} -eq 1 && log=(loglimit "SYNPROXY->SERVER DNAT'd OUT")
-				rule table filter chain SYNPROXY2SERVER_OUT "${match[@]}" proto tcp "${log[@]}" action ACCEPT nosoftwarnings inface any physin any outface any physout any ${ip} ${port} || return 1
+				rule table filter chain SYNPROXY2SERVER_OUT "${match[@]}" proto tcp "${log[@]}" action ACCEPT nosoftwarnings inface any physin any ${ip} ${port} || return 1
 				;;
 
 			REDIRECT)
@@ -3756,7 +3763,7 @@ synproxy() {
 				else
 					set_work_function "SYNPROXY->SERVER executing action ${action} at filter.OUTPUT (the packet should leave the machine)"
 					test ${FIREHOL_SYNPROXY_LOG} -eq 1 && log=(loglimit "SYNPROXY->SERVER ACTION ${action^^} OUT")
-					rule table filter chain SYNPROXY2SERVER_OUT "${match[@]}" proto tcp "${log[@]}" nosoftwarnings action "${action}" "${action_args[@]}" inface any physin any outface any physout any || return 1
+					rule table filter chain SYNPROXY2SERVER_OUT "${match[@]}" proto tcp "${log[@]}" nosoftwarnings action "${action}" "${action_args[@]}" inface any physin any || return 1
 				fi
 				;;
 		esac
@@ -7026,7 +7033,7 @@ rule() {
 					test -z "${inface[*]}"	&& error "Cannot accept an empty 'inface'."	&& return 1
 				else
 					outfacenot="${not}"
-					test ${softwarnings} -eq 1 -a ! "${outface[*]}" = "any" && softwarning "Overwriting param: outface '${inface[*]}' becomes '${1}'"
+					test ${softwarnings} -eq 1 -a ! "${outface[*]}" = "any" && softwarning "Overwriting param: outface '${outface[*]}' becomes '${1}'"
 					outface=(${1//,/ })
 					[ -z "${outfacenot}" -a ${swo} -eq 1 ] && work_outface="${outface[*]}"
 					test -z "${outface[*]}"	&& error "Cannot accept an empty 'outface'."	&& return 1
