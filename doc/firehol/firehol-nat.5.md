@@ -14,11 +14,11 @@ extra-manpage: firehol-redirect.5
 
 # SYNOPSIS 
 
-{ nat to-destination | dnat [to] } *ipaddr*[:*port*] [*rule-params*]
+{ nat to-destination | dnat [to] } *ipaddr*[:*port*] [at *chain*] [*rule-params*]
 
-{ nat to-source | snat [to] } *ipaddr*[:*port*] [*rule-params*]
+{ nat to-source | snat [to] } *ipaddr*[:*port*] [at *chain*] [*rule-params*]
 
-{ nat redirect-to | redirect [to] } *port*[-*range*] [*rule-params*]
+{ nat redirect-to | redirect [to] } *port*[-*range*] [at *chain*] [*rule-params*]
 
 # DESCRIPTION
 
@@ -58,6 +58,11 @@ a transformation is happening.
 >
 > See the [netfilter flow diagram][netfilter flow diagram] if you would
 > like to see how  network packets are processed by the kernel in detail.
+
+The `at` keyword allows setting a different chain to attach the rules.
+For `dnat` and `redirect` the default is PREROUTING, but OUTPUT is also
+supported. For `snat` the default is POSTROUTING, but INPUT is also
+supported.
 
 The `nat` helper takes one of the following sub-commands:
 

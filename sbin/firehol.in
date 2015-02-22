@@ -4146,58 +4146,33 @@ nat_helper() {
 	
 	require_work clear || ( error "NAT cannot be used in '${work_cmd}'. Put all NAT related commands before any '${work_cmd}' definition."; return 1 )
 	
-	local 	type="${1}" \
-		to="${2}" \
-		chain= \
-		action= \
-		options= \
-		requirements= \
-		overwrite=
+	local 	type="${1}" to="${2}" \
+		chain= action= options= requirements= overwrite= \
+		possible_chains= x=
 	shift 2
 	
-	while [ ! -z "${1}" ]
-	do
-		case "${1}" in
-			random|--random)
-				options="${options} random"
-				shift
-				;;
-
-			persistent|--persistent)
-				# REDIRECT does not support persistence, but anyway
-				# if the user gives this on REDIRECT, he/she will get
-				# an error later
-				options="${options} persistent"
-				shift
-				;;
-
-			*)	break
-				;;
-		esac
-	done
-
 	nat_count=$[nat_count + 1]
 	set_work_function -ne "Rules for NAT type: '${type}'"
 	
 	case ${type} in
 		to-source)
-			#create_chain nat "nat.${nat_count}" POSTROUTING nolog "${@}" inface any || return 1
 			chain=POSTROUTING
+			possible_chains="POSTROUTING INPUT"
 			action=snat
 			overwrite="inface any"
 			;;
 		
 		to-destination)
-			#create_chain nat "nat.${nat_count}" PREROUTING noowner nolog "${@}" outface any || return 1
 			chain=PREROUTING
+			possible_chains="PREROUTING OUTPUT"
 			action=dnat
 			requirements=noowner
 			overwrite="outface any"
 			;;
 			
 		redirect-to)
-			#create_chain nat "nat.${nat_count}" PREROUTING noowner nolog "${@}" outface any || return 1
 			chain=PREROUTING
+			possible_chains="PREROUTING OUTPUT"
 			action=redirect
 			requirements=noowner
 			overwrite="outface any"
@@ -4209,12 +4184,52 @@ nat_helper() {
 			;;
 	esac
 	
+	while [ ! -z "${1}" ]
+	do
+		case "${1,,}" in
+			random|--random)
+				options="${options} random"
+				shift
+				;;
+
+			persistent|--persistent)
+				options="${options} persistent"
+				[ "${action}" = "redirect" ] && ( error "Persistence is not supported by redirect."; return 1 )
+				shift
+				;;
+
+			at)	chain=
+				for x in ${2//,/ }
+				do
+					case "${x^^}" in
+						PRE|PREROUTING)		chain="${chain} PREROUTING" ;;
+						IN|INPUT)		chain="${chain} INPUT" ;;
+						OUT|OUTPUT)		chain="${chain} OUTPUT" ;;
+						PASS|FORWARD)		chain="${chain} FORWARD" ;;
+						POST|POSTROUTING)	chain="${chain} POSTROUTING" ;;
+						*)			chain="${chain} ${x}";;
+					esac
+				done
+				shift 2
+				;;
+				
+			*)	break
+				;;
+		esac
+	done
 	
-	set_work_function "Rules for ${action} to ${to}"
-	
-	# we now need to keep the protocol
-	# rule table nat chain "nat.${nat_count}" noowner "${@}" nosoftwarnings src any dst any inface any outface any sport any dport any action "${action}" to "${to}" ${options} || return 1
-	rule table nat chain "${chain}" ${requirements} "${@}" ${overwrite} action "${action}" to "${to}" ${options} || return 1
+	for x in ${chain}
+	do
+		# check the chain
+		if [[ ! " ${possible_chains} " =~ " ${x} " ]]
+		then
+			error "Cannot setup ${type} at ${x}, only these are allowed: ${possible_chains}"
+			return 1
+		fi
+		
+		set_work_function "Rules for ${action} to ${to} at ${x}"
+		rule table nat chain "${x}" ${requirements} "${@}" ${overwrite} action "${action}" to "${to}" ${options} || return 1
+	done
 	
 	FIREHOL_NAT=1
 	FIREHOL_ROUTING=1
