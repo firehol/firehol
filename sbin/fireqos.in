@@ -610,14 +610,13 @@ warning() {
 }
 
 runcmd() {
-	local debug=$FIREQOS_DEBUG
-	[ $FIREQOS_DEBUG_CMD -eq 1 ] && local debug=1
+	local debug=$FIREQOS_DEBUG_CMD
 
 	if [ $debug -eq 1 ]
 	then
 		printf " %q" "${@}"
 		printf "\n"
-		return 0
+		[ $FIREQOS_DEBUG -eq 1 ] && return 0
 	fi
 	
 	"${@}"
@@ -3448,7 +3447,7 @@ monitor() {
 		read
 	fi
 	
-	FIREQOS_DEBUG=1
+	FIREQOS_DEBUG_CMD=1
 	echo "Monitoring qdisc '$class_monitor_qdisc_handle' for class '$class_monitor_path' ($class_monitor_classid)..."
 	add_monitor || exit 1
 	
