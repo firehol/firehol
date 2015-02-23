@@ -7856,8 +7856,13 @@ rule() {
 			return 0
 		fi
 	fi
+
+
+	# if there are custom arguments, keep the procol with it
+	[ ! -z "${custom}" -a -z "${require_protocol_with_action[*]}" ] && require_protocol_with_action=("${proto[@]}")
+
 	
-	# If the user did not specified a rejection message,
+	# If the user did not specify a rejection message,
 	# we have to be smart and produce a tcp-reset if the protocol
 	# is TCP and an ICMP port unreachable in all other cases.
 	# we will change the action to SMART_REJECT
@@ -10402,7 +10407,6 @@ fi
 
 test "${FIREHOL_MODE}" = "DEBUG" && FIREHOL_CONF_SHOW=1
 
-[ ${FIREHOL_FAST_ACTIVATION} -eq 0 ] && FIREHOL_LOG_ESCAPE=
 
 # ------------------------------------------------------------------------------
 # XXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXX
