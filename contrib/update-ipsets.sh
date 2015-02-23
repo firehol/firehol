@@ -277,15 +277,32 @@ pix_deny_rules_to_ipv4() {
 #         ipset:compromised \
 #
 
+# -----------------------------------------------------------------------------
 # www.openbl.org
 update openbl $[4*60-10] ipv4 ip \
 	"http://www.openbl.org/lists/base.txt?r=${RANDOM}" \
 	remove_comments
 
-# TOR is necessary hostile, you may need this just for sensitive services
+
+# -----------------------------------------------------------------------------
+# TOR lists
+# TOR is not necessary hostile, you may need this just for sensitive services.
+
+# https://www.dan.me.uk/tornodes
+# This contains a full TOR nodelist (no more than 30 minutes old).
+# The page has download limit that does not allow download in less than 30 min.
+update danmetor 30 ipv4 ip \
+	"https://www.dan.me.uk/torlist/?r=${RANDOM}" \
+	remove_comments
+
+# http://doc.emergingthreats.net/bin/view/Main/TorRules
 update tor $[12*60-10] ipv4 ip \
 	"http://rules.emergingthreats.net/blockrules/emerging-tor.rules?r=${RANDOM}" \
 	snort_alert_rules_to_ipv4
+
+
+# -----------------------------------------------------------------------------
+# EmergingThreats
 
 # http://doc.emergingthreats.net/bin/view/Main/CompromisedHost
 update compromised $[12*60-10] ipv4 ip \
@@ -311,4 +328,44 @@ update spamhaus $[12*60-10] ipv4 net \
 update dshield $[12*60-10] ipv4 net \
 	"http://rules.emergingthreats.net/fwrules/emerging-PIX-DSHIELD.rules?r=${RANDOM}" \
 	pix_deny_rules_to_ipv4
+
+
+# -----------------------------------------------------------------------------
+# blocklist.de
+# http://www.blocklist.de/en/export.html
+
+# All IP addresses that have attacked one of their customers/servers in the
+# last 48 hours. Updated every 30 minutes.
+# They also have lists of service specific attacks (ssh, apache, sip, etc).
+update blocklist_de $[30-5] ipv4 ip \
+	"http://lists.blocklist.de/lists/all.txt?r=${RANDOM}" \
+	remove_comments
+
+# -----------------------------------------------------------------------------
+# Bogons
+# Bogons are IP addresses that should not be routed because they are not
+# allocated, or they are allocated for private use.
+# IMPORTANT: THESE LISTS INCLUDE ${PRIVATE_IPS}
+#            always specify an 'inface' when blacklisting in FireHOL
+
+# http://www.team-cymru.org/bogon-reference.html
+# private and reserved addresses defined by RFC 1918, RFC 5735, and RFC 6598
+# and netblocks that have not been allocated to a regional internet registry
+# (RIR) by the Internet Assigned Numbers Authority.
+update bogons $[24*60-10] ipv4 net \
+	"http://www.team-cymru.org/Services/Bogons/bogon-bn-agg.txt?r=${RANDOM}" \
+	remove_comments
+
+# http://www.team-cymru.org/bogon-reference.html
+# Fullbogons are a larger set which also includes IP space that has been
+# allocated to an RIR, but not assigned by that RIR to an actual ISP or other
+# end-user.
+update fullbogons $[24*60-10] ipv4 net \
+	"http://www.team-cymru.org/Services/Bogons/fullbogons-ipv4.txt?r=${RANDOM}" \
+	remove_comments
+
+#update fullbogons6 $[24*60-10] ipv6 net \
+#	"http://www.team-cymru.org/Services/Bogons/fullbogons-ipv6.txt?r=${RANDOM}" \
+#	remove_comments
+
 
