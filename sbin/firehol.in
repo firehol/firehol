@@ -7859,7 +7859,7 @@ rule() {
 
 
 	# if there are custom arguments, keep the procol with it
-	[ ! -z "${custom}" -a -z "${require_protocol_with_action[*]}" ] && require_protocol_with_action=("${proto[@]}")
+	[ ! -z "${custom}" -a "${require_protocol_with_action[*]}" = "any" ] && require_protocol_with_action=("${proto[@]}")
 
 	
 	# If the user did not specify a rejection message,
