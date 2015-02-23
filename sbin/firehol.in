@@ -8122,34 +8122,101 @@ rule() {
 
 	if [ ${FIREHOL_SUPPORT_MULTIPORT} -ne 0 ]
 	then
-		# if there only source or destination ports, we can use multiport
-		if [ "${sport[*]}" = "any" -a ! "${dport[*]}" = "any" -a "${#dport[*]}" -gt 1 -a "${#dport[*]}" -lt 7 ]
-		then
-			dp="${dport[*]//-/:}"
-			positive_args=("${positive_args[@]}" "-m" "multiport" ${dportnot} "--destination-ports" "${dp// /,}")
-			dportnot=
-			dport=(any)
-			sp=
+		# we cannot have both source ports and destination ports as multiport
+		# we have to pick
 
-		elif [ "${dport[*]}" = "any" -a ! "${sport[*]}" = "any" -a "${#sport[*]}" -gt 1 -a "${#sport[*]}" -lt 7 ]
-		then
-			sp="${sport[*]//-/:}"
-			positive_args=("${positive_args[@]}" "-m" "multiport" ${sportnot} "--source-ports" "${sp// /,}")
-			sportnot=
-			sport=(any)
-			dp=
+		sp=0
+		dp=0
 
-		elif [ "${dport[*]}" = "${sport[*]}" -a ! "${sport[*]}" = "any" -a "${sportnot}" = "${dportnot}" -a "${#sport[*]}" -gt 1 -a "${#sport[*]}" -lt 7 ]
+		# pick the one with the most ports
+		if [ "${#sport[*]}" -ge "${#dport[*]}" ]
 		then
-			sp="${sport[*]//-/:}"
-			positive_args=("${positive_args[@]}" "-m" "multiport" ${sportnot} "--ports" "${sp// /,}")
-			sportnot=
-			sport=(any)
-			dportnot=
-			dport=(any)
-			sp=
-			dp=
+			sp=1
+		else
+			dp=1
 		fi
+
+		if [ ${sp} -eq 1 -a "${#sport[*]}" -gt 1 ]
+		then
+			# do sport
+			sp_arg=()
+			x=0
+			src=
+
+			for s in ${sport[@]}
+			do
+				# echo >&2 "Adding ${s}, x=${x}, src=${src}"
+				if [ ${x} -ge 14 ]
+				then
+					sp_arg=("${sp_arg[@]}" "multiport:${src}")
+					src=
+					x=0
+				fi
+				test ! -z "${src}" && src="${src},"
+				case "${s}" in
+					any|ANY)	continue ;;
+					*-*|*:*) 	(( x += 2 )); src="${src}${s//-/:}" ;;
+					*)		(( x += 1 )); src="${src}${s}" ;;
+				esac
+			done
+
+			if [ ! -z "${src}" ]
+			then
+				if [ ${x} -gt 1 ]
+				then
+					sp_arg=("${sp_arg[@]}" "multiport:${src}")
+				else
+					sp_arg=("${sp_arg[@]}" "${src}")
+				fi
+			fi
+
+			sport=("${sp_arg[@]}")
+			sp_arg=()
+			src=
+			x=
+		fi
+		sp=
+
+		if [ ${dp} -eq 1 -a "${#dport[*]}" -gt 1 ]
+		then
+			# do dport
+			dp_arg=()
+			x=0
+			dst=
+
+			for d in ${dport[@]}
+			do
+				# echo >&2 "Adding ${d}, x=${x}, dst=${dst}"
+				if [ ${x} -ge 14 ]
+				then
+					dp_arg=("${dp_arg[@]}" "multiport:${dst}")
+					dst=
+					x=0
+				fi
+				test ! -z "${dst}" && dst="${dst},"
+				case "${d}" in
+					any|ANY)	continue ;;
+					*-*|*:*) 	(( x += 2 )); dst="${dst}${d//-/:}" ;;
+					*)		(( x += 1 )); dst="${dst}${d}" ;;
+				esac
+			done
+
+			if [ ! -z "${dst}" ]
+			then
+				if [ ${x} -gt 1 ]
+				then
+					dp_arg=("${dp_arg[@]}" "multiport:${dst}")
+				else
+					dp_arg=("${dp_arg[@]}" "${dst}")
+				fi
+			fi
+			
+			dport=("${dp_arg[@]}")
+			dp_arg=()
+			dst=
+			x=
+		fi
+		dp=
 	fi
 	
 
@@ -8478,11 +8545,20 @@ rule() {
 				return 1
 			fi
 			
-			for sp in ${sport[*]}
+			for pr in ${proto[*]}
 			do
-				for pr in ${proto[*]}
+				for sp in ${sport[*]}
 				do
-					iptables_both -t ${table} -A "${negative_chain}" -p "${pr}" ${not} --sport "${sp//-/:}" -j RETURN
+					case "${sp}" in
+						multiport:*)
+							sp="${sp/multiport:/}"
+							iptables_both -t ${table} -A "${negative_chain}" -p "${pr}" -m multiport ${not} --source-ports "${sp//-/:}" -j RETURN
+							;;
+							
+						*)
+							iptables_both -t ${table} -A "${negative_chain}" -p "${pr}" ${not} --sport "${sp//-/:}" -j RETURN
+							;;
+					esac
 				done
 			done
 			sportnot=
@@ -8497,11 +8573,20 @@ rule() {
 				return 1
 			fi
 			
-			for dp in ${dport[*]}
+			for pr in ${proto[*]}
 			do
-				for pr in ${proto[*]}
+				for dp in ${dport[*]}
 				do
-					iptables_both -t ${table} -A "${negative_chain}" -p "${pr}" ${not} --dport "${dp//-/:}" -j RETURN
+					case "${sp}" in
+						multiport:*)
+							dp="${dp/multiport:/}"
+							iptables_both -t ${table} -A "${negative_chain}" -p "${pr}" -m multiport ${not} --destination-ports "${dp//-/:}" -j RETURN
+							;;
+
+						*)
+							iptables_both -t ${table} -A "${negative_chain}" -p "${pr}" ${not} --dport "${dp//-/:}" -j RETURN
+							;;
+					esac
 				done
 			done
 			dportnot=
@@ -9025,6 +9110,11 @@ rule() {
 				sp_arg=()
 				;;
 			
+			multiport:*)
+				sp="${sp/multiport:/}"
+				sp_arg=("-m" "multiport" ${sportnot} "--source-ports" "${sp//-/:}")
+				;;
+
 			*)
 				sp_arg=(${sportnot} "--sport" "${sp//-/:}")
 				;;
@@ -9038,11 +9128,28 @@ rule() {
 				dp_arg=()
 				;;
 			
+			multiport:*)
+				dp="${dp/multiport:/}"
+				dp_arg=("-m" "multiport" ${dportnot} "--destination-ports" "${dp//-/:}")
+				;;
+				
 			*)
 				dp_arg=(${dportnot} "--dport" "${dp//-/:}")
 				;;
 		esac
 	
+	# if there is sport or dport with multiport
+	# we have to give the multiport second
+	if [ "${sp_arg[1]}" = "multiport" ]
+	then
+		sp_arg=("${dp_arg[@]}" "${sp_arg[@]}")
+		dp_arg=()
+	elif [ "${dp_arg[1]}" = "multiport" ]
+	then
+		dp_arg=("${sp_arg[@]}" "${dp_arg[@]}")
+		sp_arg=()
+	fi
+
 	# build the command
 	basecmd=("${inf_arg[@]}"        "${outf_arg[@]}"  "${physdev_arg[@]}" "${inph_arg[@]}"  "${outph_arg[@]}" "${proto_arg[@]}" \
 		"${s_arg[@]}"           "${sp_arg[@]}"    "${d_arg[@]}"       "${dp_arg[@]}"    "${mc_arg[@]}"    "${tos_arg[@]}" \
