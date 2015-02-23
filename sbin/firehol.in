@@ -8562,7 +8562,6 @@ rule() {
 		then
 			# in case this is temporary chain we created for the negative expression,
 			# just make it have the final action of the rule.
-			# ipvall
 
 			if [ "${negative_action}" = "${negative_chain}" ]
 			then
@@ -8590,7 +8589,7 @@ rule() {
 
 					# the original action of the rule
 					# we cannot add positive_args or protected_args here - if we do, the logging and accounting will be broken
-					rule_action_param ${iptables} "${negative_action}" "" "" "${table}" "${action_param[@]}" -- -t ${table} -A "${negative_chain}" ${pr} || failed=$[failed + 1]
+					rule_action_param ${iptables} "${negative_action}" "" "" "${table}" "${action_param[@]}" -- -t ${table} -A "${negative_chain}" ${pr} "${protected_args[@]}" || failed=$[failed + 1]
 				done
 			done
 
@@ -8598,6 +8597,8 @@ rule() {
 			# chains - there is not need for params
 			action_param=()
 			require_protocol_with_action=(any)
+			protected_args=()
+			have_protected=0
 
 			# disable logging and accounting
 			# already did it above
@@ -8659,7 +8660,7 @@ rule() {
 
 				# the original action of the rule
 				# we cannot add positive_args or protected_args here - if we do, the logging and accounting will be broken
-				rule_action_param ${iptables} "${logging_action}" "" "" "${table}" "${action_param[@]}" -- -t ${table} -A "${logging_chain}" ${pr} || failed=$[failed + 1]
+				rule_action_param ${iptables} "${logging_action}" "" "" "${table}" "${action_param[@]}" -- -t ${table} -A "${logging_chain}" ${pr} "${protected_args[@]}" || failed=$[failed + 1]
 			done
 		done
 
@@ -8667,6 +8668,8 @@ rule() {
 		# chains - there is not need for params
 		action_param=()
 		require_protocol_with_action=(any)
+		protected_args=()
+		have_protected=0
 
 		# disable logging and accounting
 		# already did it above
@@ -8734,6 +8737,7 @@ rule() {
 			# empty the contrained parameters
 			# so that the positive rules do not add them again
 			protected_args=()
+			have_protected=0
 
 			# The positive rules will just send traffic to a
 			# chains - there is not need for params
