@@ -14,11 +14,11 @@ extra-manpage: firehol-redirect.5
 
 # SYNOPSIS 
 
-{ nat to-destination | dnat [to] } *ipaddr*[:*port*] [at *chain*] [*rule-params*]
+{ nat to-destination | dnat [to] } *ipaddr*[:*port*] [random] [persistent] [at *chain*] [*rule-params*]
 
-{ nat to-source | snat [to] } *ipaddr*[:*port*] [at *chain*] [*rule-params*]
+{ nat to-source | snat [to] } *ipaddr*[:*port*] [random] [persistent] [at *chain*] [*rule-params*]
 
-{ nat redirect-to | redirect [to] } *port*[-*range*] [at *chain*] [*rule-params*]
+{ nat redirect-to | redirect [to] } *port*[-*range*] [random] [at *chain*] [*rule-params*]
 
 # DESCRIPTION
 
@@ -38,6 +38,12 @@ applied in the opposite direction. For instance if you changed the
 destination port of a packet from 80 to 8080, when a reply comes back,
 its source is set as 80. This means the original sender is not aware
 a transformation is happening.
+
+This means that NAT is only applied on the first packet of each connection
+(the nat FireHOL helper always appends `state NEW` to NAT statements).
+
+The NAT helper can be used to setup load balancing. Check the section
+BALANCING below.
 
 > **Note**
 >
@@ -63,6 +69,11 @@ The `at` keyword allows setting a different chain to attach the rules.
 For `dnat` and `redirect` the default is PREROUTING, but OUTPUT is also
 supported. For `snat` the default is POSTROUTING, but INPUT is also
 supported.
+
+`random` will randomize the port mapping involved, to ensure the ports
+used are not predictable.
+
+`persistent` will attempt to map to the same source or destination address.
 
 The `nat` helper takes one of the following sub-commands:
 
@@ -116,40 +127,98 @@ redirect-to *port*[-*range*]
     `outface` should not be used in REDIRECT since the information is
     not available at the time the decision is made.
 
+# BALANCING
+
+NAT can balance multiple servers (or IPs in case of `snat`) when a range
+is specified. This is handled by the kernel.
+
+Example:
+
+~~~
+dnat4 to 10.0.0.1-10.0.0.10 persistent proto tcp dst 1.1.1.1 dport 80
+~~~
+
+In the above example, the Linux kernel will give a `persistent` server to
+all the sockets of any single client.
+
+FireHOL can also setup balancing using a round-robbin or weighted
+average distribution of requests. However `persistent` cannot be used
+(the Linux kernel applies persistance on a single NAT statement).
+
+## Round Robbin distribution
+To enable round robbin distribution, give multiple `to` values, space
+separated and enclosed in quotes, or comma separated.
+
+Example:
+
+~~~
+dnat4 to 10.0.0.1,10.0.0.2,10.0.0.3 proto tcp dst 1.1.1.1 port 80
+# or
+dnat4 to "10.0.0.1 10.0.0.2 10.0.0.3" proto tcp dst 1.1.1.1 port 80
+~~~
+
+Ports can also be given per IP:
+
+~~~
+dnat4 to 10.0.0.1:70,10.0.0.2:80,10.0.0.3:90 proto tcp dst 1.1.1.1 port 80
+# or
+dnat4 to "10.0.0.1:70 10.0.0.2:80 10.0.0.3:90" proto tcp dst 1.1.1.1 port 80
+~~~
+
+## Weighted distribution
+To enable weighted distribution, append a slash with the weight requested
+for each entry.
+
+FireHOL adds all the weights given and calculates the percentage of traffic
+each entry should receive.
+
+Example:
+
+~~~
+dnat4 to 10.0.0.1/30,10.0.0.2/30,10.0.0.3/40 proto tcp dst 1.1.1.1 port 80
+# or
+dnat4 to "10.0.0.1/30 10.0.0.2/30 10.0.0.3/40" proto tcp dst 1.1.1.1 port 80
+# or
+dnat4 to 10.0.0.1:70/30,10.0.0.2:80/30,10.0.0.3:90/40 proto tcp dst 1.1.1.1 port 80
+# or
+dnat4 to "10.0.0.1:70/30 10.0.0.2:80/30 10.0.0.3:90/40" proto tcp dst 1.1.1.1 port 80
+~~~
+
+
 # EXAMPLES
 
 ~~~~
 
  # Port forwarding HTTP
- dnat to 192.0.2.2 proto tcp dport 80
+ dnat4 to 192.0.2.2 proto tcp dport 80
 
  # Port forwarding HTTPS on to a different port internally
- dnat to 192.0.2.2:4443 proto tcp dport 443
+ dnat4 to 192.0.2.2:4443 proto tcp dport 443
 
  # Fix source for traffic leaving the firewall via eth0 with private address
- snat to 198.51.100.1 outface eth0 src 192.168.0.0/24
+ snat4 to 198.51.100.1 outface eth0 src 192.168.0.0/24
 
  # Transparent squid (running on the firewall) for some hosts
- redirect to 8080 inface eth0 src 198.51.100.0/24 proto tcp dport 80
+ redirect4 to 8080 inface eth0 src 198.51.100.0/24 proto tcp dport 80
 
  # Send to 192.0.2.1
  #  - all traffic arriving at or passing through the firewall
- nat to-destination 192.0.2.1
+ nat4 to-destination 192.0.2.1
 
  # Send to 192.0.2.1
  #  - all traffic arriving at or passing through the firewall
  #  - which WAS going to 203.0.113.1
- nat to-destination 192.0.2.1 dst 203.0.113.1
+ nat4 to-destination 192.0.2.1 dst 203.0.113.1
 
  # Send to 192.0.2.1
  #  - TCP traffic arriving at or passing through the firewall
  #  - which WAS going to 203.0.113.1
- nat to-destination 192.0.2.1 proto tcp dst 203.0.113.1
+ nat4 to-destination 192.0.2.1 proto tcp dst 203.0.113.1
 
  # Send to 192.0.2.1
  #  - TCP traffic arriving at or passing through the firewall
  #  - which WAS going to 203.0.113.1, port 25
- nat to-destination 192.0.2.1 proto tcp dport 25 dst 203.0.113.1
+ nat4 to-destination 192.0.2.1 proto tcp dport 25 dst 203.0.113.1
 ~~~~
 
 # SEE ALSO

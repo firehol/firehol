@@ -760,8 +760,8 @@ IPSET_SRC_DST_OPTIONS="! --update-counters ! --update-subcounters"
 IPSET_CREATE_OPTION="create"
 IPSET_DESTROY_OPTION="destroy"
 IPSET_FLUSH_OPTION="flush"
-IPSET_ADD_OPTION="add"
-IPSET_DELETE_OPTION="del"
+IPSET_ADD_OPTION="-! add"
+IPSET_DELETE_OPTION="-! del"
 IPSET_SWAP_OPTION="swap"
 IPSET_SAVE_OPTION="save"
 IPSET_RESTORE_OPTION="restore"
@@ -3718,24 +3718,25 @@ synproxy() {
 
 				set_work_function "SYNPROXY->SERVER DNATing SYN packet at nat.OUTPUT"
 				test ${FIREHOL_SYNPROXY_LOG} -eq 1 && log=(loglimit "SYNPROXY->SERVER DNAT")
-				rule table nat chain SYNPROXY2SERVER_OUT "${match[@]}" proto tcp "${log[@]}" nosoftwarnings action ${action} "${action_args[@]}" inface any physin any || return 1
+				dnat "${action_args[@]}" at SYNPROXY2SERVER_OUT "${match[@]}" proto tcp nosoftwarnings "${log[@]}" inface any physin any || return 1
 
-				# now match the new destination
+				for x in ${!FIREHOL_LAST_NAT_MAP[@]}
+				do
+					local ip=${x/:*/}
+					test ! -z "${ip}" && ip="dst ${ip}"
 
-				local ip=${action_args[1]/:*/}
-				test ! -z "${ip}" && ip="dst ${ip}"
+					local port=${x/*:/}
+					test "${port}" = "${x}" && port=
+					test ! -z "${port}" && port="dport ${port}"
 
-				local port=${action_args[1]/*:/}
-				test "${port}" = "${action_args[1]}" && port=
-				test ! -z "${port}" && port="dport ${port}"
+					set_work_function "SYNPROXY->SERVER accepting DNAT'd SYN packet at filter.OUTPUT"
+					test ${FIREHOL_SYNPROXY_LOG} -eq 1 && log=(loglimit "SYNPROXY->SERVER DNAT'd OUT")
+					rule table filter chain SYNPROXY2SERVER_OUT "${match[@]}" proto tcp "${log[@]}" action ACCEPT nosoftwarnings inface any physin any ${ip} ${port} || return 1
 
-				set_work_function "SYNPROXY->SERVER accepting DNAT'd SYN packet at filter.OUTPUT"
-				test ${FIREHOL_SYNPROXY_LOG} -eq 1 && log=(loglimit "SYNPROXY->SERVER DNAT'd OUT")
-				rule table filter chain SYNPROXY2SERVER_OUT "${match[@]}" proto tcp "${log[@]}" action ACCEPT nosoftwarnings inface any physin any ${ip} ${port} || return 1
-
-				set_work_function "SERVER->CLIENT droping INVALID ACK"
-				test ${FIREHOL_SYNPROXY_LOG} -eq 1 && log=(loglimit "SERVER->CLIENT INVALID ACK")
-				rule table filter chain FORWARD reverse "${match[@]}" custom '-m tcp --tcp-flags RST,ACK ACK' proto tcp state INVALID "${log[@]}" nosoftwarnings ${ip} ${port} action DROP || return 1
+					set_work_function "SERVER->CLIENT droping INVALID ACK"
+					test ${FIREHOL_SYNPROXY_LOG} -eq 1 && log=(loglimit "SERVER->CLIENT INVALID ACK")
+					rule table filter chain FORWARD reverse "${match[@]}" custom '-m tcp --tcp-flags RST,ACK ACK' proto tcp state INVALID "${log[@]}" nosoftwarnings ${ip} ${port} action DROP || return 1
+				done
 				;;
 
 			REDIRECT)
@@ -3743,7 +3744,7 @@ synproxy() {
 
 				set_work_function "SYNPROXY->SERVER REDIRECTing packet at nat.OUTPUT"
 				test ${FIREHOL_SYNPROXY_LOG} -eq 1 && log=(loglimit "SYNPROXY->SERVER REDIRECT")
-				rule table nat chain SYNPROXY2SERVER_OUT "${match[@]}" proto tcp "${log[@]}" nosoftwarnings action ${action} "${action_args[@]}" inface any physin any outface lo physout any || return 1
+				redirect "${action_args[@]}" at SYNPROXY2SERVER_OUT "${match[@]}" proto tcp nosoftwarnings "${log[@]}" inface any physin any outface lo physout any || return 1
 
 				local localhost=
 				running_ipv4 && localhost="127.0.0.0/8"
@@ -3751,15 +3752,15 @@ synproxy() {
 
 				set_work_function "SYNPROXY->SERVER accepting redirected packet at device lo at filter.OUTPUT"
 				test ${FIREHOL_SYNPROXY_LOG} -eq 1 && log=(loglimit "SYNPROXY->SERVER lo OUT")
-				rule table filter chain SYNPROXY2SERVER_OUT "${match[@]}" proto tcp "${log[@]}" action ACCEPT nosoftwarnings inface any physin any outface lo physout any dst "${localhost}" dport ${action_args[1]} || return 1
+				rule table filter chain SYNPROXY2SERVER_OUT "${match[@]}" proto tcp "${log[@]}" action ACCEPT nosoftwarnings inface any physin any outface lo physout any dst "${localhost}" dport "${!FIREHOL_LAST_NAT_MAP[*]}" || return 1
 
 				set_work_function "SYNPROXY->SERVER accepting re-routed packet at device lo at filter.INPUT"
 				test ${FIREHOL_SYNPROXY_LOG} -eq 1 && log=(loglimit "SYNPROXY->SERVER lo IN")
-				rule table filter chain SYNPROXY2SERVER_IN "${match[@]}" proto tcp "${log[@]}" action ACCEPT nosoftwarnings inface lo physin any outface any physout any dst "${localhost}"  dport ${action_args[1]} || return 1
+				rule table filter chain SYNPROXY2SERVER_IN "${match[@]}" proto tcp "${log[@]}" action ACCEPT nosoftwarnings inface lo physin any outface any physout any dst "${localhost}"  dport "${!FIREHOL_LAST_NAT_MAP[*]}" || return 1
 
 				set_work_function "SERVER->CLIENT droping INVALID ACK"
 				test ${FIREHOL_SYNPROXY_LOG} -eq 1 && log=(loglimit "SERVER->CLIENT INVALID ACK")
-				rule table filter chain OUTPUT reverse "${match[@]}" custom '-m tcp --tcp-flags RST,ACK ACK' proto tcp state INVALID "${log[@]}" nosoftwarnings action DROP outface any physout any dport ${action_args[1]} || return 1
+				rule table filter chain OUTPUT reverse "${match[@]}" custom '-m tcp --tcp-flags RST,ACK ACK' proto tcp state INVALID "${log[@]}" nosoftwarnings action DROP outface any physout any dport "${!FIREHOL_LAST_NAT_MAP[*]}" || return 1
 
 				# this requires routing device lo
 				set_work_function "SYNPROXY->SERVER enabling routing ${inface[@]} <-> lo"
@@ -4180,7 +4181,7 @@ tproxy() {
 	return 0
 }
 
-
+declare -A FIREHOL_LAST_NAT_MAP=()
 nat_count=0
 nat_helper() {
 #	work_realcmd_helper ${FUNCNAME} "${@}"
@@ -4189,36 +4190,40 @@ nat_helper() {
 	
 	require_work clear || ( error "NAT cannot be used in '${work_cmd}'. Put all NAT related commands before any '${work_cmd}' definition."; return 1 )
 	
-	local 	type="${1}" to="${2}" \
-		chain= action= options= requirements= overwrite= \
-		possible_chains= x=
+	local 	type="${1}" to="${2}" tos=() name= persistent=0 \
+		chain= chains=() action= options= requirements= overwrite= \
+		x= w= total= balance=() args=() proto=(any) total_weight=0 without_weight=0 mode="nth"
 	shift 2
 	
 	nat_count=$[nat_count + 1]
+	FIREHOL_LAST_NAT_MAP=()
+
 	set_work_function -ne "Rules for NAT type: '${type}'"
-	
 	case ${type} in
 		to-source)
-			chain=POSTROUTING
-			possible_chains="POSTROUTING INPUT"
+			chains=(POSTROUTING)
+			#possible_chains="POSTROUTING INPUT"
 			action=snat
 			overwrite="inface any"
+			tos=(${to//,/ })
 			;;
 		
 		to-destination)
-			chain=PREROUTING
-			possible_chains="PREROUTING OUTPUT"
+			chains=(PREROUTING)
+			#possible_chains="PREROUTING OUTPUT"
 			action=dnat
 			requirements=noowner
 			overwrite="outface any"
+			tos=(${to//,/ })
 			;;
 			
 		redirect-to)
-			chain=PREROUTING
-			possible_chains="PREROUTING OUTPUT"
+			chains=(PREROUTING)
+			#possible_chains="PREROUTING OUTPUT"
 			action=redirect
 			requirements=noowner
 			overwrite="outface any"
+			tos=(${to//,/ })
 			;;
 			
 		*)
@@ -4227,55 +4232,170 @@ nat_helper() {
 			;;
 	esac
 	
+	args=(${requirements})
 	while [ ! -z "${1}" ]
 	do
 		case "${1,,}" in
 			random|--random)
 				options="${options} random"
-				shift
 				;;
 
 			persistent|--persistent)
+				persistent=1
 				options="${options} persistent"
-				[ "${action}" = "redirect" ] && ( error "Persistence is not supported by redirect."; return 1 )
+				[ "${action}" = "redirect" ] && error "Persistence is not supported by redirect." && return 1
+				;;
+
+			at)	chains=()
+				for chain in ${2//,/ }
+				do
+					case "${chain^^}" in
+						PRE|PREROUTING)		chains=("${chains[@]}" "PREROUTING") ;;
+						IN|INPUT)		chains=("${chains[@]}" "INPUT") ;;
+						OUT|OUTPUT)		chains=("${chains[@]}" "OUTPUT") ;;
+						PASS|FORWARD)		chains=("${chains[@]}" "FORWARD") ;;
+						POST|POSTROUTING)	chains=("${chains[@]}" "POSTROUTING") ;;
+						*)			chains=("${chains[@]}" "${chain}");;
+					esac
+				done
+				shift
+				;;
+				
+			name)	name="${2}"
 				shift
 				;;
 
-			at)	chain=
-				for x in ${2//,/ }
-				do
-					case "${x^^}" in
-						PRE|PREROUTING)		chain="${chain} PREROUTING" ;;
-						IN|INPUT)		chain="${chain} INPUT" ;;
-						OUT|OUTPUT)		chain="${chain} OUTPUT" ;;
-						PASS|FORWARD)		chain="${chain} FORWARD" ;;
-						POST|POSTROUTING)	chain="${chain} POSTROUTING" ;;
-						*)			chain="${chain} ${x}";;
-					esac
-				done
-				shift 2
+			# we need the protocol in case of a balancer
+			proto)	proto=(${2//,/ })
+				shift
 				;;
-				
-			*)	break
+
+			*)	args=("${args[@]}" "${1}")
 				;;
 		esac
+		shift
 	done
-	
-	for x in ${chain}
+	args=("${args[@]}" ${overwrite} nosoftwarnings state NEW)
+
+	# the total combinations we have
+	total="${#tos[@]}"
+
+	if [ ${total} -gt 1 -a ${persistent} -eq 1 ]
+	then
+		warning "${action} will not map addresses persistently, since ${total} rules will be generated."
+	fi
+
+	# If a name is given, or a balancer is requested (multiple 'to' value) or multiple chains
+	# are requested, centralize it on one chain, so that the balancing rules will be applied
+	# just once (this will ensure proper balancing)
+	if [ ! -z "${name}" -o ${total} -gt 1 -o ${#chains[@]} -gt 1 ]
+	then
+		# If a balancer is requested on multiple chains centralize it on one chain,
+		# so that the balancing rules will be applied just once (this will ensure proper balancing)
+
+		test -z "${name}" && name="BALANCER.${nat_count}"
+
+		# create the chain
+		create_chain nat "${name}" || return 1
+
+		# link it to the places requested
+		for chain in ${chains[@]}
+		do
+			set_work_function "Linking chain ${name} at ${chain}"
+			rule table nat chain ${chain} proto "${proto[*]}" "${args[@]}" action "${name}" || return 1
+		done
+
+		# change the linking for the balancing rules
+		chains=("${name}")
+
+		# and empty the parameters (traffic on the chain BALANCER.x is already this traffic)
+		args=()
+	fi
+
+	# check if all 'to' have weights
+	total_weight=0
+	without_weight=0
+	for to in ${tos[@]}
 	do
-		# check the chain
-		if [[ ! " ${possible_chains} " =~ " ${x} " ]]
+		x=${to/*\//}
+		[ "${x}" = "${to}" ] && x=
+		if [ -z "${x}" ]
 		then
-			error "Cannot setup ${type} at ${x}, only these are allowed: ${possible_chains}"
+			(( without_weight += 1 ))
+		else
+			total_weight=$[total_weight + x]
+		fi
+	done
+
+	# if some have weight and some don't
+	# stop with an error
+	if [ ${total_weight} -ne 0 ]
+	then
+		if [ ${without_weight} -gt 0 ]
+		then
+			error "Weights based balancing is requested, but there are ${without_weight} value(s) that do not have a weight."
 			return 1
 		fi
-		
-		set_work_function "Rules for ${action} to ${to} at ${x}"
-		rule table nat chain "${x}" ${requirements} "${@}" ${overwrite} action "${action}" to "${to}" ${options} || return 1
+		mode="random"
+	else
+		mode="nth"
+	fi
+
+	x=0
+	for to in ${tos[@]}
+	do
+		balance=()
+
+		# if we build a balancer, generate the rule to split the traffic among
+		# the target servers, except if this is the last host
+		if [ ${total} -gt 1 -a $[x+1] -lt ${total} ]
+		then
+			if [ "${mode}" = "nth" ]
+			then
+				# round robin mode
+				balance=("custom" "-m statistic --mode nth --every ${total} --packet ${x}")
+			else
+				# weighted random mode
+				w=${to/*\//}
+				if [ "${w}" = "${to}" -o -z "${w}" ]
+				then
+					error "Cannot parse weight from ip ${ip}."
+					return 1
+				fi
+				w=$[(w * 1000) / total_weight]
+				if [ ${w} -lt 10 ]
+				then
+					w="0.00${w}"
+				elif [ ${w} -lt 100 ]
+				then
+					w="0.0${w}"
+				elif [ ${w} -lt 1000 ]
+				then
+					w="0.${w}"
+				elif [ ${w} -eq 1000 ]
+				then
+					w="1.0"
+				else
+					error "Cannot calculate weight for ${to}. Calculation gives ${w} / 1000."
+					return 1
+				fi
+
+				balance=("custom" "-m statistic --mode random --probability ${w}")
+			fi
+		fi
+		(( x += 1 ))
+
+		to=${to/\/*/}
+		FIREHOL_LAST_NAT_MAP[$to]="${balance[*]}"
+		for chain in ${chains[@]}
+		do
+			set_work_function "Rules for ${action} to ${to} at ${chain}"
+			rule table nat chain "${chain}" proto "${proto[*]}" "${args[@]}" "${balance[@]}" action "${action}" to ${to} ${options} || return 1
+		done
 	done
 	
 	FIREHOL_NAT=1
-	FIREHOL_ROUTING=1
+	[ ! "${action}" = "redirect" ] && FIREHOL_ROUTING=1
 	
 	return 0
 }
@@ -4460,10 +4580,10 @@ blacklist() {
 	iptables_both -t filter -N "${chain}.in"
 
 	# add the excepted rules
-	test ! -z "${1}" && ( rule table filter chain "${chain}.in" in action RETURN "${@}" || return 1 )
+	if [ ! -z "${1}" ]; then rule table filter chain "${chain}.in" in action RETURN "${@}" || return 1; fi
 
 	# add the accounting rules
-	test ! -z "${accounting}" && ( iptables_both -t filter -A "${chain}.in" -m nfacct --nfacct-name "${accounting}" || return 1 )
+	if [ ! -z "${accounting}" ]; then iptables_both -t filter -A "${chain}.in" -m nfacct --nfacct-name "${accounting}" || return 1; fi
 
 	# drop the traffic (input)
 	rule table filter chain "${chain}.in" in "${logopts_in_arg[@]}" action DROP || return 1
@@ -4500,10 +4620,10 @@ blacklist() {
 		iptables_both -t filter -N "${chain}.out"
 
 		# add the excepted rules
-		test ! -z "${1}" && ( rule table filter chain "${chain}.out" out reverse action RETURN "${@}" || return 1 )
+		if [ ! -z "${1}" ]; then rule table filter chain "${chain}.out" out reverse action RETURN "${@}" || return 1; fi
 
 		# add the accounting rules
-		test ! -z "${accounting}" && ( iptables_both -t filter -A "${chain}.out" -m nfacct --nfacct-name "${accounting}" || return 1 )
+		if [ ! -z "${accounting}" ]; then iptables_both -t filter -A "${chain}.out" -m nfacct --nfacct-name "${accounting}" || return 1; fi
 
 		if running_ipv4
 		then
@@ -4694,7 +4814,7 @@ iptrap() {
 		iptables_both -t ${t} -N "${chain}"
 
 		# add the excepted rules
-		test ! -z "${1}" && ( rule table ${t} chain "${chain}" in action RETURN "${@}" || return 1 )
+		if [ ! -z "${1}" ]; then rule table ${t} chain "${chain}" in action RETURN "${@}" || return 1; fi
 
 		# do the job
 		if [ ${undo} -eq 1 ]
@@ -6472,7 +6592,7 @@ close_master() {
 	# ---------------------------------------------------------------------
 	# execute all postprocessing commands for this firewall
 
-	test ${FIREHOL_ROUTING} -eq 1 && ( postprocess -warn ${SYSCTL_CMD} -w "net.ipv4.ip_forward=1" || return 1 )
+	if [ ${FIREHOL_ROUTING} -eq 1 ]; then postprocess -warn ${SYSCTL_CMD} -w "net.ipv4.ip_forward=1" || return 1; fi
 	
 	if [ "${FIREHOL_CONNTRACK_HELPERS_ASSIGNMENT}" = "kernel" ]
 	then
@@ -6481,11 +6601,11 @@ close_master() {
 		postprocess -warn ${SYSCTL_CMD} -w "net.netfilter.nf_conntrack_helper=0" || return 1
 	fi
 
-	test ! -z "${FIREHOL_CONNTRACK_LOOSE_MATCHING}"	&& ( postprocess -warn ${SYSCTL_CMD} -e "net.netfilter.nf_conntrack_tcp_loose=${FIREHOL_CONNTRACK_LOOSE_MATCHING}" || return 1 )
-	test ! -z "${FIREHOL_TCP_SYN_COOKIES}"		&& ( postprocess -warn ${SYSCTL_CMD} -e "net.ipv4.tcp_syncookies=${FIREHOL_TCP_SYN_COOKIES}" || return 1 )
-	test ! -z "${FIREHOL_TCP_TIMESTAMPS}"		&& ( postprocess -warn ${SYSCTL_CMD} -e "net.ipv4.tcp_timestamps=${FIREHOL_TCP_TIMESTAMPS}" || return 1 )
-	test ! -z "${FIREHOL_CONNTRACK_MAX}" 		&& ( postprocess -warn ${SYSCTL_CMD} -e "net.netfilter.nf_conntrack_max=${FIREHOL_CONNTRACK_MAX}" || return 1 )
-	test ! -z "${FIREHOL_CONNTRACK_HASHSIZE}"	&& ( postprocess -warn postprocess_echo_to ${FIREHOL_CONNTRACK_HASHSIZE} /sys/module/nf_conntrack/parameters/hashsize || return 1 )
+	if [ ! -z "${FIREHOL_CONNTRACK_LOOSE_MATCHING}"	]; then postprocess -warn ${SYSCTL_CMD} -e "net.netfilter.nf_conntrack_tcp_loose=${FIREHOL_CONNTRACK_LOOSE_MATCHING}" || return 1; fi
+	if [ ! -z "${FIREHOL_TCP_SYN_COOKIES}"		]; then postprocess -warn ${SYSCTL_CMD} -e "net.ipv4.tcp_syncookies=${FIREHOL_TCP_SYN_COOKIES}" || return 1; fi
+	if [ ! -z "${FIREHOL_TCP_TIMESTAMPS}"		]; then postprocess -warn ${SYSCTL_CMD} -e "net.ipv4.tcp_timestamps=${FIREHOL_TCP_TIMESTAMPS}" || return 1; fi
+	if [ ! -z "${FIREHOL_CONNTRACK_MAX}" 		]; then postprocess -warn ${SYSCTL_CMD} -e "net.netfilter.nf_conntrack_max=${FIREHOL_CONNTRACK_MAX}" || return 1; fi
+	if [ ! -z "${FIREHOL_CONNTRACK_HASHSIZE}"	]; then postprocess -warn postprocess_echo_to ${FIREHOL_CONNTRACK_HASHSIZE} /sys/module/nf_conntrack/parameters/hashsize || return 1; fi
 
 	for m in "${!FIREHOL_NFACCT[@]}"
 	do
@@ -8699,9 +8819,9 @@ rule() {
 
 				# since this is the target of the positive rules,
 				# logging and accounting can be attached here				
-				[ "$logrule" = "limit"  ] && ( ${iptables} -t ${table} -A "${negative_chain}" -m limit --limit "${FIREHOL_LOG_FREQUENCY}" --limit-burst "${FIREHOL_LOG_BURST}" -j ${FIREHOL_LOG_MODE} ${FIREHOL_LOG_OPTIONS} "${logopts_arg[@]}" || failed=$[failed + 1] )
-				[ "$logrule" = "normal" ] && ( ${iptables} -t ${table} -A "${negative_chain}" -j ${FIREHOL_LOG_MODE} ${FIREHOL_LOG_OPTIONS} "${logopts_arg[@]}" || failed=$[failed + 1] )
-				[ ! -z "${accounting}"  ] && ( ${iptables} -t ${table} -A "${negative_chain}" -m nfacct --nfacct-name "${accounting}" || failed=$[failed + 1] )
+				if [ "$logrule" = "limit"  ]; then ${iptables} -t ${table} -A "${negative_chain}" -m limit --limit "${FIREHOL_LOG_FREQUENCY}" --limit-burst "${FIREHOL_LOG_BURST}" -j ${FIREHOL_LOG_MODE} ${FIREHOL_LOG_OPTIONS} "${logopts_arg[@]}" || failed=$[failed + 1]; fi
+				if [ "$logrule" = "normal" ]; then ${iptables} -t ${table} -A "${negative_chain}" -j ${FIREHOL_LOG_MODE} ${FIREHOL_LOG_OPTIONS} "${logopts_arg[@]}" || failed=$[failed + 1]; fi
+				if [ ! -z "${accounting}"  ]; then ${iptables} -t ${table} -A "${negative_chain}" -m nfacct --nfacct-name "${accounting}" || failed=$[failed + 1]; fi
 
 				for pr in ${require_protocol_with_action[*]}
 				do
@@ -8770,9 +8890,9 @@ rule() {
 				ipv6) iptables="ip6tables";;
 			esac
 
-			[ "$logrule" = "limit"  ] && ( ${iptables} -t ${table} -A "${logging_chain}" -m limit --limit "${FIREHOL_LOG_FREQUENCY}" --limit-burst "${FIREHOL_LOG_BURST}" -j ${FIREHOL_LOG_MODE} ${FIREHOL_LOG_OPTIONS} "${logopts_arg[@]}" || failed=$[failed + 1] )
-			[ "$logrule" = "normal" ] && ( ${iptables} -t ${table} -A "${logging_chain}" -j ${FIREHOL_LOG_MODE} ${FIREHOL_LOG_OPTIONS} "${logopts_arg[@]}" || failed=$[failed + 1] )
-			[ ! -z "${accounting}"  ] && ( ${iptables} -t ${table} -A "${logging_chain}" -m nfacct --nfacct-name "${accounting}" || failed=$[failed + 1] )
+			if [ "$logrule" = "limit"  ]; then ${iptables} -t ${table} -A "${logging_chain}" -m limit --limit "${FIREHOL_LOG_FREQUENCY}" --limit-burst "${FIREHOL_LOG_BURST}" -j ${FIREHOL_LOG_MODE} ${FIREHOL_LOG_OPTIONS} "${logopts_arg[@]}" || failed=$[failed + 1]; fi
+			if [ "$logrule" = "normal" ]; then ${iptables} -t ${table} -A "${logging_chain}" -j ${FIREHOL_LOG_MODE} ${FIREHOL_LOG_OPTIONS} "${logopts_arg[@]}" || failed=$[failed + 1]; fi
+			if [ ! -z "${accounting}"  ]; then ${iptables} -t ${table} -A "${logging_chain}" -m nfacct --nfacct-name "${accounting}" || failed=$[failed + 1]; fi
 
 			for pr in ${require_protocol_with_action[*]}
 			do
@@ -9195,9 +9315,9 @@ rule() {
 
 	if [ -z "${positive_rule_number}" ]
 	then
-		[ "$logrule" = "limit"  ] && ( ${iptables} -t ${table} ${attachement} "${basecmd[@]}" -m limit --limit "${FIREHOL_LOG_FREQUENCY}" --limit-burst "${FIREHOL_LOG_BURST}" -j ${FIREHOL_LOG_MODE} ${FIREHOL_LOG_OPTIONS} "${logopts_arg[@]}" || failed=$[failed + 1] )
-		[ "$logrule" = "normal" ] && ( ${iptables} -t ${table} ${attachement} "${basecmd[@]}" -j ${FIREHOL_LOG_MODE} ${FIREHOL_LOG_OPTIONS} "${logopts_arg[@]}" || failed=$[failed + 1] )
-		[ ! -z "${accounting}"  ] && ( ${iptables} -t ${table} ${attachement} "${basecmd[@]}" -m nfacct --nfacct-name "${accounting}" || failed=$[failed + 1] )
+		if [ "$logrule" = "limit"  ]; then ${iptables} -t ${table} ${attachement} "${basecmd[@]}" -m limit --limit "${FIREHOL_LOG_FREQUENCY}" --limit-burst "${FIREHOL_LOG_BURST}" -j ${FIREHOL_LOG_MODE} ${FIREHOL_LOG_OPTIONS} "${logopts_arg[@]}" || failed=$[failed + 1]; fi
+		if [ "$logrule" = "normal" ]; then ${iptables} -t ${table} ${attachement} "${basecmd[@]}" -j ${FIREHOL_LOG_MODE} ${FIREHOL_LOG_OPTIONS} "${logopts_arg[@]}" || failed=$[failed + 1]; fi
+		if [ ! -z "${accounting}"  ]; then ${iptables} -t ${table} ${attachement} "${basecmd[@]}" -m nfacct --nfacct-name "${accounting}" || failed=$[failed + 1]; fi
 	fi
 
 	# do it!
@@ -9206,9 +9326,9 @@ rule() {
 
 	if [ ! -z "${positive_rule_number}" ]
 	then
-		[ "$logrule" = "limit"  ] && ( ${iptables} -t ${table} ${attachement} "${basecmd[@]}" -m limit --limit "${FIREHOL_LOG_FREQUENCY}" --limit-burst "${FIREHOL_LOG_BURST}" -j ${FIREHOL_LOG_MODE} ${FIREHOL_LOG_OPTIONS} "${logopts_arg[@]}" || failed=$[failed + 1] )
-		[ "$logrule" = "normal" ] && ( ${iptables} -t ${table} ${attachement} "${basecmd[@]}" -j ${FIREHOL_LOG_MODE} ${FIREHOL_LOG_OPTIONS} "${logopts_arg[@]}" || failed=$[failed + 1] )
-		[ ! -z "${accounting}"  ] && ( ${iptables} -t ${table} ${attachement} "${basecmd[@]}" -m nfacct --nfacct-name "${accounting}" || failed=$[failed + 1] )
+		if [ "$logrule" = "limit"  ]; then ${iptables} -t ${table} ${attachement} "${basecmd[@]}" -m limit --limit "${FIREHOL_LOG_FREQUENCY}" --limit-burst "${FIREHOL_LOG_BURST}" -j ${FIREHOL_LOG_MODE} ${FIREHOL_LOG_OPTIONS} "${logopts_arg[@]}" || failed=$[failed + 1]; fi
+		if [ "$logrule" = "normal" ]; then ${iptables} -t ${table} ${attachement} "${basecmd[@]}" -j ${FIREHOL_LOG_MODE} ${FIREHOL_LOG_OPTIONS} "${logopts_arg[@]}" || failed=$[failed + 1]; fi
+		if [ ! -z "${accounting}"  ]; then ${iptables} -t ${table} ${attachement} "${basecmd[@]}" -m nfacct --nfacct-name "${accounting}" || failed=$[failed + 1]; fi
 	fi
 
 	done # dport
@@ -9236,7 +9356,7 @@ warning() {
 	test ${PROGRAM_SPINNER_RUNNING} -eq 1 && spinner_end
 
 	echo >&2
-	echo >&2 -e "${COLOR_YELLOW}WARNING${COLOR_RESET}: " "${@}"
+	echo >&2 -e "${COLOR_YELLOW}WARNING${COLOR_RESET} ${COLOR_CYAN}${LAST_CONFIG_LINE}${COLOR_RESET}: " "${@}"
 	echo >&2
 	
 	return 0
@@ -11723,7 +11843,7 @@ then
 fi
 
 test ${FIREHOL_ENABLE_SPINNER} -eq 1 && spinner_end
-success # "Processing file '${FIREHOL_CONFIG}'"
+success "${FIREHOL_COMMAND_COUNTER} iptables rules" # "Processing file '${FIREHOL_CONFIG}'"
 
 # XXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXX
 
