@@ -4794,8 +4794,8 @@ iptrap() {
 		FIREHOL_IPTRAP_METHOD[$ipset]="${method}"
 	fi
 
-	# if the ipset does not exist, create it
-	if [ -z "${FIREHOL_IPSETS_USED[$ipset]}" ]
+	# if the ipset has not been created by us, create it
+	if [ ! "${FIREHOL_IPSETS_USED[$ipset]}" = "CREATED" ]
 	then
 		local opts="${IPTRAP_DEFAULT_IPSET_TIMEOUT_OPTIONS}"
 		test "${mode}" = "COUNTERS" && opts="${IPTRAP_DEFAULT_IPSET_COUNTERS_OPTIONS}"
