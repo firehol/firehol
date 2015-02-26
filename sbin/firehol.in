@@ -6596,7 +6596,10 @@ close_master() {
 	
 	if [ "${FIREHOL_CONNTRACK_HELPERS_ASSIGNMENT}" = "kernel" ]
 	then
-		postprocess -warn ${SYSCTL_CMD} -w "net.netfilter.nf_conntrack_helper=1" || return 1
+		if [ -f /proc/sys/net/netfilter/nf_conntrack_helper ]
+		then
+			postprocess -warn ${SYSCTL_CMD} -w "net.netfilter.nf_conntrack_helper=1" || return 1
+		fi
 	else
 		postprocess -warn ${SYSCTL_CMD} -w "net.netfilter.nf_conntrack_helper=0" || return 1
 	fi
