@@ -157,7 +157,7 @@ numberofbits() {
 	x=$[ (x & 0x33333333) + ( (x >> 2) & 0x33333333) ]
 	x=$[ (x + (x >> 4) ) & 0x0F0F0F0F ]
 	x=$[ x + (x >> 8) ]
-	x=$[ x + (x >> 16) ];
+	x=$[ x + (x >> 16) ]
 	bits=$[ x & 0x0000003F ]
 	echo $bits
 }
@@ -233,7 +233,7 @@ markdef() {
 
 	if [ ! -z "${MARKS_MASKS[$name]}" ]
 	then
-		echo >&2 "ERROR in ${FUNCNAME}: Mark type '${name}' already exists with mask ${MARKS_MASKS[$name]}. Please use 'marksreset' to reset them before re-defining them."
+		echo >&2 "ERROR in ${FUNCNAME}: Mark type '${name}' already exists with mask ${MARKS_MASKS[$name]}. Please use 'markdef reset' to reset them before re-defining them."
 		exit 1
 	fi
 
@@ -257,7 +257,6 @@ markdef() {
 		exit 1
 	fi
 
-	# prevent a fork
 	bits=$(numberofbits $max)
 
 	if [ $bits -eq 0 ]
@@ -760,11 +759,11 @@ IPSET_SRC_DST_OPTIONS="! --update-counters ! --update-subcounters"
 IPSET_CREATE_OPTION="create"
 IPSET_DESTROY_OPTION="destroy"
 IPSET_FLUSH_OPTION="flush"
-IPSET_ADD_OPTION="-! add"
-IPSET_DELETE_OPTION="-! del"
+IPSET_ADD_OPTION="add"
+IPSET_DELETE_OPTION="del"
 IPSET_SWAP_OPTION="swap"
 IPSET_SAVE_OPTION="save"
-IPSET_RESTORE_OPTION="restore"
+IPSET_RESTORE_OPTION="-! restore"
 IPSET_CREATE_IPV6_OPTION="family inet6"
 IPSET_LIST_NAMES_EVAL="list -n"
 
@@ -3982,6 +3981,38 @@ action() {
 				done
 				;;
 
+			sockets_suspects_trap)
+				if [ "${#args[@]}" -lt 3 ]
+				then
+					error "action ${type} requires 3 parameters: suspects_timeout, trap_timeout, valid_connections"
+					return 1
+				fi
+
+				local suspects_timeout="${args[0]}" trap_timeout="${args[1]}" connections="${args[2]}"
+				unset args[0] args[1] args[2]
+				for t in ${tables//,/ }
+				do
+					set_work_function "Rules for ${name}_sockets iptrap under table ${t}: ${args[@]}"
+					iptrap ${name}_sockets src,dst,dst ${suspects_timeout} method "hash:ip,port,ip" counters \
+						chain "${name}" table ${t} \
+						state NEW log "${name} NEW SOCKET" \
+						"${args[@]}" || return 1
+
+					set_work_function "Rules for ${name}_suspects iptrap under table ${t}"
+					iptrap ${name}_suspects src ${suspects_timeout} counters \
+						chain "${name}" table ${t} \
+						state NEW log "${name} NEW SUSPECT" \
+						ipset ${name}_sockets src,dst,dst no-counters packets 1 || return 1
+
+					set_work_function "Rules for ${name}_trap iptrap under table ${t}"
+					iptrap ${name}_trap src ${trap_timeout} \
+						chain "${name}" table ${t} \
+						state NEW log "${name} TRAPPED" \
+						ipset ${name}_suspects src no-counters packets-above ${connections} || return 1
+				done
+				;;
+
+
 			*)
 				error "${FUNCNAME}: Unknown action type '${type}'. Format is: ${FUNCNAME} name type type_parameters"
 				return 1
@@ -4722,41 +4753,41 @@ iptrap() {
 
 	while [ ! -z "${1}" ]
 	do
-		case "${1}" in
-			method|METHOD)
+		case "${1,,}" in
+			method)
 				method="${2}"
 				shift
 				;;
 
-			counters|COUNTERS)
+			counters)
 				mode="COUNTERS"
 				;;
 
-			timeout|TIMEOUT)
+			timeout)
 				mode="TIMEOUT"
 				;;
 
-			chain|CHAIN)
+			at|chain)
 				link_to="${2}"
 				shift
 				;;
 
-			table|tables|TABLE|TABLES)
+			table|tables)
 				tables="${2}"
 				shift
 				;;
 
-			action|ACTION)
+			action)
 				action="${2}"
 				shift
 				;;
 
-			except|EXCEPT)
+			except)
 				shift
 				break
 				;;
 
-			log|loglimit|LOG|LOGLIMIT)
+			log|loglimit)
 				logopts_arg=("${1}" "${2}")
 				shift
 				;;
@@ -5278,6 +5309,12 @@ ipset() {
 
 	local cmd="${1}" name="${2}"
 	shift 2
+
+	if [ "z${IPSET_ADD_OPTION:0:2}" = "z-!" ]
+	then
+		error "Your IPSET_ADD_OPTION has -! in it. This will make your IPs not to be added to the ipset. Please remove it. You can add -! to the IPSET_RESTORE_OPTION to accept duplicate IPs without error."
+		return 1
+	fi
 
 	case "${cmd}" in
 		create|-N|--create)

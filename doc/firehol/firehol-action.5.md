@@ -47,7 +47,7 @@ router myrouter
 There is no limit on the number of actions that can be linked together.
 
 `type` can be `chain` or `action` (`chain` and `action` are aliases),
-`rule`, `iptrap` or 'ipuntrap'.
+`rule`, `iptrap`, `ipuntrap` or `sockets_suspects_trap`.
 
 
 ## Chain type actions
@@ -205,6 +205,38 @@ all these conditions are met, it will log with the tag `POLICY TRAP` and
 add the src IP of the packets in the `policytrap` ipset for 30 seconds.
 
 All traffic not matched by the above, will be just rejected.
+
+## sockets_suspects_trap type actions
+
+The type `sockets_suspects_trap` will automatically a custom trap using
+the following template:
+
+~~~
+action4 *name* sockets_suspects_trap *SUSPECTS_TIMEOUT* *TRAP_TIMEOUT* *VALID_CONNECTIONS* [*optional params*] next ...
+~~~
+
+This will:
+
+1. Create the ipset `${name}_sockets` where the matched sockets will be stored for `SUSPECTS_TIMEOUT` seconds.
+2. Create the ipset `${name}_suspects` where the source IPs of the matched sockets will be stored for `SUSPECTS_TIMEOUT` seconds.
+3. Create the ipset `${name}_trap` where the trapped IPs will be stored for `TRAP_TIMEOUT` seconds. IPs will be added to this ipset only if more than `VALID_CONNECTIONS` have been matched by this IP.
+
+`optional params` are FireHOL optional rule parameters ([firehol-params(5)][]) that can be used to limit the match for the first ipset (sockets).
+
+So, to design the same TRAP_AND_REJECT as above, this statement is needed:
+
+~~~
+action4 TRAP_AND_REJECT \
+    sockets_suspects_trap 3600 86400 2 \
+        inface "${wan}" \
+        src not "${UNROUTABLE_IPS} ipset:whitelist" \
+    next action REJECT
+~~~
+
+The ipsets that will be created will be named: `TRAP_AND_REJECT_sockets`, `TRAP_AND_REJECT_suspects` and `TRAP_AND_REJECT_trap`.
+
+> **Note**
+> Always terminate `sockets_suspects_trap` with a `next action DROP` or `next action REJECT`, or the traffic will continue to flow.
 
 
 # SEE ALSO
