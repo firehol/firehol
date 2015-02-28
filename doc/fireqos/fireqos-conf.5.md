@@ -63,6 +63,8 @@ In FireQOS, speeds can be expressed in the following units:
 
 # EXAMPLE
 
+This example uses match statements.
+
 ~~~~
 
  # incoming traffic from my ADSL router
@@ -115,6 +117,94 @@ In FireQOS, speeds can be expressed in the following units:
    class torrents max 90%
      match port 51414 # my torrent client
 ~~~~
+
+This example uses server/client statements in a bidirectional interface.
+Of course match statements can also be specified.
+FireQOS will create 2 interfaces out of this: world-in and world-out.
+
+~~~~
+  DEVICE=dsl0
+  INPUT_SPEED="12000kbit"
+  OUTPUT_SPEED="800kbit"
+  LINKTYPE="adsl local pppoe-llc"
+
+  # a few service definitions
+  # all the rest that are used in this example
+  # are defined by FireQOS
+  server_netdata_ports="tcp/19999"
+  server_rtp_ports="udp/10000:10100"
+  server_openvpn_ports="any/1195:1198"
+  server_mytorrent_ports="any/60000"
+  server_mytorrenttransfers_ports="any/60001:64999"
+  server_myssh_ports="tcp/2222"
+
+  # League Of Legends game (yes! I have kids)
+  server_lol_ports="udp/5000:5500 tcp/8393:8400,2099,5223,5222,8088"
+  
+  interface $DEVICE world bidirectional $LINKTYPE input rate $INPUT_SPEED output rate $OUTPUT_SPEED
+    
+    class voip commit 100kbit pfifo
+      server sip
+      client sip
+      server rtp
+      client stun
+
+    class interactive input commit 20% output commit 10%
+      server icmp limit 50%
+
+      server dns
+      client dns
+
+      server ssh
+      client ssh
+
+      server myssh
+      client myssh
+
+      client teamviewer
+      client lol
+
+    class chat input commit 1000kbit output commit 30%
+      client facetime
+
+      server hangouts
+      client hangouts
+
+      client gtalk
+      client jabber
+
+    class vpns input commit 20% output commit 30%
+      server pptp
+      server GRE
+      server openvpn
+
+    class servers
+      server netdata
+      server http
+
+    # a class group to favor tcp handshake over transfers
+    class group surfing prio keep commit 5%
+      client surfing
+      client rsync
+
+      class synacks
+        match tcp syn
+        match tcp ack
+
+    class group end
+
+    class synacks commit 5%
+      match tcp syn
+      match tcp ack
+
+    class default
+
+    class background commit 4%
+      client torrents
+      server mytorrent
+      server mytorrenttransfers
+~~~~
+
       
 # SEE ALSO
 

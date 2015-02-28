@@ -67,9 +67,37 @@ dst *net* [,*net*...]
 
 prio *id*
 
+input|output
+
+
 # DESCRIPTION
 
 These options apply to `match` statements.
+
+## input, output
+
+On `bidirectional` interfaces, `input` and `output` will check the
+current direction of the interface. If the match is `input` but the
+interface is `output` the match will be reversed. The same will happen
+if `output` is given at the match and the interface is `input`.
+
+The parameters that are reversed are:
+
+* `src` and `dst`
+* `sport` and `dport`
+* `srcmac` and `dstmac`
+
+This allows a definition like this:
+
+~~~~
+  interface dsl0 world bidirectional ...
+    class surfing ...
+      match input sport 0:1023
+~~~~
+
+The above will match `sport 0:1023` at the `input` interface, and will
+automatically reverse it to match `dport 0:1023` at the `output` interface.
+
 
 ## at
 
