@@ -69,14 +69,16 @@ Example:
 
     interface eth0 lan bidirectional rate 1Gbit
       class voip
-        server sip accept
-        server myrtp accept
+        server sip
+        client sip
+        
+        server myrtp
 
       class dns
-        server dns accept
+        server dns
 
       class mail
-        server smtp accept
+        server smtp
 ~~~~
 
 # PARAMETERS
