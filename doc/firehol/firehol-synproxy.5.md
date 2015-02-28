@@ -116,7 +116,8 @@ To achieve these requirements:
  There are cases where the above are very tricky to achieve. You don't need to match these in your `firehol.conf`. The `synproxy` helper will automatically take care of them.
  However:
 
-    > **You do need the allow the flow of traffic between the real server and the real client** (as you normally do without a `synproxy`, with a `client`, `server`, or `route` statement in an `interface` or `router` section).
+    > You do need the allow the flow of traffic between the real server and the real client
+    > (as you normally do without a `synproxy`, with a `client`, `server`, or `route` statement in an `interface` or `router` section).
  
 2. The helper will prevent the 3-way TCP handshake between SYNPROXY and the real server interact with other **destination NAT** rules you may have. However for this to happen, make sure you place the `synproxy` statements above any destination NAT rules (`redirect`, `dnat`, `transapent_squid`, `transapent_proxy`, `tproxy`, etc).
  So:
