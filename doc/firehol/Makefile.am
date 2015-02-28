@@ -29,6 +29,7 @@ MANUALMAN_GENERATED = \
 	man/man5/firehol-group.5 \
 	man/man5/firehol-interface.5 \
 	man/man5/firehol-iptables.5 \
+	man/man5/firehol-ipset.5 \
 	man/man5/firehol-iptrap.5 \
 	man/man5/firehol-mac.5 \
 	man/man5/firehol-mark.5 \
@@ -42,6 +43,7 @@ MANUALMAN_GENERATED = \
 	man/man5/firehol-router.5 \
 	man/man5/firehol-server.5 \
 	man/man5/firehol-services.5 \
+	man/man5/firehol-synproxy.5 \
 	man/man5/firehol-tcpmss.5 \
 	man/man5/firehol-tos.5 \
 	man/man5/firehol-tosfix.5 \
