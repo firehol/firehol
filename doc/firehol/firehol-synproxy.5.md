@@ -115,18 +115,18 @@ To achieve these requirements:
 
  There are cases where the above are very tricky to achieve. You don't need to match these in your `firehol.conf`. The `synproxy` helper will automatically take care of them.
  However:
-
-    > You do need the allow the flow of traffic between the real server and the real client
-    > (as you normally do without a `synproxy`, with a `client`, `server`, or `route` statement in an `interface` or `router` section).
  
+   > You do need the allow the flow of traffic between the real server and the real client
+   > (as you normally do without a `synproxy`, with a `client`, `server`, or `route` statement in an `interface` or `router` section).
+
 2. The helper will prevent the 3-way TCP handshake between SYNPROXY and the real server interact with other **destination NAT** rules you may have. However for this to happen, make sure you place the `synproxy` statements above any destination NAT rules (`redirect`, `dnat`, `transapent_squid`, `transapent_proxy`, `tproxy`, etc).
  So:
  
-    > SYNPROXY will interact with destination NAT you have in `firehol.conf` **only** if the `synproxy` statements are place below the destination NAT ones.
-    > 
-    > You normally do not need to have `synproxy` interact with other destination NAT rules. The `synproxy` helper will handle the destination NAT (`dnat` or `redirect`) it needs by itself.
-    > 
-    > So **place `synproxy` statements above all destination NAT statements, unless you know what you are doing**.
+   > SYNPROXY will interact with destination NAT you have in `firehol.conf` **only** if the `synproxy` statements are place below the destination NAT ones.
+   > 
+   > You normally do not need to have `synproxy` interact with other destination NAT rules. The `synproxy` helper will handle the destination NAT (`dnat` or `redirect`) it needs by itself.
+   > 
+   > So **place `synproxy` statements above all destination NAT statements, unless you know what you are doing**.
 
 3. The helper will allow the 3-way TCP handshake between SYNPROXY and the real server interact with **source NAT** rules you may have (`snat`, `masquerade`), since these may be needed to reach the real server.
 
