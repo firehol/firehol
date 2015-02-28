@@ -53,6 +53,12 @@ ack|acks
 
 mark *mark* [,*mark*...]
 
+connmark *mark* [,*mark*...]
+
+rawmark *mark* [,*mark*...]
+
+custommark *name* *mark* [,*mark*...]
+
 { port | ports } *port*[:*range*] [ ,*port*[:*range*]... ]
 
 { sport | sports } *port*[:*range*] [ ,*port*[:*range*]... ]
@@ -65,9 +71,21 @@ src *net* [,*net*...]
 
 dst *net* [,*net*...]
 
+{ srcmac | smac } *mac*
+
+{ dstmac | dmac } *mac*
+
 prio *id*
 
-input|output
+input
+
+output
+
+custom '*custom tc parameters*'
+
+estimator *interval* *decay*
+
+police *police*
 
 
 # DESCRIPTION
