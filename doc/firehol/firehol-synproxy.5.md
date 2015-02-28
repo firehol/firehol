@@ -154,8 +154,6 @@ You can change the TCP options used by `synproxy` by setting the variable `FIREH
 FIREHOL_SYNPROXY_OPTIONS="--sack-perm --timestamp --wscale 7 --mss 1460"
 ~~~
 
----
-
 If you want to see it in action in the iptables log, then enable logging:
 
 ~~~
@@ -164,19 +162,11 @@ FIREHOL_SYNPROXY_LOG=1
 
 The  default is disabled (0). If you enable it, every step of the 3-way setup between the client and SYNPROXY and the SYN packet of SYNPROXY towards the real server will be logged by iptables.
 
----
-
 Using the variable `FIREHOL_CONNTRACK_LOOSE_MATCHING` you can set `net.netfilter.nf_conntrack_tcp_loose`. FireHOL will automatically set this to 0 when a synproxy is set up.
-
----
 
 Using the variable `FIREHOL_TCP_TIMESTAMPS` you can set `net.ipv4.tcp_timestamps`.  FireHOL will automatically set this to 1 when a synproxy is set up.
 
----
-
 Using the variable `FIREHOL_TCP_SYN_COOKIES` you can set `net.ipv4.tcp_syncookies`.  FireHOL will automatically set this to 1 when a synproxy is set up.
-
----
 
 On a busy server, you are adviced to increase the maximum connection tracker entries and its hash table size.
 
@@ -210,8 +200,6 @@ interface eth0 wan
     server http accept
 ~~~
 
----
-
 Protect a web server running on port 90 on the firewall with IP 1.2.3.4, from clients on eth0 that believe the web server is running on port 80:
 
 ~~~
@@ -224,8 +212,6 @@ interface eth0 wan
     server myhttp accept # packet filtering works with the real ports
 ~~~
 
----
-
 Protect a web server running on another machine (5.6.7.8), while the firewall is the router (without NAT):
 
 ~~~
@@ -234,8 +220,6 @@ ipv4 synproxy forward inface eth0 dst 5.6.7.8 dport 80 accept
 router wan2lan inface eth0 outface eth1
     server http accept dst 5.6.7.8
 ~~~
-
----
 
 Protect a web server running on another machine in a DMZ (public IP is 1.2.3.4 on eth0, web server IP is 10.1.1.1 on eth1):
 
@@ -249,8 +233,6 @@ router wan2lan inface eth0 outface eth1
 
 Note that we used `input` not `forward`, because the firewall has the IP 1.2.3.4 on its eth0 interface. The client request is expected on input.
 
----
-
 Protect an array of 10 web servers running on 10 other machines in a DMZ (public IP is 1.2.3.4 on eth0, web servers IPs are 10.1.1.1 to 10.1.1.10 on eth1):
 
 ~~~
@@ -262,8 +244,6 @@ router wan2lan inface eth0 outface eth1
 ~~~
 
 The above configuration is a load balancer. Requests towards 1.2.3.4 port 80 will be distributed to the 10 web servers with persistance (each client will always see one of them).
-
----
 
 Catch all traffic towards SSH port tcp/22 and send it to `TRAP_AND_DROP` as explained in [Working With Traps](Working-with-traps). At the same time, allow SSH on port tcp/2200 (without altering the ssh server):
 
