@@ -14,25 +14,25 @@ synproxy *type* *rules-to-match-request* *action* [*action options*]
 # DESCRIPTION
 
 - **type** defines where the SYNPROXY will be attached. It can be `input` (or `in`), `forward` (or `pass`):
- - use `input` (or `in`) when the IP of the real server is an IP assigned to a physical interface of the machine (i.e. the IP is at the firewall itself)
- - use `forward` (or `pass`) when the IP of the real server is routed by the machine (i.e. SYNPROXY should look at the FORWARD chain for this traffic).
+    - use `input` (or `in`) when the IP of the real server is an IP assigned to a physical interface of the machine (i.e. the IP is at the firewall itself)
+    - use `forward` (or `pass`) when the IP of the real server is routed by the machine (i.e. SYNPROXY should look at the FORWARD chain for this traffic).
 
 - `rules to match request` are FireHOL optional rule parameters and should match the original client REQUEST, before any destination NAT. `inface` and `dst` are required:
 
- - `inface` is one or more interfaces the REQUEST should be received from
- - `dst` is the IP of the real server, as seen by the client (before any destination NAT)
+    - `inface` is one or more interfaces the REQUEST should be received from
+    - `dst` is the IP of the real server, as seen by the client (before any destination NAT)
 
 - **action** defines how SYNPROXY will reach the real server and can be:
 
- - `accept` to just allow the REQUEST reach the real server without any destination NAT
+    - `accept` to just allow the REQUEST reach the real server without any destination NAT
 
- - `dnat to IP:PORT` or `dnat to IP1-IP2:PORT1-PORT2` or `dnat to IP` or `dnat to :PORT` to have SYNPROXY reach a server on another machine in a DMZ (different IP and/or PORT compared to the original request). The synproxy statement supports everything supported by the dnat helper (see [firehol-nat(5)][]).
+    - `dnat to IP:PORT` or `dnat to IP1-IP2:PORT1-PORT2` or `dnat to IP` or `dnat to :PORT` to have SYNPROXY reach a server on another machine in a DMZ (different IP and/or PORT compared to the original request). The synproxy statement supports everything supported by the dnat helper (see [firehol-nat(5)][]).
  
- - `redirect to PORT` to divert the request to a port on the firewall itself. The synproxy statement supports everything supported by the redirect helper (see [firehol-nat(5)][]).
+    - `redirect to PORT` to divert the request to a port on the firewall itself. The synproxy statement supports everything supported by the redirect helper (see [firehol-nat(5)][]).
  
- - `action CUSTOM_ACTION` to have any other FireHOL action performed on the NEW socket. Use the `action` helper to define custom actions (see [firehol-action(5)][]).
+    - `action CUSTOM_ACTION` to have any other FireHOL action performed on the NEW socket. Use the `action` helper to define custom actions (see [firehol-action(5)][]).
 
- - `action options` are everything supported by FireHOL optional rule parameters that should be applied only on the final action of SYN packet from SYNPROXY to the real server. For example this can be used to append `loglimit "TEXT"`  to have something logged by iptables, or limit the concurrent sockets with `connlimit`. Generally, everything you can write on the same line after `server http accept` is also accepted here.
+    - `action options` are everything supported by FireHOL optional rule parameters that should be applied only on the final action of SYN packet from SYNPROXY to the real server. For example this can be used to append `loglimit "TEXT"`  to have something logged by iptables, or limit the concurrent sockets with `connlimit`. Generally, everything you can write on the same line after `server http accept` is also accepted here.
 
 
 # BACKGROUND
@@ -55,18 +55,17 @@ SYNPROXY is included in the Linux kernels since version 3.12.
 
 * When a SYNPROXY is used, clients transparently get connected to the SYNPROXY. So the 3-way TCP handshake  happens first between the client and the SYNPROXY:
 
- * Clients send TCP SYN to server A
- * At the firewall, when this packet arrives it is marked as UNTRACKED
- * The UNTRACKED TCP SYN packet is then given to SYNPROXY
- * SYNPROXY gets this and responds (as server A) with TCP SYN+ACK (UNTRACKED)
- * Client responds with TCP ACK (marked as INVALID or UNTRACKED in iptables) which is also given to SYNPROXY
+    * Clients send TCP SYN to server A
+    * At the firewall, when this packet arrives it is marked as UNTRACKED
+    * The UNTRACKED TCP SYN packet is then given to SYNPROXY
+    * SYNPROXY gets this and responds (as server A) with TCP SYN+ACK (UNTRACKED)
+    * Client responds with TCP ACK (marked as INVALID or UNTRACKED in iptables) which is also given to SYNPROXY
 
 * Once a client has been connected to the SYNPROXY, SYNPROXY automatically initiates a 3-way TCP handshake with the real server, spoofing the SYN packet so that the real server will see that the original client is attempting to connect:
 
- * SYNPROXY sends TCP SYN to real server A. This is a NEW connection in iptables and happens on the OUTPUT chain. The source IP of the packet is the IP of the client
- * The real server A responds with SYN+ACK to the client
- * SYNPROXY receives this and responds back to the server with ACK. The connection is now marked as ESTABLISHED
-
+    * SYNPROXY sends TCP SYN to real server A. This is a NEW connection in iptables and happens on the OUTPUT chain. The source IP of the packet is the IP of the client
+    * The real server A responds with SYN+ACK to the client
+    * SYNPROXY receives this and responds back to the server with ACK. The connection is now marked as ESTABLISHED
 
 * Once the connection has been established, SYNPROXY leaves the traffic flow between the client and the server
 
@@ -117,16 +116,16 @@ To achieve these requirements:
  There are cases where the above are very tricky to achieve. You don't need to match these in your `firehol.conf`. The `synproxy` helper will automatically take care of them.
  However:
 
- > **You do need the allow the flow of traffic between the real server and the real client** (as you normally do without a `synproxy`, with a `client`, `server`, or `route` statement in an `interface` or `router` section).
+    > **You do need the allow the flow of traffic between the real server and the real client** (as you normally do without a `synproxy`, with a `client`, `server`, or `route` statement in an `interface` or `router` section).
  
 2. The helper will prevent the 3-way TCP handshake between SYNPROXY and the real server interact with other **destination NAT** rules you may have. However for this to happen, make sure you place the `synproxy` statements above any destination NAT rules (`redirect`, `dnat`, `transapent_squid`, `transapent_proxy`, `tproxy`, etc).
  So:
  
- > SYNPROXY will interact with destination NAT you have in `firehol.conf` **only** if the `synproxy` statements are place below the destination NAT ones.
- > 
- > You normally do not need to have `synproxy` interact with other destination NAT rules. The `synproxy` helper will handle the destination NAT (`dnat` or `redirect`) it needs by itself.
- > 
- > So **place `synproxy` statements above all destination NAT statements, unless you know what you are doing**.
+    > SYNPROXY will interact with destination NAT you have in `firehol.conf` **only** if the `synproxy` statements are place below the destination NAT ones.
+    > 
+    > You normally do not need to have `synproxy` interact with other destination NAT rules. The `synproxy` helper will handle the destination NAT (`dnat` or `redirect`) it needs by itself.
+    > 
+    > So **place `synproxy` statements above all destination NAT statements, unless you know what you are doing**.
 
 3. The helper will allow the 3-way TCP handshake between SYNPROXY and the real server interact with **source NAT** rules you may have (`snat`, `masquerade`), since these may be needed to reach the real server.
 
