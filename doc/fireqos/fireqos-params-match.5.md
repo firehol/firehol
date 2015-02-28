@@ -185,9 +185,12 @@ the following:
 > There is also a class parameter called `priority`, see
 > [fireqos-params-class(5)][keyword-fireqos-priority-class].
 
-## mark (QOS)
+## mark, connmark, custommark, rawmark
 
-Match an iptables(8) MARK. Matching iptables(8) MARKs do not work on
+Match an iptables(8) MARK. This works the same way it works for
+FireHOL. FireHOL and FireQOS share the same marks and their masks.
+
+Matching iptables(8) MARKs do not work on
 input interfaces. You can use them only on output. The IFB devices
 that are used for shaping inbound traffic do not have any iptables
 hooks to allow matching MARKs. If you try it, FireQOS will attempt
