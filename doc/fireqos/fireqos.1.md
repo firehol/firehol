@@ -20,7 +20,7 @@ fireqos { drops | overlimits | requeues } *name*
 
 # DESCRIPTION
 
-FireQOS is a helper to assist you configure traffic shaping on Linux.
+FireQOS is a program that helps you configure traffic shaping on Linux.
 
 Run without any arguments, `fireqos` will present some help on usage.
 

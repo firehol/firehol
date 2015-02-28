@@ -57,6 +57,28 @@ match statement must specify to which class it classifies the packets it
 matches, using the `class` parameter. See
 [fireqos-params-match(5)][keyword-fireqos-class-param] and the examples below.
 
+You can also write `client` and `server` statements, much like FireHOL
+allows, with the same service definitions. For FireQOS however, the client
+ports are ignored. `server` statements match the server ports on this linux
+side, while `client` statements match the server ports on the remote side.
+
+Example:
+
+~~~~
+    server_myrtp_ports="10000:10100"
+
+    interface eth0 lan bidirectional rate 1Gbit
+      class voip
+        server sip accept
+        server myrtp accept
+
+      class dns
+        server dns accept
+
+      class mail
+        server smtp accept
+~~~~
+
 # PARAMETERS
 
 *optional-match-params*

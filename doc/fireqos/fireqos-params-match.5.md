@@ -115,7 +115,7 @@ match proto tcp,udp syn
 
 ## ack, acks
 
-Same as `syn`, but matching TCP ACK packets.
+Same as `syn`, but matching small TCP packets with the ACK bit set.
 
 ## proto, protocol, tcp, udp, icmp, gre, ipv6
 
@@ -141,12 +141,15 @@ the following:
 
 ## mark (QOS)
 
-Match an iptables(8) MARK. Matching iptables(8) MARKs does not work on
+Match an iptables(8) MARK. Matching iptables(8) MARKs do not work on
 input interfaces. You can use them only on output. The IFB devices
 that are used for shaping inbound traffic do not have any iptables
 hooks to allow matching MARKs. If you try it, FireQOS will attempt
 to do it, but currently you will get an error from the tc(8) command
-executed.
+executed or they will be silently ignored by it.
+
+On openwrt there is a module called `act_commark` that will enable
+this feature.
 
 ## ports, sports, dports
 
