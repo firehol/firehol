@@ -4041,7 +4041,7 @@ masquerade() {
 	
 	set_work_function "Masquerade on interface '${f}'"
 	
-	rule noowner table nat chain POSTROUTING "${@}" inface any outface "${f}" action MASQUERADE ${ports} ${random} || return 1
+	rule noowner table nat chain POSTROUTING "${@}" inface any outface "${f}" state NEW action MASQUERADE ${ports} ${random} || return 1
 	
 	FIREHOL_NAT=1
 	FIREHOL_ROUTING=1
