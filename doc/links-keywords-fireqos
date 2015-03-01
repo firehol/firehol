@@ -39,7 +39,10 @@
 [keyword-fireqos-ip]: fireqos-params-match.5.md#ip-net-host-src-dst
 [keyword-fireqos-ipv6]: fireqos-params-match.5.md#proto-protocol-tcp-udp-icmp-gre-ipv6
 [keyword-fireqos-linklayer]: fireqos-params-class.5.md#linklayer-linklayer-name-ethernet-atm
-[keyword-fireqos-mark]: fireqos-params-match.5.md#mark-qos
+[keyword-fireqos-mark]: fireqos-params-match.5.md#mark-connmark-custommark-rawmark
+[keyword-fireqos-connmark]: fireqos-params-match.5.md#mark-connmark-custommark-rawmark
+[keyword-fireqos-custommark]: fireqos-params-match.5.md#mark-connmark-custommark-rawmark
+[keyword-fireqos-rawmark]: fireqos-params-match.5.md#mark-connmark-custommark-rawmark
 [keyword-fireqos-match]: fireqos-match.5.md#fireqos-match5
 [keyword-fireqos-match4]: fireqos-match.5.md#fireqos-match5
 [keyword-fireqos-match46]: fireqos-match.5.md#fireqos-match5
