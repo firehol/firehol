@@ -25,6 +25,8 @@
 #       See the file COPYING for details.
 #
 
+#set -x -v 
+
 if [ $(( ${BASH_VERSINFO[0]} )) -lt 4 ]
 then
 	echo >&2 
@@ -1790,20 +1792,6 @@ unroutable_ips() {
 	return 0
 }
 
-# TODO:
-# This is is problematic when ENABLE_IPx=0
-# is given in the config file and not in the
-# defaults
-if [ $ENABLE_IPV4 -eq 1 -a $ENABLE_IPV6 -eq 1 ]
-then
-	FIREHOL_DEFAULT_NAMESPACE=both
-elif [ $ENABLE_IPV4 -eq 1 ]
-then
-	FIREHOL_DEFAULT_NAMESPACE=ipv4
-else
-	FIREHOL_DEFAULT_NAMESPACE=ipv6
-fi
-
 # Get the default client ports from the kernel configuration.
 # This is formed to a range of ports to be used for all "default"
 # client ports when the client specified is the localhost.
@@ -1832,6 +1820,7 @@ LAST_CONFIG_LINE="INIT"
 # Note that each of the complex services
 # may add to this variable the kernel modules it requires.
 declare -A FIREHOL_KERNEL_MODULES=()
+
 
 #
 # In the configuration file you can write:
@@ -1868,8 +1857,26 @@ FIREHOL_CONF_SHOW=0
 # ------------------------------------------------------------------------------
 # Keep information about the current namespace: ipv4, ipv6 or both
 declare -a FIREHOL_NS_STACK=()
-FIREHOL_NS_CURR=${FIREHOL_DEFAULT_NAMESPACE}
-FIREHOL_NS_PREP=
+FIREHOL_NS_CURR=
+FIREHOL_DEFAULT_NAMESPACE=
+
+init_namespace() {
+	[ ! -z "${FIREHOL_NS_CURR}" ] && return 0
+
+	if [ $ENABLE_IPV4 -eq 1 -a $ENABLE_IPV6 -eq 1 ]
+	then
+		FIREHOL_DEFAULT_NAMESPACE="both"
+
+	elif [ $ENABLE_IPV4 -eq 1 ]
+	then
+		FIREHOL_DEFAULT_NAMESPACE="ipv4"
+	else
+		FIREHOL_DEFAULT_NAMESPACE="ipv6"
+	fi
+
+	FIREHOL_NS_STACK=(${FIREHOL_DEFAULT_NAMESPACE})
+	FIREHOL_NS_CURR=${FIREHOL_DEFAULT_NAMESPACE}
+}
 
 push_namespace() {
 	if [ "$1" != "ipv4" -a "$1" != "ipv6" -a "$1" != "both" ]
@@ -1916,61 +1923,33 @@ running_both() {
 	return 1
 }
 
-ipv4() {
-	local command="$1"
-	shift
+ipv4() { force_namespace ipv4 "${@}"; }
+ipv6() { force_namespace ipv6 "${@}"; }
+both() { force_namespace both "${@}"; }
+force_namespace() {
+	test -z "${FIREHOL_DEFAULT_NAMESPACE}" && init_namespace
 
-	if [ "${command}" = "interface" -o  "${command}" = "router" ]
-	then
-		# Old rules must be closed before these apply
-		FIREHOL_NS_PREP=ipv4
-		$command "${@}"
-		status=$?
-	else
-		if ! push_namespace ipv4; then return 1; fi
-		$command "${@}"
-		status=$?
-		pop_namespace
-	fi
-	return $status
-}
+	local ipv="${1}" command="${2}" ret=0
+	shift 2
 
-ipv6() {
-	local command="$1"
-	shift
+	case "${command}" in
+		# these commands push/pop the namespace by themselves
+		interface|interface4|interface6|interface46|router|router4|router6|router46|group|group4|group6|group46)
+			${command} -ns ${ipv} "${@}"
+			ret=$?
+			;;
 
-	if [ "${command}" = "interface" -o  "${command}" = "router" ]
-	then
-		# Old rules must be closed before these apply
-		FIREHOL_NS_PREP=ipv6
-		$command "${@}"
-		status=$?
-	else
-		if ! push_namespace ipv6; then return 1; fi
-		$command "${@}"
-		status=$?
-		pop_namespace
-	fi
-	return $status
-}
+		# all the others complete in just one step
+		# so, we push/pop for them
+		*)	
+			if ! push_namespace ${ipv}; then return 1; fi
+			$command "${@}"
+			ret=$?
+			pop_namespace
+			;;
+	esac
 
-both() {
-	local command="$1"
-	shift
-
-	if [ "${command}" = "interface" -o  "${command}" = "router" ]
-	then
-		# Old rules must be closed before these apply
-		FIREHOL_NS_PREP=${FIREHOL_DEFAULT_NAMESPACE}
-		$command "${@}"
-		status=$?
-	else
-		if ! push_namespace both; then return 1; fi
-		$command "${@}"
-		status=$?
-		pop_namespace
-	fi
-	return $status
+	return $ret
 }
 
 # ------------------------------------------------------------------------------
@@ -5583,10 +5562,9 @@ version() {
 	if [ ${1} -eq 5 ]
 	then
 		ENABLE_IPV6=0
-		FIREHOL_DEFAULT_NAMESPACE=ipv4
-		FIREHOL_NS_CURR=${FIREHOL_DEFAULT_NAMESPACE}
+		FIREHOL_DEFAULT_NAMESPACE=
+		FIREHOL_NS_CURR=
 		FIREHOL_NS_STACK=()
-		FIREHOL_NS_PREP=
 		warning "Running version 5 config. Update configuration to version 6 for IPv6 support. See http://firehol.org/upgrade/#config-version-${FIREHOL_VERSION}"
 	fi
 }
@@ -5596,6 +5574,9 @@ version() {
 # PRIMARY COMMAND: interface
 # Setup rules specific to an interface (physical or logical)
 
+interface4() { ipv4 interface "${@}"; }
+interface6() { ipv6 interface "${@}"; }
+interface46() { both interface "${@}"; }
 interface() {
         work_realcmd_primary ${FUNCNAME} "${@}"
 	
@@ -5603,23 +5584,19 @@ interface() {
 	
 	close_cmd || return 1
 
-	# --- reset namespace
-	if [ "${FIREHOL_NS_PREP}" != "" ]
-	then
-		FIREHOL_NS_STACK=(${FIREHOL_NS_PREP})
-		FIREHOL_NS_CURR=${FIREHOL_NS_PREP}
-	else
-		FIREHOL_NS_STACK=(${FIREHOL_DEFAULT_NAMESPACE})
-		FIREHOL_NS_CURR=${FIREHOL_DEFAULT_NAMESPACE}
-	fi
-	FIREHOL_NS_PREP=
-
 	# --- test prerequisites ---
 	
 	require_work clear || return 1
 	set_work_function -ne "Initializing ${FUNCNAME}"
-	
-	
+
+	local ipv="${FIREHOL_NS_CURR}"
+	if [ "z${1}" = "z-ns" ]
+	then
+		ipv="${2}"
+		shift 2
+	fi
+	push_namespace "${ipv}"
+
 	# --- get paramaters and validate them ---
 	
 	# Get the interface
@@ -5644,19 +5621,9 @@ interface() {
 	return 0
 }
 
-interface4() {
-	ipv4 interface "${@}"
-}
-
-interface6() {
-	ipv6 interface "${@}"
-}
-
-interface46() {
-	both interface "${@}"
-}
-
-
+router4() { ipv4 router "${@}"; }
+router6() { ipv6 router "${@}"; }
+router46() { both router "${@}"; }
 router() {
 	work_realcmd_primary ${FUNCNAME} "${@}"
 	
@@ -5664,23 +5631,20 @@ router() {
 	
 	close_cmd || return 1
 	
-	# --- reset namespace
-	if [ "${FIREHOL_NS_PREP}" != "" ]
-	then
-		FIREHOL_NS_STACK=(${FIREHOL_NS_PREP})
-		FIREHOL_NS_CURR=${FIREHOL_NS_PREP}
-	else
-		FIREHOL_NS_STACK=(${FIREHOL_DEFAULT_NAMESPACE})
-		FIREHOL_NS_CURR=${FIREHOL_DEFAULT_NAMESPACE}
-	fi
-	FIREHOL_NS_PREP=
-
 	# --- test prerequisites ---
 	
 	require_work clear || return 1
 	set_work_function -ne "Initializing ${FUNCNAME}"
 	
-	
+	local ipv="${FIREHOL_NS_CURR}"
+	if [ "z${1}" = "z-ns" ]
+	then
+		ipv="${2}"
+		shift 2
+	fi
+	push_namespace "${ipv}"
+
+
 	# --- get paramaters and validate them ---
 	
 	# Get the name for this router
@@ -5701,18 +5665,6 @@ router() {
 	
 	FIREHOL_ROUTING=1
 	return 0
-}
-
-router4() {
-	ipv4 router "${@}"
-}
-
-router6() {
-	ipv6 router "${@}"
-}
-
-router46() {
-	both router "${@}"
 }
 
 save_for_restore() {
@@ -5889,6 +5841,9 @@ policy() {
 	return 0
 }
 
+server4() { ipv4 server "${@}"; }
+server6() { ipv6 server "${@}"; }
+server46() { both server "${@}"; }
 server() {
 	work_realcmd_secondary ${FUNCNAME} "${@}"
 	
@@ -5897,18 +5852,9 @@ server() {
 	return $?
 }
 
-server4() {
-	ipv4 server "${@}"
-}
-
-server6() {
-	ipv6 server "${@}"
-}
-
-server46() {
-	both server "${@}"
-}
-
+client4() { ipv4 client "${@}"; }
+client6() { ipv6 client "${@}"; }
+client46() { both client "${@}"; }
 client() {
         work_realcmd_secondary ${FUNCNAME} "${@}"
 	
@@ -5917,36 +5863,15 @@ client() {
 	return $?
 }
 
-client4() {
-	ipv4 client "${@}"
-}
-
-client6() {
-	ipv6 client "${@}"
-}
-
-client46() {
-	both client "${@}"
-}
-
+route4() { ipv4 route "${@}"; }
+route6() { ipv6 route "${@}"; }
+route46() { both route "${@}"; }
 route() {
         work_realcmd_secondary ${FUNCNAME} "${@}"
 	
 	require_work set router || return 1
 	smart_function server "${@}"
 	return $?
-}
-
-route4() {
-	ipv4 route "${@}"
-}
-
-route6() {
-	ipv6 route "${@}"
-}
-
-route46() {
-	both route "${@}"
 }
 
 
@@ -6480,6 +6405,7 @@ close_interface() {
 	case "${work_policy}" in
 		return|RETURN)
 			set_work_function "Nothing to be done for policy RETURN of interface '${work_name}'"
+			pop_namespace
 			return 0
 			;;
 			
@@ -6497,6 +6423,7 @@ close_interface() {
 	rule chain "in_${work_name}" "${inlog[@]}" action ${work_policy} || return 1
 	rule reverse chain "out_${work_name}" "${outlog[@]}" action ${work_policy} || return 1
 	
+	pop_namespace
 	return 0
 }
 
@@ -6537,6 +6464,7 @@ close_router() {
 	case "${work_policy}" in
 		return|RETURN)
 			set_work_function "Nothing to be done for policy RETURN of router '${work_name}'"
+			pop_namespace
 			return 0
 			;;
 			
@@ -6554,6 +6482,7 @@ close_router() {
 	rule chain "in_${work_name}" "${inlog[@]}" action ${work_policy} || return 1
 	rule reverse chain "out_${work_name}" "${outlog[@]}" action ${work_policy} || return 1
 	
+	pop_namespace
 	return 0
 }
 
@@ -6754,16 +6683,27 @@ pop_flow_inheritance() {
 FIREHOL_GROUP_COUNTER=0
 FIREHOL_GROUP_DEPTH=0
 FIREHOL_GROUP_STACK=()
+
+group4() { ipv4 group "${@}"; }
+group6() { ipv6 group "${@}"; }
+group46() { both group "${@}"; }
 group() {
 	work_realcmd_primary ${FUNCNAME} "${@}"
 	
 	require_work set any || return 1
 	
+	local ipv="${FIREHOL_NS_CURR}"
+	if [ "z${1}" = "z-ns" ]
+	then
+		ipv="${2}"
+		shift 2
+	fi
+
 	local type="${1}"; shift
 	
 	case $type in
 		with|start|begin)
-			push_namespace "${FIREHOL_NS_CURR}"
+			push_namespace "${ipv}"
 			# increase the counter
 			FIREHOL_GROUP_COUNTER=$[FIREHOL_GROUP_COUNTER + 1]
 			
@@ -6809,18 +6749,6 @@ group() {
 	esac
 	
 	return 0
-}
-
-group4() {
-	ipv4 group "${@}"
-}
-
-group6() {
-	ipv6 group "${@}"
-}
-
-group46() {
-	both group "${@}"
 }
 
 close_all_groups() {
@@ -9822,6 +9750,7 @@ show_work_realcmd() {
 
 FIREHOL_FILTERING_STARTED=0
 work_realcmd_primary() {
+	test -z "${FIREHOL_DEFAULT_NAMESPACE}" && init_namespace
 	test ${FIREHOL_ENABLE_SPINNER} -eq 1 && spinner ${FIREHOL_COMMAND_COUNTER}
 	
 	if [ ${FIREHOL_FILTERING_STARTED} -eq 0 ]
@@ -9833,22 +9762,30 @@ work_realcmd_primary() {
 	config_line -ne
 	work_realcmd=("${@}")
 	test ${FIREHOL_CONF_SHOW} -eq 1 && show_work_realcmd 1
+
+	# echo >&2 "CMD: ${@}: NS STACK: ${FIREHOL_NS_STACK[@]}"
 }
 
 work_realcmd_secondary() {
+	test -z "${FIREHOL_DEFAULT_NAMESPACE}" && init_namespace
 	test ${FIREHOL_ENABLE_SPINNER} -eq 1 && spinner ${FIREHOL_COMMAND_COUNTER}
 	
 	config_line -ne
 	work_realcmd=("${@}")
 	test ${FIREHOL_CONF_SHOW} -eq 1 && show_work_realcmd 2
+	
+	# echo >&2 "CMD: ${@}: NS STACK: ${FIREHOL_NS_STACK[@]}"
 }
 
 work_realcmd_helper() {	
+	test -z "${FIREHOL_DEFAULT_NAMESPACE}" && init_namespace
 	test ${FIREHOL_ENABLE_SPINNER} -eq 1 && spinner ${FIREHOL_COMMAND_COUNTER}
 	
 	config_line -ne
 	work_realcmd=("${@}")
 	test ${FIREHOL_CONF_SHOW} -eq 1 && show_work_realcmd 3
+	
+	# echo >&2 "CMD: ${@}: NS STACK: ${FIREHOL_NS_STACK[@]}"
 }
 
 wait_for_interface() {
