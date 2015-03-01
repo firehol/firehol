@@ -1,0 +1,64 @@
+#
+*filter
+:INPUT DROP [0:0]
+:FORWARD DROP [0:0]
+:OUTPUT DROP [0:0]
+:in_myeth0 - [0:0]
+:out_myeth0 - [0:0]
+-A INPUT -i lo -j ACCEPT
+-A INPUT -p tcp -m tcp --tcp-flags FIN,SYN,RST,PSH,ACK,URG FIN,ACK -m conntrack --ctstate INVALID,NEW -j DROP
+-A INPUT -m conntrack --ctstate INVALID -m limit --limit 1/sec -j LOG --log-prefix "INVALID IN:"
+-A INPUT -m conntrack --ctstate INVALID -j DROP
+-A INPUT -i eth0 -j in_myeth0
+-A INPUT -p icmp -m conntrack --ctstate RELATED -j ACCEPT
+-A INPUT -m limit --limit 1/sec -j LOG --log-prefix "IN-unknown:"
+-A INPUT -j DROP
+-A FORWARD -p tcp -m tcp --tcp-flags FIN,SYN,RST,PSH,ACK,URG FIN,ACK -m conntrack --ctstate INVALID,NEW -j DROP
+-A FORWARD -m conntrack --ctstate INVALID -m limit --limit 1/sec -j LOG --log-prefix "INVALID PASS:"
+-A FORWARD -m conntrack --ctstate INVALID -j DROP
+-A FORWARD -p icmp -m conntrack --ctstate RELATED -j ACCEPT
+-A FORWARD -m limit --limit 1/sec -j LOG --log-prefix "PASS-unknown:"
+-A FORWARD -j DROP
+-A OUTPUT -o lo -j ACCEPT
+-A OUTPUT -p tcp -m tcp --tcp-flags FIN,SYN,RST,PSH,ACK,URG FIN,ACK -m conntrack --ctstate INVALID,NEW -j DROP
+-A OUTPUT -m conntrack --ctstate INVALID -m limit --limit 1/sec -j LOG --log-prefix "INVALID OUT:"
+-A OUTPUT -m conntrack --ctstate INVALID -j DROP
+-A OUTPUT -o eth0 -j out_myeth0
+-A OUTPUT -p icmp -m conntrack --ctstate RELATED -j ACCEPT
+-A OUTPUT -m limit --limit 1/sec -j LOG --log-prefix "OUT-unknown:"
+-A OUTPUT -j DROP
+-A in_myeth0 -p icmp -m conntrack --ctstate RELATED -j ACCEPT
+-A in_myeth0 -m limit --limit 1/sec -j LOG --log-prefix "IN-myeth0:"
+-A in_myeth0 -j DROP
+-A out_myeth0 -p icmp -m conntrack --ctstate RELATED -j ACCEPT
+-A out_myeth0 -m limit --limit 1/sec -j LOG --log-prefix "OUT-myeth0:"
+-A out_myeth0 -j DROP
+COMMIT
+#
+#
+*mangle
+:PREROUTING ACCEPT [0:0]
+:INPUT ACCEPT [0:0]
+:FORWARD ACCEPT [0:0]
+:OUTPUT ACCEPT [0:0]
+:POSTROUTING ACCEPT [0:0]
+-A PREROUTING -m conntrack --ctstate RELATED,ESTABLISHED -j CONNMARK --restore-mark --nfmask 0x1fff --ctmask 0x1fff
+-A INPUT -m conntrack --ctstate NEW -j CONNMARK --save-mark --nfmask 0x1fff --ctmask 0x1fff
+-A OUTPUT -m conntrack --ctstate RELATED,ESTABLISHED -j CONNMARK --restore-mark --nfmask 0x1fff --ctmask 0x1fff
+-A POSTROUTING -m conntrack --ctstate NEW -j CONNMARK --save-mark --nfmask 0x1fff --ctmask 0x1fff
+COMMIT
+#
+#
+*nat
+:PREROUTING ACCEPT [0:0]
+:INPUT ACCEPT [0:0]
+:OUTPUT ACCEPT [0:0]
+:POSTROUTING ACCEPT [0:0]
+COMMIT
+#
+#
+*raw
+:PREROUTING ACCEPT [0:0]
+:OUTPUT ACCEPT [0:0]
+COMMIT
+#

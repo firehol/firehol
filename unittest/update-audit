@@ -1,0 +1,29 @@
+#!/bin/sh
+
+for i in "$@"
+do
+  case $i in
+    *.conf)
+       out=$(echo $i | sed -e 's/\.conf$/.out/')
+       aud=$(echo $i | sed -e 's/\.conf$/.aud/')
+       out4="${out}4"
+       out6="${out}6"
+       aud4="${aud}4"
+       aud6="${aud}6"
+       if [ -f "$out4" -a -f "$out6" ]
+       then
+         cp "$out4" "$aud4"
+         cp "$out6" "$aud6"
+       elif [ -f "$out" ]
+       then
+         cp "$out" "$aud"
+       else
+         echo "$i: neither .out nor .out4+.out6 found"
+       fi
+    ;;
+
+    *)
+      echo "$i: can only process .conf files"
+    ;;
+  esac
+done

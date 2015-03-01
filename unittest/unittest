@@ -83,6 +83,10 @@ newext() {
 clear_iptables() {
   test -d $MYTMP || exit 3
   cat > $MYTMP/reset <<-!
+	*raw
+	:PREROUTING ACCEPT [0:0]
+	:OUTPUT ACCEPT [0:0]
+	COMMIT
 	*nat
 	:PREROUTING ACCEPT [0:0]
 	:INPUT ACCEPT [0:0]
@@ -106,6 +110,10 @@ clear_iptables() {
   st1=$?
 
   cat > $MYTMP/reset <<-!
+	*raw
+	:PREROUTING ACCEPT [0:0]
+	:OUTPUT ACCEPT [0:0]
+	COMMIT
 	*nat
 	:PREROUTING ACCEPT [0:0]
 	:INPUT ACCEPT [0:0]
@@ -161,6 +169,7 @@ do
 
   case $conf in
     firehol*)
+      clear_iptables
       program=firehol
     ;;
     fireqos*)
