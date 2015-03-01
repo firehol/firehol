@@ -1,3 +1,4 @@
 *.log
 *.out
 *.out[46]
+*.raw

@@ -229,11 +229,10 @@ do
     else
       case $program in
         firehol)
-          iptables-save > "$out4".tmp
-          ip6tables-save > "$out6".tmp
-          tools/clean-iptables "$out4".tmp > "$out4"
-          tools/clean-iptables "$out6".tmp > "$out6"
-          rm -f "$out4".tmp "$out6".tmp
+          iptables-save > "$out4".raw
+          ip6tables-save > "$out6".raw
+          tools/clean-iptables "$out4".raw > "$out4"
+          tools/clean-iptables "$out6".raw > "$out6"
           if ! cmp "$aud4" "$out4"
           then
             errors=$((errors + 1))
