@@ -4644,7 +4644,7 @@ blacklist() {
 
 		if running_ipv6
 		then
-			push_namespace ipv4
+			push_namespace ipv6
 			rule table filter chain "${chain}.out" out "${logopts_out_arg[@]}" action REJECT with icmp6-addr-unreachable
 			pop_namespace
 		fi
@@ -6392,7 +6392,7 @@ close_interface() {
 	fi
 	if running_ipv6
 	then
-		push_namespace ipv4
+		push_namespace ipv6
 		rule chain "in_${work_name}" state RELATED proto icmpv6 action ACCEPT || return 1
 		rule chain "out_${work_name}" state RELATED proto icmpv6 action ACCEPT || return 1
 		pop_namespace
@@ -6451,7 +6451,7 @@ close_router() {
 	fi
 	if running_ipv6
 	then
-		push_namespace ipv4
+		push_namespace ipv6
 		rule chain "in_${work_name}" state RELATED proto icmpv6 action ACCEPT || return 1
 		rule chain "out_${work_name}" state RELATED proto icmpv6 action ACCEPT || return 1
 		pop_namespace
