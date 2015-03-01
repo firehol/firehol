@@ -27,6 +27,7 @@
 
 # -- CONFIGURATION IS AT THE END OF THIS SCRIPT --
 
+PATH="${PATH}:/sbin:/usr/sbin"
 
 LC_ALL=C
 umask 077
