@@ -60,6 +60,15 @@ if ($skipnat or not defined($tables{"*nat"})) {
   $tables{"*nat"} = \@fakenat;
 }
 
+if (not defined($tables{"*raw"})) {
+  my @fakeraw = ();
+  push @fakeraw, "*raw";
+  push @fakeraw, ":PREROUTING ACCEPT [0:0]";
+  push @fakeraw, ":OUTPUT ACCEPT [0:0]";
+  push @fakeraw, "COMMIT";
+  $tables{"*raw"} = \@fakeraw;
+}
+
 foreach $table (sort(keys(%tables))) {
   my @lines = @{$tables{$table}};
   print "#\n";
