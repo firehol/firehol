@@ -104,6 +104,13 @@ FIREQOS_SHOW_MATCHES=0
 # the classes priority in balanced mode
 FIREQOS_BALANCED_PRIO=4
 
+# step to increment between matches
+FIREQOS_MATCHES_STEP=10
+
+# the default class for all interfaces
+# additional default classes may be added (incrementing
+# this, when classes with device emulation are added)
+FIREQOS_INTERFACE_DEFAULT_CLASSID=10000
 
 # Enable colors
 if [ -t 2 -a $[$(tput colors 2>/dev/null)] -ge 8 ]
@@ -673,8 +680,7 @@ device_mtu() {
 }
 
 rate2bps() {
-	local r="$1"
-	local p="$2" # is assumed to be the base rate in bytes per second
+	local r="${1}" p="${2}" # is assumed to be the base rate in bytes per second
 	
 	# # convert $r to kbit / sec ; the default rate in fireqos
 
@@ -843,95 +849,81 @@ calc_r2q() {
 	#  r2q = rate / mtu
 	#
 	
-	local rate=$1; shift	# we expect the minimum rate that might be given
-	local mtu=$1; shift
-	[ -z "$mtu" ] && local mtu=1500
+	# we expect the minimum rate that might be given
+	local rate="${1}" mtu="${2}" r2q=
+	shift 2
+
+	[ -z "$mtu" ] && mtu=1500
 	
-	local r2q=$(( rate / mtu ))
+	r2q=$(( rate / mtu ))
 	
-	[ $r2q -lt 1 ] && local r2q=1
-	# [ $r2q -gt 10 ] && local r2q=10
+	[ $r2q -lt 1 ] && r2q=1
+	# [ $r2q -gt 10 ] && r2q=10
 	
 	echo $r2q
 }
 
 parse_class_params() {
-	local prefix="$1"; shift
-	local parent="$1"; shift
-	local ipv4=
-	local ipv6=
-	
-	local priority_mode=
-	local prio=
-	local qdisc=
-	local qdisc_options=
-	local minrate=
-	local rate=
-	local ceil=
-	local r2q=
-	local burst=
-	local cburst=
-	local quantum=
-	local mtu=
-	local mpu=
-	local tsize=
-	local linklayer=
-	local valid_options="$interface_inout"
-	local current_options="$interface_inout"
+	local prefix="${1}" parent="${2}" ipv4= ipv6= priority_mode= \
+		prio= qdisc= qdisc_options= minrate= rate= ceil= r2q= \
+		burst= cburst= quantum= mtu= mpu= tsize= param= value= \
+		linklayer= linklayer_type= linklayer_encoding= overhead= diff= \
+		valid_options="$interface_inout" current_options="$interface_inout"
+	shift 2
 
 	eval local base_rate="\$${parent}_rate"
 	
 	case "$force_ipv" in
 		4)
-			local ipv4=1
-			local ipv6=0
+			ipv4=1
+			ipv6=0
 			;;
 		
 		6)
-			local ipv4=0
-			local ipv6=1
+			ipv4=0
+			ipv6=1
 			;;
 			
 		46)
-			local ipv4=1
-			local ipv6=1
+			ipv4=1
+			ipv6=1
 			;;
 	esac
 	
 	# find all work_X arguments
-	while [ ! -z "$1" ]
+	while [ ! -z "${1}" ]
 	do
-		case "$1" in
+		case "${1}" in
 			input|output)
-					local current_options="$1"
+					current_options="${1}"
 					;;
 
 			priority|balanced)
-					local priority_mode="$1"
+					priority_mode="${1}"
 					;;
 					
 			prio)
-					local prio="$2"
+					prio="${2}"
 					shift
 					;;
 					
 			qdisc)	
-					local qdisc="$2"
-					local qdisc_options="default"
+					qdisc="${2}"
+					qdisc_options="default"
 					if [ "$3" = "options" ]
 					then
-						local qdisc_options="$4"
+						qdisc_options="$4"
 						shift 2
 					fi
 					shift
 					;;
 			
 			sfq|pfifo|bfifo|fq_codel|codel|none)
-					local qdisc="$1"
-					local qdisc_options="default"
-					if [ "$2" = "options" ]
+					qdisc="${1}"
+					qdisc_options="default"
+					if [ "${2}" = "options" ]
 					then
-						local qdisc_options="$3"
+						qdisc_options="${3}"
 						shift 2
 					fi
 					;;
@@ -941,7 +933,7 @@ parse_class_params() {
 					
 					if [ $valid_options = $current_options ]
 					then
-						local minrate="`rate2bps $2 $base_rate`"
+						minrate="`rate2bps ${2} $base_rate`"
 					fi
 					shift
 					;;
@@ -949,7 +941,7 @@ parse_class_params() {
 			rate|min|commit)
 					if [ $valid_options = $current_options ]
 					then
-						local rate="`rate2bps $2 $base_rate`"
+						rate="`rate2bps $2 $base_rate`"
 					fi
 					shift
 					;;
@@ -957,7 +949,7 @@ parse_class_params() {
 			ceil|max)
 					if [ $valid_options = $current_options ]
 					then
-						local ceil="`rate2bps $2 $base_rate`"
+						ceil="`rate2bps $2 $base_rate`"
 					fi
 					shift
 					;;
@@ -965,56 +957,56 @@ parse_class_params() {
 			r2q)
 					[ "$prefix" = "class" ] && error "'$1' cannot be used in classes."
 					
-					local r2q="$2"
+					r2q="$2"
 					shift
 					;;
 					
 			burst)
-					local burst="$2"
+					burst="$2"
 					shift
 					;;
 					
 			cburst)
-					local cburst="$2"
+					cburst="$2"
 					shift
 					;;
 					
 			quantum)
 					# must be as small as possible, but larger than mtu
-					local quantum="$2"
+					quantum="$2"
 					shift
 					;;
 					
 			mtu)
-					local mtu="$2"
+					mtu="$2"
 					shift
 					;;
 			
 			mpu)
-					local mpu="$2"
+					mpu="$2"
 					shift
 					;;
 			
 			tsize)
-					local tsize="$2"
+					tsize="$2"
 					shift
 					;;
 			
 			overhead)
-					local overhead="$2"
+					overhead="$2"
 					shift
 					;;
 			
 			adsl)
-					local linklayer="$1"
-					local linklayer_type="$2"
-					local linklayer_encoding="$3"
-					local diff=0
+					linklayer="$1"
+					linklayer_type="$2"
+					linklayer_encoding="$3"
+					diff=0
 					case "$2" in
-						local)	local diff=0
+						local)	diff=0
 							;;
 							
-						remote)	local diff=-14
+						remote)	diff=-14
 							;;
 							
 						*)	error "Unknown adsl option '$2'."
@@ -1025,30 +1017,30 @@ parse_class_params() {
 					# default overhead values taken from http://ace-host.stuart.id.au/russell/files/tc/tc-atm/
 					case "$3" in
 						IPoA-VC/Mux|ipoa-vcmux|ipoa-vc|ipoa-mux)
-								local overhead=$((8 + diff))
+								overhead=$((8 + diff))
 								;;
 						IPoA-LLC/SNAP|ipoa-llcsnap|ipoa-llc|ipoa-snap)
-								local overhead=$((16 + diff))
+								overhead=$((16 + diff))
 								;;
 						Bridged-VC/Mux|bridged-vcmux|bridged-vc|bridged-mux)
-								local overhead=$((24 + diff))
+								overhead=$((24 + diff))
 								;;
 						Bridged-LLC/SNAP|bridged-llcsnap|bridged-llc|bridged-snap)
-								local overhead=$((32 + diff))
+								overhead=$((32 + diff))
 								;;
 						PPPoA-VC/Mux|pppoa-vcmux|pppoa-vc|pppoa-mux)
-								local overhead=$((10 + diff))
-								[ "$2" = "remote" ] && local mtu=1478
+								overhead=$((10 + diff))
+								[ "$2" = "remote" ] && mtu=1478
 								;;
 						PPPoA-LLC/SNAP|pppoa-llcsnap|pppoa-llc|pppoa-snap)
-								local overhead=$((14 + diff))
+								overhead=$((14 + diff))
 								;;
 						PPPoE-VC/Mux|pppoe-vcmux|pppoe-vc|pppoe-mux)
-								local overhead=$((32 + diff))
+								overhead=$((32 + diff))
 								;;
 						PPPoE-LLC/SNAP|pppoe-llcsnap|pppoe-llc|pppoe-snap)
-								local overhead=$((40 + diff))
-								[ "$2" = "remote" ] && local mtu=1492
+								overhead=$((40 + diff))
+								[ "$2" = "remote" ] && mtu=1492
 								;;
 						*)
 								error "Cannot understand adsl protocol '$3'."
@@ -1059,15 +1051,15 @@ parse_class_params() {
 					;;
 					
 			atm|ethernet)
-					local linklayer="$1"
-					local linklayer_type=
-					local linklayer_encoding=
+					linklayer="$1"
+					linklayer_type=
+					linklayer_encoding=
 					;;
 			
 			linklayer)
-					local linklayer="$2"
-					local linklayer_type=
-					local linklayer_encoding=
+					linklayer="$2"
+					linklayer_type=
+					linklayer_encoding=
 					shift
 					;;
 					
@@ -1082,7 +1074,6 @@ parse_class_params() {
 	# export our parameters for the caller
 	# for every parameter not set, use the parent value
 	# for every one set, use the set value
-	local param=
 	for param in ceil burst cburst quantum qdisc qdisc_options ipv4 ipv6 priority_mode
 	do
 		eval local value="\$$param"
@@ -1095,7 +1086,6 @@ parse_class_params() {
 	done
 	
 	# no inheritance for these parameters
-	local param=
 	for param in rate mtu mpu tsize overhead linklayer linklayer_type linklayer_encoding r2q prio minrate
 	do
 		eval export ${prefix}_${param}="\$$param"
@@ -1107,9 +1097,8 @@ parse_class_params() {
 parent_path=
 parent_stack_size=0
 parent_push() {
-	local param=
-	local prefix="$1"; shift
-	local vars="classid major sumrate default_class default_added filters_to name ceil burst cburst quantum qdisc rate mtu mpu tsize overhead linklayer linklayer_type linklayer_encoding r2q prio ipv4 ipv6 minrate priority_mode class_counter stab class_prio"
+	local prefix="${1}" param= vars="classid major sumrate default_class default_added filters_to name ceil burst cburst quantum qdisc rate mtu mpu tsize overhead linklayer linklayer_type linklayer_encoding r2q prio ipv4 ipv6 minrate priority_mode class_counter stab class_prio"
+	shift
 	
 	if [ $FIREQOS_DEBUG_STACK -eq 1 ]
 	then
@@ -1204,13 +1193,13 @@ set_tabs() {
 
 check_constrains() {
 	local prefix="$1"
-	eval "local mtu=\$${prefix}_mtu"
-	eval "local burst=\$${prefix}_burst"
-	eval "local cburst=\$${prefix}_cburst"
-	eval "local quantum=\$${prefix}_quantum"
-	eval "local rate=\$${prefix}_rate"
-	eval "local ceil=\$${prefix}_ceil"
-	eval "local minrate=\$${prefix}_minrate"
+	eval "local mtu=\$${prefix}_mtu \
+		burst=\$${prefix}_burst \
+		cburst=\$${prefix}_cburst \
+		quantum=\$${prefix}_quantum \
+		rate=\$${prefix}_rate \
+		ceil=\$${prefix}_ceil \
+		minrate=\$${prefix}_minrate"
 	
 	[ -z "$mtu" ] && eval "local mtu=$parent_mtu"
 	[ -z "$mtu" ] && eval "local mtu=$interface_mtu"
@@ -1316,7 +1305,6 @@ interface_class_counter=
 interface_class_prio=0
 interface_qdisc_counter=
 interface_default_added=
-interface_default_class=
 interface_classes=
 interface_classes_ids=
 interface_classes_monitor=
@@ -1324,9 +1312,10 @@ interface_sumrate=0
 interface_classid=
 interface_stab=
 interface_save=0
+interface_default_counter=0
 
 ifb_interfaces=0
-class_matchid=
+class_matchid=0
 force_ipv=
 
 interface_close() {
@@ -1396,7 +1385,7 @@ interface_close() {
 	interface_class_prio=0
 	interface_qdisc_counter=10
 	interface_default_added=0
-	interface_default_class=5000
+	interface_default_counter=0
 	interface_classes=
 	interface_classes_ids=
 	interface_classes_monitor=
@@ -1461,9 +1450,7 @@ interface_count=0
 interface() {
 	if [ "$3" = "both" -o "$3" = "bidirectional" ]
 	then
-		local a1="$1"
-		local a2="$2"
-		local a3="$3"
+		a1="$1" a2="$2" a3="$3"
 		shift 3
 
 		interface "$a1" "${a2}-in" input "$@" || return $?
@@ -1553,12 +1540,12 @@ interface() {
 	local stab=
 	if [ ! -z "$interface_linklayer" ]
 	then
-		local stab="stab"
-		test ! -z "$interface_linklayer"	&& local stab="$stab linklayer $interface_linklayer"
-		test ! -z "$interface_overhead"		&& local stab="$stab overhead $interface_overhead"
-		test ! -z "$interface_tsize"		&& local stab="$stab tsize $interface_tsize"
-		test ! -z "$interface_mtu"		&& local stab="$stab mtu $interface_mtu"
-		test ! -z "$interface_mpu"		&& local stab="$stab mpu $interface_mpu"
+		stab="stab"
+		test ! -z "$interface_linklayer"	&& stab="$stab linklayer $interface_linklayer"
+		test ! -z "$interface_overhead"		&& stab="$stab overhead $interface_overhead"
+		test ! -z "$interface_tsize"		&& stab="$stab tsize $interface_tsize"
+		test ! -z "$interface_mtu"		&& stab="$stab mtu $interface_mtu"
+		test ! -z "$interface_mpu"		&& stab="$stab mpu $interface_mpu"
 	fi
 	
 	# the default ceiling for the interface, is the rate of the interface
@@ -1568,8 +1555,8 @@ interface() {
 	# set the default qdisc for all classes
 	if [ -z "$interface_qdisc" ]
 	then
-		interface_qdisc="$FIREQOS_DEFAULT_QDISC"
-		interface_qdisc_options="$FIREQOS_DEFAULT_QDISC_OPTIONS"
+		interface_qdisc="${FIREQOS_DEFAULT_QDISC}"
+		interface_qdisc_options="${FIREQOS_DEFAULT_QDISC_OPTIONS}"
 	fi
 	
 	# the desired minimum rate for all classes
@@ -1591,22 +1578,23 @@ interface() {
 	
 	check_constrains interface
 	
-	local rate="rate $((interface_rate * 8 / 1000))kbit"
-	local minrate="rate $((interface_minrate * 8 / 1000))kbit"
-	[ ! -z "$interface_ceil" ]			&& local ceil="ceil $((interface_ceil * 8 / 1000))kbit"
-	[ ! -z "$interface_burst" ]			&& local burst="burst $interface_burst"
-	[ ! -z "$interface_cburst" ]			&& local cburst="cburst $interface_cburst"
-	[ ! -z "$interface_quantum" ]			&& local quantum="quantum $interface_quantum"
-	[ ! -z "$interface_r2q" ]			&& local r2q="r2q $interface_r2q"
+	local 	rate="rate $((interface_rate * 8 / 1000))kbit" \
+		minrate="rate $((interface_minrate * 8 / 1000))kbit" \
+		ceil= burst= cburst= quantum= r2q=
+	[ ! -z "$interface_ceil" ]			&& ceil="ceil $((interface_ceil * 8 / 1000))kbit"
+	[ ! -z "$interface_burst" ]			&& burst="burst $interface_burst"
+	[ ! -z "$interface_cburst" ]			&& cburst="cburst $interface_cburst"
+	[ ! -z "$interface_quantum" ]			&& quantum="quantum $interface_quantum"
+	[ ! -z "$interface_r2q" ]			&& r2q="r2q $interface_r2q"
 	
-	echo >&2 -e " $COLOR_BOLD$COLOR_BLUE($interface_realdev, $((interface_rate*8/1000))kbit, MTU $interface_mtu, quantum $interface_quantum)$COLOR_RESET"
+	echo >&2 -e " ${COLOR_BOLD}${COLOR_BLUE}(${interface_realdev}, $((interface_rate*8/1000))kbit, MTU ${interface_mtu}, quantum ${interface_quantum})${COLOR_RESET}"
 	
 	# remember we used this interface
-	echo "$interface_name" >$FIREQOS_DIR/ifaces/$interface_realdev
+	echo "$interface_name" >$FIREQOS_DIR/ifaces/${interface_realdev}
 	
 	# Add root qdisc with proper linklayer and overheads
 	tc ignore-error qdisc del dev $interface_realdev root
-	tc qdisc add dev $interface_realdev root handle $interface_major: $stab htb default $interface_default_class $r2q
+	tc qdisc add dev ${interface_realdev} root handle ${interface_major}: ${stab} htb default ${FIREQOS_INTERFACE_DEFAULT_CLASSID} ${r2q}
 	
 	# redirect all incoming traffic to ifb
 	if [ $interface_inout = input ]
@@ -1619,10 +1607,10 @@ interface() {
 		local cm=
 		case "${FIREQOS_CONNMARK_RESTORE}" in
 			act_connmark) 
-				local cm="action connmark"
+				cm="action connmark"
 				;;
 			#xt)
-			#	local cm="action xt -j CONNMARK --restore-mark"
+			#	cm="action xt -j CONNMARK --restore-mark"
 			#	;;
 
 			*)
@@ -1919,9 +1907,10 @@ class() {
 		# this class will have subclasses
 		
 		class_class_prio=0
-		
+		(( interface_default_counter += 1 ))
+
 		# the default class that all unmatched traffic will be sent to
-		class_default_class="$((interface_default_class + interface_qdisc_counter))"
+		class_default_class="$((FIREQOS_INTERFACE_DEFAULT_CLASSID + interface_default_counter))"
 		
 		# if the user added a stab, we need a qdisc and a slave class bellow the qdisc
 		if [ ! -z "$stab" ]
@@ -1989,7 +1978,7 @@ class() {
 			# the user didn't give options to this class' qdisc
 			# find the global qdisc default
 			
-			eval "local qdisc_options=\$FIREQOS_DEFAULT_QDISC_OPTIONS_$class_qdisc"
+			eval "local qdisc_options=\${FIREQOS_DEFAULT_QDISC_OPTIONS_$class_qdisc}"
 			
 			if [ -z "$qdisc_options" ]
 			then
@@ -2180,7 +2169,7 @@ match() {
 	local reverse=0
 	local estimator_interval=
 	local estimator_decay=
-	local police_arg=
+	local police_arg= tcproto_arg=
 
 	case "$force_ipv" in
 		4)
@@ -2382,7 +2371,7 @@ match() {
 
 	if [ -z "$prio" ]
 	then
-		local prio=$((class_matchid * 10))
+		local prio=$((class_matchid * FIREQOS_MATCHES_STEP))
 		class_matchid=$((class_matchid + 1))
 	fi
 	
