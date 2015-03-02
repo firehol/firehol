@@ -110,7 +110,7 @@ FIREQOS_MATCHES_STEP=10
 # the default class for all interfaces
 # additional default classes may be added (incrementing
 # this, when classes with device emulation are added)
-FIREQOS_INTERFACE_DEFAULT_CLASSID=10000
+FIREQOS_INTERFACE_DEFAULT_CLASSID=8000
 
 # Enable colors
 if [ -t 2 -a $[$(tput colors 2>/dev/null)] -ge 8 ]
@@ -3068,7 +3068,7 @@ EOF
 	local banner_every_lines=20
 	
 	getdata() {
-		eval "`$tc_cmd -s class show dev $1 | $tr_cmd "\n,()" "|   " | $sed_cmd \
+		eval "`$tc_cmd -s class show dev ${1} | $tr_cmd "\n,()" "|   " | $sed_cmd \
 			-e "s/ \+/ /g"				\
 			-e "s/ *| */|/g"			\
 			-e "s/||/\n/g"				\
