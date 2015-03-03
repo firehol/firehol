@@ -1097,7 +1097,8 @@ parse_class_params() {
 parent_path=
 parent_stack_size=0
 parent_push() {
-	local prefix="${1}" param= vars="classid major sumrate default_class default_added filters_to name ceil burst cburst quantum qdisc rate mtu mpu tsize overhead linklayer linklayer_type linklayer_encoding r2q prio ipv4 ipv6 minrate priority_mode class_counter stab class_prio"
+	local 	prefix="${1}" param= \
+		vars="classid major sumrate default_class default_added filters_to name ceil burst cburst quantum qdisc rate mtu mpu tsize overhead linklayer linklayer_type linklayer_encoding r2q prio ipv4 ipv6 minrate priority_mode class_counter stab class_prio"
 	shift
 	
 	if [ $FIREQOS_DEBUG_STACK -eq 1 ]
@@ -1120,7 +1121,7 @@ parent_push() {
 	fi
 	
 	# now push the new values into the stack
-	parent_stack_size=$((parent_stack_size + 1))
+	(( parent_stack_size += 1 ))
 	eval "parent_stack_${parent_stack_size}="
 	for param in $vars
 	do
@@ -1201,7 +1202,7 @@ check_constrains() {
 		ceil=\$${prefix}_ceil \
 		minrate=\$${prefix}_minrate"
 	
-	[ -z "$mtu" ] && eval "local mtu=$parent_mtu"
+	[ -z "$mtu" ] && eval "local mtu=${parent_mtu}"
 	[ -z "$mtu" ] && eval "local mtu=$interface_mtu"
 	
 	# check the constrains
@@ -1286,7 +1287,7 @@ check_constrains() {
 }
 
 check_committed_rate() {
-	if [ $parent_rate -ge $parent_sumrate ]
+	if [ $parent_rate -ge ${parent_sumrate} ]
 	then
 		echo >&2 -e ": $class_tabs${COLOR_BLUE}${COLOR_BOLD}committed rate $((parent_sumrate * 8 / 1000))kbit ($((parent_sumrate * 100 / parent_rate))%), the remaining $(((parent_rate - parent_sumrate)*8/1000))kbit will be spare bandwidth.${COLOR_RESET}"
 	else
@@ -1305,6 +1306,7 @@ interface_class_counter=
 interface_class_prio=0
 interface_qdisc_counter=
 interface_default_added=
+interface_default_class=${FIREQOS_INTERFACE_DEFAULT_CLASSID}
 interface_classes=
 interface_classes_ids=
 interface_classes_monitor=
@@ -1313,6 +1315,7 @@ interface_classid=
 interface_stab=
 interface_save=0
 interface_default_counter=0
+interface_priority_mode=
 
 ifb_interfaces=0
 class_matchid=0
@@ -1362,7 +1365,7 @@ interface_close() {
 		check_committed_rate
 
 		# NOT NEEDED - the default for interfaces works via kernel.
-		# match all class default flowid $interface_major:$parent_default_class prio 0xffff
+		# match all class default flowid $interface_major:${parent_default_class} prio 0xffff
 		
 		FIREQOS_INTERFACES_COMPLETED="$interface_name $FIREQOS_INTERFACES_COMPLETED"
 		
@@ -1385,6 +1388,7 @@ interface_close() {
 	interface_class_prio=0
 	interface_qdisc_counter=10
 	interface_default_added=0
+	interface_default_class=${FIREQOS_INTERFACE_DEFAULT_CLASSID}
 	interface_default_counter=0
 	interface_classes=
 	interface_classes_ids=
@@ -1393,6 +1397,8 @@ interface_close() {
 	interface_classid=
 	interface_stab=1
 	interface_save=0
+	interface_priority_mode=
+
 	class_matchid=1
 	parent_stack_size=0
 	
@@ -1450,7 +1456,7 @@ interface_count=0
 interface() {
 	if [ "$3" = "both" -o "$3" = "bidirectional" ]
 	then
-		a1="$1" a2="$2" a3="$3"
+		local a1="$1" a2="$2" a3="$3"
 		shift 3
 
 		interface "$a1" "${a2}-in" input "$@" || return $?
@@ -1460,7 +1466,7 @@ interface() {
 		return 0
 	fi
 
-	interface_count=$[interface_count + 1]
+	(( interface_count += 1 ))
 
 	interface_close
 	
@@ -1470,66 +1476,66 @@ interface() {
 	interface_name="$1"; shift
 	interface_inout="$1"; shift
 
-	if [ "$interface_inout" = "input" ]
+	if [ "${interface_inout}" = "input" ]
 	then
 		ifb_interfaces=$((ifb_interfaces + 1))
 		
-		interface_realdev=$interface_dev-ifb
+		interface_realdev=${interface_dev}-ifb
 		interface_realdev=${interface_realdev:0:15}
 		
-		runcmd $ip_cmd link add dev $interface_realdev name $interface_realdev type ifb 2>/dev/null
+		runcmd $ip_cmd link add dev ${interface_realdev} name ${interface_realdev} type ifb 2>/dev/null
 		if [ $? -ne 0 -a $? -ne 2 ]
 		then
-			error "Cannot add IFB device $interface_realdev."
+			error "Cannot add IFB device ${interface_realdev}."
 			exit 1
 		fi
 		
 		# remember we used this interface
-		$touch_cmd $FIREQOS_DIR/ifbs/$interface_realdev
+		$touch_cmd $FIREQOS_DIR/ifbs/${interface_realdev}
 		
-		runcmd $ip_cmd link set dev $interface_realdev up
+		runcmd $ip_cmd link set dev ${interface_realdev} up
 		if [ $? -ne 0 ]
 		then
-			error "Cannot bring device $interface_realdev UP. Do you have 'ifb' enabled in the kernel?"
+			error "Cannot bring device ${interface_realdev} UP. Do you have 'ifb' enabled in the kernel?"
 			exit 1
 		fi
 	else
 		# for 'output' interfaces, realdev is dev
-		interface_realdev=$interface_dev
+		interface_realdev=${interface_dev}
 	fi
 	
 	# parse the parameters given
 	parse_class_params interface noparent "${@}"
 	
-	[ -z "$interface_priority_mode" ] && interface_priority_mode="priority"
+	[ -z "${interface_priority_mode}" ] && interface_priority_mode="priority"
 	
 	# IPv, this is only used by matches
 	# here we just give the defaults for inheritance to work
-	if [ -z "$interface_ipv4" -a -z "$interface_ipv6" ]
+	if [ -z "${interface_ipv4}" -a -z "${interface_ipv6}" ]
 	then
 		interface_ipv4=1
 		interface_ipv6=0
-	elif [ -z "$interface_ipv4" ]
+	elif [ -z "${interface_ipv4}" ]
 	then
 		interface_ipv4=0
-	elif [ -z "$interface_ipv6" ]
+	elif [ -z "${interface_ipv6}" ]
 	then
 		interface_ipv6=0
 	fi
 	
 	# check important arguments
-	if [ -z "$interface_rate" ]
+	if [ -z "${interface_rate}" ]
 	then
 		error "Cannot figure out the rate of interface '${interface_dev}'."
 		return 1
 	fi
 	
-	if [ -z "$interface_mtu" ]
+	if [ -z "${interface_mtu}" ]
 	then
 		# to find the mtu, we query the original device, not an ifb device
-		interface_mtu=`device_mtu $interface_dev`
+		interface_mtu=`device_mtu ${interface_dev}`
 		
-		if [ -z "$interface_mtu" ]
+		if [ -z "${interface_mtu}" ]
 		then
 			interface_mtu=1500
 			warning "Device MTU cannot be detected. Setting it to 1500 bytes."
@@ -1538,54 +1544,54 @@ interface() {
 	
 	# fix stab
 	local stab=
-	if [ ! -z "$interface_linklayer" ]
+	if [ ! -z "${interface_linklayer}" ]
 	then
 		stab="stab"
-		test ! -z "$interface_linklayer"	&& stab="$stab linklayer $interface_linklayer"
-		test ! -z "$interface_overhead"		&& stab="$stab overhead $interface_overhead"
-		test ! -z "$interface_tsize"		&& stab="$stab tsize $interface_tsize"
-		test ! -z "$interface_mtu"		&& stab="$stab mtu $interface_mtu"
-		test ! -z "$interface_mpu"		&& stab="$stab mpu $interface_mpu"
+		test ! -z "${interface_linklayer}"	&& stab="$stab linklayer ${interface_linklayer}"
+		test ! -z "${interface_overhead}"	&& stab="$stab overhead ${interface_overhead}"
+		test ! -z "${interface_tsize}"		&& stab="$stab tsize ${interface_tsize}"
+		test ! -z "${interface_mtu}"		&& stab="$stab mtu ${interface_mtu}"
+		test ! -z "${interface_mpu}"		&& stab="$stab mpu ${interface_mpu}"
 	fi
 	
 	# the default ceiling for the interface, is the rate of the interface
 	# if we don't respect this, all unclassified traffic will get just 1kbit!
-	[ -z "$interface_ceil" ] && interface_ceil=$interface_rate
+	[ -z "${interface_ceil}" ] && interface_ceil=${interface_rate}
 	
 	# set the default qdisc for all classes
-	if [ -z "$interface_qdisc" ]
+	if [ -z "${interface_qdisc}" ]
 	then
 		interface_qdisc="${FIREQOS_DEFAULT_QDISC}"
 		interface_qdisc_options="${FIREQOS_DEFAULT_QDISC_OPTIONS}"
 	fi
 	
 	# the desired minimum rate for all classes
-	[ -z "$interface_minrate" ] && interface_minrate=$((interface_rate / FIREQOS_MIN_RATE_DIVISOR))
+	[ -z "${interface_minrate}" ] && interface_minrate=$((interface_rate / FIREQOS_MIN_RATE_DIVISOR))
 	
 	# calculate the default r2q for this interface
 	# *** THIS MAY NOT BE NEEDED ANYMORE, SINCE WE ALWAYS SET QUANTUM ***
-	if [ -z "$interface_r2q" ]
+	if [ -z "${interface_r2q}" ]
 	then
-		interface_r2q=`calc_r2q $interface_minrate $interface_mtu`
+		interface_r2q=`calc_r2q ${interface_minrate} ${interface_mtu}`
 	fi
 	
 	# the actual minimum rate we can get
 	local r=$((interface_r2q * interface_mtu))
-	[ $r -gt $interface_minrate ] && interface_minrate=$r
+	[ ${r} -gt ${interface_minrate} ] && interface_minrate=${r}
 	
 	# set the default quantum
-	[ -z "$interface_quantum" ] && interface_quantum=$interface_mtu
+	[ -z "${interface_quantum}" ] && interface_quantum=${interface_mtu}
 	
 	check_constrains interface
 	
 	local 	rate="rate $((interface_rate * 8 / 1000))kbit" \
 		minrate="rate $((interface_minrate * 8 / 1000))kbit" \
 		ceil= burst= cburst= quantum= r2q=
-	[ ! -z "$interface_ceil" ]			&& ceil="ceil $((interface_ceil * 8 / 1000))kbit"
-	[ ! -z "$interface_burst" ]			&& burst="burst $interface_burst"
-	[ ! -z "$interface_cburst" ]			&& cburst="cburst $interface_cburst"
-	[ ! -z "$interface_quantum" ]			&& quantum="quantum $interface_quantum"
-	[ ! -z "$interface_r2q" ]			&& r2q="r2q $interface_r2q"
+	[ ! -z "${interface_ceil}" ]			&& ceil="ceil $((interface_ceil * 8 / 1000))kbit"
+	[ ! -z "${interface_burst}" ]			&& burst="burst ${interface_burst}"
+	[ ! -z "${interface_cburst}" ]			&& cburst="cburst ${interface_cburst}"
+	[ ! -z "${interface_quantum}" ]			&& quantum="quantum ${interface_quantum}"
+	[ ! -z "${interface_r2q}" ]			&& r2q="r2q ${interface_r2q}"
 	
 	echo >&2 -e " ${COLOR_BOLD}${COLOR_BLUE}(${interface_realdev}, $((interface_rate*8/1000))kbit, MTU ${interface_mtu}, quantum ${interface_quantum})${COLOR_RESET}"
 	
@@ -1597,12 +1603,12 @@ interface() {
 	tc qdisc add dev ${interface_realdev} root handle ${interface_major}: ${stab} htb default ${FIREQOS_INTERFACE_DEFAULT_CLASSID} ${r2q}
 	
 	# redirect all incoming traffic to ifb
-	if [ $interface_inout = input ]
+	if [ ${interface_inout} = input ]
 	then
 		# Redirect all incoming traffic to ifb
 		# We then shape the traffic in the output of ifb
-		tc ignore-error qdisc del dev $interface_dev ingress
-		tc qdisc add dev $interface_dev ingress
+		tc ignore-error qdisc del dev ${interface_dev} ingress
+		tc qdisc add dev ${interface_dev} ingress
 		
 		local cm=
 		case "${FIREQOS_CONNMARK_RESTORE}" in
@@ -1621,23 +1627,23 @@ interface() {
 				fi
 				;;
 		esac
-		tc filter add dev $interface_dev parent ffff: protocol all prio 39999 u32 match u32 0 0 ${cm} action mirred egress redirect dev $interface_realdev
+		tc filter add dev $interface_dev parent ffff: protocol all prio 39999 u32 match u32 0 0 ${cm} action mirred egress redirect dev ${interface_realdev}
 	fi
 	
-	interface_classid="$interface_major:1"
+	interface_classid="${interface_major}:1"
 	
 	# Add the root class for the interface
-	tc class add dev $interface_realdev parent $interface_major: classid $interface_classid htb $rate $ceil $burst $cburst $quantum
+	tc class add dev ${interface_realdev} parent ${interface_major}: classid ${interface_classid} htb $rate $ceil $burst $cburst $quantum
 	
 	#if [ $interface_inout = output ]
 	#then
 	#	if [ "${FIREQOS_CONNMARK_SAVE}" = "xt" ]
 	#	then
-	#		tc filter add dev $interface_realdev parent $interface_major: protocol ip prio 0 u32 match u32 0 0 classid $interface_classid action xt -j CONNMARK --save-mark
+	#		tc filter add dev ${interface_realdev} parent ${interface_major}: protocol ip prio 0 u32 match u32 0 0 classid ${interface_classid} action xt -j CONNMARK --save-mark
 	#	fi
 	#fi
 
-	interface_filters_to="$interface_major:0"
+	interface_filters_to="${interface_major}:0"
 	
 	parent_push interface
 	
@@ -1702,12 +1708,12 @@ class46() {
 
 class_count=0
 class() {
-	[ $interface_save -eq 1 ] && save ${FUNCNAME} "$@"
+	[ ${interface_save} -eq 1 ] && save ${FUNCNAME} "$@"
 
-	class_count=$[class_count + 1]
+	(( class_count += 1 ))
 
 	# check if the have to push into the stack the last class (if it was a group class)
-	if [ $class_group -eq 1 ]
+	if [ ${class_group} -eq 1 ]
 	then
 		# the last class was a group 
 		# filters have been added to it, and now we have reached its first child class
@@ -1726,49 +1732,49 @@ class() {
 	class_group=0
 	
 	# if this is a group class
-	if [ "$1" = "group" ]
+	if [ "${1}" = "group" ]
 	then
 		shift
 
 		# if this is the end of a group class
-		if [ "$1" = "end" ]
+		if [ "${1}" = "end" ]
 		then
 			shift
 
-			if [ $parent_stack_size -le 1 ]
+			if [ ${parent_stack_size} -le 1 ]
 			then
 				error "No open class group to end."
 				exit 1
 			fi
 			
 			# make sure we don't save these statements too
-			local isave=$interface_save
+			local isave=${interface_save}
 			interface_save=0
 
-			if [ $parent_default_added -eq 0 ]
+			if [ ${parent_default_added} -eq 0 ]
 			then
 				class default
 			fi
 			
 			# In nested classes, the default of the parent class is not respected
 			# by the kernel. This rule, sends all remaining traffic to the inner default.
-			match all class default flowid $parent_major:$parent_default_class prio 0xfffe
+			match all class default flowid ${parent_major}:${parent_default_class} prio 0xfffe
 			
 			check_committed_rate
 
 			# restore the previous save status
-			interface_save=$isave
+			interface_save=${isave}
 
-			if [ $parent_stab -eq 1 ]
+			if [ ${parent_stab} -eq 1 ]
 			then
 				parent_pull
 			else
-				local pc=$parent_class_counter
+				local pc=${parent_class_counter}
 				parent_pull
-				parent_class_counter=$pc
+				parent_class_counter=${pc}
 			fi
 			return 0
-		elif [ "$1" = "default" ]
+		elif [ "${1}" = "default" ]
 		then
 			error "The default class cannot have subclasses."
 			exit 1
@@ -1777,94 +1783,94 @@ class() {
 		class_group=1
 	fi
 	
-	printf >&2 ": $class_tabs${FUNCNAME} %s" "$*"
+	printf >&2 ": ${class_tabs}${FUNCNAME} %s" "$*"
 	
-	class_name="$1"; shift
+	class_name="${1}"; shift
 	
 	# increase the interface global class counter
-	interface_global_class_counter=$((interface_global_class_counter + 1))
+	(( interface_global_class_counter += 1 ))
 	
 	# increase the parent's class counter
 	# this is used for determining the minor of the class
-	parent_class_counter=$((parent_class_counter + 1))
+	(( parent_class_counter += 1 ))
 	
 	# if this is the default class, use the pre-defined id,
 	# otherwise use the classid we just increased
-	if [ "$class_name" = "default" ]
+	if [ "${class_name}" = "default" ]
 	then
-		local id=$parent_default_class
+		local id=${parent_default_class}
 	else
-		local id=$parent_class_counter
+		local id=${parent_class_counter}
 	fi
 	
 	# the tc classid that we will create
 	# this is used for the parent of all child classed
-	class_classid="$parent_major:$id"
+	class_classid="${parent_major}:${id}"
 	
 	# the flowid the matches on this class will classify the packets
-	class_filters_flowid="$parent_major:$id"
+	class_filters_flowid="${parent_major}:${id}"
 	
 	# the id of the class in the config, for getting status info about it
-	local ncid="${parent_major}_$id"
+	local ncid="${parent_major}_${id}"
 	
 	# the handle of the new qdisc we will create
-	interface_qdisc_counter=$((interface_qdisc_counter + 1))
-	class_major=$interface_qdisc_counter
+	(( interface_qdisc_counter += 1 ))
+	class_major=${interface_qdisc_counter}
 	
 	parse_class_params class parent quantum "RESET" "${@}"
 	
 	if [ "$class_quantum" = "RESET" ]
 	then
-		if [ ! -z "$class_mtu" ]
+		if [ ! -z "${class_mtu}" ]
 		then
-			class_quantum=$class_mtu
+			class_quantum=${class_mtu}
 		else
-			class_quantum=$parent_quantum
+			class_quantum=${parent_quantum}
 		fi
 	fi
 	
 	# the priority of this class, compared to the others in the same interface
-	if [ "$class_prio" = "keep" -o "$class_prio" = "last" ]
+	if [ "${class_prio}" = "keep" -o "${class_prio}" = "last" ]
 	then
-		class_prio=$last_class_prio
-	elif [ -z "$class_prio" ]
+		class_prio=${last_class_prio}
+	elif [ -z "${class_prio}" ]
 	then
-		if [ "$parent_priority_mode" = "balanced" ]
+		if [ "${parent_priority_mode}" = "balanced" ]
 		then
-			class_prio=$FIREQOS_BALANCED_PRIO
+			class_prio=${FIREQOS_BALANCED_PRIO}
 		else
-			class_prio=$parent_class_prio
+			class_prio=${parent_class_prio}
 			
 			# increase the parent's priority of subclasses
-			parent_class_prio=$((parent_class_prio + 1))
+			(( parent_class_prio += 1 ))
 		fi
 	else
 		parent_class_prio=$((class_prio + 1))
 	fi
 
-	[ $class_prio -lt 0 ] && class_prio=0
-	[ $class_prio -gt 7 ] && class_prio=7
+	[ ${class_prio} -lt 0 ] && class_prio=0
+	[ ${class_prio} -gt 7 ] && class_prio=7
 	
 	# remember this prio, in case we need it later
-	last_class_prio="$class_prio"
+	last_class_prio="${class_prio}"
 	
 	# if not specified, set the minimum rate
-	if [ -z "$class_rate" ]
+	if [ -z "${class_rate}" ]
 	then
-		[ $class_group -eq 1 ] && error "Class group '$class_name' does not specify a committed rate.\nClass groups should have a committed rate."
-		class_rate=$interface_minrate
+		[ ${class_group} -eq 1 ] && error "Class group '${class_name}' does not specify a committed rate.\nClass groups should have a committed rate."
+		class_rate=${interface_minrate}
 	fi
 
 	# class rate cannot go bellow 1/100 of the interface rate
-	if [ $class_rate -lt $interface_minrate ]
+	if [ ${class_rate} -lt ${interface_minrate} ]
 	then
 		warning "class rate ($((class_rate * 8 /1000))kbit) was less than the interface minrate ($((interface_minrate * 8 /1000))kbit). Fixed it by setting class rate to minrate."
-		class_rate=$interface_minrate
+		class_rate=${interface_minrate}
 	fi
 	
 	check_constrains class
 	
-	[ ! -z "$class_rate" ]		&& local rate="rate $((class_rate * 8 / 1000))kbit"
+	[ ! -z "${class_rate}" ]	&& local rate="rate $((class_rate * 8 / 1000))kbit"
 	[ ! -z "$class_ceil" ]		&& local ceil="ceil $((class_ceil * 8 / 1000))kbit"
 	[ ! -z "$class_burst" ]		&& local burst="burst $class_burst"
 	[ ! -z "$class_cburst" ]	&& local cburst="cburst $class_cburst"
@@ -1873,36 +1879,36 @@ class() {
 	# construct the stab for group class
 	# later we will check if this is accidentaly used in leaf classes
 	local stab=
-	if [ ! -z "$class_linklayer" ]
+	if [ ! -z "${class_linklayer}" ]
 	then
-		[ -z "$class_mtu" ] && class_mtu="$parent_mtu"
+		[ -z "$class_mtu" ] && class_mtu="${parent_mtu}"
 		
-		local stab="stab"
-		test ! -z "$class_linklayer"	&& local stab="$stab linklayer $class_linklayer"
-		test ! -z "$class_overhead"	&& local stab="$stab overhead $class_overhead"
-		test ! -z "$class_tsize"	&& local stab="$stab tsize $class_tsize"
-		test ! -z "$class_mtu"		&& local stab="$stab mtu $class_mtu"
-		test ! -z "$class_mpu"		&& local stab="$stab mpu $class_mpu"
+		stab="stab"
+		test ! -z "${class_linklayer}"	&& stab="${stab} linklayer ${class_linklayer}"
+		test ! -z "${class_overhead}"	&& stab="${stab} overhead ${class_overhead}"
+		test ! -z "${class_tsize}"	&& stab="${stab} tsize ${class_tsize}"
+		test ! -z "${class_mtu}"	&& stab="${stab} mtu ${class_mtu}"
+		test ! -z "${class_mpu}"	&& stab="${stab} mpu ${class_mpu}"
 	fi
 	
 	# check it the user overbooked the parent
-	parent_sumrate=$((parent_sumrate + $class_rate))
-	local info_color="$COLOR_BLUE"
-	[ $parent_sumrate -gt $parent_rate ] && local info_color="$COLOR_RED"
+	parent_sumrate=$(( parent_sumrate + class_rate ))
+	local info_color="${COLOR_BLUE}"
+	[ ${parent_sumrate} -gt ${parent_rate} ] && local info_color="${COLOR_RED}"
 	
-	if [ $class_group -eq 1 -a ! -z "$stab" ]
+	if [ ${class_group} -eq 1 -a ! -z "${stab}" ]
 	then
-		echo >&2 -e " $info_color$COLOR_BOLD($class_classid, $((class_rate*8/1000))kbit, prio $class_prio, MTU $class_mtu, quantum $class_quantum)$COLOR_RESET"
+		echo >&2 -e " ${info_color}${COLOR_BOLD}(${class_classid}, $((class_rate*8/1000))kbit, prio ${class_prio}, MTU ${class_mtu}, quantum ${class_quantum})${COLOR_RESET}"
 	else
-		echo >&2 -e " $info_color$COLOR_BOLD($class_classid, $((class_rate*8/1000))kbit, prio $class_prio)$COLOR_RESET"
+		echo >&2 -e " ${info_color}${COLOR_BOLD}(${class_classid}, $((class_rate*8/1000))kbit, prio ${class_prio})${COLOR_RESET}"
 	fi
 	
 	# keep track of all classes in the interface, so that the matches can name them to get their flowid
-	interface_classes="$interface_classes $class_name|$class_filters_flowid"
-	interface_classes_ids="$interface_classes_ids $ncid"
+	interface_classes="${interface_classes} ${class_name}|${class_filters_flowid}"
+	interface_classes_ids="${interface_classes_ids} ${ncid}"
 	
 	class_default_class=
-	if [ $class_group -eq 1 ]
+	if [ ${class_group} -eq 1 ]
 	then
 		# this class will have subclasses
 		
@@ -1910,28 +1916,28 @@ class() {
 		(( interface_default_counter += 1 ))
 
 		# the default class that all unmatched traffic will be sent to
-		class_default_class="$((FIREQOS_INTERFACE_DEFAULT_CLASSID + interface_default_counter))"
+		class_default_class="$((interface_default_class + interface_default_counter))"
 		
 		# if the user added a stab, we need a qdisc and a slave class bellow the qdisc
-		if [ ! -z "$stab" ]
+		if [ ! -z "${stab}" ]
 		then
 			# this is a group class with a linklayer
 			# we add a qdisc with the stab, and an HTB class bellow it
 			
 			# add the class
-			tc class add dev $interface_realdev parent $parent_classid classid $class_classid htb $rate $ceil $burst $cburst prio $class_prio $quantum
+			tc class add dev ${interface_realdev} parent ${parent_classid} classid ${class_classid} htb ${rate} ${ceil} ${burst} ${cburst} prio ${class_prio} ${quantum}
 			
 			# attach a qdisc
-			tc qdisc add dev $interface_realdev parent $class_classid handle $class_major: $stab htb default $class_default_class
+			tc qdisc add dev ${interface_realdev} parent ${class_classid} handle ${class_major}: ${stab} htb default ${class_default_class}
 			
 			# attach a class bellow the qdisc
-			tc class add dev $interface_realdev parent $class_major: classid $class_major:1 htb $rate $ceil $burst $cburst $quantum
+			tc class add dev ${interface_realdev} parent ${class_major}: classid ${class_major}:1 htb ${rate} ${ceil} ${burst} ${cburst} ${quantum}
 			
 			# the parent of the child classes
-			class_classid="$class_major:1"
+			class_classid="${class_major}:1"
 			
 			# the qdisc the filters of all child classes should be attached to
-			class_filters_to="$class_major:0"
+			class_filters_to="${class_major}:0"
 			
 			class_class_counter=10
 			class_stab=1
@@ -1939,21 +1945,21 @@ class() {
 			# this is a group class without a linklayer
 			
 			# add the class
-			tc class add dev $interface_realdev parent $parent_classid classid $class_classid htb $rate $ceil $burst $cburst prio $class_prio $quantum
+			tc class add dev ${interface_realdev} parent ${parent_classid} classid ${class_classid} htb ${rate} ${ceil} ${burst} ${cburst} prio ${class_prio} ${quantum}
 			
 			# there is no need for a qdisc (HTB class directly attached to an HTB class)
 			
-			class_major=$parent_major
-			class_filters_to="$class_classid"
+			class_major=${parent_major}
+			class_filters_to="${class_classid}"
 			
-			class_class_counter=$parent_class_counter
+			class_class_counter=${parent_class_counter}
 			class_stab=0
 		fi
 		
 		# if the user didn't give an mtu, set it to our parent's mtu.
 		# we do this, just for maintaining inheritance.
 		# (we don't set it to this class - will only be used by the subclasses)
-		[ -z "$class_mtu" ] && class_mtu=$parent_mtu
+		[ -z "${class_mtu}" ] && class_mtu=${parent_mtu}
 		
 		# this class will become a parent [parent_push()], as soon as we encounter the next class.
 		# we don't push it now as the parent, because we need to add filters to its parent, redirecting traffic to this class.
@@ -1963,77 +1969,77 @@ class() {
 	else
 		# this is a leaf class (no child classes possible)
 		
-		if [ ! -z "$stab" ]
+		if [ ! -z "${stab}" ]
 		then
 			error "Linklayer can be used only in interfaces and group classes."
 			exit 1
 		fi
 		
 		# add the class
-		tc class add dev $interface_realdev parent $parent_classid classid $class_classid htb $rate $ceil $burst $cburst prio $class_prio $quantum
+		tc class add dev ${interface_realdev} parent ${parent_classid} classid ${class_classid} htb ${rate} ${ceil} ${burst} ${cburst} prio ${class_prio} ${quantum}
 		
 		# default qdisc options
-		if [ -z "$class_qdisc_options" -o "$class_qdisc_options" = "default" ]
+		if [ -z "${class_qdisc_options}" -o "${class_qdisc_options}" = "default" ]
 		then
 			# the user didn't give options to this class' qdisc
 			# find the global qdisc default
 			
 			eval "local qdisc_options=\${FIREQOS_DEFAULT_QDISC_OPTIONS_$class_qdisc}"
 			
-			if [ -z "$qdisc_options" ]
+			if [ -z "${qdisc_options}" ]
 			then
 				# there is no global default
 				# check if we have an internal default for it
 				
-				case "$class_qdisc" in
-					sfq)	qdisc_options="perturb 10 quantum $class_quantum"
+				case "${class_qdisc}" in
+					sfq)	qdisc_options="perturb 10 quantum ${class_quantum}"
 						;;
 				esac
 			fi
 		else
-			local qdisc_options="$class_qdisc_options"
+			local qdisc_options="${class_qdisc_options}"
 		fi
-		local qdisc="$class_qdisc $qdisc_options"
+		local qdisc="${class_qdisc} ${qdisc_options}"
 		
 		# attach a qdisc, if we have to
-		if [ ! "$class_qdisc" = "none" ]
+		if [ ! "${class_qdisc}" = "none" ]
 		then
-			local qdisc_cmd="dev $interface_realdev $stab parent $class_classid handle $class_major: $qdisc"
-			tc qdisc add $qdisc_cmd
+			local qdisc_cmd="dev ${interface_realdev} ${stab} parent ${class_classid} handle ${class_major}: ${qdisc}"
+			tc qdisc add ${qdisc_cmd}
 		fi
 		
 		# if this is the default, make sure we don't added again
-		if [ "$class_name" = "default" ]
+		if [ "${class_name}" = "default" ]
 		then
 			parent_default_added=1
-			interface_classes_monitor="$interface_classes_monitor $parent_path$class_name|$parent_path$class_name|$class_classid|$class_major:"
+			interface_classes_monitor="${interface_classes_monitor} ${parent_path}${class_name}|$parent_path${class_name}|${class_classid}|${class_major}:"
 		else
-			interface_classes_monitor="$interface_classes_monitor $class_name|$parent_path$class_name|$class_classid|$class_major:"
+			interface_classes_monitor="${interface_classes_monitor} ${class_name}|$parent_path${class_name}|${class_classid}|${class_major}:"
 		fi
 	fi
 	
-	local name="$class_name"
-	[ $parent_stack_size -gt 1 ] && local name="${parent_name:0:2}/$class_name"
+	local name="${class_name}"
+	[ ${parent_stack_size} -gt 1 ] && local name="${parent_name:0:2}/${class_name}"
 	
 	# save the configuration
 	$cat_cmd >>"${FIREQOS_DIR}/${interface_name}.conf" <<EOF
-class_${ncid}_name="$name"
-class_${ncid}_path="$parent_path$class_name"
-class_${ncid}_dev="$interface_realdev"
-class_${ncid}_classid="$class_classid"
-class_${ncid}_priority="$class_prio"
-class_${ncid}_rate="$class_rate"
-class_${ncid}_ceil="$class_ceil"
-class_${ncid}_burst="$class_burst"
-class_${ncid}_cburst="$class_cburst"
-class_${ncid}_quantum="$class_quantum"
-class_${ncid}_qdisc="$class_qdisc"
-class_${ncid}_qdisc_parent="$class_classid"
-class_${ncid}_qdisc_handle="$class_major:"
-class_${ncid}_qdisc_stab="$stab"
-class_${ncid}_qdisc_options="$qdisc_options"
-class_${ncid}_qdisc_cmd="$qdisc_cmd"
-class_${ncid}_group="$class_group"
+class_${ncid}_name="${name}"
+class_${ncid}_path="${parent_path}${class_name}"
+class_${ncid}_dev="${interface_realdev}"
+class_${ncid}_classid="${class_classid}"
+class_${ncid}_priority="${class_prio}"
+class_${ncid}_rate="${class_rate}"
+class_${ncid}_ceil="${class_ceil}"
+class_${ncid}_burst="${class_burst}"
+class_${ncid}_cburst="${class_cburst}"
+class_${ncid}_quantum="${class_quantum}"
+class_${ncid}_qdisc="${class_qdisc}"
+class_${ncid}_qdisc_parent="${class_classid}"
+class_${ncid}_qdisc_handle="${class_major}:"
+class_${ncid}_qdisc_stab="${stab}"
+class_${ncid}_qdisc_options="${qdisc_options}"
+class_${ncid}_qdisc_cmd="${qdisc_cmd}"
+class_${ncid}_group="${class_group}"
 EOF
 	
 	return 0
@@ -2041,55 +2047,53 @@ EOF
 
 find_port_masks() {
 	# echo >&2 "${FUNCNAME} ${@}"
-	local from=$(($1))
-	local to=$(($2))
+	local from=$(($1)) to=$(($2)) i= base= end= mask= next=
 	
-	test -z "$from" && local from="$to"
-	test -z "$from" && return 1
+	test -z "${from}" && from="${to}"
+	test -z "${from}" && return 1
 	
-	if [ -z "$to" ]
+	if [ -z "${to}" ]
 	then
-		[ $FIREQOS_DEBUG_PORTS -eq 1 ] && echo >&2 "$from/0xffff"
-		echo "$from/0xffff"
+		[ ${FIREQOS_DEBUG_PORTS} -eq 1 ] && echo >&2 "${from}/0xffff"
+		echo "${from}/0xffff"
 		return 0
 	fi
 	
-	if [ $from -ge $to ]
+	if [ ${from} -ge ${to} ]
 	then
-		[ $FIREQOS_DEBUG_PORTS -eq 1 ] && echo >&2 "$from/0xffff"
-		echo "$from/0xffff"
+		[ ${FIREQOS_DEBUG_PORTS} -eq 1 ] && echo >&2 "${from}/0xffff"
+		echo "${from}/0xffff"
 		return 0
 	fi
 	
 	# find the biggest power of two that fits in the range
 	# starting from $from
-	local i=
 	for i in 1 2 3 4 5 6 7 8 9 10 11 12 13 14 15 16 17
 	do
-		local base=$(( (from >> i) << $i ))
-		local end=$(( base + (1 << $i) - 1 ))
+		base=$(( (from >> i) << i ))
+		end=$(( base + (1 << i) - 1 ))
 
-		[ $FIREQOS_DEBUG_PORTS -eq 1 ] && printf >&2 ": >>> examine bit %d, from 0x%04x (%s) to 0x%04x (%s), " $i $base $base $end $end
+		[ ${FIREQOS_DEBUG_PORTS} -eq 1 ] && printf >&2 ": >>> examine bit %d, from 0x%04x (%s) to 0x%04x (%s), " ${i} ${base} ${base} ${end} ${end}
 
-		[ $base -ne $from ] && break
-		[ $end -gt $to ] && break
+		[ ${base} -ne ${from} ] && break
+		[ ${end} -gt ${to} ] && break
 
-		[ $FIREQOS_DEBUG_PORTS -eq 1 ] && echo >&2 " ok"
+		[ ${FIREQOS_DEBUG_PORTS} -eq 1 ] && echo >&2 " ok"
 	done
-	[ $FIREQOS_DEBUG_PORTS -eq 1 ] && echo >&2 " failed"
+	[ ${FIREQOS_DEBUG_PORTS} -eq 1 ] && echo >&2 " failed"
 	
-	i=$[ i - 1 ]
-	local base=$(( (from >> i) << $i ))
-	local end=$(( base + (1 << $i) - 1 ))
-	local mask=$(( (0xffff >> $i) << $i ))
+	(( i += -1 ))
+	base=$(( (from >> i) << i ))
+	end=$(( base + (1 << i) - 1 ))
+	mask=$(( (0xffff >> i) << i ))
 	
-	[ $FIREQOS_DEBUG_PORTS -eq 1 ] && printf >&2 ": 0x%04x (%d) to 0x%04x (%d),  match 0x%04x (%d) to 0x%04x (%d) with mask 0x%04x \n" $from $from $to $to $base $base $end $$
-	printf "%d/0x%04x\n" $base $mask
-	if [ $end -lt $to ]
+	[ ${FIREQOS_DEBUG_PORTS} -eq 1 ] && printf >&2 ": 0x%04x (%d) to 0x%04x (%d),  match 0x%04x (%d) to 0x%04x (%d) with mask 0x%04x \n" ${from} ${from} ${to} ${to} ${base} ${base} ${end} $$
+	printf "%d/0x%04x\n" ${base} ${mask}
+	if [ ${end} -lt ${to} ]
 	then
-		local next=$[end + 1]
-		[ $FIREQOS_DEBUG_PORTS -eq 1 ] && printf >&2 "\n: next range 0x%04x (%d) to 0x%04x (%d)\n" $next $next $to $to
-		find_port_masks $next $to
+		next=$[end + 1]
+		[ ${FIREQOS_DEBUG_PORTS} -eq 1 ] && printf >&2 "\n: next range 0x%04x (%d) to 0x%04x (%d)\n" ${next} ${next} ${to} ${to}
+		find_port_masks ${next} ${to}
 	fi
 	return 0
 }
@@ -2120,219 +2124,191 @@ expand_ports() {
 	return 0
 }
 
-match4() {
-	ipv4 match "${@}"
-}
-
-match6() {
-	ipv6 match "${@}"
-}
-
-match46() {
-	ipv46 match "${@}"
-}
-
 match_count=0
+match4() { ipv4 match "${@}"; }
+match6() { ipv6 match "${@}"; }
+match46() { ipv46 match "${@}"; }
 match() {
 	# echo >&2 "${FUNCNAME} ${@}"
-	match_count=$[match_count + 1]
+	(( match_count += 1 ))
 
-	if [ "z$1" = "z-ns" ]
+	if [ "z${1}" = "z-ns" ]
 	then
 		shift
 	else
-		[ $interface_save -eq 1 ] && save ${FUNCNAME} "$@"
+		[ ${interface_save} -eq 1 ] && save ${FUNCNAME} "$@"
 	fi
 
-	[ $FIREQOS_DEBUG -eq 1 -o $FIREQOS_SHOW_MATCHES -eq 1 ] && echo >&2 -e "${COLOR_GREEN}:		${FUNCNAME} $*${COLOR_RESET}"
+	[ ${FIREQOS_DEBUG} -eq 1 -o ${FIREQOS_SHOW_MATCHES} -eq 1 ] && echo >&2 -e "${COLOR_GREEN}:		${FUNCNAME} $*${COLOR_RESET}"
 	
-	local proto=any
-	local port=any
-	local sport=any
-	local dport=any
-	local src=any
-	local dst=any
-	local ip=any
-	local tos=any
-	local mark=
-	local srcmac=any
-	local dstmac=any
-	local class=$class_name
-	local flowid=$class_filters_flowid
-	local ack=0
-	local syn=0
-	local at=
-	local custom=
-	local tcproto=
-	local ipv4=$class_ipv4
-	local ipv6=$class_ipv6
-	local reverse=0
-	local estimator_interval=
-	local estimator_decay=
-	local police_arg= tcproto_arg=
+	local 	proto=any port=any sport=any dport=any src=any dst=any ip=any tos=any mark= \
+		srcmac=any dstmac=any class=${class_name} flowid=${class_filters_flowid} \
+		ack=0 syn=0 at= custom= tcproto= ipv4=${class_ipv4} ipv6=${class_ipv6} \
+		reverse=0 estimator_interval= estimator_decay= police_arg= \
+		prio= limit_rate= t=
 
-	case "$force_ipv" in
+	case "${force_ipv}" in
 		4)
-			local ipv4=1
-			local ipv6=0
+			ipv4=1
+			ipv6=0
 			;;
 		
 		6)
-			local ipv4=0
-			local ipv6=1
+			ipv4=0
+			ipv6=1
 			;;
 			
 		46)
-			local ipv4=1
-			local ipv6=1
+			ipv4=1
+			ipv6=1
 			;;
 	esac
 	
-	while [ ! -z "$1" ]
+	while [ ! -z "${1}" ]
 	do
-		case "$1" in
+		case "${1}" in
 			input|output)
-				local reverse=1
-				[ "$interface_inout" = "$1" ] && local reverse=0
+				reverse=1
+				[ "${interface_inout}" = "${1}" ] && reverse=0
 				;;
 
 			reverse)
-				local reverse=1
+				reverse=1
 				;;
 
 			at)
-				local at="$2"
+				at="$2"
 				shift
 				;;
 			
 			root)
-				local at="root"
+				at="root"
 				;;
 			
 			syn|syns)
-				local syn=1
+				syn=1
 				;;
 				
 			ack|acks)
-				local ack=1
+				ack=1
 				;;
 				
 			arp)
-				local tcproto="$1"
+				tcproto="$1"
 				;;
 				
 			tcp|TCP|udp|UDP|icmp|ICMP|gre|GRE|ipv6|IPv6|all)
-				local proto="$1"
+				proto="$1"
 				;;
 				
 			tos)
-				local tos="${2//,/ }"
+				tos="${2//,/ }"
 				shift
 				;;
 				
 			connmark|connmarks)
-				local mark="${mark} $(mark_value connmark ${2//,/ })"
+				mark="${mark} $(mark_value connmark ${2//,/ })"
 				shift
 				;;
 				
 			mark|marks)
-				local mark="${mark} $(mark_value usermark ${2//,/ })"
+				mark="${mark} $(mark_value usermark ${2//,/ })"
 				shift
 				;;
 				
 			custommark|custommarks)
-				local mark="${mark} $(mark_value $2 ${3//,/ })"
+				mark="${mark} $(mark_value $2 ${3//,/ })"
 				shift 2
 				;;
 				
 			rawmark|rawmarks)
-				local mark="${mark} ${2//,/ }"
+				mark="${mark} ${2//,/ }"
 				shift
 				;;
 				
 			proto|protocol|protocols)
-				local proto="${2//,/ }"
+				proto="${2//,/ }"
 				shift
 				;;
 			
 			port|ports)
-				local port="${2//,/ }"
+				port="${2//,/ }"
 				shift
 				;;
 			
 			sport|sports)
-				local sport="${2//,/ }"
+				sport="${2//,/ }"
 				shift
 				;;
 			
 			dport|dports)
-				local dport="${2//,/ }"
+				dport="${2//,/ }"
 				shift
 				;;
 			
 			src)
-				local src="${2//,/ }"
+				src="${2//,/ }"
 				shift
 				;;
 			
 			dst)
-				local dst="${2//,/ }"
+				dst="${2//,/ }"
 				shift
 				;;
 			
 			prio)
-				local prio="$2"
+				prio="$2"
 				shift
 				;;
 			
 			ip|ips|net|nets|host|hosts)
-				local ip="${2//,/ }"
+				ip="${2//,/ }"
 				shift
 				;;
 			
 			class)
-				local class="$2"
+				class="$2"
 				shift
 				;;
 			
 			flowid)
-				local flowid="$2"
+				flowid="$2"
 				shift
 				;;
 			
 			custom)
-				local custom="$2"
+				custom="$2"
 				shift
 				;;
 				
 			estimator)
-				local estimator_interval="$2"
-				local estimator_decay="$3"
+				estimator_interval="$2"
+				estimator_decay="$3"
 				shift 2
 				;;
 
 			police)
-				local police_arg="$2"
+				police_arg="$2"
 				shift
 				;;
 
 			limit)
-				local limit_rate="`rate2bps $2 $class_rate`"
-				local estimator_interval="500msec"
-				local estimator_decay="1sec"
-				local police_arg="rate $[limit_rate * 8 / 1000]kbit burst 50kb continue"
+				limit_rate="`rate2bps $2 ${class_rate}`"
+				estimator_interval="500msec"
+				estimator_decay="1sec"
+				police_arg="rate $[limit_rate * 8 / 1000]kbit burst 50kb continue"
 				shift
 				;;
 
 			srcmac|smac)
-				local srcmac="${2//,/ }"
-				local srcmac="${srcmac//:/}"
+				srcmac="${2//,/ }"
+				srcmac="${srcmac//:/}"
 				shift
 				;;
 
 			dstmac|dmac)
-				local dstmac="${2//,/ }"
-				local dstmac="${dstmac//:/}"
+				dstmac="${2//,/ }"
+				dstmac="${dstmac//:/}"
 				shift
 				;;
 
@@ -2345,470 +2321,463 @@ match() {
 	
 	if [ -z "${mark}" ]
 	then
-		local mark="any"
+		mark="any"
 	else
-		if [ $interface_inout = input -a -z "${FIREQOS_CONNMARK_RESTORE}" ]
+		if [ ${interface_inout} = input -a -z "${FIREQOS_CONNMARK_RESTORE}" ]
 		then
-			FIREQOS_MARKS_ON_INPUT_USED=$[FIREQOS_MARKS_ON_INPUT_USED + 1]
+			(( FIREQOS_MARKS_ON_INPUT_USED += 1 ))
 		fi
 	fi
 
 	# if reverse, flip src/dst sport/dport
-	if [ $reverse -eq 1 ]
+	if [ ${reverse} -eq 1 ]
 	then
-		local t="$src"
-		local src="$dst"
-		local dst="$t"
+		t="${src}"
+		src="${dst}"
+		dst="${t}"
 
-		local t="$sport"
-		local sport="$dport"
-		local dport="$t"
+		t="${sport}"
+		sport="${dport}"
+		dport="${t}"
 
-		local t="$srcmac"
-		local srcmac="$dstmac"
-		local dstmac="$t"
+		t="${srcmac}"
+		srcmac="${dstmac}"
+		dstmac="${t}"
 	fi
 
-	if [ -z "$prio" ]
+	if [ -z "${prio}" ]
 	then
-		local prio=$((class_matchid * FIREQOS_MATCHES_STEP))
-		class_matchid=$((class_matchid + 1))
+		prio=$((class_matchid * FIREQOS_MATCHES_STEP))
+		(( class_matchid += 1 ))
 	fi
 	
-	local port="$(expand_ports $port)"
-	local sport="$(expand_ports $sport)"
-	local dport="$(expand_ports $dport)"
+	port="$(expand_ports ${port})"
+	sport="$(expand_ports ${sport})"
+	dport="$(expand_ports ${dport})"
 	
-	[ -z "$proto" ]	&& error "Cannot accept empty protocol."		&& return 1
-	[ -z "$port" ]	&& error "Cannot accept empty ports."			&& return 1
-	[ -z "$sport" ]	&& error "Cannot accept empty source ports."		&& return 1
-	[ -z "$dport" ]	&& error "Cannot accept empty destination ports."	&& return 1
-	[ -z "$src" ]	&& error "Cannot accept empty source IPs."		&& return 1
-	[ -z "$dst" ]	&& error "Cannot accept empty destination IPs."		&& return 1
-	[ -z "$ip" ]	&& error "Cannot accept empty IPs."			&& return 1
-	[ -z "$tos" ]	&& error "Cannot accept empty TOS."			&& return 1
-	[ -z "$mark" ]	&& error "Cannot accept empty MARK."			&& return 1
-	[ -z "$srcmac" ] && error "Cannot accept empty source MAC."		&& return 1
-	[ -z "$dstmac" ] && error "Cannot accept empty destination MAC."	&& return 1
+	[ -z "${proto}" ]	&& error "Cannot accept empty protocol."		&& return 1
+	[ -z "${port}" ]	&& error "Cannot accept empty ports."			&& return 1
+	[ -z "${sport}" ]	&& error "Cannot accept empty source ports."		&& return 1
+	[ -z "${dport}" ]	&& error "Cannot accept empty destination ports."	&& return 1
+	[ -z "${src}" ]		&& error "Cannot accept empty source IPs."		&& return 1
+	[ -z "${dst}" ]		&& error "Cannot accept empty destination IPs."		&& return 1
+	[ -z "${ip}" ]		&& error "Cannot accept empty IPs."			&& return 1
+	[ -z "${tos}" ]		&& error "Cannot accept empty TOS."			&& return 1
+	[ -z "${mark}" ]	&& error "Cannot accept empty MARK."			&& return 1
+	[ -z "${srcmac}" ] 	&& error "Cannot accept empty source MAC."		&& return 1
+	[ -z "${dstmac}" ] 	&& error "Cannot accept empty destination MAC."		&& return 1
 	
-	[ ! "$port" = "any" -a ! "$sport" = "any" ]	&& error "Cannot match 'port' and 'sport'." && exit 1
-	[ ! "$port" = "any" -a ! "$dport" = "any" ]	&& error "Cannot match 'port' and 'dport'." && exit 1
-	[ ! "$ip" = "any" -a ! "$src" = "any" ]		&& error "Cannot match 'ip' and 'src'." && exit 1
-	[ ! "$ip" = "any" -a ! "$dst" = "any" ]		&& error "Cannot match 'ip' and 'dst'." && exit 1
+	[ ! "${port}" = "any" -a ! "${sport}" = "any" ]	&& error "Cannot match 'port' and 'sport'." && exit 1
+	[ ! "${port}" = "any" -a ! "${dport}" = "any" ]	&& error "Cannot match 'port' and 'dport'." && exit 1
+	[ ! "${ip}" = "any" -a ! "${src}" = "any" ]	&& error "Cannot match 'ip' and 'src'." && exit 1
+	[ ! "${ip}" = "any" -a ! "${dst}" = "any" ]	&& error "Cannot match 'ip' and 'dst'." && exit 1
 	
-	local device=$interface_realdev
-	local parent="$parent_filters_to"
-	if [ -z "$flowid" ]
+	local device=${interface_realdev}
+	local parent="${parent_filters_to}"
+	if [ -z "${flowid}" ]
 	then
 		error "Please set 'flowid' for match statements above all classes."
 		exit 1
-	elif [ ! "$class" = "$class_name" ]
+	elif [ ! "${class}" = "${class_name}" ]
 	then
 		local c=
-		for c in $interface_classes
+		for c in ${interface_classes}
 		do
-			local cn="`echo $c | $cut_cmd -d '|' -f 1`"
-			local cf="`echo $c | $cut_cmd -d '|' -f 2`"
+			local cn="`echo $c | ${cut_cmd} -d '|' -f 1`"
+			local cf="`echo $c | ${cut_cmd} -d '|' -f 2`"
 			
-			if [ "$class" = "$cn" ]
+			if [ "${class}" = "${cn}" ]
 			then
-				local flowid=$cf
+				local flowid=${cf}
 				break
 			fi
 		done
 		
-		if [ -z "$flowid" ]
+		if [ -z "${flowid}" ]
 		then
-			error "Cannot find class '$class'"
+			error "Cannot find class '${class}'"
 			exit 1
 		fi
 	fi
 	
-	if [ ! -z "$at" ]
+	if [ ! -z "${at}" ]
 	then
-		case "$at" in
+		case "${at}" in
 			root)
-				local parent="$interface_filters_to"
+				local parent="${interface_filters_to}"
 				;;
 
 			*)
 				local c=
-				for c in $interface_classes
+				for c in ${interface_classes}
 				do
-					local cn="`echo $c | $cut_cmd -d '|' -f 1`"
-					local cf="`echo $c | $cut_cmd -d '|' -f 2`"
+					local cn="`echo $c | ${cut_cmd} -d '|' -f 1`"
+					local cf="`echo $c | ${cut_cmd} -d '|' -f 2`"
 					
-					if [ "$class" = "$cn" ]
+					if [ "${class}" = "${cn}" ]
 					then
-						local parent=$cf
+						local parent=${cf}
 						break
 					fi
 				done
 				
-				if [ -z "$parent" ]
+				if [ -z "${parent}" ]
 				then
-					error "Cannot find class '$class'"
+					error "Cannot find class '${class}'"
 					exit 1
 				fi
 				;;
 		esac
 	fi
 	
-	if [ -z "$tcproto" ]
+	if [ -z "${tcproto}" ]
 	then
-		[ $ipv4 -eq 1 ] && local tcproto="$tcproto ip"
-		[ $ipv6 -eq 1 ] && local tcproto="$tcproto ipv6"
+		[ ${ipv4} -eq 1 ] && tcproto="${tcproto} ip"
+		[ ${ipv6} -eq 1 ] && tcproto="${tcproto} ipv6"
 	fi
 	
-	# create all tc filter statements
-	for tcproto_arg in $tcproto
-	do
-		local ipvx=
-		local ether_type=
+	local 	ipvx= ether_type= ack_arg= syn_arg= proto_arg= tcproto_arg= tproto= \
+		pid= tip= mtip= otherip= ip_arg= tsrc= src_arg= tdst= dst_arg= \
+		tport= mtport= otherport= port_arg= mportmask= tsport= sport_arg= tdport= dport_arg= \
+		u32= ttos= tos_arg= tos_value= tos_mask= estimator= police= sm1= sm2= dm1= dm2= \
+		dmac= dmac_arg= smac= smac_arg= tmark= mark_arg=
 
-		case $tcproto_arg in
+	# create all tc filter statements
+	for tcproto_arg in ${tcproto}
+	do
+		ipvx=
+		ether_type=
+
+		case ${tcproto_arg} in
 			ip)
-				local ether_type="0x0800"
+				ether_type="0x0800"
 				;;
 
 			ipv6)
-				local ether_type="0x86DD"
-				local ipvx="6"
+				ether_type="0x86DD"
+				ipvx="6"
 				;;
 
 			*)
 		esac
 		
-		local tproto=
-		for tproto in $proto
-		do
-			local ack_arg=
-			local syn_arg=
-			local proto_arg=
-			case $tproto in
-				any)	;;
+	for tproto in $proto
+	do
+		ack_arg=
+		syn_arg=
+		proto_arg=
+		case ${tproto} in
+			any)	;;
+			
+			all)
+				proto_arg="match ip${ipvx} protocol 0 0x00"
+				;;
+			
+			ipv6|IPv6)
+				proto_arg="match ip${ipvx} protocol 41 0xff"
+				;;
+					
+			icmp|ICMP)
+				if [ "${ipvx}" = "6" ]
+				then
+					proto_arg="match ip${ipvx} protocol 58 0xff"
+				else
+					proto_arg="match ip${ipvx} protocol 1 0xff"
+				fi
+				;;
+					
+			tcp|TCP)
+				proto_arg="match ip${ipvx} protocol 6 0xff"
 				
-				all)
-					local proto_arg="match ip$ipvx protocol 0 0x00"
-					;;
-				
-				ipv6|IPv6)
-					local proto_arg="match ip$ipvx protocol 41 0xff"
-					;;
-						
-				icmp|ICMP)
-					if [ "$ipvx" = "6" ]
+				# http://www.lartc.org/lartc.html#LARTC.ADV-FILTER
+				if [ ${ack} -eq 1 ]
+				then
+					if [ "${ipvx}" = "6" ]
 					then
-						local proto_arg="match ip$ipvx protocol 58 0xff"
+						ack_arg="match u8 0x10 0xff at nexthdr+13"
+						error "I don't know how to match ACKs in ipv6"
+						exit 1
 					else
-						local proto_arg="match ip$ipvx protocol 1 0xff"
+						ack_arg="match u8 0x05 0x0f at 0 match u16 0x0000 0xffc0 at 2 match u8 0x10 0xff at 33"
 					fi
-					;;
+				fi
+				
+				if [ ${syn} -eq 1 ]
+				then
+					if [ "${ipvx}" = "6" ]
+					then
+						# I figured this out, based on the ACK match
+						syn_arg="match u8 0x02 0x02 at nexthdr+13"
 						
-				tcp|TCP)
-					local proto_arg="match ip$ipvx protocol 6 0xff"
-					
-					# http://www.lartc.org/lartc.html#LARTC.ADV-FILTER
-					if [ $ack -eq 1 ]
-					then
-						if [ "$ipvx" = "6" ]
-						then
-							local ack_arg="match u8 0x10 0xff at nexthdr+13"
-							error "I don't know how to match ACKs in ipv6"
-							exit 1
-						else
-							local ack_arg="match u8 0x05 0x0f at 0 match u16 0x0000 0xffc0 at 2 match u8 0x10 0xff at 33"
-						fi
+						error "I don't know how to match SYNs in ipv6"
+						exit 1
+					else
+						# I figured this out, based on the ACK match
+						syn_arg="match u8 0x02 0x02 at 33"
 					fi
-					
-					if [ $syn -eq 1 ]
-					then
-						if [ "$ipvx" = "6" ]
-						then
-							# I figured this out, based on the ACK match
-							local syn_arg="match u8 0x02 0x02 at nexthdr+13"
-							
-							error "I don't know how to match SYNs in ipv6"
-							exit 1
-						else
-							# I figured this out, based on the ACK match
-							local syn_arg="match u8 0x02 0x02 at 33"
-						fi
-					fi
-					;;
-				
-				udp|UDP)
-					local proto_arg="match ip$ipvx protocol 17 0xff"
-					;;
-				
-				gre|GRE)
-					local proto_arg="match ip$ipvx protocol 47 0xff"
-					;;
-
-				+([0-9]))
-					local proto_arg="match ip$ipvx protocol $tproto 0xff"
-					;;
-				
-				*)	local pid=`$cat_cmd /etc/protocols | $egrep_cmd -i "^$tproto[[:space:]]" | tail -n 1 | $sed_cmd "s/[[:space:]]\+/ /g" | $cut_cmd -d ' ' -f 2`
-					if [ -z "$pid" ]
-					then
-						error "Cannot find protocol '$tproto' in /etc/protocols."
-						return 1
-					fi
-					local proto_arg="match ip$ipvx protocol $pid 0xff"
-					;;
-			esac
+				fi
+				;;
 			
-			local tip=
-			local mtip=src
-			local otherip="dst $ip"
-			[ "$ip" = "any" ] && local otherip=
-			for tip in $ip $otherip
-			do
-				[ "$tip" = "dst" ] && local mtip="dst" && continue
-				
-				local ip_arg=
-				case "$tip" in
-					any)
-						;;
-					
-					all)
-						local ip_arg="match ip$ipvx $mtip 0.0.0.0/0"
-						;;
-					
-					*)	local ip_arg="match ip$ipvx $mtip $tip"
-						;;
-				esac
-				
-				local tsrc=
-				for tsrc in $src
-				do
-					local src_arg=
-					case "$tsrc" in
-						any)	;;
-						
-						all)
-							local src_arg="match ip$ipvx src 0.0.0.0/0"
-							;;
-						
-						*)	local src_arg="match ip$ipvx src $tsrc"
-							;;
-					esac
-					
-					local tdst=
-					for tdst in $dst
-					do
-						local dst_arg=
-						case "$tdst" in
-							any)	;;
-							
-							all)	local dst_arg="match ip$ipvx dst 0.0.0.0/0"
-								;;
-								
-							*)	local dst_arg="match ip$ipvx dst $tdst"
-								;;
-						esac
-						
-						local tport=
-						local mtport=sport
-						local otherport="dport $port"
-						[ "$port" = "any" ] && local otherport=
-						for tport in $port $otherport
-						do
-							[ "$tport" = "dport" ] && local mtport="dport" && continue
-							
-							local port_arg=
-							case "$tport" in
-								any)	;;
-								
-								all)	local port_arg="match ip$ipvx $mtport 0 0x0000"
-									;;
-								
-								*)	local mportmask=`echo $tport | $tr_cmd "/" " "`
-									local port_arg="match ip$ipvx $mtport $mportmask"
-									;;
-							esac
-							
-							local tsport=
-							for tsport in $sport
-							do
-								local sport_arg=
-								case "$tsport" in
-									any)	;;
-									
-									all)	local sport_arg="match ip$ipvx sport 0 0x0000"
-										;;
-									
-									*)	local mportmask=`echo $tsport | $tr_cmd "/" " "`
-										local sport_arg="match ip$ipvx sport $mportmask"
-										;;
-								esac
-							
-								local tdport=
-								for tdport in $dport
-								do
-									local dport_arg=
-									case "$tdport" in
-										any)	;;
-										
-										all)	local dport_arg="match ip$ipvx dport 0 0x0000"
-											;;
-										
-										*)	local mportmask=`echo $tdport | $tr_cmd "/" " "`
-											local dport_arg="match ip$ipvx dport $mportmask"
-											;;
-									esac
-								
-									local ttos=
-									for ttos in $tos
-									do
-										local tos_arg=
-										local tos_value=
-										local tos_mask=
-										case "$ttos" in
-											any)	;;
-											
-											lowdelay|min-delay|minimize-delay|minimum-delay|low-delay|interactive)
-												local tos_value="0x10"
-												local tos_mask="0x10"
-												;;
-												
-											throughput|maximize-throughput|maximum-throughput|max-throughput|high-throughput|bulk)
-												local tos_value="0x08"
-												local tos_mask="0x08"
-												;;
-												
-											reliability|maximize-reliability|maximum-reliability|max-reliability|reliable)
-												local tos_value="0x04"
-												local tos_mask="0x04"
-												;;
-												
-											mincost|min-cost|minimize-cost|minimum-cost|low-cost|cheap)
-												local tos_value="0x02"
-												local tos_mask="0x02"
-												;;
-												
-											normal|normal-service)
-												local tos_value="0x00"
-												local tos_mask="0x1e"
-												;;
-												
-											all)
-												local tos_value="0x00"
-												local tos_mask="0x00"
-												;;
-											
-											*)
-												local tos_value="`echo "$ttos/" | $cut_cmd -d '/' -f 1`"
-												local tos_mask="`echo "$ttos/" | $cut_cmd -d '/' -f 2`"
-												[ -z "$tos_mask" ] && local tos_mask="0xff"
-												
-												if [ -z "$tos_value" ]
-												then
-													error "Empty TOS value is not allowed."
-													exit 1
-												fi
-												;;
-										esac
-										if [ ! -z "$tos_value" -a ! -z "$tos_mask" ]
-										then
-											if [ "$ipvx" = "6" ]
-											then
-												local tos_arg="match ip6 priority $tos_value $tos_mask"
-											else
-												local tos_arg="match ip tos $tos_value $tos_mask"
-											fi
-										fi
-										
-										local tmark=
-										for tmark in $mark
-										do
-											# http://mailman.ds9a.nl/pipermail/lartc/2007q3/021364.html
-											local mark_arg=
-											case "$tmark" in
-												any)	;;
-												*)
-													# local mark_arg="handle $tmark fw"
-													local mark_arg="u32 match mark ${tmark//\// }"
-													;;
-											esac
-											
-											local smac=
-											for smac in $srcmac
-											do
-												local smac_arg=
-												if [ ! "$smac" = "any" ]
-												then
-													local sm1=`echo "$smac" | cut -b 1-8`
-													local sm2=`echo "$smac" | cut -b 9-12`
-													local smac_arg="u32"
-													test ! -z "$ether_type" && local smac_arg="$smac_arg match u16 $ether_type 0xFFFF at -2"
-													local smac_arg="$smac_arg match u16 0x$sm2 0xFFFF at -4 match u32 0x$sm1 0xFFFFFFFF at -8"
-												fi
-
-												local dmac=
-												for dmac in $dstmac
-												do
-													local dmac_arg=
-													if [ ! "$dmac" = "any" ]
-													then
-														local dm1=`echo "$dmac" | cut -b 1-4`
-														local dm2=`echo "$dmac" | cut -b 5-12`
-														local dmac_arg="u32"
-														test ! -z "$ether_type" && local dmac_arg="$dmac_arg match u16 $ether_type 0xFFFF at -2"
-														local dmac_arg="$dmac_arg match u32 0x$dm2 0xFFFFFFFF at -12 match u16 0x$dm1 0xFFFF at -14"
-													fi
-
-													if [ "$tcproto_arg" = "arp" ]
-													then
-														local u32="u32 match u32 0 0"
-													else
-														local u32="u32"
-														[ -z "$proto_arg$ip_arg$src_arg$dst_arg$port_arg$sport_arg$dport_arg$tos_arg$ack_arg$syn_arg" ] && local u32=
-													fi
-													
-													# [ ! -z "$u32" -a ! -z "$mark_arg" ] && local mark_arg="and $mark_arg"
-													
-													local estimator=
-													if [ ! -z "$estimator_interval" -a ! -z "$estimator_decay" ]
-													then
-														local estimator="estimator $estimator_interval $estimator_decay"
-													fi
-													local police=
-													if [ ! -z "$police_arg" ]
-													then
-														local police="police $police_arg"
-													fi
-
-													tc filter add \
-														dev $device parent $parent protocol $tcproto_arg prio $prio \
-														$estimator \
-														$u32 \
-														$proto_arg $ip_arg $src_arg $dst_arg $port_arg $sport_arg $dport_arg $tos_arg $ack_arg $syn_arg $mark_arg \
-														$smac_arg \
-														$dmac_arg \
-														$custom \
-														flowid $flowid \
-														$police
-
-												done # dstmac
-											done # srcmac
-
-										done # mark
-									done # tos
-								
-								done # dport
-							done # sport
-						done # port
-						
-					done # dst
-				done # src
-			done # ip
+			udp|UDP)
+				proto_arg="match ip${ipvx} protocol 17 0xff"
+				;;
 			
-		done # proto
+			gre|GRE)
+				proto_arg="match ip${ipvx} protocol 47 0xff"
+				;;
+
+			+([0-9]))
+				proto_arg="match ip${ipvx} protocol ${tproto} 0xff"
+				;;
+			
+			*)	pid=`${cat_cmd} /etc/protocols | ${egrep_cmd} -i "^${tproto}[[:space:]]" | tail -n 1 | ${sed_cmd} "s/[[:space:]]\+/ /g" | ${cut_cmd} -d ' ' -f 2`
+				if [ -z "${pid}" ]
+				then
+					error "Cannot find protocol '${tproto}' in /etc/protocols."
+					return 1
+				fi
+				proto_arg="match ip${ipvx} protocol ${pid} 0xff"
+				;;
+		esac
+			
+	mtip=src
+	otherip="dst ${ip}"
+	[ "${ip}" = "any" ] && otherip=
+	for tip in ${ip} ${otherip}
+	do
+		[ "${tip}" = "dst" ] && mtip="dst" && continue
 		
-		# increase the counter between tc protocols
-		local prio=$((prio + 1))
+		ip_arg=
+		case "${tip}" in
+			any)
+				;;
+			
+			all)
+				ip_arg="match ip${ipvx} $mtip 0.0.0.0/0"
+				;;
+			
+			*)	ip_arg="match ip${ipvx} ${mtip} ${tip}"
+				;;
+		esac
+				
+	for tsrc in ${src}
+	do
+		src_arg=
+		case "${tsrc}" in
+			any)	;;
+			
+			all)
+				src_arg="match ip${ipvx} src 0.0.0.0/0"
+				;;
+			
+			*)	src_arg="match ip${ipvx} src ${tsrc}"
+				;;
+		esac
+		
+	for tdst in ${dst}
+	do
+		dst_arg=
+		case "${tdst}" in
+			any)	;;
+			
+			all)	dst_arg="match ip${ipvx} dst 0.0.0.0/0"
+				;;
+				
+			*)	dst_arg="match ip${ipvx} dst ${tdst}"
+				;;
+		esac
+		
+	mtport=sport
+	otherport="dport ${port}"
+	[ "${port}" = "any" ] && otherport=
+	for tport in ${port} ${otherport}
+	do
+		[ "${tport}" = "dport" ] && mtport="dport" && continue
+		
+		port_arg=
+		case "${tport}" in
+			any)	;;
+			
+			all)	port_arg="match ip${ipvx} ${mtport} 0 0x0000"
+				;;
+			
+			*)	mportmask=`echo ${tport} | ${tr_cmd} "/" " "`
+				port_arg="match ip${ipvx} ${mtport} ${mportmask}"
+				;;
+		esac
+		
+	for tsport in ${sport}
+	do
+		sport_arg=
+		case "$tsport" in
+			any)	;;
+			
+			all)	sport_arg="match ip${ipvx} sport 0 0x0000"
+				;;
+			
+			*)	mportmask=`echo ${tsport} | ${tr_cmd} "/" " "`
+				sport_arg="match ip${ipvx} sport ${mportmask}"
+				;;
+		esac
+							
+	for tdport in $dport
+	do
+		dport_arg=
+		case "${tdport}" in
+			any)	;;
+			
+			all)	dport_arg="match ip${ipvx} dport 0 0x0000"
+				;;
+			
+			*)	mportmask=`echo ${tdport} | $tr_cmd "/" " "`
+				dport_arg="match ip${ipvx} dport ${mportmask}"
+				;;
+		esac
+								
+	for ttos in ${tos}
+	do
+		tos_arg=
+		tos_value=
+		tos_mask=
+		case "${ttos}" in
+			any)	;;
+			
+			lowdelay|min-delay|minimize-delay|minimum-delay|low-delay|interactive)
+				tos_value="0x10"
+				tos_mask="0x10"
+				;;
+				
+			throughput|maximize-throughput|maximum-throughput|max-throughput|high-throughput|bulk)
+				tos_value="0x08"
+				tos_mask="0x08"
+				;;
+				
+			reliability|maximize-reliability|maximum-reliability|max-reliability|reliable)
+				tos_value="0x04"
+				tos_mask="0x04"
+				;;
+				
+			mincost|min-cost|minimize-cost|minimum-cost|low-cost|cheap)
+				tos_value="0x02"
+				tos_mask="0x02"
+				;;
+				
+			normal|normal-service)
+				tos_value="0x00"
+				tos_mask="0x1e"
+				;;
+				
+			all)
+				tos_value="0x00"
+				tos_mask="0x00"
+				;;
+			
+			*)
+				tos_value="`echo "${ttos}/" | ${cut_cmd} -d '/' -f 1`"
+				tos_mask="`echo "${ttos}/" | ${cut_cmd} -d '/' -f 2`"
+				[ -z "${tos_mask}" ] && tos_mask="0xff"
+				
+				if [ -z "${tos_value}" ]
+				then
+					error "Empty TOS value is not allowed."
+					exit 1
+				fi
+				;;
+		esac
+		if [ ! -z "${tos_value}" -a ! -z "${tos_mask}" ]
+		then
+			if [ "$ipvx" = "6" ]
+			then
+				tos_arg="match ip6 priority ${tos_value} ${tos_mask}"
+			else
+				tos_arg="match ip tos ${tos_value} ${tos_mask}"
+			fi
+		fi
+										
+	for tmark in ${mark}
+	do
+		# http://mailman.ds9a.nl/pipermail/lartc/2007q3/021364.html
+		mark_arg=
+		case "${tmark}" in
+			any)	;;
+			*)
+				# mark_arg="handle $tmark fw"
+				mark_arg="u32 match mark ${tmark//\// }"
+				;;
+		esac
+		
+	for smac in ${srcmac}
+	do
+		smac_arg=
+		if [ ! "${smac}" = "any" ]
+		then
+			sm1=`echo "${smac}" | cut -b 1-8`
+			sm2=`echo "${smac}" | cut -b 9-12`
+			smac_arg="u32"
+			test ! -z "${ether_type}" && smac_arg="${smac_arg} match u16 ${ether_type} 0xFFFF at -2"
+			smac_arg="${smac_arg} match u16 0x${sm2} 0xFFFF at -4 match u32 0x${sm1} 0xFFFFFFFF at -8"
+		fi
+
+	for dmac in ${dstmac}
+	do
+		dmac_arg=
+		if [ ! "${dmac}" = "any" ]
+		then
+			dm1=`echo "${dmac}" | cut -b 1-4`
+			dm2=`echo "${dmac}" | cut -b 5-12`
+			dmac_arg="u32"
+			test ! -z "${ether_type}" && dmac_arg="${dmac_arg} match u16 ${ether_type} 0xFFFF at -2"
+			dmac_arg="${dmac_arg} match u32 0x${dm2} 0xFFFFFFFF at -12 match u16 0x${dm1} 0xFFFF at -14"
+		fi
+
+	if [ "${tcproto_arg}" = "arp" ]
+	then
+		u32="u32 match u32 0 0"
+	else
+		u32="u32"
+		[ -z "${proto_arg}${ip_arg}${src_arg}${dst_arg}${port_arg}${sport_arg}${dport_arg}${tos_arg}${ack_arg}${syn_arg}" ] && u32=
+	fi
+	
+	# [ ! -z "${u32}" -a ! -z "${mark_arg}" ] && mark_arg="and ${mark_arg}"
+	
+	estimator=
+	if [ ! -z "${estimator_interval}" -a ! -z "${estimator_decay}" ]
+	then
+		estimator="estimator ${estimator_interval} ${estimator_decay}"
+	fi
+
+	police=
+	if [ ! -z "${police_arg}" ]
+	then
+		police="police ${police_arg}"
+	fi
+
+	tc filter add \
+		dev ${device} parent ${parent} protocol ${tcproto_arg} prio ${prio} \
+		${estimator} \
+		${u32} \
+		${proto_arg} ${ip_arg} ${src_arg} ${dst_arg} ${port_arg} ${sport_arg} ${dport_arg} ${tos_arg} ${ack_arg} ${syn_arg} ${mark_arg} \
+		${smac_arg} \
+		${dmac_arg} \
+		${custom} \
+		flowid ${flowid} \
+		${police}
+
+	done # dstmac
+	done # srcmac
+	done # mark
+	done # tos
+	done # dport
+	done # sport
+	done # port
+	done # dst
+	done # src
+	done # ip
+	done # proto
+	
+	# increase the counter between tc protocols
+	(( prio += 1 ))
+
 	done # tcproto (ipv4, ipv6)
 	
 	return 0
@@ -2822,37 +2791,37 @@ clear_everything() {
 	echo >&2 
 	
 	# remove all qdiscs from all interfaces
-	for iface in `ls $FIREQOS_DIR/ifaces/ 2>/dev/null`
+	for iface in `ls ${FIREQOS_DIR}/ifaces/ 2>/dev/null`
 	do
 		printf >&2 " %16.16s: " $iface
 		echo >&2 "cleared traffic control"
 		
 		# remove existing qdisc from all devices
-		runcmd $tc_cmd qdisc del dev $iface ingress >/dev/null 2>&1
-		runcmd $tc_cmd qdisc del dev $iface root >/dev/null 2>&1
-		$rm_cmd "$FIREQOS_DIR/ifaces/$iface"
+		runcmd ${tc_cmd} qdisc del dev ${iface} ingress >/dev/null 2>&1
+		runcmd ${tc_cmd} qdisc del dev ${iface} root >/dev/null 2>&1
+		$rm_cmd "${FIREQOS_DIR}/ifaces/${iface}"
 	done
 	
 	# remove all FireQOS IFB devices
-	for iface in `ls $FIREQOS_DIR/ifbs/ 2>/dev/null`
+	for iface in `ls ${FIREQOS_DIR}/ifbs/ 2>/dev/null`
 	do
-		printf >&2 " %16.16s: " $iface
+		printf >&2 " %16.16s: " ${iface}
 		echo >&2 "removed IFB device"
 		
-		runcmd $ip_cmd link del dev $iface name $iface type ifb >/dev/null 2>&1
-		$rm_cmd "$FIREQOS_DIR/ifbs/$iface"
+		runcmd ${ip_cmd} link del dev ${iface} name ${iface} type ifb >/dev/null 2>&1
+		${rm_cmd} "${FIREQOS_DIR}/ifbs/${iface}"
 	done
 	
 	for iface in `fireqos_active_interfaces`
 	do
-		printf >&2 " %16.16s: " $iface
+		printf >&2 " %16.16s: " ${iface}
 		echo >&2 "cleared status info"
 		
-		$rm_cmd $FIREQOS_DIR/$iface.conf
+		$rm_cmd ${FIREQOS_DIR}/${iface}.conf
 	done
 	
 	echo >&2 
-	syslog error "Cleared all FireQOS changes on interface '$interface_realdev'"
+	syslog error "Cleared all FireQOS changes on interface '${interface_realdev}'"
 	
 	return 0
 }
@@ -2863,26 +2832,26 @@ clear_all_qos_on_all_interfaces() {
 	echo >&2 
 	
 	local dev=
-	for dev in `$cat_cmd /proc/net/dev | $grep_cmd ':' |  $cut_cmd -d ':' -f 1 | $sed_cmd "s/ //g" | $grep_cmd -v "^lo$"`
+	for dev in `${cat_cmd} /proc/net/dev | ${grep_cmd} ':' |  ${cut_cmd} -d ':' -f 1 | ${sed_cmd} "s/ //g" | ${grep_cmd} -v "^lo$"`
 	do
-		printf >&2 " %16.16s: " $dev
+		printf >&2 " %16.16s: " ${dev}
 		echo >&2 "cleared traffic control"
 
 		# remove existing qdisc from all devices
-		tc ignore-error qdisc del dev $dev ingress >/dev/null 2>&1
-		tc ignore-error qdisc del dev $dev root >/dev/null 2>&1
+		tc ignore-error qdisc del dev ${dev} ingress >/dev/null 2>&1
+		tc ignore-error qdisc del dev ${dev} root >/dev/null 2>&1
 	done
 	
 	echo >&2
 	rmmod ifb 2>/dev/null
 	echo >&2 " - removed all IFB devices"
 	
-	if [ -d $FIREQOS_DIR ]
+	if [ -d ${FIREQOS_DIR} ]
 	then
-		cd $FIREQOS_DIR
+		cd ${FIREQOS_DIR}
 		if [ $? -eq 0 ]
 		then
-			$rm_cmd interfaces *.conf 2>/dev/null
+			${rm_cmd} interfaces *.conf 2>/dev/null
 		fi
 		echo >&2 " - cleared FireQOS status"
 	fi
@@ -2901,7 +2870,7 @@ check_root() {
 }
 
 show_interfaces() {
-	if [ -d $FIREQOS_DIR ]
+	if [ -d ${FIREQOS_DIR} ]
 	then
 		echo >&2
 		echo >&2 "The following interfaces are available:"
@@ -2912,30 +2881,24 @@ show_interfaces() {
 	fi
 }
 
-FIREQOS_STATS_ID="stats.$$.$RANDOM"
+FIREQOS_STATS_ID="stats.$$.${RANDOM}"
 cleanup_stats() {
 	local x=
-	for x in `ls $FIREQOS_DIR/$FIREQOS_STATS_ID.* 2>/dev/null`
+	for x in `ls ${FIREQOS_DIR}/${FIREQOS_STATS_ID}.* 2>/dev/null`
 	do
-		$rm_cmd $x
+		${rm_cmd} ${x}
 	done
 }
 
 stats_colors() {
-		local drops="$1"
-		local overlimits="$2"
-		local requeues="$3"
-		local backlog="$4"
-		
-		local fcolor=
-		local bcolor=
-		
-		[ $((backlog))    -gt 0 ] && local fcolor="${COLOR_BOLD}${COLOR_YELLOW}"
-		[ $((requeues))   -gt 0 ] && local bcolor="${COLOR_BGBLUE}"
-		[ $((overlimits)) -gt 0 ] && local bcolor="${COLOR_BGPURPLE}"
-		[ $((drops))      -gt 0 ] && local bcolor="${COLOR_BGRED}"
-		
-		echo -e -n "$fcolor$bcolor"
+	local drops="${1}" overlimits="${2}" requeues="${3}" backlog="${4}" fcolor= bcolor=
+	
+	[ $((backlog))    -gt 0 ] && fcolor="${COLOR_BOLD}${COLOR_YELLOW}"
+	[ $((requeues))   -gt 0 ] && bcolor="${COLOR_BGBLUE}"
+	[ $((overlimits)) -gt 0 ] && bcolor="${COLOR_BGPURPLE}"
+	[ $((drops))      -gt 0 ] && bcolor="${COLOR_BGRED}"
+	
+	echo -e -n "${fcolor}${bcolor}"
 }
 
 htb_stats() {
@@ -2963,53 +2926,52 @@ htb_stats() {
 	source "${FIREQOS_DIR}/$2.conf" || exit 1
 	
 	# create the awk file to parse tc output
-	local title="UNSET"
-	local unit="Unknown/s"
-	local maxn="0"
-	local show_speeds=0
-	case "$1" in
+	local 	title="UNSET" unit="Unknown/s" maxn="0" show_speeds=0 resolution=1 show_speeds=0 show=TCDROPS \
+		awk_script= number_digits= round= banner_every_lines=20 d= s= n= startedms=0 endedms=0
+
+	case "${1}" in
 		drops|dropped)
-			local title="Packet Drops"
-			local resolution=1
-			local unit="packets/s"
-			local maxn=99999
-			local show_speeds=0
-			local show=TCDROPS
+			title="Packet Drops"
+			resolution=1
+			unit="packets/s"
+			maxn=99999
+			show_speeds=0
+			show=TCDROPS
 			;;
 		
 		overlimits|over)
-			local title="Packet Overlimits"
-			local resolution=1
-			local unit="packets/s"
-			local maxn=99999
-			local show_speeds=0
-			local show=TCOVERS
+			title="Packet Overlimits"
+			resolution=1
+			unit="packets/s"
+			maxn=99999
+			show_speeds=0
+			show=TCOVERS
 			;;
 		
 		requeues)
-			local title="Packet Requeues"
-			local resolution=1
-			local unit="packets/s"
-			local maxn=99999
-			local show_speeds=0
-			local show=TCREQUEUES
+			title="Packet Requeues"
+			resolution=1
+			unit="packets/s"
+			maxn=99999
+			show_speeds=0
+			show=TCREQUEUES
 			;;
 		
 		status)
-			local title="Class Utilization"
-			local show_speeds=1
-			local show=TCSTATS
+			title="Class Utilization"
+			show_speeds=1
+			show=TCSTATS
 			
 			# pick the right unit for this interface (bit/s, Kbit, Mbit)
-			local resolution=1
-			[ $((interface_rate * 8)) -gt $((100 * 1000)) ] && local resolution=1000
-			[ $((interface_rate * 8)) -gt $((200 * 1000000)) ] && local resolution=1000000
+			resolution=1
+			[ $((interface_rate * 8)) -gt $((100 * 1000)) ] && resolution=1000
+			[ $((interface_rate * 8)) -gt $((200 * 1000000)) ] && resolution=1000000
 			
-			local unit="bits/s"
-			[ $resolution = 1000 ] && local unit="Kbit/s"
-			[ $resolution = 1000000 ] && local unit="Mbit/s"
+			unit="bits/s"
+			[ ${resolution} = 1000 ] && unit="Kbit/s"
+			[ ${resolution} = 1000000 ] && unit="Mbit/s"
 			
-			local maxn="$(( interface_rate * 8 / resolution * 120 / 100))"
+			maxn="$(( interface_rate * 8 / resolution * 120 / 100))"
 			;;
 		
 		*)
@@ -3019,7 +2981,7 @@ htb_stats() {
 	esac
 	shift
 	
-	cat >$FIREQOS_DIR/$FIREQOS_STATS_ID.stats.awk <<EOF || exit 1
+	cat >${FIREQOS_DIR}/${FIREQOS_STATS_ID}.stats.awk <<EOF || exit 1
 {
 	if( \$2 == "htb" ) {
 		value = \$13;
@@ -3048,27 +3010,22 @@ htb_stats() {
 	}
 }
 EOF
-	local awk_script="`cat $FIREQOS_DIR/$FIREQOS_STATS_ID.stats.awk`"
-	$rm_cmd $FIREQOS_DIR/$FIREQOS_STATS_ID.stats.awk
+	awk_script="`cat ${FIREQOS_DIR}/${FIREQOS_STATS_ID}.stats.awk`"
+	$rm_cmd ${FIREQOS_DIR}/${FIREQOS_STATS_ID}.stats.awk
 	
 	# attempt to shrink the list horizontally
 	# find how many digits we need
-	local number_digits=${#maxn}
-	local number_digits=$((number_digits + 1))
-	[ $number_digits -lt 6 ] && local number_digits=6
+	number_digits=${#maxn}
+	number_digits=$((number_digits + 1))
+	[ ${number_digits} -lt 6 ] && number_digits=6
 	
 	# find what number we have to add, to round to closest number
 	# instead of round down (the only available in shell).
-	local round=0
-	if [ ${resolution} -gt 1 ]
-	then
-		local round=$((resolution / 2))
-	fi
-	
-	local banner_every_lines=20
+	round=0
+	[ ${resolution} -gt 1 ] && round=$((resolution / 2))
 	
 	getdata() {
-		eval "`$tc_cmd -s class show dev ${1} | $tr_cmd "\n,()" "|   " | $sed_cmd \
+		eval "`${tc_cmd} -s class show dev ${1} | ${tr_cmd} "\n,()" "|   " | ${sed_cmd} \
 			-e "s/ \+/ /g"				\
 			-e "s/ *| */|/g"			\
 			-e "s/||/\n/g"				\
@@ -3084,13 +3041,13 @@ EOF
 			-e "s/ root / /g"			\
 			-e "s/ parent [0-9]*_[0-9]* / /g"	\
 			-e "s/ leaf [0-9]*_[0-9]* / /g"	|\
-			$awk_cmd "$awk_script"`"
+			${awk_cmd} "${awk_script}"`"
 	}
 	
 	getms() {
-		local d=`date +'%s.%N'`
-		local s=`echo $d | $cut_cmd -d '.' -f 1`
-		local n=`echo $d | $cut_cmd -d '.' -f 2 | $cut_cmd -b 1-3`
+		d=`date +'%s.%N'`
+		s=`echo ${d} | ${cut_cmd} -d '.' -f 1`
+		n=`echo ${d} | ${cut_cmd} -d '.' -f 2 | ${cut_cmd} -b 1-3`
 		if [ ${FIREQOS_LOWRES_TIMER} -eq 1 ]
 		then
 			n=000
@@ -3098,12 +3055,10 @@ EOF
 		echo "${s}${n}"
 	}
 	
-	local startedms=0
 	starttime() {
 		startedms=`getms`
 	}
 	
-	local endedms=0
 	endtime() {
 		endedms=`getms`
 	}
