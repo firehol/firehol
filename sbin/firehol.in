@@ -1878,6 +1878,8 @@ init_namespace() {
 	FIREHOL_NS_CURR=${FIREHOL_DEFAULT_NAMESPACE}
 }
 
+init_namespace
+
 push_namespace() {
 	if [ "$1" != "ipv4" -a "$1" != "ipv6" -a "$1" != "both" ]
 	then
