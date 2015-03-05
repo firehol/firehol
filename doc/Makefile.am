@@ -14,8 +14,12 @@ MANUAL_LINKS = \
 	links-website-firehol \
 	links-website-fireqos
 
+if ENABLE_DOC
+
 MANUAL_CSS = \
         firehol-manual.css
+
+endif
 
 MANUAL_TOOLS = \
 	tools/check-links \
