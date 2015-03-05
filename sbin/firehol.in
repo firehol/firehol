@@ -259,6 +259,31 @@ then
 	ENABLE_IPV6=0
 fi
 
+# Keep information about the current namespace: ipv4, ipv6 or both
+FIREHOL_NS_STACK=
+FIREHOL_NS_CURR=
+FIREHOL_DEFAULT_NAMESPACE=
+
+init_namespace() {
+	[ ! -z "${FIREHOL_NS_CURR}" ] && return 0
+
+	if [ $ENABLE_IPV4 -eq 1 -a $ENABLE_IPV6 -eq 1 ]
+	then
+		FIREHOL_DEFAULT_NAMESPACE="both"
+
+	elif [ $ENABLE_IPV4 -eq 1 ]
+	then
+		FIREHOL_DEFAULT_NAMESPACE="ipv4"
+	else
+		FIREHOL_DEFAULT_NAMESPACE="ipv6"
+	fi
+
+	FIREHOL_NS_STACK=${FIREHOL_DEFAULT_NAMESPACE}
+	FIREHOL_NS_CURR=${FIREHOL_DEFAULT_NAMESPACE}
+}
+
+init_namespace
+
 # Special commands
 pager_cmd() {
 	if [ -z "${LESS_CMD}" ]
@@ -968,29 +993,6 @@ FIREHOL_TRY=0
 FIREHOL_CONF_SHOW=1
 
 # ------------------------------------------------------------------------------
-# Keep information about the current namespace: ipv4, ipv6 or both
-FIREHOL_NS_STACK=
-FIREHOL_NS_CURR=
-FIREHOL_DEFAULT_NAMESPACE=
-
-init_namespace() {
-	[ ! -z "${FIREHOL_NS_CURR}" ] && return 0
-
-	if [ $ENABLE_IPV4 -eq 1 -a $ENABLE_IPV6 -eq 1 ]
-	then
-		FIREHOL_DEFAULT_NAMESPACE="both"
-
-	elif [ $ENABLE_IPV4 -eq 1 ]
-	then
-		FIREHOL_DEFAULT_NAMESPACE="ipv4"
-	else
-		FIREHOL_DEFAULT_NAMESPACE="ipv6"
-	fi
-
-	FIREHOL_NS_STACK=${FIREHOL_DEFAULT_NAMESPACE}
-	FIREHOL_NS_CURR=${FIREHOL_DEFAULT_NAMESPACE}
-}
-
 peek_namespace() {
 	local ns=$(echo $FIREHOL_NS_STACK | cut -f1 -d:)
 	if [ "$ns" = "" ]
