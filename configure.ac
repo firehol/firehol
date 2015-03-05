@@ -15,6 +15,11 @@ AC_PROG_MAKE_SET
 AX_FIREHOL_AUTOSAVE()
 AX_FIREHOL_AUTOSAVE6()
 
+AC_ARG_ENABLE([doc],
+              [AS_HELP_STRING([--disable-doc], [disable doc installation @<:@enabled@:>@])],
+              ,
+              [enable_doc="yes"])
+
 if test x"$USE_MAINTAINER_MODE" = xyes; then
 AC_MSG_NOTICE(***************** MAINTAINER MODE *****************)
 PACKAGE_BUILT_DATE=$(date '+%d %b %Y')
@@ -87,6 +92,8 @@ AC_CHECK_PROG([ZCAT_CMD], [zcat], [zcat])
 AC_CHECK_PROG([ZCAT_CMD], [gzcat], [gzcat])
 AC_CHECK_PROG([ZCAT_CMD], [gunzip], [gunzip -c])
 AX_NEED_PROG([ZCAT_CMD], [gzip], [gzip -d -c])
+
+AM_CONDITIONAL([ENABLE_DOC], [test "${enable_doc}" = "yes"])
 
 AC_CONFIG_FILES([
 	Makefile

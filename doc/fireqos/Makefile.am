@@ -94,11 +94,15 @@ MANUALMAN_GENERATED_INDIRECT = \
 	man/man5/fireqos-tsize.5 \
 	man/man5/fireqos-udp.5
 
+if ENABLE_DOC
+
 dochtml_DATA = \
 	$(MANUALHTML_GENERATED)
 
 pdf_DATA = \
 	$(MANUALPDF_GENERATED)
+
+endif
 
 man_MANS = \
 	$(MANUALMAN_GENERATED) \
