@@ -1,3 +1,14 @@
+firehol (2.0.2) stable; urgency=low
+
+  *  Fix to ensure the final firewall close code emits as both ipv4 and ipv6
+     where appropriate even if only ipv4 or ipv6 was used for the final
+     interface/router
+
+  *  Added option --disable-doc to configure script
+     - Stops the installation of PDF and HTML versions of documentation
+
+ -- Phil Whineray <phil@sanewall.org>  Mon, 06 Mar 2015 07:10:00 +0000
+
 firehol (2.0.1) stable; urgency=low
 
   *  Fix srcmac/dstmac with IPv6

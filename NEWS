@@ -1,3 +1,13 @@
+2015/03/06:
+
+Release of version 2.0.2
+
+- Fix to ensure the final firewall close code emits as both ipv4 and ipv6
+  where appropriate even if only ipv4 or ipv6 was used for the final
+  interface/router
+- Added --disable-doc to configure script to stop the installation
+  of PDF and HTML versions of documentation
+
 2015/02/15:
 
 Release of version 2.0.1
