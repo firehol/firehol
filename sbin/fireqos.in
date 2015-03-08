@@ -374,17 +374,15 @@ save() {
 simple_service() {
 	[ $interface_save -eq 1 ] && save ${FUNCNAME} "$@"
 
-	local direction="$1"; shift
-	local service="$1"; shift
+	local direction="$1" service="$2" s= sports= reverse= p= proto= ports=
+	shift 2
 	
-	local s=
-	for s in $service
+	for s in ${service//,/ }
 	do
-		local sports=
-		eval "local sports=\$server_${s}_ports"
-		if [ -z "$sports" ]
+		eval "sports=\${server_${s}_ports}"
+		if [ -z "${sports}" ]
 		then
-			error "Service '$s' is not defined."
+			error "Service '${s}' is not defined."
 			exit 1
 		fi
 		
@@ -404,66 +402,39 @@ simple_service() {
 		# 3. use 'src' and 'dst' to match the REQUEST, i.e. src=CLIENT, dst=SERVER
 		# 4. forget about INPUT and OUTPUT interfaces, FireQOS will figure it out
 
-		local reverse=
 		case $direction in
 			server)
-				[ "$interface_inout" = "output" ] && local reverse="reverse"
+				[ "${interface_inout}" = "output" ] && reverse="reverse"
 				;;
 				
 			client)
-				[ "$interface_inout" = "input" ] && local reverse="reverse"
+				[ "${interface_inout}" = "input" ] && reverse="reverse"
 				;;
 				
 			*)
-				error "A service cannot be applied as '$direction'."
+				error "A service cannot be applied as '${direction}'."
 				exit 1
 				;;
 		esac
 		
-		local p=
-		for p in $sports
+		for p in ${sports}
 		do
-			local proto=
-			local ports=
-			IFS="/" read proto ports <<EOF
-$p
-EOF
-			match -ns $reverse proto $proto dports $ports "${@}"
+			proto=${p/\/*/}
+			ports=${p/*\//}
+			match -ns ${reverse} proto ${proto} dports ${ports} "${@}"
 		done
 	done
 }
 
-server() {
-	simple_service server "${@}"
-}
+server4() { ipv4 server "${@}"; }
+server6() { ipv6 server "${@}"; }
+server46() { ipv46 server "${@}"; }
+server() { simple_service server "${@}"; }
 
-client() {
-	simple_service client "${@}"
-}
-
-server4() {
-	ipv4 server "${@}"
-}
-
-server6() {
-	ipv6 server "${@}"
-}
-
-server46() {
-	ipv46 server "${@}"
-}
-
-client4() {
-	ipv4 client "${@}"
-}
-
-client6() {
-	ipv6 client "${@}"
-}
-
-client46() {
-	ipv46 client "${@}"
-}
+client4() { ipv4 client "${@}"; }
+client6() { ipv6 client "${@}"; }
+client46() { ipv46 client "${@}"; }
+client() { simple_service client "${@}"; }
 
 service() {
 	error "the 'service' match is no longer supported."
