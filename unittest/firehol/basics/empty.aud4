@@ -7,9 +7,11 @@
 -A INPUT -m limit --limit 1/sec -j LOG --log-prefix "IN-unknown:"
 -A INPUT -j DROP
 -A FORWARD -p icmp -m conntrack --ctstate RELATED -j ACCEPT
+-A FORWARD -p tcp -m conntrack --ctstate RELATED -m tcp --tcp-flags FIN,SYN,RST,PSH,ACK,URG RST,ACK -j ACCEPT
 -A FORWARD -m limit --limit 1/sec -j LOG --log-prefix "PASS-unknown:"
 -A FORWARD -j DROP
 -A OUTPUT -p icmp -m conntrack --ctstate RELATED -j ACCEPT
+-A OUTPUT -p tcp -m conntrack --ctstate RELATED -m tcp --tcp-flags FIN,SYN,RST,PSH,ACK,URG RST,ACK -j ACCEPT
 -A OUTPUT -m limit --limit 1/sec -j LOG --log-prefix "OUT-unknown:"
 -A OUTPUT -j DROP
 COMMIT

@@ -23,6 +23,7 @@
 -A FORWARD -m conntrack --ctstate INVALID -m limit --limit 1/sec -j LOG --log-prefix "INVALID PASS:"
 -A FORWARD -m conntrack --ctstate INVALID -j DROP
 -A FORWARD -p icmp -m conntrack --ctstate RELATED -j ACCEPT
+-A FORWARD -p tcp -m conntrack --ctstate RELATED -m tcp --tcp-flags FIN,SYN,RST,PSH,ACK,URG RST,ACK -j ACCEPT
 -A FORWARD -m limit --limit 1/sec -j LOG --log-prefix "PASS-unknown:"
 -A FORWARD -j DROP
 -A OUTPUT -o lo -j ACCEPT
@@ -33,6 +34,7 @@
 -A OUTPUT -d fe80::/64 -o eth1 -j out_myeth1
 -A OUTPUT ! -d fe80::/64 -o eth2 -j out_myeth2
 -A OUTPUT -p icmp -m conntrack --ctstate RELATED -j ACCEPT
+-A OUTPUT -p tcp -m conntrack --ctstate RELATED -m tcp --tcp-flags FIN,SYN,RST,PSH,ACK,URG RST,ACK -j ACCEPT
 -A OUTPUT -m limit --limit 1/sec -j LOG --log-prefix "OUT-unknown:"
 -A OUTPUT -j DROP
 -A in_myeth0 -p icmp -m conntrack --ctstate RELATED -j ACCEPT
@@ -45,12 +47,15 @@
 -A in_myeth2 -m limit --limit 1/sec -j LOG --log-prefix "IN-myeth2:"
 -A in_myeth2 -j DROP
 -A out_myeth0 -p icmp -m conntrack --ctstate RELATED -j ACCEPT
+-A out_myeth0 -p tcp -m conntrack --ctstate RELATED -m tcp --tcp-flags FIN,SYN,RST,PSH,ACK,URG RST,ACK -j ACCEPT
 -A out_myeth0 -m limit --limit 1/sec -j LOG --log-prefix "OUT-myeth0:"
 -A out_myeth0 -j DROP
 -A out_myeth1 -p icmp -m conntrack --ctstate RELATED -j ACCEPT
+-A out_myeth1 -p tcp -m conntrack --ctstate RELATED -m tcp --tcp-flags FIN,SYN,RST,PSH,ACK,URG RST,ACK -j ACCEPT
 -A out_myeth1 -m limit --limit 1/sec -j LOG --log-prefix "OUT-myeth1:"
 -A out_myeth1 -j DROP
 -A out_myeth2 -p icmp -m conntrack --ctstate RELATED -j ACCEPT
+-A out_myeth2 -p tcp -m conntrack --ctstate RELATED -m tcp --tcp-flags FIN,SYN,RST,PSH,ACK,URG RST,ACK -j ACCEPT
 -A out_myeth2 -m limit --limit 1/sec -j LOG --log-prefix "OUT-myeth2:"
 -A out_myeth2 -j DROP
 COMMIT
