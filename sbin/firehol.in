@@ -1829,12 +1829,6 @@ declare -A FIREHOL_KERNEL_MODULES=()
 # 
 # to have FireHOL require a specific module for the configurarion.
 
-# Services may add themeselves to this variable so that the service "all" will
-# also call them.
-# By default it is empty - only rules programmers should change this.
-ALL_SHOULD_ALSO_RUN=
-
-
 # ------------------------------------------------------------------------------
 # Various Defaults
 
@@ -2051,6 +2045,15 @@ FIREHOL_SERVICES_API="1"
 #
 # The following list is sorted by service name.
 
+server_all_ports="any/any"
+client_all_ports="any"
+helper_all="ftp irc sip pptp proto_gre"
+
+# any is the same with all, without helpers
+server_any_ports="${server_all_ports}"
+client_any_ports="${client_all_ports}"
+helper_any=
+
 server_AH_ports="51/any"
 client_AH_ports="any"
 
@@ -2115,7 +2118,6 @@ client_finger_ports="default"
 server_ftp_ports="tcp/21"
 client_ftp_ports="default"
 helper_ftp="ftp"
-ALL_SHOULD_ALSO_RUN="${ALL_SHOULD_ALSO_RUN} ftp"
 
 server_gift_ports="tcp/4302 tcp/1214 tcp/2182 tcp/2472"
 client_gift_ports="any"
@@ -2133,7 +2135,6 @@ helper_GRE="proto_gre"
 server_h323_ports="udp/1720 tcp/1720"
 client_h323_ports="default"
 helper_h323="h323"
-# ALL_SHOULD_ALSO_RUN="${ALL_SHOULD_ALSO_RUN} h323"
 
 server_heartbeat_ports="udp/690:699"
 client_heartbeat_ports="default"
@@ -2158,7 +2159,6 @@ client_ICMP_ports="any"
 
 server_icmp_ports="${server_ICMP_ports}"
 client_icmp_ports="${client_ICMP_ports}"
-# ALL_SHOULD_ALSO_RUN="${ALL_SHOULD_ALSO_RUN} icmp"
 
 server_ICMPV6_ports="icmpv6/any"
 client_ICMPV6_ports="any"
@@ -2181,7 +2181,6 @@ client_imaps_ports="default"
 server_irc_ports="tcp/6667"
 client_irc_ports="default"
 helper_irc="irc"
-ALL_SHOULD_ALSO_RUN="${ALL_SHOULD_ALSO_RUN} irc"
 
 server_isakmp_ports="udp/500"
 client_isakmp_ports="any"
@@ -2213,9 +2212,6 @@ client_microsoft_ds_ports="default"
 server_mms_ports="tcp/1755 udp/1755"
 client_mms_ports="default"
 helper_mms="mms"
-# this will produce warnings on most distribution
-# because the mms module is not there:
-# ALL_SHOULD_ALSO_RUN="${ALL_SHOULD_ALSO_RUN} mms"
 
 server_ms_ds_ports="${server_microsoft_ds_ports}"
 client_ms_ds_ports="${client_microsoft_ds_ports}"
@@ -2280,7 +2276,6 @@ client_postgres_ports="default"
 server_pptp_ports="tcp/1723"
 client_pptp_ports="default"
 helper_pptp="pptp proto_gre"
-ALL_SHOULD_ALSO_RUN="${ALL_SHOULD_ALSO_RUN} pptp"
 
 server_privoxy_ports="tcp/8118"
 client_privoxy_ports="default"
@@ -2316,7 +2311,6 @@ helper_sane="sane"
 server_sip_ports="tcp/5060 udp/5060"
 client_sip_ports="5060 default"
 helper_sip="sip"
-ALL_SHOULD_ALSO_RUN="${ALL_SHOULD_ALSO_RUN} sip"
 
 server_socks_ports="tcp/1080 udp/1080"
 client_socks_ports="default"
@@ -2363,7 +2357,6 @@ client_telnet_ports="default"
 server_tftp_ports="udp/69"
 client_tftp_ports="default"
 helper_tftp="tftp"
-# ALL_SHOULD_ALSO_RUN="${ALL_SHOULD_ALSO_RUN} tftp"
 
 server_tomcat_ports="${server_httpalt_ports}"
 client_tomcat_ports="${client_httpalt_ports}"
@@ -3075,77 +3068,6 @@ rules_ipv6error() {
 	pop_namespace
 	return 0
 }
-
-# --- ALL ----------------------------------------------------------------------
-
-rules_all() {
-	local 	in=in out=out \
-		client_ports="${DEFAULT_CLIENT_PORTS}" \
-		mychain="${1}" \
-		type="${2}"
-	shift 2
-	
-	if [ "${type}" = "client" ]
-	then
-		in=out
-		out=in
-	fi
-	
-	if [ "${type}" = "client" -a "${work_cmd}" = "interface" ]
-	then
-		client_ports="${LOCAL_CLIENT_PORTS}"
-	fi
-	
-	# ----------------------------------------------------------------------
-	
-	# allow new and established incoming packets
-	rule ${in}          action "${@}" chain "${in}_${mychain}"  state NEW,ESTABLISHED || return 1
-	
-	# allow outgoing established packets
-	rule ${out} reverse action "${@}" chain "${out}_${mychain}" state ESTABLISHED     || return 1
-	
-	local ser=
-	for ser in ${ALL_SHOULD_ALSO_RUN}
-	do
-		"${type}" ${ser} "${@}" || return 1
-	done
-	
-	return 0
-}
-
-
-# --- ANY ----------------------------------------------------------------------
-
-rules_any() {
-	local 	in=in out=out \
-		client_ports="${DEFAULT_CLIENT_PORTS}" \
-		mychain="${1}" \
-		type="${2}" \
-		name="${3}"
-	shift 3
-	
-	if [ "${type}" = "client" ]
-	then
-		in=out
-		out=in
-	fi
-	
-	if [ "${type}" = "client" -a "${work_cmd}" = "interface" ]
-	then
-		client_ports="${LOCAL_CLIENT_PORTS}"
-	fi
-	
-	# ----------------------------------------------------------------------
-	
-	# allow new and established incoming packets
-	rule ${in}          action "${@}" chain "${in}_${mychain}"  state NEW,ESTABLISHED || return 1
-	
-	# allow outgoing established packets
-	rule ${out} reverse action "${@}" chain "${out}_${mychain}" state ESTABLISHED     || return 1
-	
-	return 0
-}
-
 
 # --- ANYSTATELESS -------------------------------------------------------------
 
@@ -9534,6 +9456,7 @@ create_chain() {
 #
 # Additionally, it creates a chain for the subcommand.
 
+ALL_SHOULD_ALSO_RUN_WARNING=0
 smart_function() {
 	local type="${1}" services=(${2//,/ }) service= servname= suffix= mychain= ret= fn= dogroup=0 reverse=
 	# type = the current subcommand: server/client/route
@@ -9555,6 +9478,12 @@ smart_function() {
 		servname="${service}"
 		test "${service}" = "custom" && servname="${1}"
 		
+		if [ "${service}" = "all" -a ! -z "${ALL_SHOULD_ALSO_RUN}" -a ${ALL_SHOULD_ALSO_RUN_WARNING} -eq 0 ]
+		then
+			ALL_SHOULD_ALSO_RUN_WARNING=1
+			warning "ALL_SHOULD_ALSO_RUN has been deprecated. Service 'all' now runs all these conntrack helpers: helper_all='${helper_all}'"
+		fi
+
 		set_work_function "Preparing for service '${service}' of type '${type}' under interface '${work_name}'"
 		
 		# Increase the command counter, to make all chains within a primary
