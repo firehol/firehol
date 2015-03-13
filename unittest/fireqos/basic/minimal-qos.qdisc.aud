@@ -1,4 +1,4 @@
-qdisc htb 1: root refcnt 2 r2q 1 default 5000 direct_packets_stat 0
+qdisc htb 1: root refcnt 2 r2q 1 default 8000 direct_packets_stat 0
 qdisc fq_codel 11: parent 1:11 [Unknown qdisc, optlen=48] 
-qdisc fq_codel 12: parent 1:5000 [Unknown qdisc, optlen=48] 
+qdisc fq_codel 12: parent 1:8000 [Unknown qdisc, optlen=48] 
 qdisc ingress ffff: parent ffff:fff1 ---------------- 
