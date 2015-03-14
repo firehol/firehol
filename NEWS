@@ -1,3 +1,46 @@
+2015/03/14:
+
+Release of version 3.0.0-rc.2
+
+More wide-ranging improvements betore a final release
+
+Common:
+
+- Added --disable-doc to configure script to stop the installation
+  of PDF and HTML versions of documentation
+- Start to bring documentation in line
+- Disable colour on non-terminals
+
+FireHOL:
+
+- Synproxy support
+- Services "all" and "any" are now simple services. Service "all" now
+  has multiple helpers, thus eliminating the need for ALL_SHOULD_ALSO_RUN.
+- Fix REJECT action by accepting RELATED TCP ACK,RST packets appropriately
+- Fix empty firewall case
+- Added state NEW to masquerade
+- Fix to ensure the final firewall close code emits as both ipv4 and ipv6
+  where appropriate even if only ipv4 or ipv6 was used for the final
+  interface/router
+- Added action type "sockets_suspects_trap"
+- iptrap now creates the trap if it is not already created
+- Eliminate a warning for kernels prior to 3.5
+- NAT helper now supports balancing multiple IPs or ports on all NAT modes 
+- NAT helper now supports keyword "at" to specify the chain to be attached to
+- Optimise multi-port matching rules
+
+FireQOS:
+
+- Optimisations
+- Create FIREQOS_INTERFACE_DEFAULT_CLASSID (8000), FIREQOS_MATCHES_STEP
+- Fixed monitor mode
+
+LinkBalancer:
+
+- Fix to stop ignoring fallback gateways
+- Use "traceroute -6" not "traceroute6"
+
+
 2015/02/15:
 
 Release of version 3.0.0-rc.1
