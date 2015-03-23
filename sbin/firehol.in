@@ -10038,6 +10038,10 @@ case "${arg}" in
 			done
 		fi
 		success # "Clearing firewall"
+		# Remove the saved firewall, so that the trap will not restore it.
+		${RM_CMD} -f "${FIREHOL_SAVED}" "${FIREHOL_SAVED6}" >/dev/null 2>&1
+		# signal the trap to exit with success
+		FIREHOL_ACTIVATED_SUCCESSFULLY=1
 		exit 0
 		;;
 	
@@ -10366,7 +10370,7 @@ case "${arg}" in
 		fi
 		exit 1
 		;;
-	
+
 	*)	if [ ! -z "${arg}" -a -f "${arg}" ]
 		then
 			FIREHOL_MODE="START"
@@ -10380,21 +10384,25 @@ case "${arg}" in
 					FIREHOL_TRY=0
 					shift
 					;;
-					
+
 				try)
 					FIREHOL_TRY=1
 					shift
 					;;
-					
+
 				debug)
 					FIREHOL_MODE="DEBUG"
 					FIREHOL_TRY=0
 					shift
 					;;
 
-				--)
-					FIREHOL_TRY=1
+				restore|condrestart)
+					FIREHOL_RESTORE_INSTEAD_OF_START=1
+					FIREHOL_TRY=0
+					shift
 					;;
+
+				--)	;;
 
 				*)
 					echo >&2 "Cannot accept command line argument '${1}' here."
