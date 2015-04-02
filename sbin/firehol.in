@@ -10293,6 +10293,8 @@ case "${arg}" in
 			# lets rename it
 			ipset_to_temp_and_swap "${name}" <${tmp} >"${FIREHOL_DIR}/ipsets.restore"
 
+			# cp "${FIREHOL_DIR}/ipsets.restore" /tmp/
+
 			# and activate it
 			${IPSET_CMD} ${IPSET_RESTORE_OPTION} <"${FIREHOL_DIR}/ipsets.restore"
 			if [ $? -ne 0 ]
@@ -10366,7 +10368,7 @@ case "${arg}" in
 			FIREHOL_ACTIVATED_SUCCESSFULLY=1
 			exit 0
 		else
-			failed "no collection with name '${name}'" # "Updating ipset '${name}' with options: ${*}"
+			failure "no collection with name '${name}'" # "Updating ipset '${name}' with options: ${*}"
 		fi
 		exit 1
 		;;

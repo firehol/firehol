@@ -85,11 +85,18 @@ update() {
 	case "${ipv}" in
 		ipv4)
 			case "${type}" in
-				ip|ips)		type="ip"
+				ip|ips)		hash="ip"
+						type="ip"
 						filter="^[0-9\.]+$"
 						;;
 
-				net|nets)	type="net"
+				net|nets)	hash="net"
+						type="net"
+						filter="^[0-9\./]+$"
+						;;
+
+				both|all)	hash="net"
+						type=""
 						filter="^[0-9\./]+$"
 						;;
 
@@ -100,11 +107,18 @@ update() {
 			;;
 		ipv6)
 			case "${type}" in
-				ip|ips)		type="ip"
+				ip|ips)		hash="ip"
+						type="ip"
 						filter="^[0-9a-fA-F:]+$"
 						;;
 
-				net|nets)	type="net"
+				net|nets)	hash="net"
+						type="net"
+						filter="^[0-9a-fA-F:/]+$"
+						;;
+
+				both|all)	hash="net"
+						type=""
 						filter="^[0-9a-fA-F:/]+$"
 						;;
 
@@ -120,7 +134,7 @@ update() {
 	esac
 
 	tmp="${install}.tmp.$$.${RANDOM}"
-	
+
 	# check if we have to download again
 	now=$(date +%s)
 	date=$(printf "%(%Y%m%d%H%M.%S)T" $[now - (mins * 60)])
@@ -166,16 +180,16 @@ update() {
 	mv "${tmp}" "${install}.source" || return 1
 
 	test ${SILENT} -ne 1 && echo >&2 "Converting ${ipset} using processor: ${processor}"
-	${processor} <"${install}.source" | egrep "${filter}" >"${tmp}" || return 1
-	mv "${tmp}" "${install}.${type}set" || return 1
+	${processor} <"${install}.source" | egrep "${filter}" | sort -u >"${tmp}" || return 1
+	mv "${tmp}" "${install}.${hash}set" || return 1
 
 	if [ -z "${sets[$ipset]}" ]
 	then
 		echo >&2 "Creating ipset '${ipset}'..."
-		ipset --create ${ipset} "${type}hash" || return 1
+		ipset --create ${ipset} "${hash}hash" || return 1
 	fi
 
-	firehol ipset_update_from_file ${ipset} ${ipv} ${type} "${install}.${type}set"
+	firehol ipset_update_from_file ${ipset} ${ipv} ${type} "${install}.${hash}set"
 	if [ $? -ne 0 ]
 	then
 		echo >&2 "Failed to update ipset '${ipset}' from url '${url}'."
@@ -218,8 +232,7 @@ snort_alert_rules_to_ipv4() {
 	remove_comments |\
 		grep ^alert |\
 		sed -e "s|^alert .* \[\([0-9/,\.]\+\)\] any -> \$HOME_NET any .*$|\1|g" -e "s|,|\n|g" |\
-		grep -v ^alert |\
-		sort -u	
+		grep -v ^alert
 }
 
 pix_deny_rules_to_ipv4() {
@@ -228,8 +241,7 @@ pix_deny_rules_to_ipv4() {
 		sed -e "s|^access-list .* deny ip \([0-9\.]\+\) \([0-9\.]\+\) any$|\1/\2|g" \
 		    -e "s|^access-list .* deny ip host \([0-9\.]\+\) any$|\1|g" |\
 		grep -v ^access-list |\
-		subnet_to_bitmask |\
-		sort -u 
+		subnet_to_bitmask
 }
 
 
@@ -311,7 +323,7 @@ update compromised $[12*60-10] ipv4 ip \
 	remove_comments
 
 # includes botnet, spamhaus and dshield
-update emerging_block $[12*60-10] ipv4 net \
+update emerging_block $[12*60-10] ipv4 all \
 	"http://rules.emergingthreats.net/fwrules/emerging-Block-IPs.txt?r=${RANDOM}" \
 	remove_comments
 
