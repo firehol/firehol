@@ -1,0 +1,11 @@
+
+<!--
+    This file lists internal references within the manual
+    and associates them with anchors in the output.
+
+    Note that the blank line after this comment is required, to keep
+    pandoc(1) happy when formatting.
+  -->
+
+[vnetbuild(1)]: vnetbuild.1.md#vnetbuild1
+[vnetbuild.conf(5)]: vnetbuild-conf.5.md#vnetbuild.conf5

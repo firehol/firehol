@@ -11,6 +11,8 @@ examples_DATA = \
 	lan-gateway.conf \
 	office.conf \
 	icmpv6.conf \
+	vnetbuild.conf \
+	vnetbuild-simple.conf \
 	fireqos.conf
 
 EXTRA_DIST = \
