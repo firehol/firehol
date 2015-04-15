@@ -8,6 +8,7 @@ firehol-modifiers - select IPv4 or IPv6 mode
 <!--
 extra-manpage: firehol-ipv4.5
 extra-manpage: firehol-ipv6.5
+extra-manpage: firehol-both.5
 -->
 
 # SYNOPSIS
@@ -16,16 +17,19 @@ ipv4 *definition-or-command* *argument*...
 
 ipv6 *definition-or-command* *argument*...
 
+[both] *definition-or-command* *argument*...
+
 # DESCRIPTION
 
-Without a modifier, interface and router definitions and commands that
-come before either will be applied to both IPv4 and IPV6. Commands
-within an `interface` or `router` assume the same behaviour as the enclosing
-definition.
+When preceded by a modifier, any command or definition can be made to
+apply to IPv4 or IPv6 only.
 
-When preceded by a modifier, the command or definition can be made to
-apply to IPv4 or IPv6 only. Note that you cannot create an IPv4 only
-command within and IPv6 interface or vice-versa.
+Without a modifier, interface and router definitions and commands that
+come before either get applied to `both` IPv4 and IPV6.
+
+Commands within an `interface` or `router` assume the same behaviour as
+the enclosing definition. You cannot create an IPv4 command within
+an IPv6 interface or router nor IPv6 within IPv4.
 
 Examples:
 

@@ -8,7 +8,9 @@ firehol-synproxy - configure synproxy
 
 <!--
 contents-table:helper:synproxy:keyword-firehol-synproxy:Y:-:Configure synproxy.
-  -->
+extra-manpage: firehol-synproxy4.5
+extra-manpage: firehol-synproxy6.5
+-->
 
 # SYNOPSIS 
 
