@@ -2755,15 +2755,49 @@ match() {
 }
 
 clear_everything() {
-	local iface=
-	
+	local iface= found=
+
+	local fqifaces=
+	local ifaces=
+	local ifbs=
+
+	if [ ! -z "${*}" ]
+	then
+		for iface in ${*}
+		do
+			found=0
+			if [ -f "${FIREQOS_DIR}/ifaces/${iface}-ifb" ]
+			then
+				fqifaces="${fqifaces} `${cat_cmd} ${FIREQOS_DIR}/ifaces/${iface}-ifb`"
+				ifaces="${ifaces} ${iface}-ifb"
+				ifbs="${ifbs} ${iface}-ifb"
+				found=1
+			fi
+			if [ -f "${FIREQOS_DIR}/ifaces/${iface}" ]
+			then
+				fqifaces="${fqifaces} `${cat_cmd} ${FIREQOS_DIR}/ifaces/${iface}`"
+				ifaces="${ifaces} ${iface}"
+				found=1
+			fi
+
+			test ${found} -eq 1 && continue
+			echo >&2 "There is no device named ${iface} configured by FireQOS."
+		done
+	else
+		fqifaces="`fireqos_active_interfaces`"
+		ifaces="`ls ${FIREQOS_DIR}/ifaces/ 2>/dev/null`"
+		ifbs="`ls ${FIREQOS_DIR}/ifbs/ 2>/dev/null`"
+	fi
+
 	echo >&2 
-	echo >&2 "Clearing all FireQOS changes..."
+	echo >&2 "Clearing FireQOS interface(s) ${fqifaces}..."
 	echo >&2 
 	
-	# remove all qdiscs from all interfaces
-	for iface in `ls ${FIREQOS_DIR}/ifaces/ 2>/dev/null`
+	# remove qdiscs
+	for iface in ${ifaces}
 	do
+		test ! -f "${FIREQOS_DIR}/ifaces/${iface}" && continue
+
 		printf >&2 " %16.16s: " $iface
 		echo >&2 "cleared traffic control"
 		
@@ -2773,9 +2807,11 @@ clear_everything() {
 		$rm_cmd "${FIREQOS_DIR}/ifaces/${iface}"
 	done
 	
-	# remove all FireQOS IFB devices
-	for iface in `ls ${FIREQOS_DIR}/ifbs/ 2>/dev/null`
+	# remove IFB devices
+	for iface in ${ifbs}
 	do
+		test ! -f "${FIREQOS_DIR}/ifbs/${iface}" && continue
+
 		printf >&2 " %16.16s: " ${iface}
 		echo >&2 "removed IFB device"
 		
@@ -2783,7 +2819,8 @@ clear_everything() {
 		${rm_cmd} "${FIREQOS_DIR}/ifbs/${iface}"
 	done
 	
-	for iface in `fireqos_active_interfaces`
+	# remove FireQOS run status
+	for iface in ${fqifaces}
 	do
 		printf >&2 " %16.16s: " ${iface}
 		echo >&2 "cleared status info"
@@ -2792,7 +2829,7 @@ clear_everything() {
 	done
 	
 	echo >&2 
-	syslog error "Cleared all FireQOS changes on interface '${interface_realdev}'"
+	syslog error "Cleared all FireQOS on ${fqifaces}"
 	
 	return 0
 }
@@ -3454,7 +3491,8 @@ do
 			;;
 
 		stop)
-			clear_everything
+			shift
+			clear_everything "${@}"
 			syslog info "Cleared all FireQOS changes"
 			exit 0
 			;;
