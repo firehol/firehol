@@ -2846,6 +2846,7 @@ EOF
 	
 	getdata() {
 		eval "`$tc_cmd -s class show dev $1 | $tr_cmd "\n,()" "|   " | $sed_cmd \
+			-e "s/[^|]|class /||class /g"		\
 			-e "s/ \+/ /g"				\
 			-e "s/ *| */|/g"			\
 			-e "s/||/\n/g"				\
