@@ -5362,7 +5362,7 @@ ipsets_restore() {
 	# get all the CREATE and FLUSH statements
 	${CAT_CMD} "${file}" | ${EGREP_CMD} "^(${IPSET_CREATE_OPTION}|${IPSET_FLUSH_OPTION}) " >"${file}.pre"
 	${CAT_CMD} "${file}" | ${EGREP_CMD} "^(${IPSET_SWAP_OPTION}|${IPSET_DESTROY_OPTION}) " >"${file}.post"
-	${CAT_CMD} "${file}" | ${EGREP_CMD} -v "^(${IPSET_SWAP_OPTION}|${IPSET_SWAP_OPTION}|${IPSET_DESTROY_OPTION}) " >"${file}.add"
+	${CAT_CMD} "${file}" | ${EGREP_CMD} -v "^(${IPSET_FLUSH_OPTION}|${IPSET_SWAP_OPTION}|${IPSET_DESTROY_OPTION}) " >"${file}.add"
 
 	set_work_function -ne "Executing IPSET pre-rules"
 	while read
