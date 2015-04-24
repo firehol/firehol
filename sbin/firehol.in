@@ -5364,21 +5364,21 @@ ipsets_restore() {
 	${CAT_CMD} "${file}" | ${EGREP_CMD} "^(${IPSET_SWAP_OPTION}|${IPSET_DESTROY_OPTION}) " >"${file}.post"
 	${CAT_CMD} "${file}" | ${EGREP_CMD} -v "^(${IPSET_FLUSH_OPTION}|${IPSET_SWAP_OPTION}|${IPSET_DESTROY_OPTION}) " >"${file}.add"
 
-	set_work_function -ne "Executing IPSET pre-rules"
-	while read
-	do
-		# set_work_function -ne "${IPSET_CMD} ${REPLY}"
-		${IPSET_CMD} ${REPLY} || return $?
-	done <"${file}.pre"
+	# the older versions of ipset will return an error if the
+	# ipset to be created already exists.
+
+	#set_work_function -ne "Executing IPSET pre-rules"
+	#while read
+	#do
+	#	${IPSET_CMD} ${REPLY} || return $?
+	#done <"${file}.pre"
 
 	set_work_function -ne "Executing IPSET add-rules"
-	# set_work_function -ne "${IPSET_CMD} ${IPSET_RESTORE_OPTION} <${file}.add"
 	${IPSET_CMD} ${IPSET_RESTORE_OPTION} <"${file}.add" || return $?
 
 	set_work_function -ne "Executing IPSET post-rules"
 	while read
 	do
-		# set_work_function -ne "${IPSET_CMD} ${REPLY}"
 		${IPSET_CMD} ${REPLY} || return $?
 	done <"${file}.post"
 
