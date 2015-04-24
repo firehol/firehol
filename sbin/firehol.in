@@ -778,6 +778,11 @@ IPSET_LIST_NAMES_EVAL="list -n"
 IPTRAP_DEFAULT_IPSET_TIMEOUT_OPTIONS="timeout 3600"
 IPTRAP_DEFAULT_IPSET_COUNTERS_OPTIONS="timeout 3600 counters"
 
+# ----------------------------------------------------------------------
+# OLDER VERSIONS OF IPSET
+
+# IPSET_RESTORE_SUPPORTS_FLUSH_SWAP_DESTROY=0
+
 # older versions do not support the 'counters' option
 # even older versions do not support the 'timeout' option
 #IPTRAP_DEFAULT_IPSET_TIMEOUT_OPTIONS="timeout 3600"
@@ -792,10 +797,9 @@ IPTRAP_DEFAULT_IPSET_COUNTERS_OPTIONS="timeout 3600 counters"
 #IPSET_DELETE_OPTION="-D"
 #IPSET_SAVE_OPTION="-S"
 #IPSET_SWAP_OPTION="-W"
-#IPSET_RESTORE_OPTION="-! -R"
+#IPSET_RESTORE_OPTION="-R"
 #IPSET_CREATE_IPV6_OPTION="" # No ipv6 support
 #IPSET_LIST_NAMES_EVAL="-L | grep Name: | cut -d: -f 2"
-
 
 # ----------------------------------------------------------------------
 # DEFAULT IP SETS
@@ -5358,7 +5362,7 @@ ipsets_restore() {
 	# get all the CREATE and FLUSH statements
 	${CAT_CMD} "${file}" | ${EGREP_CMD} "^(${IPSET_CREATE_OPTION}|${IPSET_FLUSH_OPTION}) " >"${file}.pre"
 	${CAT_CMD} "${file}" | ${EGREP_CMD} "^(${IPSET_SWAP_OPTION}|${IPSET_DESTROY_OPTION}) " >"${file}.post"
-	${CAT_CMD} "${file}" | ${EGREP_CMD} -v "^(${IPSET_CREATE_OPTION}|${IPSET_FLUSH_OPTION}|${IPSET_SWAP_OPTION}|${IPSET_DESTROY_OPTION}) " >"${file}.add"
+	${CAT_CMD} "${file}" | ${EGREP_CMD} -v "^(${IPSET_CREATE_OPTION}|${IPSET_SWAP_OPTION}|${IPSET_DESTROY_OPTION}) " >"${file}.add"
 
 	set_work_function -ne "Executing IPSET pre-rules"
 	while read
