@@ -751,6 +751,10 @@ FIREHOL_LOG_BURST="5"
 # ----------------------------------------------------------------------
 # IPSET OPTIONS
 
+# if set to zero, ipset restore does not support
+# FLUSH SWAP DESTROY in which case they be executed during postprocess
+IPSET_RESTORE_SUPPORTS_FLUSH_SWAP_DESTROY=1
+
 # options that are appended to -m ipset matches when the ipset
 # is used instead of src and dst IPs.
 # The default is to prevent updating ipset counters
@@ -780,6 +784,7 @@ IPTRAP_DEFAULT_IPSET_COUNTERS_OPTIONS="timeout 3600 counters"
 #IPTRAP_DEFAULT_IPSET_COUNTERS_OPTIONS="" # not supported
 
 # older versions use these
+#IPSET_SRC_DST_OPTIONS=
 #IPSET_CREATE_OPTION="-N"
 #IPSET_DESTROY_OPTION="-X"
 #IPSET_FLUSH_OPTION="-F"
@@ -787,7 +792,7 @@ IPTRAP_DEFAULT_IPSET_COUNTERS_OPTIONS="timeout 3600 counters"
 #IPSET_DELETE_OPTION="-D"
 #IPSET_SAVE_OPTION="-S"
 #IPSET_SWAP_OPTION="-W"
-#IPSET_RESTORE_OPTION="-R"
+#IPSET_RESTORE_OPTION="-! -R"
 #IPSET_CREATE_IPV6_OPTION="" # No ipv6 support
 #IPSET_LIST_NAMES_EVAL="-L | grep Name: | cut -d: -f 2"
 
@@ -5341,6 +5346,41 @@ ipset_remove_all_tmp_sets() {
 	fi
 }
 
+ipsets_restore() {
+	local file="${1}"
+
+	if [ ${IPSET_RESTORE_SUPPORTS_FLUSH_SWAP_DESTROY} -eq 1 ]
+	then
+		${IPSET_CMD} ${IPSET_RESTORE_OPTION} <"${file}"
+		return $?
+	fi
+
+	# get all the CREATE and FLUSH statements
+	${CAT_CMD} "${file}" | ${EGREP_CMD} "^(${IPSET_CREATE_OPTION}|${IPSET_FLUSH_OPTION}) " >"${file}.pre"
+	${CAT_CMD} "${file}" | ${EGREP_CMD} "^(${IPSET_SWAP_OPTION}|${IPSET_DESTROY_OPTION}) " >"${file}.post"
+	${CAT_CMD} "${file}" | ${EGREP_CMD} -v "^(${IPSET_CREATE_OPTION}|${IPSET_FLUSH_OPTION}|${IPSET_SWAP_OPTION}|${IPSET_DESTROY_OPTION}) " >"${file}.add"
+
+	set_work_function -ne "Executing IPSET pre-rules"
+	while read
+	do
+		# set_work_function -ne "${IPSET_CMD} ${REPLY}"
+		${IPSET_CMD} ${REPLY} || return $?
+	done <"${file}.pre"
+
+	set_work_function -ne "Executing IPSET add-rules"
+	# set_work_function -ne "${IPSET_CMD} ${IPSET_RESTORE_OPTION} <${file}.add"
+	${IPSET_CMD} ${IPSET_RESTORE_OPTION} <"${file}.add" || return $?
+
+	set_work_function -ne "Executing IPSET post-rules"
+	while read
+	do
+		# set_work_function -ne "${IPSET_CMD} ${REPLY}"
+		${IPSET_CMD} ${REPLY} || return $?
+	done <"${file}.post"
+
+	return 0
+}
+
 ipsets_apply() {
 	local from="${1}" base="${FIREHOL_DIR}" restoring=0 x=
 
@@ -5416,7 +5456,9 @@ ipsets_apply() {
 
 	if [ -s "${FIREHOL_DIR}/ipsets.restore" ]
 	then
-		${IPSET_CMD} ${IPSET_RESTORE_OPTION} <"${FIREHOL_DIR}/ipsets.restore"
+		echo "COMMIT" >>"${FIREHOL_DIR}/ipsets.restore"
+
+		ipsets_restore "${FIREHOL_DIR}/ipsets.restore"
 		if [ $? -ne 0 ]
 		then
 			error "${FUNCNAME}: Cannot apply generated ipset rules."
@@ -7585,6 +7627,7 @@ rule() {
 									action_param=( "${action_param[@]}" "--to-ports" "${2//:/-}" )
 									# ports need a protocol: either tcp or udp (or both if unset)
 									test "${proto}" = "any" && proto="tcp udp"
+									require_protocol_with_action=("${proto[@]}")
 									shift 2
 									;;
 
@@ -7612,7 +7655,11 @@ rule() {
 								to|to-source|--to-source)
 									action_param=( "${action_param[@]}" "--to-source" "${2}" )
 									# ports need a protocol: either tcp or udp (or both if unset)
-									[[ "${2}" =~ ":" ]] && [ "${proto}" = "any" ] && proto="tcp udp"
+									if [[ "${2}" =~ ":" ]]
+									then
+										[ "${proto}" = "any" ] && proto="tcp udp"
+										require_protocol_with_action=("${proto[@]}")
+									fi
 									hasto=1
 									shift 2
 									;;
@@ -7651,7 +7698,11 @@ rule() {
 								to|to-destination|--to-destination)
 									action_param=( "${action_param[@]}" "--to-destination" "${2}" )
 									# ports need a protocol: either tcp or udp (or both if unset)
-									[[ "${2}" =~ ":" ]] && [ "${proto}" = "any" ] && proto="tcp udp"
+									if [[ "${2}" =~ ":" ]]
+									then
+										[ "${proto}" = "any" ] && proto="tcp udp"
+										require_protocol_with_action=("${proto[@]}")
+									fi
 									hasto=1
 									shift 2
 									;;
@@ -7693,6 +7744,7 @@ rule() {
 									action_param=( "${action_param[@]}" "--to-ports" "${2}" )
 									# ports need a protocol: either tcp or udp (or both if unset)
 									test "${proto}" = "any" && proto="tcp udp"
+									require_protocol_with_action=("${proto[@]}")
 									hasto=1
 									shift 2
 									;;
@@ -10296,7 +10348,7 @@ case "${arg}" in
 			# cp "${FIREHOL_DIR}/ipsets.restore" /tmp/
 
 			# and activate it
-			${IPSET_CMD} ${IPSET_RESTORE_OPTION} <"${FIREHOL_DIR}/ipsets.restore"
+			ipsets_restore "${FIREHOL_DIR}/ipsets.restore"
 			if [ $? -ne 0 ]
 			then
 				failure # "Updating ipset '${name}' with options: ${*}"
