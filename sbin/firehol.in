@@ -7038,7 +7038,7 @@ rule() {
 		custom= \
 		accounting= \
 		ipsetnot= ipsetname= ipsetflags= ipsetopts= \
-		inout= x= param= not= helper=() helpernot=
+		inout= x= param= not= helper=() helpernot= opt_args=
 	
 	# if set to 1, all owner module options will be ignored
 	local noowner=0
@@ -7086,21 +7086,28 @@ rule() {
 		fi
 
 		case "${param}" in
-			reverse)		reverse=1 ;;
-			nolog)			nolog=1 ;;
-			noowner)		noowner=1 ;;
-			softwarnings)		softwarnings=1 ;;
-			nosoftwarnings)		softwarnings=0 ;;
-			set_work_inface)	swi=1 ;;
-			set_work_outface)	swo=1 ;;
-			return_if_not_matched)	return_if_not_matched=1 ;;
-			optimal)		optimal=1 ;;
-			accurate)		optimal=0 ;;
-			push_flow_inheritance)	push_flow_inheritance_type="${1}"; shift ;;
-			insert)			positive_rule_number=1 ;;
-			insert_at)		positive_rule_number="${1}"; shift ;;
+			or)			# this is used to allow multiple exception in statements
+						# that support the 'except' keyword
+						rule table "${table}" chain "${chain}" action "${action}" "${action_param[@]}" ${opt_args} "${@}"
+						break
+						;;
+
+			reverse)		opt_args="${opt_args} ${param}"; reverse=1 ;;
+			nolog)			opt_args="${opt_args} ${param}"; nolog=1 ;;
+			noowner)		opt_args="${opt_args} ${param}"; noowner=1 ;;
+			softwarnings)		opt_args="${opt_args} ${param}"; softwarnings=1 ;;
+			nosoftwarnings)		opt_args="${opt_args} ${param}"; softwarnings=0 ;;
+			set_work_inface)	opt_args="${opt_args} ${param}"; swi=1 ;;
+			set_work_outface)	opt_args="${opt_args} ${param}"; swo=1 ;;
+			return_if_not_matched)	opt_args="${opt_args} ${param}"; return_if_not_matched=1 ;;
+			optimal)		opt_args="${opt_args} ${param}"; optimal=1 ;;
+			accurate)		opt_args="${opt_args} ${param}"; optimal=0 ;;
+			push_flow_inheritance)	opt_args="${opt_args} ${param}"; push_flow_inheritance_type="${1}"; shift ;;
+			insert)			opt_args="${opt_args} ${param}"; positive_rule_number=1 ;;
+			insert_at)		opt_args="${opt_args} ${param}"; positive_rule_number="${1}"; shift ;;
 
 			in)	# this is incoming traffic - ignore packet ownership
+				opt_args="${opt_args} ${param}"
 				inout="in"
 				noowner=1
 				nomirror=0
@@ -7108,6 +7115,7 @@ rule() {
 				;;
 				
 			out)	# this is outgoing traffic - ignore packet ownership if not in an interface
+				opt_args="${opt_args} ${param}"
 				inout="out"
 				if [ ! "${work_cmd}" = "interface" ]
 				then
@@ -7602,7 +7610,7 @@ rule() {
 						;;
 						
 					REJECT)	action="REJECT"
-						if [ "${1}" = "with" ]
+						if [ "${1}" = "with" -o "${1}" = "--reject-with" ]
 						then
 							action_param=("--reject-with" "${2}")
 							shift 2
@@ -7770,13 +7778,13 @@ rule() {
 						
 					TPROXY)	action="TPROXY"
 						action_param=()
-						if [ "${1}" = "mark" -o "${1}" = "tproxy-mark" ]
+						if [ "${1}" = "mark" -o "${1}" = "tproxy-mark" -o "${1}" = "--tproxy-mark" ]
 						then
 							action_param=("--tproxy-mark" "${2}")
 							shift 2
 						fi
 
-						if [ "${1}" = "on-port" -o "${1}" = "to-port" -o "${1}" = "to" ]
+						if [ "${1}" = "on-port" -o "${1}" = "to-port" -o "${1}" = "to" -o "${1}" = "--on-port" ]
 						then
 							action_param=("${action_param[@]}" "--on-port" "${2}")
 							shift 2
@@ -7785,7 +7793,7 @@ rule() {
 							return 1
 						fi
 
-						if [ "${1}" = "on-ip" -o "${1}" = "to-ip" ]
+						if [ "${1}" = "on-ip" -o "${1}" = "--on-ip" -o "${1}" = "to-ip" ]
 						then
 							action_param=("${action_param[@]}" "--on-ip" "${2}")
 							shift 2
@@ -7799,7 +7807,7 @@ rule() {
 						;;
 						
 					TOS)	action="TOS"
-						if [ "${1}" = "to" ]
+						if [ "${1}" = "to" -o "${1}" = "--set-tos" ]
 						then
 							action_param=("--set-tos" "${2}")
 							shift 2
@@ -7815,7 +7823,7 @@ rule() {
 						;;
 						
 					MARK)	action="MARK"
-						if [ "${1}" = "to" ]
+						if [ "${1}" = "to" -o "${1}" = "--set-mark" ]
 						then
 							action_param=("--set-mark" "${2}")
 							shift 2
@@ -7833,12 +7841,12 @@ rule() {
 					CONNMARK)
 						action="CONNMARK"
 						case "${1}" in
-							to)
+							to|--set-mark)
 								action_param=("--set-mark" "${2}")
 								shift 2
 								;;
-							save)
-								if [ "${2}" = "mask" ]
+							save|--save-mark)
+								if [ "${2}" = "mask" -o "${2}" = "--mask" ]
 								then
 									action_param=("--save-mark" "--mask" "${3}")
 									shift 3
@@ -7847,8 +7855,8 @@ rule() {
 									shift 1
 								fi
 								;;
-							restore)
-								if [ "${2}" = "mask" ]
+							restore|--restore-mark)
+								if [ "${2}" = "mask" -o "${2}" = "--mask" ]
 								then
 									action_param=("--restore-mark" "--mask" "${3}")
 									shift 3
@@ -7880,6 +7888,14 @@ rule() {
 								action_param=("--set-dscp" "${2}")
 							fi
 							shift 2
+						elif [ "${1}" = "class" -o "${1}" = "--set-dscp-class" ]
+						then
+							action_param=("--set-dscp-class" "${2}")
+							shift
+						elif [ "${1}" = "--set-dscp" ]
+						then
+							action_param=("--set-dscp" "${2}")
+							shift
 						else
 							error "${action} requires a 'to' argument"
 							return 1
