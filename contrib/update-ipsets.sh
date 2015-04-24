@@ -76,10 +76,16 @@ geturl() {
 	fi
 }
 
+append_slash32() {
+	# this command appends '/32' to all the lines
+	# that do not include a slash
+	awk '/\// {print $1; next}; // {print $1 "/32" }'	
+}
+
 update() {
 	local 	ipset="${1}" mins="${2}" ipv="${3}" type="${4}" url="${5}" \
 		processor="${6-cat}" install="${base}/${1}" \
-		tmp= error=0 now= date=
+		tmp= error=0 now= date= append="cat"
 	shift 6
 
 	case "${ipv}" in
@@ -93,11 +99,13 @@ update() {
 				net|nets)	hash="net"
 						type="net"
 						filter="^[0-9\./]+$"
+						append="append_slash32"
 						;;
 
 				both|all)	hash="net"
 						type=""
 						filter="^[0-9\./]+$"
+						append="append_slash32"
 						;;
 
 				*)		echo >&2 "Unknown type '${type}'."
@@ -179,8 +187,13 @@ update() {
 	test ${SILENT} -ne 1 && echo >&2 "Saving ${ipset} to ${install}.source"
 	mv "${tmp}" "${install}.source" || return 1
 
-	test ${SILENT} -ne 1 && echo >&2 "Converting ${ipset} using processor: ${processor}"
-	${processor} <"${install}.source" | egrep "${filter}" | sort -u >"${tmp}" || return 1
+	test ${SILENT} -ne 1 && echo >&2 "Converting ${ipset} using processor '${processor}'"
+
+	${processor} <"${install}.source" |\
+		${append} |\
+		egrep "${filter}" |\
+		sort -u >"${tmp}" || return 1
+
 	mv "${tmp}" "${install}.${hash}set" || return 1
 
 	if [ -z "${sets[$ipset]}" ]
