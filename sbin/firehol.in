@@ -5363,6 +5363,7 @@ ipsets_restore() {
 	${CAT_CMD} "${file}" | ${EGREP_CMD} "^(${IPSET_CREATE_OPTION}|${IPSET_FLUSH_OPTION}) " >"${file}.pre"
 	${CAT_CMD} "${file}" | ${EGREP_CMD} "^(${IPSET_SWAP_OPTION}|${IPSET_DESTROY_OPTION}) " >"${file}.post"
 	${CAT_CMD} "${file}" | ${EGREP_CMD} -v "^(${IPSET_FLUSH_OPTION}|${IPSET_SWAP_OPTION}|${IPSET_DESTROY_OPTION}) " >"${file}.add"
+	echo "COMMIT" >>"${file}.add"
 
 	# the older versions of ipset will return an error if the
 	# ipset to be created already exists.
@@ -5460,8 +5461,6 @@ ipsets_apply() {
 
 	if [ -s "${FIREHOL_DIR}/ipsets.restore" ]
 	then
-		echo "COMMIT" >>"${FIREHOL_DIR}/ipsets.restore"
-
 		ipsets_restore "${FIREHOL_DIR}/ipsets.restore"
 		if [ $? -ne 0 ]
 		then
