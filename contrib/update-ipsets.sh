@@ -52,7 +52,10 @@ fi
 
 # create the directory to save the sets
 base="/etc/firehol/ipsets"
-test ! -d "${base}" && ( mkdir -p "${base}" || exit 1 )
+if [ ! -d "${base}" ]
+then
+	mkdir -p "${base}" || exit 1
+fi
 
 # find the active ipsets
 declare -A sets=()
@@ -76,70 +79,30 @@ geturl() {
 	fi
 }
 
+remove_slash32() {
+	sed "s|/32$||g"
+}
+
+remove_slash128() {
+	sed "s|/128$||g"
+}
+
 append_slash32() {
 	# this command appends '/32' to all the lines
 	# that do not include a slash
 	awk '/\// {print $1; next}; // {print $1 "/32" }'	
 }
 
-update() {
-	local 	ipset="${1}" mins="${2}" ipv="${3}" type="${4}" url="${5}" \
-		processor="${6-cat}" install="${base}/${1}" \
-		tmp= error=0 now= date= append="cat"
-	shift 6
+append_slash128() {
+	# this command appends '/32' to all the lines
+	# that do not include a slash
+	awk '/\// {print $1; next}; // {print $1 "/128" }'	
+}
 
-	case "${ipv}" in
-		ipv4)
-			case "${type}" in
-				ip|ips)		hash="ip"
-						type="ip"
-						filter="^[0-9\.]+$"
-						;;
-
-				net|nets)	hash="net"
-						type="net"
-						filter="^[0-9\./]+$"
-						append="append_slash32"
-						;;
-
-				both|all)	hash="net"
-						type=""
-						filter="^[0-9\./]+$"
-						append="append_slash32"
-						;;
-
-				*)		echo >&2 "Unknown type '${type}'."
-						return 1
-						;;
-			esac
-			;;
-		ipv6)
-			case "${type}" in
-				ip|ips)		hash="ip"
-						type="ip"
-						filter="^[0-9a-fA-F:]+$"
-						;;
-
-				net|nets)	hash="net"
-						type="net"
-						filter="^[0-9a-fA-F:/]+$"
-						;;
-
-				both|all)	hash="net"
-						type=""
-						filter="^[0-9a-fA-F:/]+$"
-						;;
-
-				*)		echo >&2 "Unknown type '${type}'."
-						return 1
-						;;
-			esac
-			;;
-
-		*)	echo >&2 "Unknown IP version '${ipv}'."
-			return 1
-			;;
-	esac
+download_url() {
+	local 	ipset="${1}" mins="${2}" url="${3}" \
+		install="${base}/${1}" \
+		tmp= now= date=
 
 	tmp="${install}.tmp.$$.${RANDOM}"
 
@@ -151,25 +114,25 @@ update() {
 	if [ -f "${install}.source" -a "${install}.source" -nt "${tmp}" ]
 	then
 		rm "${tmp}"
-		test ${SILENT} -ne 1 && echo >&2 "Ipset '${ipset}' is already up to date."
-		return 2
+		echo >&2 "${ipset}: should not be downloaded so soon."
+		return 0
 	fi
 
 	# download it
-	test ${SILENT} -ne 1 && echo >&2 "Downlading ipset '${ipset}' from '${url}'..."
+	test ${SILENT} -ne 1 && echo >&2 "${ipset}: downlading from '${url}'..."
 	geturl "${url}" >"${tmp}"
 	if [ $? -ne 0 ]
 	then
 		rm "${tmp}"
-		echo >&2 "Cannot download '${url}'."
+		echo >&2 "${ipset}: cannot download '${url}'."
 		return 1
 	fi
 
 	if [ ! -s "${tmp}" ]
 	then
 		rm "${tmp}"
-		echo >&2 "Download of '${url}' is empty."
-		return 1
+		echo >&2 "${ipset}: empty file downloaded from url '${url}'."
+		return 2
 	fi
 
 	if [ -f "${install}.source" ]
@@ -179,35 +142,153 @@ update() {
 		then
 			# they are the same
 			rm "${tmp}"
-			test ${SILENT} -ne 1 && echo >&2 "Downloaded file for ${ipset}, is the same with the previous one."
+			test ${SILENT} -ne 1 && echo >&2 "${ipset}: downloaded file is the same with the previous one."
+			touch "${install}.source"
 			return 0
 		fi
 	fi
 
-	test ${SILENT} -ne 1 && echo >&2 "Saving ${ipset} to ${install}.source"
+	test ${SILENT} -ne 1 && echo >&2 "${ipset}: saving downloaded file to ${install}.source"
 	mv "${tmp}" "${install}.source" || return 1
+	touch "${install}.source"
+}
 
-	test ${SILENT} -ne 1 && echo >&2 "Converting ${ipset} using processor '${processor}'"
+update() {
+	local 	ipset="${1}" mins="${2}" ipv="${3}" type="${4}" url="${5}" processor="${6-cat}"
+		install="${base}/${1}" tmp= error=0 now= date= pre_fix="cat" post_fix="cat"
+	shift 6
 
+
+
+	case "${ipv}" in
+		ipv4)
+			case "${type}" in
+				ip|ips)		hash="ip"
+						type="ip"
+						pre_fix="remove_slash32"
+						filter="^[0-9\.]+$"
+						;;
+
+				net|nets)	hash="net"
+						type="net"
+						filter="^[0-9\.]+/[0-9]+$"
+						;;
+
+				both|all)	hash="net"
+						type=""
+						filter="^[0-9\./]+$"
+						;;
+
+				split)		;;
+
+				*)		echo >&2 "${ipset}: unknown type '${type}'."
+						return 1
+						;;
+			esac
+			;;
+		ipv6)
+			case "${type}" in
+				ip|ips)		hash="ip"
+						type="ip"
+						pre_fix="remove_slash128"
+						filter="^[0-9a-fA-F:]+$"
+						;;
+
+				net|nets)	hash="net"
+						type="net"
+						filter="^[0-9a-fA-F:]+/[0-9]+$"
+						;;
+
+				both|all)	hash="net"
+						type=""
+						filter="^[0-9a-fA-F:/]+$"
+						;;
+
+				split)		;;
+
+				*)		echo >&2 "${ipset}: unknown type '${type}'."
+						return 1
+						;;
+			esac
+			;;
+
+		*)	echo >&2 "${ipset}: unknown IP version '${ipv}'."
+			return 1
+			;;
+	esac
+
+	echo >&2
+
+	# download it
+	download_url "${ipset}" "${mins}" "${url}" || return 1
+
+	if [ "${type}" = "split" ]
+	then
+		test -f "${install}_ip.source" && rm "${install}_ip.source"
+		test -f "${install}_net.source" && rm "${install}_net.source"
+		ln -s "${install}.source" "${install}_ip.source"
+		ln -s "${install}.source" "${install}_net.source"
+		update "${ipset}_ip" "${mins}" "${ipv}" ip  "${url}" "${processor}" || return $?
+		update "${ipset}_net" "${mins}" "${ipv}" net "${url}" "${processor}" || return $?
+		return 0
+	fi
+
+	# if it is newer than our destination
+	if [ ! "${install}.source" -nt "${install}.${hash}set" ]
+	then
+		echo >&2 "${ipset}: not updated - no reason to process it again."
+		return 0
+	fi
+
+	test ${SILENT} -ne 1 && echo >&2 "${ipset}: converting with processor '${processor}'"
+
+	tmp="${install}.tmp.$$.${RANDOM}"
 	${processor} <"${install}.source" |\
-		${append} |\
+		${pre_fix} |\
 		egrep "${filter}" |\
-		sort -u >"${tmp}" || return 1
+		${post_fix} |\
+		sort -u >"${tmp}"
 
-	mv "${tmp}" "${install}.${hash}set" || return 1
+	if [ $? -ne 0 ]
+	then
+		rm "${tmp}"
+		echo >&2 "${ipset}: failed to convert file."
+		return 1
+	fi
+
+	if [ ! -s "${tmp}" ]
+	then
+		rm "${tmp}"
+		echo >&2 "${ipset}: processed file gave no results."
+		return 2
+	fi
+
+	diff "${install}.${hash}set" "${tmp}" >/dev/null 2>&1
+	if [ $? -eq 0 ]
+	then
+		# they are the same
+		rm "${tmp}"
+		test ${SILENT} -ne 1 && echo >&2 "${ipset}: processed set is the same with the previous one."
+		touch "${install}.${hash}set"
+		return 0
+	fi
 
 	if [ -z "${sets[$ipset]}" ]
 	then
-		echo >&2 "Creating ipset '${ipset}'..."
+		echo >&2 "${ipset}: creating ipset."
 		ipset --create ${ipset} "${hash}hash" || return 1
 	fi
 
-	firehol ipset_update_from_file ${ipset} ${ipv} ${type} "${install}.${hash}set"
+	firehol ipset_update_from_file ${ipset} ${ipv} ${type} "${tmp}"
 	if [ $? -ne 0 ]
 	then
-		echo >&2 "Failed to update ipset '${ipset}' from url '${url}'."
+		rm "${tmp}"
+		echo >&2 "${ipset}: failed to update ipset."
 		return 1
 	fi
+
+	# all is good. keep it.
+	mv "${tmp}" "${install}.${hash}set" || return 1
 
 	return 0
 }
@@ -325,6 +406,10 @@ update danmetor 30 ipv4 ip \
 update tor $[12*60-10] ipv4 ip \
 	"http://rules.emergingthreats.net/blockrules/emerging-tor.rules?r=${RANDOM}" \
 	snort_alert_rules_to_ipv4
+
+update tor_servers 30 ipv4 ip \
+	"https://torstatus.blutmagie.de/ip_list_all.php/Tor_ip_list_ALL.csv?r=${RANDOM}" \
+	remove_comments
 
 
 # -----------------------------------------------------------------------------
