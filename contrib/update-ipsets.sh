@@ -137,7 +137,7 @@ update() {
 
 	# check if we have to download again
 	now=$(date +%s)
-	date=$(date -d @$[now - (mins * 60)] +"%y-%m-%d %H:%M:%S")
+	date=$(date -d @$[now - (mins * 60)] +"%y%m%d%H%M.%S")
 	touch -t "${date}" "${tmp}"
 
 	if [ -f "${install}.source" -a "${install}.source" -nt "${tmp}" ]
