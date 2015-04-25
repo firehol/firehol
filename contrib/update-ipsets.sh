@@ -452,6 +452,27 @@ update blocklist_de $[30-5] ipv4 ip \
 	"http://lists.blocklist.de/lists/all.txt?r=${RANDOM}" \
 	remove_comments
 
+
+# -----------------------------------------------------------------------------
+# zeus trojan
+# https://zeustracker.abuse.ch/blocklist.php
+
+# This blocklists only includes IPv4 addresses that are used by the ZeuS trojan.
+update zeus $[30-5] ipv4 ip \
+	"https://zeustracker.abuse.ch/blocklist.php?download=ipblocklist&r=${RANDOM}" \
+	remove_comments
+
+
+# -----------------------------------------------------------------------------
+# malc0de
+# http://malc0de.com
+
+# updated daily and populated with the last 30 days of malicious IP addresses.
+update malc0de $[24*60-10] ipv4 ip \
+	"http://malc0de.com/bl/IP_Blacklist.txt?r=${RANDOM}" \
+	remove_comments
+
+
 # -----------------------------------------------------------------------------
 # Bogons
 # Bogons are IP addresses that should not be routed because they are not
