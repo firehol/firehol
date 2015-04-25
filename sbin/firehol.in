@@ -861,9 +861,6 @@ then
 	exit 1
 fi
 
-# save the information for the other tools
-declare -p MARKS_BITS MARKS_MASKS MARKS_MAX MARKS_SHIFT MARKS_STATEFUL MARKS_SAVERESTORE MARKS_SAVERESTORE_STATEFUL_MASK MARKS_SAVERESTORE_STATELESS_MASK >"${FIREHOL_SPOOL_DIR}/marks.conf"
-
 # make sure we have a valid FIREHOL_RULESET_MODE
 if [ ! "${FIREHOL_RULESET_MODE}" = "optimal" -a ! "${FIREHOL_RULESET_MODE}" = "accurate" ]
 then
@@ -1354,6 +1351,9 @@ firehol_exit() {
 				syslog emerg "FAILED to activate the firewall from ${FIREHOL_CONFIG}. Last good firewall restoration: ${restored}."
 				result="FAILED"
 			else
+				# save the marks information for the other tools
+				declare -p MARKS_BITS MARKS_MASKS MARKS_MAX MARKS_SHIFT MARKS_STATEFUL MARKS_SAVERESTORE MARKS_SAVERESTORE_STATEFUL_MASK MARKS_SAVERESTORE_STATELESS_MASK >"${FIREHOL_SPOOL_DIR}/marks.conf"
+
 				syslog info "Successfully activated new firewall from ${FIREHOL_CONFIG}."
 				result="OK"
 			fi
@@ -4076,8 +4076,8 @@ tproxy() {
 	
 	if [ -z "${FIREHOL_TPROXY_MARK}" ]
 	then
-		#FIREHOL_TPROXY_MARK="$[ MARKS_MAX[usermark] << MARKS_SHIFT[usermark] ]/${MARKS_MASKS[usermark]}"
-		FIREHOL_TPROXY_MARK="$(mark_value usermark MARKS_MAX[usermark])"
+		markdef tproxymark 2 temporary stateless || return 1
+		FIREHOL_TPROXY_MARK="$(mark_value tproxymark 1)"
 	fi
 
 	local 	tproxy_action_options="tproxy-mark $FIREHOL_TPROXY_MARK" \
