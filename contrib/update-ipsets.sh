@@ -79,6 +79,18 @@ geturl() {
 	fi
 }
 
+aggregate_cmd() {
+	local cmd="`which aggregate-flim`"
+	test -z "${cmd}" && cmd="`which aggregate`"
+	if [ -z "${cmd}" ]
+		then
+			echo >&2 "Warning: Cannot aggregate ip-ranges. Please install 'aggregate'. Working wihout aggregate."
+			cmd="cat"
+	fi
+
+	"${cmd}"
+}
+
 filter_ip4()  { egrep "^[0-9\.]+$"; }
 filter_net4() { egrep "^[0-9\.]+/[0-9]+$"; }
 filter_all4() { egrep "^[0-9\.]+(/[0-9]+)?$"; }
@@ -178,11 +190,13 @@ update() {
 				net|nets)	hash="net"
 						type="net"
 						filter="filter_net4"
+						post_filter="aggregate_cmd"
 						;;
 
 				both|all)	hash="net"
 						type=""
 						filter="filter_all4"
+						post_filter="aggregate_cmd"
 						;;
 
 				split)		;;
