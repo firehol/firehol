@@ -79,13 +79,16 @@ geturl() {
 	fi
 }
 
-remove_slash32() {
-	sed "s|/32$||g"
-}
+filter_ip4()  { egrep "^[0-9\.]+$"; }
+filter_net4() { egrep "^[0-9\.]+/[0-9]+$"; }
+filter_all4() { egrep "^[0-9\.]+(/[0-9]+)?$"; }
 
-remove_slash128() {
-	sed "s|/128$||g"
-}
+filter_ip6()  { egrep "^[0-9a-fA-F:]+$"; }
+filter_net6() { egrep "^[0-9a-fA-F:]+/[0-9]+$"; }
+filter_all6() { egrep "^[0-9a-fA-F:]+(/[0-9]+)?$"; }
+
+remove_slash32() { sed "s|/32$||g"; }
+remove_slash128() { sed "s|/128$||g"; }
 
 append_slash32() {
 	# this command appends '/32' to all the lines
@@ -97,6 +100,10 @@ append_slash128() {
 	# this command appends '/32' to all the lines
 	# that do not include a slash
 	awk '/\// {print $1; next}; // {print $1 "/128" }'	
+}
+
+filter_invalid4() {
+	egrep -v "^(0\.0\.0\.0|0\.0\.0\.0/0|255\.255\.255\.255|255\.255\.255\.255/0)$"
 }
 
 download_url() {
@@ -155,28 +162,27 @@ download_url() {
 
 update() {
 	local 	ipset="${1}" mins="${2}" ipv="${3}" type="${4}" url="${5}" processor="${6-cat}"
-		install="${base}/${1}" tmp= error=0 now= date= pre_fix="cat" post_fix="cat"
+		install="${base}/${1}" tmp= error=0 now= date= pre_filter="cat" post_filter="cat" filter="cat"
 	shift 6
-
-
 
 	case "${ipv}" in
 		ipv4)
+			post_filter="filter_invalid4"
 			case "${type}" in
 				ip|ips)		hash="ip"
 						type="ip"
-						pre_fix="remove_slash32"
-						filter="^[0-9\.]+$"
+						pre_filter="remove_slash32"
+						filter="filter_ip4"
 						;;
 
 				net|nets)	hash="net"
 						type="net"
-						filter="^[0-9\.]+/[0-9]+$"
+						filter="filter_net4"
 						;;
 
 				both|all)	hash="net"
 						type=""
-						filter="^[0-9\./]+$"
+						filter="filter_all4"
 						;;
 
 				split)		;;
@@ -190,18 +196,18 @@ update() {
 			case "${type}" in
 				ip|ips)		hash="ip"
 						type="ip"
-						pre_fix="remove_slash128"
-						filter="^[0-9a-fA-F:]+$"
+						pre_filter="remove_slash128"
+						filter="filter_ip6"
 						;;
 
 				net|nets)	hash="net"
 						type="net"
-						filter="^[0-9a-fA-F:]+/[0-9]+$"
+						filter="filter_net6"
 						;;
 
 				both|all)	hash="net"
 						type=""
-						filter="^[0-9a-fA-F:/]+$"
+						filter="filter_all6"
 						;;
 
 				split)		;;
@@ -244,9 +250,9 @@ update() {
 
 	tmp="${install}.tmp.$$.${RANDOM}"
 	${processor} <"${install}.source" |\
-		${pre_fix} |\
-		egrep "${filter}" |\
-		${post_fix} |\
+		${pre_filter} |\
+		${filter} |\
+		${post_filter} |\
 		sort -u >"${tmp}"
 
 	if [ $? -ne 0 ]
