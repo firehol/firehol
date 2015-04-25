@@ -5288,7 +5288,7 @@ ipset() {
 				ip=${ip//unroutable_ips()/${UNROUTABLE_IPV4}}
 			fi
 
-			for x in ${ip}
+			for x in ${ip//,/ }
 			do
 				echo "${IPSET_ADD_OPTION} ${name} ${x} ${*}" >>"${FIREHOL_DIR}/ipset.${name}.rules"
 			done
