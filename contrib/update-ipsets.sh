@@ -248,9 +248,9 @@ update() {
 		test -f "${install}_net.source" && rm "${install}_net.source"
 		ln -s "${install}.source" "${install}_ip.source"
 		ln -s "${install}.source" "${install}_net.source"
-		update "${ipset}_ip" "${mins}" "${ipv}" ip  "${url}" "${processor}" || return $?
-		update "${ipset}_net" "${mins}" "${ipv}" net "${url}" "${processor}" || return $?
-		return 0
+		update "${ipset}_ip" "${mins}" "${ipv}" ip  "${url}" "${processor}"
+		update "${ipset}_net" "${mins}" "${ipv}" net "${url}" "${processor}"
+		return $?
 	fi
 
 	# if it is newer than our destination
@@ -280,6 +280,7 @@ update() {
 	then
 		rm "${tmp}"
 		echo >&2 "${ipset}: processed file gave no results."
+		test ! -f "${install}.${hash}set" && touch "${install}.${hash}set"
 		return 2
 	fi
 
