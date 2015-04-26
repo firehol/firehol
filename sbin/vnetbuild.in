@@ -1,0 +1,650 @@
+#!/bin/bash
+#
+# vnetbuild - linked network namespace setup for humans...
+#
+#   Copyright
+#
+#       Copyright (C) 2015 Phil Whineray <phil@sanewall.org>
+#       Copyright (C) 2015 Costa Tsaousis <costa@tsaousis.gr>
+#
+#   License
+#
+#       This program is free software; you can redistribute it and/or modify
+#       it under the terms of the GNU General Public License as published by
+#       the Free Software Foundation; either version 2 of the License, or
+#       (at your option) any later version.
+#
+#       This program is distributed in the hope that it will be useful,
+#       but WITHOUT ANY WARRANTY; without even the implied warranty of
+#       MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE. See the
+#       GNU General Public License for more details.
+#
+#       You should have received a copy of the GNU General Public License
+#       along with this program. If not, see <http://www.gnu.org/licenses/>.
+#
+#       See the file COPYING for details.
+#
+
+# make sure sbin is included in the path
+# it seems that pppd ip-up.d script need this
+export PATH="$PATH:/sbin:/usr/sbin:/usr/local/sbin"
+
+get_version() {
+	GIT_REF='$Format:%d,commit-%h$'
+	local IFS=":(), "
+	set -- "$GIT_REF"
+	ver='$Id$'
+	for i in $@
+	do
+		case "$i" in
+			*[0-9].[0.9]*)
+				echo "$i" | sed -e 's/^v//'
+				return 0
+			;;
+			commit-[0-9a-zA-Z]*)
+				ver="$i"
+			;;
+		esac
+	done
+	echo "$ver"
+	return 0
+}
+VERSION=$(get_version)
+
+emit_version() {
+	cat <<EOF
+FireHOL vnetbuild $VERSION
+(C) Copyright 2015 Phil Whineray <phil@firehol.org>
+(C) Copyright 2015 Costa Tsaousis <costa@tsaousis.gr>
+FireHOL is distributed under the GPL v2+.
+Home Page: http://firehol.org
+
+-------------------------------------------------------------------------
+Get notified of new FireHOL releases by subscribing to the mailing list:
+    http://lists.firehol.org/mailman/listinfo/firehol-support/
+-------------------------------------------------------------------------
+EOF
+}
+
+needroot=Y
+haderror=""
+#gvprog=dot
+#gvprog=sfdp
+gvprog=neato
+
+setup="$1"
+mode="$2"
+outfile="$3"
+
+case "$mode" in
+  ""|-h|help|-v|version)
+    mode=
+    needroot=
+    haderror="Y"
+  ;;
+  start|stop|status)
+    :
+  ;;
+  graphviz)
+    needroot=
+    case "$outfile" in
+      *.gv|"")
+        graphviz=cat
+      ;;
+      *.ps)
+        format=ps
+        graphviz="$gvprog -T$format"
+      ;;
+      *.pdf)
+        format=pdf
+        graphviz="$gvprog -T$format"
+      ;;
+      *.png)
+        format=png
+        graphviz="$gvprog -T$format"
+      ;;
+      *)
+        1>&2 echo "Unrecognised file extension: $mode"
+        haderror="Y"
+      ;;
+    esac
+  ;;
+  *)
+    1>&2 echo "Unrecognised mode: $mode"
+    haderror="Y"
+    needroot=
+  ;;
+esac
+
+if [ "$mode" = "" ]
+then
+  emit_version
+fi
+
+if [ "$needroot" -a "`id -r -u`" != "0" ]
+then
+  echo "Error: must be root to use '$mode'"
+  haderror="Y"
+fi
+
+if [ "$haderror" -o $# -lt 2 ]
+then
+  echo ""
+  echo "Usage: sudo vnetbuild CONFIGFILE stop|start|status"
+  echo "   or: vnetbuild CONFIGFILE graphviz OUTFILE.{gv,png,pdf,ps}"
+  exit 1
+else
+  shift
+  shift
+fi
+
+setupbase="$(basename $setup)"
+errline=""
+error=""
+
+if ! MYTMP="`mktemp -d -t vnetbuild-XXXXXX`"
+then
+            echo >&2
+            echo >&2
+            echo >&2 "Cannot create temporary directory."
+            echo >&2
+            exit 1
+fi
+
+myexit() {
+  status=$?
+  if [ "$error" != "" ]
+  then
+    echo "$setupbase: line $errline: $error"
+  fi
+  rm -rf $MYTMP
+  exit $status
+}
+
+trap myexit INT
+trap myexit HUP
+trap myexit 0
+
+CURDIR=`pwd`/
+export CURDIR
+
+set -e
+
+mkdir $MYTMP/setup
+sed = "$setup" > $MYTMP/withnum
+(echo "cd $CURDIR"; sed -e 'N;s/\n/\t/' -e 's/^/lineno=/' -e '/exec/s/[<>|&]/\\&/g' $MYTMP/withnum) > $MYTMP/setup/$setupbase
+
+mkdir $MYTMP/ns
+mkdir $MYTMP/runtime-lines
+
+current_name=
+ 
+create_namespace() {
+  errline=$lineno
+  local type="$1"
+  current_name="$2"
+  NSTMP=$MYTMP/ns/$current_name
+  if [ -d $NSTMP ]
+  then
+    error="$current_name: $(cat $NSTMP/type) already defined"
+    return 1
+  fi
+  mkdir $NSTMP
+  mkdir $NSTMP/devices
+  mkdir $NSTMP/devicepairs
+  echo $type > $NSTMP/type
+  echo 0 > $NSTMP/forward
+  > $NSTMP/routes
+  > $NSTMP/devlist
+  > $NSTMP/pairlist
+  > $NSTMP/bridgelist
+  echo $current_name >> $MYTMP/nslist
+  echo $errline > $MYTMP/runtime-lines/$current_name
+}
+
+host() {
+  errline=$lineno
+  create_namespace host "$1"
+}
+
+switch() {
+  errline=$lineno
+  create_namespace switch "$1"
+}
+
+dev() {
+  errline=$lineno
+  device="$1"
+  shift
+
+  if [ ! "$current_name" ]
+  then
+    error="cannot define dev outside of a host or switch"
+    return 1
+  fi
+
+  if [ -f $NSTMP/devices/$device ]
+  then
+    error="$current_name/$device: already defined"
+    return 1
+  fi
+
+  local otherns=
+  local otherdev=
+  case $1 in
+    */[a-zA-Z]*)
+      otherns=$(echo $1 | cut -f1 -d/)
+      otherdev=$(echo $1 | cut -f2 -d/)
+      shift
+      if [ -f $MYTMP/ns/$otherns/devicepairs/$otherdev ]
+      then
+        error="$otherns/$otherdev: already has paired device"
+        return 1
+      fi
+    ;;
+  esac
+
+  local type="$(cat $NSTMP/type)"
+  if [ "$*" != "" -a "$type" = "switch" ]
+  then
+    error="device in switch may not specify an IP address"
+    return 1
+  fi
+
+
+  f=$NSTMP/devices/$device
+  > $f
+  for ip in "$@"
+  do
+    case $ip in
+      */*)
+       echo "$ip" >> $f
+      ;;
+      *)
+       error="IP address should be expressed as ip/mask"
+       return 1
+      ;;
+    esac
+  done
+
+  if [ "$otherdev" ]
+  then
+    if [ ! -d $MYTMP/ns/$otherns ]
+    then
+      error="$otherns undefined"
+      return 1
+    fi
+    echo "$current_name $device" > $MYTMP/ns/$otherns/devicepairs/$otherdev
+    echo "n/a n/a" > $NSTMP/devicepairs/$device
+    echo "$otherns $otherdev" >> $NSTMP/pairlist
+    echo $errline > $MYTMP/runtime-lines/$otherns-pair-$otherdev
+  fi
+
+  echo $device >> $NSTMP/devlist
+  echo $errline > $MYTMP/runtime-lines/$current_name-dev-$device
+  return 0
+}
+
+route() {
+  errline=$lineno
+  if [ ! "$current_name" ]
+  then
+    error="can only specify route in a host"
+    return 1
+  fi
+
+  local type="$(cat $NSTMP/type)"
+  if [ "$type" = "switch" ]
+  then
+    error="can only specify route in a host"
+    return 1
+  fi
+
+  echo "$*" >> $NSTMP/routes
+  echo $errline >> $MYTMP/runtime-lines/$current_name-routes
+  return 0
+}
+
+bridgedev() {
+  errline=$lineno
+  device="$1"
+  shift
+
+  if [ ! "$current_name" ]
+  then
+    error="can only specify bridgedev in a host"
+    return 1
+  fi
+
+  local type="$(cat $NSTMP/type)"
+  if [ "$type" = "switch" ]
+  then
+    error="can only specify bridgedev in a host"
+    return 1
+  fi
+
+  if [ -f $NSTMP/devices/$device ]
+  then
+    error="$current_name/$device: already defined"
+    return 1
+  fi
+
+  ipf=$NSTMP/devices/$device
+  devf=$ipf-bridged
+  > $ipf
+  > $devf
+  for ipordev in "$@"
+  do
+    case $ipordev in
+      */*)
+       echo "$ipordev" >> $ipf
+      ;;
+      *)
+       echo "$ipordev" >> $devf
+      ;;
+    esac
+  done
+
+  echo $device >> $NSTMP/bridgelist
+  echo $errline > $MYTMP/runtime-lines/$current_name-dev-$device
+  return 0
+}
+
+exec() {
+  errline=$lineno
+  if [ ! "$current_name" ]
+  then
+    error="can only specify exec in a host or switch"
+    return 1
+  fi
+
+  echo "$*" >> $NSTMP/exec
+  echo $errline >> $MYTMP/runtime-lines/$current_name-exec
+  return 0
+}
+
+cd $MYTMP/setup
+. $setupbase
+errline=""
+cd $CURDIR
+
+exists_ns() {
+  if [ "$(ip netns list | grep "^$1\$")" ]
+  then
+    return 0
+  else
+    return 1
+  fi
+}
+
+dev_in_ns() {
+  ip netns exec $1 ip link list | grep "^[0-9]" | cut -d: -f2 | tr -d ' '
+}
+
+get_pids() {
+  # Not in all versions:
+  #   ip netns pids $1
+  find -L /proc/[0-9]*/ns -maxdepth 1 -samefile /var/run/netns/$1 2>/dev/null | cut -f3 -d/
+}
+
+shutdown_ns() {
+  for i in $(dev_in_ns $1)
+  do
+    ip netns exec $1 ip link set $i down
+  done
+  pids=$(get_pids $1)
+  if [ "$pids" ]; then kill $pids; sleep 1; fi
+  pids=$(get_pids $1)
+  if [ "$pids" ]; then kill -9 $pids; fi
+}
+
+startup_ns() {
+  for i in $(dev_in_ns $1)
+  do
+    ip netns exec $1 ip link set $i up
+  done
+}
+
+while read ns
+do
+  while read dev
+  do
+    read errline < $MYTMP/runtime-lines/$ns-dev-$dev
+    if [ ! -f $MYTMP/ns/$ns/devicepairs/$dev ]
+    then
+      error="$ns/$dev has no paired device"
+      exit 1
+    fi
+  done < $MYTMP/ns/$ns/devlist
+
+  while read otherns otherdev
+  do
+    read errline < $MYTMP/runtime-lines/$otherns-pair-$otherdev
+    if [ ! -f $MYTMP/ns/$otherns/devices/$otherdev ]
+    then
+      error="$otherns/$otherdev not defined to be paired with"
+      exit 1
+    fi
+  done < $MYTMP/ns/$ns/pairlist
+done < $MYTMP/nslist
+
+if [ "$mode" = "stop" -o "$mode" = "start" ]
+then
+   while read ns
+   do
+     read errline < $MYTMP/runtime-lines/$ns
+     error="shutting down namespace"
+     exists_ns $ns && shutdown_ns $ns
+   done < $MYTMP/nslist
+
+   while read ns
+   do
+     read errline < $MYTMP/runtime-lines/$ns
+     error="deleting namespace"
+     exists_ns $ns && ip netns del $ns
+   done < $MYTMP/nslist
+
+  error=""
+fi
+
+if [ "$mode" = "stop" ]
+then
+  exit 0
+fi
+
+if [ "$mode" = "start" ]
+then
+  while read ns
+  do
+    read errline < $MYTMP/runtime-lines/$ns
+    error="adding namespace"
+    type="$(cat $MYTMP/ns/$ns/type)"
+    ip netns add $ns
+    if [ "$type" = "switch" ]
+    then
+      error="adding bridge to switch namespace"
+      ip netns exec $ns brctl addbr switch
+    fi
+  done < $MYTMP/nslist
+
+  while read ns
+  do
+    type="$(cat $MYTMP/ns/$ns/type)"
+    while read dev
+    do
+      read errline < $MYTMP/runtime-lines/$ns-dev-$dev
+      read ons odev < $MYTMP/ns/$ns/devicepairs/$dev
+      if [ "$ons" != "n/a" ]
+      then
+        error="adding virtual ethernet to $type namespace"
+        ip link add $dev netns $ns type veth peer netns $ons name $odev
+      else
+        : # gets set up from the other end
+      fi
+      if [ "$type" = "switch" ]
+      then
+        error="adding virtual ethernet to bridge"
+        ip netns exec $ns brctl addif switch $dev
+      fi
+      while read ip
+      do
+        error="adding ip address to virtual ethernet"
+        ip netns exec $ns ip addr add $ip broadcast + dev $dev
+      done < $MYTMP/ns/$ns/devices/$dev
+    done < $MYTMP/ns/$ns/devlist
+
+    while read bridge
+    do
+      read errline < $MYTMP/runtime-lines/$ns-dev-$bridge
+      error="adding bridge to host namespace"
+      ip netns exec $ns brctl addbr $bridge
+      while read dev
+      do
+        error="adding virtual interface to bridge"
+        ip netns exec $ns brctl addif $bridge $dev
+      done < $MYTMP/ns/$ns/devices/$bridge-bridged
+      while read ip
+      do
+        error="adding ip to virtual interface"
+        ip netns exec $ns ip addr add $ip broadcast + dev $bridge
+      done < $MYTMP/ns/$ns/devices/$bridge
+    done < $MYTMP/ns/$ns/bridgelist
+  done < $MYTMP/nslist
+
+  while read ns
+  do
+    echo "Starting namespace $ns"
+
+    read errline < $MYTMP/runtime-lines/$ns
+    error="starting namespace"
+    startup_ns $ns
+
+    while read route
+    do
+      errline=$(tr "\n" "/" < $MYTMP/runtime-lines/$ns-routes | sed -e s:/$::)
+      error="adding route to $ns"
+      ip netns exec $ns ip route add $route
+    done < $MYTMP/ns/$ns/routes
+
+    if [ -f $MYTMP/ns/$ns/exec ]
+    then
+      errline=$(tr "\n" "/" < $MYTMP/runtime-lines/$ns-exec | sed -e s:/$::)
+      error="running exec for $ns"
+      ip netns exec $ns sh -e $MYTMP/ns/$ns/exec
+    fi
+  done < $MYTMP/nslist
+  error=""
+fi
+
+if [ "$mode" = "status" ]
+then
+  while read ns
+  do
+    echo "---------------------- $ns --------------------"
+    if exists_ns $ns
+    then
+      ip netns exec $ns ip addr show
+      ip netns exec $ns ip route show
+      ip netns exec $ns brctl show
+    else
+      echo "Namespace not running"
+    fi
+    echo ""
+  done < $MYTMP/nslist
+fi
+
+if [ "$mode" = "graphviz" ]
+then
+  gv=$MYTMP/gv
+  echo "/* process e.g.: $gvprog -Tps filename.gv -o filename.ps */" >$gv
+  echo "graph NET {" >>$gv
+  if [ "$format" != "png" ]
+  then
+    echo "size=7; /* Max size 7 inches */" >>$gv
+  fi
+  echo "overlap=prism;" >>$gv
+  echo "edge [color=blue,style=dashed];" >>$gv
+  while read ns
+  do
+    type="$(cat $MYTMP/ns/$ns/type)"
+    if [ "$type" = "switch" ]
+    then
+      echo "switch_$ns [shape=polygon,sides=4,skew=.4,label=\"$ns\"];" >>$gv
+    else
+      echo -n "host_$ns [shape=record,label=\"$ns" >>$gv
+      while read route
+      do
+        echo -n "\\n$route" >>$gv
+      done < $MYTMP/ns/$ns/routes
+      while read bridge
+      do
+        echo -n "|{<$bridge> $bridge" >>$gv
+        while read ip
+        do
+          echo -n "\\n$ip" >>$gv
+        done < $MYTMP/ns/$ns/devices/$bridge
+        while read dev
+        do
+          echo -n "|{" >>$gv
+          echo -n "<$dev> $dev" >>$gv
+          while read ip
+          do
+            echo -n "\n$ip" >>$gv
+          done < $MYTMP/ns/$ns/devices/$dev
+          echo -n "}" >>$gv
+          echo "$bridge" > $MYTMP/ns/$ns/suppress-$dev
+        done < $MYTMP/ns/$ns/devices/$bridge-bridged
+        echo -n "}" >>$gv
+      done < $MYTMP/ns/$ns/bridgelist
+      while read dev
+      do
+        if [ ! -f $MYTMP/ns/$ns/suppress-$dev ]
+        then
+          echo -n "|<$dev> $dev" >>$gv
+          while read ip
+          do
+            echo -n "\\n$ip" >>$gv
+          done < $MYTMP/ns/$ns/devices/$dev
+        fi
+      done < $MYTMP/ns/$ns/devlist
+      echo "\"];" >>$gv
+    fi
+  done < $MYTMP/nslist
+  while read ns
+  do
+    type="$(cat $MYTMP/ns/$ns/type)"
+    while read dev
+    do
+      read ons odev < $MYTMP/ns/$ns/devicepairs/$dev
+      if [ "$ons" != "n/a" ]
+      then
+        otype="$(cat $MYTMP/ns/$ons/type)"
+        if [ "$type" = "switch" ]
+        then
+          from="switch_$ns"
+        else
+          from="host_$ns:$dev"
+        fi
+        if [ "$otype" = "switch" ]
+        then
+          to="switch_$ons"
+        else
+          to="host_$ons:$odev"
+        fi
+        echo "$from -- $to;" >>$gv
+      else
+        : # gets set up from the other end
+      fi
+    done < $MYTMP/ns/$ns/devlist
+  done < $MYTMP/nslist
+  echo "}" >>$gv
+
+  if [ "$outfile" = "" ]
+  then
+    $graphviz $gv
+  else
+    $graphviz $gv > "$outfile"
+  fi
+fi
+
+exit 0

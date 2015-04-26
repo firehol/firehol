@@ -1,6 +1,6 @@
 # Process this file with automake to produce Makefile.in
 
-SUBDIRS = . firehol fireqos
+SUBDIRS = . firehol fireqos vnetbuild
 
 all-local: service-links
 
@@ -9,10 +9,13 @@ dochtmldir = $(htmldir)/html
 MANUAL_LINKS = \
 	links-internal-firehol \
 	links-internal-fireqos \
+	links-internal-vnetbuild \
 	links-keywords-firehol \
 	links-keywords-fireqos \
+	links-keywords-vnetbuild \
 	links-website-firehol \
-	links-website-fireqos
+	links-website-fireqos  \
+	links-website-vnetbuild
 
 if ENABLE_DOC
 
