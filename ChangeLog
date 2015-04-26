@@ -1,3 +1,12 @@
+firehol (2.0.3) stable; urgency=low
+
+  * Fix to avoid errors when using physin/physout. Note that these
+    parameters are only useful when the traffic travels over a single
+    bridge.
+  * Fix to handle tc output on some systems, courtesy of Phineas Gage
+
+ -- Phil Whineray <phil@sanewall.org>  Sun, 26 Apr 2015 11:07:00 +0000
+
 firehol (2.0.2) stable; urgency=low
 
   *  Fix to ensure the final firewall close code emits as both ipv4 and ipv6
