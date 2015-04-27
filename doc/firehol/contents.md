@@ -19,6 +19,7 @@ and also as
 # FireHOL Reference
 
 * [Introduction](introduction.md)
+* [Command Tables](command-tables.md)
 
 ## Running and Configuring FireHOL
 

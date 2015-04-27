@@ -29,15 +29,9 @@ AX_PROG_XMLLINT([--nonet])
 AX_PROG_PANDOC([ -f markdown --toc -N],
                [ -f markdown -t html --email-obfuscation=references --toc -c firehol-manual.css],
                [ -f markdown -t man -s])
-dnl Earlier versions have subtle problems in e.g. PDF output
-dnl   Note that we still have some workarounds in the Makefile for 1.9.4.2
-dnl   which can maybe be taken out for later versions...
-dnl Debian wheezy has an up-to-date version as does Ubuntu from 12.10 on.
-dnl The updated binary runs just fine when upgraded on 12.04 with:
-dnl   dpkg -i pandoc_1.9.4.2-2build1_amd64.deb
-dnl I downloaded mine from here:
-dnl   https://launchpad.net/ubuntu/+source/pandoc/1.9.4.2-2build1/+build/3744151
-AX_CHECK_PANDOC_MIN([1.9.4.2],[],[AC_MSG_ERROR(could not find required version of pandoc)])
+dnl pandoc 1.12.2.1+ is required to process github markdown
+dnl   Debian jessie and Ubuntu trusty packages are OK
+AX_CHECK_PANDOC_MIN([1.12.2.1],[],[AC_MSG_ERROR(could not find required version of pandoc)])
 AX_CHECK_PANDOC_OUTPUT()
 AC_SUBST(PACKAGE_BUILT_DATE)
 AC_SUBST(PANDOC_VERSION)
