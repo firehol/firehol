@@ -57,9 +57,14 @@ then
 	mkdir -p "${base}" || exit 1
 fi
 
+ipset_list_names() {
+	( ipset --list -t || ipset --list ) | grep "^Name: " | cut -d ' ' -f 2
+}
+
 # find the active ipsets
+echo >&2 "Getting list of active ipsets..."
 declare -A sets=()
-for x in $(ipset --save | egrep "^(create|-N|--create) " | cut -d ' ' -f 2)
+for x in $(ipset_list_names)
 do
 	sets[$x]=1
 done
@@ -238,6 +243,12 @@ update() {
 	esac
 
 	echo >&2
+	if [ ! -f "${install}.source" ]
+	then
+		echo >&2 "${ipset}: is disabled."
+		echo >&2 "${ipset}: to enable it run: touch -t 0001010000 '${install}.source'"
+		return 1
+	fi
 
 	# download it
 	download_url "${ipset}" "${mins}" "${url}" || return 1
@@ -294,10 +305,21 @@ update() {
 		return 0
 	fi
 
+	local ipset_opts=
+	local entries=$(wc -l "${tmp}" | cut -d ' ' -f 1)
+	local size=$[ ( ( entries / 65536 ) + 1 ) * 65536 ]
+
 	if [ -z "${sets[$ipset]}" ]
 	then
-		echo >&2 "${ipset}: creating ipset."
-		ipset --create ${ipset} "${hash}hash" || return 1
+		if [ ${size} -ne 65536 ]
+		then
+			echo >&2 "${ipset}: processed file gave ${entries} results - sizing to ${size} entries"
+			echo >&2 "${ipset}: remember to append this to your ipset line (in firehol.conf): maxelem ${size}"
+			ipset_opts="maxelem ${size}"
+		fi
+
+		echo >&2 "${ipset}: creating ipset with ${entries} entries"
+		ipset --create ${ipset} "${hash}hash" ${ipset_opts} || return 1
 	fi
 
 	firehol ipset_update_from_file ${ipset} ${ipv} ${type} "${tmp}"
@@ -342,6 +364,15 @@ remove_comments() {
 	sed -e "s/#.*$//g" -e "s/[\t ]\+/ /g" -e "s/^ \+//g" -e "s/ \+$//g"
 }
 
+remove_comments_semi_colon() {
+	# remove:
+	# 1. everything on the same line after a ;
+	# 2. multiple white space (tabs and spaces)
+	# 3. leading spaces
+	# 4. trailing spaces
+	sed -e "s/;.*$//g" -e "s/[\t ]\+/ /g" -e "s/^ \+//g" -e "s/ \+$//g"
+}
+
 # convert snort rules to a list of IPs
 snort_alert_rules_to_ipv4() {
 	remove_comments |\
@@ -359,6 +390,13 @@ pix_deny_rules_to_ipv4() {
 		subnet_to_bitmask
 }
 
+unzip_and_split_csv() {
+	funzip | tr "," "\n"
+}
+
+unzip_and_extract() {
+	funzip
+}
 
 # -----------------------------------------------------------------------------
 # CONFIGURATION
@@ -441,17 +479,12 @@ update compromised $[12*60-10] ipv4 ip \
 	"http://rules.emergingthreats.net/blockrules/compromised-ips.txt?r=${RANDOM}" \
 	remove_comments
 
-# includes botnet, spamhaus and dshield
-update emerging_block $[12*60-10] ipv4 all \
-	"http://rules.emergingthreats.net/fwrules/emerging-Block-IPs.txt?r=${RANDOM}" \
-	remove_comments
-
 # Command & Control botnet servers by www.shadowserver.org
 update botnet $[12*60-10] ipv4 ip \
 	"http://rules.emergingthreats.net/fwrules/emerging-PIX-CC.rules?r=${RANDOM}" \
 	pix_deny_rules_to_ipv4
 
-# Spam networks identified by www.spamhaus.org
+# This appears to be the SPAMHAUS DROP list, but distributed by EmergingThreats.
 update spamhaus $[12*60-10] ipv4 net \
 	"http://rules.emergingthreats.net/fwrules/emerging-PIX-DROP.rules?r=${RANDOM}" \
 	pix_deny_rules_to_ipv4
@@ -460,6 +493,28 @@ update spamhaus $[12*60-10] ipv4 net \
 update dshield $[12*60-10] ipv4 net \
 	"http://rules.emergingthreats.net/fwrules/emerging-PIX-DSHIELD.rules?r=${RANDOM}" \
 	pix_deny_rules_to_ipv4
+
+# includes botnet, spamhaus and dshield
+update emerging_block $[12*60-10] ipv4 all \
+	"http://rules.emergingthreats.net/fwrules/emerging-Block-IPs.txt?r=${RANDOM}" \
+	remove_comments
+
+
+# -----------------------------------------------------------------------------
+# Spamhaus
+# http://www.spamhaus.org
+
+# http://www.spamhaus.org/drop/
+# These guys say that this list should be dropped at tier-1 ISPs globaly!
+update spamhaus_drop $[12*60-10] ipv4 net \
+	"http://www.spamhaus.org/drop/drop.txt?r=${RANDOM}" \
+	remove_comments_semi_colon
+
+# extended DROP (EDROP) list.
+# Should be used together with their DROP list.
+update spamhaus_edrop $[12*60-10] ipv4 net \
+	"http://www.spamhaus.org/drop/edrop.txt?r=${RANDOM}" \
+	remove_comments_semi_colon
 
 
 # -----------------------------------------------------------------------------
@@ -475,7 +530,7 @@ update blocklist_de $[30-5] ipv4 ip \
 
 
 # -----------------------------------------------------------------------------
-# zeus trojan
+# Zeus trojan
 # https://zeustracker.abuse.ch/blocklist.php
 
 # This blocklists only includes IPv4 addresses that are used by the ZeuS trojan.
@@ -493,6 +548,47 @@ update malc0de $[24*60-10] ipv4 ip \
 	"http://malc0de.com/bl/IP_Blacklist.txt?r=${RANDOM}" \
 	remove_comments
 
+# -----------------------------------------------------------------------------
+# Stop Forum Spam
+# http://www.stopforumspam.com/downloads/
+
+# to use this, create the ipset like this (in firehol.conf):
+# >> ipset4 create stop_forum_spam hash:ip maxelem 500000
+# -- normally, you don't need this set --
+# -- use the hourly and the daily ones instead --
+update stop_forum_spam $[24*60-10] ipv4 ip \
+	"http://www.stopforumspam.com/downloads/bannedips.zip?r=${RANDOM}" \
+	unzip_and_split_csv
+
+# hourly update with IPs from the last 24 hours
+update stop_forum_spam_1h $[60] ipv4 ip \
+	"http://www.stopforumspam.com/downloads/listed_ip_1.zip" \
+	unzip_and_extract
+
+# daily update with IPs from the last 7 days
+update stop_forum_spam_7d $[24*60] ipv4 ip \
+	"http://www.stopforumspam.com/downloads/listed_ip_7.zip" \
+	unzip_and_extract
+
+# daily update with IPs from the last 30 days
+update stop_forum_spam_30d $[24*60] ipv4 ip \
+	"http://www.stopforumspam.com/downloads/listed_ip_30.zip" \
+	unzip_and_extract
+
+# daily update with IPs from the last 90 days
+update stop_forum_spam_90d $[24*60] ipv4 ip \
+	"http://www.stopforumspam.com/downloads/listed_ip_90.zip" \
+	unzip_and_extract
+
+# daily update with IPs from the last 180 days
+update stop_forum_spam_180d $[24*60] ipv4 ip \
+	"http://www.stopforumspam.com/downloads/listed_ip_180.zip" \
+	unzip_and_extract
+
+# daily update with IPs from the last 365 days
+update stop_forum_spam_365d $[24*60] ipv4 ip \
+	"http://www.stopforumspam.com/downloads/listed_ip_365.zip" \
+	unzip_and_extract
 
 # -----------------------------------------------------------------------------
 # Bogons
@@ -520,5 +616,4 @@ update fullbogons $[24*60-10] ipv4 net \
 #update fullbogons6 $[24*60-10] ipv6 net \
 #	"http://www.team-cymru.org/Services/Bogons/fullbogons-ipv6.txt?r=${RANDOM}" \
 #	remove_comments
-
 
