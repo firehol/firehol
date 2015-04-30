@@ -6,6 +6,10 @@
 
 firehol-tos - set the Type of Service (TOS) of packets
 
+<!--
+contents-table:helper:tos:keyword-firehol-tos-helper:Y:-:Set the Type of Service (TOS) of packets.
+  -->
+
 # SYNOPSIS
 
 tos *value* *chain* [*rule-params*]

@@ -6,6 +6,10 @@
 
 firehol-ipset - configure ipsets
 
+<!--
+contents-table:helper:ipset:keyword-firehol-ipset:4/6:*all forbidden*:Define ipsets. A wrapper for the system ipset command to add ipsets to a FireHOL firewall.
+  -->
+
 # SYNOPSIS 
 
 ipset *command* *name* *options*

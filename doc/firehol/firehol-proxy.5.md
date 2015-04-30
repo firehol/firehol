@@ -9,6 +9,8 @@ firehol-proxy - set up a transparent TCP, HTTP or squid proxy
 <!--
 extra-manpage: firehol-transparent_proxy.5
 extra-manpage: firehol-transparent_squid.5
+
+contents-table:helper:transparent_proxy:keyword-firehol-transparent_proxy:Y:*see notes*:Set up a transparent TCP, HTTP or squid proxy.
   -->
 
 # SYNOPSIS

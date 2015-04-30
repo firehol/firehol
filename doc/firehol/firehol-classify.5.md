@@ -6,9 +6,17 @@
 
 firehol-classify - classify traffic for traffic shaping tools
 
+<!--
+contents-table:helper:classify:keyword-firehol-classify:Y:-:Put matching traffic into the specified traffic shaping class.
+  -->
+
 # SYNOPSIS
 
-classify *class* [*rule-params*]
+{ classify | classify46 } *class* [*rule-params*]
+
+classify4  *class* [*rule-params*]
+
+classify6  *class* [*rule-params*]
 
 # DESCRIPTION
 

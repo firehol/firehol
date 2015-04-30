@@ -6,6 +6,10 @@
 
 firehol-iptrap - dynamically put IP addresses in an ipset
 
+<!--
+contents-table:helper:iptrap:keyword-firehol-iptrap:4/6:-:Dynamically put IP addresses in an ipset.
+  -->
+
 # SYNOPSIS
 
 { iptrap | iptrap4 | iptrap6 } *ipset* *type* *seconds* [ timeout | counters ] [ method **method** ] [*rule-params*] [ except [*rule-params*] ]...

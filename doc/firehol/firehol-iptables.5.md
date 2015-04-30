@@ -7,7 +7,9 @@
 firehol-iptables - include custom iptables commands
 <!--
 extra-manpage: firehol-ip6tables.5
--->
+contents-table:subcommand:iptables ip6tables:keyword-firehol-iptables:N:*all forbidden*:A wrapper for the system iptables command, to add custom iptables statements to a FireHOL firewall.
+contents-table:helper:iptables ip6tables:keyword-firehol-ip6tables:N:*all forbidden*:A wrapper for the system iptables command, to add custom iptables statements to a FireHOL firewall.
+  -->
 
 # SYNOPSIS
 

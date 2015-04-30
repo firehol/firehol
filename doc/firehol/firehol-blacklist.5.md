@@ -6,6 +6,10 @@
 
 firehol-blacklist - set up a unidirectional or bidirectional blacklist
 
+<!--
+contents-table:helper:blacklist:keyword-firehol-blacklist:Y:-:Drop matching packets globally.
+  -->
+
 # SYNOPSIS
 
 { blacklist | blacklist4 | blacklist6 } [ *type* ] [ inface *device* ] [ log *"text"* ] [ loglimit *"text"* ] [ accounting *accounting_name* ] *ip*... [ except *rule-params* ]

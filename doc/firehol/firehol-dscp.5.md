@@ -6,6 +6,10 @@
 
 firehol-dscp - set the DSCP field in the packet header
 
+<!--
+contents-table:helper:dscp:keyword-firehol-dscp-helper:Y:-:Set the DSCP field of packets.
+  -->
+
 # SYNOPSIS
 
 dscp { *value* | class *classid* } *chain* *rule-params*

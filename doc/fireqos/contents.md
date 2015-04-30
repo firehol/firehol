@@ -18,19 +18,30 @@ and also as
 
 # FireQOS Reference
 
-## Running and Configuring FireQOS
+* [Introduction](introduction.md) <!-- include introduction.md -->
 
-* [fireqos(1)](fireqos.1.md)
-* [fireqos.conf(5)](fireqos-conf.5.md)
+# Running and Configuring FireQOS
 
-## Organising Traffic with FireQOS
+* [fireqos(1)][fireqos(1)] - FireQOS program
+* [fireqos.conf(5)][fireqos.conf(5)] - FireQOS configuration file
 
-* [fireqos-interface(5)](fireqos-interface.5.md)
-* [fireqos-class(5)](fireqos-class.5.md)
-* [fireqos-match(5)](fireqos-match.5.md)
+# Organising Traffic with FireQOS
 
-## Optional Parameters for FireQOS Commands
+* [fireqos-interface(5)][fireqos-interface(5)] - create an interface definition
+* [fireqos-class(5)][fireqos-class(5)] - traffic class definition
+* [fireqos-match(5)][fireqos-match(5)] - QOS traffic match
 
-* [fireqos-params(5)](fireqos-params.5.md)
-* [fireqos-params-class(5)](fireqos-params-class.5.md)
-* [fireqos-params-match(5)](fireqos-params-match.5.md)
+# Optional Parameters for FireQOS Commands
+
+* [fireqos-params-class(5)][fireqos-params-class(5)] - optional class parameters
+* [fireqos-params-match(5)][fireqos-params-match(5)] - optional match parameters
+
+# Manual Pages in Alphabetical Order
+* [fireqos(1)](fireqos.1.md) <!-- include fireqos.1.md -->
+* [fireqos.conf(5)](fireqos-conf.5.md) <!-- include fireqos-conf.5.md -->
+* [fireqos-class(5)](fireqos-class.5.md) <!-- include fireqos-class.5.md -->
+* [fireqos-interface(5)](fireqos-interface.5.md) <!-- include fireqos-interface.5.md -->
+* [fireqos-match(5)](fireqos-match.5.md) <!-- include fireqos-match.5.md -->
+* [fireqos-params(5)](fireqos-params.5.md) <!-- include fireqos-params.5.md -->
+* [fireqos-params-class(5)](fireqos-params-class.5.md) <!-- include fireqos-params-class.5.md -->
+* [fireqos-params-match(5)](fireqos-params-match.5.md) <!-- include fireqos-params-match.5.md -->

@@ -6,6 +6,10 @@
 
 firehol-synproxy - configure synproxy
 
+<!--
+contents-table:helper:synproxy:keyword-firehol-synproxy:Y:-:Configure synproxy.
+  -->
+
 # SYNOPSIS 
 
 synproxy *type* *rules-to-match-request* *action* [*action options*]

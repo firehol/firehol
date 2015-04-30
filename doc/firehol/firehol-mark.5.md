@@ -8,7 +8,13 @@ firehol-mark - mark traffic for traffic shaping tools
 
 # SYNOPSIS
 
+*Warning - this manual page is out of date for nightly build/v3 behaviour*
+
 mark *value* *chain* *rule-params*
+
+<!--
+contents-table:helper:mark:keyword-firehol-mark-helper:Y:-:Set a stateful mark from the `usermark` group.
+  -->
 
 # DESCRIPTION
 

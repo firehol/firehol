@@ -31,7 +31,9 @@ MANUAL_TOOLS = \
 	tools/mkservicelinks \
 	tools/mkserviceman \
 	tools/pandoc-post \
-	tools/servicedb.pm
+	tools/servicedb.pm \
+	tools/format-table \
+	tools/run-linkchecker
 
 dochtml_DATA = \
 	$(MANUAL_CSS)

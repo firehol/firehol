@@ -6,6 +6,10 @@
 
 firehol-version - set version number of configuration file
 
+<!--
+contents-table:helper:version:keyword-firehol-version:N:*all forbidden*:Specify a version number for the configuration file.
+  -->
+
 # SYNOPSIS
 
 version 6

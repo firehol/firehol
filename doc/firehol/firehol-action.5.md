@@ -10,6 +10,10 @@ firehol-action - set up custom filtering actions
 
 action *name* [table *table_name*] *type* *type_params* [ next [ type *type_params* [ next ... ] ] ]
 
+<!--
+contents-table:helper:action:keyword-firehol-action:Y:-:Define new actions that can differentiate the final action based on rules. `action` can be used to define traps.
+  -->
+
 # DESCRIPTION
 
 

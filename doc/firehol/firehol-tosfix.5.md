@@ -6,6 +6,10 @@
 
 firehol-tosfix - apply suggested TOS values to packets
 
+<!--
+contents-table:helper:tosfix:keyword-firehol-tosfix:Y:*all forbidden*:Apply suggested TOS values to packets.
+  -->
+
 # SYNOPSIS
 
 tosfix

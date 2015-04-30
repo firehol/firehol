@@ -6,6 +6,11 @@
 
 firehol-tcpmss - set the MSS of TCP SYN packets for routers
 
+<!--
+contents-table:subcommand:tcpmss:keyword-firehol-tcpmss:Y:*all forbidden*:Set the MSS (Maximum Segment Size) of TCP SYN packets routed through the firewall.
+contents-table:helper:tcpmss:keyword-firehol-tcpmss:Y:*all forbidden*:Set the MSS (Maximum Segment Size) of TCP SYN packets routed through the firewall.
+  -->
+
 # SYNOPSIS
 
 tcpmss { *mss* | auto } [*if-list*]

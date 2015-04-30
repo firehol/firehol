@@ -10,7 +10,11 @@ firehol-nat - set up NAT and port redirections
 extra-manpage: firehol-dnat.5
 extra-manpage: firehol-snat.5
 extra-manpage: firehol-redirect.5
--->
+
+contents-table:helper:dnat:keyword-firehol-dnat:Y:-:Change the destination IP or port of packets received, to fixed values or fixed ranges. `dnat` can be used to implement load balancers.
+contents-table:helper:snat:keyword-firehol-snat:Y:-:Change the source IP or port of packets leaving, to fixed values or fixed ranges.
+contents-table:helper:redirect:keyword-firehol-redirect-helper:Y:-:Redirect packets to the firewall host, possibly changing the destination port. Can support load balancers if multiple daemons run on localhost.
+  -->
 
 # SYNOPSIS 
 

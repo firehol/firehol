@@ -6,9 +6,19 @@
 
 firehol-connmark - set a stateful mark on a connection
 
+<!--
+contents-table:helper:connmark:keyword-firehol-connmark:Y:-:Set a stateful mark from the `connmark` group.
+  -->
+
 # SYNOPSIS
 
-connmark { value | save | restore } *chain* *rule-params*
+*Warning - this manual page is out of date for nightly build/v3 behaviour*
+
+{ connmark | connmark46 } { value | save | restore } *chain* *rule-params*
+
+connmark4 { value | save | restore } *chain* *rule-params*
+
+connmark6 { value | save | restore } *chain* *rule-params*
 
 # DESCRIPTION
 

@@ -6,6 +6,11 @@
 
 firehol-masquerade - set up masquerading (NAT) on an interface
 
+<!--
+contents-table:subcommand:masquerade:keyword-firehol-masquerade:Y:inface outface:Change the source IP of packets leaving `outface`, with the IP of the interface they are using to leave.
+contents-table:helper:masquerade:keyword-firehol-masquerade:Y:-:Change the source IP of packets leaving `outface`, with the IP of the interface they are using to leave.
+  -->
+
 # SYNOPSIS
 
 masquerade *real-interface* *rule-params*

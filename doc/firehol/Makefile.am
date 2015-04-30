@@ -114,6 +114,7 @@ MANUALMAN_GENERATED_INDIRECT = \
 	man/man5/firehol-uid.5
 
 MANUALMARKDOWN_GENERATED = \
+	contents.md \
 	firehol-services.5.md
 
 if ENABLE_DOC
@@ -136,6 +137,7 @@ MKSERVICELINKS = ${top_srcdir}/doc/tools/mkservicelinks
 MKSERVICEMAN = ${top_srcdir}/doc/tools/mkserviceman
 MANSYNOS = ${top_srcdir}/doc/tools/man-synos
 COMBINEPANDOC = ${top_srcdir}/doc/tools/combine-pandoc
+FORMATTABLE = ${top_srcdir}/doc/tools/format-table
 PANDOCPOST = ${top_srcdir}/doc/tools/pandoc-post
 CHECKLINKS = ${top_srcdir}/doc/tools/check-links
 
@@ -143,6 +145,13 @@ FIREHOLIN = $(top_srcdir)/sbin/firehol.in
 
 firehol-services.5.md: $(FIREHOLIN) ../services-db.data ../service-links
 	$(MKSERVICEMAN) firehol-services.5.md $+
+
+contents.md: *.1.md *.5.md contents.tpl
+	$(FORMATTABLE) primary *.md > tmp-primary
+	$(FORMATTABLE) subcommand *.md > tmp-subcommand
+	$(FORMATTABLE) helper *.md > tmp-helper
+	$(SED) -f insert-tables.sed contents.tpl > contents.md
+	rm -f tmp-primary tmp-subcommand tmp-helper
 
 man/man1/%.1: %.1.md
 	$(MKDIR_P) man/man1
@@ -184,12 +193,17 @@ endif
 
 EXTRA_DIST = \
 	*.md \
+	*.tpl \
+	*.sed \
 	$(MANUALHTML_GENERATED) \
 	$(MANUALPDF_GENERATED) \
 	$(MANUALMAN_GENERATED) \
 	$(MANUALMAN_GENERATED_INDIRECT)
 
 CLEANFILES = \
+       tmp-primary \
+       tmp-subcommand \
+       tmp-helper \
        tmp-anchor-links \
        tmp-html-combined.md \
        tmp-manproc \

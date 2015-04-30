@@ -19,6 +19,7 @@ doc/*/*-manual.pdf
 doc/firehol.ent
 doc/firehol/firehol-services.html
 doc/firehol/firehol-services.5.md
+doc/firehol/contents.md
 doc/index-services.html
 doc/index.html
 doc/ch*.html

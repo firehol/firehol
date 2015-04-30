@@ -34,8 +34,10 @@
 [keyword-firehol-interface4]: firehol-interface.5.md#firehol-interface5
 [keyword-firehol-interface46]: firehol-interface.5.md#firehol-interface5
 [keyword-firehol-interface6]: firehol-interface.5.md#firehol-interface5
+[keyword-firehol-ipset]: firehol-ipset.5.md#firehol-ipset5
 [keyword-firehol-iptables]: firehol-iptables.5.md#firehol-iptables5
 [keyword-firehol-ip6tables]: firehol-iptables.5.md#firehol-iptables5
+[keyword-firehol-iptrap]: firehol-iptrap.5.md#firehol-iptrap5
 [keyword-firehol-ipv4]: firehol-modifiers.5.md#firehol-modifiers5
 [keyword-firehol-ipv6]: firehol-modifiers.5.md#firehol-modifiers5
 [keyword-firehol-log]: firehol-params.5.md#log-loglimit
@@ -74,6 +76,7 @@
 [keyword-firehol-src4]: firehol-params.5.md#src-dst
 [keyword-firehol-src6]: firehol-params.5.md#src-dst
 [keyword-firehol-srctype]: firehol-params.5.md#srctype-dsttype
+[keyword-firehol-synproxy]: firehol-synproxy.5.md#firehol-synproxy5
 [keyword-firehol-tarpit]: firehol-actions.5.md#tarpit
 [keyword-firehol-tcpmss]: firehol-tcpmss.5.md#firehol-tcpmss5
 [keyword-firehol-tosfix]: firehol-tosfix.5.md#firehol-tosfix5

@@ -6,6 +6,10 @@
 
 firehol-client - client command
 
+<!--
+contents-table:subcommand:client:keyword-firehol-client:Y:sport dport:Allow access to a client running on the `interface` or the protected `router` hosts.
+  -->
+
 # SYNOPSIS
 
 { client | client46 } *service* *action* [*rule-params*]

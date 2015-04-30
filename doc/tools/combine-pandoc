@@ -24,7 +24,7 @@ sub include_file {
   open INCLUDE, "<$name" or exit_error("Unable to open $name for reading\n");
 
   my $title = <INCLUDE>; # Extract title as a header
-  if ($title =~ s/^% ([^ ]*).*/### $1/p) {
+  if ($title =~ s/^% ([^ ]*).*/## $1/p) {
     print OUT "$title\n";
   }
 
@@ -38,7 +38,7 @@ sub include_file {
     }
 
     # Make headers lower level
-    s/^#/####/;
+    s/^#/###/;
     if ($mode eq "pdf") {
       # pandoc 1.9.4.2 PDF generation hates underscores in the links
       s/#service-([a-z]*)_([a-z]*)/#service-$1-$2/g;
@@ -54,8 +54,8 @@ sub include_file {
 
 open IN, "<$infile" or exit_error("Unable to open $infile for reading\n");
 while (<IN>) {
-  if (/]\(([^)]+.md)\)/) {
-    print OUT "\n"; # Ensure a blank line between each subsequent file header
+  if (/<!-- *include ([^ ]+.md) *-->/) {
+    print OUT "\n\n"; # Ensure blank line between each subsequent file header
     if ($1 eq "common-intro.md") {
       include_file($1, 0);
     } else {

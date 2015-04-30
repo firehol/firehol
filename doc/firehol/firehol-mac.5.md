@@ -6,6 +6,10 @@
 
 firehol-mac - ensure source IP and source MAC address match
 
+<!--
+contents-table:helper:mac:keyword-firehol-mac-helper:Y:*all forbidden*:Restricts an IP to a particular MAC address.
+  -->
+
 # SYNOPSIS
 
 mac *IP* *macaddr*

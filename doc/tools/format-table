@@ -1,0 +1,35 @@
+#!/usr/bin/perl -w
+
+my $table_wanted = shift @ARGV;
+
+my @cols = qw/54 24 40 150/;
+my @bars = map { "-" x $_ } @cols;
+
+sub padfields {
+  my @results = ();
+  foreach (@_) {
+    die "Too big: $_" if (length($_) > $cols[@results]);
+    push @results, sprintf "%-*.*s", $cols[@results], $cols[@results], $_;
+  }
+  return @results;
+}
+
+my @fields =
+
+print join('--', @bars) . "\n"; # Start table
+
+my @titles = padfields("command", "  4/6/46", "forbidden params", "description");
+print join('  ', @titles) . "\n";
+print join('  ', @bars); # Field headings
+
+while (<>) {
+  chomp;
+  next unless (/^contents-table:/);
+  my ($ct, $table, $keyword, $manual, $has46, $noparm, $desc) = split /:/;
+  next unless $table eq $table_wanted;
+
+  my @row = padfields("[$keyword][$manual]", $has46, $noparm, $desc);
+  print "\n" . join('  ', @row) . "\n";
+}
+
+print join('--', @bars) . "\n"; # End table
