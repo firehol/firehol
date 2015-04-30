@@ -86,14 +86,21 @@ geturl() {
 
 aggregate_cmd() {
 	local cmd="`which aggregate-flim`"
-	test -z "${cmd}" && cmd="`which aggregate`"
-	if [ -z "${cmd}" ]
-		then
-			echo >&2 "Warning: Cannot aggregate ip-ranges. Please install 'aggregate'. Working wihout aggregate."
-			cmd="cat"
+	if [ ! -z "${cmd}" ]
+	then
+		${cmd} -p 32
+		return $?
 	fi
 
-	"${cmd}"
+	cmd="`which aggregate`"
+	if [ ! -z "${cmd}" ]
+	then
+		${cmd}
+		return $?
+	fi
+
+	echo >&2 "Warning: Cannot aggregate ip-ranges. Please install 'aggregate'. Working wihout aggregate."
+	cat
 }
 
 filter_ip4()  { egrep "^[0-9\.]+$"; }
