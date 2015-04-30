@@ -84,18 +84,22 @@ geturl() {
 	fi
 }
 
-aggregate_cmd() {
-	local cmd="`which aggregate-flim`"
-	if [ ! -z "${cmd}" ]
-	then
-		${cmd}
-		return $?
-	fi
+aggregate4() {
+	local cmd=
 
 	cmd="`which aggregate`"
 	if [ ! -z "${cmd}" ]
 	then
-		${cmd} -p 32
+		sed "s|^\([0-9]\+\.[0-9]\+\.[0-9]\+\.[0-9]\+\\)$|\1/32|g" |\
+			${cmd} -t
+
+		return $?
+	fi
+
+	cmd="`which aggregate-flim`"
+	if [ ! -z "${cmd}" ]
+	then
+		${cmd}
 		return $?
 	fi
 
@@ -202,13 +206,13 @@ update() {
 				net|nets)	hash="net"
 						type="net"
 						filter="filter_net4"
-						post_filter="aggregate_cmd"
+						post_filter="aggregate4"
 						;;
 
 				both|all)	hash="net"
 						type=""
 						filter="filter_all4"
-						post_filter="aggregate_cmd"
+						post_filter="aggregate4"
 						;;
 
 				split)		;;
@@ -260,8 +264,9 @@ update() {
 	# download it
 	download_url "${ipset}" "${mins}" "${url}" || return 1
 
-	if [ "${type}" = "split" ]
+	if [ "${type}" = "split" -o \( "${type}" = "all" -a -f "${install}.split" \) ]
 	then
+		echo >&2 "${ipset}: spliting IPs and networks..."
 		test -f "${install}_ip.source" && rm "${install}_ip.source"
 		test -f "${install}_net.source" && rm "${install}_net.source"
 		ln -s "${install}.source" "${install}_ip.source"
