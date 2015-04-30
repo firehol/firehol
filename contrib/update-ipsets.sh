@@ -88,14 +88,14 @@ aggregate_cmd() {
 	local cmd="`which aggregate-flim`"
 	if [ ! -z "${cmd}" ]
 	then
-		${cmd} -p 32
+		${cmd}
 		return $?
 	fi
 
 	cmd="`which aggregate`"
 	if [ ! -z "${cmd}" ]
 	then
-		${cmd}
+		${cmd} -p 32
 		return $?
 	fi
 
