@@ -880,152 +880,185 @@ fi
 
 export PATH="${PATH}:/bin:/usr/bin:/sbin:/usr/sbin"
 
-# External commands FireHOL will need.
-# If one of those is not found, FireHOL will refuse to run.
+# Load commands FireHOL will need.
 
 which_cmd() {
-	local cmd= block=1
-	if [ "a${1}" = "a-n" ]
+	local name="$1"
+	shift
+
+	if [ "$1" = ":" ]
 	then
-		block=0
-		shift
+		eval $name=":"
+		return 0
 	fi
-	
-	unalias $2 >/dev/null 2>&1
-	cmd=`which $2 2>/dev/null | head -n 1`
+
+	unalias $1 >/dev/null 2>&1
+	local cmd=`which $1 2>/dev/null | head -n 1`
 	if [ $? -gt 0 -o ! -x "${cmd}" ]
 	then
-		if [ ${block} -eq 1 ]
-		then
-			echo >&2
-			echo >&2 "ERROR:	Command '$2' not found in the system path."
-			echo >&2 "	FireHOL requires this command for its operation."
-			echo >&2 "	Please install the required package and retry."
-			echo >&2
-			echo >&2 "	Note that you need an operational 'which' command"
-			echo >&2 "	for FireHOL to find all the external programs it"
-			echo >&2 "	needs. Check it yourself. Run:"
-			echo >&2
-			echo >&2 "	which $2"
-			exit 1
-		fi
 		return 1
 	fi
+	shift
 	
-	eval $1=${cmd}
+	eval $name="'${cmd} ${@}'"
 	return 0
 }
 
-# command on demand support.
 require_cmd() {
 	local var= val= block=1
 
-	if [ "a$1" = "a-n" ]
+	if [ "$1" = "-n" ]
 	then
 		block=0
 		shift
 	fi
-	
-	# if one is found, return success
+
+	var="$1"
+	shift
+
+	eval val=\$\{${var}\}
+	if [ "${val}" ]
+	then
+		return 0
+	elif [ $block -eq 0 ]
+	then
+		eval "NEED_${var}"="'$@'"
+		return 0
+	fi
+
+	if [ $# -eq 0 ]
+	then
+		eval set -- "\$NEED_${var}"
+	fi
+
+	echo >&2
+	echo >&2 "ERROR:	FIREHOL REQUIRES THESE COMMANDS:"
+	echo >&2
+	echo >&2 "	${@}"
+	echo >&2
+	echo >&2 "	You have requested the use of a FireHOL"
+	echo >&2 "	feature that requires certain external programs"
+	echo >&2 "	to be installed in the running system."
+	echo >&2
+	echo >&2 "	Please consult your Linux distribution manual to"
+	echo >&2 "	install the package(s) that provide these external"
+	echo >&2 "	programs and retry."
+	echo >&2
+	echo >&2 "	Note that you need an operational 'which' command"
+	echo >&2 "	for FireHOL to find all the external programs it"
+	echo >&2 "	needs. Check it yourself. Run:"
+	echo >&2
 	for x in "${@}"
 	do
-		eval var=`echo ${x} | tr 'a-z-' 'A-Z_'`_CMD
-		eval val=\$\{${var}\}
-		if [ -z "${val}" ]
-		then
-			which_cmd -n "${var}" "${x}"
-			test $? -eq 0 && return 0
-		fi
+		echo >&2 "	which $x"
 	done
-	
-	if [ $block -eq 1 ]
-	then
-		echo >&2
-		echo >&2 "ERROR:	FIREHOL REQUIRES THESE COMMANDS:"
-		echo >&2
-		echo >&2 "	${@}"
-		echo >&2
-		echo >&2 "	You have requested the use of an optional FireHOL"
-		echo >&2 "	feature that requires certain external programs"
-		echo >&2 "	to be installed in the running system."
-		echo >&2
-		echo >&2 "	Please consult your Linux distribution manual to"
-		echo >&2 "	install the package(s) that provide these external"
-		echo >&2 "	programs and retry."
-		echo >&2
-		echo >&2 "	Note that you need an operational 'which' command"
-		echo >&2 "	for FireHOL to find all the external programs it"
-		echo >&2 "	needs. Check it yourself. Run:"
-		echo >&2
-		for x in "${@}"
-		do
-			echo >&2 "	which $x"
-		done
-		
-		exit 1
-	fi
-	
-	return 1
+
+	exit 1
 }
 
-# Currently the following commands are required only when needed.
-# (i.e. Command on Demand)
+which_all() {
+	local cmd_var="$1"
+
+	eval set -- "$2"
+	for cmd in "$@"
+	do
+		which_cmd $cmd_var $cmd && break
+	done
+}
+
+# Where required = Y, if a command is not found, FireHOL will refuse to run.
+# Where required = N, the command only required when it is actually used
 #
-# zcat or gzcat or gzip (either or none is fine)
-# less or more (either or none is fine)
-# ip
-# ss
-# date
-# hostname
-# modprobe or insmod
-# nice (none is fine)
-
-# Commands that are mandatory for FireHOL operation:
-which_cmd CAT_CMD cat
-which_cmd CUT_CMD cut
-which_cmd CHOWN_CMD chown
-which_cmd CHMOD_CMD chmod
-which_cmd EGREP_CMD egrep
-which_cmd EXPR_CMD expr
-which_cmd FIND_CMD find
-which_cmd FOLD_CMD fold
-which_cmd GREP_CMD grep
-which_cmd HEAD_CMD head
-which_cmd TAIL_CMD tail
-which_cmd LSMOD_CMD lsmod
-which_cmd MKDIR_CMD mkdir
-which_cmd MKTEMP_CMD mktemp
-which_cmd MV_CMD mv
-which_cmd RM_CMD rm
-which_cmd SED_CMD sed
-which_cmd SORT_CMD sort
-which_cmd SYSCTL_CMD sysctl
-which_cmd TOUCH_CMD touch
-which_cmd TR_CMD tr
-which_cmd UNAME_CMD uname
-which_cmd UNIQ_CMD uniq
-which_cmd LOGGER_CMD logger
-which_cmd FLOCK_CMD flock
-
-IPRANGE_CMD=
-FIREHOL_HAVE_IPRANGE=
-IPRANGE_CMD=$(which iprange 2>/dev/null)
-if [ ! -z "${IPRANGE_CMD}" ]
+# If a command is specified in /etc/firehol/firehol-defaults.conf it will
+# be used. Otherwise, if the script has been configured with ./configure
+# the detected versions will be used. If the script has not been configured
+# then the list of possible commands is autodetected.
+while IFS="|" read required cmd_var autoconf possibles
+do
+	if [ "@AUTOCONF_RUN@" = "Y" ]
 	then
+		case "$autoconf" in
+			"@"*) autoconf=""; ;;
+		esac
+	fi
+	eval set_in_defaults=\"\$$cmd_var\"
+	if [ "$set_in_defaults" ]
+	then
+		:
+	elif [ "@AUTOCONF_RUN@" = "Y" -a ! -z "$autoconf" ]
+	then
+		eval $cmd_var=\"$autoconf\"
+	else
+		which_all $cmd_var "$possibles"
+	fi
+	if [ "$required" = "Y" ]
+	then
+		require_cmd $cmd_var $possibles
+	else
+		require_cmd -n $cmd_var $possibles
+	fi
+done <<-!
+Y|CAT_CMD|@CAT@|cat
+Y|CUT_CMD|@CUT@|cut
+Y|CHOWN_CMD|@CHOWN@|chown
+Y|CHMOD_CMD|@CHMOD@|chmod
+Y|EGREP_CMD|@EGREP@|egrep
+Y|EXPR_CMD|@EXPR@|expr
+Y|FIND_CMD|@FIND@|find
+Y|FOLD_CMD|@FOLD@|fold
+Y|GREP_CMD|@GREP@|grep
+Y|HEAD_CMD|@HEAD@|head
+Y|TAIL_CMD|@TAIL@|tail
+Y|LSMOD_CMD|@LSMOD@|lsmod
+Y|MKDIR_CMD|@MKDIR@|mkdir
+Y|MKTEMP_CMD|@MKTEMP@|mktemp
+Y|MV_CMD|@MV@|mv
+Y|RM_CMD|@RM@|rm
+Y|SED_CMD|@SED@|sed
+Y|SORT_CMD|@SORT@|sort
+Y|SYSCTL_CMD|@SYSCTL@|sysctl
+Y|TOUCH_CMD|@TOUCH@|touch
+Y|TR_CMD|@TR@|tr
+Y|UNAME_CMD|@UNAME@|uname
+Y|UNIQ_CMD|@UNIQ@|uniq
+Y|LOGGER_CMD|@LOGGER@|logger
+Y|FLOCK_CMD|@FLOCK@|flock
+N|NFACCT_CMD|@NFACCT@|nfacct
+N|IPRANGE_CMD|@IPRANGE@|iprange
+N|IPSET_CMD|@IPSET@|ipset
+N|IPTABLES_CMD|@IPTABLES@|iptables
+N|IP6TABLES_CMD|@IP6TABLES@|ip6tables
+N|IPTABLES_SAVE_CMD|@IPTABLES_SAVE@|iptables-save
+N|IP6TABLES_SAVE_CMD|@IP6TABLES_SAVE@|ip6tables-save
+N|IPTABLES_RESTORE_CMD|@IPTABLES_RESTORE@|iptables-restore
+N|IP6TABLES_RESTORE_CMD|@IP6TABLES_RESTORE@|ip6tables-restore
+Y|PAGER_CMD|@PAGER@|less more pager cat
+Y|RENICE_CMD|@RENICE@|renice :
+Y|STTY_CMD|@STTY@|stty :
+N|ZCAT_CMD|@ZCAT@|zcat gzcat "gzip -dc"
+N|MODPROBE_CMD|@INSMOD@|modprobe insmod
+N|IP_CMD|@IP@|ip
+N|SS_CMD|@SS@|ss
+N|DATE_CMD|@DATE@|date
+N|HOSTNAME_CMD|@HOSTNAME_CMD@|hostname
+!
+
+FIREHOL_HAVE_IPRANGE=1
+IPRANGE_WARNING=0
+if [ ! -z "${IPRANGE_CMD}" ]
+then
 	"${IPRANGE_CMD}" --has-reduce 2>/dev/null || IPRANGE_CMD=
 fi
+
 if [ -z "${IPRANGE_CMD}" ]
-	then
+then
 	FIREHOL_HAVE_IPRANGE=0
+	IPRANGE_WARNING=1
 	IPRANGE_CMD=
-	echo >&2 "Warning: iprange command is not installed - ipsets will not be optimal."
-else
-	FIREHOL_HAVE_IPRANGE=1
 fi
 
 ENABLE_ACCOUNTING=1
 ACCOUNTING_WARNING=0
-require_cmd -n nfacct
 if [ -z "${NFACCT_CMD}" ]
 then
 	# silently disable accounting here,
@@ -1037,7 +1070,6 @@ fi
 
 ENABLE_IPSET=1
 IPSET_WARNING=0
-require_cmd -n ipset
 if [ -z "${IPSET_CMD}" ]
 then
 	# silently disable accounting here,
@@ -1048,10 +1080,7 @@ then
 fi
 
 if [ ${ENABLE_IPV4} -eq 1 ]
-	then
-	require_cmd -n iptables
-	require_cmd -n iptables-save
-	require_cmd -n iptables-restore
+then
 	if [ -z "${IPTABLES_CMD}" ]
 	then
 		echo >&2 " WARNING: no iptables command: IPv4 disabled"
@@ -1068,10 +1097,7 @@ if [ ${ENABLE_IPV4} -eq 1 ]
 fi
 
 if [ ${ENABLE_IPV6} -eq 1 ]
-	then
-	require_cmd -n ip6tables
-	require_cmd -n ip6tables-save
-	require_cmd -n ip6tables-restore
+then
 	if [ ! -f /proc/net/if_inet6 ]
 	then
 		# IPv6 not in use on this system, silently ignore
@@ -1091,80 +1117,6 @@ if [ ${ENABLE_IPV6} -eq 1 ]
 	fi
 fi
 
-# Special commands
-pager_cmd() {
-	if [ -z "${LESS_CMD}" ]
-	then
-		require_cmd -n less more
-		test -z "${LESS_CMD}" && LESS_CMD="${MORE_CMD}"
-		test -z "${LESS_CMD}" && LESS_CMD="${CAT_CMD}"
-	fi
-	
-	"${LESS_CMD}" "${@}"
-}
-
-zcat_cmd() {
-	require_cmd -n zcat gzcat gzip
-	test -z "${ZCAT_CMD}" && ZCAT_CMD="${GZCAT_CMD}"
-	
-	if [ ! -z "${ZCAT_CMD}" ]
-	then
-		"${ZCAT_CMD}" "${@}"
-		return $?
-	elif [ ! -z "${GZIP_CMD}" ]
-	then
-		"${CAT_CMD}" "${@}" | "${GZIP_CMD}" -dc
-		return $?
-	fi
-	
-	echo >&2 " "
-	echo >&2 " WARNING:"
-	echo >&2 " --------"
-	echo >&2 " FireHOL cannot find any of the commands: zcat, gzcat, gzip."
-	echo >&2 " Make sure you have one of these available in the system path."
-	echo >&2 " "
-	
-	return 1
-}
-
-modprobe_cmd() {
-	require_cmd -n modprobe insmod
-	test -z "${MODPROBE_CMD}" && MODPROBE_CMD="${INSMOD_CMD}"
-	
-	if [ ! -z "${MODPROBE_CMD}" ]
-	then
-		save_for_restore none "${MODPROBE_CMD}" "${@}"
-		"${MODPROBE_CMD}" "${@}"
-		status=$?
-		if [ $status -eq 17 ]
-		then
-			# insmod: module already loaded - not a problem
-			return 0
-		else
-			return $status
-		fi
-	fi
-	
-	echo >&2 " "
-	echo >&2 " WARNING:"
-	echo >&2 " --------"
-	echo >&2 " FireHOL cannot find any of the commands: modprobe, insmod."
-	echo >&2 " Make sure you have one of these available in the system path."
-	echo >&2 " "
-	
-	return 1
-}
-
-renice_cmd() {
-	if [ -z "${RENICE_CMD}" ]
-	then
-		require_cmd -n renice
-		test -z "${RENICE_CMD}" && RENICE_CMD=":"
-	fi
-	
-	"${RENICE_CMD}" "${@}"
-}
-
 firehol_concurrent_run_lock() {
 	exec 200>"${FIREHOL_LOCK_FILE}"
 	if [ $? -ne 0 ]; then exit; fi
@@ -1181,7 +1133,7 @@ firehol_concurrent_run_lock() {
 umask 077
 
 # Be nice on production environments
-renice_cmd 10 $$ >/dev/null 2>/dev/null
+${RENICE_CMD} 10 $$ >/dev/null 2>/dev/null
 
 # Initialize iptables
 if [ $ENABLE_IPV4 -eq 1 ]
@@ -1227,15 +1179,15 @@ fi
 if [ ! -d "${FIREHOL_RUN_DIR}" ]
 then
 	${MKDIR_CMD} -p "${FIREHOL_RUN_DIR}" 		|| exit 1
-	"${CHOWN_CMD}" root:root "${FIREHOL_RUN_DIR}"	|| exit 1
-	"${CHMOD_CMD}" 700 "${FIREHOL_RUN_DIR}"		|| exit 1
+	${CHOWN_CMD} root:root "${FIREHOL_RUN_DIR}"	|| exit 1
+	${CHMOD_CMD} 700 "${FIREHOL_RUN_DIR}"		|| exit 1
 fi
 
 if [ ! -d "${FIREHOL_SPOOL_DIR}" ]
 then
 	${MKDIR_CMD} -p "${FIREHOL_SPOOL_DIR}" 		|| exit 1
-	"${CHOWN_CMD}" root:root "${FIREHOL_SPOOL_DIR}"	|| exit 1
-	"${CHMOD_CMD}" 700 "${FIREHOL_SPOOL_DIR}"	|| exit 1
+	${CHOWN_CMD} root:root "${FIREHOL_SPOOL_DIR}"	|| exit 1
+	${CHMOD_CMD} 700 "${FIREHOL_SPOOL_DIR}"	|| exit 1
 fi
 
 # Create an empty temporary directory we need for this run.
@@ -1264,7 +1216,7 @@ FIREHOL_ACTIVATED_SUCCESSFULLY=0
 syslog() {
 	local p="$1"; shift
 	
-	"${LOGGER_CMD}" -p ${FIREHOL_SYSLOG_FACILITY}.$p -t "FireHOL[$$]" -- "${@}"
+	${LOGGER_CMD} -p ${FIREHOL_SYSLOG_FACILITY}.$p -t "FireHOL[$$]" -- "${@}"
 	return 0
 }
 
@@ -1305,6 +1257,7 @@ firehol_exit() {
 	local restored="NO"
 	if [ \( -f "${FIREHOL_SAVED}" -o -f "${FIREHOL_SAVED6}" \) -a "${FIREHOL_MODE}" = "START" ]
 	then
+		$STTY_CMD sane
 		echo >&2
 		progress "Restoring old firewall"
 		local status4=0
@@ -1532,13 +1485,13 @@ config_line() {
 
 if [ ! -d "${FIREHOL_CONFIG_DIR}" ]
 then
-	"${MKDIR_CMD}" "${FIREHOL_CONFIG_DIR}"			|| exit 1
-	"${CHOWN_CMD}" root:root "${FIREHOL_CONFIG_DIR}"	|| exit 1
-	"${CHMOD_CMD}" 700 "${FIREHOL_CONFIG_DIR}"		|| exit 1
+	${MKDIR_CMD} "${FIREHOL_CONFIG_DIR}"			|| exit 1
+	${CHOWN_CMD} root:root "${FIREHOL_CONFIG_DIR}"	|| exit 1
+	${CHMOD_CMD} 700 "${FIREHOL_CONFIG_DIR}"		|| exit 1
 	
 	if [ -f /etc/firehol.conf ]
 	then
-		"${MV_CMD}" /etc/firehol.conf "${FIREHOL_CONFIG}"	|| exit 1
+		${MV_CMD} /etc/firehol.conf "${FIREHOL_CONFIG}"	|| exit 1
 		
 		echo >&2
 		echo >&2
@@ -1551,7 +1504,7 @@ fi
 # Externally defined services can be placed in "${FIREHOL_SERVICES_DIR}"
 if [ ! -d "${FIREHOL_SERVICES_DIR}" ]
 then
-	"${MKDIR_CMD}" -p "${FIREHOL_SERVICES_DIR}"
+	${MKDIR_CMD} -p "${FIREHOL_SERVICES_DIR}"
 	if [ $? -ne 0 ]
 	then
 		echo >&2
@@ -1562,14 +1515,14 @@ then
 		echo >&2
 		exit 1
 	fi
-	"${CHOWN_CMD}" root:root "${FIREHOL_SERVICES_DIR}"
-	"${CHMOD_CMD}" 700 "${FIREHOL_SERVICES_DIR}"
+	${CHOWN_CMD} root:root "${FIREHOL_SERVICES_DIR}"
+	${CHMOD_CMD} 700 "${FIREHOL_SERVICES_DIR}"
 fi
 
-#"${MKDIR_CMD}" "${FIREHOL_CHAINS_DIR}" || exit 1
-"${MKDIR_CMD}" "${FIREHOL_DIR}/fast" || exit 1
-"${MKDIR_CMD}" "${FIREHOL_DIR}/fast/tables"	|| exit 1
-"${MKDIR_CMD}" "${FIREHOL_DIR}/fast/table6s" || exit 1
+#${MKDIR_CMD} "${FIREHOL_CHAINS_DIR}" || exit 1
+${MKDIR_CMD} "${FIREHOL_DIR}/fast" || exit 1
+${MKDIR_CMD} "${FIREHOL_DIR}/fast/tables"	|| exit 1
+${MKDIR_CMD} "${FIREHOL_DIR}/fast/table6s" || exit 1
 
 # prepare the file that will hold all modules to be loaded.
 # this is needed only when we are going to save the firewall
@@ -1596,18 +1549,18 @@ postprocess_echo_to() { echo "${1}" >"${2}"; }
 # Make sure we have a directory for our data.
 if [ ! -d "${FIREHOL_SPOOL_DIR}" ]
 then
-	"${MKDIR_CMD}" "${FIREHOL_SPOOL_DIR}"		|| exit 1
-	"${CHOWN_CMD}" root:root "${FIREHOL_SPOOL_DIR}"	|| exit 1
-	"${CHMOD_CMD}" 700 "${FIREHOL_SPOOL_DIR}"	|| exit 1
+	${MKDIR_CMD} "${FIREHOL_SPOOL_DIR}"		|| exit 1
+	${CHOWN_CMD} root:root "${FIREHOL_SPOOL_DIR}"	|| exit 1
+	${CHMOD_CMD} 700 "${FIREHOL_SPOOL_DIR}"	|| exit 1
 fi
 
 # Generate firehol-defaults.conf file
 if [ ! -f "${FIREHOL_CONFIG_DIR}/firehol-defaults.conf" ]
 then
-	"${EGREP_CMD}" "^# --- BEGIN OF FIREHOL DEFAULTS ---" -A 1000 "${PROGRAM_FILE}" |\
-		"${EGREP_CMD}" "^# --- END OF FIREHOL DEFAULTS ---" -B 1000 >"${FIREHOL_CONFIG_DIR}/firehol-defaults.conf" || exit 1
-	"${CHOWN_CMD}" root:root "${FIREHOL_CONFIG_DIR}/firehol-defaults.conf"	|| exit 1
-	"${CHMOD_CMD}" 600 "${FIREHOL_CONFIG_DIR}/firehol-defaults.conf"	|| exit 1
+	${EGREP_CMD} "^# --- BEGIN OF FIREHOL DEFAULTS ---" -A 1000 "${PROGRAM_FILE}" |\
+		${EGREP_CMD} "^# --- END OF FIREHOL DEFAULTS ---" -B 1000 >"${FIREHOL_CONFIG_DIR}/firehol-defaults.conf" || exit 1
+	${CHOWN_CMD} root:root "${FIREHOL_CONFIG_DIR}/firehol-defaults.conf"	|| exit 1
+	${CHMOD_CMD} 600 "${FIREHOL_CONFIG_DIR}/firehol-defaults.conf"	|| exit 1
 fi
 
 load_ips() {
@@ -3316,8 +3269,8 @@ do
 		continue
 	fi
 	
-	n=`"${HEAD_CMD}" -n 1 "${f}" | "${CUT_CMD}" -d ':' -f 2`
-	"${EXPR_CMD}" ${n} + 0 >/dev/null 2>&1
+	n=`${HEAD_CMD} -n 1 "${f}" | ${CUT_CMD} -d ':' -f 2`
+	${EXPR_CMD} ${n} + 0 >/dev/null 2>&1
 	if [ $? -ne 0 ]
 	then
 		echo >&2 " WARNING >>> Ignoring service in '${FIREHOL_SERVICES_DIR}/${f}' due to malformed header."
@@ -3325,8 +3278,8 @@ do
 	then
 		echo >&2 " WARNING >>> Ignoring service '${FIREHOL_SERVICES_DIR}/${f}' due to incompatible API version."
 	else
-		n=`"${HEAD_CMD}" -n 1 "${f}" | "${CUT_CMD}" -d ':' -f 3`
-		"${EXPR_CMD}" ${n} + 0 >/dev/null 2>&1
+		n=`${HEAD_CMD} -n 1 "${f}" | ${CUT_CMD} -d ':' -f 3`
+		${EXPR_CMD} ${n} + 0 >/dev/null 2>&1
 		if [ $? -ne 0 ]
 		then
 			echo >&2 " WARNING >>> Ignoring service in '${FIREHOL_SERVICES_DIR}/${f}' due to malformed API minor number."
@@ -4034,7 +3987,7 @@ FIREHOL_TPROXY_IP_ROUTE_TABLE="241"
 FIREHOL_TPROXY_ROUTE_DEVICE="lo"
 
 tproxy_setup_ip_route() {
-	require_cmd ip
+	require_cmd IP_CMD
 
 	local x=
 	for x in inet inet6
@@ -5244,6 +5197,14 @@ ipset_warning() {
 	fi
 }
 
+iprange_warning() {
+	if [ ${IPRANGE_WARNING} -eq 1 ]
+	then
+		warning "iprange command is not installed - ipsets will not be optimal."
+		IPRANGE_WARNING=0
+	fi
+}
+
 ipset_list_active_names() {
 	eval "${IPSET_CMD} ${IPSET_LIST_NAMES_EVAL}"
 }
@@ -5817,7 +5778,7 @@ iptables() {
 	then
 		run_fast iptables "${@}"
 	else
-		postprocess -ns "${IPTABLES_CMD}" "${@}"
+		postprocess -ns ${IPTABLES_CMD} "${@}"
 	fi
 	FIREHOL_COMMAND_COUNTER=$[FIREHOL_COMMAND_COUNTER + 1]
 	
@@ -5832,7 +5793,7 @@ ip6tables() {
 	then
 		run_fast ip6tables "${@}"
 	else
-		postprocess -ns "${IP6TABLES_CMD}" "${@}"
+		postprocess -ns ${IP6TABLES_CMD} "${@}"
 	fi
 	FIREHOL_COMMAND_COUNTER=$[FIREHOL_COMMAND_COUNTER + 1]
 	
@@ -6107,25 +6068,26 @@ fi
 if [ -z "${KERNEL_CONFIG}" -a -f "/proc/config.gz" ]
 then
 	KERNEL_CONFIG="/proc/config.gz"
-	zcat_cmd /proc/config.gz >"${FIREHOL_DIR}/kcfg" || KERNEL_CONFIG=
+	require_cmd ZCAT_CMD
+	${ZCAT_CMD} /proc/config.gz >"${FIREHOL_DIR}/kcfg" || KERNEL_CONFIG=
 fi
 
 if [ -z "${KERNEL_CONFIG}" -a -f "/lib/modules/`${UNAME_CMD} -r`/build/.config" ]
 then
 	KERNEL_CONFIG="/lib/modules/`${UNAME_CMD} -r`/build/.config"
-	"${CAT_CMD}" "${KERNEL_CONFIG}" >"${FIREHOL_DIR}/kcfg" || KERNEL_CONFIG=
+	${CAT_CMD} "${KERNEL_CONFIG}" >"${FIREHOL_DIR}/kcfg" || KERNEL_CONFIG=
 fi
 
 if [ -z "${KERNEL_CONFIG}" -a -f "/boot/config-`${UNAME_CMD} -r`" ]
 then
 	KERNEL_CONFIG="/boot/config-`${UNAME_CMD} -r`"
-	"${CAT_CMD}" "${KERNEL_CONFIG}" >"${FIREHOL_DIR}/kcfg" || KERNEL_CONFIG=
+	${CAT_CMD} "${KERNEL_CONFIG}" >"${FIREHOL_DIR}/kcfg" || KERNEL_CONFIG=
 fi
 
 if [ -z "${KERNEL_CONFIG}" -a -f "/usr/src/linux/.config" ]
 then
 	KERNEL_CONFIG="/usr/src/linux/.config"
-	"${CAT_CMD}" "${KERNEL_CONFIG}" >"${FIREHOL_DIR}/kcfg" || KERNEL_CONFIG=
+	${CAT_CMD} "${KERNEL_CONFIG}" >"${FIREHOL_DIR}/kcfg" || KERNEL_CONFIG=
 fi
 
 # Did we managed to find the kernel configuration?
@@ -6136,7 +6098,7 @@ then
 	# Load all the definitions for CONFIG_*_NF_* variables
 	# We grep what we care for, to make sure there is no garbage or malicious code
 	# in the file we will run.
-	"${CAT_CMD}" "${FIREHOL_DIR}/kcfg" | ${GREP_CMD} -e "^CONFIG_[A-Z0-9_]\+_NF_[A-Z0-9_]\+=[ynm]$" >"${FIREHOL_DIR}/kcfg.nf"
+	${CAT_CMD} "${FIREHOL_DIR}/kcfg" | ${GREP_CMD} -e "^CONFIG_[A-Z0-9_]\+_NF_[A-Z0-9_]\+=[ynm]$" >"${FIREHOL_DIR}/kcfg.nf"
 	
 	# run it to get the variables
 	source "${FIREHOL_DIR}/kcfg.nf"
@@ -6274,10 +6236,11 @@ load_kernel_module() {
 		done
 		LOADED_KERNEL_MODULES="${LOADED_KERNEL_MODULES} ${mod}"
 
-		modprobe_cmd ${mod} -q
-		if [ $? -gt 0 ]
+		require_cmd MODPROBE_CMD
+		${MODPROBE_CMD} ${mod} -q
+		if [ $? -gt 0 -a $? -ne 17 ] # 17: insmod, already loaded
 		then
-			check_kernel_module ${mod} || runtime_error warn 1 "$(config_line)" "${MODPROBE_CMD}" ${mod} -q
+			check_kernel_module ${mod} || runtime_error warn 1 "$(config_line)" ${MODPROBE_CMD} ${mod} -q
 		fi
 	fi
 	return 0
@@ -6626,7 +6589,7 @@ close_master() {
 	do
 		# -ne here because nfacct will generate an error
 		# if the object already exists.
-		postprocess -ne "${NFACCT_CMD}" add "${m}" || return 1
+		postprocess -ne ${NFACCT_CMD} add "${m}" || return 1
 	done
 
 	# FIXME
@@ -8670,6 +8633,7 @@ rule() {
 					case "${s}" in
 						ipset:*)
 							[ ${IPSET_WARNING} -eq 1 ] && ipset_warning
+							[ ${IPRANGE_WARNING} -eq 1 ] && iprange_warning
 							s="${s/ipset:/}"
 							test -z "${FIREHOL_IPSETS_USED[$s]}" && FIREHOL_IPSETS_USED[$s]="USED"
 							${iptables} -t ${table} -A "${negative_chain}" -m set ${not} --match-set "${s}" src ${IPSET_SRC_DST_OPTIONS} -j RETURN
@@ -8707,6 +8671,7 @@ rule() {
 					case "${d}" in
 						ipset:*)
 							[ ${IPSET_WARNING} -eq 1 ] && ipset_warning
+							[ ${IPRANGE_WARNING} -eq 1 ] && iprange_warning
 							d="${d/ipset:/}"
 							test -z "${FIREHOL_IPSETS_USED[$d]}" && FIREHOL_IPSETS_USED[$d]="USED"
 							${iptables} -t ${table} -A "${negative_chain}" -m set ${not} --match-set "${d}" dst ${IPSET_SRC_DST_OPTIONS} -j RETURN
@@ -9268,6 +9233,7 @@ rule() {
 
 			ipset:*)
 				[ ${IPSET_WARNING} -eq 1 ] && ipset_warning
+				[ ${IPRANGE_WARNING} -eq 1 ] && iprange_warning
 				s="${s/ipset:/}"
 				test -z "${FIREHOL_IPSETS_USED[$s]}" && FIREHOL_IPSETS_USED[$s]="USED"
 				s_arg=("-m" "set" ${srcnot} "--match-set" "${s}" "src" ${IPSET_SRC_DST_OPTIONS})
@@ -9292,6 +9258,7 @@ rule() {
 
 			ipset:*)
 				[ ${IPSET_WARNING} -eq 1 ] && ipset_warning
+				[ ${IPRANGE_WARNING} -eq 1 ] && iprange_warning
 				d="${d/ipset:/}"
 				test -z "${FIREHOL_IPSETS_USED[$d]}" && FIREHOL_IPSETS_USED[$d]="USED"
 				d_arg=("-m" "set" ${dstnot} "--match-set" "${d}" "dst" ${IPSET_SRC_DST_OPTIONS})
@@ -9933,8 +9900,8 @@ firehol_save_activated_firewall() {
 			return 1
 		fi
 		
-		"${CHOWN_CMD}" root:root "${FIREHOL_SPOOL_DIR}/ipv4.rules"
-		"${CHMOD_CMD}" 600 "${FIREHOL_SPOOL_DIR}/ipv4.rules"
+		${CHOWN_CMD} root:root "${FIREHOL_SPOOL_DIR}/ipv4.rules"
+		${CHMOD_CMD} 600 "${FIREHOL_SPOOL_DIR}/ipv4.rules"
 	else
 		test -f "${FIREHOL_SPOOL_DIR}/ipv4.rules" && rm "${FIREHOL_SPOOL_DIR}/ipv4.rules"
 	fi
@@ -9948,8 +9915,8 @@ firehol_save_activated_firewall() {
 			return 1
 		fi
 		
-		"${CHOWN_CMD}" root:root "${FIREHOL_SPOOL_DIR}/ipv6.rules"
-		"${CHMOD_CMD}" 600 "${FIREHOL_SPOOL_DIR}/ipv6.rules"
+		${CHOWN_CMD} root:root "${FIREHOL_SPOOL_DIR}/ipv6.rules"
+		${CHMOD_CMD} 600 "${FIREHOL_SPOOL_DIR}/ipv6.rules"
 	else
 		test -f "${FIREHOL_SPOOL_DIR}/ipv6.rules" && rm "${FIREHOL_SPOOL_DIR}/ipv6.rules"
 	fi
@@ -10290,7 +10257,7 @@ case "${arg}" in
 			${IPSET_CMD} -L
 		fi
 		) >"${FIREHOL_DIR}/status"
-		pager_cmd <"${FIREHOL_DIR}/status"
+		${PAGER_CMD} <"${FIREHOL_DIR}/status"
 		exit $?
 		;;
 	
@@ -10850,10 +10817,10 @@ fi
 if [ "${FIREHOL_MODE}" = "WIZARD" ]
 then
 	# require commands for wizard mode
-	require_cmd ip
-	require_cmd ss
-	require_cmd date
-	require_cmd hostname
+	require_cmd IP_CMD
+	require_cmd SS_CMD
+	require_cmd DATE_CMD
+	require_cmd HOSTNAME_CMD
 	
 	wizard_ask() {
 		local prompt="${1}" def="${2}" ans= c= t=
@@ -11007,15 +10974,15 @@ then
 	}
 	
 	cd "${FIREHOL_DIR}"
-	"${MKDIR_CMD}" ports
-	"${MKDIR_CMD}" keys
+	${MKDIR_CMD} ports
+	${MKDIR_CMD} keys
 	cd ports
-	"${MKDIR_CMD}" tcp
-	"${MKDIR_CMD}" udp
+	${MKDIR_CMD} tcp
+	${MKDIR_CMD} udp
 
 	emit_version >&2
 
-	"${CAT_CMD}" >&2 <<EOF
+	${CAT_CMD} >&2 <<EOF
 FireHOL will now try to figure out its configuration file on this system.
 Please have all the services and network interfaces on this system running.
 
@@ -11978,7 +11945,7 @@ then
 		if [ $status4 -ne 0 ]
 		then
 			# it failed
-			runtime_error error "CANNOT APPLY IN FAST MODE" FIN "${IPTABLES_RESTORE_CMD}" "<${FIREHOL_OUTPUT}.fast"
+			runtime_error error "CANNOT APPLY IN FAST MODE" FIN ${IPTABLES_RESTORE_CMD} "<${FIREHOL_OUTPUT}.fast"
 
 			work_runtime_error=$[work_runtime_error+1]
 			
@@ -12001,7 +11968,7 @@ then
 			if [ $status6 -ne 0 ]
 			then
 				# it failed
-				runtime_error error "CANNOT APPLY IN FAST MODE" FIN "${IP6TABLES_RESTORE_CMD}" "<${FIREHOL_OUTPUT}.fast6"
+				runtime_error error "CANNOT APPLY IN FAST MODE" FIN ${IP6TABLES_RESTORE_CMD} "<${FIREHOL_OUTPUT}.fast6"
 
 				work_runtime_error=$[work_runtime_error+1]
 
