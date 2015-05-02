@@ -978,7 +978,6 @@ require_cmd() {
 # date
 # hostname
 # modprobe or insmod
-# gawk or awk
 # nice (none is fine)
 
 # Commands that are mandatory for FireHOL operation:
@@ -1106,26 +1105,6 @@ zcat_cmd() {
 	echo >&2 " WARNING:"
 	echo >&2 " --------"
 	echo >&2 " FireHOL cannot find any of the commands: zcat, gzcat, gzip."
-	echo >&2 " Make sure you have one of these available in the system path."
-	echo >&2 " "
-	
-	return 1
-}
-
-gawk_cmd() {
-	require_cmd -n gawk awk
-	test -z "${GAWK_CMD}" && GAWK_CMD="${AWK_CMD}"
-	
-	if [ ! -z "${GAWK_CMD}" ]
-	then
-		"${GAWK_CMD}" "${@}"
-		return $?
-	fi
-	
-	echo >&2 " "
-	echo >&2 " WARNING:"
-	echo >&2 " --------"
-	echo >&2 " FireHOL cannot find any of the commands: gawk, awk."
 	echo >&2 " Make sure you have one of these available in the system path."
 	echo >&2 " "
 	
