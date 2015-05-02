@@ -41,7 +41,7 @@ Architecture: all
 Depends: iptables
 Description: firewall for humans
 !
-  dpkg-gencontrol -O -pfirehol -is -ip -lChangeLog > /dev/null 2> debian/tmp/l
+  dpkg-gencontrol -O -pfirehol -lChangeLog > /dev/null 2> debian/tmp/l
   status=$?
   if [ $status -eq 0 -a `cat debian/tmp/l | wc -c` -gt 0 ]
   then
