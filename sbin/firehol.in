@@ -307,6 +307,12 @@ markdef() {
 # XXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXX
 # ------------------------------------------------------------------------------
 
+if [ "@AUTOCONF_RUN@" = "Y" ]
+then
+	FIREHOL_AUTOSAVE="@FIREHOL_AUTOSAVE@"
+	FIREHOL_AUTOSAVE6="@FIREHOL_AUTOSAVE6@"
+fi
+
 # --- BEGIN OF FIREHOL DEFAULTS ---
 
 # These are the defaults for FireHOL.
@@ -430,8 +436,8 @@ FIREHOL_ESTABLISHED_ACTIVATION_ACCEPT="${FIREHOL_ESTABLISHED_ACTIVATION_ACCEPT-1
 # your distribution, set here the paths where it expects the rules.
 # These settings are only saved when 'save' is requested at the command line.
 # Default: unset for automatic detection.
-FIREHOL_AUTOSAVE=
-FIREHOL_AUTOSAVE6=
+FIREHOL_AUTOSAVE="${FIREHOL_AUTOSAVE}"
+FIREHOL_AUTOSAVE6="${FIREHOL_AUTOSAVE6}"
 
 # Ready to use values for various distributions:
 #
