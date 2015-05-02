@@ -9810,7 +9810,7 @@ wait_for_interface() {
 
 	while [ "`date +%s`" -lt $(($start+$timeout)) -a $found -eq 0 ]
 	do
-		addr=`ip addr show $iface 2> /dev/null | awk '$1 ~ /^inet$/ {print $2}'`
+		addr=`ip addr show $iface 2> /dev/null | ${SED_CMD} -n 's/^ *inet \([^ ]*\).*/\1/p'`
 		[ -n "$addr" ] && found=1
 		[ $found -eq 0 ] && sleep 0.5
 	done
