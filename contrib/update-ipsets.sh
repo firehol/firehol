@@ -107,9 +107,9 @@ aggregate4() {
 	cat
 }
 
-filter_ip4()  { egrep "^[0-9\.]+$"; }
-filter_net4() { egrep "^[0-9\.]+/[0-9]+$"; }
-filter_all4() { egrep "^[0-9\.]+(/[0-9]+)?$"; }
+filter_ip4()  { egrep "^[0-9]+\.[0-9]+\.[0-9]+\.[0-9]+$"; }
+filter_net4() { egrep "^[0-9]+\.[0-9]+\.[0-9]+\.[0-9]+/[0-9]+$"; }
+filter_all4() { egrep "^[0-9]+\.[0-9]+\.[0-9]+\.[0-9\.]+(/[0-9]+)?$"; }
 
 filter_ip6()  { egrep "^[0-9a-fA-F:]+$"; }
 filter_net6() { egrep "^[0-9a-fA-F:]+/[0-9]+$"; }
@@ -139,7 +139,7 @@ download_url() {
 		install="${base}/${1}" \
 		tmp= now= date=
 
-	tmp="${install}.tmp.$$.${RANDOM}"
+	tmp=`mktemp "${install}.tmp-XXXXXXXXXX"` || return 1
 
 	# check if we have to download again
 	now=$(date +%s)
@@ -264,7 +264,7 @@ update() {
 	# download it
 	download_url "${ipset}" "${mins}" "${url}" || return 1
 
-	if [ "${type}" = "split" -o \( "${type}" = "all" -a -f "${install}.split" \) ]
+	if [ "${type}" = "split" -o \( -z "${type}" -a -f "${install}.split" \) ]
 	then
 		echo >&2 "${ipset}: spliting IPs and networks..."
 		test -f "${install}_ip.source" && rm "${install}_ip.source"
@@ -285,7 +285,8 @@ update() {
 
 	test ${SILENT} -ne 1 && echo >&2 "${ipset}: converting with processor '${processor}'"
 
-	tmp="${install}.tmp.$$.${RANDOM}"
+	tmp=`mktemp "${install}.tmp-XXXXXXXXXX"` || return 1
+
 	${processor} <"${install}.source" |\
 		${pre_filter} |\
 		${filter} |\
@@ -548,6 +549,15 @@ update blocklist_de $[30-5] ipv4 ip \
 # This blocklists only includes IPv4 addresses that are used by the ZeuS trojan.
 update zeus $[30-5] ipv4 ip \
 	"https://zeustracker.abuse.ch/blocklist.php?download=ipblocklist&r=${RANDOM}" \
+	remove_comments
+
+
+# -----------------------------------------------------------------------------
+# infiltrated.net
+# http://www.infiltrated.net/blacklisted
+
+update infiltrated $[24*60-10] ipv4 ip \
+	"http://www.infiltrated.net/blacklisted?r=${RANDOM}" \
 	remove_comments
 
 
