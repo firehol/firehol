@@ -29,7 +29,7 @@ extra-manpage: firehol-ipuntrap6.5
 
 `iptrap` adds the IP addresses of the matching packets to `ipset`.
 
-`ipuntrap` deletes the IP adresses of the matching packets from `ipset`.
+`ipuntrap` deletes the IP addresses of the matching packets from `ipset`.
 
 Both helpers do not affect the flow of traffic. They do not `ACCEPT`,
 `REJECT`, `DROP` packets or affect the firewall in any way.
@@ -54,7 +54,7 @@ used.
 A seconds of `0` (zero), writes to the ipset permanently (this is a feature of
 the ipset command, not the ipset FireHOL helper).
 
-The keywords `timeout` and `counters` are mutualy exclusive. `timeout` is the
+The keywords `timeout` and `counters` are mutually exclusive. `timeout` is the
 default and means that each IP address every time is matched its timeout will
 be refreshed, while `counters` means that its packets and bytes counters will
 be refreshed. Unfortunately the kernel either re-add the IP in the ipset
@@ -97,7 +97,7 @@ with the variable IPTRAP_DEFAULT_IPSET_OPTIONS.
 ~~~~
  # Example: mini-IDS
  # add to the ipset `trap` for an hour (3600 seconds) all IPs from all packets
- # comming from eth0 and going to tcp/3306 (mysql).
+ # coming from eth0 and going to tcp/3306 (mysql).
  iptrap4 src trap 3600 inface eth0 proto tcp dport 3306 log "TRAPPED HTTP"
  # block them
  blacklist4 full inface eth0 log "BLOCKED" src ipset:trap except src ipset:whitelist

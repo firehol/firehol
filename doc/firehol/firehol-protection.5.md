@@ -7,7 +7,7 @@
 firehol-protection - add extra protections to a definition
 
 <!--
-contents-table:subcommand:protection:keyword-firehol-protection:N:*all forbidded*:Examine incoming packets per `interface` or `router` and filter out bad packets or limit request frequency.
+contents-table:subcommand:protection:keyword-firehol-protection:N:*all forbidden*:Examine incoming packets per `interface` or `router` and filter out bad packets or limit request frequency.
   -->
 
 # SYNOPSIS

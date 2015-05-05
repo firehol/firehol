@@ -31,7 +31,7 @@ If used within an `interface` definition the definition's *real-interface*
 will be used.
 
 If used within a router definition the definition's `outface`(s) will be
-used, if specified. If the `reverse` option is gived, then the
+used, if specified. If the `reverse` option is given, then the
 definition's `inface`(s) will be used, if specified.
 
 Unlike most commands, `masquerade` does not inherit its parent

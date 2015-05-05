@@ -199,7 +199,7 @@ actions, like this:
 ~~~~
 
 Since we used the action TRAP_AND_REJECT as an interface policy, it will
-get all the traffic not accepted, rejected, or droped by the server and
+get all the traffic not accepted, rejected, or dropped by the server and
 client statements.
 
 For all these packets, the action TRAP_AND_REJECT will first check that

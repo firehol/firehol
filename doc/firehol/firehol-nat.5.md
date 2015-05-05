@@ -74,7 +74,7 @@ For `dnat` and `redirect` the default is PREROUTING, but OUTPUT is also
 supported. For `snat` the default is POSTROUTING, but INPUT is also
 supported.
 
-`random` will randomize the port mapping involved, to ensure the ports
+`random` will randomise the port mapping involved, to ensure the ports
 used are not predictable.
 
 `persistent` will attempt to map to the same source or destination address.
@@ -145,12 +145,12 @@ dnat4 to 10.0.0.1-10.0.0.10 persistent proto tcp dst 1.1.1.1 dport 80
 In the above example, the Linux kernel will give a `persistent` server to
 all the sockets of any single client.
 
-FireHOL can also setup balancing using a round-robbin or weighted
+FireHOL can also setup balancing using a round-robin or weighted
 average distribution of requests. However `persistent` cannot be used
-(the Linux kernel applies persistance on a single NAT statement).
+(the Linux kernel applies persistence on a single NAT statement).
 
 ## Round Robbin distribution
-To enable round robbin distribution, give multiple `to` values, space
+To enable round robin distribution, give multiple `to` values, space
 separated and enclosed in quotes, or comma separated.
 
 Example:

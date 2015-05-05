@@ -113,7 +113,7 @@ match they make. Not all parameters are accepted by all commands so you
 should check the individual commands for exclusions.
 
 All matches are made against the REQUEST. FireHOL automatically sets up
-the necessary stateful rules to deal with replies in the reverse
+the necessary stateful rules to deal with replies in the reverse
 direction.
 
 All matches should be true for a statement to be executed. However,
