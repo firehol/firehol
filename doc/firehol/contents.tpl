@@ -54,7 +54,7 @@ rules.
 # Helper commands
 
 The following commands are generally used to set things up before the
-first **primary command**. Come can be used below an `interface` or
+first **primary command**. Some can be used below an `interface` or
 `router` and also appear in the [subcommands](#sub-commands) table.
 
 <!-- INSERT TABLE helper -->
