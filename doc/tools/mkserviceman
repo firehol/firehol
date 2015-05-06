@@ -133,7 +133,6 @@ foreach my $k (@service_keywords) {
   if (@links) {
     print $o "    Links\n\n";
     print $o "    * " . join("\n    * ", @links) . "\n\n";
-    print $o join("\n", @linkb) . "\n\n";
   }
   if ($k eq "all") {
     my $xtra_notes = "The following complex services are activated:\n\n";
@@ -152,6 +151,9 @@ foreach my $k (@service_keywords) {
     foreach my $l (@lines) {
       print $o "    > $l\n";
     }
+  }
+  if (@linkb) {
+    print $o join("\n", @linkb) . "\n\n";
   }
 }
 if ($o) {
