@@ -350,6 +350,52 @@ update() {
 }
 
 # -----------------------------------------------------------------------------
+# XML DOM PARSER
+
+XML_ENTITY=
+XML_CONTENT=
+XML_TAG_NAME=
+XML_ATTRIBUTES=
+read_xml_dom () {
+	local IFS=\>
+	read -d \< XML_ENTITY XML_CONTENT
+	local ret=$?
+	XML_TAG_NAME=${ENTITY%% *}
+	XML_ATTRIBUTES=${ENTITY#* }
+	return $ret
+}
+
+parse_rss_rosinstrument() {
+	while read_xml_dom
+	do
+		if [ "${XML_ENTITY}" = "title" ]
+		then
+			if [[ "${XML_CONTENT}" =~ ^.*:[0-9]+$ ]]
+			then
+				local hostname="${XML_CONTENT/:*/}"
+
+				if [[ "${hostname}" =~ ^[0-9]+\.[0-9]+\.[0-9]+\.[0-9]+$ ]]
+				then
+					# it is an IP already
+					# echo "${hostname} # from ${XML_CONTENT}"
+					echo "${hostname}"
+				else
+					# it is a hostname - resolve it
+					local host=`host "${hostname}" | grep " has address " | cut -d ' ' -f 4`
+					if [ $? -eq 0 -a ! -z "${host}" ]
+					then
+						# echo "${host} # from ${XML_CONTENT}"
+						echo "${host}"
+					#else
+					#	echo "# Cannot resolve ${hostname} taken from ${XML_CONTENT}"
+					fi
+				fi
+			fi
+		fi
+	done
+}
+
+# -----------------------------------------------------------------------------
 # CONVERTERS
 # These functions are used to convert from various sources
 # to IP or NET addresses
@@ -639,3 +685,15 @@ update fullbogons $[24*60-10] ipv4 net \
 #	"http://www.team-cymru.org/Services/Bogons/fullbogons-ipv6.txt?r=${RANDOM}" \
 #	remove_comments
 
+
+# -----------------------------------------------------------------------------
+# Open Proxies from rosinstruments
+# http://tools.rosinstrument.com/proxy/
+
+update rosi_web_proxies $[12*60] ipv4 ip \
+	"http://tools.rosinstrument.com/proxy/l100.xml?r=${RANDOM}" \
+	parse_rss_rosinstrument
+
+update rosi_connect_proxies $[12*60] ipv4 ip \
+	"http://tools.rosinstrument.com/proxy/plab100.xml?r=${RANDOM}" \
+	parse_rss_rosinstrument
