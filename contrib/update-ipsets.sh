@@ -57,9 +57,22 @@ then
 	mkdir -p "${base}" || exit 1
 fi
 
+touch_in_the_past() {
+	local mins_ago="${1}" file="${2}"
+
+	local now=$(date +%s)
+	local date=$(date -d @$[now - (mins_ago * 60)] +"%y%m%d%H%M.%S")
+	touch -t "${date}" "${file}"
+}
+touch_in_the_past $[7 * 24 * 60] "${base}/.warn_if_last_downloaded_before_this"
+
 ipset_list_names() {
 	( ipset --list -t || ipset --list ) | grep "^Name: " | cut -d ' ' -f 2
 }
+
+echo
+echo "`date`: ${0} ${*}" 
+echo
 
 # find the active ipsets
 echo >&2 "Getting list of active ipsets..."
@@ -134,6 +147,15 @@ filter_invalid4() {
 	egrep -v "^(0\.0\.0\.0|0\.0\.0\.0/0|255\.255\.255\.255|255\.255\.255\.255/0)$"
 }
 
+check_source_file_too_old() {
+	local ipset="${1}" file="${2}"
+
+	if [ "${base}/.warn_if_last_downloaded_before_this" -nt "${file}" ]
+	then
+		echo >&2 "${ipset}: IMPORTANT: FILE IS TOO OLD!"
+	fi
+}
+
 download_url() {
 	local 	ipset="${1}" mins="${2}" url="${3}" \
 		install="${base}/${1}" \
@@ -142,14 +164,13 @@ download_url() {
 	tmp=`mktemp "${install}.tmp-XXXXXXXXXX"` || return 1
 
 	# check if we have to download again
-	now=$(date +%s)
-	date=$(date -d @$[now - (mins * 60)] +"%y%m%d%H%M.%S")
-	touch -t "${date}" "${tmp}"
+	touch_in_the_past "${mins}" "${tmp}"
 
 	if [ -f "${install}.source" -a "${install}.source" -nt "${tmp}" ]
 	then
 		rm "${tmp}"
 		echo >&2 "${ipset}: should not be downloaded so soon."
+		check_source_file_too_old "${ipset}" "${install}.source"
 		return 0
 	fi
 
@@ -160,6 +181,7 @@ download_url() {
 	then
 		rm "${tmp}"
 		echo >&2 "${ipset}: cannot download '${url}'."
+		check_source_file_too_old "${ipset}" "${install}.source"
 		return 1
 	fi
 
@@ -167,6 +189,7 @@ download_url() {
 	then
 		rm "${tmp}"
 		echo >&2 "${ipset}: empty file downloaded from url '${url}'."
+		check_source_file_too_old "${ipset}" "${install}.source"
 		return 2
 	fi
 
@@ -178,7 +201,8 @@ download_url() {
 			# they are the same
 			rm "${tmp}"
 			test ${SILENT} -ne 1 && echo >&2 "${ipset}: downloaded file is the same with the previous one."
-			touch "${install}.source"
+			check_source_file_too_old "${ipset}" "${install}.source"
+			# touch "${install}.source"
 			return 0
 		fi
 	fi
@@ -351,6 +375,8 @@ update() {
 
 # -----------------------------------------------------------------------------
 # XML DOM PARSER
+# excellent article about XML parsing is BASH
+# http://stackoverflow.com/questions/893585/how-to-parse-xml-in-bash
 
 XML_ENTITY=
 XML_CONTENT=
