@@ -38,6 +38,7 @@ then
 	exit 1
 fi
 
+PUSH_TO_GIT=0
 SILENT=0
 [ "a${1}" = "a-s" ] && SILENT=1
 
@@ -56,6 +57,7 @@ if [ ! -d "${base}" ]
 then
 	mkdir -p "${base}" || exit 1
 fi
+cd "${base}" || exit 1
 
 touch_in_the_past() {
 	local mins_ago="${1}" file="${2}"
@@ -64,7 +66,7 @@ touch_in_the_past() {
 	local date=$(date -d @$[now - (mins_ago * 60)] +"%y%m%d%H%M.%S")
 	touch -t "${date}" "${file}"
 }
-touch_in_the_past $[7 * 24 * 60] "${base}/.warn_if_last_downloaded_before_this"
+touch_in_the_past $[7 * 24 * 60] ".warn_if_last_downloaded_before_this"
 
 ipset_list_names() {
 	( ipset --list -t || ipset --list ) | grep "^Name: " | cut -d ' ' -f 2
@@ -147,18 +149,20 @@ filter_invalid4() {
 	egrep -v "^(0\.0\.0\.0|0\.0\.0\.0/0|255\.255\.255\.255|255\.255\.255\.255/0)$"
 }
 
-check_source_file_too_old() {
+check_file_too_old() {
 	local ipset="${1}" file="${2}"
 
-	if [ "${base}/.warn_if_last_downloaded_before_this" -nt "${file}" ]
+	if [ -f "${file}" -a ".warn_if_last_downloaded_before_this" -nt "${file}" ]
 	then
 		echo >&2 "${ipset}: IMPORTANT: FILE IS TOO OLD!"
+		return 1
 	fi
+	return 0
 }
 
 download_url() {
 	local 	ipset="${1}" mins="${2}" url="${3}" \
-		install="${base}/${1}" \
+		install="${1}" \
 		tmp= now= date=
 
 	tmp=`mktemp "${install}.tmp-XXXXXXXXXX"` || return 1
@@ -170,7 +174,6 @@ download_url() {
 	then
 		rm "${tmp}"
 		echo >&2 "${ipset}: should not be downloaded so soon."
-		check_source_file_too_old "${ipset}" "${install}.source"
 		return 0
 	fi
 
@@ -181,7 +184,6 @@ download_url() {
 	then
 		rm "${tmp}"
 		echo >&2 "${ipset}: cannot download '${url}'."
-		check_source_file_too_old "${ipset}" "${install}.source"
 		return 1
 	fi
 
@@ -189,7 +191,6 @@ download_url() {
 	then
 		rm "${tmp}"
 		echo >&2 "${ipset}: empty file downloaded from url '${url}'."
-		check_source_file_too_old "${ipset}" "${install}.source"
 		return 2
 	fi
 
@@ -201,8 +202,10 @@ download_url() {
 			# they are the same
 			rm "${tmp}"
 			test ${SILENT} -ne 1 && echo >&2 "${ipset}: downloaded file is the same with the previous one."
-			check_source_file_too_old "${ipset}" "${install}.source"
-			# touch "${install}.source"
+			# we have to update the date of the file in this case
+			# otherwise, we will attempt to download it again too soon
+			# at the next run - and we may hit a download limit
+			touch "${install}.source"
 			return 0
 		fi
 	fi
@@ -214,7 +217,7 @@ download_url() {
 
 update() {
 	local 	ipset="${1}" mins="${2}" ipv="${3}" type="${4}" url="${5}" processor="${6-cat}"
-		install="${base}/${1}" tmp= error=0 now= date= pre_filter="cat" post_filter="cat" filter="cat"
+		install="${1}" tmp= error=0 now= date= pre_filter="cat" post_filter="cat" filter="cat"
 	shift 6
 
 	case "${ipv}" in
@@ -286,7 +289,12 @@ update() {
 	fi
 
 	# download it
-	download_url "${ipset}" "${mins}" "${url}" || return 1
+	download_url "${ipset}" "${mins}" "${url}"
+	if [ $? -ne 0 ]
+	then
+		check_file_too_old "${ipset}" "${install}.${hash}set"
+		return 1
+	fi
 
 	if [ "${type}" = "split" -o \( -z "${type}" -a -f "${install}.split" \) ]
 	then
@@ -304,6 +312,7 @@ update() {
 	if [ ! "${install}.source" -nt "${install}.${hash}set" ]
 	then
 		echo >&2 "${ipset}: not updated - no reason to process it again."
+		check_file_too_old "${ipset}" "${install}.${hash}set"
 		return 0
 	fi
 
@@ -321,6 +330,7 @@ update() {
 	then
 		rm "${tmp}"
 		echo >&2 "${ipset}: failed to convert file."
+		check_file_too_old "${ipset}" "${install}.${hash}set"
 		return 1
 	fi
 
@@ -328,6 +338,7 @@ update() {
 	then
 		rm "${tmp}"
 		echo >&2 "${ipset}: processed file gave no results."
+		check_file_too_old "${ipset}" "${install}.${hash}set"
 		test ! -f "${install}.${hash}set" && touch "${install}.${hash}set"
 		return 2
 	fi
@@ -338,7 +349,8 @@ update() {
 		# they are the same
 		rm "${tmp}"
 		test ${SILENT} -ne 1 && echo >&2 "${ipset}: processed set is the same with the previous one."
-		touch "${install}.${hash}set"
+		check_file_too_old "${ipset}" "${install}.${hash}set"
+		# touch "${install}.${hash}set"
 		return 0
 	fi
 
@@ -364,11 +376,26 @@ update() {
 	then
 		rm "${tmp}"
 		echo >&2 "${ipset}: failed to update ipset."
+		check_file_too_old "${ipset}" "${install}.${hash}set"
 		return 1
 	fi
 
 	# all is good. keep it.
 	mv "${tmp}" "${install}.${hash}set" || return 1
+
+	if [ -d .git ]
+	then
+		echo >&2 "${ipset}: updating git repository."
+		local comment="`date -u` update"
+		git commit "${install}.${hash}set" -m "${comment}"
+		if [ $? -ne 0 ]
+		then
+			echo >&2 "${ipset}: cannot update it - adding it to git repository."
+			git add "${install}.${hash}set"
+			git commit "${install}.${hash}set" -m "${comment}"
+		fi
+		PUSH_TO_GIT=$[PUSH_TO_GIT + 1]
+	fi
 
 	return 0
 }
@@ -650,9 +677,9 @@ update malc0de $[24*60-10] ipv4 ip \
 # >> ipset4 create stop_forum_spam hash:ip maxelem 500000
 # -- normally, you don't need this set --
 # -- use the hourly and the daily ones instead --
-update stop_forum_spam $[24*60-10] ipv4 ip \
-	"http://www.stopforumspam.com/downloads/bannedips.zip?r=${RANDOM}" \
-	unzip_and_split_csv
+#update stop_forum_spam $[24*60-10] ipv4 ip \
+#	"http://www.stopforumspam.com/downloads/bannedips.zip?r=${RANDOM}" \
+#	unzip_and_split_csv
 
 # hourly update with IPs from the last 24 hours
 update stop_forum_spam_1h $[60] ipv4 ip \
@@ -723,3 +750,9 @@ update rosi_web_proxies $[12*60] ipv4 ip \
 update rosi_connect_proxies $[12*60] ipv4 ip \
 	"http://tools.rosinstrument.com/proxy/plab100.xml?r=${RANDOM}" \
 	parse_rss_rosinstrument
+
+
+# -----------------------------------------------------------------------------
+# FINISHED
+# git push it, if we have to
+[ ${PUSH_TO_GIT} -gt 0 ] && git push
