@@ -40,7 +40,15 @@ fi
 
 PUSH_TO_GIT=0
 SILENT=0
-[ "a${1}" = "a-s" ] && SILENT=1
+while [ ! -z "${1}" ]
+do
+	case "${1}" in
+		-s) SILENT=1;;
+		-g) PUSH_TO_GIT=1;;
+		*) echo >&2 "Unknown parameter '${1}'".; exit 1 ;;
+	esac
+	shift
+done
 
 # find a curl or wget
 curl="$(which curl 2>/dev/null)"
@@ -58,6 +66,12 @@ then
 	mkdir -p "${base}" || exit 1
 fi
 cd "${base}" || exit 1
+
+if [ ! -d ".git" -a ${PUSH_TO_GIT} -ne 0 ]
+then
+	echo >&2 "Git is not initialized in ${base}. Ignoring git support."
+	PUSH_TO_GIT=0
+fi
 
 touch_in_the_past() {
 	local mins_ago="${1}" file="${2}"
@@ -215,6 +229,7 @@ download_url() {
 	touch "${install}.source"
 }
 
+declare -A UPDATED_SETS=()
 update() {
 	local 	ipset="${1}" mins="${2}" ipv="${3}" type="${4}" url="${5}" processor="${6-cat}"
 		install="${1}" tmp= error=0 now= date= pre_filter="cat" post_filter="cat" filter="cat"
@@ -284,7 +299,7 @@ update() {
 	if [ ! -f "${install}.source" ]
 	then
 		echo >&2 "${ipset}: is disabled."
-		echo >&2 "${ipset}: to enable it run: touch -t 0001010000 '${install}.source'"
+		echo >&2 "${ipset}: to enable it run: touch -t 0001010000 '${base}/${install}.source'"
 		return 1
 	fi
 
@@ -382,9 +397,12 @@ update() {
 
 	# all is good. keep it.
 	mv "${tmp}" "${install}.${hash}set" || return 1
+	UPDATED_SETS[${ipset}]="${install}.${hash}set"
 
 	if [ -d .git ]
 	then
+		echo >"${install}.setinfo" "${ipset}|${ipv}|hash:${hash}|`wc -l "${install}.${hash}set" | cut -d ' ' -f 1`|`date -u`|[source](${url})"
+
 		echo >&2 "${ipset}: updating git repository."
 		local comment="`date -u` update"
 		git commit "${install}.${hash}set" -m "${comment}"
@@ -394,7 +412,6 @@ update() {
 			git add "${install}.${hash}set"
 			git commit "${install}.${hash}set" -m "${comment}"
 		fi
-		PUSH_TO_GIT=$[PUSH_TO_GIT + 1]
 	fi
 
 	return 0
@@ -448,6 +465,16 @@ parse_rss_rosinstrument() {
 	done
 }
 
+parse_xml_clean_mx() {
+	while read_xml_dom
+	do
+		case "${XML_ENTITY}" in
+			ip) echo "${XML_CONTENT}"
+		esac
+	done
+}
+
+
 # -----------------------------------------------------------------------------
 # CONVERTERS
 # These functions are used to convert from various sources
@@ -469,20 +496,24 @@ subnet_to_bitmask() {
 
 remove_comments() {
 	# remove:
-	# 1. everything on the same line after a #
-	# 2. multiple white space (tabs and spaces)
-	# 3. leading spaces
-	# 4. trailing spaces
-	sed -e "s/#.*$//g" -e "s/[\t ]\+/ /g" -e "s/^ \+//g" -e "s/ \+$//g"
+	# 1. replace \r with \n
+	# 2. everything on the same line after a #
+	# 3. multiple white space (tabs and spaces)
+	# 4. leading spaces
+	# 5. trailing spaces
+	tr "\r" "\n" |\
+		sed -e "s/#.*$//g" -e "s/[\t ]\+/ /g" -e "s/^ \+//g" -e "s/ \+$//g"
 }
 
 remove_comments_semi_colon() {
 	# remove:
-	# 1. everything on the same line after a ;
-	# 2. multiple white space (tabs and spaces)
-	# 3. leading spaces
-	# 4. trailing spaces
-	sed -e "s/;.*$//g" -e "s/[\t ]\+/ /g" -e "s/^ \+//g" -e "s/ \+$//g"
+	# 1. replace \r with \n
+	# 2. everything on the same line after a ;
+	# 3. multiple white space (tabs and spaces)
+	# 4. leading spaces
+	# 5. trailing spaces
+	tr "\r" "\n" |\
+		sed -e "s/;.*$//g" -e "s/[\t ]\+/ /g" -e "s/^ \+//g" -e "s/ \+$//g"
 }
 
 # convert snort rules to a list of IPs
@@ -503,7 +534,7 @@ pix_deny_rules_to_ipv4() {
 }
 
 unzip_and_split_csv() {
-	funzip | tr "," "\n"
+	funzip | tr ",\r" "\n\n"
 }
 
 unzip_and_extract() {
@@ -677,9 +708,11 @@ update malc0de $[24*60-10] ipv4 ip \
 # >> ipset4 create stop_forum_spam hash:ip maxelem 500000
 # -- normally, you don't need this set --
 # -- use the hourly and the daily ones instead --
-#update stop_forum_spam $[24*60-10] ipv4 ip \
-#	"http://www.stopforumspam.com/downloads/bannedips.zip?r=${RANDOM}" \
-#	unzip_and_split_csv
+
+# IMPORTANT: THIS IS A BIG LIST
+update stop_forum_spam $[24*60-10] ipv4 ip \
+	"http://www.stopforumspam.com/downloads/bannedips.zip?r=${RANDOM}" \
+	unzip_and_split_csv
 
 # hourly update with IPs from the last 24 hours
 update stop_forum_spam_1h $[60] ipv4 ip \
@@ -753,6 +786,55 @@ update rosi_connect_proxies $[12*60] ipv4 ip \
 
 
 # -----------------------------------------------------------------------------
+# Malware Domain List
+# All IPs should be considered dangerous
+
+update malwaredomainlist $[12*60] ipv4 ip \
+	"http://www.malwaredomainlist.com/hostslist/ip.txt?r=${RANDOM}" \
+	remove_comments
+
+
+# -----------------------------------------------------------------------------
+# Alien Vault
+# Alienvault IP Reputation Database
+
+# IMPORTANT: THIS IS A BIG LIST
+update alienvault_reputation $[12*60] ipv4 ip \
+	"https://reputation.alienvault.com/reputation.generic?r=${RANDOM}" \
+	remove_comments
+
+
+# -----------------------------------------------------------------------------
+# Clean-MX
+# Viruses
+
+update clean_mx_viruses $[12*60] ipv4 ip \
+	"http://support.clean-mx.de/clean-mx/xmlviruses.php?sort=id%20desc&response=alive" \
+	parse_xml_clean_mx
+
+
+# other tools
+# https://github.com/khainebot/Blocklist-Downloader/blob/master/blocklistdownloader.py
+# https://github.com/walshie4/Ultimate-Blocklist
+
+# to add
+# http://www.autoshun.org/files/shunlist.csv
+# https://isc.sans.edu/api/topips/records/1000/today/handler?json
+# http://labs.snort.org/feeds/ip-filter.blf
+
+# -----------------------------------------------------------------------------
 # FINISHED
 # git push it, if we have to
-[ ${PUSH_TO_GIT} -gt 0 ] && git push
+if [ ${PUSH_TO_GIT} -ne 0 -a ! -z "${!UPDATED_SETS[*]}" ]
+then
+	echo
+	echo "Pushing git..."
+	tmp="README.md.$$.${RANDOM}"
+	cat README.md | grep "^# List of ipsets included" -B 10000 >"${tmp}"
+	echo "name|IP version|ipset type|entries|updated|source link|" >>"${tmp}"
+	echo ":--:|:--------:|:--------:|:-----:|:-----:|:---------:|" >>"${tmp}"
+	cat *.setinfo >>"${tmp}"
+	mv "${tmp}" README.md
+	git commit README.md -m "`date -u` update"
+	git push
+fi
