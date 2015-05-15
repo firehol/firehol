@@ -73,6 +73,38 @@ then
 	PUSH_TO_GIT=0
 fi
 
+commit_to_git() {
+	if [ -d .git -a ! -z "${!UPDATED_SETS[*]}" ]
+	then
+		local comment="`date -u` update"
+		
+		if [ ${PUSH_TO_GIT} -ne 0 ]
+		then
+			echo >&2 
+			echo >&2 "Committing ${UPDATED_SETS[@]} README.md to git repository"
+			local tmp="README.md.$$.${RANDOM}"
+			cat README.md | grep "^# List of ipsets included" -B 10000 >"${tmp}"
+			echo "name|IP version|ipset type|entries|updated|source link|" >>"${tmp}"
+			echo ":--:|:--------:|:--------:|:-----:|:-----:|:---------:|" >>"${tmp}"
+			cat *.setinfo >>"${tmp}"
+			mv "${tmp}" README.md
+			git commit "${UPDATED_SETS[@]}" README.md -m "${comment}"
+
+			echo >&2 
+			echo >&2 "Pushing git changes to remote server"
+			git push
+		else
+			echo >&2 
+			echo >&2 "Committing ${UPDATED_SETS[@]} to git repository"
+			git commit "${UPDATED_SETS[@]}" -m "${comment}"
+		fi
+	fi
+}
+# make sure we commit to git when we exit
+trap commit_to_git EXIT
+trap commit_to_git SIGHUP
+trap commit_to_git INT
+
 touch_in_the_past() {
 	local mins_ago="${1}" file="${2}"
 
@@ -365,7 +397,8 @@ update() {
 		rm "${tmp}"
 		test ${SILENT} -ne 1 && echo >&2 "${ipset}: processed set is the same with the previous one."
 		check_file_too_old "${ipset}" "${install}.${hash}set"
-		# touch "${install}.${hash}set"
+		# touch it so that we will not process it again next time
+		touch "${install}.${hash}set"
 		return 0
 	fi
 
@@ -403,14 +436,11 @@ update() {
 	then
 		echo >"${install}.setinfo" "${ipset}|${ipv}|hash:${hash}|`wc -l "${install}.${hash}set" | cut -d ' ' -f 1`|`date -u`|[source](${url})"
 
-		echo >&2 "${ipset}: updating git repository."
-		local comment="`date -u` update"
-		git commit "${install}.${hash}set" -m "${comment}"
+		git ls-files "${install}.${hash}set" --error-unmatch >/dev/null 2>&1
 		if [ $? -ne 0 ]
-		then
-			echo >&2 "${ipset}: cannot update it - adding it to git repository."
+			then
+			echo >&2 "${ipset}: adding it to git"
 			git add "${install}.${hash}set"
-			git commit "${install}.${hash}set" -m "${comment}"
 		fi
 	fi
 
@@ -605,7 +635,7 @@ update danmetor 30 ipv4 ip \
 	remove_comments
 
 # http://doc.emergingthreats.net/bin/view/Main/TorRules
-update tor $[12*60-10] ipv4 ip \
+update tor $[12*60] ipv4 ip \
 	"http://rules.emergingthreats.net/blockrules/emerging-tor.rules?r=${RANDOM}" \
 	snort_alert_rules_to_ipv4
 
@@ -618,27 +648,27 @@ update tor_servers 30 ipv4 ip \
 # EmergingThreats
 
 # http://doc.emergingthreats.net/bin/view/Main/CompromisedHost
-update compromised $[12*60-10] ipv4 ip \
+update compromised $[12*60] ipv4 ip \
 	"http://rules.emergingthreats.net/blockrules/compromised-ips.txt?r=${RANDOM}" \
 	remove_comments
 
 # Command & Control botnet servers by www.shadowserver.org
-update botnet $[12*60-10] ipv4 ip \
+update botnet $[12*60] ipv4 ip \
 	"http://rules.emergingthreats.net/fwrules/emerging-PIX-CC.rules?r=${RANDOM}" \
 	pix_deny_rules_to_ipv4
 
 # This appears to be the SPAMHAUS DROP list, but distributed by EmergingThreats.
-update spamhaus $[12*60-10] ipv4 net \
+update spamhaus $[12*60] ipv4 net \
 	"http://rules.emergingthreats.net/fwrules/emerging-PIX-DROP.rules?r=${RANDOM}" \
 	pix_deny_rules_to_ipv4
 
 # Top 20 attackers by www.dshield.org
-update dshield $[12*60-10] ipv4 net \
+update dshield $[12*60] ipv4 net \
 	"http://rules.emergingthreats.net/fwrules/emerging-PIX-DSHIELD.rules?r=${RANDOM}" \
 	pix_deny_rules_to_ipv4
 
 # includes botnet, spamhaus and dshield
-update emerging_block $[12*60-10] ipv4 all \
+update emerging_block $[12*60] ipv4 all \
 	"http://rules.emergingthreats.net/fwrules/emerging-Block-IPs.txt?r=${RANDOM}" \
 	remove_comments
 
@@ -649,13 +679,13 @@ update emerging_block $[12*60-10] ipv4 all \
 
 # http://www.spamhaus.org/drop/
 # These guys say that this list should be dropped at tier-1 ISPs globaly!
-update spamhaus_drop $[12*60-10] ipv4 net \
+update spamhaus_drop $[12*60] ipv4 net \
 	"http://www.spamhaus.org/drop/drop.txt?r=${RANDOM}" \
 	remove_comments_semi_colon
 
 # extended DROP (EDROP) list.
 # Should be used together with their DROP list.
-update spamhaus_edrop $[12*60-10] ipv4 net \
+update spamhaus_edrop $[12*60] ipv4 net \
 	"http://www.spamhaus.org/drop/edrop.txt?r=${RANDOM}" \
 	remove_comments_semi_colon
 
@@ -667,7 +697,7 @@ update spamhaus_edrop $[12*60-10] ipv4 net \
 # All IP addresses that have attacked one of their customers/servers in the
 # last 48 hours. Updated every 30 minutes.
 # They also have lists of service specific attacks (ssh, apache, sip, etc).
-update blocklist_de $[30-5] ipv4 ip \
+update blocklist_de 30 ipv4 ip \
 	"http://lists.blocklist.de/lists/all.txt?r=${RANDOM}" \
 	remove_comments
 
@@ -677,7 +707,7 @@ update blocklist_de $[30-5] ipv4 ip \
 # https://zeustracker.abuse.ch/blocklist.php
 
 # This blocklists only includes IPv4 addresses that are used by the ZeuS trojan.
-update zeus $[30-5] ipv4 ip \
+update zeus 30 ipv4 ip \
 	"https://zeustracker.abuse.ch/blocklist.php?download=ipblocklist&r=${RANDOM}" \
 	remove_comments
 
@@ -686,7 +716,7 @@ update zeus $[30-5] ipv4 ip \
 # infiltrated.net
 # http://www.infiltrated.net/blacklisted
 
-update infiltrated $[24*60-10] ipv4 ip \
+update infiltrated $[12*60] ipv4 ip \
 	"http://www.infiltrated.net/blacklisted?r=${RANDOM}" \
 	remove_comments
 
@@ -696,7 +726,7 @@ update infiltrated $[24*60-10] ipv4 ip \
 # http://malc0de.com
 
 # updated daily and populated with the last 30 days of malicious IP addresses.
-update malc0de $[24*60-10] ipv4 ip \
+update malc0de $[24*60] ipv4 ip \
 	"http://malc0de.com/bl/IP_Blacklist.txt?r=${RANDOM}" \
 	remove_comments
 
@@ -710,12 +740,12 @@ update malc0de $[24*60-10] ipv4 ip \
 # -- use the hourly and the daily ones instead --
 
 # IMPORTANT: THIS IS A BIG LIST
-update stop_forum_spam $[24*60-10] ipv4 ip \
+update stop_forum_spam $[24*60] ipv4 ip \
 	"http://www.stopforumspam.com/downloads/bannedips.zip?r=${RANDOM}" \
 	unzip_and_split_csv
 
 # hourly update with IPs from the last 24 hours
-update stop_forum_spam_1h $[60] ipv4 ip \
+update stop_forum_spam_1h 60 ipv4 ip \
 	"http://www.stopforumspam.com/downloads/listed_ip_1.zip" \
 	unzip_and_extract
 
@@ -755,7 +785,7 @@ update stop_forum_spam_365d $[24*60] ipv4 ip \
 # private and reserved addresses defined by RFC 1918, RFC 5735, and RFC 6598
 # and netblocks that have not been allocated to a regional internet registry
 # (RIR) by the Internet Assigned Numbers Authority.
-update bogons $[24*60-10] ipv4 net \
+update bogons $[24*60] ipv4 net \
 	"http://www.team-cymru.org/Services/Bogons/bogon-bn-agg.txt?r=${RANDOM}" \
 	remove_comments
 
@@ -763,7 +793,7 @@ update bogons $[24*60-10] ipv4 net \
 # Fullbogons are a larger set which also includes IP space that has been
 # allocated to an RIR, but not assigned by that RIR to an actual ISP or other
 # end-user.
-update fullbogons $[24*60-10] ipv4 net \
+update fullbogons $[24*60] ipv4 net \
 	"http://www.team-cymru.org/Services/Bogons/fullbogons-ipv4.txt?r=${RANDOM}" \
 	remove_comments
 
@@ -776,11 +806,11 @@ update fullbogons $[24*60-10] ipv4 net \
 # Open Proxies from rosinstruments
 # http://tools.rosinstrument.com/proxy/
 
-update rosi_web_proxies $[12*60] ipv4 ip \
+update rosi_web_proxies $[3*60] ipv4 ip \
 	"http://tools.rosinstrument.com/proxy/l100.xml?r=${RANDOM}" \
 	parse_rss_rosinstrument
 
-update rosi_connect_proxies $[12*60] ipv4 ip \
+update rosi_connect_proxies $[3*60] ipv4 ip \
 	"http://tools.rosinstrument.com/proxy/plab100.xml?r=${RANDOM}" \
 	parse_rss_rosinstrument
 
@@ -822,19 +852,3 @@ update clean_mx_viruses $[12*60] ipv4 ip \
 # https://isc.sans.edu/api/topips/records/1000/today/handler?json
 # http://labs.snort.org/feeds/ip-filter.blf
 
-# -----------------------------------------------------------------------------
-# FINISHED
-# git push it, if we have to
-if [ ${PUSH_TO_GIT} -ne 0 -a ! -z "${!UPDATED_SETS[*]}" ]
-then
-	echo
-	echo "Pushing git..."
-	tmp="README.md.$$.${RANDOM}"
-	cat README.md | grep "^# List of ipsets included" -B 10000 >"${tmp}"
-	echo "name|IP version|ipset type|entries|updated|source link|" >>"${tmp}"
-	echo ":--:|:--------:|:--------:|:-----:|:-----:|:---------:|" >>"${tmp}"
-	cat *.setinfo >>"${tmp}"
-	mv "${tmp}" README.md
-	git commit README.md -m "`date -u` update"
-	git push
-fi
