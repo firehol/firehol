@@ -38,6 +38,21 @@ then
 	exit 1
 fi
 
+program_pwd="${PWD}"
+program_dir="`dirname ${0}`"
+awk="$(which awk 2>/dev/null)"
+CAN_CONVERT_RANGES_TO_CIDR=0
+if [ ! -z "${awk}" -a -x "${program_dir}/ipv4_range_to_cidr.awk" ]
+then
+	CAN_CONVERT_RANGES_TO_CIDR=1
+fi
+
+ipv4_range_to_cidr() {
+	cd "${program_pwd}"
+	${awk} -f "${program_dir}/ipv4_range_to_cidr.awk"
+	cd "${OLDPWD}"
+}
+
 PUSH_TO_GIT=0
 SILENT=0
 while [ ! -z "${1}" ]
@@ -96,6 +111,9 @@ commit_to_git() {
 			git push
 		fi
 	fi
+
+	trap exit EXIT
+	exit 0
 }
 # make sure we commit to git when we exit
 trap commit_to_git EXIT
@@ -132,7 +150,7 @@ test ${SILENT} -ne 1 && echo >&2 "Found these ipsets active: ${!sets[@]}"
 geturl() {
 	if [ ! -z "${curl}" ]
 	then
-		${curl} -o - -s "${1}"
+		${curl} -o - -s -L "${1}"
 	elif [ ! -z "${wget}" ]
 	then
 		${wget} -O - --quiet "${1}"
@@ -145,19 +163,26 @@ geturl() {
 aggregate4() {
 	local cmd=
 
-	cmd="`which aggregate`"
+	cmd="`which iprange 2>/dev/null`"
 	if [ ! -z "${cmd}" ]
 	then
-		sed "s|^\([0-9]\+\.[0-9]\+\.[0-9]\+\.[0-9]\+\\)$|\1/32|g" |\
-			${cmd} -t
-
+		${cmd} -J
 		return $?
 	fi
-
-	cmd="`which aggregate-flim`"
+	
+	cmd="`which aggregate-flim 2>/dev/null`"
 	if [ ! -z "${cmd}" ]
 	then
 		${cmd}
+		return $?
+	fi
+
+	cmd="`which aggregate 2>/dev/null`"
+	if [ ! -z "${cmd}" ]
+	then
+		sed "s|^\([1-9]\+\.[0-9]\+\.[0-9]\+\.[0-9]\+\\)$|\1/32|g" |\
+			${cmd} -t
+
 		return $?
 	fi
 
@@ -165,9 +190,9 @@ aggregate4() {
 	cat
 }
 
-filter_ip4()  { egrep "^[0-9]+\.[0-9]+\.[0-9]+\.[0-9]+$"; }
-filter_net4() { egrep "^[0-9]+\.[0-9]+\.[0-9]+\.[0-9]+/[0-9]+$"; }
-filter_all4() { egrep "^[0-9]+\.[0-9]+\.[0-9]+\.[0-9\.]+(/[0-9]+)?$"; }
+filter_ip4()  { egrep "^[1-9]+\.[0-9]+\.[0-9]+\.[0-9]+$"; }
+filter_net4() { egrep "^[1-9]+\.[0-9]+\.[0-9]+\.[0-9]+/[0-9]+$"; }
+filter_all4() { egrep "^[1-9]+\.[0-9]+\.[0-9]+\.[0-9\.]+(/[0-9]+)?$"; }
 
 filter_ip6()  { egrep "^[0-9a-fA-F:]+$"; }
 filter_net6() { egrep "^[0-9a-fA-F:]+/[0-9]+$"; }
@@ -306,12 +331,12 @@ download_url() {
 declare -A UPDATED_SETS=()
 update() {
 	local 	ipset="${1}" mins="${2}" history_mins="${3}" ipv="${4}" type="${5}" url="${6}" processor="${7-cat}"
-		install="${1}" tmp= error=0 now= date= pre_filter="cat" post_filter="cat" filter="cat"
+		install="${1}" tmp= error=0 now= date= pre_filter="cat" post_filter="cat" post_filter2="cat" filter="cat"
 	shift 7
 
 	case "${ipv}" in
 		ipv4)
-			post_filter="filter_invalid4"
+			post_filter2="filter_invalid4"
 			case "${type}" in
 				ip|ips)		hash="ip"
 						type="ip"
@@ -413,6 +438,7 @@ update() {
 		${pre_filter} |\
 		${filter} |\
 		${post_filter} |\
+		${post_filter2} |\
 		sort -u >"${tmp}"
 
 	if [ $? -ne 0 ]
@@ -469,7 +495,12 @@ update() {
 	firehol ipset_update_from_file ${ipset} ${ipv} ${type} "${tmp}"
 	if [ $? -ne 0 ]
 	then
-		rm "${tmp}"
+		if [ -d errors ]
+		then
+			mv "${tmp}" "errors/${ipset}.${hash}set"
+		else
+			rm "${tmp}"
+		fi
 		echo >&2 "${ipset}: failed to update ipset."
 		check_file_too_old "${ipset}" "${install}.${hash}set"
 		return 1
@@ -517,11 +548,11 @@ parse_rss_rosinstrument() {
 	do
 		if [ "${XML_ENTITY}" = "title" ]
 		then
-			if [[ "${XML_CONTENT}" =~ ^.*:[0-9]+$ ]]
+			if [[ "${XML_CONTENT}" =~ ^.*:[1-9]+$ ]]
 			then
 				local hostname="${XML_CONTENT/:*/}"
 
-				if [[ "${hostname}" =~ ^[0-9]+\.[0-9]+\.[0-9]+\.[0-9]+$ ]]
+				if [[ "${hostname}" =~ ^[1-9]+\.[0-9]+\.[0-9]+\.[0-9]+$ ]]
 				then
 					# it is an IP already
 					# echo "${hostname} # from ${XML_CONTENT}"
@@ -893,6 +924,53 @@ update alienvault_reputation $[12*60] 0 ipv4 ip \
 update clean_mx_viruses $[12*60] 0 ipv4 ip \
 	"http://support.clean-mx.de/clean-mx/xmlviruses.php?sort=id%20desc&response=alive" \
 	parse_xml_clean_mx
+
+
+# -----------------------------------------------------------------------------
+# iBlocklist
+
+p2p_gz_proxy() { gzip -dc | grep "^Proxy" | cut -d ':' -f 2 | egrep "^[1-9]+\.[0-9]+\.[0-9]+\.[0-9]+\-[1-9]+\.[0-9]+\.[0-9]+\.[0-9]+$" | ipv4_range_to_cidr; }
+p2p_gz() { gzip -dc | cut -d ':' -f 2 | egrep "^[1-9]+\.[0-9]+\.[0-9]+\.[0-9]+\-[1-9]+\.[0-9]+\.[0-9]+\.[0-9]+$" | ipv4_range_to_cidr; }
+
+if [ ${CAN_CONVERT_RANGES_TO_CIDR} -eq 1 ]
+then
+	update ib_bluetack_proxies $[12*60] 0 ipv4 ip \
+		"http://list.iblocklist.com/?list=xoebmbyexwuiogmbyprb&fileformat=p2p&archiveformat=gz" \
+		p2p_gz_proxy
+
+	update ib_bluetack_spyware $[12*60] 0 ipv4 ip \
+		"http://list.iblocklist.com/?list=llvtlsjyoyiczbkjsxpf&fileformat=p2p&archiveformat=gz" \
+		p2p_gz
+
+	update ib_bluetack_badpeers $[12*60] 0 ipv4 ip \
+		"http://list.iblocklist.com/?list=cwworuawihqvocglcoss&fileformat=p2p&archiveformat=gz" \
+		p2p_gz
+
+	update ib_bluetack_badpeers $[12*60] 0 ipv4 ip \
+		"http://list.iblocklist.com/?list=cwworuawihqvocglcoss&fileformat=p2p&archiveformat=gz" \
+		p2p_gz
+
+	update ib_bluetack_hijacked $[12*60] 0 ipv4 net \
+		"http://list.iblocklist.com/?list=usrcshglbiilevmyfhse&fileformat=p2p&archiveformat=gz" \
+		p2p_gz
+
+	update ib_bluetack_webexploit $[12*60] 0 ipv4 ip \
+		"http://list.iblocklist.com/?list=ghlzqtqxnzctvvajwwag&fileformat=p2p&archiveformat=gz" \
+		p2p_gz
+
+	# IMPORTANT: THIS IS A BIG LIST
+	update ib_bluetack_level1 $[12*60] 0 ipv4 net \
+		"http://list.iblocklist.com/?list=ydxerpxkpcfqjaybcssw&fileformat=p2p&archiveformat=gz" \
+		p2p_gz
+
+	update ib_bluetack_level2 $[12*60] 0 ipv4 net \
+		"http://list.iblocklist.com/?list=gyisgnzbhppbvsphucsw&fileformat=p2p&archiveformat=gz" \
+		p2p_gz
+
+	update ib_bluetack_level3 $[12*60] 0 ipv4 net \
+		"http://list.iblocklist.com/?list=uwnukjqktoggdknzrhgh&fileformat=p2p&archiveformat=gz" \
+		p2p_gz
+fi
 
 
 # other tools
