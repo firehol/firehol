@@ -547,7 +547,13 @@ update() {
 
 	if [ -d .git ]
 	then
-		echo >"${install}.setinfo" "${ipset}|${info}|${ipv} hash:${hash}|`wc -l "${install}.${hash}set" | cut -d ' ' -f 1`|`mins_to_text ${mins}`|[source](${url})"
+		if [ "${hash}" = "net" ]
+		then
+			local ips=`cat "${install}.${hash}set" | cut -d '/' -f 2 | ( sum=0; while read i; do sum=$[sum + (1 << (32 - i))]; done; echo $sum )`
+			echo >"${install}.setinfo" "${ipset}|${info}|${ipv} hash:${hash}|`wc -l "${install}.${hash}set" | cut -d ' ' -f 1` entries, ${ips} unique IPs|`mins_to_text ${mins}`|[source](${url})"
+		else
+			echo >"${install}.setinfo" "${ipset}|${info}|${ipv} hash:${hash}|`wc -l "${install}.${hash}set" | cut -d ' ' -f 1` unique IPs|`mins_to_text ${mins}`|[source](${url})"
+		fi
 
 		git ls-files "${install}.${hash}set" --error-unmatch >/dev/null 2>&1
 		if [ $? -ne 0 ]
