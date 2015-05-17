@@ -704,6 +704,19 @@ parse_rss_rosinstrument() {
 	done
 }
 
+parse_php_rss() {
+	while read_xml_dom
+	do
+		if [ "${XML_ENTITY}" = "title" ]
+		then
+			if [[ "${XML_CONTENT}" =~ ^[0-9]+\.[0-9]+\.[0-9]+\.[0-9]+.*$ ]]
+			then
+				echo "${XML_CONTENT/|*/}"
+			fi
+		fi
+	done
+}
+
 parse_xml_clean_mx() {
 	while read_xml_dom
 	do
@@ -1140,15 +1153,45 @@ update fullbogons $[24*60] 0 ipv4 net \
 # Open Proxies from rosinstruments
 # http://tools.rosinstrument.com/proxy/
 
-update rosi_web_proxies $[2*60] $[7*24*60] ipv4 ip \
+update rosi_web_proxies $[2*60] $[30*24*60] ipv4 ip \
 	"http://tools.rosinstrument.com/proxy/l100.xml" \
 	parse_rss_rosinstrument \
-	"rosinstrument.com open HTTP proxies distributed via its RSS feed and aggregated for the last 7 days"
+	"rosinstrument.com open HTTP proxies distributed via its RSS feed and aggregated for the last 30 days"
 
-update rosi_connect_proxies $[2*60] $[7*24*60] ipv4 ip \
+update rosi_connect_proxies $[2*60] $[30*24*60] ipv4 ip \
 	"http://tools.rosinstrument.com/proxy/plab100.xml" \
 	parse_rss_rosinstrument \
-	"rosinstrument.com open CONNECT proxies distributed via its RSS feed and aggregated for the last 7 days"
+	"rosinstrument.com open CONNECT proxies distributed via its RSS feed and aggregated for the last 30 days"
+
+
+# -----------------------------------------------------------------------------
+# Project Honey Pot
+# http://www.projecthoneypot.org/
+
+update php_harvesters $[2*60] $[30*24*60] ipv4 ip \
+	"http://www.projecthoneypot.org/list_of_ips.php?t=h&rss=1" \
+	parse_php_rss \
+	"projecthoneypot.org harvesters (IPs that surf the internet looking for email addresses) distributed via its RSS feed and aggregated for the last 30 days"
+
+update php_spammers $[2*60] $[30*24*60] ipv4 ip \
+	"http://www.projecthoneypot.org/list_of_ips.php?t=s&rss=1" \
+	parse_php_rss \
+	"projecthoneypot.org spam servers (IPs used by spammers to send messages) distributed via its RSS feed and aggregated for the last 30 days"
+
+update php_bad $[2*60] $[30*24*60] ipv4 ip \
+	"http://www.projecthoneypot.org/list_of_ips.php?t=b&rss=1" \
+	parse_php_rss \
+	"projecthoneypot.org bad web hosts distributed via its RSS feed and aggregated for the last 30 days"
+
+update php_commenters $[2*60] $[30*24*60] ipv4 ip \
+	"http://www.projecthoneypot.org/list_of_ips.php?t=c&rss=1" \
+	parse_php_rss \
+	"projecthoneypot.org comment spammers distributed via its RSS feed and aggregated for the last 30 days"
+
+update php_dictionary $[2*60] $[30*24*60] ipv4 ip \
+	"http://www.projecthoneypot.org/list_of_ips.php?t=d&rss=1" \
+	parse_php_rss \
+	"projecthoneypot.org directory attackers distributed via its RSS feed and aggregated for the last 30 days"
 
 
 # -----------------------------------------------------------------------------
@@ -1338,5 +1381,4 @@ fi
 # http://www.nothink.org/blacklist/blacklist_ssh_week.txt
 # http://www.nothink.org/blacklist/blacklist_malware_irc.txt
 # http://www.nothink.org/blacklist/blacklist_malware_http.txt
-# http://www.projecthoneypot.org/list_of_ips.php?t=d&rss=1
 
