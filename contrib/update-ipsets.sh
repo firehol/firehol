@@ -53,6 +53,10 @@
 #    in memory, without restarting the firewall.
 #    It considers an update successful only if the ipset is updated
 #    in kernel successfuly.
+#    Keep in mind that firehol will create a new ipset, add all the
+#    IPs to it and then swap the right ipset with the temporary one
+#    to activate it. This means that the ipset is updated only if
+#    it can be parsed completely.
 #
 # 5. It can commit all successfully updated files to a git repository.
 #    If it is called with -g it will also push the committed changes
@@ -185,6 +189,8 @@ commit_to_git() {
 			cat README-EDIT.md
 			echo
 			echo "The following list was automatically generated on `date -u`."
+			echo
+			echo "The update frequency is the maximum allowed by internal configuration. A list will never be downloaded sooner than the update frequency stated. A list may also not be downloaded, after this frequency expired, if it has not been modified on the server (as reported by HTTP \`IF_MODIFIED_SINCE\` method)."
 			echo
 			echo "name|info|type|entries|update|"
 			echo ":--:|:--:|:--:|:-----:|:----:|"
