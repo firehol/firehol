@@ -25,7 +25,59 @@
 #       See the file COPYING for details.
 #
 
-# -- CONFIGURATION IS AT THE END OF THIS SCRIPT --
+# What this program does:
+#
+# 1. It downloads a number of IP lists
+#    - respects network resource: it will download a file only if it has
+#      been changed on the server (IF_MODIFIED_SINCE)
+#    - it will not attempt to download a file too frequently
+#      (it has a maximum frequency per download URL embedded, so that
+#      even if a server does not support IF_MODIFIED_SINCE it will not
+#      download the IP list too frequently).
+#
+# 2. Once a file is downloaded, it will convert it either to
+#    an ip:hash or a net:hash ipset.
+#    It can convert:
+#    - text files
+#    - snort rules files
+#    - PIX rules files
+#    - XML files (like RSS feeds)
+#    - CSV files
+#    - compressed files (zip, gz, etc)
+#
+# 3. For all file types it can keep a history of the processed sets
+#    that can be merged with the new downloaded one, so that it can
+#    populate the generated set with all the IPs of the last X days.
+#
+# 4. For each set updated, it will call firehol to update the ipset
+#    in memory, without restarting the firewall.
+#    It considers an update successful only if the ipset is updated
+#    in kernel successfuly.
+#
+# 5. It can commit all successfully updated files to a git repository.
+#    If it is called with -g it will also push the committed changes
+#    to a remote git server (to have this done by cron, please set
+#    git to automatically push changes with human action).
+#
+#
+# -----------------------------------------------------------------------------
+#
+# How to use it:
+# 
+# Please make sure the file ipv4_range_to_cidr.awk is in the same directory
+# as this script. If it is not, certain lists that need it will be disabled.
+# 
+# 1. Make sure you have firehol v3 or later installed.
+# 2. Run this script. It will give you instructions on which
+#    IP lists are available and what to do to enable them.
+# 3. Enable a few lists, following its instructions.
+# 4. Run it again to update the lists.
+# 5. Put it in a cron job to do the updates automatically.
+
+# -----------------------------------------------------------------------------
+# At the end of file you can find the configuration for each of the IP lists
+# it supports.
+# -----------------------------------------------------------------------------
 
 # single line flock, from man flock
 # Normally this is not needed since the script is using unique tmp files for all
@@ -73,12 +125,11 @@ do
 	shift
 done
 
-# find a curl or wget
+# find curl
 curl="$(which curl 2>/dev/null)"
-test -z "${curl}" && wget="$(which wget 2>/dev/null)"
-if [ -z "${curl}" -a -z "${wget}" ]
+if [ -z "${curl}" ]
 then
-	echo >&2 "Please install curl or wget."
+	echo >&2 "Please install curl."
 	exit 1
 fi
 
@@ -132,8 +183,11 @@ commit_to_git() {
 		[ ! -f README-EDIT.md ] && touch README-EDIT.md
 		(
 			cat README-EDIT.md
-			echo "name|info|type|entries|freq|links|"
-			echo ":--:|:--:|:--:|:-----:|:--:|:---:|"
+			echo
+			echo "The following list was automatically generated on `date -u`."
+			echo
+			echo "name|info|type|entries|update|"
+			echo ":--:|:--:|:--:|:-----:|:----:|"
 			cat *.setinfo
 		) >README.md
 		
@@ -180,20 +234,6 @@ do
 	sets[$x]=1
 done
 test ${SILENT} -ne 1 && echo >&2 "Found these ipsets active: ${!sets[@]}"
-
-# fetch a url by either curl or wget
-geturl() {
-	if [ ! -z "${curl}" ]
-	then
-		${curl} -o - -s -L "${1}"
-	elif [ ! -z "${wget}" ]
-	then
-		${wget} -O - --quiet "${1}"
-	else
-		echo >&2 "Neither curl, nor wget is present."
-		exit 1
-	fi
-}
 
 aggregate4() {
 	local cmd=
@@ -257,7 +297,7 @@ check_file_too_old() {
 
 	if [ -f "${file}" -a ".warn_if_last_downloaded_before_this" -nt "${file}" ]
 	then
-		echo >&2 "${ipset}: IMPORTANT: FILE IS TOO OLD!"
+		echo >&2 "${ipset}: IMPORTANT: SET DATA ARE TOO OLD!"
 		return 1
 	fi
 	return 0
@@ -304,6 +344,28 @@ history_manager() {
 	return 0
 }
 
+# fetch a url by either curl or wget
+# the output file has the last modified timestamp
+# of the server
+# on the next run, the file is downloaded only
+# if it has changed on the server
+geturl() {
+	local file="${1}" reference="${2}" url="${3}" ret=
+
+	# copy the timestamp of the reference
+	# to our file
+	touch -r "${reference}" "${file}"
+
+	${curl} -z "${reference}" -o "${file}" -s -L -R "${url}"
+	ret=$?
+
+	if [ ${ret} -eq 0 -a ! "${file}" -nt "${reference}" ]
+	then
+		return 99
+	fi
+	return ${ret}
+}
+
 download_url() {
 	local 	ipset="${1}" mins="${2}" url="${3}" \
 		install="${1}" \
@@ -313,7 +375,7 @@ download_url() {
 
 	# check if we have to download again
 	touch_in_the_past "${mins}" "${tmp}"
-	if [ -f "${install}.source" -a "${install}.source" -nt "${tmp}" ]
+	if [ "${install}.source" -nt "${tmp}" ]
 	then
 		rm "${tmp}"
 		echo >&2 "${ipset}: should not be downloaded so soon."
@@ -322,13 +384,23 @@ download_url() {
 
 	# download it
 	test ${SILENT} -ne 1 && echo >&2 "${ipset}: downlading from '${url}'..."
-	geturl "${url}" >"${tmp}"
-	if [ $? -ne 0 ]
-	then
-		rm "${tmp}"
-		echo >&2 "${ipset}: cannot download '${url}'."
-		return 1
-	fi
+	geturl "${tmp}" "${install}.source" "${url}"
+	case $? in
+		0)	;;
+		99)
+			echo >&2 "${ipset}: file on server has not been updated yet"
+			rm "${tmp}"
+			# we have to return success here, so that the ipset will be
+			# created if it does not exist yet
+			return 0
+			;;
+
+		*)
+			echo >&2 "${ipset}: cannot download '${url}'."
+			rm "${tmp}"
+			return 1
+			;;
+	esac
 
 	# check if the downloaded file is empty
 	if [ ! -s "${tmp}" ]
@@ -340,27 +412,25 @@ download_url() {
 	fi
 
 	# check if the downloaded file is the same with the last one
-	if [ -f "${install}.source" ]
+	diff "${install}.source" "${tmp}" >/dev/null 2>&1
+	if [ $? -eq 0 ]
 	then
-		diff "${install}.source" "${tmp}" >/dev/null 2>&1
-		if [ $? -eq 0 ]
-		then
-			# they are the same
-			rm "${tmp}"
-			test ${SILENT} -ne 1 && echo >&2 "${ipset}: downloaded file is the same with the previous one."
+		# they are the same
+		test ${SILENT} -ne 1 && echo >&2 "${ipset}: downloaded file is the same with the previous one."
 
-			# we have to update the date of the file in this case
-			# otherwise, we will attempt to download it again too soon
-			# at the next run - and we may hit a download limit
-			touch "${install}.source"
-			return 0
-		fi
+		# copy the timestamp of the downloaded to our file
+		touch -r "${tmp}" "${install}.source"
+		
+		rm "${tmp}"
+
+		# return success so that the set will be create
+		# if it does not already exist.
+		return 0
 	fi
 
 	# move it to its place
 	test ${SILENT} -ne 1 && echo >&2 "${ipset}: saving downloaded file to ${install}.source"
 	mv "${tmp}" "${install}.source" || return 1
-	touch "${install}.source"
 }
 
 declare -A UPDATED_SETS=()
@@ -475,8 +545,13 @@ update() {
 		${post_filter} |\
 		${post_filter2} |\
 		sort -u >"${tmp}"
+	
+	local ret=$?
 
-	if [ $? -ne 0 ]
+	# give it the timestamp of the source
+	touch -r "${install}.source" "${tmp}"
+
+	if [ ${ret} -ne 0 ]
 	then
 		rm "${tmp}"
 		echo >&2 "${ipset}: failed to convert file."
@@ -488,8 +563,11 @@ update() {
 	then
 		rm "${tmp}"
 		echo >&2 "${ipset}: processed file gave no results."
+
+		# keep the old set, but make it think it was from this source
+		touch -r "${install}.source" "${install}.${hash}set"
+
 		check_file_too_old "${ipset}" "${install}.${hash}set"
-		test ! -f "${install}.${hash}set" && touch "${install}.${hash}set"
 		return 2
 	fi
 
@@ -504,15 +582,17 @@ update() {
 		# they are the same
 		rm "${tmp}"
 		test ${SILENT} -ne 1 && echo >&2 "${ipset}: processed set is the same with the previous one."
+		
+		# keep the old set, but make it think it was from this source
+		touch -r "${install}.source" "${install}.${hash}set"
+
 		check_file_too_old "${ipset}" "${install}.${hash}set"
-		# touch it so that we will not process it again next time
-		touch "${install}.${hash}set"
 		return 0
 	fi
 
 	local ipset_opts=
 	local entries=$(wc -l "${tmp}" | cut -d ' ' -f 1)
-	local size=$[ ( ( entries / 65536 ) + 1 ) * 65536 ]
+	local size=$[ ( ( (entries * 130 / 100) / 65536 ) + 1 ) * 65536 ]
 
 	if [ -z "${sets[$ipset]}" ]
 	then
@@ -527,8 +607,12 @@ update() {
 		ipset --create ${ipset} "${hash}hash" ${ipset_opts} || return 1
 	fi
 
+	#echo >&2 "${ipset}: calling firehol"
 	firehol ipset_update_from_file ${ipset} ${ipv} ${type} "${tmp}"
-	if [ $? -ne 0 ]
+	ret=$?
+	#echo >&2 "${ipset}: firehol completed"
+
+	if [ ${ret} -ne 0 ]
 	then
 		if [ -d errors ]
 		then
@@ -550,9 +634,9 @@ update() {
 		if [ "${hash}" = "net" ]
 		then
 			local ips=`cat "${install}.${hash}set" | cut -d '/' -f 2 | ( sum=0; while read i; do sum=$[sum + (1 << (32 - i))]; done; echo $sum )`
-			echo >"${install}.setinfo" "${ipset}|${info}|${ipv} hash:${hash}|`wc -l "${install}.${hash}set" | cut -d ' ' -f 1` entries, ${ips} unique IPs|`mins_to_text ${mins}`|[source](${url})"
+			echo >"${install}.setinfo" "${ipset}|${info}|${ipv} hash:${hash}|`wc -l "${install}.${hash}set" | cut -d ' ' -f 1` subnets, ${ips} unique IPs|updated every `mins_to_text ${mins}` from [this link](${url})"
 		else
-			echo >"${install}.setinfo" "${ipset}|${info}|${ipv} hash:${hash}|`wc -l "${install}.${hash}set" | cut -d ' ' -f 1` unique IPs|`mins_to_text ${mins}`|[source](${url})"
+			echo >"${install}.setinfo" "${ipset}|${info}|${ipv} hash:${hash}|`wc -l "${install}.${hash}set" | cut -d ' ' -f 1` unique IPs|updated every `mins_to_text ${mins}` from [this link](${url})"
 		fi
 
 		git ls-files "${install}.${hash}set" --error-unmatch >/dev/null 2>&1
@@ -752,42 +836,42 @@ unzip_and_extract() {
 # www.openbl.org
 
 update openbl $[4*60] 0 ipv4 ip \
-	"http://www.openbl.org/lists/base.txt.gz?r=${RANDOM}" \
+	"http://www.openbl.org/lists/base.txt.gz" \
 	gz_remove_comments \
 	"OpenBL.org default blacklist (currently it is the same with 90 days)"
 
 update openbl_1d $[4*60] 0 ipv4 ip \
-	"http://www.openbl.org/lists/base_1days.txt.gz?r=${RANDOM}" \
+	"http://www.openbl.org/lists/base_1days.txt.gz" \
 	gz_remove_comments \
 	"OpenBL.org last 24 hours IPs"
 
 update openbl_7d $[4*60] 0 ipv4 ip \
-	"http://www.openbl.org/lists/base_7days.txt.gz?r=${RANDOM}" \
+	"http://www.openbl.org/lists/base_7days.txt.gz" \
 	gz_remove_comments \
 	"OpenBL.org last 7 days IPs"
 
 update openbl_30d $[4*60] 0 ipv4 ip \
-	"http://www.openbl.org/lists/base_30days.txt.gz?r=${RANDOM}" \
+	"http://www.openbl.org/lists/base_30days.txt.gz" \
 	gz_remove_comments \
 	"OpenBL.org last 30 days IPs"
 
 update openbl_60d $[4*60] 0 ipv4 ip \
-	"http://www.openbl.org/lists/base_60days.txt.gz?r=${RANDOM}" \
+	"http://www.openbl.org/lists/base_60days.txt.gz" \
 	gz_remove_comments \
 	"OpenBL.org last 60 days IPs"
 
 update openbl_90d $[4*60] 0 ipv4 ip \
-	"http://www.openbl.org/lists/base_90days.txt.gz?r=${RANDOM}" \
+	"http://www.openbl.org/lists/base_90days.txt.gz" \
 	gz_remove_comments \
 	"OpenBL.org last 90 days IPs"
 
 update openbl_180d $[4*60] 0 ipv4 ip \
-	"http://www.openbl.org/lists/base_180days.txt.gz?r=${RANDOM}" \
+	"http://www.openbl.org/lists/base_180days.txt.gz" \
 	gz_remove_comments \
 	"OpenBL.org last 180 days IPs"
 
 update openbl_all $[4*60] 0 ipv4 ip \
-	"http://www.openbl.org/lists/base_all.txt.gz?r=${RANDOM}" \
+	"http://www.openbl.org/lists/base_all.txt.gz" \
 	gz_remove_comments \
 	"OpenBL.org last all IPs"
 
@@ -797,7 +881,7 @@ update openbl_all $[4*60] 0 ipv4 ip \
 
 # Top 20 attackers (networks) by www.dshield.org
 update dshield $[4*60] 0 ipv4 net \
-	"http://feeds.dshield.org/block.txt?r=${RANDOM}" \
+	"http://feeds.dshield.org/block.txt" \
 	dshield_parser \
 	"DShield.org top 20 attacking networks"
 
@@ -810,18 +894,18 @@ update dshield $[4*60] 0 ipv4 net \
 # This contains a full TOR nodelist (no more than 30 minutes old).
 # The page has download limit that does not allow download in less than 30 min.
 update danmetor 30 0 ipv4 ip \
-	"https://www.dan.me.uk/torlist/?r=${RANDOM}" \
+	"https://www.dan.me.uk/torlist/" \
 	remove_comments \
 	"dan.me.uk dynamic list of TOR exit points"
 
 # http://doc.emergingthreats.net/bin/view/Main/TorRules
 update tor $[12*60] 0 ipv4 ip \
-	"http://rules.emergingthreats.net/blockrules/emerging-tor.rules?r=${RANDOM}" \
+	"http://rules.emergingthreats.net/blockrules/emerging-tor.rules" \
 	snort_alert_rules_to_ipv4 \
 	"EmergingThreats.net list of TOR network IPs"
 
 update tor_servers 30 0 ipv4 ip \
-	"https://torstatus.blutmagie.de/ip_list_all.php/Tor_ip_list_ALL.csv?r=${RANDOM}" \
+	"https://torstatus.blutmagie.de/ip_list_all.php/Tor_ip_list_ALL.csv" \
 	remove_comments \
 	"torstatus.blutmagie.de list of all TOR network servers"
 
@@ -832,31 +916,31 @@ update tor_servers 30 0 ipv4 ip \
 # http://doc.emergingthreats.net/bin/view/Main/CompromisedHost
 # Includes: openbl, bruteforceblocker and sidreporter
 update compromised $[12*60] 0 ipv4 ip \
-	"http://rules.emergingthreats.net/blockrules/compromised-ips.txt?r=${RANDOM}" \
+	"http://rules.emergingthreats.net/blockrules/compromised-ips.txt" \
 	remove_comments \
 	"EmergingThreats.net distribution of IPs that have beed compromised (at the time of writing includes openbl, bruteforceblocker and sidreporter)"
 
 # Command & Control botnet servers by abuse.ch
 update botnet $[12*60] 0 ipv4 ip \
-	"http://rules.emergingthreats.net/fwrules/emerging-PIX-CC.rules?r=${RANDOM}" \
+	"http://rules.emergingthreats.net/fwrules/emerging-PIX-CC.rules" \
 	pix_deny_rules_to_ipv4 \
 	"EmergingThreats.net botnet IPs (at the time of writing includes all abuse.ch trackers)"
 
 # This appears to be the SPAMHAUS DROP list
 # disable - have direct feed
 #update spamhaus $[12*60] 0 ipv4 net \
-#	"http://rules.emergingthreats.net/fwrules/emerging-PIX-DROP.rules?r=${RANDOM}" \
+#	"http://rules.emergingthreats.net/fwrules/emerging-PIX-DROP.rules" \
 #	pix_deny_rules_to_ipv4
 
 # Top 20 attackers by www.dshield.org
 # disabled - have direct feed above
 #update dshield $[12*60] 0 ipv4 net \
-#	"http://rules.emergingthreats.net/fwrules/emerging-PIX-DSHIELD.rules?r=${RANDOM}" \
+#	"http://rules.emergingthreats.net/fwrules/emerging-PIX-DSHIELD.rules" \
 #	pix_deny_rules_to_ipv4
 
 # includes botnet, spamhaus and dshield
 update emerging_block $[12*60] 0 ipv4 all \
-	"http://rules.emergingthreats.net/fwrules/emerging-Block-IPs.txt?r=${RANDOM}" \
+	"http://rules.emergingthreats.net/fwrules/emerging-Block-IPs.txt" \
 	remove_comments \
 	"EmergingThreats.net default blacklist (at the time of writing includes spamhaus DROP and dshield)"
 
@@ -868,14 +952,14 @@ update emerging_block $[12*60] 0 ipv4 all \
 # http://www.spamhaus.org/drop/
 # These guys say that this list should be dropped at tier-1 ISPs globaly!
 update spamhaus_drop $[12*60] 0 ipv4 net \
-	"http://www.spamhaus.org/drop/drop.txt?r=${RANDOM}" \
+	"http://www.spamhaus.org/drop/drop.txt" \
 	remove_comments_semi_colon \
 	"Spamhaus.org DROP list (according to their site this list should be dropped at tier-1 ISPs globaly)"
 
 # extended DROP (EDROP) list.
 # Should be used together with their DROP list.
 update spamhaus_edrop $[12*60] 0 ipv4 net \
-	"http://www.spamhaus.org/drop/edrop.txt?r=${RANDOM}" \
+	"http://www.spamhaus.org/drop/edrop.txt" \
 	remove_comments_semi_colon \
 	"Spamhaus.org EDROP (should be used with DROP)"
 
@@ -888,7 +972,7 @@ update spamhaus_edrop $[12*60] 0 ipv4 net \
 # last 48 hours. Updated every 30 minutes.
 # They also have lists of service specific attacks (ssh, apache, sip, etc).
 update blocklist_de 30 0 ipv4 ip \
-	"http://lists.blocklist.de/lists/all.txt?r=${RANDOM}" \
+	"http://lists.blocklist.de/lists/all.txt" \
 	remove_comments \
 	"Blocklist.de IPs that have attacked their honeypots in the last 48 hours"
 
@@ -900,7 +984,7 @@ update blocklist_de 30 0 ipv4 ip \
 
 # This blocklists only includes IPv4 addresses that are used by the ZeuS trojan.
 update zeus_badips 30 0 ipv4 ip \
-	"https://zeustracker.abuse.ch/blocklist.php?download=badips&r=${RANDOM}" \
+	"https://zeustracker.abuse.ch/blocklist.php?download=badips" \
 	remove_comments \
 	"Abuse.ch Zeus Tracker includes IPv4 addresses that are used by the ZeuS trojan"
 
@@ -908,7 +992,7 @@ update zeus_badips 30 0 ipv4 ip \
 # but with the slight difference that it doesn't exclude hijacked websites
 # (level 2) and free web hosting providers (level 3).
 update zeus 30 0 ipv4 ip \
-	"https://zeustracker.abuse.ch/blocklist.php?download=ipblocklist&r=${RANDOM}" \
+	"https://zeustracker.abuse.ch/blocklist.php?download=ipblocklist" \
 	remove_comments \
 	"Abuse.ch Zeus Tracker default blocklist including hijacked sites and web hosting providers"
 
@@ -919,7 +1003,7 @@ update zeus 30 0 ipv4 ip \
 
 # includes IP addresses which are being used as botnet C&C for the Palevo crimeware
 update palevo 30 0 ipv4 ip \
-	"https://palevotracker.abuse.ch/blocklists.php?download=ipblocklist&r=${RANDOM}" \
+	"https://palevotracker.abuse.ch/blocklists.php?download=ipblocklist" \
 	remove_comments \
 	"Abuse.ch Palevo worm includes IPs which are being used as botnet C&C for the Palevo crimeware"
 
@@ -932,7 +1016,7 @@ update palevo 30 0 ipv4 ip \
 # and steal sensitive information from the victims computer, such as credit card
 # details or credentials.
 update feodo 30 0 ipv4 ip \
-	"https://feodotracker.abuse.ch/blocklist/?download=ipblocklist&r=${RANDOM}" \
+	"https://feodotracker.abuse.ch/blocklist/?download=ipblocklist" \
 	remove_comments \
 	"Abuse.ch Feodo trojan includes IPs which are being used by Feodo (also known as Cridex or Bugat) which commits ebanking fraud"
 
@@ -942,7 +1026,7 @@ update feodo 30 0 ipv4 ip \
 # http://www.infiltrated.net/blacklisted
 
 update infiltrated $[12*60] 0 ipv4 ip \
-	"http://www.infiltrated.net/blacklisted?r=${RANDOM}" \
+	"http://www.infiltrated.net/blacklisted" \
 	remove_comments \
 	"infiltrated.net list (no more info available)"
 
@@ -953,7 +1037,7 @@ update infiltrated $[12*60] 0 ipv4 ip \
 
 # updated daily and populated with the last 30 days of malicious IP addresses.
 update malc0de $[24*60] 0 ipv4 ip \
-	"http://malc0de.com/bl/IP_Blacklist.txt?r=${RANDOM}" \
+	"http://malc0de.com/bl/IP_Blacklist.txt" \
 	remove_comments \
 	"Malc0de.com malicious IPs of the last 30 days"
 
@@ -967,7 +1051,7 @@ update malc0de $[24*60] 0 ipv4 ip \
 # -- use the hourly and the daily ones instead --
 # IMPORTANT: THIS IS A BIG LIST - you will have to add maxelem to ipset to fit it
 update stop_forum_spam $[24*60] 0 ipv4 ip \
-	"http://www.stopforumspam.com/downloads/bannedips.zip?r=${RANDOM}" \
+	"http://www.stopforumspam.com/downloads/bannedips.zip" \
 	unzip_and_split_csv \
 	"StopForumSpam.com all IPs used by forum spammers"
 
@@ -1026,7 +1110,7 @@ update stop_forum_spam_365d $[24*60] 0 ipv4 ip \
 # and netblocks that have not been allocated to a regional internet registry
 # (RIR) by the Internet Assigned Numbers Authority.
 update bogons $[24*60] 0 ipv4 net \
-	"http://www.team-cymru.org/Services/Bogons/bogon-bn-agg.txt?r=${RANDOM}" \
+	"http://www.team-cymru.org/Services/Bogons/bogon-bn-agg.txt" \
 	remove_comments \
 	"Team-Cymru.org: private and reserved addresses defined by RFC 1918, RFC 5735, and RFC 6598 and netblocks that have not been allocated to a regional internet registry"
 
@@ -1036,12 +1120,12 @@ update bogons $[24*60] 0 ipv4 net \
 # allocated to an RIR, but not assigned by that RIR to an actual ISP or other
 # end-user.
 update fullbogons $[24*60] 0 ipv4 net \
-	"http://www.team-cymru.org/Services/Bogons/fullbogons-ipv4.txt?r=${RANDOM}" \
+	"http://www.team-cymru.org/Services/Bogons/fullbogons-ipv4.txt" \
 	remove_comments \
 	"Team-Cymru.org: IP space that has been allocated to an RIR, but not assigned by that RIR to an actual ISP or other end-user"
 
 #update fullbogons6 $[24*60-10] ipv6 net \
-#	"http://www.team-cymru.org/Services/Bogons/fullbogons-ipv6.txt?r=${RANDOM}" \
+#	"http://www.team-cymru.org/Services/Bogons/fullbogons-ipv6.txt" \
 #	remove_comments \
 #	"Team-Cymru.org provided"
 
@@ -1051,12 +1135,12 @@ update fullbogons $[24*60] 0 ipv4 net \
 # http://tools.rosinstrument.com/proxy/
 
 update rosi_web_proxies $[2*60] $[7*24*60] ipv4 ip \
-	"http://tools.rosinstrument.com/proxy/l100.xml?r=${RANDOM}" \
+	"http://tools.rosinstrument.com/proxy/l100.xml" \
 	parse_rss_rosinstrument \
 	"rosinstrument.com open HTTP proxies distributed via its RSS feed and aggregated for the last 7 days"
 
 update rosi_connect_proxies $[2*60] $[7*24*60] ipv4 ip \
-	"http://tools.rosinstrument.com/proxy/plab100.xml?r=${RANDOM}" \
+	"http://tools.rosinstrument.com/proxy/plab100.xml" \
 	parse_rss_rosinstrument \
 	"rosinstrument.com open CONNECT proxies distributed via its RSS feed and aggregated for the last 7 days"
 
@@ -1066,7 +1150,7 @@ update rosi_connect_proxies $[2*60] $[7*24*60] ipv4 ip \
 # All IPs should be considered dangerous
 
 update malwaredomainlist $[12*60] 0 ipv4 ip \
-	"http://www.malwaredomainlist.com/hostslist/ip.txt?r=${RANDOM}" \
+	"http://www.malwaredomainlist.com/hostslist/ip.txt" \
 	remove_comments \
 	"malwaredomainlist.com list of active ip addresses"
 
@@ -1078,7 +1162,7 @@ update malwaredomainlist $[12*60] 0 ipv4 ip \
 # IMPORTANT: THIS IS A BIG LIST
 # you will have to add maxelem to ipset to fit it
 update alienvault_reputation $[12*60] 0 ipv4 ip \
-	"https://reputation.alienvault.com/reputation.generic?r=${RANDOM}" \
+	"https://reputation.alienvault.com/reputation.generic" \
 	remove_comments \
 	"AlienVault.com IP reputation database"
 
@@ -1106,7 +1190,7 @@ update clean_mx_viruses $[12*60] 0 ipv4 ip \
 # lists; our list is meant to supplement and enhance the InfoSec community's
 # existing efforts by providing IPs that haven't been identified yet.
 update ciarmy $[3*60] 0 ipv4 ip \
-	"http://cinsscore.com/list/ci-badguys.txt?r=${RANDOM}" \
+	"http://cinsscore.com/list/ci-badguys.txt" \
 	remove_comments \
 	"CIArmy.com IPs with poor Rogue Packet score that have not yet been identified as malicious by the InfoSec community"
 
@@ -1116,7 +1200,7 @@ update ciarmy $[3*60] 0 ipv4 ip \
 # http://danger.rulez.sk/projects/bruteforceblocker/
 
 update bruteforceblocker $[3*60] 0 ipv4 ip \
-	"http://danger.rulez.sk/projects/bruteforceblocker/blist.php?r=${RANDOM}" \
+	"http://danger.rulez.sk/projects/bruteforceblocker/blist.php" \
 	remove_comments \
 	"danger.rulez.sk IPs detected by bruteforceblocker (fail2ban alternative for SSH on OpenBSD)"
 
@@ -1126,7 +1210,7 @@ update bruteforceblocker $[3*60] 0 ipv4 ip \
 # http://labs.snort.org/feeds/ip-filter.blf
 
 update snort_ipfilter $[12*60] 0 ipv4 ip \
-	"http://labs.snort.org/feeds/ip-filter.blf?r=${RANDOM}" \
+	"http://labs.snort.org/feeds/ip-filter.blf" \
 	remove_comments \
 	"labs.snort.org supplied IP blacklist"
 
@@ -1138,7 +1222,7 @@ update snort_ipfilter $[12*60] 0 ipv4 ip \
 csv_comma_first_column() { grep "^[0-9]" | cut -d ',' -f 1; }
 
 update autoshun $[4*60] 0 ipv4 ip \
-	"http://www.autoshun.org/files/shunlist.csv?r=${RANDOM}" \
+	"http://www.autoshun.org/files/shunlist.csv" \
 	csv_comma_first_column \
 	"AutoShun.org IPs identified as hostile by correlating logs from distributed snort installations running the autoshun plugin"
 
