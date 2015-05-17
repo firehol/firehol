@@ -61,7 +61,7 @@
 # 5. It can commit all successfully updated files to a git repository.
 #    If it is called with -g it will also push the committed changes
 #    to a remote git server (to have this done by cron, please set
-#    git to automatically push changes with human action).
+#    git to automatically push changes without human action).
 #
 #
 # -----------------------------------------------------------------------------
