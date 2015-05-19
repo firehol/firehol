@@ -1061,6 +1061,18 @@ update feodo 30 0 ipv4 ip \
 
 
 # -----------------------------------------------------------------------------
+# SSLBL
+# https://sslbl.abuse.ch/
+# by abuse.ch
+
+# IPs with "bad" SSL certificates identified by abuse.ch to be associated with malware or botnet activities
+update sslbl 30 0 ipv4 ip \
+	"https://sslbl.abuse.ch/blacklist/sslipblacklist.csv" \
+	csv_comma_first_column \
+	"[Abuse.ch SSL Blacklist](https://sslbl.abuse.ch/) bad SSL traffic related to malware or botnet activities"
+
+
+# -----------------------------------------------------------------------------
 # infiltrated.net
 # http://www.infiltrated.net/blacklisted
 
@@ -1396,4 +1408,3 @@ fi
 # http://www.nothink.org/blacklist/blacklist_ssh_week.txt
 # http://www.nothink.org/blacklist/blacklist_malware_irc.txt
 # http://www.nothink.org/blacklist/blacklist_malware_http.txt
-
