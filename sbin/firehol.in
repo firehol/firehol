@@ -3840,7 +3840,7 @@ action() {
 				for t in ${tables//,/ }
 				do
 					set_work_function "Rules for type ${type} under table ${t}: ${args[@]}"
-					rule table ${t} chain "${name}" action "${args[0]}" || return 1
+					rule table ${t} chain "${name}" action "${args[@]}" || return 1
 				done
 				;;
 
@@ -4417,6 +4417,37 @@ mac() {
 	iptables_both -t filter -A FORWARD -s "${1}" -m mac ! --mac-source "${2}" -j WRONGMAC
 
 	return 0
+}
+
+log() { log_helper log "${@}"; }
+log4() { ipv4 log_helper log "${@}"; }
+log6() { ipv6 log_helper log "${@}"; }
+log46() { ipv46 log_helper log "${@}"; }
+loglimit() { log_helper loglimit "${@}"; }
+loglimit4() { ipv4 log_helper loglimit "${@}"; }
+loglimit6() { ipv6 log_helper loglimit "${@}"; }
+loglimit46() { ipv46 log_helper loglimit "${@}"; }
+log_helper() {
+	work_realcmd_helper ${FUNCNAME} "${@}"
+	
+	set_work_function -ne "Initializing ${FUNCNAME}"
+	
+	require_work clear || ( error "${FUNCNAME} cannot be used in '${work_cmd}'. Put it before any '${work_cmd}' definition."; return 1 )
+
+	local log="${1}" msg="${2}" x=
+	shift 2
+
+	for x in INPUT FORWARD
+	do
+		set_work_function "requests log on ${x}"
+		rule table filter chain ${x} in ${log} "${msg}-IN" "${@}" action NONE
+	done
+
+	for x in FORWARD OUTPUT
+	do
+		set_work_function "replies log on ${x}"
+		rule out reverse table filter chain ${x} ${log} "${msg}-OUT" "${@}" action NONE
+	done
 }
 
 # blacklist creates two types of blacklists: unidirectional or bidirectional
@@ -6984,7 +7015,7 @@ prepare_iptables_log_arg() {
 	case "${FIREHOL_LOG_MODE}" in
 		ULOG)	FIREHOL_LOG_IPTABLES_ARG=("--ulog-prefix=${FIREHOL_LOG_ESCAPE}${FIREHOL_LOG_PREFIX}${*}:${FIREHOL_LOG_ESCAPE}") ;;
 		NFLOG)	FIREHOL_LOG_IPTABLES_ARG=("--nflog-prefix=${FIREHOL_LOG_ESCAPE}${FIREHOL_LOG_PREFIX}${*}:${FIREHOL_LOG_ESCAPE}") ;;
-		LOG)	FIREHOL_LOG_IPTABLES_ARG=("--log-level" "${loglevel}" "--log-prefix=${FIREHOL_LOG_ESCAPE}${FIREHOL_LOG_PREFIX}${*}:${FIREHOL_LOG_ESCAPE}");;
+		LOG)	FIREHOL_LOG_IPTABLES_ARG=("--log-level" "${FIREHOL_LOG_LEVEL}" "--log-prefix=${FIREHOL_LOG_ESCAPE}${FIREHOL_LOG_PREFIX}${*}:${FIREHOL_LOG_ESCAPE}");;
 		*)		FIREHOL_LOG_IPTABLES_ARG=(); error "Invalid log mode ${FIREHOL_LOG_MODE}"; return 1;;
 	esac
 	return 0
@@ -7506,6 +7537,14 @@ rule() {
 					RETURN)	action="RETURN" ;;
 					NONE)	action="NONE" ;;
 					TARPIT)	action="TARPIT" ;;
+
+					LOG)
+						action="${FIREHOL_LOG_MODE}"
+						prepare_iptables_log_arg "${1}"
+						action_param=("${FIREHOL_LOG_IPTABLES_ARG[@]}")
+						shift
+						;;
+
 					CT)	action="CT"
 						if [ ! "${table}" = "raw" ]
 						then
