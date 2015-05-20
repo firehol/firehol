@@ -546,6 +546,7 @@ update() {
 	tmp=`mktemp "${install}.tmp-XXXXXXXXXX"` || return 1
 
 	${processor} <"${install}.source" |\
+		trim |\
 		${pre_filter} |\
 		${filter} |\
 		${post_filter} |\
@@ -746,6 +747,11 @@ subnet_to_bitmask() {
 		-e "s|/192\.0\.0\.0|/2|g"        -e "s|/128\.0\.0\.0|/1|g"        -e "s|/0\.0\.0\.0|/0|g"
 }
 
+trim() {
+	sed -e "s/[\t ]\+/ /g" -e "s/^ \+//g" -e "s/ \+$//g" |\
+		grep -v "^$"
+}
+
 remove_comments() {
 	# remove:
 	# 1. replace \r with \n
@@ -808,24 +814,29 @@ unzip_and_extract() {
 
 p2p_gz_proxy() {
 	gzip -dc |\
-	grep "^Proxy" |\
-	cut -d ':' -f 2 |\
-	egrep "^[0-9]+\.[0-9]+\.[0-9]+\.[0-9]+\-[0-9]+\.[0-9]+\.[0-9]+\.[0-9]+$" |\
-	ipv4_range_to_cidr
+		grep "^Proxy" |\
+		cut -d ':' -f 2 |\
+		egrep "^[0-9]+\.[0-9]+\.[0-9]+\.[0-9]+\-[0-9]+\.[0-9]+\.[0-9]+\.[0-9]+$" |\
+		ipv4_range_to_cidr
 }
 
 p2p_gz() {
 	gzip -dc |\
-	cut -d ':' -f 2 |\
-	egrep "^[0-9]+\.[0-9]+\.[0-9]+\.[0-9]+\-[0-9]+\.[0-9]+\.[0-9]+\.[0-9]+$" |\
-	ipv4_range_to_cidr
+		cut -d ':' -f 2 |\
+		egrep "^[0-9]+\.[0-9]+\.[0-9]+\.[0-9]+\-[0-9]+\.[0-9]+\.[0-9]+\.[0-9]+$" |\
+		ipv4_range_to_cidr
 }
 
 csv_comma_first_column() {
 	grep "^[0-9]" |\
-	cut -d ',' -f 1
+		cut -d ',' -f 1
 }
 
+gz_second_word() {
+	gzip -dc |\
+		tr '\r' '\n' |\
+		cut -d ' ' -f 2
+}
 
 # -----------------------------------------------------------------------------
 # CONFIGURATION
@@ -1294,6 +1305,16 @@ update snort_ipfilter $[12*60] 0 ipv4 ip \
 	"http://labs.snort.org/feeds/ip-filter.blf" \
 	remove_comments \
 	"[labs.snort.org](https://labs.snort.org/) supplied IP blacklist"
+
+
+# -----------------------------------------------------------------------------
+# NiX Spam
+# http://www.heise.de/ix/NiX-Spam-DNSBL-and-blacklist-for-download-499637.html
+
+update nixspam 15 0 ipv4 ip \
+	"http://www.dnsbl.manitu.net/download/nixspam-ip.dump.gz" \
+	gz_second_word \
+	"[NiX Spam](http://www.heise.de/ix/NiX-Spam-DNSBL-and-blacklist-for-download-499637.html) about 40,000 IP addresses from about the last hour - automatically generated entries without distinguishing open proxies from relays, dialup gateways, and so on. All IPs are removed after 12 hours if there is no spam from there."
 
 
 # -----------------------------------------------------------------------------
