@@ -499,9 +499,7 @@ source "${FIREHOL_CONFIG_DIR}/dnsbl-ipset.conf" || exit 1
 
 
 # -----------------------------------------------------------------------------
-# post-configuration checks
-
-[ ${DEBUG} -eq 1 ] && RUNNING_ON_TERMINAL=0
+# command line processing
 
 if [ -z "${IPTABLES_LOG}" ]
 	then
@@ -515,13 +513,45 @@ if [ -z "${IPTABLES_LOG}" ]
 	done
 fi
 
+usage() {
+	cat <<EOF
+
+${PROGRAM_FILE} [file IPTABLES_LOG] [grep ULOG_MATCH] [test]
+
+defaults:
+IPTABLES_LOG="${IPTABLES_LOG}"
+LOG_MATCH="${ULOG_MATCH}"
+
+test will show the IPs matched from the log file.
+
+EOF
+	exit 0
+}
+
+TEST_SRC_DST=0
+while [ ! -z "${1}" ]
+do
+	case "${1}" in
+		match|search|grep|-s) ULOG_MATCH="${2}"; shift ;;
+		file|tail|-f) IPTABLES_LOG="${2}"; shift ;;
+		test|-t) TEST_SRC_DST=1; RUNNING_ON_TERMINAL=0 ;;
+		help|-h|--help) usage ;;
+		*) echo >&2 "Cannot understand option '${1}'."; usage ;;
+	esac
+	shift
+done
+
+
+# -----------------------------------------------------------------------------
+# post-configuration checks
+
+[ ${DEBUG} -eq 1 ] && RUNNING_ON_TERMINAL=0
+
 if [ -z "${IPTABLES_LOG}" -o ! -f "${IPTABLES_LOG}" ]
 	then
 	echo >&2 "Cannot find ulogd iptables log ${IPTABLES_LOG}"
 	exit 1
 fi
-
-echo >&2 "Using ulogd iptables log: ${IPTABLES_LOG}"
 
 if [ ! -d "${LOG_DIR}" ]
 	then
@@ -707,6 +737,12 @@ generate_dnsbl_hostnames() {
 generate_hostnames_from_src_dst() {
 	local last= a= b= x=
 
+	if [ "${TEST_SRC_DST}" -eq 1 ]
+		then
+		cat >&2
+		exit 0
+	fi
+
 	while read a b
 	do
 		[ "${a}" = "${b}" ] && a=
@@ -868,11 +904,14 @@ spinner_end() {
 # 5. let adnshost do the lookups
 # 6. parse the adnshost responses and take action
 
+echo >&2 "Using ulogd iptables log: ${IPTABLES_LOG}"
+echo >&2 "Searching for: ${ULOG_MATCH}"
+
 echo >&2
 echo >&2 "Please wait some time... pipes are filling up... (this is not a joke)"
 
 tail -s 0.2 -F "${IPTABLES_LOG}" |\
-	grep -E "^.*${ULOG_MATCH}.* SRC=[0-9.]+ DST=[0-9.]+ .*$" |\
+	grep --line-buffered -E "^.*${ULOG_MATCH}.* SRC=[0-9.]+ DST=[0-9.]+ .*$" |\
 	sed --unbuffered "s/^.* SRC=\([0-9\.]\+\) DST=\([0-9\.]\+\) .*$/\1 \2/g" |\
 	generate_hostnames_from_src_dst |\
 	adnshost --asynch --fmt-asynch --no-env --pipe |\
