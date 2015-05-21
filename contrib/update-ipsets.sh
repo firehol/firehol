@@ -426,7 +426,7 @@ download_url() {
 
 		# copy the timestamp of the downloaded to our file
 		touch -r "${tmp}" "${install}.source"
-		
+
 		rm "${tmp}"
 
 		# return success so that the set will be create
@@ -528,8 +528,8 @@ update() {
 		test -f "${install}_net.source" && rm "${install}_net.source"
 		ln -s "${install}.source" "${install}_ip.source"
 		ln -s "${install}.source" "${install}_net.source"
-		update "${ipset}_ip" "${mins}" "${ipv}" ip  "${url}" "${processor}"
-		update "${ipset}_net" "${mins}" "${ipv}" net "${url}" "${processor}"
+		update "${ipset}_ip" "${mins}" "${history_mins}" "${ipv}" ip  "${url}" "${processor}"
+		update "${ipset}_net" "${mins}" "${history_mins}" "${ipv}" net "${url}" "${processor}"
 		return $?
 	fi
 
