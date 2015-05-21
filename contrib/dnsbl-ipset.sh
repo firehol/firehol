@@ -124,8 +124,6 @@ IPTABLES_LOG=
 
 # which IPSETs to examine to exclude IPs from checking?
 # space separated list of any number of ipsets
-# you can speed this program up, by creating a 'list' ipset that
-# will contain all the ipsets you want to exclude
 EXCLUSION_IPSETS="bogons fullbogons whitelist"
 
 # which IPSET will receive the blacklisted IPs?
@@ -133,18 +131,22 @@ EXCLUSION_IPSETS="bogons fullbogons whitelist"
 # this ipset will also be checked for excluding new queries
 BLACKLIST_IPSET="dnsbl"
 
-# which IPSET will cache the checked IPs?
-# this ipset will also be checked for excluding new queries
-CACHE_IPSET="dnsbl_cache"
-
-# what additional options to give to the blacklist ipset command?
+# what additional options to give when adding an IP to the blacklist ipset?
 BLACKLIST_IPSET_OPTIONS="timeout $[7 * 24 * 3600]"
 
 # set this to 1 to have comments on the blacklist ipset
 BLACKLIST_IPSET_COMMENTS=1
 
-# what additional options to give to the clean ipset command?
+# which IPSET will cache the checked IPs?
+# this ipset will also be checked for excluding new queries
+CACHE_IPSET="dnsbl_cache"
+
+# what additional options to give when adding IPs to this ipset?
 CACHE_IPSET_OPTIONS="timeout $[24 * 3600]"
+
+# how to create the cache ipset - if it does not exist?
+# this ipset will be created only if it does not exist
+CACHE_IPSET_CREATE_OPTIONS="timeout $[24 * 3600] maxelem 2000000"
 
 # which is the BLACKLIST score?
 # any IP that will get a score above or equal to this, will be
@@ -181,48 +183,48 @@ dnsbl clear
 # the default settings have been set to benefit dynamic IP ranges that might be used by users
 
 dnsbl 0 zen.spamhaus.org
-	score   35 127.0.0.2 # sbl.spamhaus.org, Spamhaus SBL Data, Static UBE sources, verified spam services (hosting or support) and ROKSO spammers
-	score   35 127.0.0.3 # sbl.spamhaus.org, Spamhaus SBL CSS Data, Static UBE sources, verified spam services (hosting or support) and ROKSO spammers
-	score  100 127.0.0.4 # xbl.spamhaus.org, CBL Data, Illegal 3rd party exploits, including proxies, worms and trojan exploits
-	score   80 127.0.0.5 # xbl.spamhaus.org = Illegal 3rd party exploits, including proxies, worms and trojan exploits
-	score   80 127.0.0.6 # xbl.spamhaus.org = Illegal 3rd party exploits, including proxies, worms and trojan exploits
-	score   80 127.0.0.7 # xbl.spamhaus.org = Illegal 3rd party exploits, including proxies, worms and trojan exploits
-	score   10 127.0.0.10 # pbl.spamhaus.org = End-user Non-MTA IP addresses set by ISP outbound mail policy
-	score   10 127.0.0.11 # pbl.spamhaus.org = End-user Non-MTA IP addresses set by ISP outbound mail policy
-	score -200 127.0.2   # Spamhaus Whitelists
+	score  100 127.0.0.2  # sbl.spamhaus.org, Spamhaus SBL Data, Static UBE sources, verified spam services (hosting or support) and ROKSO spammers
+	score  100 127.0.0.3  # sbl.spamhaus.org, Spamhaus SBL CSS Data, Static UBE sources, verified spam services (hosting or support) and ROKSO spammers
+	score   50 127.0.0.4  # xbl.spamhaus.org, CBL Data, Illegal 3rd party exploits, including proxies, worms and trojan exploits
+	score   50 127.0.0.5  # xbl.spamhaus.org = Illegal 3rd party exploits, including proxies, worms and trojan exploits
+	score   50 127.0.0.6  # xbl.spamhaus.org = Illegal 3rd party exploits, including proxies, worms and trojan exploits
+	score   50 127.0.0.7  # xbl.spamhaus.org = Illegal 3rd party exploits, including proxies, worms and trojan exploits
+	score -200 127.0.0.10 # pbl.spamhaus.org = End-user Non-MTA IP addresses set by ISP outbound mail policy
+	score -200 127.0.0.11 # pbl.spamhaus.org = End-user Non-MTA IP addresses set by ISP outbound mail policy
+	score -500 127.0.2    # Spamhaus Whitelists
 
-dnsbl 35 all.s5h.net
+dnsbl 25 all.s5h.net
 
-dnsbl 60 b.barracudacentral.org # Barracuda Reputation Block List, http://barracudacentral.org/rbl/listing-methodology
+dnsbl 50 b.barracudacentral.org # Barracuda Reputation Block List, http://barracudacentral.org/rbl/listing-methodology
 
 dnsbl 0 all.spamrats.com
-	score 20 127.0.0.36 # Dyna, IP Addresses that have been found sending an abusive amount of connections, or trying too many invalid users at ISP and Telco's mail servers, and are also known to conform to a naming convention that is indicative of a home connection or dynamic address space.
-	score 10 127.0.0.37 # Noptr, IP Addresses that have been found sending an abusive amount of connections, or trying too many invalid users at ISP and Telco's mail servers, and are also known to have no reverse DNS, a technique often used by bots and spammers
-	score 20 127.0.0.38 # Spam, IP Addresses that do not conform to more commonly known threats, and is usually because of compromised servers, hosts, or open relays. However, since there is little accompanying data this list COULD have false-positives, and we suggest that it only is used if you support a more aggressive stance
+	score -200 127.0.0.36 # Dyna, IP Addresses that have been found sending an abusive amount of connections, or trying too many invalid users at ISP and Telco's mail servers, and are also known to conform to a naming convention that is indicative of a home connection or dynamic address space.
+	score   50 127.0.0.37 # Noptr, IP Addresses that have been found sending an abusive amount of connections, or trying too many invalid users at ISP and Telco's mail servers, and are also known to have no reverse DNS, a technique often used by bots and spammers
+	score   50 127.0.0.38 # Spam, IP Addresses that do not conform to more commonly known threats, and is usually because of compromised servers, hosts, or open relays. However, since there is little accompanying data this list COULD have false-positives, and we suggest that it only is used if you support a more aggressive stance
 
 dnsbl 0 dnsbl.sorbs.net
-	score  200 127.0.0.2 # http.dnsbl.sorbs.net - List of Open HTTP Proxy Servers
-	score  200 127.0.0.3 # socks.dnsbl.sorbs.net - List of Open SOCKS Proxy Server
-	score  200 127.0.0.4 # misc.dnsbl.sorbs.net - List of open Proxy Servers not listed in the SOCKS or HTTP lists
-	score  100 127.0.0.5 # smtp.dnsbl.sorbs.net - List of Open SMTP relay servers
-	score   70 127.0.0.6 # new.spam.dnsbl.sorbs.net - List of hosts that have been noted as sending spam/UCE/UBE to the admins of SORBS within the last 48 hours.
-	score  200 127.0.0.7 # web.dnsbl.sorbs.net - List of web (WWW) servers which have spammer abusable vulnerabilities (e.g. FormMail scripts) Note: This zone now includes non-webserver IP addresses that have abusable vulnerabilities.
+	score  150 127.0.0.2 # http.dnsbl.sorbs.net - List of Open HTTP Proxy Servers
+	score  150 127.0.0.3 # socks.dnsbl.sorbs.net - List of Open SOCKS Proxy Server
+	score  150 127.0.0.4 # misc.dnsbl.sorbs.net - List of open Proxy Servers not listed in the SOCKS or HTTP lists
+	score   25 127.0.0.5 # smtp.dnsbl.sorbs.net - List of Open SMTP relay servers
+	score   25 127.0.0.6 # new.spam.dnsbl.sorbs.net - List of hosts that have been noted as sending spam/UCE/UBE to the admins of SORBS within the last 48 hours.
+	score  100 127.0.0.7 # web.dnsbl.sorbs.net - List of web (WWW) servers which have spammer abusable vulnerabilities (e.g. FormMail scripts) Note: This zone now includes non-webserver IP addresses that have abusable vulnerabilities.
 	score    0 127.0.0.8 # block.dnsbl.sorbs.net - List of hosts demanding that they never be tested by SORBS.
 	score  100 127.0.0.9 # zombie.dnsbl.sorbs.net - List of networks hijacked from their original owners, some of which have already used for spamming.
-	score -100 127.0.0.10 # dul.dnsbl.sorbs.net - Dynamic IP Address ranges (NOT a Dial Up list!)
+	score -200 127.0.0.10 # dul.dnsbl.sorbs.net - Dynamic IP Address ranges (NOT a Dial Up list!)
 	score    0 127.0.0.11 # badconf.rhsbl.sorbs.net - List of domain names where the A or MX records point to bad address space.
 	score    0 127.0.0.12 # nomail.rhsbl.sorbs.net - List of domain names where the owners have indicated no email should ever originate from these domains.
 	score    0 127.0.0.14 # noserver.dnsbl.sorbs.net - IP addresses and Netblocks of where system administrators and ISPs owning the network have indicated that servers should not be present.
 
-dnsbl 35 spam.dnsbl.sorbs.net #  spam.dnsbl.sorbs.net - List of hosts that have been noted as sending spam/UCE/UBE to the admins of SORBS at any time,  and not subsequently resolving the matter and/or requesting a delisting. (Includes both old.spam.dnsbl.sorbs.net and escalations.dnsbl.sorbs.net).
+dnsbl 25 spam.dnsbl.sorbs.net #  spam.dnsbl.sorbs.net - List of hosts that have been noted as sending spam/UCE/UBE to the admins of SORBS at any time,  and not subsequently resolving the matter and/or requesting a delisting. (Includes both old.spam.dnsbl.sorbs.net and escalations.dnsbl.sorbs.net).
 
 # cbl.abuseat.org may be also included in xbl.spamhaus.org
 # in this case, it should not be added again.
 #dnsbl 200 cbl.abuseat.org # The CBL only lists IPs exhibiting characteristics which are specific to open proxies of various sorts (HTTP, socks, AnalogX, wingate, Bagle call-back proxies etc) and dedicated Spam BOTs (such as Cutwail, Rustock, Lethic etc) which have been abused to send spam, worms/viruses that do their own direct mail transmission, or some types of trojan-horse or "stealth" spamware, dictionary mail harvesters etc.
 
-dnsbl 35 dnsbl.justspam.org # If an IP that we never got legit email from is seen spamming and said IP is already listed by at least one of the other well-known and independent blacklists, then it is added to our blacklist dnsbl.justspam.org.
+dnsbl 25 dnsbl.justspam.org # If an IP that we never got legit email from is seen spamming and said IP is already listed by at least one of the other well-known and independent blacklists, then it is added to our blacklist dnsbl.justspam.org.
 
-dnsbl 90 korea.services.net # South Korean IP address space - this is not necessarily bad
+dnsbl 100 korea.services.net # South Korean IP address space - this is not necessarily bad
 
 dnsbl 0 rep.mailspike.net # IP Reputation
 	score  200 127.0.0.10 # Worst possible
@@ -244,34 +246,34 @@ dnsbl 0 hostkarma.junkemailfilter.com
 	score  100 127.0.0.2 # blacklist
 	score   35 127.0.0.3 # yellowlist
 	score   50 127.0.0.4 # brownlist
-	score -100 127.0.0.5 # no blacklist
+	score -200 127.0.0.5 # no blacklist
 
 dnsbl 0 rbl.megarbl.net
-	score 35 127.0.0.2 # spam source
+	score 25 127.0.0.2 # spam source
 
 #dnsbl 0 dnsbl.inps.de # is listing IPs if they are listed on other DNSBLs
 
 dnsbl 0 bl.spamcop.net
-	score 35 127.0.0.2 # spam source
+	score 25 127.0.0.2 # spam source
 
 dnsbl 0 db.wpbl.info
-	score 35 127.0.0.2 # spam source
+	score 25 127.0.0.2 # spam source
 
 dnsbl 0 dnsbl.anticaptcha.net
-	score 35 127.0.0.3 # spam source
-	score 35 127.0.0.10 # spam source
+	score 25 127.0.0.3 # spam source
+	score 25 127.0.0.10 # spam source
 
 dnsbl 0 ubl.unsubscore.com
-	score 35 127.0.0.2 # spam source
+	score 25 127.0.0.2 # spam source
 
 dnsbl 0 bl.tiopan.com
 	score 10 127.0.0.2 # spam source
 
-dnsbl -100 list.dnswl.org # all responses include valid mail servers
+dnsbl -200 list.dnswl.org # all responses include valid mail servers
 
-dnsbl 35 ix.dnsbl.manitu.net # spam source?
+dnsbl 25 ix.dnsbl.manitu.net # spam source?
 
-dnsbl 35 psbl.surriel.com # spam source
+dnsbl 25 psbl.surriel.com # spam source
 
 
 # --- other lists to choose from ---
@@ -419,15 +421,24 @@ then
 	exit 1
 fi
 
-ipset --list "${CACHE_IPSET}" >/dev/null
+ipset --list "${CACHE_IPSET}" -t >/dev/null 2>&1
 if [ $? -ne 0 ]
 then
-	echo >&2 "Cannot find CACHE_IPSET '${CACHE_IPSET}'."
-	echo >&2 "Please add it in firehol.conf like this:"
-	echo >&2 "ipset4 create ${CACHE_IPSET} hash:ip timeout $[86400] maxelem 2000000 prevent_reset_on_restart"
-	echo >&2 "And restart firehol to activate it."
-	exit 1
+	ipset --create ${CACHE_IPSET} hash:ip ${CACHE_IPSET_CREATE_OPTIONS} || exit 1
 fi
+
+cleanup() {
+	echo >&2 "Cleaning up..."
+
+	echo >&2 "All done, bye..."
+	trap exit EXIT
+	trap exit HUP
+	trap exit INT
+	exit 0
+}
+trap cleanup EXIT
+trap cleanup HUP
+trap cleanup INT
 
 # -----------------------------------------------------------------------------
 # program functions
@@ -537,7 +548,7 @@ generate_dnsbl_hostnames() {
 
 		# check if it is excluded
 		local x=
-		for x in ${EXCLUSION_IPSETS} ${BLACKLIST_IPSET} ${CACHE_IPSET}
+		for x in ${EXCLUSION_IPSETS} ${CACHE_IPSET} ${BLACKLIST_IPSET}
 		do
 			ipset --test "${x}" "${1}" 2>/dev/null && return 1
 		done
@@ -573,6 +584,24 @@ generate_dnsbl_hostnames() {
 		echo >&2 "ERROR: INVALID SOURCE IP: ${1}"
 		return 1
 	fi
+}
+
+generate_hostnames_from_src_dst() {
+	local last= a= b= x=
+
+	while read a b
+	do
+		[ "${a}" = "${b}" ] && a=
+		[ "${a}" = "${last}" ] && a=
+		[ "${b}" = "${last}" ] && b=
+
+		for x in ${a} ${b}
+		do
+			generate_dnsbl_hostnames "${x}"
+			[ ! -z "${DELAY_BETWEEN_CHECKS}" ] && sleep ${DELAY_BETWEEN_CHECKS}
+			last="${x}"
+		done
+	done
 }
 
 declare -A ADNS_REMAINING=()
@@ -643,7 +672,7 @@ parse_adns_asynch() {
 			unset ADNS_COUNT[$i]
 			unset ADNS_SCORE[$i]
 			unset ADNS_LISTS[$i]
-			
+
 			[ ${DEBUG} -eq 1 ] && echo "DONE ${i}"
 			#[ ${DEBUG} -eq 1 ] && declare -p ADNS_REMAINING ADNS_SCORE ADNS_COUNT ADNS_LISTS
 		fi
@@ -713,24 +742,22 @@ spinner_end() {
 # -----------------------------------------------------------------------------
 # the main loop
 
+# A pipeline:
 # 1. tail the log
 # 2. grep the lines we are interested
-# 3. replace it with: IN/OUT SRC_IP DST_IP
-# 4. based on IN/OUT check SRC/DST
+# 3. replace the lines with: SRC_IP DST_IP
+# 4. generate hostnames for each IP
+# 5. let adnshost do the lookups
+# 6. parse the adnshost responses and take action
 
-echo >&2 
-echo >&2 "Please wait some time... pipes are filling up... (this is not a joke!)"
+echo >&2
+echo >&2 "Please wait some time... pipes are filling up... (this is not a joke)"
 
 tail -s 0.2 -F "${IPTABLES_LOG}" |\
-	grep -E " ${ULOG_MATCH}.*: .* SRC=[0-9.]+ DST=[0-9.]+ " |\
+	grep -E "^.*${ULOG_MATCH}.* SRC=[0-9.]+ DST=[0-9.]+ .*$" |\
 	sed --unbuffered "s/^.* SRC=\([0-9\.]\+\) DST=\([0-9\.]\+\) .*$/\1 \2/g" |\
-	while read a b
-	do
-		generate_dnsbl_hostnames "${a}"
-		generate_dnsbl_hostnames "${b}"
-		[ ! -z "${DELAY_BETWEEN_CHECKS}" ] && sleep ${DELAY_BETWEEN_CHECKS}
-	done |\
-		adnshost --asynch --fmt-asynch --no-env --pipe |\
-		parse_adns_asynch
+	generate_hostnames_from_src_dst |\
+	adnshost --asynch --fmt-asynch --no-env --pipe |\
+	parse_adns_asynch
 
 exit 0
