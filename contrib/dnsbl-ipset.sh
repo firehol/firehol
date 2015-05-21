@@ -25,6 +25,96 @@
 #       See the file COPYING for details.
 #
 
+# -----------------------------------------------------------------------------
+# OVERVIEW
+#
+# This program will tail the iptables kernel log, extract SRC/DST IP addresses
+# from it, do DNSBL lookups for them, score them and according to this score
+# add them to an ipset. This ipset may be used by a firewall rule to block
+# further access.
+#
+# So, initially an attacker will get access, but after a few seconds, his IP
+# might be blocked.
+#
+# This program itself just manipulates ipsets.
+# It does not alter your firewall - it does not generate or execute iptables
+# statements.
+#
+#
+# -----------------------------------------------------------------------------
+# HOW IT WORKS
+#
+# The configuration file is /etc/firehol/dnsbl-ipset.conf
+# It will be generated with defaults, on first run.
+# 
+# 1. It tails the iptables log file given by IPTABLES_LOG.
+#
+# 2. It greps for lines containing ULOG_MATCH, it ignores all other.
+#    Normally, you should log some packets using iptables, and then
+#    set the iptables log text to ULOG_MATCH, to process these lines only.
+#
+# 3. If the line contains SRC=<IPv4 IP> and DST=<IPv4 IP> it extracts these
+#    IPs from the log file.
+#    It is safe to tail the system log or a log file containing more than
+#    just iptables logs, the program will process only what it understands.
+#
+# 4. For each IP extracted (both SRC and DST), it first checks if they
+#    appear in EXCLUSION_IPSETS, BLACKLIST_IPSET, CACHE_IPSET
+#    If an IP is found in any of the above, it is ignored.
+#
+# 5. For each IP not found on any of the ipsets above, it does the following:
+#
+# 6. Adds the IP to the CACHE_IPSET with options set by CACHE_IPSET_OPTIONS.
+#    These options allow setting a timeout, after which the IP will be
+#    re-checked.
+#
+# 7. It generates DNSBL hostnames to be resolved, for all DNSBLs given in the
+#    configuration.
+#
+# 8. These hostnames are resolved with 'adnshost' an excellent asynchronous
+#    client resolver with machine readable output. adnshost is part of
+#    adns-tools.
+#
+# 9. Each successful DNS resolution is scored according to the configuration.
+#    The configuration allows you to control scoring DNS resolutions to
+#    suit your needs.
+#    The default scoring is suitable for servers servicing users, it favours
+#    dynamic IPs and penalizes server IPs.
+#
+# 10. The score of each successfull DNS lookup is added to the total score
+#     for each IP.
+#
+# 11. When the DNS resolution for an IP completes for all DNSBLs configured,
+#     it takes a decision:
+#
+# 12. If the total score for an IP is above BLACKLIST_SCORE, it adds the IP
+#     to the BLACKLIST_IPSET, otherwise, it ignores it.
+# 
+#
+# -----------------------------------------------------------------------------
+# OTHER FEATURES
+#
+# a. The speed of DNSBL resolution is controlled by DELAY_BETWEEN_CHECKS.
+#    The default is 0.2 which means 5 DNS lookups per second per DNSBL.
+#
+# b. If the DNS resolution is slow, the program will start throttling.
+#    This is controlled with THROTTLE_THRESHOLD which controls how many IPs
+#    should be in the queue (currently being resolved) for the program to
+#    work without any delays.
+#
+# c. It saves 4 log files (in the dir set by LOG_DIR):
+#      1. ips.log - all the IPs checked (one line per IP)
+#      2. matches.log - all the DNSBLs that responded (one line per resolution)
+#      3. clean.log - all the IPs with low score (one line per IP)
+#      4. blacklisted.log - all the IPs with high score (one line per IP)
+#
+# d. The blacklisted ipset will include a comment so that you will know
+#    why each IP was blacklisted (which DNSBLs matched it, with which score)
+#
+# e. The BLACKLIST_IPSET has to exist prior to running this script.
+#    The program will give you the command to add in firehol.conf
+#
+
 PROGRAM_FILE="${0}"
 
 # lock
@@ -118,12 +208,19 @@ score() {
 
 # --- BEGIN OF DNSBL-IPSET DEFAULTS ---
 
-# where is the iptables log file?
+# where is the iptables log file to tail?
 # leave empty for auto-detection - may not work for you - please set it
-IPTABLES_LOG=
+IPTABLES_LOG=""
+
+# which string to find in the log?
+ULOG_MATCH="AUDIT"
+
+# where to put our logs?
+LOG_DIR="/var/log/dnsbl-ipset"
 
 # which IPSETs to examine to exclude IPs from checking?
-# space separated list of any number of ipsets
+# space separated list of any number of ipsets.
+# add here any ipsets that include IPs that should never be blacklisted.
 EXCLUSION_IPSETS="bogons fullbogons whitelist"
 
 # which IPSET will receive the blacklisted IPs?
@@ -135,13 +232,15 @@ BLACKLIST_IPSET="dnsbl"
 BLACKLIST_IPSET_OPTIONS="timeout $[7 * 24 * 3600]"
 
 # set this to 1 to have comments on the blacklist ipset
+# the comments will include the score and DNSBLs matched it
 BLACKLIST_IPSET_COMMENTS=1
 
 # which IPSET will cache the checked IPs?
 # this ipset will also be checked for excluding new queries
+# it will be automatically created if it does not exist
 CACHE_IPSET="dnsbl_cache"
 
-# what additional options to give when adding IPs to this ipset?
+# what additional options to give when adding IPs to the CACHE_IPSET?
 CACHE_IPSET_OPTIONS="timeout $[24 * 3600]"
 
 # how to create the cache ipset - if it does not exist?
@@ -157,15 +256,6 @@ BLACKLIST_SCORE="100"
 # if you lower this a lot, DNSBLs will refuse to talk to you
 DELAY_BETWEEN_CHECKS="0.2"
 
-# which string to find in the log?
-ULOG_MATCH="AUDIT"
-
-# enable this for more logging
-DEBUG=0
-
-# where to put our logs?
-LOG_DIR="/var/log/dnsbl-ipset"
-
 # when we will have this many IP checks in progress
 # we will stop processing until this drops below this point
 THROTTLE_THRESHOLD="500"
@@ -173,39 +263,58 @@ THROTTLE_THRESHOLD="500"
 # where is the throttle lock file?
 THROTTLE_LOCK_FILE="/var/run/dnsbl-ipset.lock"
 
+# enable this for more logging
+DEBUG=0
+
 
 # -----------------------------------------------------------------------------
-# Default Configuration
+# Default Score Configuration
 
 # clear any previous configuration
 dnsbl clear
 
 # the default settings have been set to benefit dynamic IP ranges that might be used by users
 
+# TEMPLATE
+# >> dnsbl DEFAULT_SCORE DNSBL
+#
+# The DEFAULT_SCORE will be used if a more specific score is not given
+#
+# optionally, followed by:
+# >>   score SCORE IP_RESOLVED
+#
+# IP_RESOLVED is looked up like this:
+# If the DNS resolution on DNSBL dnsb.org gives 127.1.2.3, the program will lookup
+# IP_RESOLVED in this order (the first matched will be used):
+#
+#     127.1.2.3
+#     127.1.x.3
+#     127.x.x.3
+#     127.1.2.3
+#     127.1.2
+#     127.1.x
+#     127.x.2
+#     127.1
+#     127.x
+#     127
+#     DEFAULT_SCORE
+#
+
 dnsbl 0 zen.spamhaus.org
 	score  100 127.0.0.2  # sbl.spamhaus.org, Spamhaus SBL Data, Static UBE sources, verified spam services (hosting or support) and ROKSO spammers
 	score  100 127.0.0.3  # sbl.spamhaus.org, Spamhaus SBL CSS Data, Static UBE sources, verified spam services (hosting or support) and ROKSO spammers
-	score   50 127.0.0.4  # xbl.spamhaus.org, CBL Data, Illegal 3rd party exploits, including proxies, worms and trojan exploits
-	score   50 127.0.0.5  # xbl.spamhaus.org = Illegal 3rd party exploits, including proxies, worms and trojan exploits
-	score   50 127.0.0.6  # xbl.spamhaus.org = Illegal 3rd party exploits, including proxies, worms and trojan exploits
-	score   50 127.0.0.7  # xbl.spamhaus.org = Illegal 3rd party exploits, including proxies, worms and trojan exploits
+	score   45 127.0.0.4  # xbl.spamhaus.org, CBL Data, Illegal 3rd party exploits, including proxies, worms and trojan exploits
+	score   45 127.0.0.5  # xbl.spamhaus.org = Illegal 3rd party exploits, including proxies, worms and trojan exploits
+	score   45 127.0.0.6  # xbl.spamhaus.org = Illegal 3rd party exploits, including proxies, worms and trojan exploits
+	score   45 127.0.0.7  # xbl.spamhaus.org = Illegal 3rd party exploits, including proxies, worms and trojan exploits
 	score -200 127.0.0.10 # pbl.spamhaus.org = End-user Non-MTA IP addresses set by ISP outbound mail policy
 	score -200 127.0.0.11 # pbl.spamhaus.org = End-user Non-MTA IP addresses set by ISP outbound mail policy
 	score -500 127.0.2    # Spamhaus Whitelists
 
-dnsbl 25 all.s5h.net
-
-dnsbl 50 b.barracudacentral.org # Barracuda Reputation Block List, http://barracudacentral.org/rbl/listing-methodology
-
-dnsbl 0 all.spamrats.com
-	score -200 127.0.0.36 # Dyna, IP Addresses that have been found sending an abusive amount of connections, or trying too many invalid users at ISP and Telco's mail servers, and are also known to conform to a naming convention that is indicative of a home connection or dynamic address space.
-	score   50 127.0.0.37 # Noptr, IP Addresses that have been found sending an abusive amount of connections, or trying too many invalid users at ISP and Telco's mail servers, and are also known to have no reverse DNS, a technique often used by bots and spammers
-	score   50 127.0.0.38 # Spam, IP Addresses that do not conform to more commonly known threats, and is usually because of compromised servers, hosts, or open relays. However, since there is little accompanying data this list COULD have false-positives, and we suggest that it only is used if you support a more aggressive stance
-
 dnsbl 0 dnsbl.sorbs.net
-	score  150 127.0.0.2 # http.dnsbl.sorbs.net - List of Open HTTP Proxy Servers
-	score  150 127.0.0.3 # socks.dnsbl.sorbs.net - List of Open SOCKS Proxy Server
-	score  150 127.0.0.4 # misc.dnsbl.sorbs.net - List of open Proxy Servers not listed in the SOCKS or HTTP lists
+	score  200 127.0.0.2 # http.dnsbl.sorbs.net - List of Open HTTP Proxy Servers
+	score  200 127.0.0.3 # socks.dnsbl.sorbs.net - List of Open SOCKS Proxy Server
+	score  200 127.0.0.4 # misc.dnsbl.sorbs.net - List of open Proxy Servers not listed in the SOCKS or HTTP lists
 	score   25 127.0.0.5 # smtp.dnsbl.sorbs.net - List of Open SMTP relay servers
 	score   25 127.0.0.6 # new.spam.dnsbl.sorbs.net - List of hosts that have been noted as sending spam/UCE/UBE to the admins of SORBS within the last 48 hours.
 	score  100 127.0.0.7 # web.dnsbl.sorbs.net - List of web (WWW) servers which have spammer abusable vulnerabilities (e.g. FormMail scripts) Note: This zone now includes non-webserver IP addresses that have abusable vulnerabilities.
@@ -216,6 +325,37 @@ dnsbl 0 dnsbl.sorbs.net
 	score    0 127.0.0.12 # nomail.rhsbl.sorbs.net - List of domain names where the owners have indicated no email should ever originate from these domains.
 	score    0 127.0.0.14 # noserver.dnsbl.sorbs.net - IP addresses and Netblocks of where system administrators and ISPs owning the network have indicated that servers should not be present.
 
+dnsbl 0 all.spamrats.com
+	score -200 127.0.0.36 # Dyna, IP Addresses that have been found sending an abusive amount of connections, or trying too many invalid users at ISP and Telco's mail servers, and are also known to conform to a naming convention that is indicative of a home connection or dynamic address space.
+	score   45 127.0.0.37 # Noptr, IP Addresses that have been found sending an abusive amount of connections, or trying too many invalid users at ISP and Telco's mail servers, and are also known to have no reverse DNS, a technique often used by bots and spammers
+	score   45 127.0.0.38 # Spam, IP Addresses that do not conform to more commonly known threats, and is usually because of compromised servers, hosts, or open relays. However, since there is little accompanying data this list COULD have false-positives, and we suggest that it only is used if you support a more aggressive stance
+
+dnsbl 0 hostkarma.junkemailfilter.com
+	score -200 127.0.0.1 # whitelist
+	score  100 127.0.0.2 # blacklist
+	score   35 127.0.0.3 # yellowlist
+	score   45 127.0.0.4 # brownlist
+	score -200 127.0.0.5 # no blacklist
+
+dnsbl 0 rep.mailspike.net # IP Reputation
+	score  200 127.0.0.10 # Worst possible
+	score  150 127.0.0.11 # Very bad
+	score  100 127.0.0.12 # Bad
+	score   35 127.0.0.13 # Suspicious
+	score   25 127.0.0.14 # Neutral - probably spam
+	score  -50 127.0.0.15 # Neutral
+	score  -70 127.0.0.16 # Neutral - probably legit
+	score -100 127.0.0.17 # Possibly legit sender
+	score -150 127.0.0.18 # Good
+	score -200 127.0.0.19 # Very Good
+	score -250 127.0.0.20 # Excellent
+
+dnsbl 45 z.mailspike.net # participating in a distributed spam wave in the last 48 hours
+
+dnsbl 35 all.s5h.net
+
+dnsbl 45 b.barracudacentral.org # Barracuda Reputation Block List, http://barracudacentral.org/rbl/listing-methodology
+
 dnsbl 25 spam.dnsbl.sorbs.net #  spam.dnsbl.sorbs.net - List of hosts that have been noted as sending spam/UCE/UBE to the admins of SORBS at any time,  and not subsequently resolving the matter and/or requesting a delisting. (Includes both old.spam.dnsbl.sorbs.net and escalations.dnsbl.sorbs.net).
 
 # cbl.abuseat.org may be also included in xbl.spamhaus.org
@@ -225,28 +365,6 @@ dnsbl 25 spam.dnsbl.sorbs.net #  spam.dnsbl.sorbs.net - List of hosts that have 
 dnsbl 25 dnsbl.justspam.org # If an IP that we never got legit email from is seen spamming and said IP is already listed by at least one of the other well-known and independent blacklists, then it is added to our blacklist dnsbl.justspam.org.
 
 dnsbl 100 korea.services.net # South Korean IP address space - this is not necessarily bad
-
-dnsbl 0 rep.mailspike.net # IP Reputation
-	score  200 127.0.0.10 # Worst possible
-	score  150 127.0.0.11 # Very bad
-	score  100 127.0.0.12 # Bad
-	score   50 127.0.0.13 # Suspicious
-	score   25 127.0.0.14 # Neutral - probably spam
-	score  -50 127.0.0.15 # Neutral
-	score  -70 127.0.0.16 # Neutral - probably legit
-	score -100 127.0.0.17 # Possibly legit sender
-	score -150 127.0.0.18 # Good
-	score -200 127.0.0.19 # Very Good
-	score -250 127.0.0.20 # Excellent
-
-dnsbl 100 z.mailspike.net # participating in a distributed spam wave in the last 48 hours
-
-dnsbl 0 hostkarma.junkemailfilter.com
-	score -200 127.0.0.1 # whitelist
-	score  100 127.0.0.2 # blacklist
-	score   35 127.0.0.3 # yellowlist
-	score   50 127.0.0.4 # brownlist
-	score -200 127.0.0.5 # no blacklist
 
 dnsbl 0 rbl.megarbl.net
 	score 25 127.0.0.2 # spam source
