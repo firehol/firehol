@@ -721,7 +721,7 @@ blacklist() {
 		blacklist_check ${counter} ${ip} ${tscore} "${@}"
 		if [ $? -ne 0 ]
 		then
-			local d=$[tscore - 1 - BLACKLIST_SCORE]
+			local d=$[tscore + 1 - BLACKLIST_SCORE]
 			tscore=$[tscore - d]
 			comment="score ${tscore} from custom check $[-d] and ${counter} lists:${*}"
 		fi
