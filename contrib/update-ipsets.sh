@@ -117,6 +117,7 @@ ipv4_range_to_cidr() {
 	cd "${OLDPWD}"
 }
 
+IGNORE_LASTCHECKED=0
 PUSH_TO_GIT=0
 SILENT=0
 while [ ! -z "${1}" ]
@@ -124,6 +125,7 @@ do
 	case "${1}" in
 		-s) SILENT=1;;
 		-g) PUSH_TO_GIT=1;;
+		-i) IGNORE_LASTCHECKED=1;;
 		*) echo >&2 "Unknown parameter '${1}'".; exit 1 ;;
 	esac
 	shift
@@ -151,8 +153,15 @@ then
 	PUSH_TO_GIT=0
 fi
 
+# convert a number of minutes to a human readable text
 mins_to_text() {
 	local days= hours= mins="${1}"
+
+	if [ -z "${mins}" -o $[mins + 0] -eq 0 ]
+		then
+		echo "none"
+		return 0
+	fi
 
 	days=$[mins / (24*60)]
 	mins=$[mins - (days * 24 * 60)]
@@ -176,8 +185,11 @@ mins_to_text() {
 		*) printf "%d mins " ${mins} ;;
 	esac
 	printf "\n"
+
+	return 0
 }
 
+# Generate the README.md file and push the repo to the remote server
 commit_to_git() {
 	if [ -d .git -a ! -z "${!UPDATED_SETS[*]}" ]
 	then
@@ -215,6 +227,7 @@ trap commit_to_git EXIT
 trap commit_to_git SIGHUP
 trap commit_to_git INT
 
+# touch a file to a relative date in the past
 touch_in_the_past() {
 	local mins_ago="${1}" file="${2}"
 
@@ -224,6 +237,7 @@ touch_in_the_past() {
 }
 touch_in_the_past $[7 * 24 * 60] ".warn_if_last_downloaded_before_this"
 
+# get all the active ipsets in the system
 ipset_list_names() {
 	( ipset --list -t || ipset --list ) | grep "^Name: " | cut -d ' ' -f 2
 }
@@ -241,63 +255,10 @@ do
 done
 test ${SILENT} -ne 1 && echo >&2 "Found these ipsets active: ${!sets[@]}"
 
-aggregate4() {
-	local cmd=
 
-	cmd="`which iprange 2>/dev/null`"
-	if [ ! -z "${cmd}" ]
-	then
-		${cmd} -J
-		return $?
-	fi
-	
-	cmd="`which aggregate-flim 2>/dev/null`"
-	if [ ! -z "${cmd}" ]
-	then
-		${cmd}
-		return $?
-	fi
+# -----------------------------------------------------------------------------
 
-	cmd="`which aggregate 2>/dev/null`"
-	if [ ! -z "${cmd}" ]
-	then
-		sed "s|^\([0-9]\+\.[0-9]\+\.[0-9]\+\.[0-9]\+\\)$|\1/32|g" |\
-			${cmd} -t
-
-		return $?
-	fi
-
-	echo >&2 "Warning: Cannot aggregate ip-ranges. Please install 'aggregate'. Working wihout aggregate."
-	cat
-}
-
-filter_ip4()  { egrep "^[0-9]+\.[0-9]+\.[0-9]+\.[0-9]+$"; }
-filter_net4() { egrep "^[0-9]+\.[0-9]+\.[0-9]+\.[0-9]+/[0-9]+$"; }
-filter_all4() { egrep "^[0-9]+\.[0-9]+\.[0-9]+\.[0-9\.]+(/[0-9]+)?$"; }
-
-filter_ip6()  { egrep "^[0-9a-fA-F:]+$"; }
-filter_net6() { egrep "^[0-9a-fA-F:]+/[0-9]+$"; }
-filter_all6() { egrep "^[0-9a-fA-F:]+(/[0-9]+)?$"; }
-
-remove_slash32() { sed "s|/32$||g"; }
-remove_slash128() { sed "s|/128$||g"; }
-
-append_slash32() {
-	# this command appends '/32' to all the lines
-	# that do not include a slash
-	awk '/\// {print $1; next}; // {print $1 "/32" }'	
-}
-
-append_slash128() {
-	# this command appends '/32' to all the lines
-	# that do not include a slash
-	awk '/\// {print $1; next}; // {print $1 "/128" }'	
-}
-
-filter_invalid4() {
-	egrep -v "^(0\.0\.0\.0|0\.0\.0\.0/0|255\.255\.255\.255|255\.255\.255\.255/0)$"
-}
-
+# check if a file is too old
 check_file_too_old() {
 	local ipset="${1}" file="${2}"
 
@@ -350,7 +311,7 @@ history_manager() {
 	return 0
 }
 
-# fetch a url by either curl or wget
+# fetch a url
 # the output file has the last modified timestamp
 # of the server
 # on the next run, the file is downloaded only
@@ -372,18 +333,25 @@ geturl() {
 	return ${ret}
 }
 
+# download a file if it has not been downloaded in the last $mins
 download_url() {
 	local 	ipset="${1}" mins="${2}" url="${3}" \
 		install="${1}" \
-		tmp= now= date=
+		tmp= now= date= check=
 
 	tmp=`mktemp "${install}.tmp-XXXXXXXXXX"` || return 1
 
-	# check if we have to download again
+	# touch a file $mins ago
 	touch_in_the_past "${mins}" "${tmp}"
-	if [ "${install}.source" -nt "${tmp}" ]
+
+	check="${install}.source"
+	[ ${IGNORE_LASTCHECKED} -eq 0 -a -f "${install}.lastchecked" ] && check="${install}.lastchecked"
+
+	# check if we have to download again
+	if [ "${check}" -nt "${tmp}" ]
 	then
 		rm "${tmp}"
+		touch "${install}.lastchecked"
 		echo >&2 "${ipset}: should not be downloaded so soon."
 		return 0
 	fi
@@ -396,6 +364,7 @@ download_url() {
 		99)
 			echo >&2 "${ipset}: file on server has not been updated yet"
 			rm "${tmp}"
+			touch "${install}.lastchecked"
 			# we have to return success here, so that the ipset will be
 			# created if it does not exist yet
 			return 0
@@ -408,6 +377,9 @@ download_url() {
 			;;
 	esac
 
+	# we downloaded something - remove the lastchecked file
+	[ -f "${install}.lastchecked" ] && rm "${install}.lastchecked"
+
 	# check if the downloaded file is empty
 	if [ ! -s "${tmp}" ]
 	then
@@ -418,7 +390,7 @@ download_url() {
 	fi
 
 	# check if the downloaded file is the same with the last one
-	diff "${install}.source" "${tmp}" >/dev/null 2>&1
+	diff -q "${install}.source" "${tmp}" >/dev/null 2>&1
 	if [ $? -eq 0 ]
 	then
 		# they are the same
@@ -505,13 +477,12 @@ update() {
 			;;
 	esac
 
-	echo >&2
 	if [ ! -f "${install}.source" ]
 	then
-		echo >&2 "${ipset}: is disabled."
-		echo >&2 "${ipset}: to enable it run: touch -t 0001010000 '${base}/${install}.source'"
+		echo >&2 "${ipset}: is disabled, to enable it run: touch -t 0001010000 '${base}/${install}.source'"
 		return 1
 	fi
+	echo >&2
 
 	# download it
 	download_url "${ipset}" "${mins}" "${url}"
@@ -521,6 +492,8 @@ update() {
 		return 1
 	fi
 
+	# support for older systems where hash:net cannot get hash:ip entries
+	# if the .split file exists, create 2 ipsets, one for IPs and one for subnets
 	if [ "${type}" = "split" -o \( -z "${type}" -a -f "${install}.split" \) ]
 	then
 		echo >&2 "${ipset}: spliting IPs and networks..."
@@ -533,7 +506,7 @@ update() {
 		return $?
 	fi
 
-	# if it is newer than our destination
+	# check if the source file has been updated
 	if [ ! "${install}.source" -nt "${install}.${hash}set" ]
 	then
 		echo >&2 "${ipset}: not updated - no reason to process it again."
@@ -541,10 +514,9 @@ update() {
 		return 0
 	fi
 
+	# convert it
 	test ${SILENT} -ne 1 && echo >&2 "${ipset}: converting with processor '${processor}'"
-
 	tmp=`mktemp "${install}.tmp-XXXXXXXXXX"` || return 1
-
 	${processor} <"${install}.source" |\
 		trim |\
 		${pre_filter} |\
@@ -554,9 +526,6 @@ update() {
 		sort -u >"${tmp}"
 	
 	local ret=$?
-
-	# give it the timestamp of the source
-	touch -r "${install}.source" "${tmp}"
 
 	if [ ${ret} -ne 0 ]
 	then
@@ -578,16 +547,25 @@ update() {
 		return 2
 	fi
 
-	if [ $[history_mins + 1 - 1] -gt 0 ]
+	if [ $[history_mins + 0] -gt 0 ]
 	then
 		history_manager "${ipset}" "${history_mins}" "${tmp}"
 	fi
 
-	diff "${install}.${hash}set" "${tmp}" >/dev/null 2>&1
+	# remove the comments from the existing file
+	if [ -f "${install}.${hash}set" ]
+	then
+		cat "${install}.${hash}set" | grep -v "^#" > "${tmp}.old"
+	else
+		touch "${tmp}.old"
+	fi
+
+	# compare the new and the old
+	diff "${tmp}.old" "${tmp}" >/dev/null 2>&1
 	if [ $? -eq 0 ]
 	then
 		# they are the same
-		rm "${tmp}"
+		rm "${tmp}" "${tmp}.old"
 		test ${SILENT} -ne 1 && echo >&2 "${ipset}: processed set is the same with the previous one."
 		
 		# keep the old set, but make it think it was from this source
@@ -596,13 +574,17 @@ update() {
 		check_file_too_old "${ipset}" "${install}.${hash}set"
 		return 0
 	fi
+	rm "${tmp}.old"
 
+	# calculate how many entries/IPs are in it
 	local ipset_opts=
 	local entries=$(wc -l "${tmp}" | cut -d ' ' -f 1)
 	local size=$[ ( ( (entries * 130 / 100) / 65536 ) + 1 ) * 65536 ]
 
+	# if the ipset is not already in memory
 	if [ -z "${sets[$ipset]}" ]
 	then
+		# if the required size is above 65536
 		if [ ${size} -ne 65536 ]
 		then
 			echo >&2 "${ipset}: processed file gave ${entries} results - sizing to ${size} entries"
@@ -614,10 +596,9 @@ update() {
 		ipset --create ${ipset} "${hash}hash" ${ipset_opts} || return 1
 	fi
 
-	#echo >&2 "${ipset}: calling firehol"
+	# call firehol to update the ipset in memory
 	firehol ipset_update_from_file ${ipset} ${ipv} ${type} "${tmp}"
 	ret=$?
-	#echo >&2 "${ipset}: firehol completed"
 
 	if [ ${ret} -ne 0 ]
 	then
@@ -632,19 +613,51 @@ update() {
 		return 1
 	fi
 
-	# all is good. keep it.
-	mv "${tmp}" "${install}.${hash}set" || return 1
+	local ips= quantity=
+
+	# find how many IPs are there
+	ips=${entries}
+	quantity="${ips} unique IPs"
+
+	if [ "${hash}" = "net" ]
+	then
+		entries=${ips}
+		ips=`cat "${tmp}" | cut -d '/' -f 2 | ( sum=0; while read i; do sum=$[sum + (1 << (32 - i))]; done; echo $sum )`
+		quantity="${entries} subnets, ${ips} unique IPs"
+	fi
+
+	# generate the final file
+	# we do this on another tmp file
+	cat >"${tmp}.wh" <<EOFHEADER
+#
+# ${ipset}
+#
+# ${ipv} hash:${hash} ipset
+#
+`echo "${info}" | fold -w 60 -s | sed "s/^/# /g"`
+#
+# Source URL: ${url}
+#
+# Source File Date: `date -r "${install}.source" -u`
+# This File Date  : `date -u`
+# Update Frequency: `mins_to_text ${mins}`
+# Agreegation     : `mins_to_text ${history_mins}`
+# Entries         : ${quantity}
+#
+# Generated by FireHOL's update-ipsets.sh
+#
+EOFHEADER
+
+	cat "${tmp}" >>"${tmp}.wh"
+	rm "${tmp}"
+	touch -r "${install}.source" "${tmp}.wh"
+	mv "${tmp}.wh" "${install}.${hash}set" || return 1
+
 	UPDATED_SETS[${ipset}]="${install}.${hash}set"
 
 	if [ -d .git ]
 	then
-		if [ "${hash}" = "net" ]
-		then
-			local ips=`cat "${install}.${hash}set" | cut -d '/' -f 2 | ( sum=0; while read i; do sum=$[sum + (1 << (32 - i))]; done; echo $sum )`
-			echo >"${install}.setinfo" "${ipset}|${info}|${ipv} hash:${hash}|`wc -l "${install}.${hash}set" | cut -d ' ' -f 1` subnets, ${ips} unique IPs|updated every `mins_to_text ${mins}` from [this link](${url})"
-		else
-			echo >"${install}.setinfo" "${ipset}|${info}|${ipv} hash:${hash}|`wc -l "${install}.${hash}set" | cut -d ' ' -f 1` unique IPs|updated every `mins_to_text ${mins}` from [this link](${url})"
-		fi
+		echo >"${install}.setinfo" "${ipset}|${info}|${ipv} hash:${hash}|${quantity}|updated every `mins_to_text ${mins}` from [this link](${url})"
 
 		git ls-files "${install}.${hash}set" --error-unmatch >/dev/null 2>&1
 		if [ $? -ne 0 ]
@@ -657,8 +670,71 @@ update() {
 	return 0
 }
 
+
+# -----------------------------------------------------------------------------
+# INTERNAL FILTERS
+
+aggregate4() {
+	local cmd=
+
+	cmd="`which iprange 2>/dev/null`"
+	if [ ! -z "${cmd}" ]
+	then
+		${cmd} -J
+		return $?
+	fi
+	
+	cmd="`which aggregate-flim 2>/dev/null`"
+	if [ ! -z "${cmd}" ]
+	then
+		${cmd}
+		return $?
+	fi
+
+	cmd="`which aggregate 2>/dev/null`"
+	if [ ! -z "${cmd}" ]
+	then
+		sed "s|^\([0-9]\+\.[0-9]\+\.[0-9]\+\.[0-9]\+\\)$|\1/32|g" |\
+			${cmd} -t
+
+		return $?
+	fi
+
+	echo >&2 "Warning: Cannot aggregate ip-ranges. Please install 'aggregate'. Working wihout aggregate."
+	cat
+}
+
+filter_ip4()  { egrep "^[0-9]+\.[0-9]+\.[0-9]+\.[0-9]+$"; }
+filter_net4() { egrep "^[0-9]+\.[0-9]+\.[0-9]+\.[0-9]+/[0-9]+$"; }
+filter_all4() { egrep "^[0-9]+\.[0-9]+\.[0-9]+\.[0-9\.]+(/[0-9]+)?$"; }
+
+filter_ip6()  { egrep "^[0-9a-fA-F:]+$"; }
+filter_net6() { egrep "^[0-9a-fA-F:]+/[0-9]+$"; }
+filter_all6() { egrep "^[0-9a-fA-F:]+(/[0-9]+)?$"; }
+
+remove_slash32() { sed "s|/32$||g"; }
+remove_slash128() { sed "s|/128$||g"; }
+
+append_slash32() {
+	# this command appends '/32' to all the lines
+	# that do not include a slash
+	awk '/\// {print $1; next}; // {print $1 "/32" }'	
+}
+
+append_slash128() {
+	# this command appends '/32' to all the lines
+	# that do not include a slash
+	awk '/\// {print $1; next}; // {print $1 "/128" }'	
+}
+
+filter_invalid4() {
+	egrep -v "^(0\.0\.0\.0|0\.0\.0\.0/0|255\.255\.255\.255|255\.255\.255\.255/0)$"
+}
+
+
 # -----------------------------------------------------------------------------
 # XML DOM PARSER
+
 # excellent article about XML parsing is BASH
 # http://stackoverflow.com/questions/893585/how-to-parse-xml-in-bash
 
