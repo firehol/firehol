@@ -281,6 +281,9 @@ blacklist_check() {
 
 	# do anything you like here to check the IP
 
+	# example:
+	# whois "${ip}" | grep -iE "(owner|address|organization)"
+
 	# return 0 = ok, blacklist it
 	# return 1 = no, don't blacklist it
 	return 0
