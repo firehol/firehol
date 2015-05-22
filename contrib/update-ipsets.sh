@@ -189,12 +189,17 @@ mins_to_text() {
 	return 0
 }
 
+syslog() {
+	echo >&2 "${@}"
+	logger -p daemon.info -t "update-ipsets.sh[$$]" "${@}"
+}
+
 # Generate the README.md file and push the repo to the remote server
 commit_to_git() {
 	if [ -d .git -a ! -z "${!UPDATED_SETS[*]}" ]
 	then
 		echo >&2 
-		echo >&2 "Committing ${UPDATED_SETS[@]} README.md to git repository"
+		syslog "Committing ${UPDATED_SETS[@]} README.md to git repository"
 
 		[ ! -f README-EDIT.md ] && touch README-EDIT.md
 		(
@@ -214,7 +219,7 @@ commit_to_git() {
 		if [ ${PUSH_TO_GIT} -ne 0 ]
 		then
 			echo >&2 
-			echo >&2 "Pushing git commits to remote server"
+			syslog "Pushing git commits to remote server"
 			git push
 		fi
 	fi
@@ -264,7 +269,7 @@ check_file_too_old() {
 
 	if [ -f "${file}" -a ".warn_if_last_downloaded_before_this" -nt "${file}" ]
 	then
-		echo >&2 "${ipset}: IMPORTANT: SET DATA ARE TOO OLD!"
+		syslog "${ipset}: DATA ARE TOO OLD!"
 		return 1
 	fi
 	return 0
@@ -351,7 +356,7 @@ download_url() {
 	if [ "${check}" -nt "${tmp}" ]
 	then
 		rm "${tmp}"
-		touch "${install}.lastchecked"
+		touch_in_the_past $[mins / 2] "${install}.lastchecked"
 		echo >&2 "${ipset}: should not be downloaded so soon."
 		return 0
 	fi
@@ -371,7 +376,7 @@ download_url() {
 			;;
 
 		*)
-			echo >&2 "${ipset}: cannot download '${url}'."
+			syslog "${ipset}: cannot download '${url}'."
 			rm "${tmp}"
 			return 1
 			;;
@@ -385,7 +390,7 @@ download_url() {
 	then
 		# it is empty
 		rm "${tmp}"
-		echo >&2 "${ipset}: empty file downloaded from url '${url}'."
+		syslog "${ipset}: empty file downloaded from url '${url}'."
 		return 2
 	fi
 
@@ -472,7 +477,7 @@ update() {
 			esac
 			;;
 
-		*)	echo >&2 "${ipset}: unknown IP version '${ipv}'."
+		*)	syslog "${ipset}: unknown IP version '${ipv}'."
 			return 1
 			;;
 	esac
@@ -482,6 +487,7 @@ update() {
 		echo >&2 "${ipset}: is disabled, to enable it run: touch -t 0001010000 '${base}/${install}.source'"
 		return 1
 	fi
+
 	echo >&2
 
 	# download it
@@ -530,7 +536,7 @@ update() {
 	if [ ${ret} -ne 0 ]
 	then
 		rm "${tmp}"
-		echo >&2 "${ipset}: failed to convert file."
+		syslog "${ipset}: failed to convert file."
 		check_file_too_old "${ipset}" "${install}.${hash}set"
 		return 1
 	fi
@@ -538,7 +544,7 @@ update() {
 	if [ ! -s "${tmp}" ]
 	then
 		rm "${tmp}"
-		echo >&2 "${ipset}: processed file gave no results."
+		syslog "${ipset}: processed file gave no results."
 
 		# keep the old set, but make it think it was from this source
 		touch -r "${install}.source" "${install}.${hash}set"
@@ -561,7 +567,7 @@ update() {
 	fi
 
 	# compare the new and the old
-	diff "${tmp}.old" "${tmp}" >/dev/null 2>&1
+	diff -q "${tmp}.old" "${tmp}" >/dev/null 2>&1
 	if [ $? -eq 0 ]
 	then
 		# they are the same
@@ -608,7 +614,7 @@ update() {
 		else
 			rm "${tmp}"
 		fi
-		echo >&2 "${ipset}: failed to update ipset."
+		syslog "${ipset}: failed to update ipset."
 		check_file_too_old "${ipset}" "${install}.${hash}set"
 		return 1
 	fi
