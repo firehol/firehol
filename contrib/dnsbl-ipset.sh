@@ -268,6 +268,26 @@ DEBUG=0
 
 
 # -----------------------------------------------------------------------------
+# Custom Check on Blacklisted IPs
+
+# this function is called for every IP the tool is going to blacklist
+blacklist_check() {
+	local counter="${1}" ip="${2}" score="${3}"
+	shift 3
+	# counter = the number of DNSBLs matched it
+	# ip      = the IP that is going to be blacklisted
+	# score   = the score this IP got from the all lists
+	# the rest of the parameters are the lists matched it
+
+	# do anything you like here to check the IP
+
+	# return 0 = ok, blacklist it
+	# return 1 = no, don't blacklist it
+	return 0
+}
+
+
+# -----------------------------------------------------------------------------
 # Default Score Configuration
 
 # clear any previous configuration
@@ -516,13 +536,14 @@ fi
 usage() {
 	cat <<EOF
 
-${PROGRAM_FILE} [file IPTABLES_LOG] [grep ULOG_MATCH] [test]
+${PROGRAM_FILE} [file IPTABLES_LOG] [grep ULOG_MATCH] [test] [flush]
 
 defaults:
 IPTABLES_LOG="${IPTABLES_LOG}"
 LOG_MATCH="${ULOG_MATCH}"
 
-test will show the IPs matched from the log file.
+test	will show the IPs matched from the log file.
+flush	will empty ${BLACKLIST_IPSET} and ${CACHE_IPSET} ipsets
 
 EOF
 	exit 0
@@ -532,9 +553,28 @@ TEST_SRC_DST=0
 while [ ! -z "${1}" ]
 do
 	case "${1}" in
-		match|search|grep|-s) ULOG_MATCH="${2}"; shift ;;
-		file|tail|-f) IPTABLES_LOG="${2}"; shift ;;
-		test|-t) TEST_SRC_DST=1; RUNNING_ON_TERMINAL=0 ;;
+		match|search|grep|-s)
+			ULOG_MATCH="${2}"
+			shift
+			;;
+
+		file|tail|-f)
+			IPTABLES_LOG="${2}"
+			shift
+			;;
+
+		test|-t)
+			TEST_SRC_DST=1
+			RUNNING_ON_TERMINAL=0
+			;;
+
+		flush|clear|clean|restart)
+			ipset --flush "${CACHE_IPSET}"
+			ipset --flush "${BLACKLIST_IPSET}"
+			echo >&2 "IP sets ${CACHE_IPSET} and ${BLACKLIST_IPSET} have been flushed."
+			exit 0
+			;;
+
 		help|-h|--help) usage ;;
 		*) echo >&2 "Cannot understand option '${1}'."; usage ;;
 	esac
@@ -574,6 +614,16 @@ if [ $? -ne 0 ]
 then
 	ipset --create ${CACHE_IPSET} hash:ip ${CACHE_IPSET_CREATE_OPTIONS} || exit 1
 fi
+
+for ipset in ${EXCLUSION_IPSETS}
+do
+	ipset --list ${ipset} -t >/dev/null
+	if [ $? -ne 0 ]
+	then
+		echo >&2 "ipset '${ipset}' does not exist. Please set EXCLUSION_IPSETS properly."
+		exit 1
+	fi
+done
 
 cleanup() {
 	echo >&2 "Cleaning up..."
@@ -664,6 +714,17 @@ blacklist() {
 		comment="score ${tscore} from ${counter} list:${*}"
 	else
 		comment="score ${tscore} from ${counter} lists:${*}"
+	fi
+
+	if [ ${tscore} -ge ${BLACKLIST_SCORE} ]
+		then
+		blacklist_check ${counter} ${ip} ${tscore} "${@}"
+		if [ $? -ne 0 ]
+		then
+			local d=$[tscore - 1 - BLACKLIST_SCORE]
+			tscore=$[tscore - d]
+			comment="score ${tscore} from custom check $[-d] and ${counter} lists:${*}"
+		fi
 	fi
 
 	if [ ${tscore} -ge ${BLACKLIST_SCORE} ]
