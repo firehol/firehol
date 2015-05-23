@@ -356,7 +356,6 @@ download_url() {
 	if [ "${check}" -nt "${tmp}" ]
 	then
 		rm "${tmp}"
-		touch_in_the_past $[mins / 2] "${install}.lastchecked"
 		echo >&2 "${ipset}: should not be downloaded so soon."
 		return 0
 	fi
@@ -369,7 +368,7 @@ download_url() {
 		99)
 			echo >&2 "${ipset}: file on server has not been updated yet"
 			rm "${tmp}"
-			touch "${install}.lastchecked"
+			touch_in_the_past $[mins / 2] "${install}.lastchecked"
 			# we have to return success here, so that the ipset will be
 			# created if it does not exist yet
 			return 0
@@ -920,6 +919,80 @@ gz_second_word() {
 		cut -d ' ' -f 2
 }
 
+maxmind_geolite2_country() {
+	local file="${1}"
+
+	[ -d maxmind_geolite2_country ] && rm -rf maxmind_geolite2_country
+	mkdir maxmind_geolite2_country
+
+	# The country db has the following columns:
+	# 1. network 				the subnet
+	# 2. geoname_id 			the country code it is used
+	# 3. registered_country_geoname_id 	the country code it is registered
+	# 4. represented_country_geoname_id 	the country code it belongs to (army bases)
+	# 5. is_anonymous_proxy 		boolean: VPN providers, etc
+	# 6. is_satellite_provider 		boolean: cross-country providers
+
+	echo >&2 "Extracting country and continent netsets..."
+	unzip -jpx "${file}" "*/GeoLite2-Country-Blocks-IPv4.csv" |\
+		awk -F, '
+		{
+			if( $2 )        { print $1 >"maxmind_geolite2_country/country."$2".source.tmp" }
+			if( $3 )        { print $1 >"maxmind_geolite2_country/country."$3".source.tmp" }
+			if( $4 )        { print $1 >"maxmind_geolite2_country/country."$4".source.tmp" }
+			if( $5 == "1" ) { print $1 >"maxmind_geolite2_country/anonymous.source.tmp" }
+			if( $6 == "1" ) { print $1 >"maxmind_geolite2_country/satellite.source.tmp" }
+		}'
+
+	# remove the files created of the header line
+	[ -f "maxmind_geolite2_country/country.geoname_id.source.tmp"                     ] && rm "maxmind_geolite2_country/country.geoname_id.source.tmp"
+	[ -f "maxmind_geolite2_country/country.registered_country_geoname_id.source.tmp"  ] && rm "maxmind_geolite2_country/country.registered_country_geoname_id.source.tmp"
+	[ -f "maxmind_geolite2_country/country.represented_country_geoname_id.source.tmp" ] && rm "maxmind_geolite2_country/country.represented_country_geoname_id.source.tmp"
+
+	# The localization db has the following columns:
+	# geoname_id
+	# locale_code
+	# continent_code
+	# continent_name
+	# country_iso_code
+	# country_name
+
+	echo >&2 "Grouping country and continent netsets..."
+	unzip -jpx "${file}" "*/GeoLite2-Country-Locations-en.csv" |\
+	(
+		IFS=","
+		while read id locale cid cname iso name
+		do
+			[ "${id}" = "geoname_id" ] && continue
+
+			cname="${cname// /_}"
+			cname="${cname//\"/}"
+			cname="${cname,,}"
+
+			name="${name// /_}"
+			name="${name//\"/}"
+			name="${name,,}"
+			
+			if [ -f "maxmind_geolite2_country/country.${id}.source.tmp" ]
+			then
+				[ ! -z "${cid}" ] && cat "maxmind_geolite2_country/country.${id}.source.tmp" >>"maxmind_geolite2_country/continent_${cid,,}_(${cname}).source.tmp"
+				[ ! -z "${iso}" ] && cat "maxmind_geolite2_country/country.${id}.source.tmp" >>"maxmind_geolite2_country/country_${iso,,}_(${name}).source.tmp"
+				rm "maxmind_geolite2_country/country.${id}.source.tmp"
+			else
+				echo >&2 "WARNING: geoname_id ${id} does not exist!"
+			fi
+		done
+	)
+
+	echo >&2 "Aggregating country and continent netsets..."
+	for x in maxmind_geolite2_country/*.source.tmp
+	do
+		cat "${x}" | sort -u | aggregate4 >"${x/.source.tmp/.source}"
+		touch -r "${file}" "${x/.source.tmp/.source}"
+		rm "${x}"
+	done
+}
+
 # -----------------------------------------------------------------------------
 # CONFIGURATION
 
@@ -1184,6 +1257,7 @@ update malc0de $[24*60] 0 ipv4 ip \
 	"http://malc0de.com/bl/IP_Blacklist.txt" \
 	remove_comments \
 	"[Malc0de.com](http://malc0de.com) malicious IPs of the last 30 days"
+
 
 # -----------------------------------------------------------------------------
 # Stop Forum Spam
