@@ -5206,7 +5206,10 @@ ipset_list_active_names() {
 }
 
 ipset_save_active_to_spool() {
-	${IPSET_CMD} ${IPSET_SAVE_OPTION} >"${FIREHOL_SPOOL_DIR}/last.ipset.save"
+	# this is extremely slow when there are big ipsets in memory
+	# 
+	# ${IPSET_CMD} ${IPSET_SAVE_OPTION} >"${FIREHOL_SPOOL_DIR}/last.ipset.save"
+	:
 }
 
 # keep track of all the ipsets the firewall uses
