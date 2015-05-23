@@ -195,26 +195,43 @@ syslog() {
 }
 
 # Generate the README.md file and push the repo to the remote server
+declare -A UPDATED_DIRS=()
+declare -A UPDATED_SETS=()
+
+check_git_committed() {
+	git ls-files "${1}" --error-unmatch >/dev/null 2>&1
+	if [ $? -ne 0 ]
+		then
+		git add "${1}"
+	fi
+}
+
 commit_to_git() {
 	if [ -d .git -a ! -z "${!UPDATED_SETS[*]}" ]
 	then
-		echo >&2 
-		syslog "Committing ${UPDATED_SETS[@]} README.md to git repository"
+		local d=
+		for d in "${!UPDATED_DIRS[@]}"
+		do
+			[ ! -f ${d}/README-EDIT.md ] && touch ${d}/README-EDIT.md
+			(
+				cat ${d}/README-EDIT.md
+				echo
+				echo "The following list was automatically generated on `date -u`."
+				echo
+				echo "The update frequency is the maximum allowed by internal configuration. A list will never be downloaded sooner than the update frequency stated. A list may also not be downloaded, after this frequency expired, if it has not been modified on the server (as reported by HTTP \`IF_MODIFIED_SINCE\` method)."
+				echo
+				echo "name|info|type|entries|update|"
+				echo ":--:|:--:|:--:|:-----:|:----:|"
+				cat ${d}/*.setinfo
+			) >${d}/README.md
 
-		[ ! -f README-EDIT.md ] && touch README-EDIT.md
-		(
-			cat README-EDIT.md
-			echo
-			echo "The following list was automatically generated on `date -u`."
-			echo
-			echo "The update frequency is the maximum allowed by internal configuration. A list will never be downloaded sooner than the update frequency stated. A list may also not be downloaded, after this frequency expired, if it has not been modified on the server (as reported by HTTP \`IF_MODIFIED_SINCE\` method)."
-			echo
-			echo "name|info|type|entries|update|"
-			echo ":--:|:--:|:--:|:-----:|:----:|"
-			cat *.setinfo
-		) >README.md
-		
-		git commit "${UPDATED_SETS[@]}" README.md -m "`date -u` update"
+			UPDATED_SETS[${d}/README.md]="${d}/README.md"
+			check_git_committed "${d}/README.md"
+		done
+
+		echo >&2 
+		syslog "Committing ${UPDATED_SETS[@]} to git repository"
+		git commit "${UPDATED_SETS[@]}" -m "`date -u` update"
 
 		if [ ${PUSH_TO_GIT} -ne 0 ]
 		then
@@ -339,12 +356,15 @@ geturl() {
 }
 
 # download a file if it has not been downloaded in the last $mins
+DOWNLOAD_OK=0
+DOWNLOAD_FAILED=1
+DOWNLOAD_NOT_UPDATED=2
 download_url() {
 	local 	ipset="${1}" mins="${2}" url="${3}" \
 		install="${1}" \
 		tmp= now= date= check=
 
-	tmp=`mktemp "${install}.tmp-XXXXXXXXXX"` || return 1
+	tmp=`mktemp "${install}.tmp-XXXXXXXXXX"` || return ${DOWNLOAD_FAILED}
 
 	# touch a file $mins ago
 	touch_in_the_past "${mins}" "${tmp}"
@@ -357,7 +377,7 @@ download_url() {
 	then
 		rm "${tmp}"
 		echo >&2 "${ipset}: should not be downloaded so soon."
-		return 0
+		return ${DOWNLOAD_NOT_UPDATED}
 	fi
 
 	# download it
@@ -369,15 +389,13 @@ download_url() {
 			echo >&2 "${ipset}: file on server has not been updated yet"
 			rm "${tmp}"
 			touch_in_the_past $[mins / 2] "${install}.lastchecked"
-			# we have to return success here, so that the ipset will be
-			# created if it does not exist yet
-			return 0
+			return ${DOWNLOAD_NOT_UPDATED}
 			;;
 
 		*)
 			syslog "${ipset}: cannot download '${url}'."
 			rm "${tmp}"
-			return 1
+			return ${DOWNLOAD_FAILED}
 			;;
 	esac
 
@@ -390,7 +408,7 @@ download_url() {
 		# it is empty
 		rm "${tmp}"
 		syslog "${ipset}: empty file downloaded from url '${url}'."
-		return 2
+		return ${DOWNLOAD_FAILED}
 	fi
 
 	# check if the downloaded file is the same with the last one
@@ -402,20 +420,133 @@ download_url() {
 
 		# copy the timestamp of the downloaded to our file
 		touch -r "${tmp}" "${install}.source"
-
 		rm "${tmp}"
-
-		# return success so that the set will be create
-		# if it does not already exist.
-		return 0
+		return ${DOWNLOAD_NOT_UPDATED}
 	fi
 
 	# move it to its place
 	test ${SILENT} -ne 1 && echo >&2 "${ipset}: saving downloaded file to ${install}.source"
-	mv "${tmp}" "${install}.source" || return 1
+	mv "${tmp}" "${install}.source" || return ${DOWNLOAD_FAILED}
+
+	return ${DOWNLOAD_OK}
 }
 
-declare -A UPDATED_SETS=()
+finalize() {
+	local ipset="${1}" tmp="${2}" setinfo="${3}" src="${4}" dst="${5}" mins="${6}" history_mins="${7}" ipv="${8}" type="${9}" hash="${10}" url="${11}" info="${12}"
+
+	# remove the comments from the existing file
+	if [ -f "${dst}" ]
+	then
+		cat "${dst}" | grep -v "^#" > "${tmp}.old"
+	else
+		touch "${tmp}.old"
+	fi
+
+	# compare the new and the old
+	diff -q "${tmp}.old" "${tmp}" >/dev/null 2>&1
+	if [ $? -eq 0 ]
+	then
+		# they are the same
+		rm "${tmp}" "${tmp}.old"
+		test ${SILENT} -ne 1 && echo >&2 "${ipset}: processed set is the same with the previous one."
+		
+		# keep the old set, but make it think it was from this source
+		touch -r "${src}" "${dst}"
+
+		check_file_too_old "${ipset}" "${dst}"
+		return 0
+	fi
+	rm "${tmp}.old"
+
+	# calculate how many entries/IPs are in it
+	local ipset_opts=
+	local entries=$(wc -l "${tmp}" | cut -d ' ' -f 1)
+	local size=$[ ( ( (entries * 130 / 100) / 65536 ) + 1 ) * 65536 ]
+
+	# if the ipset is not already in memory
+	if [ -z "${sets[$ipset]}" ]
+	then
+		# if the required size is above 65536
+		if [ ${size} -ne 65536 ]
+		then
+			echo >&2 "${ipset}: processed file gave ${entries} results - sizing to ${size} entries"
+			echo >&2 "${ipset}: remember to append this to your ipset line (in firehol.conf): maxelem ${size}"
+			ipset_opts="maxelem ${size}"
+		fi
+
+		echo >&2 "${ipset}: creating ipset with ${entries} entries"
+		ipset --create ${ipset} "${hash}hash" ${ipset_opts} || return 1
+	fi
+
+	# call firehol to update the ipset in memory
+	firehol ipset_update_from_file ${ipset} ${ipv} ${type} "${tmp}"
+	if [ $? -ne 0 ]
+	then
+		if [ -d errors ]
+		then
+			mv "${tmp}" "errors/${ipset}.${hash}set"
+			syslog "${ipset}: failed to update ipset (error file left for you as 'errors/${ipset}.${hash}set')."
+		else
+			rm "${tmp}"
+			syslog "${ipset}: failed to update ipset."
+		fi
+		check_file_too_old "${ipset}" "${dst}"
+		return 1
+	fi
+
+	local ips= quantity=
+
+	# find how many IPs are there
+	ips=${entries}
+	quantity="${ips} unique IPs"
+
+	if [ "${hash}" = "net" ]
+	then
+		entries=${ips}
+		ips=`cat "${tmp}" | cut -d '/' -f 2 | ( sum=0; while read i; do sum=$[sum + (1 << (32 - i))]; done; echo $sum )`
+		quantity="${entries} subnets, ${ips} unique IPs"
+	fi
+
+	# generate the final file
+	# we do this on another tmp file
+	cat >"${tmp}.wh" <<EOFHEADER
+#
+# ${ipset}
+#
+# ${ipv} hash:${hash} ipset
+#
+`echo "${info}" | fold -w 60 -s | sed "s/^/# /g"`
+#
+# Source URL: ${url}
+#
+# Source File Date: `date -r "${src}" -u`
+# This File Date  : `date -u`
+# Update Frequency: `mins_to_text ${mins}`
+# Aggregation     : `mins_to_text ${history_mins}`
+# Entries         : ${quantity}
+#
+# Generated by FireHOL's update-ipsets.sh
+#
+EOFHEADER
+
+	cat "${tmp}" >>"${tmp}.wh"
+	rm "${tmp}"
+	touch -r "${src}" "${tmp}.wh"
+	mv "${tmp}.wh" "${dst}" || return 1
+
+	UPDATED_SETS[${ipset}]="${dst}"
+	local dir="`dirname "${dst}"`"
+	UPDATED_DIRS[${dir}]="${dir}"
+
+	if [ -d .git ]
+	then
+		echo >"${setinfo}" "${ipset}|${info}|${ipv} hash:${hash}|${quantity}|updated every `mins_to_text ${mins}` from [this link](${url})"
+		check_git_committed "${dst}"
+	fi
+
+	return 0
+}
+
 update() {
 	local 	ipset="${1}" mins="${2}" history_mins="${3}" ipv="${4}" type="${5}" url="${6}" processor="${7-cat}" info="${8}"
 		install="${1}" tmp= error=0 now= date= pre_filter="cat" post_filter="cat" post_filter2="cat" filter="cat"
@@ -487,11 +618,9 @@ update() {
 		return 1
 	fi
 
-	echo >&2
-
 	# download it
 	download_url "${ipset}" "${mins}" "${url}"
-	if [ $? -ne 0 ]
+	if [ $? -eq ${DOWNLOAD_FAILED} -o \( $? -eq ${DOWNLOAD_NOT_UPDATED} -a -f "${install}.${hash}set" \) ]
 	then
 		check_file_too_old "${ipset}" "${install}.${hash}set"
 		return 1
@@ -530,9 +659,7 @@ update() {
 		${post_filter2} |\
 		sort -u >"${tmp}"
 	
-	local ret=$?
-
-	if [ ${ret} -ne 0 ]
+	if [ $? -ne 0 ]
 	then
 		rm "${tmp}"
 		syslog "${ipset}: failed to convert file."
@@ -557,122 +684,9 @@ update() {
 		history_manager "${ipset}" "${history_mins}" "${tmp}"
 	fi
 
-	# remove the comments from the existing file
-	if [ -f "${install}.${hash}set" ]
-	then
-		cat "${install}.${hash}set" | grep -v "^#" > "${tmp}.old"
-	else
-		touch "${tmp}.old"
-	fi
 
-	# compare the new and the old
-	diff -q "${tmp}.old" "${tmp}" >/dev/null 2>&1
-	if [ $? -eq 0 ]
-	then
-		# they are the same
-		rm "${tmp}" "${tmp}.old"
-		test ${SILENT} -ne 1 && echo >&2 "${ipset}: processed set is the same with the previous one."
-		
-		# keep the old set, but make it think it was from this source
-		touch -r "${install}.source" "${install}.${hash}set"
-
-		check_file_too_old "${ipset}" "${install}.${hash}set"
-		return 0
-	fi
-	rm "${tmp}.old"
-
-	# calculate how many entries/IPs are in it
-	local ipset_opts=
-	local entries=$(wc -l "${tmp}" | cut -d ' ' -f 1)
-	local size=$[ ( ( (entries * 130 / 100) / 65536 ) + 1 ) * 65536 ]
-
-	# if the ipset is not already in memory
-	if [ -z "${sets[$ipset]}" ]
-	then
-		# if the required size is above 65536
-		if [ ${size} -ne 65536 ]
-		then
-			echo >&2 "${ipset}: processed file gave ${entries} results - sizing to ${size} entries"
-			echo >&2 "${ipset}: remember to append this to your ipset line (in firehol.conf): maxelem ${size}"
-			ipset_opts="maxelem ${size}"
-		fi
-
-		echo >&2 "${ipset}: creating ipset with ${entries} entries"
-		ipset --create ${ipset} "${hash}hash" ${ipset_opts} || return 1
-	fi
-
-	# call firehol to update the ipset in memory
-	firehol ipset_update_from_file ${ipset} ${ipv} ${type} "${tmp}"
-	ret=$?
-
-	if [ ${ret} -ne 0 ]
-	then
-		if [ -d errors ]
-		then
-			mv "${tmp}" "errors/${ipset}.${hash}set"
-		else
-			rm "${tmp}"
-		fi
-		syslog "${ipset}: failed to update ipset."
-		check_file_too_old "${ipset}" "${install}.${hash}set"
-		return 1
-	fi
-
-	local ips= quantity=
-
-	# find how many IPs are there
-	ips=${entries}
-	quantity="${ips} unique IPs"
-
-	if [ "${hash}" = "net" ]
-	then
-		entries=${ips}
-		ips=`cat "${tmp}" | cut -d '/' -f 2 | ( sum=0; while read i; do sum=$[sum + (1 << (32 - i))]; done; echo $sum )`
-		quantity="${entries} subnets, ${ips} unique IPs"
-	fi
-
-	# generate the final file
-	# we do this on another tmp file
-	cat >"${tmp}.wh" <<EOFHEADER
-#
-# ${ipset}
-#
-# ${ipv} hash:${hash} ipset
-#
-`echo "${info}" | fold -w 60 -s | sed "s/^/# /g"`
-#
-# Source URL: ${url}
-#
-# Source File Date: `date -r "${install}.source" -u`
-# This File Date  : `date -u`
-# Update Frequency: `mins_to_text ${mins}`
-# Agreegation     : `mins_to_text ${history_mins}`
-# Entries         : ${quantity}
-#
-# Generated by FireHOL's update-ipsets.sh
-#
-EOFHEADER
-
-	cat "${tmp}" >>"${tmp}.wh"
-	rm "${tmp}"
-	touch -r "${install}.source" "${tmp}.wh"
-	mv "${tmp}.wh" "${install}.${hash}set" || return 1
-
-	UPDATED_SETS[${ipset}]="${install}.${hash}set"
-
-	if [ -d .git ]
-	then
-		echo >"${install}.setinfo" "${ipset}|${info}|${ipv} hash:${hash}|${quantity}|updated every `mins_to_text ${mins}` from [this link](${url})"
-
-		git ls-files "${install}.${hash}set" --error-unmatch >/dev/null 2>&1
-		if [ $? -ne 0 ]
-			then
-			echo >&2 "${ipset}: adding it to git"
-			git add "${install}.${hash}set"
-		fi
-	fi
-
-	return 0
+	finalize "${ipset}" "${tmp}" "${install}.setinfo" "${install}.source" "${install}.${hash}set" "${mins}" "${history_mins}" "${ipv}" "${type}" "${hash}" "${url}" "${info}"
+	return $?
 }
 
 
@@ -919,11 +933,33 @@ gz_second_word() {
 		cut -d ' ' -f 2
 }
 
-maxmind_geolite2_country() {
-	local file="${1}"
+geolite2_country() {
+	local ipset="geolite2_country" type="net" hash="net" ipv="ipv4" \
+		mins=$[24 * 60 * 7] history_mins=0 \
+		url="http://geolite.maxmind.com/download/geoip/database/GeoLite2-Country-CSV.zip" \
+		info="[MaxMind GeoLite2](http://dev.maxmind.com/geoip/geoip2/geolite2/)"
 
-	[ -d maxmind_geolite2_country ] && rm -rf maxmind_geolite2_country
-	mkdir maxmind_geolite2_country
+	if [ ! -f "${ipset}.source" ]
+	then
+		echo >&2 "${ipset}: is disabled, to enable it run: touch -t 0001010000 '${base}/${ipset}.source'"
+		return 1
+	fi
+
+	# download it
+	download_url "${ipset}" "${mins}" "${url}"
+	[ $? -eq ${DOWNLOAD_FAILED} -o \( $? -eq ${DOWNLOAD_NOT_UPDATED} -a -d ${ipset} \) ] && return 1
+
+	# create a temp dir
+	[ -d ${ipset}.tmp ] && rm -rf ${ipset}.tmp
+	mkdir ${ipset}.tmp || return 1
+
+	# create the final dir
+	if [ ! -d ${ipset} ]
+	then
+		mkdir ${ipset} || return 1
+	fi
+
+	# extract it
 
 	# The country db has the following columns:
 	# 1. network 				the subnet
@@ -933,65 +969,96 @@ maxmind_geolite2_country() {
 	# 5. is_anonymous_proxy 		boolean: VPN providers, etc
 	# 6. is_satellite_provider 		boolean: cross-country providers
 
-	echo >&2 "Extracting country and continent netsets..."
-	unzip -jpx "${file}" "*/GeoLite2-Country-Blocks-IPv4.csv" |\
+	echo >&2 "${ipset}: Extracting country and continent netsets..."
+	unzip -jpx "${ipset}.source" "*/GeoLite2-Country-Blocks-IPv4.csv" |\
 		awk -F, '
 		{
-			if( $2 )        { print $1 >"maxmind_geolite2_country/country."$2".source.tmp" }
-			if( $3 )        { print $1 >"maxmind_geolite2_country/country."$3".source.tmp" }
-			if( $4 )        { print $1 >"maxmind_geolite2_country/country."$4".source.tmp" }
-			if( $5 == "1" ) { print $1 >"maxmind_geolite2_country/anonymous.source.tmp" }
-			if( $6 == "1" ) { print $1 >"maxmind_geolite2_country/satellite.source.tmp" }
+			if( $2 )        { print $1 >"geolite2_country.tmp/country."$2".source.tmp" }
+			if( $3 )        { print $1 >"geolite2_country.tmp/country."$3".source.tmp" }
+			if( $4 )        { print $1 >"geolite2_country.tmp/country."$4".source.tmp" }
+			if( $5 == "1" ) { print $1 >"geolite2_country.tmp/anonymous.source.tmp" }
+			if( $6 == "1" ) { print $1 >"geolite2_country.tmp/satellite.source.tmp" }
 		}'
 
 	# remove the files created of the header line
-	[ -f "maxmind_geolite2_country/country.geoname_id.source.tmp"                     ] && rm "maxmind_geolite2_country/country.geoname_id.source.tmp"
-	[ -f "maxmind_geolite2_country/country.registered_country_geoname_id.source.tmp"  ] && rm "maxmind_geolite2_country/country.registered_country_geoname_id.source.tmp"
-	[ -f "maxmind_geolite2_country/country.represented_country_geoname_id.source.tmp" ] && rm "maxmind_geolite2_country/country.represented_country_geoname_id.source.tmp"
+	[ -f "${ipset}.tmp/country.geoname_id.source.tmp"                     ] && rm "${ipset}.tmp/country.geoname_id.source.tmp"
+	[ -f "${ipset}.tmp/country.registered_country_geoname_id.source.tmp"  ] && rm "${ipset}.tmp/country.registered_country_geoname_id.source.tmp"
+	[ -f "${ipset}.tmp/country.represented_country_geoname_id.source.tmp" ] && rm "${ipset}.tmp/country.represented_country_geoname_id.source.tmp"
 
 	# The localization db has the following columns:
-	# geoname_id
-	# locale_code
-	# continent_code
-	# continent_name
-	# country_iso_code
-	# country_name
+	# 1. geoname_id
+	# 2. locale_code
+	# 3. continent_code
+	# 4. continent_name
+	# 5. country_iso_code
+	# 6. country_name
 
-	echo >&2 "Grouping country and continent netsets..."
-	unzip -jpx "${file}" "*/GeoLite2-Country-Locations-en.csv" |\
+	echo >&2 "${ipset}: Grouping country and continent netsets..."
+	unzip -jpx "${ipset}.source" "*/GeoLite2-Country-Locations-en.csv" |\
 	(
 		IFS=","
 		while read id locale cid cname iso name
 		do
 			[ "${id}" = "geoname_id" ] && continue
 
-			cname="${cname// /_}"
 			cname="${cname//\"/}"
-			cname="${cname,,}"
-
-			name="${name// /_}"
+			cname="${cname//[/(}"
+			cname="${cname//]/)}"
 			name="${name//\"/}"
-			name="${name,,}"
+			name="${name//[/(}"
+			name="${name//]/)}"
 			
-			if [ -f "maxmind_geolite2_country/country.${id}.source.tmp" ]
+			if [ -f "${ipset}.tmp/country.${id}.source.tmp" ]
 			then
-				[ ! -z "${cid}" ] && cat "maxmind_geolite2_country/country.${id}.source.tmp" >>"maxmind_geolite2_country/continent_${cid,,}_(${cname}).source.tmp"
-				[ ! -z "${iso}" ] && cat "maxmind_geolite2_country/country.${id}.source.tmp" >>"maxmind_geolite2_country/country_${iso,,}_(${name}).source.tmp"
-				rm "maxmind_geolite2_country/country.${id}.source.tmp"
+				[ ! -z "${cid}" ] && cat "${ipset}.tmp/country.${id}.source.tmp" >>"${ipset}.tmp/continent_${cid,,}.source.tmp"
+				[ ! -z "${iso}" ] && cat "${ipset}.tmp/country.${id}.source.tmp" >>"${ipset}.tmp/country_${iso,,}.source.tmp"
+				rm "${ipset}.tmp/country.${id}.source.tmp"
+
+				[ ! -f "${ipset}.tmp/continent_${cid,,}.source.tmp.info" ] && printf "%s" "${cname} (${cid}), with countries: " >"${ipset}.tmp/continent_${cid,,}.source.tmp.info"
+				printf "%s" "${name} (${iso}), " >>"${ipset}.tmp/continent_${cid,,}.source.tmp.info"
+				printf "%s" "${name} (${iso})" >"${ipset}.tmp/country_${iso,,}.source.tmp.info"
 			else
-				echo >&2 "WARNING: geoname_id ${id} does not exist!"
+				echo >&2 "${ipset}: WARNING: geoname_id ${id} does not exist!"
 			fi
 		done
 	)
+	printf "%s" "Anonymous Service Providers" >"${ipset}.tmp/anonymous.source.tmp.info"
+	printf "%s" "Satellite Service Providers" >"${ipset}.tmp/satellite.source.tmp.info"
 
-	echo >&2 "Aggregating country and continent netsets..."
-	for x in maxmind_geolite2_country/*.source.tmp
+	echo >&2 "${ipset}: Aggregating country and continent netsets..."
+	local x=
+	for x in ${ipset}.tmp/*.source.tmp
 	do
-		cat "${x}" | sort -u | aggregate4 >"${x/.source.tmp/.source}"
-		touch -r "${file}" "${x/.source.tmp/.source}"
+		cat "${x}" |\
+			sort -u |\
+			filter_net4 |\
+			aggregate4 |\
+			filter_invalid4 >"${x/.source.tmp/.source}"
+
+		touch -r "${ipset}.source" "${x/.source.tmp/.source}"
 		rm "${x}"
+		
+		local i=${x/.source.tmp/}
+		i=${i/${ipset}.tmp\//}
+
+		local info2="`cat "${x}.info"` -- ${info}"
+
+		finalize "${i}" "${x/.source.tmp/.source}" "${ipset}/${i}.setinfo" "${ipset}.source" "${ipset}/${i}.netset" "${mins}" "${history_mins}" "${ipv}" "${type}" "${hash}" "${url}" "${info2}"
 	done
+
+	if [ -d .git ]
+	then
+		# generate a setinfo for the home page
+		echo >"${ipset}.setinfo" "${ipset}|[MaxMind GeoLite2](http://dev.maxmind.com/geoip/geoip2/geolite2/) databases are free IP geolocation databases comparable to, but less accurate than, MaxMind’s GeoIP2 databases. They include IPs per country, IPs per continent, IPs used by anonymous services (VPNs, Proxies, etc) and Satellite Providers.|ipv4 hash:net|All the world|updated every `mins_to_text ${mins}` from [this link](${url})"
+	fi
+
+	# remove the temporary dir
+	rm -rf "${ipset}.tmp"
+
+	return 0
 }
+
+echo >&2
 
 # -----------------------------------------------------------------------------
 # CONFIGURATION
@@ -1038,48 +1105,55 @@ maxmind_geolite2_country() {
 #         ipset:compromised \
 #
 
+
+# -----------------------------------------------------------------------------
+# MaxMind
+
+geolite2_country
+
+
 # -----------------------------------------------------------------------------
 # www.openbl.org
 
 update openbl $[4*60] 0 ipv4 ip \
 	"http://www.openbl.org/lists/base.txt.gz" \
 	gz_remove_comments \
-	"[OpenBL.org](http://www.openbl.org/) default blacklist (currently it is the same with 90 days)"
+	"[OpenBL.org](http://www.openbl.org/) default blacklist (currently it is the same with 90 days). OpenBL.org is detecting, logging and reporting various types of internet abuse. Currently they monitor ports 21 (FTP), 22 (SSH), 23 (TELNET), 25 (SMTP), 110 (POP3), 143 (IMAP), 587 (Submission), 993 (IMAPS) and 995 (POP3S) for bruteforce login attacks as well as scans on ports 80 (HTTP) and 443 (HTTPS) for vulnerable installations of phpMyAdmin and other web applications - **excellent list**"
 
 update openbl_1d $[4*60] 0 ipv4 ip \
 	"http://www.openbl.org/lists/base_1days.txt.gz" \
 	gz_remove_comments \
-	"[OpenBL.org](http://www.openbl.org/) last 24 hours IPs"
+	"[OpenBL.org](http://www.openbl.org/) last 24 hours IPs.  OpenBL.org is detecting, logging and reporting various types of internet abuse. Currently they monitor ports 21 (FTP), 22 (SSH), 23 (TELNET), 25 (SMTP), 110 (POP3), 143 (IMAP), 587 (Submission), 993 (IMAPS) and 995 (POP3S) for bruteforce login attacks as well as scans on ports 80 (HTTP) and 443 (HTTPS) for vulnerable installations of phpMyAdmin and other web applications."
 
 update openbl_7d $[4*60] 0 ipv4 ip \
 	"http://www.openbl.org/lists/base_7days.txt.gz" \
 	gz_remove_comments \
-	"[OpenBL.org](http://www.openbl.org/) last 7 days IPs"
+	"[OpenBL.org](http://www.openbl.org/) last 7 days IPs.  OpenBL.org is detecting, logging and reporting various types of internet abuse. Currently they monitor ports 21 (FTP), 22 (SSH), 23 (TELNET), 25 (SMTP), 110 (POP3), 143 (IMAP), 587 (Submission), 993 (IMAPS) and 995 (POP3S) for bruteforce login attacks as well as scans on ports 80 (HTTP) and 443 (HTTPS) for vulnerable installations of phpMyAdmin and other web applications."
 
 update openbl_30d $[4*60] 0 ipv4 ip \
 	"http://www.openbl.org/lists/base_30days.txt.gz" \
 	gz_remove_comments \
-	"[OpenBL.org](http://www.openbl.org/) last 30 days IPs"
+	"[OpenBL.org](http://www.openbl.org/) last 30 days IPs.  OpenBL.org is detecting, logging and reporting various types of internet abuse. Currently they monitor ports 21 (FTP), 22 (SSH), 23 (TELNET), 25 (SMTP), 110 (POP3), 143 (IMAP), 587 (Submission), 993 (IMAPS) and 995 (POP3S) for bruteforce login attacks as well as scans on ports 80 (HTTP) and 443 (HTTPS) for vulnerable installations of phpMyAdmin and other web applications."
 
 update openbl_60d $[4*60] 0 ipv4 ip \
 	"http://www.openbl.org/lists/base_60days.txt.gz" \
 	gz_remove_comments \
-	"[OpenBL.org](http://www.openbl.org/) last 60 days IPs"
+	"[OpenBL.org](http://www.openbl.org/) last 60 days IPs.  OpenBL.org is detecting, logging and reporting various types of internet abuse. Currently they monitor ports 21 (FTP), 22 (SSH), 23 (TELNET), 25 (SMTP), 110 (POP3), 143 (IMAP), 587 (Submission), 993 (IMAPS) and 995 (POP3S) for bruteforce login attacks as well as scans on ports 80 (HTTP) and 443 (HTTPS) for vulnerable installations of phpMyAdmin and other web applications."
 
 update openbl_90d $[4*60] 0 ipv4 ip \
 	"http://www.openbl.org/lists/base_90days.txt.gz" \
 	gz_remove_comments \
-	"[OpenBL.org](http://www.openbl.org/) last 90 days IPs"
+	"[OpenBL.org](http://www.openbl.org/) last 90 days IPs.  OpenBL.org is detecting, logging and reporting various types of internet abuse. Currently they monitor ports 21 (FTP), 22 (SSH), 23 (TELNET), 25 (SMTP), 110 (POP3), 143 (IMAP), 587 (Submission), 993 (IMAPS) and 995 (POP3S) for bruteforce login attacks as well as scans on ports 80 (HTTP) and 443 (HTTPS) for vulnerable installations of phpMyAdmin and other web applications."
 
 update openbl_180d $[4*60] 0 ipv4 ip \
 	"http://www.openbl.org/lists/base_180days.txt.gz" \
 	gz_remove_comments \
-	"[OpenBL.org](http://www.openbl.org/) last 180 days IPs"
+	"[OpenBL.org](http://www.openbl.org/) last 180 days IPs.  OpenBL.org is detecting, logging and reporting various types of internet abuse. Currently they monitor ports 21 (FTP), 22 (SSH), 23 (TELNET), 25 (SMTP), 110 (POP3), 143 (IMAP), 587 (Submission), 993 (IMAPS) and 995 (POP3S) for bruteforce login attacks as well as scans on ports 80 (HTTP) and 443 (HTTPS) for vulnerable installations of phpMyAdmin and other web applications."
 
 update openbl_all $[4*60] 0 ipv4 ip \
 	"http://www.openbl.org/lists/base_all.txt.gz" \
 	gz_remove_comments \
-	"[OpenBL.org](http://www.openbl.org/) last all IPs"
+	"[OpenBL.org](http://www.openbl.org/) last all IPs.  OpenBL.org is detecting, logging and reporting various types of internet abuse. Currently they monitor ports 21 (FTP), 22 (SSH), 23 (TELNET), 25 (SMTP), 110 (POP3), 143 (IMAP), 587 (Submission), 993 (IMAPS) and 995 (POP3S) for bruteforce login attacks as well as scans on ports 80 (HTTP) and 443 (HTTPS) for vulnerable installations of phpMyAdmin and other web applications."
 
 # -----------------------------------------------------------------------------
 # www.dshield.org
@@ -1089,7 +1163,7 @@ update openbl_all $[4*60] 0 ipv4 ip \
 update dshield $[4*60] 0 ipv4 net \
 	"http://feeds.dshield.org/block.txt" \
 	dshield_parser \
-	"[DShield.org](https://dshield.org/) top 20 attacking networks"
+	"[DShield.org](https://dshield.org/) top 20 attacking class C (/24) subnets over the last three days - **excellent list**"
 
 
 # -----------------------------------------------------------------------------
@@ -1129,7 +1203,7 @@ update compromised $[12*60] 0 ipv4 ip \
 update botnet $[12*60] 0 ipv4 ip \
 	"http://rules.emergingthreats.net/fwrules/emerging-PIX-CC.rules" \
 	pix_deny_rules_to_ipv4 \
-	"[EmergingThreats.net](http://www.emergingthreats.net/) botnet IPs (at the time of writing includes all abuse.ch trackers)"
+	"[EmergingThreats.net](http://www.emergingthreats.net/) botnet IPs (at the time of writing includes any abuse.ch trackers, which are available separately too - prefer to use the direct ipsets instead of this, they seem to lag a bit in updates)"
 
 # This appears to be the SPAMHAUS DROP list
 # disable - have direct feed
@@ -1147,7 +1221,7 @@ update botnet $[12*60] 0 ipv4 ip \
 update emerging_block $[12*60] 0 ipv4 all \
 	"http://rules.emergingthreats.net/fwrules/emerging-Block-IPs.txt" \
 	remove_comments \
-	"[EmergingThreats.net](http://www.emergingthreats.net/) default blacklist (at the time of writing includes spamhaus DROP, dshield and abuse.ch trackers)"
+	"[EmergingThreats.net](http://www.emergingthreats.net/) default blacklist (at the time of writing includes spamhaus DROP, dshield and abuse.ch trackers, which are available separately too - prefer to use the direct ipsets instead of this, they seem to lag a bit in updates)"
 
 
 # -----------------------------------------------------------------------------
@@ -1159,14 +1233,14 @@ update emerging_block $[12*60] 0 ipv4 all \
 update spamhaus_drop $[12*60] 0 ipv4 net \
 	"http://www.spamhaus.org/drop/drop.txt" \
 	remove_comments_semi_colon \
-	"[Spamhaus.org](http://www.spamhaus.org) DROP list (according to their site this list should be dropped at tier-1 ISPs globaly)"
+	"[Spamhaus.org](http://www.spamhaus.org) DROP list (according to their site this list should be dropped at tier-1 ISPs globaly) - **excellent list**"
 
 # extended DROP (EDROP) list.
 # Should be used together with their DROP list.
 update spamhaus_edrop $[12*60] 0 ipv4 net \
 	"http://www.spamhaus.org/drop/edrop.txt" \
 	remove_comments_semi_colon \
-	"[Spamhaus.org](http://www.spamhaus.org) EDROP (should be used with DROP)"
+	"[Spamhaus.org](http://www.spamhaus.org) EDROP (extended matches that should be used with DROP) - **excellent list**"
 
 
 # -----------------------------------------------------------------------------
@@ -1179,7 +1253,7 @@ update spamhaus_edrop $[12*60] 0 ipv4 net \
 update blocklist_de 30 0 ipv4 ip \
 	"http://lists.blocklist.de/lists/all.txt" \
 	remove_comments \
-	"[Blocklist.de](https://www.blocklist.de/) IPs that have been detected by fail2ban when they attacked their community servers in the last 48 hours"
+	"[Blocklist.de](https://www.blocklist.de/) IPs that have been detected by fail2ban in the last 48 hours - **excellent list**"
 
 
 # -----------------------------------------------------------------------------
@@ -1199,7 +1273,7 @@ update zeus_badips 30 0 ipv4 ip \
 update zeus 30 0 ipv4 ip \
 	"https://zeustracker.abuse.ch/blocklist.php?download=ipblocklist" \
 	remove_comments \
-	"[Abuse.ch Zeus tracker](https://zeustracker.abuse.ch) default blocklist including hijacked sites and web hosting providers"
+	"[Abuse.ch Zeus tracker](https://zeustracker.abuse.ch) default blocklist including hijacked sites and web hosting providers - **excellent list**"
 
 # -----------------------------------------------------------------------------
 # Palevo worm
@@ -1210,7 +1284,7 @@ update zeus 30 0 ipv4 ip \
 update palevo 30 0 ipv4 ip \
 	"https://palevotracker.abuse.ch/blocklists.php?download=ipblocklist" \
 	remove_comments \
-	"[Abuse.ch Palevo tracker](https://palevotracker.abuse.ch) worm includes IPs which are being used as botnet C&C for the Palevo crimeware"
+	"[Abuse.ch Palevo tracker](https://palevotracker.abuse.ch) worm includes IPs which are being used as botnet C&C for the Palevo crimeware - **excellent list**"
 
 # -----------------------------------------------------------------------------
 # Feodo trojan
@@ -1223,7 +1297,7 @@ update palevo 30 0 ipv4 ip \
 update feodo 30 0 ipv4 ip \
 	"https://feodotracker.abuse.ch/blocklist/?download=ipblocklist" \
 	remove_comments \
-	"[Abuse.ch Feodo tracker](https://feodotracker.abuse.ch) trojan includes IPs which are being used by Feodo (also known as Cridex or Bugat) which commits ebanking fraud"
+	"[Abuse.ch Feodo tracker](https://feodotracker.abuse.ch) trojan includes IPs which are being used by Feodo (also known as Cridex or Bugat) which commits ebanking fraud - **excellent list**"
 
 
 # -----------------------------------------------------------------------------
@@ -1235,7 +1309,7 @@ update feodo 30 0 ipv4 ip \
 update sslbl 30 0 ipv4 ip \
 	"https://sslbl.abuse.ch/blacklist/sslipblacklist.csv" \
 	csv_comma_first_column \
-	"[Abuse.ch SSL Blacklist](https://sslbl.abuse.ch/) bad SSL traffic related to malware or botnet activities"
+	"[Abuse.ch SSL Blacklist](https://sslbl.abuse.ch/) bad SSL traffic related to malware or botnet activities - **excellent list**"
 
 
 # -----------------------------------------------------------------------------
@@ -1245,7 +1319,7 @@ update sslbl 30 0 ipv4 ip \
 update infiltrated $[12*60] 0 ipv4 ip \
 	"http://www.infiltrated.net/blacklisted" \
 	remove_comments \
-	"[infiltrated.net](http://www.infiltrated.net) list (no more info available)"
+	"[infiltrated.net](http://www.infiltrated.net) (this list seems to be updated frequently, but we found no information about it)"
 
 
 # -----------------------------------------------------------------------------
@@ -1277,19 +1351,19 @@ update stop_forum_spam $[24*60] 0 ipv4 ip \
 update stop_forum_spam_1h 60 0 ipv4 ip \
 	"http://www.stopforumspam.com/downloads/listed_ip_1.zip" \
 	unzip_and_extract \
-	"[StopForumSpam.com](http://www.stopforumspam.com) last 24 hours IPs used by forum spammers"
+	"[StopForumSpam.com](http://www.stopforumspam.com) IPs used by forum spammers in the last 24 hours - **excellent list**"
 
 # daily update with IPs from the last 7 days
 update stop_forum_spam_7d $[24*60] 0 ipv4 ip \
 	"http://www.stopforumspam.com/downloads/listed_ip_7.zip" \
 	unzip_and_extract \
-	"[StopForumSpam.com](http://www.stopforumspam.com) last 7 days IPs used by forum spammers"
+	"[StopForumSpam.com](http://www.stopforumspam.com) IPs used by forum spammers (last 7 days)"
 
 # daily update with IPs from the last 30 days
 update stop_forum_spam_30d $[24*60] 0 ipv4 ip \
 	"http://www.stopforumspam.com/downloads/listed_ip_30.zip" \
 	unzip_and_extract \
-	"[StopForumSpam.com](http://www.stopforumspam.com) last 30 days IPs used by forum spammers"
+	"[StopForumSpam.com](http://www.stopforumspam.com) IPs used by forum spammers (last 30 days)"
 
 
 # daily update with IPs from the last 90 days
@@ -1297,7 +1371,7 @@ update stop_forum_spam_30d $[24*60] 0 ipv4 ip \
 update stop_forum_spam_90d $[24*60] 0 ipv4 ip \
 	"http://www.stopforumspam.com/downloads/listed_ip_90.zip" \
 	unzip_and_extract \
-	"[StopForumSpam.com](http://www.stopforumspam.com) last 90 days IPs used by forum spammers"
+	"[StopForumSpam.com](http://www.stopforumspam.com) IPs used by forum spammers (last 90 days)"
 
 
 # daily update with IPs from the last 180 days
@@ -1305,7 +1379,7 @@ update stop_forum_spam_90d $[24*60] 0 ipv4 ip \
 update stop_forum_spam_180d $[24*60] 0 ipv4 ip \
 	"http://www.stopforumspam.com/downloads/listed_ip_180.zip" \
 	unzip_and_extract \
-	"[StopForumSpam.com](http://www.stopforumspam.com) last 180 days IPs used by forum spammers"
+	"[StopForumSpam.com](http://www.stopforumspam.com) IPs used by forum spammers (last 180 days)"
 
 
 # daily update with IPs from the last 365 days
@@ -1313,7 +1387,7 @@ update stop_forum_spam_180d $[24*60] 0 ipv4 ip \
 update stop_forum_spam_365d $[24*60] 0 ipv4 ip \
 	"http://www.stopforumspam.com/downloads/listed_ip_365.zip" \
 	unzip_and_extract \
-	"[StopForumSpam.com](http://www.stopforumspam.com) last 365 days IPs used by forum spammers"
+	"[StopForumSpam.com](http://www.stopforumspam.com) IPs used by forum spammers (last 365 days)"
 
 
 # -----------------------------------------------------------------------------
@@ -1330,7 +1404,7 @@ update stop_forum_spam_365d $[24*60] 0 ipv4 ip \
 update bogons $[24*60] 0 ipv4 net \
 	"http://www.team-cymru.org/Services/Bogons/bogon-bn-agg.txt" \
 	remove_comments \
-	"[Team-Cymru.org](http://www.team-cymru.org) private and reserved addresses defined by RFC 1918, RFC 5735, and RFC 6598 and netblocks that have not been allocated to a regional internet registry"
+	"[Team-Cymru.org](http://www.team-cymru.org) private and reserved addresses defined by RFC 1918, RFC 5735, and RFC 6598 and netblocks that have not been allocated to a regional internet registry - **excellent list - use it only your internet interface**"
 
 
 # http://www.team-cymru.org/bogon-reference.html
@@ -1340,7 +1414,7 @@ update bogons $[24*60] 0 ipv4 net \
 update fullbogons $[24*60] 0 ipv4 net \
 	"http://www.team-cymru.org/Services/Bogons/fullbogons-ipv4.txt" \
 	remove_comments \
-	"[Team-Cymru.org](http://www.team-cymru.org) IP space that has been allocated to an RIR, but not assigned by that RIR to an actual ISP or other end-user"
+	"[Team-Cymru.org](http://www.team-cymru.org) IP space that has been allocated to an RIR, but not assigned by that RIR to an actual ISP or other end-user - **excellent list - use it only your internet interface**"
 
 #update fullbogons6 $[24*60-10] ipv6 net \
 #	"http://www.team-cymru.org/Services/Bogons/fullbogons-ipv6.txt" \
@@ -1352,45 +1426,45 @@ update fullbogons $[24*60] 0 ipv4 net \
 # Open Proxies from rosinstruments
 # http://tools.rosinstrument.com/proxy/
 
-update rosi_web_proxies $[2*60] $[30*24*60] ipv4 ip \
+update rosi_web_proxies 60 $[30*24*60] ipv4 ip \
 	"http://tools.rosinstrument.com/proxy/l100.xml" \
 	parse_rss_rosinstrument \
-	"[rosinstrument.com](http://www.rosinstrument.com) open HTTP proxies distributed via its RSS feed and aggregated for the last 30 days"
+	"[rosinstrument.com](http://www.rosinstrument.com) open HTTP proxies (this list is composed using an RSS feed and aggregated for the last 30 days)"
 
-update rosi_connect_proxies $[2*60] $[30*24*60] ipv4 ip \
+update rosi_connect_proxies 60 $[30*24*60] ipv4 ip \
 	"http://tools.rosinstrument.com/proxy/plab100.xml" \
 	parse_rss_rosinstrument \
-	"[rosinstrument.com](http://www.rosinstrument.com) open CONNECT proxies distributed via its RSS feed and aggregated for the last 30 days"
+	"[rosinstrument.com](http://www.rosinstrument.com) open CONNECT proxies (this list is composed using an RSS feed and aggregated for the last 30 days)"
 
 
 # -----------------------------------------------------------------------------
 # Project Honey Pot
 # http://www.projecthoneypot.org/
 
-update php_harvesters $[2*60] $[30*24*60] ipv4 ip \
+update php_harvesters 60 $[30*24*60] ipv4 ip \
 	"http://www.projecthoneypot.org/list_of_ips.php?t=h&rss=1" \
 	parse_php_rss \
-	"[projecthoneypot.org](http://www.projecthoneypot.org/) harvesters (IPs that surf the internet looking for email addresses) distributed via its RSS feed and aggregated for the last 30 days"
+	"[projecthoneypot.org](http://www.projecthoneypot.org/) harvesters (IPs that surf the internet looking for email addresses) (this list is composed using an RSS feed and aggregated for the last 30 days)"
 
-update php_spammers $[2*60] $[30*24*60] ipv4 ip \
+update php_spammers 60 $[30*24*60] ipv4 ip \
 	"http://www.projecthoneypot.org/list_of_ips.php?t=s&rss=1" \
 	parse_php_rss \
-	"[projecthoneypot.org](http://www.projecthoneypot.org/) spam servers (IPs used by spammers to send messages) distributed via its RSS feed and aggregated for the last 30 days"
+	"[projecthoneypot.org](http://www.projecthoneypot.org/) spam servers (IPs used by spammers to send messages) (this list is composed using an RSS feed and aggregated for the last 30 days)"
 
-update php_bad $[2*60] $[30*24*60] ipv4 ip \
+update php_bad 60 $[30*24*60] ipv4 ip \
 	"http://www.projecthoneypot.org/list_of_ips.php?t=b&rss=1" \
 	parse_php_rss \
-	"[projecthoneypot.org](http://www.projecthoneypot.org/) bad web hosts distributed via its RSS feed and aggregated for the last 30 days"
+	"[projecthoneypot.org](http://www.projecthoneypot.org/) bad web hosts (this list is composed using an RSS feed and aggregated for the last 30 days)"
 
-update php_commenters $[2*60] $[30*24*60] ipv4 ip \
+update php_commenters 60 $[30*24*60] ipv4 ip \
 	"http://www.projecthoneypot.org/list_of_ips.php?t=c&rss=1" \
 	parse_php_rss \
-	"[projecthoneypot.org](http://www.projecthoneypot.org/) comment spammers distributed via its RSS feed and aggregated for the last 30 days"
+	"[projecthoneypot.org](http://www.projecthoneypot.org/) comment spammers (this list is composed using an RSS feed and aggregated for the last 30 days)"
 
-update php_dictionary $[2*60] $[30*24*60] ipv4 ip \
+update php_dictionary 60 $[30*24*60] ipv4 ip \
 	"http://www.projecthoneypot.org/list_of_ips.php?t=d&rss=1" \
 	parse_php_rss \
-	"[projecthoneypot.org](http://www.projecthoneypot.org/) directory attackers distributed via its RSS feed and aggregated for the last 30 days"
+	"[projecthoneypot.org](http://www.projecthoneypot.org/) directory attackers (this list is composed using an RSS feed and aggregated for the last 30 days)"
 
 
 # -----------------------------------------------------------------------------
@@ -1400,7 +1474,7 @@ update php_dictionary $[2*60] $[30*24*60] ipv4 ip \
 update malwaredomainlist $[12*60] 0 ipv4 ip \
 	"http://www.malwaredomainlist.com/hostslist/ip.txt" \
 	remove_comments \
-	"[malwaredomainlist.com](http://www.malwaredomainlist.com) list of active ip addresses"
+	"[malwaredomainlist.com](http://www.malwaredomainlist.com) list of malware active ip addresses"
 
 
 # -----------------------------------------------------------------------------
@@ -1412,7 +1486,7 @@ update malwaredomainlist $[12*60] 0 ipv4 ip \
 update alienvault_reputation $[12*60] 0 ipv4 ip \
 	"https://reputation.alienvault.com/reputation.generic" \
 	remove_comments \
-	"[AlienVault.com](https://www.alienvault.com/) IP reputation database"
+	"[AlienVault.com](https://www.alienvault.com/) IP reputation database (this list seems to be updated frequently, but we found no information about it)"
 
 
 # -----------------------------------------------------------------------------
@@ -1440,7 +1514,7 @@ update clean_mx_viruses $[12*60] 0 ipv4 ip \
 update ciarmy $[3*60] 0 ipv4 ip \
 	"http://cinsscore.com/list/ci-badguys.txt" \
 	remove_comments \
-	"[CIArmy.com](http://ciarmy.com/) IPs with poor Rogue Packet score that have not yet been identified as malicious by the InfoSec community"
+	"[CIArmy.com](http://ciarmy.com/) IPs with poor Rogue Packet score that have not yet been identified as malicious by the community"
 
 
 # -----------------------------------------------------------------------------
@@ -1460,7 +1534,7 @@ update bruteforceblocker $[3*60] 0 ipv4 ip \
 update snort_ipfilter $[12*60] 0 ipv4 ip \
 	"http://labs.snort.org/feeds/ip-filter.blf" \
 	remove_comments \
-	"[labs.snort.org](https://labs.snort.org/) supplied IP blacklist"
+	"[labs.snort.org](https://labs.snort.org/) supplied IP blacklist (this list seems to be updated frequently, but we found no information about it)"
 
 
 # -----------------------------------------------------------------------------
@@ -1470,7 +1544,7 @@ update snort_ipfilter $[12*60] 0 ipv4 ip \
 update nixspam 15 0 ipv4 ip \
 	"http://www.dnsbl.manitu.net/download/nixspam-ip.dump.gz" \
 	gz_second_word \
-	"[NiX Spam](http://www.heise.de/ix/NiX-Spam-DNSBL-and-blacklist-for-download-499637.html) about 40,000 IP addresses from about the last hour - automatically generated entries without distinguishing open proxies from relays, dialup gateways, and so on. All IPs are removed after 12 hours if there is no spam from there."
+	"[NiX Spam](http://www.heise.de/ix/NiX-Spam-DNSBL-and-blacklist-for-download-499637.html) IP addresses that sent spam in the last hour - automatically generated entries without distinguishing open proxies from relays, dialup gateways, and so on. All IPs are removed after 12 hours if there is no spam from there."
 
 
 # -----------------------------------------------------------------------------
@@ -1495,7 +1569,7 @@ then
 	update ib_bluetack_proxies $[12*60] 0 ipv4 ip \
 		"http://list.iblocklist.com/?list=xoebmbyexwuiogmbyprb&fileformat=p2p&archiveformat=gz" \
 		p2p_gz_proxy \
-		"[iBlocklist.com](https://www.iblocklist.com/) free version of BlueTack.co.uk Open Proxies IPs (without TOR)"
+		"[iBlocklist.com](https://www.iblocklist.com/) free version of [BlueTack.co.uk](http://www.bluetack.co.uk/) Open Proxies IPs list (without TOR)"
 
 
 	# This list is a compilation of known malicious SPYWARE and ADWARE IP Address ranges. 
@@ -1505,14 +1579,14 @@ then
 	update ib_bluetack_spyware $[12*60] 0 ipv4 net \
 		"http://list.iblocklist.com/?list=llvtlsjyoyiczbkjsxpf&fileformat=p2p&archiveformat=gz" \
 		p2p_gz \
-		"[iBlocklist.com](https://www.iblocklist.com/) free version of BlueTack.co.uk known malicious SPYWARE and ADWARE IP Address ranges"
+		"[iBlocklist.com](https://www.iblocklist.com/) free version of [BlueTack.co.uk](http://www.bluetack.co.uk/) known malicious SPYWARE and ADWARE IP Address ranges"
 
 
 	# List of people who have been reported for bad deeds in p2p.
 	update ib_bluetack_badpeers $[12*60] 0 ipv4 ip \
 		"http://list.iblocklist.com/?list=cwworuawihqvocglcoss&fileformat=p2p&archiveformat=gz" \
 		p2p_gz \
-		"[iBlocklist.com](https://www.iblocklist.com/) free version of BlueTack.co.uk IPs that have been reported for bad deeds in p2p"
+		"[iBlocklist.com](https://www.iblocklist.com/) free version of [BlueTack.co.uk](http://www.bluetack.co.uk/) IPs that have been reported for bad deeds in p2p"
 
 
 	# Contains hijacked IP-Blocks and known IP-Blocks that are used to deliver Spam. 
@@ -1524,7 +1598,7 @@ then
 	update ib_bluetack_hijacked $[12*60] 0 ipv4 net \
 		"http://list.iblocklist.com/?list=usrcshglbiilevmyfhse&fileformat=p2p&archiveformat=gz" \
 		p2p_gz \
-		"[iBlocklist.com](https://www.iblocklist.com/) free version of BlueTack.co.uk hijacked IP-Blocks Hijacked IP space are IP blocks that are being used without permission"
+		"[iBlocklist.com](https://www.iblocklist.com/) free version of [BlueTack.co.uk](http://www.bluetack.co.uk/) hijacked IP-Blocks Hijacked IP space are IP blocks that are being used without permission"
 
 
 	# IP addresses related to current web server hack and exploit attempts that have been
@@ -1537,7 +1611,7 @@ then
 	update ib_bluetack_webexploit $[12*60] 0 ipv4 ip \
 		"http://list.iblocklist.com/?list=ghlzqtqxnzctvvajwwag&fileformat=p2p&archiveformat=gz" \
 		p2p_gz \
-		"[iBlocklist.com](https://www.iblocklist.com/) free version of BlueTack.co.uk web server hack and exploit attempts"
+		"[iBlocklist.com](https://www.iblocklist.com/) free version of [BlueTack.co.uk](http://www.bluetack.co.uk/) web server hack and exploit attempts"
 
 
 	# Companies or organizations who are clearly involved with trying to stop filesharing
@@ -1557,7 +1631,7 @@ then
 	update ib_bluetack_level1 $[12*60] 0 ipv4 net \
 		"http://list.iblocklist.com/?list=ydxerpxkpcfqjaybcssw&fileformat=p2p&archiveformat=gz" \
 		p2p_gz \
-		"[iBlocklist.com](https://www.iblocklist.com/) free version of BlueTack.co.uk Level 1 (for use in p2p)"
+		"[iBlocklist.com](https://www.iblocklist.com/) free version of [BlueTack.co.uk](http://www.bluetack.co.uk/) Level 1 (for use in p2p): Companies or organizations who are clearly involved with trying to stop filesharing (e.g. Baytsp, MediaDefender, Mediasentry a.o.). Companies which anti-p2p activity has been seen from. Companies that produce or have a strong financial interest in copyrighted material (e.g. music, movie, software industries a.o.). Government ranges or companies that have a strong financial interest in doing work for governments. Legal industry ranges. IPs or ranges of ISPs from which anti-p2p activity has been observed. Basically this list will block all kinds of internet connections that most people would rather not have during their internet travels."
 
 
 	# General corporate ranges. 
@@ -1566,7 +1640,7 @@ then
 	update ib_bluetack_level2 $[12*60] 0 ipv4 net \
 		"http://list.iblocklist.com/?list=gyisgnzbhppbvsphucsw&fileformat=p2p&archiveformat=gz" \
 		p2p_gz \
-		"[iBlocklist.com](https://www.iblocklist.com/) free version of BlueTack.co.uk Level 2 (for use in p2p)"
+		"[iBlocklist.com](https://www.iblocklist.com/) free version of BlueTack.co.uk Level 2 (for use in p2p). General corporate ranges. Ranges used by labs or researchers. Proxies."
 
 
 	# Many portal-type websites. 
@@ -1576,7 +1650,7 @@ then
 	update ib_bluetack_level3 $[12*60] 0 ipv4 net \
 		"http://list.iblocklist.com/?list=uwnukjqktoggdknzrhgh&fileformat=p2p&archiveformat=gz" \
 		p2p_gz \
-		"[iBlocklist.com](https://www.iblocklist.com/) free version of BlueTack.co.uk Level 3 (for use in p2p)"
+		"[iBlocklist.com](https://www.iblocklist.com/) free version of BlueTack.co.uk Level 3 (for use in p2p). Many portal-type websites. ISP ranges that may be dodgy for some reason. Ranges that belong to an individual, but which have not been determined to be used by a particular company. Ranges for things that are unusual in some way. The L3 list is aka the paranoid list."
 
 fi
 
