@@ -83,13 +83,10 @@
 # it supports.
 # -----------------------------------------------------------------------------
 
+base="/etc/firehol/ipsets"
+
 # single line flock, from man flock
-# Normally this is not needed since the script is using unique tmp files for all
-# operations and moves them to their final place when done.
-# However, this is the only protection against very slow downloads and a high
-# frequency run from a cron job. It will ensure that a second instance will run
-# only if the first has finished.
-[ "${FLOCKER}" != "$0" ] && exec env FLOCKER="$0" flock -en "$0" "$0" "$@" || :
+[ "${UPDATE_IPSETS_LOCKER}" != "${0}" ] && exec env UPDATE_IPSETS_LOCKER="$0" flock -en "${base}/.lock" "${0}" "${@}" || :
 
 PATH="${PATH}:/sbin:/usr/sbin"
 
@@ -101,6 +98,7 @@ then
 	echo >&2 "Please run me as root."
 	exit 1
 fi
+renice 10 $$ >/dev/null 2>/dev/null
 
 program_pwd="${PWD}"
 program_dir="`dirname ${0}`"
@@ -117,6 +115,7 @@ ipv4_range_to_cidr() {
 	cd "${OLDPWD}"
 }
 
+GIT_COMPARE=0
 IGNORE_LASTCHECKED=0
 PUSH_TO_GIT=0
 SILENT=0
@@ -126,6 +125,7 @@ do
 		-s) SILENT=1;;
 		-g) PUSH_TO_GIT=1;;
 		-i) IGNORE_LASTCHECKED=1;;
+		-c) GIT_COMPARE=1;;
 		*) echo >&2 "Unknown parameter '${1}'".; exit 1 ;;
 	esac
 	shift
@@ -140,7 +140,6 @@ then
 fi
 
 # create the directory to save the sets
-base="/etc/firehol/ipsets"
 if [ ! -d "${base}" ]
 then
 	mkdir -p "${base}" || exit 1
@@ -209,6 +208,8 @@ check_git_committed() {
 commit_to_git() {
 	if [ -d .git -a ! -z "${!UPDATED_SETS[*]}" ]
 	then
+		[ ${GIT_COMPARE} -eq 1 ] && compare_all_ipsets
+
 		local d=
 		for d in "${!UPDATED_DIRS[@]}"
 		do
@@ -227,6 +228,19 @@ commit_to_git() {
 
 			UPDATED_SETS[${d}/README.md]="${d}/README.md"
 			check_git_committed "${d}/README.md"
+		done
+
+		echo >>README.md
+		echo "# Comparison of ipsets" >>README.md
+		echo >>README.md
+		echo "Below we compare each ipset against all other." >>README.md
+		echo >>README.md
+
+		for d in `find . -name \*.comparison.md | sort`
+		do
+			echo >>README.md
+			cat "${d}" >>README.md
+			rm "${d}"
 		done
 
 		echo >&2 
@@ -431,6 +445,190 @@ download_url() {
 	return ${DOWNLOAD_OK}
 }
 
+ips_in_set() {
+	# the ipset/netset has to be
+	# aggregated properly
+
+	append_slash32 |\
+		cut -d '/' -f 2 |\
+		(
+			local sum=0;
+			while read i
+			do
+				sum=$[sum + (1 << (32 - i))]
+			done
+			echo $sum
+		)		
+}
+
+# -----------------------------------------------------------------------------
+# ipsets comparisons
+
+declare -A IPSET_INFO=()
+declare -A IPSET_SOURCE=()
+declare -A IPSET_URL=()
+declare -A IPSET_FILES=()
+declare -A IPSET_ENTRIES=()
+declare -A IPSET_IPS=()
+declare -A IPSET_OVERLAPS=()
+cache_save() {
+	#echo >&2 "Saving cache"
+	declare -p IPSET_SOURCE IPSET_URL IPSET_INFO IPSET_FILES IPSET_ENTRIES IPSET_IPS IPSET_OVERLAPS >"${base}/.cache"
+}
+if [ -f "${base}/.cache" ]
+	then
+	echo >&2 "Loading cache"
+	source "${base}/.cache"
+	cache_save
+fi
+cache_remove_ipset() {
+	local ipset="${1}"
+	echo >&2 "${ipset}: removing from cache"
+	cache_clean_ipset "${ipset}"
+	unset IPSET_INFO[${ipset}]
+	unset IPSET_SOURCE[${ipset}]
+	unset IPSET_URL[${ipset}]
+	unset IPSET_FILES[${ipset}]
+	unset IPSET_ENTRIES[${ipset}]
+	cache_save
+}
+cache_clean_ipset() {
+	local ipset="${1}"
+
+	echo >&2 "${ipset}: Cleaning cache"
+	unset IPSET_ENTRIES[${ipset}]
+	unset IPSET_IPS[${ipset}]
+	local x=
+	for x in "${!IPSET_FILES[@]}"
+	do
+		unset IPSET_OVERLAPS[,${ipset},${x},]
+		unset IPSET_OVERLAPS[,${x},${ipset},]
+	done
+	cache_save
+}
+
+print_last_digit_decimal() {
+	local x="${1}" len= pl=
+	len="${#x}"
+	while [ ${len} -lt 2 ]
+	do
+		x="0${x}"
+		len="${#x}"
+	done
+	pl="$[len - 1]"
+	echo "${x:0:${pl}}.${x:${pl}:${len}}"
+}
+
+compare_ipset() {
+	local ipset="${1}" file= readme= info= entries= ips=
+	shift
+
+	file="${IPSET_FILES[${ipset}]}"
+	info="${IPSET_INFO[${ipset}]}"
+	readme="${file/.ipset/}"
+	readme="${readme/.netset/}"
+	readme="${readme}.comparison.md"
+
+	[[ "${file}" =~ ^geolite2.* ]] && return 1
+
+	if [ -z "${file}" -o ! -f "${file}" ]
+		then
+		cache_remove_ipset "${ipset}"
+		return 1
+	fi
+
+	#[ -z "${IPSET_ENTRIES[${ipset}]}" ] && IPSET_ENTRIES[${ipset}]=`cat "${file}" | remove_comments | wc -l`
+	#[ -z "${IPSET_IPS[${ipset}]}"     ] && IPSET_IPS[${ipset}]=`cat "${file}" | remove_comments | ips_in_set`
+	
+	entries="${IPSET_ENTRIES[${ipset}]}"
+	ips="${IPSET_IPS[${ipset}]}"
+
+	if [ -z "${entries}" -o -z "${ips}" ]
+		then
+		echo >&2 "ERROR: empty cache for ${ipset}."
+		return 1
+	fi
+
+	printf >&2 "${ipset}: Generating comparisons... "
+
+	cat >${readme} <<EOFMD
+## ${ipset}
+
+${info}
+
+Source is downloaded from [this link](${IPSET_URL[${ipset}]}).
+
+The last time downloaded was found to be dated: `date -r "${IPSET_SOURCE[${ipset}]}" -u`.
+
+The ipset \`${ipset}\` has **${entries}** entries, **${ips}** unique IPs.
+
+The following table shows the overlaps of \`${ipset}\` with all the other ipsets supported. Only the ipsets that have at least 1 IP overlap are shown. if an ipset is not shown here, it does not have any overlap with \`${ipset}\`.
+
+- \` them % \` is the percentage of IPs of each row ipset (them), found in \`${ipset}\`.
+- \` this % \` is the percentage **of this ipset (\`${ipset}\`)**, found in the IPs of each other ipset.
+
+ipset|entries|unique IPs|IPs on both| them % | this % |
+:---:|:-----:|:--------:|:---------:|:------:|:------:|
+EOFMD
+	
+	local oipset=
+	for oipset in "${!IPSET_FILES[@]}"
+	do
+		[ "${ipset}" = "${oipset}" ] && continue
+
+		local ofile="${IPSET_FILES[${oipset}]}"
+		if [ ! -f "${ofile}" ]
+			then
+			cache_remove_ipset "${oipset}"
+			continue
+		fi
+
+		[[ "${ofile}" =~ ^geolite2.* ]] && return 1
+
+		#[ -z "${IPSET_ENTRIES[${1}]}" ] && IPSET_ENTRIES[${1}]=`cat "${1}" | remove_comments | wc -l`
+		#[ -z "${IPSET_IPS[${1}]}"     ] && IPSET_IPS[${1}]=`cat "${1}" | remove_comments | ips_in_set`
+
+		local oentries="${IPSET_ENTRIES[${oipset}]}"
+		local oips="${IPSET_IPS[${oipset}]}"
+
+		if [ -z "${oentries}" -o -z "${oips}" ]
+			then
+			echo >&2 "ERROR: empty cache for ${oipset}."
+			continue
+		fi
+
+		# echo >&2 "	Updating overlaps for ${ipset} compared to ${oipset}..."
+
+		if [ -z "${IPSET_OVERLAPS[,${ipset},${oipset},]}${IPSET_OVERLAPS[,${oipset},${ipset},]}" ]
+			then
+			printf >&2 "+"
+			local mips=`cat "${file}" "${ofile}" | remove_comments | append_slash32 | sort -u | aggregate4 | ips_in_set`
+			IPSET_OVERLAPS[,${ipset},${oipset},]=$[(ips + oips) - mips]
+			#echo "IPSET_OVERLAPS[,${ipset},${oipset},]=${IPSET_OVERLAPS[,${ipset},${oipset},]}" >>"${base}/.cache"
+		else
+			printf >&2 "."
+		fi
+		local overlap="${IPSET_OVERLAPS[,${ipset},${oipset},]}${IPSET_OVERLAPS[,${oipset},${ipset},]}"
+
+		[ ${overlap} -gt 0 ] && echo "${overlap}|${oipset}|${oentries}|${oips}|${overlap}|$(print_last_digit_decimal $[overlap * 1000 / oips])%|$(print_last_digit_decimal $[overlap * 1000 / ips])%|" >>${readme}.tmp
+	done
+	cat "${readme}.tmp" | sort -n -r | cut -d '|' -f 2- >>${readme}
+	rm "${readme}.tmp"
+
+	echo >&2
+	cache_save
+}
+
+compare_all_ipsets() {
+	local x=
+	for x in "${!IPSET_FILES[@]}"
+	do
+		compare_ipset "${x}" "${!IPSET_FILES[@]}"
+	done
+}
+
+# -----------------------------------------------------------------------------
+
 finalize() {
 	local ipset="${1}" tmp="${2}" setinfo="${3}" src="${4}" dst="${5}" mins="${6}" history_mins="${7}" ipv="${8}" type="${9}" hash="${10}" url="${11}" info="${12}"
 
@@ -503,7 +701,7 @@ finalize() {
 	if [ "${hash}" = "net" ]
 	then
 		entries=${ips}
-		ips=`cat "${tmp}" | cut -d '/' -f 2 | ( sum=0; while read i; do sum=$[sum + (1 << (32 - i))]; done; echo $sum )`
+		ips=`cat "${tmp}" | ips_in_set`
 		quantity="${entries} subnets, ${ips} unique IPs"
 	fi
 
@@ -534,13 +732,21 @@ EOFHEADER
 	touch -r "${src}" "${tmp}.wh"
 	mv "${tmp}.wh" "${dst}" || return 1
 
+	cache_clean_ipset "${ipset}"
+	IPSET_FILES[${ipset}]="${dst}"
+	IPSET_INFO[${ipset}]="${info}"
+	IPSET_ENTRIES[${ipset}]="${entries}"
+	IPSET_IPS[${ipset}]="${ips}"
+	IPSET_URL[${ipset}]="${url}"
+	IPSET_SOURCE[${ipset}]="${src}"
+
 	UPDATED_SETS[${ipset}]="${dst}"
 	local dir="`dirname "${dst}"`"
 	UPDATED_DIRS[${dir}]="${dir}"
 
 	if [ -d .git ]
 	then
-		echo >"${setinfo}" "${ipset}|${info}|${ipv} hash:${hash}|${quantity}|updated every `mins_to_text ${mins}` from [this link](${url})"
+		echo >"${setinfo}" "[${ipset}](#${ipset})|${info}|${ipv} hash:${hash}|${quantity}|updated every `mins_to_text ${mins}` from [this link](${url})"
 		check_git_committed "${dst}"
 	fi
 
@@ -695,6 +901,12 @@ update() {
 
 aggregate4() {
 	local cmd=
+
+	if [ -x "${base}/iprange" ]
+		then
+		"${base}/iprange" -J
+		return $?
+	fi
 
 	cmd="`which iprange 2>/dev/null`"
 	if [ ! -z "${cmd}" ]
@@ -1483,10 +1695,10 @@ update malwaredomainlist $[12*60] 0 ipv4 ip \
 
 # IMPORTANT: THIS IS A BIG LIST
 # you will have to add maxelem to ipset to fit it
-update alienvault_reputation $[12*60] 0 ipv4 ip \
+update alienvault_reputation $[6*60] 0 ipv4 ip \
 	"https://reputation.alienvault.com/reputation.generic" \
 	remove_comments \
-	"[AlienVault.com](https://www.alienvault.com/) IP reputation database (this list seems to be updated frequently, but we found no information about it)"
+	"[AlienVault.com](https://www.alienvault.com/) IP reputation database (this list seems to include port scanning hosts and to be updated regularly, but we found no information about its retention policy)"
 
 
 # -----------------------------------------------------------------------------
