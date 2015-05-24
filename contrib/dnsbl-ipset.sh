@@ -119,7 +119,7 @@ PROGRAM_FILE="${0}"
 
 # lock
 # if we run already, the script will exit
-[ "${FLOCKER}" != "$0" ] && exec env FLOCKER="$0" flock -en "$0" "$0" "$@" || :
+#[ "${FLOCKER}" != "$0" ] && exec env FLOCKER="$0" flock -en "$0" "$0" "$@" || :
 
 if [ ! "${UID}" = 0 ]
 	then
@@ -163,13 +163,45 @@ fi
 
 
 # -----------------------------------------------------------------------------
+# the console spinner
+
+PROGRAM_SPINNER_SPACES='                                                                                                '
+PROGRAM_SPINNER_BACKSPACES='\b\b\b\b\b\b\b\b\b\b\b\b\b\b\b\b\b\b\b\b\b\b\b\b\b\b\b\b\b\b\b\b\b\b\b\b\b\b\b\b\b\b\b\b\b\b\b\b\b\b\b\b\b\b\b\b\b\b\b\b\b\b\b\b\b\b\b\b\b\b\b\b\b\b\b\b\b\b\b'
+PROGRAM_SPINNER_LAST=0
+PROGRAM_SPINNER='|/-\'
+PROGRAM_SPINNER_RUNNING=0
+PROGRAM_SPINNER_PREFIX="Queue"
+spinner()
+{
+	local t="${PROGRAM_SPINNER_PREFIX} ${1}"
+	printf >&2 "${PROGRAM_SPINNER_BACKSPACES:0:$PROGRAM_SPINNER_LAST}"
+	PROGRAM_SPINNER_LAST=$(( (${#t} + 5) * 2 ))
+	local temp=${PROGRAM_SPINNER#?}
+	printf >&2 "[${t} %c] " "${PROGRAM_SPINNER}"
+	PROGRAM_SPINNER=$temp${PROGRAM_SPINNER%"$temp"}
+	PROGRAM_SPINNER_RUNNING=1
+}
+
+spinner_end() {
+	local last=$((PROGRAM_SPINNER_LAST / 2))
+	printf >&2 "${PROGRAM_SPINNER_BACKSPACES:0:$PROGRAM_SPINNER_LAST}"
+	printf >&2 "${PROGRAM_SPINNER_SPACES:0:$last}"
+	printf >&2 "${PROGRAM_SPINNER_BACKSPACES:0:$PROGRAM_SPINNER_LAST}"
+	PROGRAM_SPINNER_RUNNING=0
+	PROGRAM_SPINNER_LAST=0
+}
+
+# -----------------------------------------------------------------------------
 # functions to parse the configuration file
 
 declare -A DNSBL=()
 declare -A DNSBL_SCORES=()
+declare -A DNSBL_PREKEYS=()
 declare -a work_dnsbl=()
 dnsbl() {
-	local score="${1}" list=
+	#[ ${RUNNING_ON_TERMINAL} -eq 1 ] && spinner_end
+
+	local score="${1}" list= prekey= decode=
 	shift
 
 	if [ "${score}" = "clear" ]
@@ -177,21 +209,54 @@ dnsbl() {
 		DNSBL=()
 		DNSBL_SCORES=()
 		work_dnsbl=()
-		return 0
+	else
+		work_dnsbl=()
+		while [ ! -z "${1}" ]
+		do
+			case "${1}" in
+				prekey)
+					prekey="${2}"
+					shift 2
+					continue
+					;;
+
+				decode)
+					decode="${2}"
+					shift 2
+					continue
+					;;
+
+				*)	;;
+			esac
+
+			work_dnsbl=("${work_dnsbl[@]}" "${1}")
+			shift
+		done
+
+		for list in "${work_dnsbl[@]}"
+		do
+			DNSBL_SCORES[${list}]=$[score]
+			DNSBL[${list}]="${list}"
+			[ ! -z "${prekey}" ] && DNSBL_PREKEYS[${list}]="${prekey}."
+			[ ! -z "${decode}" ] && DNSBL_SCORES[custom/${list}]="${decode}"
+		done
 	fi
 
-	work_dnsbl=("${@}")
-
-	for list in "${work_dnsbl[@]}"
-	do
-		DNSBL_SCORES[${list}]=$[score]
-		DNSBL[${list}]="${list}"
-	done
+	#[ ${RUNNING_ON_TERMINAL} -eq 1 ] && spinner "parsing config..."
+	return 0
 }
 
 score() {
+	#[ ${RUNNING_ON_TERMINAL} -eq 1 ] && spinner_end
+
 	local score="${1}" result= list=
 	shift
+
+	if [ -z "${score}" ]
+		then
+		echo >&2 "ERROR: Empty score for dnsbl ${work_dnsbl[@]} result ${*}"
+		score="0"
+	fi
 
 	for result in "${@}"
 	do
@@ -200,6 +265,9 @@ score() {
 			DNSBL_SCORES[${result}/${work_dnsbl}]=$[score]
 		done
 	done
+
+	#[ ${RUNNING_ON_TERMINAL} -eq 1 ] && spinner "parsing config..."
+	return 0
 }
 
 
@@ -282,7 +350,7 @@ blacklist_check() {
 	# do anything you like here to check the IP
 
 	# example:
-	# whois "${ip}" | grep -iE "(owner|address|organization)"
+	# whois "${ip}" | grep -iE "(owner|address|organization|country)"
 
 	# return 0 = ok, blacklist it
 	# return 1 = no, don't blacklist it
@@ -323,98 +391,142 @@ dnsbl clear
 #     DEFAULT_SCORE
 #
 
-dnsbl 0 zen.spamhaus.org
-	score  100 127.0.0.2  # sbl.spamhaus.org, Spamhaus SBL Data, Static UBE sources, verified spam services (hosting or support) and ROKSO spammers
-	score  100 127.0.0.3  # sbl.spamhaus.org, Spamhaus SBL CSS Data, Static UBE sources, verified spam services (hosting or support) and ROKSO spammers
-	score   45 127.0.0.4  # xbl.spamhaus.org, CBL Data, Illegal 3rd party exploits, including proxies, worms and trojan exploits
-	score   45 127.0.0.5  # xbl.spamhaus.org = Illegal 3rd party exploits, including proxies, worms and trojan exploits
-	score   45 127.0.0.6  # xbl.spamhaus.org = Illegal 3rd party exploits, including proxies, worms and trojan exploits
-	score   45 127.0.0.7  # xbl.spamhaus.org = Illegal 3rd party exploits, including proxies, worms and trojan exploits
-	score -200 127.0.0.10 # pbl.spamhaus.org = End-user Non-MTA IP addresses set by ISP outbound mail policy
-	score -200 127.0.0.11 # pbl.spamhaus.org = End-user Non-MTA IP addresses set by ISP outbound mail policy
-	score -500 127.0.2    # Spamhaus Whitelists
+# -----------------------------------------------------------------------------
+# our score definitions
 
-dnsbl 0 dnsbl.sorbs.net
-	score  200 127.0.0.2 # http.dnsbl.sorbs.net - List of Open HTTP Proxy Servers
-	score  200 127.0.0.3 # socks.dnsbl.sorbs.net - List of Open SOCKS Proxy Server
-	score  200 127.0.0.4 # misc.dnsbl.sorbs.net - List of open Proxy Servers not listed in the SOCKS or HTTP lists
-	score   25 127.0.0.5 # smtp.dnsbl.sorbs.net - List of Open SMTP relay servers
-	score   25 127.0.0.6 # new.spam.dnsbl.sorbs.net - List of hosts that have been noted as sending spam/UCE/UBE to the admins of SORBS within the last 48 hours.
-	score  100 127.0.0.7 # web.dnsbl.sorbs.net - List of web (WWW) servers which have spammer abusable vulnerabilities (e.g. FormMail scripts) Note: This zone now includes non-webserver IP addresses that have abusable vulnerabilities.
-	score    0 127.0.0.8 # block.dnsbl.sorbs.net - List of hosts demanding that they never be tested by SORBS.
-	score  100 127.0.0.9 # zombie.dnsbl.sorbs.net - List of networks hijacked from their original owners, some of which have already used for spamming.
-	score -200 127.0.0.10 # dul.dnsbl.sorbs.net - Dynamic IP Address ranges (NOT a Dial Up list!)
-	score    0 127.0.0.11 # badconf.rhsbl.sorbs.net - List of domain names where the A or MX records point to bad address space.
-	score    0 127.0.0.12 # nomail.rhsbl.sorbs.net - List of domain names where the owners have indicated no email should ever originate from these domains.
-	score    0 127.0.0.14 # noserver.dnsbl.sorbs.net - IP addresses and Netblocks of where system administrators and ISPs owning the network have indicated that servers should not be present.
+IGNORE="0"			# do not take into account this result
+PROXY="1000"		# a verified open proxy
+EXPLOIT="100"		# a verified exploit
+SPAM="15"			# the host is known to send spam
+SPAMPRO="100"		# a professional spammer
+SPAMWAVE="200"		# participated in a recent spam wave
+DYNAMICIP="-500"	# a dynamic IP
+BADKARMA="300"		# the host is known to have bad karma
+GOODKARMA="-500"	# the host is known to have good karma
 
-dnsbl 0 all.spamrats.com
-	score -200 127.0.0.36 # Dyna, IP Addresses that have been found sending an abusive amount of connections, or trying too many invalid users at ISP and Telco's mail servers, and are also known to conform to a naming convention that is indicative of a home connection or dynamic address space.
-	score   45 127.0.0.37 # Noptr, IP Addresses that have been found sending an abusive amount of connections, or trying too many invalid users at ISP and Telco's mail servers, and are also known to have no reverse DNS, a technique often used by bots and spammers
-	score   45 127.0.0.38 # Spam, IP Addresses that do not conform to more commonly known threats, and is usually because of compromised servers, hosts, or open relays. However, since there is little accompanying data this list COULD have false-positives, and we suggest that it only is used if you support a more aggressive stance
 
-dnsbl 0 hostkarma.junkemailfilter.com
-	score -200 127.0.0.1 # whitelist
-	score  100 127.0.0.2 # blacklist
-	score   35 127.0.0.3 # yellowlist
-	score   45 127.0.0.4 # brownlist
-	score -200 127.0.0.5 # no blacklist
+# -----------------------------------------------------------------------------
+# Project Honey Pot
+# This is an excellent DNSBL for HTTP traffic.
 
-dnsbl 0 rep.mailspike.net # IP Reputation
-	score  200 127.0.0.10 # Worst possible
-	score  150 127.0.0.11 # Very bad
-	score  100 127.0.0.12 # Bad
-	score   35 127.0.0.13 # Suspicious
-	score   25 127.0.0.14 # Neutral - probably spam
-	score  -50 127.0.0.15 # Neutral
-	score  -70 127.0.0.16 # Neutral - probably legit
-	score -100 127.0.0.17 # Possibly legit sender
-	score -150 127.0.0.18 # Good
-	score -200 127.0.0.19 # Very Good
-	score -250 127.0.0.20 # Excellent
+# To enable it, register at the site http://www.projecthoneypot.org/
+# then go to http://www.projecthoneypot.org/httpbl_configure.php
+# set your key to httpbl_key
 
-dnsbl 45 z.mailspike.net # participating in a distributed spam wave in the last 48 hours
+httpbl_key=""
+if [ ! -z "${httpbl_key}" ]
+	then
 
-dnsbl 35 all.s5h.net
+	dnsbl ${IGNORE} dnsbl.httpbl.org prekey "${httpbl_key}"
 
-dnsbl 45 b.barracudacentral.org # Barracuda Reputation Block List, http://barracudacentral.org/rbl/listing-methodology
+	for threat in {128..255}
+	do
+		for days in {0..7}
+		do
+			score ${BADKARMA} 127.${days}.${threat}
+		done
+		for days in {8..14}
+		do
+			score $[BADKARMA/2] 127.${days}.${threat}
+		done
+	done
+fi
 
-dnsbl 25 spam.dnsbl.sorbs.net #  spam.dnsbl.sorbs.net - List of hosts that have been noted as sending spam/UCE/UBE to the admins of SORBS at any time,  and not subsequently resolving the matter and/or requesting a delisting. (Includes both old.spam.dnsbl.sorbs.net and escalations.dnsbl.sorbs.net).
+
+# -----------------------------------------------------------------------------
+
+dnsbl ${IGNORE} zen.spamhaus.org
+	score ${SPAMPRO}   127.0.0.2  # sbl.spamhaus.org, Spamhaus SBL Data, Static UBE sources, verified spam services (hosting or support) and ROKSO spammers
+	score ${SPAMPRO}   127.0.0.3  # sbl.spamhaus.org, Spamhaus SBL CSS Data, Static UBE sources, verified spam services (hosting or support) and ROKSO spammers
+	score ${EXPLOIT}   127.0.0.4  # xbl.spamhaus.org, CBL Data, Illegal 3rd party exploits, including proxies, worms and trojan exploits
+	score ${EXPLOIT}   127.0.0.5  # xbl.spamhaus.org = Illegal 3rd party exploits, including proxies, worms and trojan exploits
+	score ${EXPLOIT}   127.0.0.6  # xbl.spamhaus.org = Illegal 3rd party exploits, including proxies, worms and trojan exploits
+	score ${EXPLOIT}   127.0.0.7  # xbl.spamhaus.org = Illegal 3rd party exploits, including proxies, worms and trojan exploits
+	score ${DYNAMICIP} 127.0.0.10 # pbl.spamhaus.org = End-user Non-MTA IP addresses set by ISP outbound mail policy
+	score ${DYNAMICIP} 127.0.0.11 # pbl.spamhaus.org = End-user Non-MTA IP addresses set by ISP outbound mail policy
+	score ${GOODKARMA} 127.0.2    # Spamhaus Whitelists
+
+dnsbl ${IGNORE} dnsbl.sorbs.net
+	score     ${PROXY} 127.0.0.2 # http.dnsbl.sorbs.net - List of Open HTTP Proxy Servers
+	score     ${PROXY} 127.0.0.3 # socks.dnsbl.sorbs.net - List of Open SOCKS Proxy Server
+	score     ${PROXY} 127.0.0.4 # misc.dnsbl.sorbs.net - List of open Proxy Servers not listed in the SOCKS or HTTP lists
+	score    ${IGNORE} 127.0.0.5 # smtp.dnsbl.sorbs.net - List of Open SMTP relay servers
+	score      ${SPAM} 127.0.0.6 # new.spam.dnsbl.sorbs.net - List of hosts that have been noted as sending spam/UCE/UBE to the admins of SORBS within the last 48 hours.
+	score   ${EXPLOIT} 127.0.0.7 # web.dnsbl.sorbs.net - List of web (WWW) servers which have spammer abusable vulnerabilities (e.g. FormMail scripts) Note: This zone now includes non-webserver IP addresses that have abusable vulnerabilities.
+	score    ${IGNORE} 127.0.0.8 # block.dnsbl.sorbs.net - List of hosts demanding that they never be tested by SORBS.
+	score   ${EXPLOIT} 127.0.0.9 # zombie.dnsbl.sorbs.net - List of networks hijacked from their original owners, some of which have already used for spamming.
+	score ${DYNAMICIP} 127.0.0.10 # dul.dnsbl.sorbs.net - Dynamic IP Address ranges (NOT a Dial Up list!)
+	score    ${IGNORE} 127.0.0.11 # badconf.rhsbl.sorbs.net - List of domain names where the A or MX records point to bad address space.
+	score ${DYNAMICIP} 127.0.0.12 # nomail.rhsbl.sorbs.net - List of domain names where the owners have indicated no email should ever originate from these domains.
+	score ${DYNAMICIP} 127.0.0.14 # noserver.dnsbl.sorbs.net - IP addresses and Netblocks of where system administrators and ISPs owning the network have indicated that servers should not be present.
+
+dnsbl ${IGNORE} all.spamrats.com
+	score ${DYNAMICIP} 127.0.0.36 # Dyna, IP Addresses that have been found sending an abusive amount of connections, or trying too many invalid users at ISP and Telco's mail servers, and are also known to conform to a naming convention that is indicative of a home connection or dynamic address space.
+	score      ${SPAM} 127.0.0.37 # Noptr, IP Addresses that have been found sending an abusive amount of connections, or trying too many invalid users at ISP and Telco's mail servers, and are also known to have no reverse DNS, a technique often used by bots and spammers
+	score      ${SPAM} 127.0.0.38 # Spam, IP Addresses that do not conform to more commonly known threats, and is usually because of compromised servers, hosts, or open relays. However, since there is little accompanying data this list COULD have false-positives, and we suggest that it only is used if you support a more aggressive stance
+
+dnsbl ${IGNORE} hostkarma.junkemailfilter.com
+	score   ${GOODKARMA} 127.0.0.1 # whitelist
+	score    ${BADKARMA} 127.0.0.2 # blacklist
+	score  $[BADKARMA/3] 127.0.0.3 # yellowlist
+	score  $[BADKARMA/2] 127.0.0.4 # brownlist
+	score      ${IGNORE} 127.0.0.5 # no blacklist
+
+dnsbl ${IGNORE} rep.mailspike.net # IP Reputation
+	score          ${BADKARMA} 127.0.0.10 # Worst possible
+	score  $[BADKARMA * 2 / 3] 127.0.0.11 # Very bad
+	score      $[BADKARMA / 2] 127.0.0.12 # Bad
+	score      $[BADKARMA / 3] 127.0.0.13 # Suspicious
+	score      $[BADKARMA / 4] 127.0.0.14 # Neutral - probably spam
+	score            ${IGNORE} 127.0.0.15 # Neutral
+	score     $[GOODKARMA / 4] 127.0.0.16 # Neutral - probably legit
+	score     $[GOODKARMA / 3] 127.0.0.17 # Possibly legit sender
+	score     $[GOODKARMA / 2] 127.0.0.18 # Good
+	score $[GOODKARMA * 2 / 3] 127.0.0.19 # Very Good
+	score         ${GOODKARMA} 127.0.0.20 # Excellent
+
+dnsbl ${SPAMWAVE} z.mailspike.net # participating in a distributed spam wave in the last 48 hours
+
+dnsbl ${SPAM} all.s5h.net
+
+dnsbl $[BADKARMA/4] b.barracudacentral.org # Barracuda Reputation Block List, http://barracudacentral.org/rbl/listing-methodology
+
+dnsbl ${SPAM} spam.dnsbl.sorbs.net #  spam.dnsbl.sorbs.net - List of hosts that have been noted as sending spam/UCE/UBE to the admins of SORBS at any time,  and not subsequently resolving the matter and/or requesting a delisting. (Includes both old.spam.dnsbl.sorbs.net and escalations.dnsbl.sorbs.net).
 
 # cbl.abuseat.org may be also included in xbl.spamhaus.org
 # in this case, it should not be added again.
 #dnsbl 200 cbl.abuseat.org # The CBL only lists IPs exhibiting characteristics which are specific to open proxies of various sorts (HTTP, socks, AnalogX, wingate, Bagle call-back proxies etc) and dedicated Spam BOTs (such as Cutwail, Rustock, Lethic etc) which have been abused to send spam, worms/viruses that do their own direct mail transmission, or some types of trojan-horse or "stealth" spamware, dictionary mail harvesters etc.
 
-dnsbl 25 dnsbl.justspam.org # If an IP that we never got legit email from is seen spamming and said IP is already listed by at least one of the other well-known and independent blacklists, then it is added to our blacklist dnsbl.justspam.org.
+dnsbl ${SPAM} dnsbl.justspam.org # If an IP that we never got legit email from is seen spamming and said IP is already listed by at least one of the other well-known and independent blacklists, then it is added to our blacklist dnsbl.justspam.org.
 
-dnsbl 100 korea.services.net # South Korean IP address space - this is not necessarily bad
+dnsbl $[BADKARMA/4] korea.services.net # South Korean IP address space - this is not necessarily bad
 
-dnsbl 0 rbl.megarbl.net
-	score 25 127.0.0.2 # spam source
+dnsbl ${IGNORE} rbl.megarbl.net
+	score ${SPAM} 127.0.0.2 # spam source
 
-#dnsbl 0 dnsbl.inps.de # is listing IPs if they are listed on other DNSBLs
+#dnsbl ${IGNORE} dnsbl.inps.de # is listing IPs if they are listed on other DNSBLs
 
-dnsbl 0 bl.spamcop.net
-	score 25 127.0.0.2 # spam source
+dnsbl ${IGNORE} bl.spamcop.net
+	score ${SPAM} 127.0.0.2 # spam source
 
-dnsbl 0 db.wpbl.info
-	score 25 127.0.0.2 # spam source
+dnsbl ${IGNORE} db.wpbl.info
+	score ${SPAM} 127.0.0.2 # spam source
 
-dnsbl 0 dnsbl.anticaptcha.net
-	score 25 127.0.0.3 # spam source
-	score 25 127.0.0.10 # spam source
+dnsbl ${IGNORE} dnsbl.anticaptcha.net
+	score ${SPAM} 127.0.0.3 # spam source
+	score ${SPAM} 127.0.0.10 # spam source
 
-dnsbl 0 ubl.unsubscore.com
-	score 25 127.0.0.2 # spam source
+dnsbl ${IGNORE} ubl.unsubscore.com
+	score ${SPAM} 127.0.0.2 # spam source
 
-dnsbl 0 bl.tiopan.com
-	score 10 127.0.0.2 # spam source
+dnsbl ${IGNORE} bl.tiopan.com
+	score ${SPAM} 127.0.0.2 # spam source
 
-dnsbl -200 list.dnswl.org # all responses include valid mail servers
+dnsbl ${GOODKARMA} list.dnswl.org # all responses include valid mail servers
 
-dnsbl 25 ix.dnsbl.manitu.net # spam source?
+dnsbl ${SPAM} ix.dnsbl.manitu.net # spam source?
 
-dnsbl 25 psbl.surriel.com # spam source
+dnsbl ${SPAM} psbl.surriel.com # spam source
 
 
 # --- other lists to choose from ---
@@ -480,7 +592,6 @@ dnsbl 25 psbl.surriel.com # spam source
 
 # --- END OF DNSBL-IPSET DEFAULTS ---
 
-
 # -----------------------------------------------------------------------------
 # pre-configuration checks
 
@@ -518,8 +629,13 @@ then
 	exit 1
 fi
 
+enable -n trap
+enable -n exit
+echo "Parsing config..."
 source "${FIREHOL_CONFIG_DIR}/dnsbl-ipset.conf" || exit 1
-
+echo "Config parsed."
+enable trap
+enable exit
 
 # -----------------------------------------------------------------------------
 # command line processing
@@ -569,6 +685,10 @@ do
 		test|-t)
 			TEST_SRC_DST=1
 			RUNNING_ON_TERMINAL=0
+			;;
+
+		debug|-d)
+			DEBUG=1
 			;;
 
 		flush|clear|clean|restart)
@@ -644,12 +764,42 @@ trap cleanup INT
 # -----------------------------------------------------------------------------
 # program functions
 
+httpbl_parser() {
+	local ip0="${1}" ip1="${2}" ip2="${3}" ip3="${4}"
+	local days=$[ip1] threat=$[ip2] type=$[ip3]
+	local search=0 suspicious=0 harvester=0 cspammer=0
+
+	[ ! $[ip0] -eq 127 ] && return 0
+
+	[ $[type & 1] -eq 1 ] && suspicious=1
+	[ $[type & 2] -eq 1 ] && harvester=1
+	[ $[type & 4] -eq 1 ] && cspammer=1
+	[ $[type] -eq 0 ]     && search=1
+
+	# TODO
+	# THIS FUNCTION IS INCOMPLETE - DO NOT USE YET
+}
+
 DNSBL_GET_SCORE="0"
 dnsbl_get_score() {
 	local reply="${1}" dnsbl="${2}" ip=() x=
 
 	# parse the reply IP to its parts
 	IFS="." read -ra ip <<< "${reply}"
+
+	# if it has a custom callback, call it
+	if [ ! -z "${DNSBL_SCORES[custom/${dnsbl}]}" ]
+		then
+		# call the custom function
+		DNSBL_GET_SCORE=
+		${DNSBL_SCORES[custom/${dnsbl}]} ${ip[0]} ${ip[1]} ${ip[2]} ${ip[3]}
+		if [ -z "${DNSBL_GET_SCORE}" ]
+			then
+			echo >&2 "SCORE: callback ${DNSBL_SCORES[custom/${dnsbl}]} did not set a score"
+			DNSBL_GET_SCORE="0"
+		fi
+		return $?
+	fi
 
 	# check for a score all possible combinations
 	# from more specific to more generic
@@ -667,7 +817,6 @@ dnsbl_get_score() {
 	do
 		if [ ! -z "${DNSBL_SCORES[${x}]}" ]
 			then
-
 			# found it
 			[ ${DEBUG} -eq 1 ] && echo >&2 "SCORE: ${x} = ${DNSBL_SCORES[${x}]}"
 			DNSBL_GET_SCORE="${DNSBL_SCORES[${x}]}"
@@ -785,10 +934,10 @@ generate_dnsbl_hostnames() {
 		done
 
 		# generate the lookup hostnames for all configured lists
-		local x=
+		local x= prekey=
 		for x in ${!DNSBL[@]}
 		do
-			echo "${ip[3]}.${ip[2]}.${ip[1]}.${ip[0]}.${x}"
+			echo "${DNSBL_PREKEYS[${x}]}${ip[3]}.${ip[2]}.${ip[1]}.${ip[0]}.${x}"
 		done
 		return 0
 	else
@@ -829,7 +978,7 @@ declare -A ADNS_LISTS=()
 ADNS_COMPLETED=0
 ADNS_BLACKLISTED=0
 parse_adns_asynch() {
-	local id n status t1 reason host dollar msg1 msg2 msg3 msg4 msg5 ip=() throttle="waiting"
+	local id n status t1 reason host dollar msg1 msg2 msg3 msg4 msg5 ip=() throttle="waiting" i=
 
 	# remove the throttle lock file, if present
 	[ -f "${THROTTLE_LOCK_FILE}" ] && rm "${THROTTLE_LOCK_FILE}"
@@ -841,7 +990,13 @@ parse_adns_asynch() {
 
 		# split the host
 		IFS="." read -ra ip <<< "${host}"
-		local i="${ip[3]}.${ip[2]}.${ip[1]}.${ip[0]}"
+		if [[ ! "${ip[0]}" =~ ^[0-9]+$ ]]
+			then
+			# it has a prekey
+			unset ip[0]
+			ip=("${ip[@]}")
+		fi
+		i="${ip[3]}.${ip[2]}.${ip[1]}.${ip[0]}"
 
 		# if we don't know it, add it
 		if [ -z "${ADNS_REMAINING[$i]}" ]
@@ -929,35 +1084,6 @@ parse_adns_asynch() {
 
 
 # -----------------------------------------------------------------------------
-# the console spinner
-
-PROGRAM_SPINNER_SPACES='                                                                                                '
-PROGRAM_SPINNER_BACKSPACES='\b\b\b\b\b\b\b\b\b\b\b\b\b\b\b\b\b\b\b\b\b\b\b\b\b\b\b\b\b\b\b\b\b\b\b\b\b\b\b\b\b\b\b\b\b\b\b\b\b\b\b\b\b\b\b\b\b\b\b\b\b\b\b\b\b\b\b\b\b\b\b\b\b\b\b\b\b\b\b'
-PROGRAM_SPINNER_LAST=0
-PROGRAM_SPINNER='|/-\'
-PROGRAM_SPINNER_RUNNING=0
-PROGRAM_SPINNER_PREFIX="Queue"
-spinner()
-{
-	local t="${PROGRAM_SPINNER_PREFIX} ${1}"
-	printf >&2 "${PROGRAM_SPINNER_BACKSPACES:0:$PROGRAM_SPINNER_LAST}"
-	PROGRAM_SPINNER_LAST=$(( (${#t} + 5) * 2 ))
-	local temp=${PROGRAM_SPINNER#?}
-	printf >&2 "[${t} %c] " "${PROGRAM_SPINNER}"
-	PROGRAM_SPINNER=$temp${PROGRAM_SPINNER%"$temp"}
-	PROGRAM_SPINNER_RUNNING=1
-}
-
-spinner_end() {
-	local last=$((PROGRAM_SPINNER_LAST / 2))
-	printf >&2 "${PROGRAM_SPINNER_BACKSPACES:0:$PROGRAM_SPINNER_LAST}"
-	printf >&2 "${PROGRAM_SPINNER_SPACES:0:$last}"
-	printf >&2 "${PROGRAM_SPINNER_BACKSPACES:0:$PROGRAM_SPINNER_LAST}"
-	PROGRAM_SPINNER_RUNNING=0
-	PROGRAM_SPINNER_LAST=0
-}
-
-# -----------------------------------------------------------------------------
 # the main loop
 
 # A pipeline:
@@ -970,9 +1096,11 @@ spinner_end() {
 
 echo >&2 "Using ulogd iptables log: ${IPTABLES_LOG}"
 echo >&2 "Searching for: ${ULOG_MATCH}"
-
+echo >&2 "DNSBLs configured: ${!DNSBL[@]}"
 echo >&2
 echo >&2 "Please wait some time... pipes are filling up... (this is not a joke)"
+
+[ ${DEBUG} -eq 1 ] && declare -p DNSBL DNSBL_SCORES DNSBL_PREKEYS
 
 tail -s 0.2 -F "${IPTABLES_LOG}" |\
 	grep --line-buffered -E "^.*${ULOG_MATCH}.* SRC=[0-9.]+ DST=[0-9.]+ .*$" |\
