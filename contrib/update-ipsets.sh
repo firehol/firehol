@@ -506,6 +506,12 @@ cache_clean_ipset() {
 	done
 	cache_save
 }
+cache_update_ipset() {
+	local ipset="${1}"
+	[ -z "${IPSET_ENTRIES[${ipset}]}" ] && IPSET_ENTRIES[${ipset}]=`cat "${IPSET_FILES[${ipset}]}" | remove_comments | wc -l`
+	[ -z "${IPSET_IPS[${ipset}]}"     ] && IPSET_IPS[${ipset}]=`cat "${IPSET_FILES[${ipset}]}" | remove_comments | ips_in_set`
+	return 0
+}
 
 print_last_digit_decimal() {
 	local x="${1}" len= pl=
@@ -536,16 +542,14 @@ compare_ipset() {
 		cache_remove_ipset "${ipset}"
 		return 1
 	fi
-
-	#[ -z "${IPSET_ENTRIES[${ipset}]}" ] && IPSET_ENTRIES[${ipset}]=`cat "${file}" | remove_comments | wc -l`
-	#[ -z "${IPSET_IPS[${ipset}]}"     ] && IPSET_IPS[${ipset}]=`cat "${file}" | remove_comments | ips_in_set`
 	
+	cache_update_ipset "${ipset}"
 	entries="${IPSET_ENTRIES[${ipset}]}"
 	ips="${IPSET_IPS[${ipset}]}"
 
 	if [ -z "${entries}" -o -z "${ips}" ]
 		then
-		echo >&2 "ERROR: empty cache for ${ipset}."
+		echo >&2 "${ipset}: ERROR empty cache entries"
 		return 1
 	fi
 
@@ -585,15 +589,13 @@ EOFMD
 
 		[[ "${ofile}" =~ ^geolite2.* ]] && return 1
 
-		#[ -z "${IPSET_ENTRIES[${1}]}" ] && IPSET_ENTRIES[${1}]=`cat "${1}" | remove_comments | wc -l`
-		#[ -z "${IPSET_IPS[${1}]}"     ] && IPSET_IPS[${1}]=`cat "${1}" | remove_comments | ips_in_set`
-
+		cache_update_ipset "${oipset}"
 		local oentries="${IPSET_ENTRIES[${oipset}]}"
 		local oips="${IPSET_IPS[${oipset}]}"
 
 		if [ -z "${oentries}" -o -z "${oips}" ]
 			then
-			echo >&2 "ERROR: empty cache for ${oipset}."
+			echo >&2 "${oipset}: ERROR empty cache data"
 			continue
 		fi
 
@@ -1771,6 +1773,16 @@ update autoshun $[4*60] 0 ipv4 ip \
 	"http://www.autoshun.org/files/shunlist.csv" \
 	csv_comma_first_column \
 	"[AutoShun.org](http://autoshun.org/) IPs identified as hostile by correlating logs from distributed snort installations running the autoshun plugin"
+
+
+# -----------------------------------------------------------------------------
+# VoIPBL.org
+# http://www.voipbl.org/
+
+update voipbl $[4*60] 0 ipv4 net \
+	"http://www.voipbl.org/update/" \
+	remove_comments \
+	"[VoIPBL.org](http://www.voipbl.org/) VoIPBL is a distributed VoIP blacklist that is aimed to protects against VoIP Fraud and minimizing abuse for network that have publicly accessible PBX's. Several algorithms, external sources and manual confirmation are used before they categorize something as an attack and determine the threat level."
 
 
 # -----------------------------------------------------------------------------
