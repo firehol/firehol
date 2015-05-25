@@ -610,7 +610,7 @@ EOFMD
 		fi
 		local overlap="${IPSET_OVERLAPS[,${ipset},${oipset},]}${IPSET_OVERLAPS[,${oipset},${ipset},]}"
 
-		[ ${overlap} -gt 0 ] && echo "${overlap}|${oipset}|${oentries}|${oips}|${overlap}|$(print_last_digit_decimal $[overlap * 1000 / oips])%|$(print_last_digit_decimal $[overlap * 1000 / ips])%|" >>${readme}.tmp
+		[ ${overlap} -gt 0 ] && echo "${overlap}|[${oipset}](#${oipset})|${oentries}|${oips}|${overlap}|$(print_last_digit_decimal $[overlap * 1000 / oips])%|$(print_last_digit_decimal $[overlap * 1000 / ips])%|" >>${readme}.tmp
 	done
 	cat "${readme}.tmp" | sort -n -r | cut -d '|' -f 2- >>${readme}
 	rm "${readme}.tmp"
@@ -899,19 +899,20 @@ update() {
 # -----------------------------------------------------------------------------
 # INTERNAL FILTERS
 
+aggregate4_warning=0
 aggregate4() {
 	local cmd=
 
 	if [ -x "${base}/iprange" ]
 		then
-		"${base}/iprange" -J
+		"${base}/iprange" -J | append_slash32
 		return $?
 	fi
 
 	cmd="`which iprange 2>/dev/null`"
 	if [ ! -z "${cmd}" ]
 	then
-		${cmd} -J
+		${cmd} -J | append_slash32
 		return $?
 	fi
 	
@@ -925,13 +926,16 @@ aggregate4() {
 	cmd="`which aggregate 2>/dev/null`"
 	if [ ! -z "${cmd}" ]
 	then
-		sed "s|^\([0-9]\+\.[0-9]\+\.[0-9]\+\.[0-9]\+\\)$|\1/32|g" |\
-			${cmd} -t
+		[ ${aggregate4_warning} -eq 0 ] && echo >&2 "The command aggregate installed is really slow, please install aggregate-flim or iprange (http://www.cs.colostate.edu/~somlo/iprange.c)."
+		aggregate4_warning=1
 
+		append_slash32 | ${cmd} -t
 		return $?
 	fi
 
-	echo >&2 "Warning: Cannot aggregate ip-ranges. Please install 'aggregate'. Working wihout aggregate."
+	[ ${aggregate4_warning} -eq 0 ] && echo >&2 "Warning: Cannot aggregate ip-ranges. Please install 'aggregate'. Working wihout aggregate (http://www.cs.colostate.edu/~somlo/iprange.c)."
+	aggregate4_warning=1
+
 	cat
 }
 
