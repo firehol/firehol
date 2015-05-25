@@ -444,6 +444,8 @@ dnsbl ${IGNORE} zen.spamhaus.org
 	score ${EXPLOIT}   127.0.0.7  # xbl.spamhaus.org = Illegal 3rd party exploits, including proxies, worms and trojan exploits
 	score ${DYNAMICIP} 127.0.0.10 # pbl.spamhaus.org = End-user Non-MTA IP addresses set by ISP outbound mail policy
 	score ${DYNAMICIP} 127.0.0.11 # pbl.spamhaus.org = End-user Non-MTA IP addresses set by ISP outbound mail policy
+
+dnsbl ${IGNORE} swl.spamhaus.org
 	score ${GOODKARMA} 127.0.2    # Spamhaus Whitelists
 
 dnsbl ${IGNORE} dnsbl.sorbs.net
