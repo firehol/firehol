@@ -100,18 +100,58 @@ then
 fi
 renice 10 $$ >/dev/null 2>/dev/null
 
+require_cmd() {
+	local cmd= block=1
+	if [ "a${1}" = "a-n" ]
+	then
+		block=0
+		shift
+	fi
+	
+	unalias ${1} >/dev/null 2>&1
+	cmd=`which ${1} 2>/dev/null | head -n 1`
+	if [ $? -gt 0 -o ! -x "${cmd}" ]
+	then
+		if [ ${block} -eq 1 ]
+		then
+			echo >&2 "ERROR: Command '${1}' not found in the system path."
+			exit 1
+		fi
+		return 1
+	fi
+	
+	eval "${1^^}_CMD=${cmd}"
+	return 0
+}
+
+require_cmd curl
+require_cmd unzip
+require_cmd funzip
+require_cmd gzip
+require_cmd sed
+require_cmd grep
+require_cmd sort
+require_cmd uniq
+require_cmd tail
+require_cmd mkdir
+require_cmd egrep
+require_cmd mkdir
+require_cmd awk
+require_cmd touch
+require_cmd ipset
+require_cmd dirname
+
 program_pwd="${PWD}"
 program_dir="`dirname ${0}`"
-awk="$(which awk 2>/dev/null)"
 CAN_CONVERT_RANGES_TO_CIDR=0
-if [ ! -z "${awk}" -a -x "${program_dir}/ipv4_range_to_cidr.awk" ]
+if [ -x "${program_dir}/ipv4_range_to_cidr.awk" ]
 then
 	CAN_CONVERT_RANGES_TO_CIDR=1
 fi
 
 ipv4_range_to_cidr() {
 	cd "${program_pwd}"
-	${awk} -f "${program_dir}/ipv4_range_to_cidr.awk"
+	awk -f "${program_dir}/ipv4_range_to_cidr.awk"
 	cd "${OLDPWD}"
 }
 
@@ -122,22 +162,14 @@ SILENT=0
 while [ ! -z "${1}" ]
 do
 	case "${1}" in
-		-s) SILENT=1;;
-		-g) PUSH_TO_GIT=1;;
-		-i) IGNORE_LASTCHECKED=1;;
-		-c) GIT_COMPARE=1;;
+		silen|-s) SILENT=1;;
+		git|-g) PUSH_TO_GIT=1;;
+		recheck|-i) IGNORE_LASTCHECKED=1;;
+		compare|-c) GIT_COMPARE=1;;
 		*) echo >&2 "Unknown parameter '${1}'".; exit 1 ;;
 	esac
 	shift
 done
-
-# find curl
-curl="$(which curl 2>/dev/null)"
-if [ -z "${curl}" ]
-then
-	echo >&2 "Please install curl."
-	exit 1
-fi
 
 # create the directory to save the sets
 if [ ! -d "${base}" ]
@@ -359,7 +391,7 @@ geturl() {
 	# to our file
 	touch -r "${reference}" "${file}"
 
-	${curl} -z "${reference}" -o "${file}" -s -L -R "${url}"
+	curl -z "${reference}" -o "${file}" -s -L -R "${url}"
 	ret=$?
 
 	if [ ${ret} -eq 0 -a ! "${file}" -nt "${reference}" ]
@@ -552,13 +584,13 @@ compare_ipset() {
 	entries="${IPSET_ENTRIES[${ipset}]}"
 	ips="${IPSET_IPS[${ipset}]}"
 
-	if [ -z "${entries}" -o -z "${ips}" ]
+	if [ -z "${entries}" -o -z "${ips}" -o ! -f "${IPSET_FILE[${ipset}]}" -o ! -f "${IPSET_SOURCE[${ipset}]}" ]
 		then
-		echo >&2 "${ipset}: ERROR empty cache entries"
+		cache_remove_ipset "${ipset}"
 		return 1
 	fi
 
-	printf >&2 "%31.31s: Comparing " "${ipset}"
+	printf >&2 "%31.31s: " "${ipset}"
 
 	cat >${readme} <<EOFMD
 ## ${ipset}
@@ -598,9 +630,9 @@ EOFMD
 		local oentries="${IPSET_ENTRIES[${oipset}]}"
 		local oips="${IPSET_IPS[${oipset}]}"
 
-		if [ -z "${oentries}" -o -z "${oips}" ]
+		if [ -z "${oentries}" -o -z "${oips}" -o ! -f "${IPSET_FILE[${oipset}]}" -o ! -f "${IPSET_SOURCE[${oipset}]}" ]
 			then
-			echo >&2 "${oipset}: ERROR empty cache data"
+			printf >&2 "%s" "-"
 			continue
 		fi
 
@@ -628,6 +660,8 @@ EOFMD
 
 compare_all_ipsets() {
 	local x=
+	echo >&2
+	echo >&2 "Comparing ipsets..."
 	for x in "${!IPSET_FILE[@]}"
 	do
 		compare_ipset "${x}" "${!IPSET_FILE[@]}"
@@ -921,6 +955,7 @@ rename_ipset() {
 				then
 				echo >&2 "GIT Renaming ${old}.${x} to ${new}.${x}..."
 				git mv "${old}.${x}" "${new}.${x}" || exit 1
+				git commit "${old}.${x}" "${new}.${x}" -m 'renamed from ${old}.${x} to ${new}.${x}'
 			fi
 
 			if [ -f "${old}.${x}" -a ! -f "${new}.${x}" ]
@@ -959,6 +994,9 @@ rename_ipset botnet et_botnet
 rename_ipset emerging_block et_block
 rename_ipset rosi_web_proxies ri_web_proxies
 rename_ipset rosi_connect_proxies ri_connect_proxies
+rename_ipset danmetor dm_tor
+rename_ipset autoshun shunlist
+rename_ipset tor_servers bm_tor
 
 # -----------------------------------------------------------------------------
 # INTERNAL FILTERS
@@ -979,7 +1017,7 @@ aggregate4() {
 		${cmd} -J | append_slash32
 		return $?
 	fi
-	
+
 	cmd="`which aggregate-flim 2>/dev/null`"
 	if [ ! -z "${cmd}" ]
 	then
@@ -1290,7 +1328,7 @@ geolite2_country() {
 			name="${name//\"/}"
 			name="${name//[/(}"
 			name="${name//]/)}"
-			
+
 			if [ -f "${ipset}.tmp/country.${id}.source.tmp" ]
 			then
 				[ ! -z "${cid}" ] && cat "${ipset}.tmp/country.${id}.source.tmp" >>"${ipset}.tmp/continent_${cid,,}.source.tmp"
@@ -1320,7 +1358,7 @@ geolite2_country() {
 
 		touch -r "${ipset}.source" "${x/.source.tmp/.source}"
 		rm "${x}"
-		
+
 		local i=${x/.source.tmp/}
 		i=${i/${ipset}.tmp\//}
 
@@ -1332,7 +1370,7 @@ geolite2_country() {
 	if [ -d .git ]
 	then
 		# generate a setinfo for the home page
-		echo >"${ipset}.setinfo" "${ipset}|[MaxMind GeoLite2](http://dev.maxmind.com/geoip/geoip2/geolite2/) databases are free IP geolocation databases comparable to, but less accurate than, MaxMind’s GeoIP2 databases. They include IPs per country, IPs per continent, IPs used by anonymous services (VPNs, Proxies, etc) and Satellite Providers.|ipv4 hash:net|All the world|updated every `mins_to_text ${mins}` from [this link](${url})"
+		echo >"${ipset}.setinfo" "[${ipset}](tree/master/geolite2_country)|[MaxMind GeoLite2](http://dev.maxmind.com/geoip/geoip2/geolite2/) databases are free IP geolocation databases comparable to, but less accurate than, MaxMind’s GeoIP2 databases. They include IPs per country, IPs per continent, IPs used by anonymous services (VPNs, Proxies, etc) and Satellite Providers.|ipv4 hash:net|All the world|updated every `mins_to_text ${mins}` from [this link](${url})"
 	fi
 
 	# remove the temporary dir
@@ -1456,7 +1494,7 @@ update dshield $[4*60] 0 ipv4 net \
 # https://www.dan.me.uk/tornodes
 # This contains a full TOR nodelist (no more than 30 minutes old).
 # The page has download limit that does not allow download in less than 30 min.
-update danmetor 30 0 ipv4 ip \
+update dm_tor 30 0 ipv4 ip \
 	"https://www.dan.me.uk/torlist/" \
 	remove_comments \
 	"[dan.me.uk](https://www.dan.me.uk) dynamic list of TOR exit points"
@@ -1466,7 +1504,7 @@ update et_tor $[12*60] 0 ipv4 ip \
 	snort_alert_rules_to_ipv4 \
 	"[EmergingThreats.net](http://www.emergingthreats.net/) [list](http://doc.emergingthreats.net/bin/view/Main/TorRules) of TOR network IPs"
 
-update tor_servers 30 0 ipv4 ip \
+update bm_tor 30 0 ipv4 ip \
 	"https://torstatus.blutmagie.de/ip_list_all.php/Tor_ip_list_ALL.csv" \
 	remove_comments \
 	"[torstatus.blutmagie.de](https://torstatus.blutmagie.de) list of all TOR network servers"
@@ -1835,7 +1873,7 @@ update nixspam 15 0 ipv4 ip \
 # AutoShun.org
 # http://www.autoshun.org/
 
-update autoshun $[4*60] 0 ipv4 ip \
+update shunlist $[4*60] 0 ipv4 ip \
 	"http://www.autoshun.org/files/shunlist.csv" \
 	csv_comma_first_column \
 	"[AutoShun.org](http://autoshun.org/) IPs identified as hostile by correlating logs from distributed snort installations running the autoshun plugin"
