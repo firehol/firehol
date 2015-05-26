@@ -384,7 +384,7 @@ download_url() {
 	touch_in_the_past "${mins}" "${tmp}"
 
 	check="${install}.source"
-	[ ${IGNORE_LASTCHECKED} -eq 0 -a -f "${install}.lastchecked" ] && check="${install}.lastchecked"
+	[ ${IGNORE_LASTCHECKED} -eq 0 -a -f ".${install}.lastchecked" ] && check=".${install}.lastchecked"
 
 	# check if we have to download again
 	if [ "${check}" -nt "${tmp}" ]
@@ -402,7 +402,7 @@ download_url() {
 		99)
 			echo >&2 "${ipset}: file on server has not been updated yet"
 			rm "${tmp}"
-			touch_in_the_past $[mins / 2] "${install}.lastchecked"
+			touch_in_the_past $[mins / 2] ".${install}.lastchecked"
 			return ${DOWNLOAD_NOT_UPDATED}
 			;;
 
@@ -414,7 +414,7 @@ download_url() {
 	esac
 
 	# we downloaded something - remove the lastchecked file
-	[ -f "${install}.lastchecked" ] && rm "${install}.lastchecked"
+	[ -f ".${install}.lastchecked" ] && rm ".${install}.lastchecked"
 
 	# check if the downloaded file is empty
 	if [ ! -s "${tmp}" ]
@@ -467,13 +467,13 @@ ips_in_set() {
 declare -A IPSET_INFO=()
 declare -A IPSET_SOURCE=()
 declare -A IPSET_URL=()
-declare -A IPSET_FILES=()
+declare -A IPSET_FILE=()
 declare -A IPSET_ENTRIES=()
 declare -A IPSET_IPS=()
 declare -A IPSET_OVERLAPS=()
 cache_save() {
 	#echo >&2 "Saving cache"
-	declare -p IPSET_SOURCE IPSET_URL IPSET_INFO IPSET_FILES IPSET_ENTRIES IPSET_IPS IPSET_OVERLAPS >"${base}/.cache"
+	declare -p IPSET_SOURCE IPSET_URL IPSET_INFO IPSET_FILE IPSET_ENTRIES IPSET_IPS IPSET_OVERLAPS >"${base}/.cache"
 }
 if [ -f "${base}/.cache" ]
 	then
@@ -483,23 +483,28 @@ if [ -f "${base}/.cache" ]
 fi
 cache_remove_ipset() {
 	local ipset="${1}"
+	
 	echo >&2 "${ipset}: removing from cache"
+	
 	cache_clean_ipset "${ipset}"
+	
 	unset IPSET_INFO[${ipset}]
 	unset IPSET_SOURCE[${ipset}]
 	unset IPSET_URL[${ipset}]
-	unset IPSET_FILES[${ipset}]
+	unset IPSET_FILE[${ipset}]
 	unset IPSET_ENTRIES[${ipset}]
+	unset IPSET_IPS[${ipset}]
+	
 	cache_save
 }
 cache_clean_ipset() {
 	local ipset="${1}"
 
-	echo >&2 "${ipset}: Cleaning cache"
+	# echo >&2 "${ipset}: Cleaning cache"
 	unset IPSET_ENTRIES[${ipset}]
 	unset IPSET_IPS[${ipset}]
 	local x=
-	for x in "${!IPSET_FILES[@]}"
+	for x in "${!IPSET_FILE[@]}"
 	do
 		unset IPSET_OVERLAPS[,${ipset},${x},]
 		unset IPSET_OVERLAPS[,${x},${ipset},]
@@ -508,8 +513,8 @@ cache_clean_ipset() {
 }
 cache_update_ipset() {
 	local ipset="${1}"
-	[ -z "${IPSET_ENTRIES[${ipset}]}" ] && IPSET_ENTRIES[${ipset}]=`cat "${IPSET_FILES[${ipset}]}" | remove_comments | wc -l`
-	[ -z "${IPSET_IPS[${ipset}]}"     ] && IPSET_IPS[${ipset}]=`cat "${IPSET_FILES[${ipset}]}" | remove_comments | ips_in_set`
+	[ -z "${IPSET_ENTRIES[${ipset}]}" ] && IPSET_ENTRIES[${ipset}]=`cat "${IPSET_FILE[${ipset}]}" | remove_comments | wc -l`
+	[ -z "${IPSET_IPS[${ipset}]}"     ] && IPSET_IPS[${ipset}]=`cat "${IPSET_FILE[${ipset}]}" | remove_comments | ips_in_set`
 	return 0
 }
 
@@ -529,7 +534,7 @@ compare_ipset() {
 	local ipset="${1}" file= readme= info= entries= ips=
 	shift
 
-	file="${IPSET_FILES[${ipset}]}"
+	file="${IPSET_FILE[${ipset}]}"
 	info="${IPSET_INFO[${ipset}]}"
 	readme="${file/.ipset/}"
 	readme="${readme/.netset/}"
@@ -553,7 +558,7 @@ compare_ipset() {
 		return 1
 	fi
 
-	printf >&2 "${ipset}: Generating comparisons... "
+	printf >&2 "%31.31s: Comparing " "${ipset}"
 
 	cat >${readme} <<EOFMD
 ## ${ipset}
@@ -576,11 +581,11 @@ ipset|entries|unique IPs|IPs on both| them % | this % |
 EOFMD
 	
 	local oipset=
-	for oipset in "${!IPSET_FILES[@]}"
+	for oipset in "${!IPSET_FILE[@]}"
 	do
 		[ "${ipset}" = "${oipset}" ] && continue
 
-		local ofile="${IPSET_FILES[${oipset}]}"
+		local ofile="${IPSET_FILE[${oipset}]}"
 		if [ ! -f "${ofile}" ]
 			then
 			cache_remove_ipset "${oipset}"
@@ -623,9 +628,9 @@ EOFMD
 
 compare_all_ipsets() {
 	local x=
-	for x in "${!IPSET_FILES[@]}"
+	for x in "${!IPSET_FILE[@]}"
 	do
-		compare_ipset "${x}" "${!IPSET_FILES[@]}"
+		compare_ipset "${x}" "${!IPSET_FILE[@]}"
 	done
 }
 
@@ -735,7 +740,7 @@ EOFHEADER
 	mv "${tmp}.wh" "${dst}" || return 1
 
 	cache_clean_ipset "${ipset}"
-	IPSET_FILES[${ipset}]="${dst}"
+	IPSET_FILE[${ipset}]="${dst}"
 	IPSET_INFO[${ipset}]="${info}"
 	IPSET_ENTRIES[${ipset}]="${entries}"
 	IPSET_IPS[${ipset}]="${ips}"
@@ -828,10 +833,14 @@ update() {
 
 	# download it
 	download_url "${ipset}" "${mins}" "${url}"
-	if [ $? -eq ${DOWNLOAD_FAILED} -o \( $? -eq ${DOWNLOAD_NOT_UPDATED} -a -f "${install}.${hash}set" \) ]
-	then
-		check_file_too_old "${ipset}" "${install}.${hash}set"
-		return 1
+	if [ $? -eq ${DOWNLOAD_FAILED} -o $? -eq ${DOWNLOAD_NOT_UPDATED} ]
+		then
+		if [ ! -s "${install}.source" ]; then return 1
+		elif [ -f "${install}.${hash}set" ]
+		then
+			check_file_too_old "${ipset}" "${install}.${hash}set"
+			return 1
+		fi
 	fi
 
 	# support for older systems where hash:net cannot get hash:ip entries
@@ -897,6 +906,59 @@ update() {
 	return $?
 }
 
+# FIXME
+# Cannot rename ipsets in subdirectories
+# It also has issues with the comparison cache - you should recreate all ipsets in case of a rename
+rename_ipset() {
+	local old="${1}" new="${2}"
+
+	local x=
+	for x in ipset netset
+	do
+		if [ -f "${old}.${x}" -a ! -f "${new}.${x}" ]
+			then
+			if [ -d .git ]
+				then
+				echo >&2 "GIT Renaming ${old}.${x} to ${new}.${x}..."
+				git mv "${old}.${x}" "${new}.${x}" || exit 1
+			fi
+
+			if [ -f "${old}.${x}" -a ! -f "${new}.${x}" ]
+				then
+				echo >&2 "Renaming ${old}.${x} to ${new}.${x}..."
+				mv "${old}.${x}" "${new}.${x}" || exit 1
+			fi
+
+			# keep a link for the firewall
+			echo >&2 "Linking ${new}.${x} to ${old}.${x}..."
+			ln -s "${new}.${x}" "${old}.${x}" || exit 1
+		fi
+	done
+
+	for x in source split setinfo
+	do
+		if [ -f "${old}.${x}" -a ! -f "${new}.${x}" ]
+			then
+			mv "${old}.${x}" "${new}.${x}" || exit 1
+		fi
+	done
+
+	if [ -d "history/${old}" -a ! -d "history/${new}" ]
+		then
+		echo "Renaming history/${old} history/${new}"
+		mv "history/${old}" "history/${new}"
+	fi
+
+	return 0
+}
+
+# rename the emerging threats ipsets to their right names
+rename_ipset tor et_tor
+rename_ipset compromised et_compromised
+rename_ipset botnet et_botnet
+rename_ipset emerging_block et_block
+rename_ipset rosi_web_proxies ri_web_proxies
+rename_ipset rosi_connect_proxies ri_connect_proxies
 
 # -----------------------------------------------------------------------------
 # INTERNAL FILTERS
@@ -1165,7 +1227,10 @@ geolite2_country() {
 
 	# download it
 	download_url "${ipset}" "${mins}" "${url}"
-	[ $? -eq ${DOWNLOAD_FAILED} -o \( $? -eq ${DOWNLOAD_NOT_UPDATED} -a -d ${ipset} \) ] && return 1
+	if [ $? -eq ${DOWNLOAD_FAILED} -o $? -eq ${DOWNLOAD_NOT_UPDATED} ]
+		then
+		[ -d ${ipset} -o ! -s "${ipset}.source" ] && return 1
+	fi
 
 	# create a temp dir
 	[ -d ${ipset}.tmp ] && rm -rf ${ipset}.tmp
@@ -1396,7 +1461,7 @@ update danmetor 30 0 ipv4 ip \
 	remove_comments \
 	"[dan.me.uk](https://www.dan.me.uk) dynamic list of TOR exit points"
 
-update tor $[12*60] 0 ipv4 ip \
+update et_tor $[12*60] 0 ipv4 ip \
 	"http://rules.emergingthreats.net/blockrules/emerging-tor.rules" \
 	snort_alert_rules_to_ipv4 \
 	"[EmergingThreats.net](http://www.emergingthreats.net/) [list](http://doc.emergingthreats.net/bin/view/Main/TorRules) of TOR network IPs"
@@ -1412,31 +1477,32 @@ update tor_servers 30 0 ipv4 ip \
 
 # http://doc.emergingthreats.net/bin/view/Main/CompromisedHost
 # Includes: openbl, bruteforceblocker and sidreporter
-update compromised $[12*60] 0 ipv4 ip \
+update et_compromised $[12*60] 0 ipv4 ip \
 	"http://rules.emergingthreats.net/blockrules/compromised-ips.txt" \
 	remove_comments \
-	"[EmergingThreats.net](http://www.emergingthreats.net/) distribution of IPs that have beed compromised (at the time of writing includes openbl, bruteforceblocker and sidreporter)"
+	"[EmergingThreats.net](http://www.emergingthreats.net/) compromised hosts (seems to be a derivate of other lists)"
 
 # Command & Control botnet servers by abuse.ch
-update botnet $[12*60] 0 ipv4 ip \
+update et_botnet $[12*60] 0 ipv4 ip \
 	"http://rules.emergingthreats.net/fwrules/emerging-PIX-CC.rules" \
 	pix_deny_rules_to_ipv4 \
-	"[EmergingThreats.net](http://www.emergingthreats.net/) botnet IPs (at the time of writing includes any abuse.ch trackers, which are available separately too - prefer to use the direct ipsets instead of this, they seem to lag a bit in updates)"
+	"[EmergingThreats.net](http://www.emergingthreats.net/) botnet IPs"
 
 # This appears to be the SPAMHAUS DROP list
-# disable - have direct feed
-#update spamhaus $[12*60] 0 ipv4 net \
-#	"http://rules.emergingthreats.net/fwrules/emerging-PIX-DROP.rules" \
-#	pix_deny_rules_to_ipv4
+update et_spamhaus $[12*60] 0 ipv4 net \
+	"http://rules.emergingthreats.net/fwrules/emerging-PIX-DROP.rules" \
+	pix_deny_rules_to_ipv4 \
+	"[EmergingThreats.net](http://www.emergingthreats.net/) spamhaus blocklist"
 
 # Top 20 attackers by www.dshield.org
 # disabled - have direct feed above
-#update dshield $[12*60] 0 ipv4 net \
-#	"http://rules.emergingthreats.net/fwrules/emerging-PIX-DSHIELD.rules" \
-#	pix_deny_rules_to_ipv4
+update et_dshield $[12*60] 0 ipv4 net \
+	"http://rules.emergingthreats.net/fwrules/emerging-PIX-DSHIELD.rules" \
+	pix_deny_rules_to_ipv4 \
+	"[EmergingThreats.net](http://www.emergingthreats.net/) dshield blocklist"
 
 # includes botnet, spamhaus and dshield
-update emerging_block $[12*60] 0 ipv4 all \
+update et_block $[12*60] 0 ipv4 all \
 	"http://rules.emergingthreats.net/fwrules/emerging-Block-IPs.txt" \
 	remove_comments \
 	"[EmergingThreats.net](http://www.emergingthreats.net/) default blacklist (at the time of writing includes spamhaus DROP, dshield and abuse.ch trackers, which are available separately too - prefer to use the direct ipsets instead of this, they seem to lag a bit in updates)"
@@ -1644,12 +1710,12 @@ update fullbogons $[24*60] 0 ipv4 net \
 # Open Proxies from rosinstruments
 # http://tools.rosinstrument.com/proxy/
 
-update rosi_web_proxies 60 $[30*24*60] ipv4 ip \
+update ri_web_proxies 60 $[30*24*60] ipv4 ip \
 	"http://tools.rosinstrument.com/proxy/l100.xml" \
 	parse_rss_rosinstrument \
 	"[rosinstrument.com](http://www.rosinstrument.com) open HTTP proxies (this list is composed using an RSS feed and aggregated for the last 30 days)"
 
-update rosi_connect_proxies 60 $[30*24*60] ipv4 ip \
+update ri_connect_proxies 60 $[30*24*60] ipv4 ip \
 	"http://tools.rosinstrument.com/proxy/plab100.xml" \
 	parse_rss_rosinstrument \
 	"[rosinstrument.com](http://www.rosinstrument.com) open CONNECT proxies (this list is composed using an RSS feed and aggregated for the last 30 days)"
@@ -1782,7 +1848,7 @@ update autoshun $[4*60] 0 ipv4 ip \
 update voipbl $[4*60] 0 ipv4 net \
 	"http://www.voipbl.org/update/" \
 	remove_comments \
-	"[VoIPBL.org](http://www.voipbl.org/) VoIPBL is a distributed VoIP blacklist that is aimed to protects against VoIP Fraud and minimizing abuse for network that have publicly accessible PBX's. Several algorithms, external sources and manual confirmation are used before they categorize something as an attack and determine the threat level."
+	"[VoIPBL.org](http://www.voipbl.org/) a distributed VoIP blacklist that is aimed to protects against VoIP Fraud and minimizing abuse for network that have publicly accessible PBX's. Several algorithms, external sources and manual confirmation are used before they categorize something as an attack and determine the threat level."
 
 
 # -----------------------------------------------------------------------------
