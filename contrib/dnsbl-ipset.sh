@@ -117,15 +117,48 @@
 
 PROGRAM_FILE="${0}"
 
-# lock
-# if we run already, the script will exit
-#[ "${FLOCKER}" != "$0" ] && exec env FLOCKER="$0" flock -en "$0" "$0" "$@" || :
+# single line flock, from man flock
+[ "${DNSBL_IPSET_LOCKER}" != "${0}" ] && exec env DNSBL_IPSET_LOCKER="$0" flock -en "/var/run/dnsbl-ipset.lock" "${0}" "${@}" || :
+
+LC_ALL=C
+umask 077
 
 if [ ! "${UID}" = 0 ]
 	then
 	echo >&2 "Only root can run this program."
 	exit 1
 fi
+renice 10 $$ >/dev/null 2>/dev/null
+
+require_cmd() {
+	local cmd= block=1
+	if [ "a${1}" = "a-n" ]
+	then
+		block=0
+		shift
+	fi
+	
+	unalias ${1} >/dev/null 2>&1
+	cmd=`which ${1} 2>/dev/null | head -n 1`
+	if [ $? -gt 0 -o ! -x "${cmd}" ]
+	then
+		if [ ${block} -eq 1 ]
+		then
+			echo >&2 "ERROR: Command '${1}' not found in the system path."
+			exit 1
+		fi
+		return 1
+	fi
+	
+	eval "${1^^}_CMD=${cmd}"
+	return 0
+}
+
+require_cmd adnshost
+require_cmd ipset
+require_cmd sed
+require_cmd grep
+require_cmd tail
 
 RUNNING_ON_TERMINAL=0
 if [ "z$1" = "z-nc" ]
@@ -487,11 +520,15 @@ dnsbl ${IGNORE} rep.mailspike.net # IP Reputation
 	score $[GOODKARMA * 2 / 3] 127.0.0.19 # Very Good
 	score         ${GOODKARMA} 127.0.0.20 # Excellent
 
+dnsbl ${GOODKARMA} list.dnswl.org # all responses include valid mail servers
+
 dnsbl ${SPAMWAVE} z.mailspike.net # participating in a distributed spam wave in the last 48 hours
 
-dnsbl ${SPAM} all.s5h.net
-
 dnsbl $[BADKARMA/4] b.barracudacentral.org # Barracuda Reputation Block List, http://barracudacentral.org/rbl/listing-methodology
+
+dnsbl $[BADKARMA/4] korea.services.net # South Korean IP address space - this is not necessarily bad
+
+dnsbl ${SPAM} all.s5h.net
 
 dnsbl ${SPAM} spam.dnsbl.sorbs.net #  spam.dnsbl.sorbs.net - List of hosts that have been noted as sending spam/UCE/UBE to the admins of SORBS at any time,  and not subsequently resolving the matter and/or requesting a delisting. (Includes both old.spam.dnsbl.sorbs.net and escalations.dnsbl.sorbs.net).
 
@@ -500,8 +537,6 @@ dnsbl ${SPAM} spam.dnsbl.sorbs.net #  spam.dnsbl.sorbs.net - List of hosts that 
 #dnsbl 200 cbl.abuseat.org # The CBL only lists IPs exhibiting characteristics which are specific to open proxies of various sorts (HTTP, socks, AnalogX, wingate, Bagle call-back proxies etc) and dedicated Spam BOTs (such as Cutwail, Rustock, Lethic etc) which have been abused to send spam, worms/viruses that do their own direct mail transmission, or some types of trojan-horse or "stealth" spamware, dictionary mail harvesters etc.
 
 dnsbl ${SPAM} dnsbl.justspam.org # If an IP that we never got legit email from is seen spamming and said IP is already listed by at least one of the other well-known and independent blacklists, then it is added to our blacklist dnsbl.justspam.org.
-
-dnsbl $[BADKARMA/4] korea.services.net # South Korean IP address space - this is not necessarily bad
 
 dnsbl ${IGNORE} rbl.megarbl.net
 	score ${SPAM} 127.0.0.2 # spam source
@@ -523,8 +558,6 @@ dnsbl ${IGNORE} ubl.unsubscore.com
 
 dnsbl ${IGNORE} bl.tiopan.com
 	score ${SPAM} 127.0.0.2 # spam source
-
-dnsbl ${GOODKARMA} list.dnswl.org # all responses include valid mail servers
 
 dnsbl ${SPAM} ix.dnsbl.manitu.net # spam source?
 
@@ -593,24 +626,6 @@ dnsbl ${SPAM} psbl.surriel.com # spam source
 # wormrbl.imp.ch
 
 # --- END OF DNSBL-IPSET DEFAULTS ---
-
-# -----------------------------------------------------------------------------
-# pre-configuration checks
-
-adnshost=$(which adnshost 2>/dev/null)
-if [ -z "${adnshost}" ]
-	then
-	echo >&2 "Cannot find adnshost - please install adns or adns-tools."
-	exit 1
-fi
-
-ipset=$(which ipset 2>/dev/null)
-if [ -z "${ipset}" ]
-	then
-	echo >&2 "Cannot find ipset - please install it."
-	exit 1
-fi
-
 
 # -----------------------------------------------------------------------------
 # configuration file management
