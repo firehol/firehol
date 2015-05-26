@@ -624,7 +624,7 @@ EOFMD
 			continue
 		fi
 
-		[[ "${ofile}" =~ ^geolite2.* ]] && return 1
+		[[ "${ofile}" =~ ^geolite2.* ]] && continue
 
 		cache_update_ipset "${oipset}"
 		local oentries="${IPSET_ENTRIES[${oipset}]}"
@@ -942,7 +942,6 @@ update() {
 
 # FIXME
 # Cannot rename ipsets in subdirectories
-# It also has issues with the comparison cache - you should recreate all ipsets in case of a rename
 rename_ipset() {
 	local old="${1}" new="${2}"
 
@@ -967,6 +966,14 @@ rename_ipset() {
 			# keep a link for the firewall
 			echo >&2 "Linking ${new}.${x} to ${old}.${x}..."
 			ln -s "${new}.${x}" "${old}.${x}" || exit 1
+
+			# now delete it, in order to be re-created this run
+			rm "${new}.${x}"
+
+			# FIXME:
+			# the ipset in memory is wrong and will not be updated.
+			# Probably the solution is to create an list:set ipset
+			# which will link the old name with the new
 		fi
 	done
 
