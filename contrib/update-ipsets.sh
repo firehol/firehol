@@ -1890,7 +1890,7 @@ update shunlist $[4*60] 0 ipv4 ip \
 # VoIPBL.org
 # http://www.voipbl.org/
 
-update voipbl $[4*60] 0 ipv4 net \
+update voipbl $[4*60] 0 ipv4 both \
 	"http://www.voipbl.org/update/" \
 	remove_comments \
 	"[VoIPBL.org](http://www.voipbl.org/) a distributed VoIP blacklist that is aimed to protects against VoIP Fraud and minimizing abuse for network that have publicly accessible PBX's. Several algorithms, external sources and manual confirmation are used before they categorize something as an attack and determine the threat level."
