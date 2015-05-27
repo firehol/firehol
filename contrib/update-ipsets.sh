@@ -368,7 +368,7 @@ history_manager() {
 	do
 		if [ "${x}" -nt "history/${ipset}/.reference" ]
 		then
-			test ${SILENT} -ne 1 && echo >&2 "${ipset}: merging history file '${x}'"
+			#test ${SILENT} -ne 1 && echo >&2 "${ipset}: merging history file '${x}'"
 			cat "${x}"
 		else
 			rm "${x}"
@@ -412,8 +412,9 @@ download_url() {
 
 	tmp=`mktemp "${install}.tmp-XXXXXXXXXX"` || return ${DOWNLOAD_FAILED}
 
-	# touch a file $mins ago
-	touch_in_the_past "${mins}" "${tmp}"
+	# touch a file $mins + 2 ago
+	# we add 2 to let the server update the file
+	touch_in_the_past "$[mins + 2]" "${tmp}"
 
 	check="${install}.source"
 	[ ${IGNORE_LASTCHECKED} -eq 0 -a -f ".${install}.lastchecked" ] && check=".${install}.lastchecked"
@@ -678,7 +679,7 @@ finalize() {
 	then
 		cat "${dst}" | grep -v "^#" > "${tmp}.old"
 	else
-		touch "${tmp}.old"
+		echo "# EMPTY SET" >"${tmp}.old"
 	fi
 
 	# compare the new and the old
@@ -918,20 +919,19 @@ update() {
 
 	if [ $? -ne 0 ]
 	then
-		rm "${tmp}"
 		syslog "${ipset}: failed to convert file."
+		rm "${tmp}"
 		check_file_too_old "${ipset}" "${install}.${hash}set"
 		return 1
 	fi
 
 	if [ ! -s "${tmp}" ]
 	then
-		rm "${tmp}"
 		syslog "${ipset}: processed file gave no results."
-
+		rm "${tmp}"
+		
 		# keep the old set, but make it think it was from this source
 		touch -r "${install}.source" "${install}.${hash}set"
-
 		check_file_too_old "${ipset}" "${install}.${hash}set"
 		return 2
 	fi
@@ -940,7 +940,6 @@ update() {
 	then
 		history_manager "${ipset}" "${history_mins}" "${tmp}"
 	fi
-
 
 	finalize "${ipset}" "${tmp}" "${install}.setinfo" "${install}.source" "${install}.${hash}set" "${mins}" "${history_mins}" "${ipv}" "${type}" "${hash}" "${url}" "${info}"
 	return $?
@@ -1554,7 +1553,7 @@ update et_dshield $[12*60] 0 ipv4 both \
 	"[EmergingThreats.net](http://www.emergingthreats.net/) dshield blocklist"
 
 # includes botnet, spamhaus and dshield
-update et_block $[12*60] 0 ipv4 all \
+update et_block $[12*60] 0 ipv4 both \
 	"http://rules.emergingthreats.net/fwrules/emerging-Block-IPs.txt" \
 	remove_comments \
 	"[EmergingThreats.net](http://www.emergingthreats.net/) default blacklist (at the time of writing includes spamhaus DROP, dshield and abuse.ch trackers, which are available separately too - prefer to use the direct ipsets instead of this, they seem to lag a bit in updates)"
@@ -1590,6 +1589,56 @@ update blocklist_de 30 0 ipv4 ip \
 	"http://lists.blocklist.de/lists/all.txt" \
 	remove_comments \
 	"[Blocklist.de](https://www.blocklist.de/) IPs that have been detected by fail2ban in the last 48 hours - **excellent list**"
+
+update blocklist_de_ssh 30 0 ipv4 ip \
+	"http://lists.blocklist.de/lists/ssh.txt" \
+	remove_comments \
+	"[Blocklist.de](https://www.blocklist.de/) All IP addresses which have been reported within the last 48 hours as having run attacks on the service SSH."
+
+update blocklist_de_mail 30 0 ipv4 ip \
+	"http://lists.blocklist.de/lists/mail.txt" \
+	remove_comments \
+	"[Blocklist.de](https://www.blocklist.de/) All IP addresses which have been reported within the last 48 hours as having run attacks on the service Mail, Postfix."
+
+update blocklist_de_apache 30 0 ipv4 ip \
+	"http://lists.blocklist.de/lists/apache.txt" \
+	remove_comments \
+	"[Blocklist.de](https://www.blocklist.de/) All IP addresses which have been reported within the last 48 hours as having run attacks on the service Apache, Apache-DDOS, RFI-Attacks."
+
+update blocklist_de_imap 30 0 ipv4 ip \
+	"http://lists.blocklist.de/lists/imap.txt" \
+	remove_comments \
+	"[Blocklist.de](https://www.blocklist.de/) All IP addresses which have been reported within the last 48 hours for attacks on the Service imap, sasl, pop3, etc."
+
+update blocklist_de_ftp 30 0 ipv4 ip \
+	"http://lists.blocklist.de/lists/ftp.txt" \
+	remove_comments \
+	"[Blocklist.de](https://www.blocklist.de/) All IP addresses which have been reported within the last 48 hours for attacks on the Service FTP."
+
+update blocklist_de_sip 30 0 ipv4 ip \
+	"http://lists.blocklist.de/lists/sip.txt" \
+	remove_comments \
+	"[Blocklist.de](https://www.blocklist.de/) All IP addresses that tried to login in a SIP, VOIP or Asterisk Server and are included in the IPs list from [infiltrated.net](www.infiltrated.net)"
+
+update blocklist_de_bots 30 0 ipv4 ip \
+	"http://lists.blocklist.de/lists/bots.txt" \
+	remove_comments \
+	"[Blocklist.de](https://www.blocklist.de/) All IP addresses which have been reported within the last 48 hours as having run attacks on the RFI-Attacks, REG-Bots, IRC-Bots or BadBots (BadBots = he has posted a Spam-Comment on a open Forum or Wiki)."
+
+update blocklist_de_strongips 30 0 ipv4 ip \
+	"http://lists.blocklist.de/lists/strongips.txt" \
+	remove_comments \
+	"[Blocklist.de](https://www.blocklist.de/) All IPs which are older then 2 month and have more then 5.000 attacks."
+
+#update blocklist_de_ircbot 30 0 ipv4 ip \
+#	"http://lists.blocklist.de/lists/ircbot.txt" \
+#	remove_comments \
+#	"[Blocklist.de](https://www.blocklist.de/) (no information supplied)"
+
+update blocklist_de_bruteforce 30 0 ipv4 ip \
+	"http://lists.blocklist.de/lists/bruteforcelogin.txt" \
+	remove_comments \
+	"[Blocklist.de](https://www.blocklist.de/) All IPs which attacks Joomlas, Wordpress and other Web-Logins with Brute-Force Logins."
 
 
 # -----------------------------------------------------------------------------
