@@ -490,7 +490,7 @@ ips_in_set() {
 				sum=$[sum + (1 << (32 - i))]
 			done
 			echo $sum
-		)		
+		)
 }
 
 # -----------------------------------------------------------------------------
@@ -803,22 +803,28 @@ update() {
 		ipv4)
 			post_filter2="filter_invalid4"
 			case "${type}" in
-				ip|ips)		hash="ip"
+				ip|ips)		# output is single ipv4 IPs without /
+						hash="ip"
 						type="ip"
-						pre_filter="remove_slash32"
+						pre_filter="cat"
 						filter="filter_ip4"
+						post_filter="cat"
 						;;
 
-				net|nets)	hash="net"
+				net|nets)	# output is full CIDRs without any single IPs (/32)
+						hash="net"
 						type="net"
-						filter="filter_net4"
-						post_filter="aggregate4"
+						pre_filter="filter_all4"
+						filter="aggregate4"
+						post_filter="filter_net4"
 						;;
 
-				both|all)	hash="net"
+				both|all)	# output is full CIDRs with single IPs in CIDR notation (with /32)
+						hash="net"
 						type=""
-						filter="filter_all4"
-						post_filter="aggregate4"
+						pre_filter="filter_all4"
+						filter="aggregate4"
+						post_filter="cat"
 						;;
 
 				split)		;;
@@ -909,7 +915,7 @@ update() {
 		${post_filter} |\
 		${post_filter2} |\
 		sort -u >"${tmp}"
-	
+
 	if [ $? -ne 0 ]
 	then
 		rm "${tmp}"
@@ -1008,27 +1014,28 @@ rename_ipset tor_servers bm_tor
 # -----------------------------------------------------------------------------
 # INTERNAL FILTERS
 
+# the output of aggregate4 always has a /, even if it is /32
 aggregate4_warning=0
 aggregate4() {
 	local cmd=
 
 	if [ -x "${base}/iprange" ]
 		then
-		"${base}/iprange" -J | append_slash32
+		append_slash32 | "${base}/iprange" -J | append_slash32
 		return $?
 	fi
 
 	cmd="`which iprange 2>/dev/null`"
 	if [ ! -z "${cmd}" ]
 	then
-		${cmd} -J | append_slash32
+		append_slash32 | ${cmd} -J | append_slash32
 		return $?
 	fi
 
 	cmd="`which aggregate-flim 2>/dev/null`"
 	if [ ! -z "${cmd}" ]
 	then
-		${cmd}
+		append_slash32 | ${cmd} | append_slash32
 		return $?
 	fi
 
@@ -1038,22 +1045,22 @@ aggregate4() {
 		[ ${aggregate4_warning} -eq 0 ] && echo >&2 "The command aggregate installed is really slow, please install aggregate-flim or iprange (http://www.cs.colostate.edu/~somlo/iprange.c)."
 		aggregate4_warning=1
 
-		append_slash32 | ${cmd} -t
+		append_slash32 | ${cmd} -t | append_slash32
 		return $?
 	fi
 
 	[ ${aggregate4_warning} -eq 0 ] && echo >&2 "Warning: Cannot aggregate ip-ranges. Please install 'aggregate'. Working wihout aggregate (http://www.cs.colostate.edu/~somlo/iprange.c)."
 	aggregate4_warning=1
 
-	cat
+	append_slash32
 }
 
-filter_ip4()  { egrep "^[0-9]+\.[0-9]+\.[0-9]+\.[0-9]+$"; }
-filter_net4() { egrep "^[0-9]+\.[0-9]+\.[0-9]+\.[0-9]+/[0-9]+$"; }
+filter_ip4()  { remove_slash32 | egrep "^[0-9]+\.[0-9]+\.[0-9]+\.[0-9]+$"; }
+filter_net4() { remove_slash32 | egrep "^[0-9]+\.[0-9]+\.[0-9]+\.[0-9]+/[0-9]+$"; }
 filter_all4() { egrep "^[0-9]+\.[0-9]+\.[0-9]+\.[0-9\.]+(/[0-9]+)?$"; }
 
-filter_ip6()  { egrep "^[0-9a-fA-F:]+$"; }
-filter_net6() { egrep "^[0-9a-fA-F:]+/[0-9]+$"; }
+filter_ip6()  { remove_slash128 | egrep "^[0-9a-fA-F:]+$"; }
+filter_net6() { remove_slash128 | egrep "^[0-9a-fA-F:]+/[0-9]+$"; }
 filter_all6() { egrep "^[0-9a-fA-F:]+(/[0-9]+)?$"; }
 
 remove_slash32() { sed "s|/32$||g"; }
@@ -1062,7 +1069,7 @@ remove_slash128() { sed "s|/128$||g"; }
 append_slash32() {
 	# this command appends '/32' to all the lines
 	# that do not include a slash
-	awk '/\// {print $1; next}; // {print $1 "/32" }'	
+	awk '/\// {print $1; next}; // {print $1 "/32" }'
 }
 
 append_slash128() {
@@ -1488,7 +1495,7 @@ update openbl_all $[4*60] 0 ipv4 ip \
 # https://www.dshield.org/xml.html
 
 # Top 20 attackers (networks) by www.dshield.org
-update dshield $[4*60] 0 ipv4 net \
+update dshield $[4*60] 0 ipv4 both \
 	"http://feeds.dshield.org/block.txt" \
 	dshield_parser \
 	"[DShield.org](https://dshield.org/) top 20 attacking class C (/24) subnets over the last three days - **excellent list**"
@@ -1534,14 +1541,14 @@ update et_botnet $[12*60] 0 ipv4 ip \
 	"[EmergingThreats.net](http://www.emergingthreats.net/) botnet IPs"
 
 # This appears to be the SPAMHAUS DROP list
-update et_spamhaus $[12*60] 0 ipv4 net \
+update et_spamhaus $[12*60] 0 ipv4 both \
 	"http://rules.emergingthreats.net/fwrules/emerging-PIX-DROP.rules" \
 	pix_deny_rules_to_ipv4 \
 	"[EmergingThreats.net](http://www.emergingthreats.net/) spamhaus blocklist"
 
 # Top 20 attackers by www.dshield.org
 # disabled - have direct feed above
-update et_dshield $[12*60] 0 ipv4 net \
+update et_dshield $[12*60] 0 ipv4 both \
 	"http://rules.emergingthreats.net/fwrules/emerging-PIX-DSHIELD.rules" \
 	pix_deny_rules_to_ipv4 \
 	"[EmergingThreats.net](http://www.emergingthreats.net/) dshield blocklist"
@@ -1559,14 +1566,14 @@ update et_block $[12*60] 0 ipv4 all \
 
 # http://www.spamhaus.org/drop/
 # These guys say that this list should be dropped at tier-1 ISPs globaly!
-update spamhaus_drop $[12*60] 0 ipv4 net \
+update spamhaus_drop $[12*60] 0 ipv4 both \
 	"http://www.spamhaus.org/drop/drop.txt" \
 	remove_comments_semi_colon \
 	"[Spamhaus.org](http://www.spamhaus.org) DROP list (according to their site this list should be dropped at tier-1 ISPs globaly) - **excellent list**"
 
 # extended DROP (EDROP) list.
 # Should be used together with their DROP list.
-update spamhaus_edrop $[12*60] 0 ipv4 net \
+update spamhaus_edrop $[12*60] 0 ipv4 both \
 	"http://www.spamhaus.org/drop/edrop.txt" \
 	remove_comments_semi_colon \
 	"[Spamhaus.org](http://www.spamhaus.org) EDROP (extended matches that should be used with DROP) - **excellent list**"
@@ -1730,7 +1737,7 @@ update stop_forum_spam_365d $[24*60] 0 ipv4 ip \
 # private and reserved addresses defined by RFC 1918, RFC 5735, and RFC 6598
 # and netblocks that have not been allocated to a regional internet registry
 # (RIR) by the Internet Assigned Numbers Authority.
-update bogons $[24*60] 0 ipv4 net \
+update bogons $[24*60] 0 ipv4 both \
 	"http://www.team-cymru.org/Services/Bogons/bogon-bn-agg.txt" \
 	remove_comments \
 	"[Team-Cymru.org](http://www.team-cymru.org) private and reserved addresses defined by RFC 1918, RFC 5735, and RFC 6598 and netblocks that have not been allocated to a regional internet registry - **excellent list - use it only your internet interface**"
@@ -1740,12 +1747,12 @@ update bogons $[24*60] 0 ipv4 net \
 # Fullbogons are a larger set which also includes IP space that has been
 # allocated to an RIR, but not assigned by that RIR to an actual ISP or other
 # end-user.
-update fullbogons $[24*60] 0 ipv4 net \
+update fullbogons $[24*60] 0 ipv4 both \
 	"http://www.team-cymru.org/Services/Bogons/fullbogons-ipv4.txt" \
 	remove_comments \
 	"[Team-Cymru.org](http://www.team-cymru.org) IP space that has been allocated to an RIR, but not assigned by that RIR to an actual ISP or other end-user - **excellent list - use it only your internet interface**"
 
-#update fullbogons6 $[24*60-10] ipv6 net \
+#update fullbogons6 $[24*60-10] ipv6 both \
 #	"http://www.team-cymru.org/Services/Bogons/fullbogons-ipv6.txt" \
 #	remove_comments \
 #	"Team-Cymru.org provided"
@@ -1915,7 +1922,7 @@ then
 	# It is compiled from various sources, including other available Spyware Blacklists,
 	# HOSTS files, from research found at many of the top Anti-Spyware forums, logs of
 	# Spyware victims and also from the Malware Research Section here at Bluetack. 
-	update ib_bluetack_spyware $[12*60] 0 ipv4 net \
+	update ib_bluetack_spyware $[12*60] 0 ipv4 both \
 		"http://list.iblocklist.com/?list=llvtlsjyoyiczbkjsxpf&fileformat=p2p&archiveformat=gz" \
 		p2p_gz \
 		"[iBlocklist.com](https://www.iblocklist.com/) free version of [BlueTack.co.uk](http://www.bluetack.co.uk/) known malicious SPYWARE and ADWARE IP Address ranges"
@@ -1934,7 +1941,7 @@ then
 	# organizations that have no relation to original organization (or its legal
 	# successor) that received the IP block. In essence it's stealing of somebody
 	# else's IP resources
-	update ib_bluetack_hijacked $[12*60] 0 ipv4 net \
+	update ib_bluetack_hijacked $[12*60] 0 ipv4 both \
 		"http://list.iblocklist.com/?list=usrcshglbiilevmyfhse&fileformat=p2p&archiveformat=gz" \
 		p2p_gz \
 		"[iBlocklist.com](https://www.iblocklist.com/) free version of [BlueTack.co.uk](http://www.bluetack.co.uk/) hijacked IP-Blocks Hijacked IP space are IP blocks that are being used without permission"
@@ -1967,7 +1974,7 @@ then
 	# PLEASE NOTE: The Level1 list is recommended for general P2P users, but it all comes
 	# down to your personal choice. 
 	# IMPORTANT: THIS IS A BIG LIST
-	update ib_bluetack_level1 $[12*60] 0 ipv4 net \
+	update ib_bluetack_level1 $[12*60] 0 ipv4 both \
 		"http://list.iblocklist.com/?list=ydxerpxkpcfqjaybcssw&fileformat=p2p&archiveformat=gz" \
 		p2p_gz \
 		"[iBlocklist.com](https://www.iblocklist.com/) free version of [BlueTack.co.uk](http://www.bluetack.co.uk/) Level 1 (for use in p2p): Companies or organizations who are clearly involved with trying to stop filesharing (e.g. Baytsp, MediaDefender, Mediasentry a.o.). Companies which anti-p2p activity has been seen from. Companies that produce or have a strong financial interest in copyrighted material (e.g. music, movie, software industries a.o.). Government ranges or companies that have a strong financial interest in doing work for governments. Legal industry ranges. IPs or ranges of ISPs from which anti-p2p activity has been observed. Basically this list will block all kinds of internet connections that most people would rather not have during their internet travels."
@@ -1976,7 +1983,7 @@ then
 	# General corporate ranges. 
 	# Ranges used by labs or researchers. 
 	# Proxies. 
-	update ib_bluetack_level2 $[12*60] 0 ipv4 net \
+	update ib_bluetack_level2 $[12*60] 0 ipv4 both \
 		"http://list.iblocklist.com/?list=gyisgnzbhppbvsphucsw&fileformat=p2p&archiveformat=gz" \
 		p2p_gz \
 		"[iBlocklist.com](https://www.iblocklist.com/) free version of BlueTack.co.uk Level 2 (for use in p2p). General corporate ranges. Ranges used by labs or researchers. Proxies."
@@ -1986,7 +1993,7 @@ then
 	# ISP ranges that may be dodgy for some reason. 
 	# Ranges that belong to an individual, but which have not been determined to be used by a particular company. 
 	# Ranges for things that are unusual in some way. The L3 list is aka the paranoid list.
-	update ib_bluetack_level3 $[12*60] 0 ipv4 net \
+	update ib_bluetack_level3 $[12*60] 0 ipv4 both \
 		"http://list.iblocklist.com/?list=uwnukjqktoggdknzrhgh&fileformat=p2p&archiveformat=gz" \
 		p2p_gz \
 		"[iBlocklist.com](https://www.iblocklist.com/) free version of BlueTack.co.uk Level 3 (for use in p2p). Many portal-type websites. ISP ranges that may be dodgy for some reason. Ranges that belong to an individual, but which have not been determined to be used by a particular company. Ranges for things that are unusual in some way. The L3 list is aka the paranoid list."
