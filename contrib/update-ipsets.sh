@@ -831,7 +831,7 @@ update() {
 						post_filter="cat"
 						;;
 
-				split)		;;
+				split)	;;
 
 				*)		echo >&2 "${ipset}: unknown type '${type}'."
 						return 1
@@ -840,23 +840,26 @@ update() {
 			;;
 		ipv6)
 			case "${type}" in
-				ip|ips)		hash="ip"
+				ip|ips)	
+						hash="ip"
 						type="ip"
 						pre_filter="remove_slash128"
 						filter="filter_ip6"
 						;;
 
-				net|nets)	hash="net"
+				net|nets)
+						hash="net"
 						type="net"
 						filter="filter_net6"
 						;;
 
-				both|all)	hash="net"
+				both|all)
+						hash="net"
 						type=""
 						filter="filter_all6"
 						;;
 
-				split)		;;
+				split)	;;
 
 				*)		echo >&2 "${ipset}: unknown type '${type}'."
 						return 1
@@ -1057,13 +1060,28 @@ aggregate4() {
 	append_slash32
 }
 
-filter_ip4()  { remove_slash32 | egrep "^[0-9]+\.[0-9]+\.[0-9]+\.[0-9]+$"; }
-filter_net4() { remove_slash32 | egrep "^[0-9]+\.[0-9]+\.[0-9]+\.[0-9]+/[0-9]+$"; }
-filter_all4() { egrep "^[0-9]+\.[0-9]+\.[0-9]+\.[0-9\.]+(/[0-9]+)?$"; }
+# match a single IPv4 IP
+# zero prefix is not permitted 0 - 255, not 000, 010, etc
+IP4_MATCH="(((25[0-5]|2[0-4][0-9]|1[0-9][0-9]|[1-9][0-9]|[0-9])\.){3}(25[0-5]|2[0-4][0-9]|1[0-9][0-9]|[1-9][0-9]|[0-9]))"
 
-filter_ip6()  { remove_slash128 | egrep "^[0-9a-fA-F:]+$"; }
-filter_net6() { remove_slash128 | egrep "^[0-9a-fA-F:]+/[0-9]+$"; }
-filter_all6() { egrep "^[0-9a-fA-F:]+(/[0-9]+)?$"; }
+# match a single IPv4 net mask (/32 allowed, /0 not allowed)
+MK4_MATCH="(3[12]|[12][0-9]|[1-9])"
+
+# strict checking of IPv4 IPs - all subnets excluded
+# we remove /32 before matching
+filter_ip4()  { remove_slash32 | egrep "^${IP4_MATCH}$"; }
+
+# strict checking of IPv4 CIDRs, except /32
+# this is to support older ipsets that do not accept /32 in hash:net ipsets
+filter_net4() { remove_slash32 | egrep "^${IP4_MATCH}/${MK4_MATCH}$"; }
+
+# strict checking of IPv4 IPs or CIDRs
+# hosts may or may not have /32
+filter_all4() { egrep "^${IP4_MATCH}(/${MK4_MATCH})?$"; }
+
+filter_ip6()  { remove_slash128 | egrep "^([0-9a-fA-F:]+)$"; }
+filter_net6() { remove_slash128 | egrep "^([0-9a-fA-F:]+/[0-9]+)$"; }
+filter_all6() { egrep "^([0-9a-fA-F:]+(/[0-9]+)?)$"; }
 
 remove_slash32() { sed "s|/32$||g"; }
 remove_slash128() { sed "s|/128$||g"; }
@@ -1081,7 +1099,7 @@ append_slash128() {
 }
 
 filter_invalid4() {
-	egrep -v "^(0\.0\.0\.0|0\.0\.0\.0/0|255\.255\.255\.255|255\.255\.255\.255/0)$"
+	egrep -v "^(0\.0\.0\.0|.*/0)$"
 }
 
 
@@ -1134,7 +1152,7 @@ parse_rss_rosinstrument() {
 	done
 }
 
-parse_rss_xroxy() {
+parse_rss_proxy() {
 	while read_xml_dom
 	do
 		if [ "${XML_ENTITY}" = "prx:ip" ]
@@ -1243,7 +1261,13 @@ pix_deny_rules_to_ipv4() {
 
 dshield_parser() {
 	local net= mask=
-	remove_comments | grep "^[1-9]" | cut -d ' ' -f 1,3 | while read net mask; do echo "${net}/${mask}"; done
+	remove_comments |\
+		grep "^[1-9]" |\
+		cut -d ' ' -f 1,3 |\
+		while read net mask
+		do
+			echo "${net}/${mask}"
+		done
 }
 
 unzip_and_split_csv() {
@@ -1258,14 +1282,14 @@ p2p_gz_proxy() {
 	gzip -dc |\
 		grep "^Proxy" |\
 		cut -d ':' -f 2 |\
-		egrep "^[0-9]+\.[0-9]+\.[0-9]+\.[0-9]+\-[0-9]+\.[0-9]+\.[0-9]+\.[0-9]+$" |\
+		egrep "^${IP4_MATCH}-${IP4_MATCH}$" |\
 		ipv4_range_to_cidr
 }
 
 p2p_gz() {
 	gzip -dc |\
 		cut -d ':' -f 2 |\
-		egrep "^[0-9]+\.[0-9]+\.[0-9]+\.[0-9]+\-[0-9]+\.[0-9]+\.[0-9]+\.[0-9]+$" |\
+		egrep "^${IP4_MATCH}-${IP4_MATCH}$" |\
 		ipv4_range_to_cidr
 }
 
@@ -1278,6 +1302,12 @@ gz_second_word() {
 	gzip -dc |\
 		tr '\r' '\n' |\
 		cut -d ' ' -f 2
+}
+
+gz_proxyrss() {
+	gzip -dc |\
+		remove_comments |\
+		cut -d ':' -f 1
 }
 
 geolite2_country() {
@@ -1381,7 +1411,7 @@ geolite2_country() {
 	do
 		cat "${x}" |\
 			sort -u |\
-			filter_net4 |\
+			filter_all4 |\
 			aggregate4 |\
 			filter_invalid4 >"${x/.source.tmp/.source}"
 
@@ -1399,7 +1429,7 @@ geolite2_country() {
 	if [ -d .git ]
 	then
 		# generate a setinfo for the home page
-		echo >"${ipset}.setinfo" "[${ipset}](tree/master/geolite2_country)|[MaxMind GeoLite2](http://dev.maxmind.com/geoip/geoip2/geolite2/) databases are free IP geolocation databases comparable to, but less accurate than, MaxMind’s GeoIP2 databases. They include IPs per country, IPs per continent, IPs used by anonymous services (VPNs, Proxies, etc) and Satellite Providers.|ipv4 hash:net|All the world|updated every `mins_to_text ${mins}` from [this link](${url})"
+		echo >"${ipset}.setinfo" "[${ipset}](https://github.com/ktsaou/blocklist-ipsets/tree/master/geolite2_country)|[MaxMind GeoLite2](http://dev.maxmind.com/geoip/geoip2/geolite2/) databases are free IP geolocation databases comparable to, but less accurate than, MaxMind’s GeoIP2 databases. They include IPs per country, IPs per continent, IPs used by anonymous services (VPNs, Proxies, etc) and Satellite Providers.|ipv4 hash:net|All the world|updated every `mins_to_text ${mins}` from [this link](${url})"
 	fi
 
 	# remove the temporary dir
@@ -1504,6 +1534,7 @@ update openbl_all $[4*60] 0 ipv4 ip \
 	"http://www.openbl.org/lists/base_all.txt.gz" \
 	gz_remove_comments \
 	"[OpenBL.org](http://www.openbl.org/) last all IPs.  OpenBL.org is detecting, logging and reporting various types of internet abuse. Currently they monitor ports 21 (FTP), 22 (SSH), 23 (TELNET), 25 (SMTP), 110 (POP3), 143 (IMAP), 587 (Submission), 993 (IMAPS) and 995 (POP3S) for bruteforce login attacks as well as scans on ports 80 (HTTP) and 443 (HTTPS) for vulnerable installations of phpMyAdmin and other web applications."
+
 
 # -----------------------------------------------------------------------------
 # www.dshield.org
@@ -1676,6 +1707,7 @@ update zeus 30 0 ipv4 ip \
 	remove_comments \
 	"[Abuse.ch Zeus tracker](https://zeustracker.abuse.ch) standard, contains the same data as the ZeuS IP blocklist (zeus_badips) but with the slight difference that it doesn't exclude hijacked websites (level 2) and free web hosting providers (level 3). This means that this blocklist contains all IPv4 addresses associated with ZeuS C&Cs which are currently being tracked by ZeuS Tracker. Hence this blocklist will likely cause some false positives. - **excellent list**"
 
+
 # -----------------------------------------------------------------------------
 # Palevo worm
 # https://palevotracker.abuse.ch/blocklists.php
@@ -1686,6 +1718,7 @@ update palevo 30 0 ipv4 ip \
 	"https://palevotracker.abuse.ch/blocklists.php?download=ipblocklist" \
 	remove_comments \
 	"[Abuse.ch Palevo tracker](https://palevotracker.abuse.ch) worm includes IPs which are being used as botnet C&C for the Palevo crimeware - **excellent list**"
+
 
 # -----------------------------------------------------------------------------
 # Feodo trojan
@@ -1844,8 +1877,28 @@ update ri_connect_proxies 60 $[30*24*60] ipv4 ip \
 
 update xroxy 60 $[30*24*60] ipv4 ip \
 	"http://www.xroxy.com/proxyrss.xml" \
-	parse_rss_xroxy \
+	parse_rss_proxy \
 	"[xroxy.com](http://www.xroxy.com) open proxies (this list is composed using an RSS feed and aggregated for the last 30 days)"
+
+
+# -----------------------------------------------------------------------------
+# Open Proxies from proxz.com
+# http://www.proxz.com/
+
+update proxz 60 $[30*24*60] ipv4 ip \
+	"http://www.proxz.com/proxylists.xml" \
+	parse_rss_proxy \
+	"[proxz.com](http://www.proxz.com) open proxies (this list is composed using an RSS feed and aggregated for the last 30 days)"
+
+
+# -----------------------------------------------------------------------------
+# Open Proxies from proxyrss.com
+# http://www.proxyrss.com/
+
+update proxyrss $[4*60] 0 ipv4 ip \
+	"http://www.proxyrss.com/proxylists/all.gz" \
+	gz_proxyrss \
+	"[proxyrss.com](http://www.proxyrss.com) open proxies syndicated from multiple sources."
 
 
 # -----------------------------------------------------------------------------
@@ -2075,8 +2128,25 @@ then
 
 fi
 
+# TODO
+#
+# add sets
+# - http://www.nothink.org/blacklist/blacklist_ssh_week.txt
+# - http://www.nothink.org/blacklist/blacklist_malware_irc.txt
+# - http://www.nothink.org/blacklist/blacklist_malware_http.txt
+# - http://check.torproject.org/cgi-bin/TorBulkExitList.py?ip=1.1.1.1
+# - https://www.maxmind.com/en/anonymous-proxy-fraudulent-ip-address-list
+# - http://www.ipdeny.com/ipblocks/ geo country db for both ipv4 and ipv6
+# - maxmind city geodb
+#
+# user specific features
+# - allow the user to request a merge of 2 or more sets
+# - allow the user to request an email if a set increases by a percentage or number of unique IPs
+# - allow the user to request an email if a set matches more than X entries of one or more other set
+# 
+# site specific features
+# - find a way to compare ipsets faster, so that maxmind geodbs can be added to comparison
+#   and the "git pull" is done faster (now "git pull" waits the comparisons to be completed)
+# - save all comparisons in .json to allow generating charts on the site
+# - save set quantities in .json to allow monitoring the size of sets with charts
 
-# to add
-# http://www.nothink.org/blacklist/blacklist_ssh_week.txt
-# http://www.nothink.org/blacklist/blacklist_malware_irc.txt
-# http://www.nothink.org/blacklist/blacklist_malware_http.txt
