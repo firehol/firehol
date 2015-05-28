@@ -107,7 +107,7 @@ require_cmd() {
 		block=0
 		shift
 	fi
-	
+
 	unalias ${1} >/dev/null 2>&1
 	cmd=`which ${1} 2>/dev/null | head -n 1`
 	if [ $? -gt 0 -o ! -x "${cmd}" ]
@@ -119,7 +119,7 @@ require_cmd() {
 		fi
 		return 1
 	fi
-	
+
 	eval "${1^^}_CMD=${cmd}"
 	return 0
 }
@@ -392,6 +392,7 @@ geturl() {
 	touch -r "${reference}" "${file}"
 
 	curl --connect-timeout 10 --max-time 300 --retry 0 --fail --compressed \
+		--user-agent "FireHOL-Update-Ipsets/3.0" \
 		--referer "https://github.com/ktsaou/firehol/blob/master/contrib/update-ipsets.sh" \
 		-z "${reference}" -o "${file}" -s -L -R "${url}"
 	ret=$?
@@ -518,18 +519,18 @@ if [ -f "${base}/.cache" ]
 fi
 cache_remove_ipset() {
 	local ipset="${1}"
-	
+
 	echo >&2 "${ipset}: removing from cache"
-	
+
 	cache_clean_ipset "${ipset}"
-	
+
 	unset IPSET_INFO[${ipset}]
 	unset IPSET_SOURCE[${ipset}]
 	unset IPSET_URL[${ipset}]
 	unset IPSET_FILE[${ipset}]
 	unset IPSET_ENTRIES[${ipset}]
 	unset IPSET_IPS[${ipset}]
-	
+
 	cache_save
 }
 cache_clean_ipset() {
@@ -582,7 +583,7 @@ compare_ipset() {
 		cache_remove_ipset "${ipset}"
 		return 1
 	fi
-	
+
 	cache_update_ipset "${ipset}"
 	entries="${IPSET_ENTRIES[${ipset}]}"
 	ips="${IPSET_IPS[${ipset}]}"
@@ -614,7 +615,7 @@ The following table shows the overlaps of \`${ipset}\` with all the other ipsets
 ipset|entries|unique IPs|IPs on both| them % | this % |
 :---:|:-----:|:--------:|:---------:|:------:|:------:|
 EOFMD
-	
+
 	local oipset=
 	for oipset in "${!IPSET_FILE[@]}"
 	do
@@ -691,7 +692,7 @@ finalize() {
 		# they are the same
 		rm "${tmp}" "${tmp}.old"
 		test ${SILENT} -ne 1 && echo >&2 "${ipset}: processed set is the same with the previous one."
-		
+
 		# keep the old set, but make it think it was from this source
 		touch -r "${src}" "${dst}"
 
@@ -931,7 +932,7 @@ update() {
 	then
 		syslog "${ipset}: processed file gave no results."
 		rm "${tmp}"
-		
+
 		# keep the old set, but make it think it was from this source
 		touch -r "${install}.source" "${install}.${hash}set"
 		check_file_too_old "${ipset}" "${install}.${hash}set"
@@ -1076,7 +1077,7 @@ append_slash32() {
 append_slash128() {
 	# this command appends '/32' to all the lines
 	# that do not include a slash
-	awk '/\// {print $1; next}; // {print $1 "/128" }'	
+	awk '/\// {print $1; next}; // {print $1 "/128" }'
 }
 
 filter_invalid4() {
@@ -1128,6 +1129,19 @@ parse_rss_rosinstrument() {
 					#	echo "# Cannot resolve ${hostname} taken from ${XML_CONTENT}"
 					fi
 				fi
+			fi
+		fi
+	done
+}
+
+parse_rss_xroxy() {
+	while read_xml_dom
+	do
+		if [ "${XML_ENTITY}" = "prx:ip" ]
+		then
+			if [[ "${XML_CONTENT}" =~ ^[0-9]+\.[0-9]+\.[0-9]+\.[0-9]+$ ]]
+			then
+				echo "${XML_CONTENT}"
 			fi
 		fi
 	done
@@ -1825,6 +1839,16 @@ update ri_connect_proxies 60 $[30*24*60] ipv4 ip \
 
 
 # -----------------------------------------------------------------------------
+# Open Proxies from xroxy.com
+# http://www.xroxy.com
+
+update xroxy 60 $[30*24*60] ipv4 ip \
+	"http://www.xroxy.com/proxyrss.xml" \
+	parse_rss_xroxy \
+	"[xroxy.com](http://www.xroxy.com) open proxies (this list is composed using an RSS feed and aggregated for the last 30 days)"
+
+
+# -----------------------------------------------------------------------------
 # Project Honey Pot
 # http://www.projecthoneypot.org/?rf=192670
 
@@ -1969,10 +1993,10 @@ then
 		"[iBlocklist.com](https://www.iblocklist.com/) free version of [BlueTack.co.uk](http://www.bluetack.co.uk/) Open Proxies IPs list (without TOR)"
 
 
-	# This list is a compilation of known malicious SPYWARE and ADWARE IP Address ranges. 
+	# This list is a compilation of known malicious SPYWARE and ADWARE IP Address ranges.
 	# It is compiled from various sources, including other available Spyware Blacklists,
 	# HOSTS files, from research found at many of the top Anti-Spyware forums, logs of
-	# Spyware victims and also from the Malware Research Section here at Bluetack. 
+	# Spyware victims and also from the Malware Research Section here at Bluetack.
 	update ib_bluetack_spyware $[12*60] 0 ipv4 both \
 		"http://list.iblocklist.com/?list=llvtlsjyoyiczbkjsxpf&fileformat=p2p&archiveformat=gz" \
 		p2p_gz \
