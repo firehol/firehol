@@ -391,7 +391,9 @@ geturl() {
 	# to our file
 	touch -r "${reference}" "${file}"
 
-	curl -z "${reference}" -o "${file}" -s -L -R "${url}"
+	curl --connect-timeout 10 --max-time 300 --retry 0 --fail --compressed \
+		--referer "https://github.com/ktsaou/firehol/blob/master/contrib/update-ipsets.sh" \
+		-z "${reference}" -o "${file}" -s -L -R "${url}"
 	ret=$?
 
 	if [ ${ret} -eq 0 -a ! "${file}" -nt "${reference}" ]
@@ -1650,7 +1652,7 @@ update blocklist_de_bruteforce 30 0 ipv4 ip \
 update zeus_badips 30 0 ipv4 ip \
 	"https://zeustracker.abuse.ch/blocklist.php?download=badips" \
 	remove_comments \
-	"[Abuse.ch Zeus tracker](https://zeustracker.abuse.ch) includes IPv4 addresses that are used by the ZeuS trojan"
+	"[Abuse.ch Zeus tracker](https://zeustracker.abuse.ch) badips includes IPv4 addresses that are used by the ZeuS trojan. It is the recommened blocklist if you want to block only ZeuS IPs. It excludes IP addresses that ZeuS Tracker believes to be hijacked (level 2) or belong to a free web hosting provider (level 3). Hence the false postive rate should be much lower compared to the standard ZeuS IP blocklist. **excellent list**"
 
 # This blocklist contains the same data as the ZeuS IP blocklist (BadIPs)
 # but with the slight difference that it doesn't exclude hijacked websites
@@ -1658,7 +1660,7 @@ update zeus_badips 30 0 ipv4 ip \
 update zeus 30 0 ipv4 ip \
 	"https://zeustracker.abuse.ch/blocklist.php?download=ipblocklist" \
 	remove_comments \
-	"[Abuse.ch Zeus tracker](https://zeustracker.abuse.ch) default blocklist including hijacked sites and web hosting providers - **excellent list**"
+	"[Abuse.ch Zeus tracker](https://zeustracker.abuse.ch) standard, contains the same data as the ZeuS IP blocklist (zeus_badips) but with the slight difference that it doesn't exclude hijacked websites (level 2) and free web hosting providers (level 3). This means that this blocklist contains all IPv4 addresses associated with ZeuS C&Cs which are currently being tracked by ZeuS Tracker. Hence this blocklist will likely cause some false positives. - **excellent list**"
 
 # -----------------------------------------------------------------------------
 # Palevo worm
@@ -1824,32 +1826,32 @@ update ri_connect_proxies 60 $[30*24*60] ipv4 ip \
 
 # -----------------------------------------------------------------------------
 # Project Honey Pot
-# http://www.projecthoneypot.org/
+# http://www.projecthoneypot.org/?rf=192670
 
 update php_harvesters 60 $[30*24*60] ipv4 ip \
 	"http://www.projecthoneypot.org/list_of_ips.php?t=h&rss=1" \
 	parse_php_rss \
-	"[projecthoneypot.org](http://www.projecthoneypot.org/) harvesters (IPs that surf the internet looking for email addresses) (this list is composed using an RSS feed and aggregated for the last 30 days)"
+	"[projecthoneypot.org](http://www.projecthoneypot.org/?rf=192670) harvesters (IPs that surf the internet looking for email addresses) (this list is composed using an RSS feed and aggregated for the last 30 days)"
 
 update php_spammers 60 $[30*24*60] ipv4 ip \
 	"http://www.projecthoneypot.org/list_of_ips.php?t=s&rss=1" \
 	parse_php_rss \
-	"[projecthoneypot.org](http://www.projecthoneypot.org/) spam servers (IPs used by spammers to send messages) (this list is composed using an RSS feed and aggregated for the last 30 days)"
+	"[projecthoneypot.org](http://www.projecthoneypot.org/?rf=192670) spam servers (IPs used by spammers to send messages) (this list is composed using an RSS feed and aggregated for the last 30 days)"
 
 update php_bad 60 $[30*24*60] ipv4 ip \
 	"http://www.projecthoneypot.org/list_of_ips.php?t=b&rss=1" \
 	parse_php_rss \
-	"[projecthoneypot.org](http://www.projecthoneypot.org/) bad web hosts (this list is composed using an RSS feed and aggregated for the last 30 days)"
+	"[projecthoneypot.org](http://www.projecthoneypot.org/?rf=192670) bad web hosts (this list is composed using an RSS feed and aggregated for the last 30 days)"
 
 update php_commenters 60 $[30*24*60] ipv4 ip \
 	"http://www.projecthoneypot.org/list_of_ips.php?t=c&rss=1" \
 	parse_php_rss \
-	"[projecthoneypot.org](http://www.projecthoneypot.org/) comment spammers (this list is composed using an RSS feed and aggregated for the last 30 days)"
+	"[projecthoneypot.org](http://www.projecthoneypot.org/?rf=192670) comment spammers (this list is composed using an RSS feed and aggregated for the last 30 days)"
 
 update php_dictionary 60 $[30*24*60] ipv4 ip \
 	"http://www.projecthoneypot.org/list_of_ips.php?t=d&rss=1" \
 	parse_php_rss \
-	"[projecthoneypot.org](http://www.projecthoneypot.org/) directory attackers (this list is composed using an RSS feed and aggregated for the last 30 days)"
+	"[projecthoneypot.org](http://www.projecthoneypot.org/?rf=192670) directory attackers (this list is composed using an RSS feed and aggregated for the last 30 days)"
 
 
 # -----------------------------------------------------------------------------
