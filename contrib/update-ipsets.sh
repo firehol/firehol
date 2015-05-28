@@ -385,22 +385,51 @@ history_manager() {
 # on the next run, the file is downloaded only
 # if it has changed on the server
 geturl() {
-	local file="${1}" reference="${2}" url="${3}" ret=
+	local file="${1}" reference="${2}" url="${3}" ret= http_code=
 
 	# copy the timestamp of the reference
 	# to our file
 	touch -r "${reference}" "${file}"
 
-	curl --connect-timeout 10 --max-time 300 --retry 0 --fail --compressed \
+	http_code=$(curl --connect-timeout 10 --max-time 300 --retry 0 --fail --compressed \
 		--user-agent "FireHOL-Update-Ipsets/3.0" \
 		--referer "https://github.com/ktsaou/firehol/blob/master/contrib/update-ipsets.sh" \
-		-z "${reference}" -o "${file}" -s -L -R "${url}"
-	ret=$?
+		-z "${reference}" -o "${file}" -s -L -R -w "%{http_code}" \
+		"${url}")
 
-	if [ ${ret} -eq 0 -a ! "${file}" -nt "${reference}" ]
-	then
-		return 99
-	fi
+	ret=$?
+	
+	printf >&2 "HTTP/${http_code} "
+
+	case "${ret}" in
+		0)	if [ "${http_code}" = "304" -a ! "${file}" -nt "${reference}" ]
+			then
+				echo >&2 "Not Modified"
+				return 99
+			fi
+			echo >&2 "OK"
+			;;
+
+		1)	echo >&2 "Unsupported Protocol" ;;
+		2)	echo >&2 "Failed to initialize" ;;
+		3)	echo >&2 "Malformed URL" ;;
+		5)	echo >&2 "Can't resolve proxy" ;;
+		6)	echo >&2 "Can't resolve host" ;;
+		7)	echo >&2 "Failed to connect" ;;
+		18)	echo >&2 "Partial Transfer" ;;
+		22)	echo >&2 "HTTP Error" ;;
+		23)	echo >&2 "Cannot write local file" ;;
+		26)	echo >&2 "Read Error" ;;
+		28)	echo >&2 "Timeout" ;;
+		35)	echo >&2 "SSL Error" ;;
+		47)	echo >&2 "Too many redirects" ;;
+		52)	echo >&2 "Server did not reply anything" ;;
+		55)	echo >&2 "Failed sending network data" ;;
+		56)	echo >&2 "Failure in receiving network data" ;;
+		61)	echo >&2 "Unrecognized transfer encoding" ;;
+		*) echo >&2 "Error ${ret} returned by curl" ;;
+	esac
+
 	return ${ret}
 }
 
@@ -431,7 +460,7 @@ download_url() {
 	fi
 
 	# download it
-	test ${SILENT} -ne 1 && echo >&2 "${ipset}: downlading from '${url}'..."
+	test ${SILENT} -ne 1 && printf >&2 "${ipset}: downlading from '${url}'... "
 	geturl "${tmp}" "${install}.source" "${url}"
 	case $? in
 		0)	;;
@@ -1015,6 +1044,14 @@ rename_ipset rosi_connect_proxies ri_connect_proxies
 rename_ipset danmetor dm_tor
 rename_ipset autoshun shunlist
 rename_ipset tor_servers bm_tor
+rename_ipset stop_forum_spam stopforumspam_ever
+rename_ipset stop_forum_spam_1h stopforumspam_1d
+rename_ipset stop_forum_spam_7d stopforumspam_7d
+rename_ipset stop_forum_spam_30d stopforumspam_30d
+rename_ipset stop_forum_spam_90d stopforumspam_90d
+rename_ipset stop_forum_spam_180d stopforumspam_180d
+rename_ipset stop_forum_spam_365d stopforumspam_365d
+rename_ipset clean_mx_viruses cleanmx_viruses
 
 # -----------------------------------------------------------------------------
 # INTERNAL FILTERS
@@ -1776,49 +1813,46 @@ update malc0de $[24*60] 0 ipv4 ip \
 # -- normally, you don't need this set --
 # -- use the hourly and the daily ones instead --
 # IMPORTANT: THIS IS A BIG LIST - you will have to add maxelem to ipset to fit it
-update stop_forum_spam $[24*60] 0 ipv4 ip \
+update stopforumspam_ever $[24*60] 0 ipv4 ip \
 	"http://www.stopforumspam.com/downloads/bannedips.zip" \
 	unzip_and_split_csv \
-	"[StopForumSpam.com](http://www.stopforumspam.com) all IPs used by forum spammers"
+	"[StopForumSpam.com](http://www.stopforumspam.com) all IPs used by forum spammers, **ever** (normally you don't want to use this ipset, use the hourly one which includes last 24 hours IPs or the 7 days one)"
 
 # hourly update with IPs from the last 24 hours
-update stop_forum_spam_1h 60 0 ipv4 ip \
+update stopforumspam_1d 60 0 ipv4 ip \
 	"http://www.stopforumspam.com/downloads/listed_ip_1.zip" \
 	unzip_and_extract \
 	"[StopForumSpam.com](http://www.stopforumspam.com) IPs used by forum spammers in the last 24 hours - **excellent list**"
 
 # daily update with IPs from the last 7 days
-update stop_forum_spam_7d $[24*60] 0 ipv4 ip \
+update stopforumspam_7d $[24*60] 0 ipv4 ip \
 	"http://www.stopforumspam.com/downloads/listed_ip_7.zip" \
 	unzip_and_extract \
 	"[StopForumSpam.com](http://www.stopforumspam.com) IPs used by forum spammers (last 7 days)"
 
 # daily update with IPs from the last 30 days
-update stop_forum_spam_30d $[24*60] 0 ipv4 ip \
+update stopforumspam_30d $[24*60] 0 ipv4 ip \
 	"http://www.stopforumspam.com/downloads/listed_ip_30.zip" \
 	unzip_and_extract \
 	"[StopForumSpam.com](http://www.stopforumspam.com) IPs used by forum spammers (last 30 days)"
 
-
 # daily update with IPs from the last 90 days
 # you will have to add maxelem to ipset to fit it
-update stop_forum_spam_90d $[24*60] 0 ipv4 ip \
+update stopforumspam_90d $[24*60] 0 ipv4 ip \
 	"http://www.stopforumspam.com/downloads/listed_ip_90.zip" \
 	unzip_and_extract \
 	"[StopForumSpam.com](http://www.stopforumspam.com) IPs used by forum spammers (last 90 days)"
 
-
 # daily update with IPs from the last 180 days
 # you will have to add maxelem to ipset to fit it
-update stop_forum_spam_180d $[24*60] 0 ipv4 ip \
+update stopforumspam_180d $[24*60] 0 ipv4 ip \
 	"http://www.stopforumspam.com/downloads/listed_ip_180.zip" \
 	unzip_and_extract \
 	"[StopForumSpam.com](http://www.stopforumspam.com) IPs used by forum spammers (last 180 days)"
 
-
 # daily update with IPs from the last 365 days
 # you will have to add maxelem to ipset to fit it
-update stop_forum_spam_365d $[24*60] 0 ipv4 ip \
+update stopforumspam_365d $[24*60] 0 ipv4 ip \
 	"http://www.stopforumspam.com/downloads/listed_ip_365.zip" \
 	unzip_and_extract \
 	"[StopForumSpam.com](http://www.stopforumspam.com) IPs used by forum spammers (last 365 days)"
@@ -1957,7 +1991,7 @@ update alienvault_reputation $[6*60] 0 ipv4 ip \
 # Clean-MX
 # Viruses
 
-update clean_mx_viruses $[12*60] 0 ipv4 ip \
+update cleanmx_viruses $[12*60] 0 ipv4 ip \
 	"http://support.clean-mx.de/clean-mx/xmlviruses.php?sort=id%20desc&response=alive" \
 	parse_xml_clean_mx \
 	"[Clean-MX.de](http://support.clean-mx.de/clean-mx/viruses.php) IPs with viruses"
@@ -2127,6 +2161,9 @@ then
 		"[iBlocklist.com](https://www.iblocklist.com/) free version of BlueTack.co.uk Level 3 (for use in p2p). Many portal-type websites. ISP ranges that may be dodgy for some reason. Ranges that belong to an individual, but which have not been determined to be used by a particular company. Ranges for things that are unusual in some way. The L3 list is aka the paranoid list."
 
 fi
+
+#merge firehol_level1 \
+#	feodo.ipset palevo.ipset sslbl.ipset zeus.ipset dshield.netset spamhaus_drop.netset spamhaus_edrop.netset fullbogons.netset openbl.ipset blocklist.ipset
 
 # TODO
 #
