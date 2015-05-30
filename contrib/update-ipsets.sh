@@ -1031,13 +1031,16 @@ rename_ipset() {
 		mv "history/${old}" "history/${new}"
 	fi
 
+	[ -f ".${old}.lastchecked" -a ! -f ".${new}.lastchecked" ] && mv ".${old}.lastchecked" ".${new}.lastchecked"
+
 	return 0
 }
 
 # rename the emerging threats ipsets to their right names
 rename_ipset tor et_tor
 rename_ipset compromised et_compromised
-rename_ipset botnet et_botnet
+rename_ipset botnet et_botcc
+rename_ipset et_botnet et_botcc
 rename_ipset emerging_block et_block
 rename_ipset rosi_web_proxies ri_web_proxies
 rename_ipset rosi_connect_proxies ri_connect_proxies
@@ -1347,6 +1350,12 @@ gz_proxyrss() {
 		cut -d ':' -f 1
 }
 
+parse_maxmind_proxy_fraud() {
+	grep "a href=\"proxy/" |\
+		cut -d '>' -f 2 |\
+		cut -d '<' -f 1
+}
+
 geolite2_country() {
 	local ipset="geolite2_country" type="net" hash="net" ipv="ipv4" \
 		mins=$[24 * 60 * 7] history_mins=0 \
@@ -1506,20 +1515,16 @@ echo >&2
 # ipv4 ipset create  openbl hash:ip
 #      ipset addfile openbl ipsets/openbl.ipset
 #
-# ipv4 ipset create  tor hash:ip
-#      ipset addfile tor ipsets/tor.ipset
+# ipv4 ipset create  dm_tor hash:ip
+#      ipset addfile dm_tor ipsets/dm_tor.ipset
 #
-# ipv4 ipset create  compromised hash:ip
-#      ipset addfile compromised ipsets/compromised.ipset
-#
-# ipv4 ipset create emerging_block hash:net
-#      ipset addfile emerging_block ipsets/emerging_block.netset
+# ipv4 ipset create et_block hash:net
+#      ipset addfile et_block ipsets/et_block.netset
 #
 # ipv4 blacklist full \
 #         ipset:openbl \
-#         ipset:tor \
-#         ipset:emerging_block \
-#         ipset:compromised \
+#         ipset:dm_tor \
+#         ipset:et_block
 #
 
 
@@ -1533,43 +1538,48 @@ geolite2_country
 # www.openbl.org
 
 update openbl $[4*60] 0 ipv4 ip \
-	"http://www.openbl.org/lists/base.txt.gz" \
-	gz_remove_comments \
+	"http://www.openbl.org/lists/base.txt" \
+	remove_comments \
 	"[OpenBL.org](http://www.openbl.org/) default blacklist (currently it is the same with 90 days). OpenBL.org is detecting, logging and reporting various types of internet abuse. Currently they monitor ports 21 (FTP), 22 (SSH), 23 (TELNET), 25 (SMTP), 110 (POP3), 143 (IMAP), 587 (Submission), 993 (IMAPS) and 995 (POP3S) for bruteforce login attacks as well as scans on ports 80 (HTTP) and 443 (HTTPS) for vulnerable installations of phpMyAdmin and other web applications - **excellent list**"
 
 update openbl_1d $[4*60] 0 ipv4 ip \
-	"http://www.openbl.org/lists/base_1days.txt.gz" \
-	gz_remove_comments \
+	"http://www.openbl.org/lists/base_1days.txt" \
+	remove_comments \
 	"[OpenBL.org](http://www.openbl.org/) last 24 hours IPs.  OpenBL.org is detecting, logging and reporting various types of internet abuse. Currently they monitor ports 21 (FTP), 22 (SSH), 23 (TELNET), 25 (SMTP), 110 (POP3), 143 (IMAP), 587 (Submission), 993 (IMAPS) and 995 (POP3S) for bruteforce login attacks as well as scans on ports 80 (HTTP) and 443 (HTTPS) for vulnerable installations of phpMyAdmin and other web applications."
 
 update openbl_7d $[4*60] 0 ipv4 ip \
-	"http://www.openbl.org/lists/base_7days.txt.gz" \
-	gz_remove_comments \
+	"http://www.openbl.org/lists/base_7days.txt" \
+	remove_comments \
 	"[OpenBL.org](http://www.openbl.org/) last 7 days IPs.  OpenBL.org is detecting, logging and reporting various types of internet abuse. Currently they monitor ports 21 (FTP), 22 (SSH), 23 (TELNET), 25 (SMTP), 110 (POP3), 143 (IMAP), 587 (Submission), 993 (IMAPS) and 995 (POP3S) for bruteforce login attacks as well as scans on ports 80 (HTTP) and 443 (HTTPS) for vulnerable installations of phpMyAdmin and other web applications."
 
 update openbl_30d $[4*60] 0 ipv4 ip \
-	"http://www.openbl.org/lists/base_30days.txt.gz" \
-	gz_remove_comments \
+	"http://www.openbl.org/lists/base_30days.txt" \
+	remove_comments \
 	"[OpenBL.org](http://www.openbl.org/) last 30 days IPs.  OpenBL.org is detecting, logging and reporting various types of internet abuse. Currently they monitor ports 21 (FTP), 22 (SSH), 23 (TELNET), 25 (SMTP), 110 (POP3), 143 (IMAP), 587 (Submission), 993 (IMAPS) and 995 (POP3S) for bruteforce login attacks as well as scans on ports 80 (HTTP) and 443 (HTTPS) for vulnerable installations of phpMyAdmin and other web applications."
 
 update openbl_60d $[4*60] 0 ipv4 ip \
-	"http://www.openbl.org/lists/base_60days.txt.gz" \
-	gz_remove_comments \
+	"http://www.openbl.org/lists/base_60days.txt" \
+	remove_comments \
 	"[OpenBL.org](http://www.openbl.org/) last 60 days IPs.  OpenBL.org is detecting, logging and reporting various types of internet abuse. Currently they monitor ports 21 (FTP), 22 (SSH), 23 (TELNET), 25 (SMTP), 110 (POP3), 143 (IMAP), 587 (Submission), 993 (IMAPS) and 995 (POP3S) for bruteforce login attacks as well as scans on ports 80 (HTTP) and 443 (HTTPS) for vulnerable installations of phpMyAdmin and other web applications."
 
 update openbl_90d $[4*60] 0 ipv4 ip \
-	"http://www.openbl.org/lists/base_90days.txt.gz" \
-	gz_remove_comments \
+	"http://www.openbl.org/lists/base_90days.txt" \
+	remove_comments \
 	"[OpenBL.org](http://www.openbl.org/) last 90 days IPs.  OpenBL.org is detecting, logging and reporting various types of internet abuse. Currently they monitor ports 21 (FTP), 22 (SSH), 23 (TELNET), 25 (SMTP), 110 (POP3), 143 (IMAP), 587 (Submission), 993 (IMAPS) and 995 (POP3S) for bruteforce login attacks as well as scans on ports 80 (HTTP) and 443 (HTTPS) for vulnerable installations of phpMyAdmin and other web applications."
 
 update openbl_180d $[4*60] 0 ipv4 ip \
-	"http://www.openbl.org/lists/base_180days.txt.gz" \
-	gz_remove_comments \
+	"http://www.openbl.org/lists/base_180days.txt" \
+	remove_comments \
 	"[OpenBL.org](http://www.openbl.org/) last 180 days IPs.  OpenBL.org is detecting, logging and reporting various types of internet abuse. Currently they monitor ports 21 (FTP), 22 (SSH), 23 (TELNET), 25 (SMTP), 110 (POP3), 143 (IMAP), 587 (Submission), 993 (IMAPS) and 995 (POP3S) for bruteforce login attacks as well as scans on ports 80 (HTTP) and 443 (HTTPS) for vulnerable installations of phpMyAdmin and other web applications."
 
+update openbl_360d $[4*60] 0 ipv4 ip \
+	"http://www.openbl.org/lists/base_360days.txt" \
+	remove_comments \
+	"[OpenBL.org](http://www.openbl.org/) last 360 days IPs.  OpenBL.org is detecting, logging and reporting various types of internet abuse. Currently they monitor ports 21 (FTP), 22 (SSH), 23 (TELNET), 25 (SMTP), 110 (POP3), 143 (IMAP), 587 (Submission), 993 (IMAPS) and 995 (POP3S) for bruteforce login attacks as well as scans on ports 80 (HTTP) and 443 (HTTPS) for vulnerable installations of phpMyAdmin and other web applications."
+
 update openbl_all $[4*60] 0 ipv4 ip \
-	"http://www.openbl.org/lists/base_all.txt.gz" \
-	gz_remove_comments \
+	"http://www.openbl.org/lists/base_all.txt" \
+	remove_comments \
 	"[OpenBL.org](http://www.openbl.org/) last all IPs.  OpenBL.org is detecting, logging and reporting various types of internet abuse. Currently they monitor ports 21 (FTP), 22 (SSH), 23 (TELNET), 25 (SMTP), 110 (POP3), 143 (IMAP), 587 (Submission), 993 (IMAPS) and 995 (POP3S) for bruteforce login attacks as well as scans on ports 80 (HTTP) and 443 (HTTPS) for vulnerable installations of phpMyAdmin and other web applications."
 
 
@@ -1615,13 +1625,13 @@ update bm_tor 30 0 ipv4 ip \
 update et_compromised $[12*60] 0 ipv4 ip \
 	"http://rules.emergingthreats.net/blockrules/compromised-ips.txt" \
 	remove_comments \
-	"[EmergingThreats.net](http://www.emergingthreats.net/) compromised hosts (seems to be a derivate of other lists)"
+	"[EmergingThreats.net compromised hosts](http://doc.emergingthreats.net/bin/view/Main/CompromisedHost) - (this seems to be based on bruteforceblocker)"
 
-# Command & Control botnet servers by abuse.ch
-update et_botnet $[12*60] 0 ipv4 ip \
+# Command & Control servers by shadowserver.org
+update et_botcc $[12*60] 0 ipv4 ip \
 	"http://rules.emergingthreats.net/fwrules/emerging-PIX-CC.rules" \
 	pix_deny_rules_to_ipv4 \
-	"[EmergingThreats.net](http://www.emergingthreats.net/) botnet IPs"
+	"[EmergingThreats.net Command and Control IPs](http://doc.emergingthreats.net/bin/view/Main/BotCC) These IPs are updates every 24 hours and should be considered VERY highly reliable indications that a host is communicating with a known and active Bot or Malware command and control server - (although they say this includes abuse.ch trackers, it does not - most probably it is the shadowserver.org C&C list)"
 
 # This appears to be the SPAMHAUS DROP list
 update et_spamhaus $[12*60] 0 ipv4 both \
@@ -1636,7 +1646,7 @@ update et_dshield $[12*60] 0 ipv4 both \
 	pix_deny_rules_to_ipv4 \
 	"[EmergingThreats.net](http://www.emergingthreats.net/) dshield blocklist"
 
-# includes botnet, spamhaus and dshield
+# includes spamhaus and dshield
 update et_block $[12*60] 0 ipv4 both \
 	"http://rules.emergingthreats.net/fwrules/emerging-Block-IPs.txt" \
 	remove_comments \
@@ -1936,6 +1946,16 @@ update proxyrss $[4*60] 0 ipv4 ip \
 
 
 # -----------------------------------------------------------------------------
+# Anonymous Proxies
+# https://www.maxmind.com/en/anonymous-proxy-fraudulent-ip-address-list
+
+update maxmind_proxy_fraud $[4*60] $[30*24*60] ipv4 ip \
+	"https://www.maxmind.com/en/anonymous-proxy-fraudulent-ip-address-list" \
+	parse_maxmind_proxy_fraud \
+	"[MaxMind.com](https://www.maxmind.com/en/anonymous-proxy-fraudulent-ip-address-list) list of anonymous proxy fraudelent IP addresses."
+
+
+# -----------------------------------------------------------------------------
 # Project Honey Pot
 # http://www.projecthoneypot.org/?rf=192670
 
@@ -2022,7 +2042,7 @@ update ciarmy $[3*60] 0 ipv4 ip \
 update bruteforceblocker $[3*60] 0 ipv4 ip \
 	"http://danger.rulez.sk/projects/bruteforceblocker/blist.php" \
 	remove_comments \
-	"[danger.rulez.sk](http://danger.rulez.sk/) IPs detected by [bruteforceblocker](http://danger.rulez.sk/index.php/bruteforceblocker/) (fail2ban alternative for SSH on OpenBSD)"
+	"[danger.rulez.sk](http://danger.rulez.sk/) IPs detected by [bruteforceblocker](http://danger.rulez.sk/index.php/bruteforceblocker/) (fail2ban alternative for SSH on OpenBSD). This is an automatically generated list from users reporting failed authentication attempts. An IP seems to be included if 3 or more users report it. Its retention pocily seems 30 days."
 
 
 # -----------------------------------------------------------------------------
@@ -2161,6 +2181,98 @@ then
 		"[iBlocklist.com](https://www.iblocklist.com/) free version of BlueTack.co.uk Level 3 (for use in p2p). Many portal-type websites. ISP ranges that may be dodgy for some reason. Ranges that belong to an individual, but which have not been determined to be used by a particular company. Ranges for things that are unusual in some way. The L3 list is aka the paranoid list."
 
 fi
+
+# -----------------------------------------------------------------------------
+# BadIPs.com
+
+badipscom() {
+	if [ ! -f "badips.source" ]
+		then
+		echo >&2 "badips: is disabled, to enable it run: touch -t 0001010000 '${base}/badips.source'"
+		return 0
+	fi
+
+	download_url "badips" $[24*60] "https://www.badips.com/get/categories"
+	[ ! -s "badips.source" ] && return 0
+
+	local categories="$(cat badips.source |\
+		tr "[]{}," "\n\n\n\n\n" |\
+		egrep '^"Name":"[a-zA-Z0-9_-]+"$' |\
+		cut -d ':' -f 2 |\
+		cut -d '"' -f 2 |\
+		sort -u)"
+	
+	local category= file= score= age= i= ipset= url= info= count=0
+	for category in ${categories}
+	do
+		count=0
+		# echo >&2 "bi_${category}"
+
+		for file in $(ls 2>/dev/null bi_${category}*.source)
+		do
+			count=$[count + 1]
+			if [[ "${file}" =~ ^bi_${category}_[0-9\.]+_[0-9]+[dwmy].source$ ]]
+				then
+				# score and age present
+				i="$(echo "${file}" | sed "s|^bi_${category}_\([0-9\.]\+\)_\([0-9]\+[dwmy]\)\.source|\1;\2|g")"
+				score=${i/;*/}
+				age="${i/*;/}"
+				ipset="bi_${category}_${score}_${age}"
+				url="https://www.badips.com/get/list/${category}/${score}?age=${age}"
+				info="[BadIPs.com](https://www.badips.com/) Bad IPs in category ${category} with score above ${score} and age less than ${age}"
+				if [ ! -f "${ipset}.source" ]
+					then
+					echo >&2 "${file}: cannot parse ipset name to find score and age"
+					continue
+				fi
+
+			elif [[ "${file}" =~ ^bi_${category}_[0-9]+[dwmy].source$ ]]
+				then
+				# age present
+				age="$(echo "${file}" | sed "s|^bi_${category}_\([0-9]\+[dwmy]\)\.source|\1|g")"
+				score=0
+				ipset="bi_${category}_${age}"
+				url="https://www.badips.com/get/list/${category}/${score}?age=${age}"
+				info="[BadIPs.com](https://www.badips.com/) Bad IPs in category ${category} with age less than ${age}"
+				if [ ! -f "${ipset}.source" ]
+					then
+					echo >&2 "${file}: cannot parse ipset name to find age"
+					continue
+				fi
+
+			elif [[ "${file}" =~ ^bi_${category}_[0-9\.]+.source$ ]]
+				then
+				# score present
+				score="$(echo "${file}" | sed "s|^bi_${category}_\([0-9\.]\+\)\.source|\1|g")"
+				age=
+				ipset="bi_${category}_${score}"
+				url="https://www.badips.com/get/list/${category}/${score}"
+				info="[BadIPs.com](https://www.badips.com/) Bad IPs in category ${category} with score above ${score}"
+				if [ ! -f "${ipset}.source" ]
+					then
+					echo >&2 "${file}: cannot parse ipset name to find score"
+					continue
+				fi
+			else
+				# none present
+				echo >&2 "${file}: Cannot find SCORE or AGE in filename. Use numbers."
+				continue
+			fi
+
+			update "${ipset}" 30 0 ipv4 ip "${url}" remove_comments "${info}"
+		done
+
+		if [ ${count} -eq 0 ]
+			then
+			echo >&2 "bi_${category}_SCORE_AGE: is disabled (SCORE=[0-9\.]+ and AGE=[0-9]+[dwmy]. AGE can be ommitted. To enable it run: touch -t 0001010000 '${base}/bi_${category}_SCORE_AGE.source'"
+		fi
+	done
+}
+
+badipscom
+
+# -----------------------------------------------------------------------------
+# TODO List
 
 #merge firehol_level1 \
 #	feodo.ipset palevo.ipset sslbl.ipset zeus.ipset dshield.netset spamhaus_drop.netset spamhaus_edrop.netset fullbogons.netset openbl.ipset blocklist.ipset
