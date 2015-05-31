@@ -514,16 +514,22 @@ ips_in_set() {
 	# the ipset/netset has to be
 	# aggregated properly
 
-	append_slash32 |\
-		cut -d '/' -f 2 |\
-		(
-			local sum=0;
-			while read i
-			do
-				sum=$[sum + (1 << (32 - i))]
-			done
-			echo $sum
-		)
+	if [ -x "${base}/iprange" ]
+		then
+		# our special version of iprange
+		"${base}/iprange" -C
+	else
+		append_slash32 |\
+			cut -d '/' -f 2 |\
+			(
+				local sum=0;
+				while read i
+				do
+					sum=$[sum + (1 << (32 - i))]
+				done
+				echo $sum
+			)
+	fi
 }
 
 # -----------------------------------------------------------------------------
@@ -1066,7 +1072,7 @@ aggregate4() {
 
 	if [ -x "${base}/iprange" ]
 		then
-		append_slash32 | "${base}/iprange" -J | append_slash32
+		"${base}/iprange" -J
 		return $?
 	fi
 
@@ -1542,7 +1548,7 @@ update openbl $[4*60] 0 ipv4 ip \
 	remove_comments \
 	"[OpenBL.org](http://www.openbl.org/) default blacklist (currently it is the same with 90 days). OpenBL.org is detecting, logging and reporting various types of internet abuse. Currently they monitor ports 21 (FTP), 22 (SSH), 23 (TELNET), 25 (SMTP), 110 (POP3), 143 (IMAP), 587 (Submission), 993 (IMAPS) and 995 (POP3S) for bruteforce login attacks as well as scans on ports 80 (HTTP) and 443 (HTTPS) for vulnerable installations of phpMyAdmin and other web applications - **excellent list**"
 
-update openbl_1d $[4*60] 0 ipv4 ip \
+update openbl_1d $[1*60] 0 ipv4 ip \
 	"http://www.openbl.org/lists/base_1days.txt" \
 	remove_comments \
 	"[OpenBL.org](http://www.openbl.org/) last 24 hours IPs.  OpenBL.org is detecting, logging and reporting various types of internet abuse. Currently they monitor ports 21 (FTP), 22 (SSH), 23 (TELNET), 25 (SMTP), 110 (POP3), 143 (IMAP), 587 (Submission), 993 (IMAPS) and 995 (POP3S) for bruteforce login attacks as well as scans on ports 80 (HTTP) and 443 (HTTPS) for vulnerable installations of phpMyAdmin and other web applications."

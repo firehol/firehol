@@ -23,6 +23,9 @@
  * CHANGELOG:
  *  2004-10-16 Paul Townsend (alpha alpha beta at purdue dot edu)
  *   - more general input/output formatting
+ *  2015-05-31 Costa Tsaousis (costa@tsaousis.gr)
+ *   - added -C option to report count of unique IPs
+ *   - some optimizations to speed it up by 10% - 20%
  *
  */
 
@@ -35,6 +38,7 @@
 #include <arpa/inet.h>
 
 
+static int  Cflg = 0; /* = 1 if "-C" specified */
 static int	Jflg = 0;	/* = 1 if "-J" specified */
 static char	*PROG;
 
@@ -45,13 +49,14 @@ static char	*PROG;
 typedef struct network_addr {
   in_addr_t addr;
   int pfx;
+  in_addr_t broadcast;
 } network_addr_t;
 
 
 /*------------------------------------------------------------------*/
 /* Set a bit to a given value (0 or 1); MSB is bit 1, LSB is bit 32 */
 /*------------------------------------------------------------------*/
-in_addr_t set_bit( in_addr_t addr, int bitno, int val ) {
+static inline in_addr_t set_bit( in_addr_t addr, int bitno, int val ) {
 
   if ( val )
     return( addr | (1 << (32 - bitno)) );
@@ -64,7 +69,7 @@ in_addr_t set_bit( in_addr_t addr, int bitno, int val ) {
 /*--------------------------------------*/
 /* Compute netmask address given prefix */
 /*--------------------------------------*/
-in_addr_t netmask( int prefix ) {
+static inline in_addr_t netmask( int prefix ) {
 
   if ( prefix == 0 )
     return( ~((in_addr_t) -1) );
@@ -77,7 +82,7 @@ in_addr_t netmask( int prefix ) {
 /*----------------------------------------------------*/
 /* Compute broadcast address given address and prefix */
 /*----------------------------------------------------*/
-in_addr_t broadcast( in_addr_t addr, int prefix ) {
+static inline in_addr_t broadcast( in_addr_t addr, int prefix ) {
 
   return( addr | ~netmask(prefix) );
 
@@ -87,7 +92,7 @@ in_addr_t broadcast( in_addr_t addr, int prefix ) {
 /*--------------------------------------------------*/
 /* Compute network address given address and prefix */
 /*--------------------------------------------------*/
-in_addr_t network( in_addr_t addr, int prefix ) {
+static inline in_addr_t network( in_addr_t addr, int prefix ) {
 
   return( addr & netmask(prefix) );
 
@@ -105,7 +110,7 @@ void print_addr( in_addr_t addr, int prefix ) {
   if ( prefix < 32 )
     printf( "%s/%d\n", inet_ntoa(in), prefix );
   else
-    printf( "%s\n", inet_ntoa(in));
+    printf( "%s/32\n", inet_ntoa(in));
 
 } /* print_addr() */
 
@@ -160,7 +165,7 @@ void split_range( in_addr_t addr, int prefix, in_addr_t lo, in_addr_t hi ) {
 /*-----------------------------------------------------------*/
 /* Convert an A.B.C.D address into a 32-bit host-order value */
 /*-----------------------------------------------------------*/
-in_addr_t a_to_hl( char *ipstr ) {
+static inline in_addr_t a_to_hl( char *ipstr ) {
 
   struct in_addr in;
 
@@ -178,7 +183,7 @@ in_addr_t a_to_hl( char *ipstr ) {
 /* convert a network address char string into a host-order network */
 /* address and an integer prefix value                             */
 /*-----------------------------------------------------------------*/
-network_addr_t str_to_netaddr( char *ipstr ) {
+static inline network_addr_t str_to_netaddr( char *ipstr ) {
 
   long int prefix = 32;
   char *prefixstr;
@@ -196,6 +201,7 @@ network_addr_t str_to_netaddr( char *ipstr ) {
 
   netaddr.pfx = (int) prefix;
   netaddr.addr = network( a_to_hl(ipstr), prefix );
+  netaddr.broadcast = broadcast(netaddr.addr, netaddr.pfx);
 
   return( netaddr );
 
@@ -247,10 +253,11 @@ void print_addr_range( in_addr_t lo, in_addr_t hi ) {
 /*-------------------------------------------------------------------------*/
 void netaddr_to_range( char *file ) {
 
-  #define NETADDR_INC 100
+  #define NETADDR_INC (65536 * 2)
+  #define MAX_LINE 1024
   network_addr_t *netaddrs = NULL;
   int nmax = 0;
-  char ipstr[21];
+  char ipstr[MAX_LINE + 1];
   in_addr_t lo, hi;
   int i, n;
   FILE *fp = stdin;
@@ -262,7 +269,7 @@ void netaddr_to_range( char *file ) {
     }
   }
 
-  for ( n = 0; fscanf(fp, "%20s", ipstr) != EOF; n++ ) {
+  for ( n = 0; fgets(ipstr, MAX_LINE, fp) ; n++ ) {
     if ( n >= nmax ) {
       nmax += NETADDR_INC;
       netaddrs = realloc( netaddrs, nmax * sizeof(network_addr_t) );
@@ -275,32 +282,41 @@ void netaddr_to_range( char *file ) {
 
   qsort( (void *) netaddrs, n, sizeof(network_addr_t), compar_netaddr );
 
+  // exit(0);
+
   /* we're guaranteed to have at least one network address at this point */
   lo = netaddrs[0].addr;
-  hi = broadcast( netaddrs[0].addr, netaddrs[0].pfx );
+  hi = netaddrs[0].broadcast;
+
+  int total = 0;
 
   for ( i = 1; i < n; i++ ) {
 
-    if ( broadcast(netaddrs[i].addr, netaddrs[i].pfx) <= hi ) {
+    if ( netaddrs[i].broadcast <= hi ) {
       continue;
     }
 
     if ( netaddrs[i].addr == hi + 1 ) {
-      hi = broadcast( netaddrs[i].addr, netaddrs[i].pfx );
+      hi = netaddrs[i].broadcast;
       continue;
     }
 
-    if ( Jflg )
+    if ( Cflg )
+      total += hi - lo + 1;
+    else if ( Jflg )
       split_range(0, 0, lo, hi);
     else
       print_addr_range( lo, hi );
 
     lo = netaddrs[i].addr;
-    hi = broadcast( netaddrs[i].addr, netaddrs[i].pfx );
-    
+    hi = netaddrs[i].broadcast;
   }
 
-  if ( Jflg )
+  if ( Cflg ) {
+    total += hi - lo + 1;
+    printf("%d\n", total);
+  }
+  else if ( Jflg )
     split_range(0, 0, lo, hi);
   else
     print_addr_range( lo, hi );
@@ -322,7 +338,7 @@ int main( int argc, char **argv ) {
 
   /* -j or -J, with optional input file name */
   if ( (argc == 2 || argc == 3) &&
-       ((Jflg = (strcmp(argv[1], "-J") == 0)) || (strcmp(argv[1], "-j") == 0))
+       ((Jflg = (strcmp(argv[1], "-J") == 0)) || (strcmp(argv[1], "-j") == 0) || (Cflg = (strcmp(argv[1], "-C") == 0)))
      ) {
     netaddr_to_range( argv[2] );
     return( 0 );
@@ -348,6 +364,9 @@ int main( int argc, char **argv ) {
           "   -J [file]\n"
           "       Same as \"-j\", except that joined results are printed as\n"
           "       the minimum required number of CIDR network address blocks.\n"
+          "\n"
+          "   -C [file]\n"
+          "       Print only the count of unique IPs present.\n"
           "\n"
           "   -s <start-addr> <end-addr>\n"
           "       Split the range from \"start-addr\" to \"end-addr\" into\n"
