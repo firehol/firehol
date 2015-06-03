@@ -909,6 +909,7 @@ update() {
 
 	if [ ! -f "${install}.source" ]
 	then
+		[ -d .git ] && echo >"${install}.setinfo" "${ipset}|${info}|${ipv} hash:${hash}|disabled|updated every `mins_to_text ${mins}` from [this link](${url})"
 		echo >&2 "${ipset}: is disabled, to enable it run: touch -t 0001010000 '${base}/${install}.source'"
 		return 1
 	fi
@@ -2072,6 +2073,16 @@ update nixspam 15 0 ipv4 ip \
 
 
 # -----------------------------------------------------------------------------
+# VirBL
+# http://virbl.bit.nl/
+
+update virbl 60 0 ipv4 ip \
+	"http://virbl.bit.nl/download/virbl.dnsbl.bit.nl.txt" \
+	remove_comments \
+	"[VirBL](http://virbl.bit.nl/) is a project of which the idea was born during the RIPE-48 meeting. The plan was to get reports of virusscanning mailservers, and put the IP-addresses that were reported to send viruses on a blacklist."
+
+
+# -----------------------------------------------------------------------------
 # AutoShun.org
 # http://www.autoshun.org/
 
@@ -2089,6 +2100,17 @@ update voipbl $[4*60] 0 ipv4 both \
 	"http://www.voipbl.org/update/" \
 	remove_comments \
 	"[VoIPBL.org](http://www.voipbl.org/) a distributed VoIP blacklist that is aimed to protects against VoIP Fraud and minimizing abuse for network that have publicly accessible PBX's. Several algorithms, external sources and manual confirmation are used before they categorize something as an attack and determine the threat level."
+
+
+# -----------------------------------------------------------------------------
+# LashBack Unsubscribe Blacklist
+# http://blacklist.lashback.com/
+# (this is a big list, more than 500.000 IPs)
+
+update lashback_ubl $[24*60] 0 ipv4 ip \
+	"http://www.unsubscore.com/blacklist.txt" \
+	remove_comments \
+	"[The LashBack UBL](http://blacklist.lashback.com/) The Unsubscribe Blacklist (UBL) is a real-time blacklist of IP addresses which are sending email to names harvested from suppression files (this is a big list, more than 500.000 IPs)"
 
 
 # -----------------------------------------------------------------------------
@@ -2194,6 +2216,7 @@ fi
 badipscom() {
 	if [ ! -f "badips.source" ]
 		then
+		[ -d .git ] && echo >"${install}.setinfo" "badips.com categories ipsets|[BadIPs.com](https://www.badips.com) community based IP blacklisting. They score IPs based on the reports they reports.|ipv4 hash:ip|disabled|disabled"
 		echo >&2 "badips: is disabled, to enable it run: touch -t 0001010000 '${base}/badips.source'"
 		return 0
 	fi
@@ -2290,7 +2313,6 @@ badipscom
 # - http://www.nothink.org/blacklist/blacklist_malware_irc.txt
 # - http://www.nothink.org/blacklist/blacklist_malware_http.txt
 # - http://check.torproject.org/cgi-bin/TorBulkExitList.py?ip=1.1.1.1
-# - https://www.maxmind.com/en/anonymous-proxy-fraudulent-ip-address-list
 # - http://www.ipdeny.com/ipblocks/ geo country db for both ipv4 and ipv6
 # - maxmind city geodb
 #
