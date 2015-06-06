@@ -261,9 +261,9 @@ int compar_netaddr(const void *p1, const void *p2)
 		return (-1);
 	if (na1->addr > na2->addr)
 		return (1);
-	if (na1->broadcast < na2->broadcast)
-		return (-1);
 	if (na1->broadcast > na2->broadcast)
+		return (-1);
+	if (na1->broadcast < na2->broadcast)
 		return (1);
 	return (0);
 
