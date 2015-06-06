@@ -34,6 +34,7 @@
  *     (much like -s did for a single range)
  *   - added support for parsing netmasks
  *   - added support for min prefix generated
+ *   - added support for reducing the prefixes for iptables ipsets
  *   - the output is now always optimized (reduced / merged)
  *   - removed option -s (convert a single IP range to CIDR)
  */
@@ -59,7 +60,6 @@
 static char *PROG;
 int debug = 0;
 int cidr_use_network = 1;
-int min_prefix = 0;
 
 /*---------------------------------------------------------------------*/
 /* network address type: one field for the net address, one for prefix */
@@ -118,14 +118,24 @@ static inline in_addr_t network(in_addr_t addr, int prefix)
 /*------------------------------------------------*/
 /* Print out a 32-bit address in A.B.C.D/M format */
 /*------------------------------------------------*/
+
+int prefix_counters[33] = { 0 };
+int prefix_enabled[33] = { 1 };
+int split_range_disable_printing = 0;
+
 void print_addr(in_addr_t addr, int prefix)
 {
+
+	if(likely(prefix >= 0 && prefix <= 32))
+		prefix_counters[prefix]++;
+
+	if(unlikely(split_range_disable_printing)) return;
 
 	struct in_addr in;
 
 	in.s_addr = htonl(addr);
 	printf("%s/%d\n", inet_ntoa(in), prefix);
-	
+
 	//if (prefix < 32)
 	//	printf("%s/%d\n", inet_ntoa(in), prefix);
 	//else
@@ -160,7 +170,7 @@ void split_range(in_addr_t addr, int prefix, in_addr_t lo, in_addr_t hi)
 		exit(1);
 	}
 
-	if ((lo == addr) && (hi == bc) && prefix >= min_prefix) {
+	if ((lo == addr) && (hi == bc) && prefix_enabled[prefix]) {
 		print_addr(addr, prefix);
 		return;
 	}
@@ -593,26 +603,153 @@ ipset *ipset_load(const char *filename) {
 	return ips;
 }
 
+void ipset_print_reduce(ipset *ips, int acceptable_increase, int min_accepted) {
+	int i, n = ips->entries, total = 0, acceptable, iterations = 0, initial = 0, eliminated = 0;
+
+	// reset the prefix counters
+	for(i = 0; i <= 32; i++)
+		prefix_counters[i] = 0;
+
+	// disable printing
+	split_range_disable_printing = 1;
+
+	// enable all prefixes
+	for(i = 0; i <= 32; i++)
+		prefix_enabled[i] = 1;
+
+	// find how many prefixes are there
+	if(unlikely(debug)) fprintf(stderr, "\nCounting prefixes in %s\n", ips->filename);
+	for(i = 0; i < n ;i++)
+		split_range(0, 0, ips->netaddrs[i].addr, ips->netaddrs[i].broadcast);
+
+	// count them
+	if(unlikely(debug)) fprintf(stderr, "Break down by prefix:\n");
+	total = 0;
+	for(i = 0; i <= 32 ;i++) {
+		if(prefix_counters[i]) {
+			if(unlikely(debug)) fprintf(stderr, "	- prefix /%d counts %d entries\n", i, prefix_counters[i]);
+			total += prefix_counters[i];
+			initial++;
+		}
+		else prefix_enabled[i] = 0;
+	}
+	if(unlikely(debug)) fprintf(stderr, "Total %d entries generated\n", total);
+
+	// find the upper limit
+	acceptable = total * acceptable_increase / 100;
+	if(acceptable < min_accepted) acceptable = min_accepted;
+	if(unlikely(debug)) fprintf(stderr, "Acceptable is to reach %d entries by reducing prefixes\n", acceptable);
+
+	// reduce the possible prefixes
+	while(total < acceptable) {
+		iterations++;
+
+		// find the prefix with the least increase
+		int min = -1, to = -1, min_increase = acceptable * 10, j, multiplier, increase;
+		for(i = 0; i <= 31 ;i++) {
+			if(!prefix_counters[i] || !prefix_enabled[i]) continue;
+
+			for(j = i + 1, multiplier = 2; j <= 32 ; j++, multiplier *= 2) {
+				if(!prefix_counters[j]) continue;
+
+				increase = prefix_counters[i] * (multiplier - 1);
+				if(unlikely(debug)) fprintf(stderr, "		> Examining merging prefix %d to %d (increase by %d)\n", i, j, increase);
+				
+				if(increase < min_increase) {
+					min_increase = increase;
+					min = i;
+					to = j;
+				}
+				break;
+			}
+		}
+
+		if(min == -1 || to == -1 || min == to) {
+			if(unlikely(debug)) fprintf(stderr, "	Nothing more to reduce\n");
+			break;
+		}
+
+	 	multiplier = 1;
+		for(i = min; i < to; i++) multiplier *= 2;
+
+		increase = prefix_counters[min] * multiplier - prefix_counters[min];
+		if(unlikely(debug)) fprintf(stderr, "		> Selected prefix %d (%d entries) to be merged in %d (total increase by %d)\n", min, prefix_counters[min], to, increase);
+
+		if(total + increase > acceptable) {
+			if(unlikely(debug)) fprintf(stderr, "	Cannot proceed to increase total %d by %d, above acceptable %d.\n", total, increase, acceptable);
+			break;
+		}
+
+		int old_to_counters = prefix_counters[to];
+
+		total += increase;
+		prefix_counters[to] += increase + prefix_counters[min];
+		prefix_counters[min] = 0;
+		prefix_enabled[min] = 0;
+		eliminated++;
+		if(unlikely(debug)) fprintf(stderr, "		Eliminating prefix %d in %d (had %d, now has %d entries), total is now %d (increased by %d)\n", min, to, old_to_counters, prefix_counters[to], total, increase);
+	}
+
+	if(unlikely(debug)) fprintf(stderr, "\nEliminated %d out of %d prefixes (%d remain in the final set).\n", eliminated, initial, initial - eliminated);
+
+	// reset the prefix counters
+	for(i = 0; i <= 32; i++)
+		prefix_counters[i] = 0;
+
+	// enable printing
+	split_range_disable_printing = 0;
+
+	// print it
+	for(i = 0; i < n ;i++)
+		split_range(0, 0, ips->netaddrs[i].addr, ips->netaddrs[i].broadcast);
+}
+
 #define PRINT_RANGE 1
 #define PRINT_CIDR 2
 #define PRINT_SINGLE_IPS 3
+#define PRINT_REDUCED 4
+
+int ipset_reduce_factor = 120;
+int ipset_reduce_min_accepted = 16384;
 
 void ipset_print(ipset *ips, int print) {
 	int i, n = ips->entries;
 
+	// reset the prefix counters
+	for(i = 0; i <= 32; i++)
+		prefix_counters[i] = 0;
+
 	if(unlikely(debug)) fprintf(stderr, "%s: Printing %s\n", PROG, ips->filename);
 
-	for(i = 0; i < n ;i++)
-		if(likely(print == PRINT_CIDR))
-			split_range(0, 0, ips->netaddrs[i].addr, ips->netaddrs[i].broadcast);
+	if(print == PRINT_REDUCED) {
+		ipset_print_reduce(ips, ipset_reduce_factor, ipset_reduce_min_accepted);
+	}
+	else {
+		for(i = 0; i < n ;i++)
+			if(likely(print == PRINT_CIDR))
+				split_range(0, 0, ips->netaddrs[i].addr, ips->netaddrs[i].broadcast);
 
-		else if(likely(print == PRINT_SINGLE_IPS)) {
-			in_addr_t x, broadcast = ips->netaddrs[i].broadcast;
-			for(x = ips->netaddrs[i].addr; x <= broadcast ; x++)
-				print_addr_range(x, x);
+			else if(likely(print == PRINT_SINGLE_IPS)) {
+				in_addr_t x, broadcast = ips->netaddrs[i].broadcast;
+				for(x = ips->netaddrs[i].addr; x <= broadcast ; x++)
+					print_addr_range(x, x);
+			}
+			else
+				print_addr_range(ips->netaddrs[i].addr, ips->netaddrs[i].broadcast);
+	}
+
+	// print prefix break down
+	if(unlikely((print == PRINT_CIDR || print == PRINT_REDUCED) && debug)) {
+		fprintf(stderr, "\nBreak down by prefix:\n");
+		int total = 0;
+		for(i = 0; i <= 32 ;i++) {
+			if(prefix_counters[i]) {
+				fprintf(stderr, "	- prefix /%d counts %d entries\n", i, prefix_counters[i]);
+				total += prefix_counters[i];
+			}
 		}
-		else
-			print_addr_range(ips->netaddrs[i].addr, ips->netaddrs[i].broadcast);
+		fprintf(stderr, "Total %d entries generated\n", total);
+	}
 }
 
 ipset *ipset_merge(ipset *to, ipset *add) {
@@ -673,25 +810,47 @@ void usage(const char *me) {
 		"\n"
 		"options:\n"
 		"	--optimize or --combine or --merge or -J\n"
+		"		> enables IPSET_COMBINE mode\n"
 		"		merge all files and print the merged set\n"
 		"		this is the default\n"
 		"\n"
+		"	--ipset-reduce PERCENT\n"
+		"		> enables IPSET_REDUCE mode\n"
+		"		merge all files and print the merged set\n"
+		"		but try to reduce the number of prefixes (subnets)\n"
+		"		found, while allowing some increase in entries\n"
+		"		the PERCENT is how much percent to allow\n"
+		"		increase of the entries in order to reduce the\n"
+		"		prefixes (subnets)\n"
+		"		(the internal default PERCENT is 20)\n"
+		"		(use -v to see exactly what it does)\n"
+		"\n"
+		"	--ipset-reduce-min-accepted ENTRIES\n"
+		"		> enables IPSET_REDUCE mode\n"
+		"		allow increasing the entries above PERCENT, if\n"
+		"		they are below ENTRIES\n"
+		"		(the internal default ENTRIES is 16384)\n"
+		"\n"
 		"	--compare\n"
+		"		> enables IPSET_COMPARE mode\n"
 		"		compare all files with all other files\n"
 		"		the output is CSV formatted\n"
 		"		add --header to get the CSV header too\n"
 		"\n"
 		"	--compare-first\n"
+		"		> enables IPSET_COMPRARE_FIRST mode\n"
 		"		comprare the first file with all other files\n"
 		"		the output is CSV formatted\n"
 		"		add --header to get the CSV header too\n"
 		"\n"
 		"	--count-unique or -C\n"
+		"		> enables IPSET_COUNT_UNIQUE mode\n"
 		"		merge all files and print its counts\n"
 		"		the output is CSV formatted\n"
 		"		add --header to get the CSV header too\n"
 		"\n"
 		"	--count-unique-all\n"
+		"		> enables IPSET_COUNT_UNIQUE_ALL mode\n"
 		"		print counts for each file\n"
 		"		the output is CSV formatted\n"
 		"		add --header to get the CSV header too\n"
@@ -780,7 +939,12 @@ int main(int argc, char **argv) {
 		PROG = argv[0];
 
 	ipset *root = NULL, *ips = NULL, *first = NULL;
-	int i = 1, mode = MODE_COMBINE, print = PRINT_CIDR, header = 0;
+	int i, mode = MODE_COMBINE, print = PRINT_CIDR, header = 0;
+
+	// enable all prefixes
+	for(i = 0; i <= 32; i++)
+		prefix_enabled[i] = 1;
+	
 	for(i = 1; i < argc ; i++) {
 		if(strcmp(argv[i], "as") == 0 && root && i+1 < argc) {
 			strncpy(root->filename, argv[i+1], FILENAME_MAX);
@@ -788,7 +952,19 @@ int main(int argc, char **argv) {
 			i++;
 		}
 		else if(strcmp(argv[i], "--min-prefix") == 0 && i+1 < argc) {
-			min_prefix = atoi(argv[i+1]);
+			int j, min_prefix = atoi(argv[i+1]);
+			for(j = 0; j < min_prefix; j++)
+				prefix_enabled[i] = 0;
+			i++;
+		}
+		else if(strcmp(argv[i], "--ipset-reduce") == 0 && i+1 < argc) {
+			ipset_reduce_factor = 100 + atoi(argv[i+1]);
+			print = PRINT_REDUCED;
+			i++;
+		}
+		else if(strcmp(argv[i], "--ipset-reduce-min-accepted") == 0 && i+1 < argc) {
+			ipset_reduce_min_accepted = atoi(argv[i+1]);
+			print = PRINT_REDUCED;
 			i++;
 		}
 		else if(strcmp(argv[i], "--optimize") == 0 || strcmp(argv[i], "--combine") == 0 || strcmp(argv[i], "-J") == 0 || strcmp(argv[i], "--merge") == 0)
@@ -870,8 +1046,6 @@ int main(int argc, char **argv) {
 			if(unlikely(header)) printf("entries,unique_ips\n");
 			printf("%d,%d\n", ips->lines, ips->unique_ips);
 		}
-
-		exit(0);
 	}
 	else if(mode == MODE_COMPARE || mode == MODE_COMPARE_FIRST || mode == MODE_COUNT_UNIQUE_ALL) {
 		// optimize all the other ipsets to count the unique IPs
