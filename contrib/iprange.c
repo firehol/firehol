@@ -825,7 +825,7 @@ void usage(const char *me) {
 		"		(the internal default PERCENT is 20)\n"
 		"		(use -v to see exactly what it does)\n"
 		"\n"
-		"	--ipset-reduce-min-accepted ENTRIES\n"
+		"	--ipset-reduce-entries ENTRIES\n"
 		"		> enables IPSET_REDUCE mode\n"
 		"		allow increasing the entries above PERCENT, if\n"
 		"		they are below ENTRIES\n"
@@ -962,7 +962,7 @@ int main(int argc, char **argv) {
 			print = PRINT_REDUCED;
 			i++;
 		}
-		else if(strcmp(argv[i], "--ipset-reduce-min-accepted") == 0 && i+1 < argc) {
+		else if(strcmp(argv[i], "--ipset-reduce-entries") == 0 && i+1 < argc) {
 			ipset_reduce_min_accepted = atoi(argv[i+1]);
 			print = PRINT_REDUCED;
 			i++;
