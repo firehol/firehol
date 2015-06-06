@@ -60,6 +60,7 @@
 static char *PROG;
 int debug = 0;
 int cidr_use_network = 1;
+int default_prefix = 32;
 
 /*---------------------------------------------------------------------*/
 /* network address type: one field for the net address, one for prefix */
@@ -211,7 +212,7 @@ static inline in_addr_t a_to_hl(char *ipstr) {
 /*-----------------------------------------------------------------*/
 static inline network_addr_t str_to_netaddr(char *ipstr) {
 
-	long int prefix = 32;
+	long int prefix = default_prefix;
 	char *prefixstr;
 	network_addr_t netaddr;
 
@@ -876,6 +877,10 @@ void usage(const char *me) {
 		"		this option disables this feature\n"
 		"		(i.e. 1.1.1.17/24 is read as 1.1.1.17-1.1.1.255)\n"
 		"\n"
+		"	--default-prefix PREFIX or -p PREFIX\n"
+		"		Set the default prefix for all IPs without mask\n"
+		"		the default is 32\n"
+		"\n"
 		"	--min-prefix N\n"
 		"		do not generate prefixes larger than N\n"
 		"		i.e. if N is 24 then /24 to /32 entries will be\n"
@@ -888,7 +893,7 @@ void usage(const char *me) {
 		"		with this setting more entries will be produced\n"
 		"		to accomplish the same match\n"
 		"\n"
-		"	--has-compare\n"
+		"	--has-compare or --has-reduce\n"
 		"		exits with 0\n"
 		"		older versions of iprange will exit with 1\n"
 		"		use this option in scripts to find if this\n"
@@ -957,6 +962,10 @@ int main(int argc, char **argv) {
 				prefix_enabled[i] = 0;
 			i++;
 		}
+		else if((strcmp(argv[i], "--default-prefix") == 0 || strcmp(argv[i], "-p") == 0) && i+1 < argc) {
+			default_prefix = atoi(argv[i+1]);
+			i++;
+		}
 		else if(strcmp(argv[i], "--ipset-reduce") == 0 && i+1 < argc) {
 			ipset_reduce_factor = 100 + atoi(argv[i+1]);
 			print = PRINT_REDUCED;
@@ -989,8 +998,8 @@ int main(int argc, char **argv) {
 			header = 1;
 		else if(strcmp(argv[i], "--dont-fix-network") == 0)
 			cidr_use_network = 0;
-		else if(strcmp(argv[i], "--has-compare") == 0) {
-			fprintf(stderr, "yes, compare functionality is present.\n");
+		else if(strcmp(argv[i], "--has-compare") == 0 || strcmp(argv[i], "--has-reduce") == 0) {
+			fprintf(stderr, "yes, compare and reduce is present.\n");
 			exit(0);
 		}
 		else {
