@@ -416,16 +416,26 @@ static inline void ipset_optimize(ipset *ips) {
 
 	in_addr_t lo = oaddrs[0].addr, hi = oaddrs[0].broadcast;
 	for (i = 1; i < n; i++) {
+		// if the broadcast of this
+		// is before the broadcast of the last
+		// then skip it = it fits entirely inside the current
 		if (oaddrs[i].broadcast <= hi)
 			continue;
 
-		if (oaddrs[i].addr == hi + 1) {
+		// if the network addr of this
+		// overlaps or is adjustent to the last
+		// then merge it = extent the broadcast of the last
+		if (oaddrs[i].addr <= hi + 1) {
 			hi = oaddrs[i].broadcast;
 			continue;
 		}
 
+		// at this point we are sure the old lo, hi
+		// do not overlap and are not adjustent to the current
+		// so, add the last to the new set
 		ipset_add(ips, lo, hi);
 
+		// prepare for the next loop
 		lo = oaddrs[i].addr;
 		hi = oaddrs[i].broadcast;
 	}
