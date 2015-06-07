@@ -5218,6 +5218,9 @@ declare -A FIREHOL_IPSETS_IPV=()
 declare -A FIREHOL_IPSETS_KEEP=()
 FIREHOL_IPSETS_RESPECT_KEEP=1
 
+declare -A FIREHOL_IPSETS_TYPES=()
+declare -A FIREHOL_IPSETS_OPTIONS=()
+
 # this is a wrapper around ipset
 # it has the same syntax
 ipset4() { ipv4 ipset "${@}"; }
@@ -5265,15 +5268,19 @@ ipset() {
 			fi
 
 			opts="${*}"
-
 			if [ "${opts/*prevent_reset_on_restart*/prevent_reset_on_restart}" = "prevent_reset_on_restart" ]
 			then
 				shift
 				FIREHOL_IPSETS_KEEP[$name]=1
 				opts="${opts/prevent_reset_on_restart/}"
+			else
+				FIREHOL_IPSETS_KEEP[$name]=0
 			fi
 
-			echo "${IPSET_CREATE_OPTION} ${name} ${type} ${inet} ${opts}" >"${FIREHOL_DIR}/ipset.${name}.rules"
+			FIREHOL_IPSETS_OPTIONS[$name]="${inet} ${opts}"
+			FIREHOL_IPSETS_TYPES[$name]="${type}"
+
+			echo "${IPSET_CREATE_OPTION} ${name} ${FIREHOL_IPSETS_TYPES[$name]} ${FIREHOL_IPSETS_OPTIONS[$name]}" >"${FIREHOL_DIR}/ipset.${name}.rules"
 			echo "${IPSET_FLUSH_OPTION} ${name}" >>"${FIREHOL_DIR}/ipset.${name}.rules"
 			FIREHOL_IPSETS_USED[$name]="CREATED"
 			;;
@@ -5503,7 +5510,7 @@ ipsets_apply() {
 				fi
 			done
 
-			declare -p FIREHOL_IPSETS_USED FIREHOL_IPSETS_IPV FIREHOL_IPSETS_KEEP >"${FIREHOL_SPOOL_DIR}/ipsets.conf"
+			declare -p FIREHOL_IPSETS_USED FIREHOL_IPSETS_IPV FIREHOL_IPSETS_KEEP FIREHOL_IPSETS_TYPES FIREHOL_IPSETS_OPTIONS >"${FIREHOL_SPOOL_DIR}/ipsets.conf"
 			cp "${FIREHOL_DIR}/ipsets.restore" "${FIREHOL_SPOOL_DIR}/last.ipsets.restore"
 			ipset_save_active_to_spool
 		fi
@@ -10398,7 +10405,7 @@ case "${arg}" in
 			ipset_done_all_tmp_sets
 
 			# let the user know
-			success "$(( $(cat ${tmp} | wc -l) - 2 )) IPs" # "Updating ipset '${name}' with options: ${*}"
+			success "$(( $(cat ${tmp} | wc -l) - 2 )) entries" # "Updating ipset '${name}' with options: ${*}"
 
 			# save the new ipset
 			${IPSET_CMD} ${IPSET_SAVE_OPTION} ${name} >${tmp}.new
