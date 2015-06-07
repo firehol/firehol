@@ -62,8 +62,10 @@ int debug = 0;
 int cidr_use_network = 1;
 int default_prefix = 32;
 
-char *print_prefix = "";
-char *print_suffix = "";
+char *print_prefix_ips  = "";
+char *print_prefix_nets = "";
+char *print_suffix_ips  = "";
+char *print_suffix_nets = "";
 
 /*---------------------------------------------------------------------*/
 /* network address type: one field for the net address, one for prefix */
@@ -140,9 +142,9 @@ void print_addr(in_addr_t addr, int prefix)
 	in.s_addr = htonl(addr);
 
 	if (prefix < 32)
-		printf("%s%s/%d%s\n", print_prefix, inet_ntoa(in), prefix, print_suffix);
+		printf("%s%s/%d%s\n", print_prefix_nets, inet_ntoa(in), prefix, print_suffix_nets);
 	else
-		printf("%s%s%s\n", print_prefix, inet_ntoa(in), print_suffix);
+		printf("%s%s%s\n", print_prefix_ips, inet_ntoa(in), print_suffix_ips);
 
 }				/* print_addr() */
 
@@ -282,13 +284,13 @@ void print_addr_range(in_addr_t lo, in_addr_t hi)
 
 	if (likely(lo != hi)) {
 		in.s_addr = htonl(lo);
-		printf("%s%s-", print_prefix, inet_ntoa(in));
+		printf("%s%s-", print_prefix_nets, inet_ntoa(in));
 		in.s_addr = htonl(hi);
-		printf("%s%s\n", inet_ntoa(in), print_suffix);
+		printf("%s%s\n", inet_ntoa(in), print_suffix_nets);
 	}
 	else {
 		in.s_addr = htonl(hi);
-		printf("%s%s%s\n", print_prefix, inet_ntoa(in), print_suffix);
+		printf("%s%s%s\n", print_prefix_ips, inet_ntoa(in), print_suffix_ips);
 	}
 }				/* print_addr_range() */
 
@@ -873,9 +875,33 @@ void usage(const char *me) {
 		"\n"
 		"	--print-prefix STRING\n"
 		"		print STRING before each IP, range or CIDR\n"
+		"		this sets both --print-prefix-ips and\n"
+		"		--print-prefix-nets\n"
+		"\n"
+		"	--print-prefix-ips STRING\n"
+		"		print STRING before each single IP\n"
+		"		useful for entering single IPs to a different\n"
+		"		ipset than the networks\n"
+		"\n"
+		"	--print-prefix-nets STRING\n"
+		"		print STRING before each range or CIDR\n"
+		"		useful for entering sunbets to a different\n"
+		"		ipset than single IPs\n"
 		"\n"
 		"	--print-suffix STRING\n"
 		"		print STRING after each IP, range or CIDR\n"
+		"		this sets both --print-suffix-ips and\n"
+		"		--print-suffix-nets\n"
+		"\n"
+		"	--print-suffix-ips STRING\n"
+		"		print STRING after each single IP\n"
+		"		useful for giving single IPs different\n"
+		"		ipset options\n"
+		"\n"
+		"	--print-suffix-nets STRING\n"
+		"		print STRING after each range or CIDR\n"
+		"		useful for giving subnets different\n"
+		"		ipset options\n"
 		"\n"
 		"	--header\n"
 		"		when the output is CSV, print the header line\n"
@@ -1009,10 +1035,24 @@ int main(int argc, char **argv) {
 			print = PRINT_SINGLE_IPS;
 		}
 		else if(strcmp(argv[i], "--print-prefix") == 0 && i+1 < argc) {
-			print_prefix=argv[++i];
+			print_prefix_ips  = argv[++i];
+			print_prefix_nets = print_prefix_ips;
+		}
+		else if(strcmp(argv[i], "--print-prefix-ips") == 0 && i+1 < argc) {
+			print_prefix_ips = argv[++i];
+		}
+		else if(strcmp(argv[i], "--print-prefix-nets") == 0 && i+1 < argc) {
+			print_prefix_nets = argv[++i];
 		}
 		else if(strcmp(argv[i], "--print-suffix") == 0 && i+1 < argc) {
-			print_suffix=argv[++i];
+			print_suffix_ips = argv[++i];
+			print_suffix_nets = print_suffix_ips;
+		}
+		else if(strcmp(argv[i], "--print-suffix-ips") == 0 && i+1 < argc) {
+			print_suffix_ips = argv[++i];
+		}
+		else if(strcmp(argv[i], "--print-suffix-nets") == 0 && i+1 < argc) {
+			print_suffix_nets = argv[++i];
 		}
 		else if(strcmp(argv[i], "--header") == 0) {
 			header = 1;
