@@ -100,6 +100,9 @@ then
 fi
 renice 10 $$ >/dev/null 2>/dev/null
 
+# -----------------------------------------------------------------------------
+# external commands management
+
 require_cmd() {
 	local cmd= block=1
 	if [ "a${1}" = "a-n" ]
@@ -143,17 +146,67 @@ require_cmd dirname
 
 program_pwd="${PWD}"
 program_dir="`dirname ${0}`"
-CAN_CONVERT_RANGES_TO_CIDR=0
-if [ -x "${program_dir}/ipv4_range_to_cidr.awk" ]
-then
-	CAN_CONVERT_RANGES_TO_CIDR=1
+
+# -----------------------------------------------------------------------------
+# find a working iprange command
+
+IPRANGE_CMD="$(which iprange 2>&1)"
+if [ ! -z "${IPRANGE_CMD}" -a -x "${IPRANGE_CMD}" ]
+	then
+	"${IPRANGE_CMD}" --has-reduce >/dev/null 2>&1
+	[ $? -ne 0 ] && IPRANGE_CMD=
 fi
 
+if [ -z "${IPRANGE_CMD}" -a -x "${base}/iprange" ]
+	then
+	IPRANGE_CMD="${base}/iprange"
+	"${IPRANGE_CMD}" --has-reduce >/dev/null 2>&1
+	[ $? -ne 0 ] && IPRANGE_CMD=
+fi
+
+if [ -z "${IPRANGE_CMD}" -a ! -x "${program_dir}/iprange" -a -f "${program_dir}/iprange.c" ]
+	then
+	echo >&2 "Attempting to compile FireHOL's iprange..."
+	gcc -O3 -o "${program_dir}/iprange" "${program_dir}/iprange.c"
+	[ $? -eq 0 ] && cp "${program_dir}/iprange" "${base}/iprange"
+fi
+
+if [ -z "${IPRANGE_CMD}" -a -x "${program_dir}/iprange" ]
+	then
+	IPRANGE_CMD="${program_dir}/iprange"
+	"${IPRANGE_CMD}" --has-reduce >/dev/null 2>&1
+	[ $? -ne 0 ] && IPRANGE_CMD=
+fi
+
+if [ -z "${IPRANGE_CMD}" ]
+	then
+	echo >&2 "Cannot find a working iprange command."
+	echo >&2 "In the contrib directory of FireHOL, please run 'make install'."
+	exit 1
+fi
+
+# iprange filter to convert ipv4 range to cidr
 ipv4_range_to_cidr() {
-	cd "${program_pwd}"
-	awk -f "${program_dir}/ipv4_range_to_cidr.awk"
-	cd "${OLDPWD}"
+	"${IPRANGE_CMD}"
 }
+
+# iprange filter to aggregate ipv4 addresses
+aggregate4() {
+	"${IPRANGE_CMD}" #--ipset-reduce 40 --ipset-reduce-entries 65536
+}
+
+# iprange filter to aggregate ipv4 addresses
+aggregate4_reduce() {
+	"${IPRANGE_CMD}" --ipset-reduce 20 --ipset-reduce-entries 65536
+}
+
+# iprange filter to process ipsets (IPv4 IPs, not subnets)
+ipset_uniq4() {
+	"${IPRANGE_CMD}" -1
+}
+
+# -----------------------------------------------------------------------------
+# Command line parsing
 
 GIT_COMPARE=0
 IGNORE_LASTCHECKED=0
@@ -171,6 +224,10 @@ do
 	shift
 done
 
+
+# -----------------------------------------------------------------------------
+# other preparations
+
 # create the directory to save the sets
 if [ ! -d "${base}" ]
 then
@@ -183,6 +240,10 @@ then
 	echo >&2 "Git is not initialized in ${base}. Ignoring git support."
 	PUSH_TO_GIT=0
 fi
+
+
+# -----------------------------------------------------------------------------
+# COMMON FUNCTIONS
 
 # convert a number of minutes to a human readable text
 mins_to_text() {
@@ -379,11 +440,16 @@ history_manager() {
 	return 0
 }
 
-# fetch a url
-# the output file has the last modified timestamp
-# of the server
-# on the next run, the file is downloaded only
-# if it has changed on the server
+# -----------------------------------------------------------------------------
+# DOWNLOADERS
+
+# RETURN
+# 0 = SUCCESS
+# 99 = NOT MODIFIED ON THE SERVER
+# ANY OTHER = FAILED
+
+# Fetch a url - the output file has the last modified timestamp of the server.
+# On the next run, the file is downloaded only if it has changed on the server.
 geturl() {
 	local file="${1}" reference="${2}" url="${3}" ret= http_code=
 
@@ -398,7 +464,7 @@ geturl() {
 		"${url}")
 
 	ret=$?
-	
+
 	printf >&2 "HTTP/${http_code} "
 
 	case "${ret}" in
@@ -437,7 +503,7 @@ geturl() {
 DOWNLOAD_OK=0
 DOWNLOAD_FAILED=1
 DOWNLOAD_NOT_UPDATED=2
-download_url() {
+download_manager() {
 	local 	ipset="${1}" mins="${2}" url="${3}" \
 		install="${1}" \
 		tmp= now= date= check=
@@ -510,28 +576,6 @@ download_url() {
 	return ${DOWNLOAD_OK}
 }
 
-ips_in_set() {
-	# the ipset/netset has to be
-	# aggregated properly
-
-	if [ -x "${base}/iprange" ]
-		then
-		# our special version of iprange
-		"${base}/iprange" -C
-	else
-		append_slash32 |\
-			cut -d '/' -f 2 |\
-			(
-				local sum=0;
-				while read i
-				do
-					sum=$[sum + (1 << (32 - i))]
-				done
-				echo $sum
-			)
-	fi
-}
-
 # -----------------------------------------------------------------------------
 # ipsets comparisons
 
@@ -542,9 +586,10 @@ declare -A IPSET_FILE=()
 declare -A IPSET_ENTRIES=()
 declare -A IPSET_IPS=()
 declare -A IPSET_OVERLAPS=()
+declare -A IPSET_COMPARED=()
 cache_save() {
 	#echo >&2 "Saving cache"
-	declare -p IPSET_SOURCE IPSET_URL IPSET_INFO IPSET_FILE IPSET_ENTRIES IPSET_IPS IPSET_OVERLAPS >"${base}/.cache"
+	declare -p IPSET_SOURCE IPSET_URL IPSET_INFO IPSET_FILE IPSET_ENTRIES IPSET_IPS IPSET_OVERLAPS IPSET_COMPARED >"${base}/.cache"
 }
 if [ -f "${base}/.cache" ]
 	then
@@ -565,6 +610,7 @@ cache_remove_ipset() {
 	unset IPSET_FILE[${ipset}]
 	unset IPSET_ENTRIES[${ipset}]
 	unset IPSET_IPS[${ipset}]
+	unset IPSET_COMPARED[${ipset}]
 
 	cache_save
 }
@@ -574,6 +620,7 @@ cache_clean_ipset() {
 	# echo >&2 "${ipset}: Cleaning cache"
 	unset IPSET_ENTRIES[${ipset}]
 	unset IPSET_IPS[${ipset}]
+	unset IPSET_COMPARED[${ipset}]
 	local x=
 	for x in "${!IPSET_FILE[@]}"
 	do
@@ -582,10 +629,15 @@ cache_clean_ipset() {
 	done
 	cache_save
 }
+
 cache_update_ipset() {
 	local ipset="${1}"
-	[ -z "${IPSET_ENTRIES[${ipset}]}" ] && IPSET_ENTRIES[${ipset}]=`cat "${IPSET_FILE[${ipset}]}" | remove_comments | wc -l`
-	[ -z "${IPSET_IPS[${ipset}]}"     ] && IPSET_IPS[${ipset}]=`cat "${IPSET_FILE[${ipset}]}" | remove_comments | ips_in_set`
+	if [ \( -z "${IPSET_ENTRIES[${ipset}]}" -o -z "${IPSET_IPS[${ipset}]}" \) -a -f "${IPSET_FILE[${ipset}]}" ]
+		then
+		local t="$("${IPRANGE_CMD}" -C "${IPSET_FILE[${ipset}]}")"
+		IPSET_ENTRIES[${ipset}]=${t/,*/}
+		IPSET_IPS[${ipset}]=${t/*,/}
+	fi
 	return 0
 }
 
@@ -675,14 +727,11 @@ EOFMD
 			continue
 		fi
 
-		# echo >&2 "	Updating overlaps for ${ipset} compared to ${oipset}..."
-
 		if [ -z "${IPSET_OVERLAPS[,${ipset},${oipset},]}${IPSET_OVERLAPS[,${oipset},${ipset},]}" ]
 			then
 			printf >&2 "+"
-			local mips=`cat "${file}" "${ofile}" | remove_comments | append_slash32 | sort -u | aggregate4 | ips_in_set`
+			local mips=$("${IPRANGE_CMD}" -C "${file}" "${ofile}" | cut -d ',' -f 2)
 			IPSET_OVERLAPS[,${ipset},${oipset},]=$[(ips + oips) - mips]
-			#echo "IPSET_OVERLAPS[,${ipset},${oipset},]=${IPSET_OVERLAPS[,${ipset},${oipset},]}" >>"${base}/.cache"
 		else
 			printf >&2 "."
 		fi
@@ -690,25 +739,64 @@ EOFMD
 
 		[ ${overlap} -gt 0 ] && echo "${overlap}|[${oipset}](#${oipset})|${oentries}|${oips}|${overlap}|$(print_last_digit_decimal $[overlap * 1000 / oips])%|$(print_last_digit_decimal $[overlap * 1000 / ips])%|" >>${readme}.tmp
 	done
-	cat "${readme}.tmp" | sort -n -r | cut -d '|' -f 2- >>${readme}
-	rm "${readme}.tmp"
+	if [ -f "${readme}.tmp" ]
+		then
+		cat "${readme}.tmp" | sort -n -r | cut -d '|' -f 2- >>${readme}
+		rm "${readme}.tmp"
+	fi
 
 	echo >&2
 	cache_save
 }
 
 compare_all_ipsets() {
-	local x=
+	local x= all=()
 	echo >&2
-	echo >&2 "Comparing ipsets..."
+	echo >&2 "Cleaning ipsets..."
+	for x in "${!IPSET_FILE[@]}"
+	do
+		if [ ! -f "${IPSET_FILE[$x]}" ]
+			then
+			echo >&2 "${x}: file ${IPSET_FILE[$x]} not found - removing it from cache"
+			cache_clean_ipset "${x}"
+		fi
+
+		[[ "${IPSET_FILE[$x]}" =~ ^geolite2.* ]] && continue
+		all=("${all[@]}" "${IPSET_FILE[$x]}" "as" "${x}")
+	done
+
+	echo >&2
+	printf >&2 "Updating comparison cache... "
+	time "${IPRANGE_CMD}" --compare "${all[@]}" |\
+			tr "," " " |\
+			while read name1 name2 entries1 entries2 ips1 ips2 combined common
+			do
+				printf >&2 "."
+				echo "unset IPSET_OVERLAPS[,${name2},${name1},]"
+				echo "IPSET_OVERLAPS[,${name1},${name2},]=$[common]"
+				# echo "IPSET_ENTRIES[${name1}]=$[entries1]"
+				# echo "IPSET_ENTRIES[${name2}]=$[entries2]"
+				# echo "IPSET_IPS[${name1}]=$[ips1]"
+				# echo "IPSET_IPS[${name2}]=$[ips2]"
+			done >.compare.all
+	printf >&2 "\n"
+	echo >&2 "Loading comparison data... "
+	source .compare.all
+	rm .compare.all
+	cache_save
+
+	echo >&2
+	echo >&2 "Generating comprarion tables..."
 	for x in "${!IPSET_FILE[@]}"
 	do
 		compare_ipset "${x}" "${!IPSET_FILE[@]}"
 	done
 }
 
-# -----------------------------------------------------------------------------
 
+# -----------------------------------------------------------------------------
+# finalize() is called when a successful download and convertion completes
+# to update the ipset in the kernel and possibly commit it to git
 finalize() {
 	local ipset="${1}" tmp="${2}" setinfo="${3}" src="${4}" dst="${5}" mins="${6}" history_mins="${7}" ipv="${8}" type="${9}" hash="${10}" url="${11}" info="${12}"
 
@@ -738,8 +826,28 @@ finalize() {
 
 	# calculate how many entries/IPs are in it
 	local ipset_opts=
-	local entries=$(wc -l "${tmp}" | cut -d ' ' -f 1)
+	local entries=$("${IPRANGE_CMD}" -C "${tmp}")
+	local ips=${entries/*,/}
+	local entries=${entries/,*/}
 	local size=$[ ( ( (entries * 130 / 100) / 65536 ) + 1 ) * 65536 ]
+
+	# for net we have to reduce its subnets before giving it to firehol
+	if [ "${hash}" = "net" ]
+		then
+		cat "${tmp}" | aggregate4_reduce >"${tmp}.reduced"
+		if [ $? -eq 0 ]
+			then
+			local oprefixes=$(cat "${tmp}" | append_slash32 | cut -d '/' -f 2 | sort -u | wc -l)
+			local nprefixes=$(cat "${tmp}.reduced" | append_slash32 | cut -d '/' -f 2 | sort -u | wc -l)
+			local rentries=$(cat "${tmp}.reduced" | wc -l)
+			echo >&2 "${ipset}: reduced subnets from ${oprefixes} to ${nprefixes} while increasing entries from ${entries} to ${rentries}"
+			mv "${tmp}.reduced" "${tmp}"
+			size=$[ ( ( (rentries * 200 / 100) / 65536 ) + 1 ) * 65536 ]
+		else
+			echo >&2 "${ipset}: failed to reduce subnets"
+			rm "${tmp}.reduced"
+		fi
+	fi
 
 	# if the ipset is not already in memory
 	if [ -z "${sets[$ipset]}" ]
@@ -772,18 +880,9 @@ finalize() {
 		return 1
 	fi
 
-	local ips= quantity=
-
 	# find how many IPs are there
-	ips=${entries}
-	quantity="${ips} unique IPs"
-
-	if [ "${hash}" = "net" ]
-	then
-		entries=${ips}
-		ips=`cat "${tmp}" | ips_in_set`
-		quantity="${entries} subnets, ${ips} unique IPs"
-	fi
+	local quantity="${ips} unique IPs"
+	[ "${hash}" = "net" ] && quantity="${entries} subnets, ${ips} unique IPs"
 
 	# generate the final file
 	# we do this on another tmp file
@@ -826,12 +925,15 @@ EOFHEADER
 
 	if [ -d .git ]
 	then
+		echo >>"${setinfo/.setinfo/_history.csv}" "$(date -r "${src}" +%s),${entries},${ips}"
 		echo >"${setinfo}" "[${ipset}](#${ipset})|${info}|${ipv} hash:${hash}|${quantity}|updated every `mins_to_text ${mins}` from [this link](${url})"
 		check_git_committed "${dst}"
 	fi
 
 	return 0
 }
+
+# -----------------------------------------------------------------------------
 
 update() {
 	local 	ipset="${1}" mins="${2}" history_mins="${3}" ipv="${4}" type="${5}" url="${6}" processor="${7-cat}" info="${8}"
@@ -846,8 +948,8 @@ update() {
 						hash="ip"
 						type="ip"
 						pre_filter="cat"
-						filter="filter_ip4"
-						post_filter="cat"
+						filter="filter_ip4"	# without this, ipset_uniq4 may output huge number of IPs
+						post_filter="ipset_uniq4"
 						;;
 
 				net|nets)	# output is full CIDRs without any single IPs (/32)
@@ -914,15 +1016,18 @@ update() {
 		return 1
 	fi
 
-	# download it
-	download_url "${ipset}" "${mins}" "${url}"
-	if [ $? -eq ${DOWNLOAD_FAILED} -o $? -eq ${DOWNLOAD_NOT_UPDATED} ]
-		then
-		if [ ! -s "${install}.source" ]; then return 1
-		elif [ -f "${install}.${hash}set" ]
-		then
-			check_file_too_old "${ipset}" "${install}.${hash}set"
-			return 1
+	if [ ! -z "${url}" ]
+	then
+		# download it
+		download_manager "${ipset}" "${mins}" "${url}"
+		if [ $? -eq ${DOWNLOAD_FAILED} -o $? -eq ${DOWNLOAD_NOT_UPDATED} ]
+			then
+			if [ ! -s "${install}.source" ]; then return 1
+			elif [ -f "${install}.${hash}set" ]
+			then
+				check_file_too_old "${ipset}" "${install}.${hash}set"
+				return 1
+			fi
 		fi
 	fi
 
@@ -935,8 +1040,8 @@ update() {
 		test -f "${install}_net.source" && rm "${install}_net.source"
 		ln -s "${install}.source" "${install}_ip.source"
 		ln -s "${install}.source" "${install}_net.source"
-		update "${ipset}_ip" "${mins}" "${history_mins}" "${ipv}" ip  "${url}" "${processor}"
-		update "${ipset}_net" "${mins}" "${history_mins}" "${ipv}" net "${url}" "${processor}"
+		update "${ipset}_ip" "${mins}" "${history_mins}" "${ipv}" ip  "" "${processor}"
+		update "${ipset}_net" "${mins}" "${history_mins}" "${ipv}" net "" "${processor}"
 		return $?
 	fi
 
@@ -967,16 +1072,17 @@ update() {
 		return 1
 	fi
 
-	if [ ! -s "${tmp}" ]
-	then
-		syslog "${ipset}: processed file gave no results."
-		rm "${tmp}"
-
-		# keep the old set, but make it think it was from this source
-		touch -r "${install}.source" "${install}.${hash}set"
-		check_file_too_old "${ipset}" "${install}.${hash}set"
-		return 2
-	fi
+	# allow it to be empty
+	#if [ ! -s "${tmp}" ]
+	#then
+	#	syslog "${ipset}: processed file gave no results."
+	#	rm "${tmp}"
+	#
+	#	# keep the old set, but make it think it was from this source
+	#	touch -r "${install}.source" "${install}.${hash}set"
+	#	check_file_too_old "${ipset}" "${install}.${hash}set"
+	#	return 2
+	#fi
 
 	if [ $[history_mins + 0] -gt 0 ]
 	then
@@ -986,6 +1092,10 @@ update() {
 	finalize "${ipset}" "${tmp}" "${install}.setinfo" "${install}.source" "${install}.${hash}set" "${mins}" "${history_mins}" "${ipv}" "${type}" "${hash}" "${url}" "${info}"
 	return $?
 }
+
+
+# -----------------------------------------------------------------------------
+# IPSETS RENAMING
 
 # FIXME
 # Cannot rename ipsets in subdirectories
@@ -1063,49 +1173,10 @@ rename_ipset stop_forum_spam_180d stopforumspam_180d
 rename_ipset stop_forum_spam_365d stopforumspam_365d
 rename_ipset clean_mx_viruses cleanmx_viruses
 
+
 # -----------------------------------------------------------------------------
 # INTERNAL FILTERS
-
-# the output of aggregate4 always has a /, even if it is /32
-aggregate4_warning=0
-aggregate4() {
-	local cmd=
-
-	if [ -x "${base}/iprange" ]
-		then
-		"${base}/iprange" -J
-		return $?
-	fi
-
-	cmd="`which iprange 2>/dev/null`"
-	if [ ! -z "${cmd}" ]
-	then
-		append_slash32 | ${cmd} -J | append_slash32
-		return $?
-	fi
-
-	cmd="`which aggregate-flim 2>/dev/null`"
-	if [ ! -z "${cmd}" ]
-	then
-		append_slash32 | ${cmd} | append_slash32
-		return $?
-	fi
-
-	cmd="`which aggregate 2>/dev/null`"
-	if [ ! -z "${cmd}" ]
-	then
-		[ ${aggregate4_warning} -eq 0 ] && echo >&2 "The command aggregate installed is really slow, please install aggregate-flim or iprange (http://www.cs.colostate.edu/~somlo/iprange.c)."
-		aggregate4_warning=1
-
-		append_slash32 | ${cmd} -t | append_slash32
-		return $?
-	fi
-
-	[ ${aggregate4_warning} -eq 0 ] && echo >&2 "Warning: Cannot aggregate ip-ranges. Please install 'aggregate'. Working wihout aggregate (http://www.cs.colostate.edu/~somlo/iprange.c)."
-	aggregate4_warning=1
-
-	append_slash32
-}
+# all these should be used with pipes
 
 # match a single IPv4 IP
 # zero prefix is not permitted 0 - 255, not 000, 010, etc
@@ -1168,6 +1239,12 @@ read_xml_dom () {
 	XML_ATTRIBUTES=${ENTITY#* }
 	return $ret
 }
+
+
+# -----------------------------------------------------------------------------
+# XML DOM FILTERS
+# all these are to be used in pipes
+# they extract IPs from the XML
 
 parse_rss_rosinstrument() {
 	while read_xml_dom
@@ -1240,6 +1317,7 @@ parse_xml_clean_mx() {
 # These functions are used to convert from various sources
 # to IP or NET addresses
 
+# convert netmask to CIDR format
 subnet_to_bitmask() {
 	sed	-e "s|/255\.255\.255\.255|/32|g" -e "s|/255\.255\.255\.254|/31|g" -e "s|/255\.255\.255\.252|/30|g" \
 		-e "s|/255\.255\.255\.248|/29|g" -e "s|/255\.255\.255\.240|/28|g" -e "s|/255\.255\.255\.224|/27|g" \
@@ -1254,28 +1332,13 @@ subnet_to_bitmask() {
 		-e "s|/192\.0\.0\.0|/2|g"        -e "s|/128\.0\.0\.0|/1|g"        -e "s|/0\.0\.0\.0|/0|g"
 }
 
+# trim leading, trailing, double spacing, empty lines
 trim() {
 	sed -e "s/[\t ]\+/ /g" -e "s/^ \+//g" -e "s/ \+$//g" |\
 		grep -v "^$"
 }
 
-remove_comments() {
-	# remove:
-	# 1. replace \r with \n
-	# 2. everything on the same line after a #
-	# 3. multiple white space (tabs and spaces)
-	# 4. leading spaces
-	# 5. trailing spaces
-	# 6. empty lines
-	tr "\r" "\n" |\
-		sed -e "s/#.*$//g" -e "s/[\t ]\+/ /g" -e "s/^ \+//g" -e "s/ \+$//g" |\
-		grep -v "^$"
-}
-
-gz_remove_comments() {
-	gzip -dc | remove_comments
-}
-
+# remove comments starting with ';' and trim()
 remove_comments_semi_colon() {
 	# remove:
 	# 1. replace \r with \n
@@ -1289,6 +1352,25 @@ remove_comments_semi_colon() {
 		grep -v "^$"
 }
 
+# remove comments starting with '#' and trim()
+remove_comments() {
+	# remove:
+	# 1. replace \r with \n
+	# 2. everything on the same line after a #
+	# 3. multiple white space (tabs and spaces)
+	# 4. leading spaces
+	# 5. trailing spaces
+	# 6. empty lines
+	tr "\r" "\n" |\
+		sed -e "s/#.*$//g" -e "s/[\t ]\+/ /g" -e "s/^ \+//g" -e "s/ \+$//g" |\
+		grep -v "^$"
+}
+
+# ungzip and remove comments
+gz_remove_comments() {
+	gzip -dc | remove_comments
+}
+
 # convert snort rules to a list of IPs
 snort_alert_rules_to_ipv4() {
 	remove_comments |\
@@ -1297,6 +1379,7 @@ snort_alert_rules_to_ipv4() {
 		grep -v ^alert
 }
 
+# extract IPs from PIX access list deny rules
 pix_deny_rules_to_ipv4() {
 	remove_comments |\
 		grep ^access-list |\
@@ -1306,6 +1389,7 @@ pix_deny_rules_to_ipv4() {
 		subnet_to_bitmask
 }
 
+# extract CIDRs from the dshield table format
 dshield_parser() {
 	local net= mask=
 	remove_comments |\
@@ -1317,14 +1401,25 @@ dshield_parser() {
 		done
 }
 
+# unzip the first file in the zip and convert comma to new lines
 unzip_and_split_csv() {
 	funzip | tr ",\r" "\n\n"
 }
 
+# unzip the first file in the zip
 unzip_and_extract() {
 	funzip
 }
 
+# extract IPs from the P2P blocklist
+p2p_gz() {
+	gzip -dc |\
+		cut -d ':' -f 2 |\
+		egrep "^${IP4_MATCH}-${IP4_MATCH}$" |\
+		ipv4_range_to_cidr
+}
+
+# extract only the lines starting with Proxy from the P2P blocklist
 p2p_gz_proxy() {
 	gzip -dc |\
 		grep "^Proxy" |\
@@ -1333,30 +1428,27 @@ p2p_gz_proxy() {
 		ipv4_range_to_cidr
 }
 
-p2p_gz() {
-	gzip -dc |\
-		cut -d ':' -f 2 |\
-		egrep "^${IP4_MATCH}-${IP4_MATCH}$" |\
-		ipv4_range_to_cidr
-}
-
+# get the first column from the csv
 csv_comma_first_column() {
 	grep "^[0-9]" |\
 		cut -d ',' -f 1
 }
 
+# get the second word from the compressed file
 gz_second_word() {
 	gzip -dc |\
 		tr '\r' '\n' |\
 		cut -d ' ' -f 2
 }
 
+# extract IPs for the proxyrss file
 gz_proxyrss() {
 	gzip -dc |\
 		remove_comments |\
 		cut -d ':' -f 1
 }
 
+# extract IPs from the maxmind proxy fraud page
 parse_maxmind_proxy_fraud() {
 	grep "a href=\"proxy/" |\
 		cut -d '>' -f 2 |\
@@ -1364,7 +1456,7 @@ parse_maxmind_proxy_fraud() {
 }
 
 geolite2_country() {
-	local ipset="geolite2_country" type="net" hash="net" ipv="ipv4" \
+	local ipset="geolite2_country" type="" hash="net" ipv="ipv4" \
 		mins=$[24 * 60 * 7] history_mins=0 \
 		url="http://geolite.maxmind.com/download/geoip/database/GeoLite2-Country-CSV.zip" \
 		info="[MaxMind GeoLite2](http://dev.maxmind.com/geoip/geoip2/geolite2/)"
@@ -1376,7 +1468,7 @@ geolite2_country() {
 	fi
 
 	# download it
-	download_url "${ipset}" "${mins}" "${url}"
+	download_manager "${ipset}" "${mins}" "${url}"
 	if [ $? -eq ${DOWNLOAD_FAILED} -o $? -eq ${DOWNLOAD_NOT_UPDATED} ]
 		then
 		[ -d ${ipset} -o ! -s "${ipset}.source" ] && return 1
@@ -1463,7 +1555,6 @@ geolite2_country() {
 	for x in ${ipset}.tmp/*.source.tmp
 	do
 		cat "${x}" |\
-			sort -u |\
 			filter_all4 |\
 			aggregate4 |\
 			filter_invalid4 >"${x/.source.tmp/.source}"
@@ -2118,97 +2209,93 @@ update lashback_ubl $[24*60] 0 ipv4 ip \
 # https://www.iblocklist.com/lists.php
 # http://bluetack.co.uk/forums/index.php?autocom=faq&CODE=02&qid=17
 
-if [ ${CAN_CONVERT_RANGES_TO_CIDR} -eq 1 ]
-then
-	# open proxies and tor
-	# we only keep the proxies IPs (tor IPs are not parsed)
-	update ib_bluetack_proxies $[12*60] 0 ipv4 ip \
-		"http://list.iblocklist.com/?list=xoebmbyexwuiogmbyprb&fileformat=p2p&archiveformat=gz" \
-		p2p_gz_proxy \
-		"[iBlocklist.com](https://www.iblocklist.com/) free version of [BlueTack.co.uk](http://www.bluetack.co.uk/) Open Proxies IPs list (without TOR)"
+# open proxies and tor
+# we only keep the proxies IPs (tor IPs are not parsed)
+update ib_bluetack_proxies $[12*60] 0 ipv4 ip \
+	"http://list.iblocklist.com/?list=xoebmbyexwuiogmbyprb&fileformat=p2p&archiveformat=gz" \
+	p2p_gz_proxy \
+	"[iBlocklist.com](https://www.iblocklist.com/) free version of [BlueTack.co.uk](http://www.bluetack.co.uk/) Open Proxies IPs list (without TOR)"
 
 
-	# This list is a compilation of known malicious SPYWARE and ADWARE IP Address ranges.
-	# It is compiled from various sources, including other available Spyware Blacklists,
-	# HOSTS files, from research found at many of the top Anti-Spyware forums, logs of
-	# Spyware victims and also from the Malware Research Section here at Bluetack.
-	update ib_bluetack_spyware $[12*60] 0 ipv4 both \
-		"http://list.iblocklist.com/?list=llvtlsjyoyiczbkjsxpf&fileformat=p2p&archiveformat=gz" \
-		p2p_gz \
-		"[iBlocklist.com](https://www.iblocklist.com/) free version of [BlueTack.co.uk](http://www.bluetack.co.uk/) known malicious SPYWARE and ADWARE IP Address ranges"
+# This list is a compilation of known malicious SPYWARE and ADWARE IP Address ranges.
+# It is compiled from various sources, including other available Spyware Blacklists,
+# HOSTS files, from research found at many of the top Anti-Spyware forums, logs of
+# Spyware victims and also from the Malware Research Section here at Bluetack.
+update ib_bluetack_spyware $[12*60] 0 ipv4 both \
+	"http://list.iblocklist.com/?list=llvtlsjyoyiczbkjsxpf&fileformat=p2p&archiveformat=gz" \
+	p2p_gz \
+	"[iBlocklist.com](https://www.iblocklist.com/) free version of [BlueTack.co.uk](http://www.bluetack.co.uk/) known malicious SPYWARE and ADWARE IP Address ranges"
 
 
-	# List of people who have been reported for bad deeds in p2p.
-	update ib_bluetack_badpeers $[12*60] 0 ipv4 ip \
-		"http://list.iblocklist.com/?list=cwworuawihqvocglcoss&fileformat=p2p&archiveformat=gz" \
-		p2p_gz \
-		"[iBlocklist.com](https://www.iblocklist.com/) free version of [BlueTack.co.uk](http://www.bluetack.co.uk/) IPs that have been reported for bad deeds in p2p"
+# List of people who have been reported for bad deeds in p2p.
+update ib_bluetack_badpeers $[12*60] 0 ipv4 ip \
+	"http://list.iblocklist.com/?list=cwworuawihqvocglcoss&fileformat=p2p&archiveformat=gz" \
+	p2p_gz \
+	"[iBlocklist.com](https://www.iblocklist.com/) free version of [BlueTack.co.uk](http://www.bluetack.co.uk/) IPs that have been reported for bad deeds in p2p"
 
 
-	# Contains hijacked IP-Blocks and known IP-Blocks that are used to deliver Spam. 
-	# This list is a combination of lists with hijacked IP-Blocks 
-	# Hijacked IP space are IP blocks that are being used without permission by
-	# organizations that have no relation to original organization (or its legal
-	# successor) that received the IP block. In essence it's stealing of somebody
-	# else's IP resources
-	update ib_bluetack_hijacked $[12*60] 0 ipv4 both \
-		"http://list.iblocklist.com/?list=usrcshglbiilevmyfhse&fileformat=p2p&archiveformat=gz" \
-		p2p_gz \
-		"[iBlocklist.com](https://www.iblocklist.com/) free version of [BlueTack.co.uk](http://www.bluetack.co.uk/) hijacked IP-Blocks Hijacked IP space are IP blocks that are being used without permission"
+# Contains hijacked IP-Blocks and known IP-Blocks that are used to deliver Spam. 
+# This list is a combination of lists with hijacked IP-Blocks 
+# Hijacked IP space are IP blocks that are being used without permission by
+# organizations that have no relation to original organization (or its legal
+# successor) that received the IP block. In essence it's stealing of somebody
+# else's IP resources
+update ib_bluetack_hijacked $[12*60] 0 ipv4 both \
+	"http://list.iblocklist.com/?list=usrcshglbiilevmyfhse&fileformat=p2p&archiveformat=gz" \
+	p2p_gz \
+	"[iBlocklist.com](https://www.iblocklist.com/) free version of [BlueTack.co.uk](http://www.bluetack.co.uk/) hijacked IP-Blocks Hijacked IP space are IP blocks that are being used without permission"
 
 
-	# IP addresses related to current web server hack and exploit attempts that have been
-	# logged by us or can be found in and cross referenced with other related IP databases.
-	# Malicious and other non search engine bots will also be listed here, along with anything
-	# we find that can have a negative impact on a website or webserver such as proxies being
-	# used for negative SEO hijacks, unauthorised site mirroring, harvesting, scraping,
-	# snooping and data mining / spy bot / security & copyright enforcement companies that
-	# target and continuosly scan webservers.
-	update ib_bluetack_webexploit $[12*60] 0 ipv4 ip \
-		"http://list.iblocklist.com/?list=ghlzqtqxnzctvvajwwag&fileformat=p2p&archiveformat=gz" \
-		p2p_gz \
-		"[iBlocklist.com](https://www.iblocklist.com/) free version of [BlueTack.co.uk](http://www.bluetack.co.uk/) web server hack and exploit attempts"
+# IP addresses related to current web server hack and exploit attempts that have been
+# logged by us or can be found in and cross referenced with other related IP databases.
+# Malicious and other non search engine bots will also be listed here, along with anything
+# we find that can have a negative impact on a website or webserver such as proxies being
+# used for negative SEO hijacks, unauthorised site mirroring, harvesting, scraping,
+# snooping and data mining / spy bot / security & copyright enforcement companies that
+# target and continuosly scan webservers.
+update ib_bluetack_webexploit $[12*60] 0 ipv4 ip \
+	"http://list.iblocklist.com/?list=ghlzqtqxnzctvvajwwag&fileformat=p2p&archiveformat=gz" \
+	p2p_gz \
+	"[iBlocklist.com](https://www.iblocklist.com/) free version of [BlueTack.co.uk](http://www.bluetack.co.uk/) web server hack and exploit attempts"
 
 
-	# Companies or organizations who are clearly involved with trying to stop filesharing
-	# (e.g. Baytsp, MediaDefender, Mediasentry a.o.). 
-	# Companies which anti-p2p activity has been seen from. 
-	# Companies that produce or have a strong financial interest in copyrighted material
-	# (e.g. music, movie, software industries a.o.). 
-	# Government ranges or companies that have a strong financial interest in doing work
-	# for governments. 
-	# Legal industry ranges. 
-	# IPs or ranges of ISPs from which anti-p2p activity has been observed. Basically this
-	# list will block all kinds of internet connections that most people would rather not
-	# have during their internet travels. 
-	# PLEASE NOTE: The Level1 list is recommended for general P2P users, but it all comes
-	# down to your personal choice. 
-	# IMPORTANT: THIS IS A BIG LIST
-	update ib_bluetack_level1 $[12*60] 0 ipv4 both \
-		"http://list.iblocklist.com/?list=ydxerpxkpcfqjaybcssw&fileformat=p2p&archiveformat=gz" \
-		p2p_gz \
-		"[iBlocklist.com](https://www.iblocklist.com/) free version of [BlueTack.co.uk](http://www.bluetack.co.uk/) Level 1 (for use in p2p): Companies or organizations who are clearly involved with trying to stop filesharing (e.g. Baytsp, MediaDefender, Mediasentry a.o.). Companies which anti-p2p activity has been seen from. Companies that produce or have a strong financial interest in copyrighted material (e.g. music, movie, software industries a.o.). Government ranges or companies that have a strong financial interest in doing work for governments. Legal industry ranges. IPs or ranges of ISPs from which anti-p2p activity has been observed. Basically this list will block all kinds of internet connections that most people would rather not have during their internet travels."
+# Companies or organizations who are clearly involved with trying to stop filesharing
+# (e.g. Baytsp, MediaDefender, Mediasentry a.o.). 
+# Companies which anti-p2p activity has been seen from. 
+# Companies that produce or have a strong financial interest in copyrighted material
+# (e.g. music, movie, software industries a.o.). 
+# Government ranges or companies that have a strong financial interest in doing work
+# for governments. 
+# Legal industry ranges. 
+# IPs or ranges of ISPs from which anti-p2p activity has been observed. Basically this
+# list will block all kinds of internet connections that most people would rather not
+# have during their internet travels. 
+# PLEASE NOTE: The Level1 list is recommended for general P2P users, but it all comes
+# down to your personal choice. 
+# IMPORTANT: THIS IS A BIG LIST
+update ib_bluetack_level1 $[12*60] 0 ipv4 both \
+	"http://list.iblocklist.com/?list=ydxerpxkpcfqjaybcssw&fileformat=p2p&archiveformat=gz" \
+	p2p_gz \
+	"[iBlocklist.com](https://www.iblocklist.com/) free version of [BlueTack.co.uk](http://www.bluetack.co.uk/) Level 1 (for use in p2p): Companies or organizations who are clearly involved with trying to stop filesharing (e.g. Baytsp, MediaDefender, Mediasentry a.o.). Companies which anti-p2p activity has been seen from. Companies that produce or have a strong financial interest in copyrighted material (e.g. music, movie, software industries a.o.). Government ranges or companies that have a strong financial interest in doing work for governments. Legal industry ranges. IPs or ranges of ISPs from which anti-p2p activity has been observed. Basically this list will block all kinds of internet connections that most people would rather not have during their internet travels."
 
 
-	# General corporate ranges. 
-	# Ranges used by labs or researchers. 
-	# Proxies. 
-	update ib_bluetack_level2 $[12*60] 0 ipv4 both \
-		"http://list.iblocklist.com/?list=gyisgnzbhppbvsphucsw&fileformat=p2p&archiveformat=gz" \
-		p2p_gz \
-		"[iBlocklist.com](https://www.iblocklist.com/) free version of BlueTack.co.uk Level 2 (for use in p2p). General corporate ranges. Ranges used by labs or researchers. Proxies."
+# General corporate ranges. 
+# Ranges used by labs or researchers. 
+# Proxies. 
+update ib_bluetack_level2 $[12*60] 0 ipv4 both \
+	"http://list.iblocklist.com/?list=gyisgnzbhppbvsphucsw&fileformat=p2p&archiveformat=gz" \
+	p2p_gz \
+	"[iBlocklist.com](https://www.iblocklist.com/) free version of BlueTack.co.uk Level 2 (for use in p2p). General corporate ranges. Ranges used by labs or researchers. Proxies."
 
 
-	# Many portal-type websites. 
-	# ISP ranges that may be dodgy for some reason. 
-	# Ranges that belong to an individual, but which have not been determined to be used by a particular company. 
-	# Ranges for things that are unusual in some way. The L3 list is aka the paranoid list.
-	update ib_bluetack_level3 $[12*60] 0 ipv4 both \
-		"http://list.iblocklist.com/?list=uwnukjqktoggdknzrhgh&fileformat=p2p&archiveformat=gz" \
-		p2p_gz \
-		"[iBlocklist.com](https://www.iblocklist.com/) free version of BlueTack.co.uk Level 3 (for use in p2p). Many portal-type websites. ISP ranges that may be dodgy for some reason. Ranges that belong to an individual, but which have not been determined to be used by a particular company. Ranges for things that are unusual in some way. The L3 list is aka the paranoid list."
-
-fi
+# Many portal-type websites. 
+# ISP ranges that may be dodgy for some reason. 
+# Ranges that belong to an individual, but which have not been determined to be used by a particular company. 
+# Ranges for things that are unusual in some way. The L3 list is aka the paranoid list.
+update ib_bluetack_level3 $[12*60] 0 ipv4 both \
+	"http://list.iblocklist.com/?list=uwnukjqktoggdknzrhgh&fileformat=p2p&archiveformat=gz" \
+	p2p_gz \
+	"[iBlocklist.com](https://www.iblocklist.com/) free version of BlueTack.co.uk Level 3 (for use in p2p). Many portal-type websites. ISP ranges that may be dodgy for some reason. Ranges that belong to an individual, but which have not been determined to be used by a particular company. Ranges for things that are unusual in some way. The L3 list is aka the paranoid list."
 
 # -----------------------------------------------------------------------------
 # BadIPs.com
@@ -2221,7 +2308,7 @@ badipscom() {
 		return 0
 	fi
 
-	download_url "badips" $[24*60] "https://www.badips.com/get/categories"
+	download_manager "badips" $[24*60] "https://www.badips.com/get/categories"
 	[ ! -s "badips.source" ] && return 0
 
 	local categories="$(cat badips.source |\
@@ -2230,7 +2317,7 @@ badipscom() {
 		cut -d ':' -f 2 |\
 		cut -d '"' -f 2 |\
 		sort -u)"
-	
+
 	local category= file= score= age= i= ipset= url= info= count=0
 	for category in ${categories}
 	do
@@ -2301,6 +2388,20 @@ badipscom() {
 badipscom
 
 # -----------------------------------------------------------------------------
+# SORBS test
+# this is a test - it does not work without another script that rsyncs files from sorbs.net
+#update sorbs_dul 1 0 ipv4 both "" remove_comments "[Sorbs.net](https://www.sorbs.net/) DUL, Dynamic User IPs extracted from deltas."
+#update sorbs_http 1 0 ipv4 both "" remove_comments "[Sorbs.net](https://www.sorbs.net/) HTTP proxies, extracted from deltas."
+#update sorbs_misc 1 0 ipv4 both "" remove_comments "[Sorbs.net](https://www.sorbs.net/) MISC proxies, extracted from deltas."
+#update sorbs_smtp 1 0 ipv4 both "" remove_comments "[Sorbs.net](https://www.sorbs.net/) SMTP Open Relays, extracted from deltas."
+#update sorbs_socks 1 0 ipv4 both "" remove_comments "[Sorbs.net](https://www.sorbs.net/) SOCKS proxies, extracted from deltas."
+#update sorbs_spam 1 0 ipv4 both "" remove_comments "[Sorbs.net](https://www.sorbs.net/) Spam senders, extracted from deltas."
+#update sorbs_new_spam 1 0 ipv4 both "" remove_comments "[Sorbs.net](https://www.sorbs.net/) NEW Spam senders, extracted from deltas."
+#update sorbs_recent_spam 1 0 ipv4 both "" remove_comments "[Sorbs.net](https://www.sorbs.net/) RECENT Spam senders, extracted from deltas."
+#update sorbs_web 1 0 ipv4 both "" remove_comments "[Sorbs.net](https://www.sorbs.net/) WEB exploits, extracted from deltas."
+
+
+# -----------------------------------------------------------------------------
 # TODO List
 
 #merge firehol_level1 \
@@ -2320,10 +2421,9 @@ badipscom
 # - allow the user to request a merge of 2 or more sets
 # - allow the user to request an email if a set increases by a percentage or number of unique IPs
 # - allow the user to request an email if a set matches more than X entries of one or more other set
-# 
+#
 # site specific features
 # - find a way to compare ipsets faster, so that maxmind geodbs can be added to comparison
 #   and the "git pull" is done faster (now "git pull" waits the comparisons to be completed)
 # - save all comparisons in .json to allow generating charts on the site
 # - save set quantities in .json to allow monitoring the size of sets with charts
-
