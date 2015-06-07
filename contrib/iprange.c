@@ -414,6 +414,8 @@ static inline void ipset_optimize(ipset *ips) {
 	ips->unique_ips = 0;
 	ips->lines = 0;
 
+	if(!n) return;
+
 	in_addr_t lo = oaddrs[0].addr, hi = oaddrs[0].broadcast;
 	for (i = 1; i < n; i++) {
 		// if the broadcast of this
