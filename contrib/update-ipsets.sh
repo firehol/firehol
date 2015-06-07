@@ -832,7 +832,8 @@ finalize() {
 	local size=$[ ( ( (entries * 130 / 100) / 65536 ) + 1 ) * 65536 ]
 
 	# for net we have to reduce its subnets before giving it to firehol
-	if [ "${hash}" = "net" ]
+	[ -f "${tmp}.save" ] && rm "${tmp}.save"
+	if [ "${hash}" = "net" -a -f "${base}/.reduce" ]
 		then
 		cat "${tmp}" | aggregate4_reduce >"${tmp}.reduced"
 		if [ $? -eq 0 ]
@@ -841,6 +842,7 @@ finalize() {
 			local nprefixes=$(cat "${tmp}.reduced" | append_slash32 | cut -d '/' -f 2 | sort -u | wc -l)
 			local rentries=$(cat "${tmp}.reduced" | wc -l)
 			echo >&2 "${ipset}: reduced subnets from ${oprefixes} to ${nprefixes} while increasing entries from ${entries} to ${rentries}"
+			mv "${tmp}" "${tmp}.save"
 			mv "${tmp}.reduced" "${tmp}"
 			size=$[ ( ( (rentries * 200 / 100) / 65536 ) + 1 ) * 65536 ]
 		else
@@ -866,7 +868,12 @@ finalize() {
 
 	# call firehol to update the ipset in memory
 	firehol ipset_update_from_file ${ipset} ${ipv} ${type} "${tmp}"
-	if [ $? -ne 0 ]
+	local ret=$?
+
+	# restore the non-reduced files, if any
+	[ -f "${tmp}.save" ] && mv "${tmp}.save" "${tmp}"
+
+	if [ $ret -ne 0 ]
 	then
 		if [ -d errors ]
 		then
