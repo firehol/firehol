@@ -62,6 +62,9 @@ int debug = 0;
 int cidr_use_network = 1;
 int default_prefix = 32;
 
+char *print_prefix = "";
+char *print_suffix = "";
+
 /*---------------------------------------------------------------------*/
 /* network address type: one field for the net address, one for prefix */
 /*---------------------------------------------------------------------*/
@@ -135,12 +138,11 @@ void print_addr(in_addr_t addr, int prefix)
 	struct in_addr in;
 
 	in.s_addr = htonl(addr);
-	printf("%s/%d\n", inet_ntoa(in), prefix);
 
-	//if (prefix < 32)
-	//	printf("%s/%d\n", inet_ntoa(in), prefix);
-	//else
-	//	printf("%s\n", inet_ntoa(in));
+	if (prefix < 32)
+		printf("%s%s/%d%s\n", print_prefix, inet_ntoa(in), prefix, print_suffix);
+	else
+		printf("%s%s%s\n", print_prefix, inet_ntoa(in), print_suffix);
 
 }				/* print_addr() */
 
@@ -278,14 +280,16 @@ void print_addr_range(in_addr_t lo, in_addr_t hi)
 
 	struct in_addr in;
 
-	//if (likely(lo != hi)) {
+	if (likely(lo != hi)) {
 		in.s_addr = htonl(lo);
-		printf("%s-", inet_ntoa(in));
-	//}
-
-	in.s_addr = htonl(hi);
-	printf("%s\n", inet_ntoa(in));
-
+		printf("%s%s-", print_prefix, inet_ntoa(in));
+		in.s_addr = htonl(hi);
+		printf("%s%s\n", inet_ntoa(in), print_suffix);
+	}
+	else {
+		in.s_addr = htonl(hi);
+		printf("%s%s%s\n", print_prefix, inet_ntoa(in), print_suffix);
+	}
 }				/* print_addr_range() */
 
 
@@ -596,10 +600,10 @@ ipset *ipset_load(const char *filename) {
 
 	if(unlikely(!ips)) return NULL;
 
-	if(unlikely(!ips->entries)) {
-		free(ips);
-		return NULL;
-	}
+	//if(unlikely(!ips->entries)) {
+	//	free(ips);
+	//	return NULL;
+	//}
 
 	return ips;
 }
@@ -867,6 +871,12 @@ void usage(const char *me) {
 		"		the default is to print CIDRs (A.A.A.A/B)\n"
 		"		it only applies when the output is not CSV\n"
 		"\n"
+		"	--print-prefix STRING\n"
+		"		print STRING before each IP, range or CIDR\n"
+		"\n"
+		"	--print-suffix STRING\n"
+		"		print STRING after each IP, range or CIDR\n"
+		"\n"
 		"	--header\n"
 		"		when the output is CSV, print the header line\n"
 		"		the default is to not print the header line\n"
@@ -952,52 +962,64 @@ int main(int argc, char **argv) {
 	
 	for(i = 1; i < argc ; i++) {
 		if(strcmp(argv[i], "as") == 0 && root && i+1 < argc) {
-			strncpy(root->filename, argv[i+1], FILENAME_MAX);
+			strncpy(root->filename, argv[++i], FILENAME_MAX);
 			root->filename[FILENAME_MAX] = '\0';
-			i++;
 		}
 		else if(strcmp(argv[i], "--min-prefix") == 0 && i+1 < argc) {
-			int j, min_prefix = atoi(argv[i+1]);
+			int j, min_prefix = atoi(argv[++i]);
 			for(j = 0; j < min_prefix; j++)
-				prefix_enabled[i] = 0;
-			i++;
+				prefix_enabled[j] = 0;
 		}
 		else if((strcmp(argv[i], "--default-prefix") == 0 || strcmp(argv[i], "-p") == 0) && i+1 < argc) {
-			default_prefix = atoi(argv[i+1]);
-			i++;
+			default_prefix = atoi(argv[++i]);
 		}
 		else if(strcmp(argv[i], "--ipset-reduce") == 0 && i+1 < argc) {
-			ipset_reduce_factor = 100 + atoi(argv[i+1]);
+			ipset_reduce_factor = 100 + atoi(argv[++i]);
 			print = PRINT_REDUCED;
-			i++;
 		}
 		else if(strcmp(argv[i], "--ipset-reduce-entries") == 0 && i+1 < argc) {
-			ipset_reduce_min_accepted = atoi(argv[i+1]);
+			ipset_reduce_min_accepted = atoi(argv[++i]);
 			print = PRINT_REDUCED;
-			i++;
 		}
-		else if(strcmp(argv[i], "--optimize") == 0 || strcmp(argv[i], "--combine") == 0 || strcmp(argv[i], "-J") == 0 || strcmp(argv[i], "--merge") == 0)
+		else if(strcmp(argv[i], "--optimize") == 0 || strcmp(argv[i], "--combine") == 0 || strcmp(argv[i], "-J") == 0 || strcmp(argv[i], "--merge") == 0) {
 			mode = MODE_COMBINE;
-		else if(strcmp(argv[i], "--compare") == 0)
+		}
+		else if(strcmp(argv[i], "--compare") == 0) {
 			mode = MODE_COMPARE;
-		else if(strcmp(argv[i], "--compare-first") == 0)
+		}
+		else if(strcmp(argv[i], "--compare-first") == 0) {
 			mode = MODE_COMPARE_FIRST;
-		else if(strcmp(argv[i], "--count-unique") == 0 || strcmp(argv[i], "-C") == 0)
+		}
+		else if(strcmp(argv[i], "--count-unique") == 0 || strcmp(argv[i], "-C") == 0) {
 			mode = MODE_COUNT_UNIQUE_MERGED;
-		else if(strcmp(argv[i], "--count-unique-all") == 0)
+		}
+		else if(strcmp(argv[i], "--count-unique-all") == 0) {
 			mode = MODE_COUNT_UNIQUE_ALL;
-		else if(strcmp(argv[i], "--help") == 0 || strcmp(argv[i], "-h") == 0)
+		}
+		else if(strcmp(argv[i], "--help") == 0 || strcmp(argv[i], "-h") == 0) {
 			usage(argv[0]);
-		else if(strcmp(argv[i], "-v") == 0)
+		}
+		else if(strcmp(argv[i], "-v") == 0) {
 			debug = 1;
-		else if(strcmp(argv[i], "--print-ranges") == 0 || strcmp(argv[i], "-j") == 0)
+		}
+		else if(strcmp(argv[i], "--print-ranges") == 0 || strcmp(argv[i], "-j") == 0) {
 			print = PRINT_RANGE;
-		else if(strcmp(argv[i], "--print-single-ips") == 0 || strcmp(argv[i], "-1") == 0)
+		}
+		else if(strcmp(argv[i], "--print-single-ips") == 0 || strcmp(argv[i], "-1") == 0) {
 			print = PRINT_SINGLE_IPS;
-		else if(strcmp(argv[i], "--header") == 0)
+		}
+		else if(strcmp(argv[i], "--print-prefix") == 0 && i+1 < argc) {
+			print_prefix=argv[++i];
+		}
+		else if(strcmp(argv[i], "--print-suffix") == 0 && i+1 < argc) {
+			print_suffix=argv[++i];
+		}
+		else if(strcmp(argv[i], "--header") == 0) {
 			header = 1;
-		else if(strcmp(argv[i], "--dont-fix-network") == 0)
+		}
+		else if(strcmp(argv[i], "--dont-fix-network") == 0) {
 			cidr_use_network = 0;
+		}
 		else if(strcmp(argv[i], "--has-compare") == 0 || strcmp(argv[i], "--has-reduce") == 0) {
 			fprintf(stderr, "yes, compare and reduce is present.\n");
 			exit(0);
@@ -1138,5 +1160,5 @@ int main(int argc, char **argv) {
 		exit(1);
 	}
 
-	exit(1);
+	exit(0);
 }
