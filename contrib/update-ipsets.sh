@@ -1,5 +1,8 @@
 #!/bin/bash
 #
+# Version
+# $Id$
+#
 # FireHOL - A firewall for humans...
 #
 #   Copyright
@@ -2452,7 +2455,7 @@ merge firehol_level2 "**FireHOL Level 2** - Maximum protection from attacks took
 
 merge firehol_level3 "**FireHOL Level 3** - All the bad IPs in last 30 days." \
 	openbl_30d stopforumspam_30d virbl malc0de shunlist malwaredomainlist bruteforceblocker \
-	ciarmy cleanmx_viruses ib_bluetack_spyware ib_bluetack_webexploit \
+	ciarmy cleanmx_viruses snort_ipfilter ib_bluetack_spyware ib_bluetack_hijacked ib_bluetack_webexploit \
 	php_commenters php_dictionary php_harvesters php_spammers
 
 merge firehol_proxies "**FireHOL Proxies** - Known open proxies in the last 30 days." \

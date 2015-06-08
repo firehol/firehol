@@ -1,5 +1,8 @@
 #!/bin/bash
 #
+# Version
+# $Id$
+#
 # FireHOL - A firewall for humans...
 #
 #   Copyright
@@ -520,9 +523,14 @@ dnsbl ${IGNORE} rep.mailspike.net # IP Reputation
 	score $[GOODKARMA * 2 / 3] 127.0.0.19 # Very Good
 	score         ${GOODKARMA} 127.0.0.20 # Excellent
 
+dnsbl 0 list.blogspambl.com
+	score ${BADKARMA} 127.0.0.2
+
 dnsbl ${GOODKARMA} list.dnswl.org # all responses include valid mail servers
 
 dnsbl ${SPAMWAVE} z.mailspike.net # participating in a distributed spam wave in the last 48 hours
+
+dnsbl ${GOOFKARMA} wl.mailspike.net # whitelist
 
 dnsbl $[BADKARMA/4] b.barracudacentral.org # Barracuda Reputation Block List, http://barracudacentral.org/rbl/listing-methodology
 
