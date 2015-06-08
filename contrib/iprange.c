@@ -127,7 +127,7 @@ static inline in_addr_t network(in_addr_t addr, int prefix)
 /*------------------------------------------------*/
 
 int prefix_counters[33] = { 0 };
-int prefix_enabled[33] = { 1 };
+int prefix_enabled[33] = { 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1 };
 int split_range_disable_printing = 0;
 
 void print_addr(in_addr_t addr, int prefix)
@@ -618,10 +618,6 @@ void ipset_reduce(ipset *ips, int acceptable_increase, int min_accepted) {
 	// disable printing
 	split_range_disable_printing = 1;
 
-	// enable all prefixes
-	for(i = 0; i <= 32; i++)
-		prefix_enabled[i] = 1;
-
 	// find how many prefixes are there
 	if(unlikely(debug)) fprintf(stderr, "\nCounting prefixes in %s\n", ips->filename);
 	for(i = 0; i < n ;i++)
@@ -935,6 +931,14 @@ void usage(const char *me) {
 		"		entries in the ipset do not affect its performance\n"
 		"		with this setting more entries will be produced\n"
 		"		to accomplish the same match\n"
+		"		warning: misuse of this parameter can create a large\n"
+		"		         number of entries in the generated set\n"
+		"\n"
+		"	--prefixes N,N,N, ...\n"
+		"		enable only the given prefixes to express all CIDRs\n"
+		"		prefix 32 is always enabled\n"
+		"		warning: misuse of this parameter can create a large\n"
+		"		         number of entries in the generated set\n"
 		"\n"
 		"	--has-compare or --has-reduce\n"
 		"		exits with 0\n"
@@ -997,10 +1001,6 @@ int main(int argc, char **argv) {
 	ipset *root = NULL, *ips = NULL, *first = NULL, *compare = NULL;
 	int i, mode = MODE_COMBINE, print = PRINT_CIDR, header = 0, read_compare = 0;
 
-	// enable all prefixes
-	for(i = 0; i <= 32; i++)
-		prefix_enabled[i] = 1;
-	
 	for(i = 1; i < argc ; i++) {
 		if(strcmp(argv[i], "as") == 0 && root && i+1 < argc) {
 			strncpy(root->filename, argv[++i], FILENAME_MAX);
@@ -1008,8 +1008,36 @@ int main(int argc, char **argv) {
 		}
 		else if(strcmp(argv[i], "--min-prefix") == 0 && i+1 < argc) {
 			int j, min_prefix = atoi(argv[++i]);
+			if(min_prefix < 0 || min_prefix > 31) {
+				fprintf(stderr, "Only prefixes 1 to 31 can be disabled. %d is invalid.\n", min_prefix);
+				exit(1);
+			}
 			for(j = 0; j < min_prefix; j++)
 				prefix_enabled[j] = 0;
+		}
+		else if(strcmp(argv[i], "--prefixes") == 0 && i+1 < argc) {
+			char *s = NULL, *e = argv[++i];
+			int j;
+
+			for(j = 0; j < 32; j++)
+				prefix_enabled[j] = 0;
+
+			while(e && *e && e != s) {
+				s = e;
+				j = strtol(s, &e, 10);
+				if(j <= 0 || j > 32) {
+					fprintf(stderr, "%s: Only prefixes from 1 to 32 can be set (32 is always enabled if needed). %d is invalid.\n", PROG, j);
+					exit(1);
+				}
+				if(debug) fprintf(stderr, "Enabling prefix %d\n", j);
+				prefix_enabled[j] = 1;
+				if(*e == ',' || *e == ' ') e++;
+			}
+
+			if(e && *e) {
+				fprintf(stderr, "%s: Invalid prefix '%s'\n", PROG, e);
+				exit(1);
+			}
 		}
 		else if((strcmp(argv[i], "--default-prefix") == 0 || strcmp(argv[i], "-p") == 0) && i+1 < argc) {
 			default_prefix = atoi(argv[++i]);
