@@ -802,6 +802,7 @@ void usage(const char *me) {
 	fprintf(stderr, "\n"
 		"iprange\n"
 		"manage IP ranges\n"
+		"version: $Id: dc4f05dbf4b53520e837120a7f49f1db94cad9c6 $\n"
 		"\n"
 		"Original,   Copyright (C) 2003 Gabriel L. Somlo\n"
 		"Adapted,    Copyright (C) 2004 Paul Townsend\n"
