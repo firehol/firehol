@@ -46,6 +46,7 @@
 #include <sys/socket.h>
 #include <netinet/in.h>
 #include <arpa/inet.h>
+#include <sys/time.h>
 
 #ifdef __GNUC__
 // gcc branch optimization
@@ -607,7 +608,7 @@ ipset *ipset_load(const char *filename) {
 	return ips;
 }
 
-void ipset_print_reduce(ipset *ips, int acceptable_increase, int min_accepted) {
+void ipset_reduce(ipset *ips, int acceptable_increase, int min_accepted) {
 	int i, n = ips->entries, total = 0, acceptable, iterations = 0, initial = 0, eliminated = 0;
 
 	// reset the prefix counters
@@ -694,7 +695,7 @@ void ipset_print_reduce(ipset *ips, int acceptable_increase, int min_accepted) {
 		if(unlikely(debug)) fprintf(stderr, "		Eliminating prefix %d in %d (had %d, now has %d entries), total is now %d (increased by %d)\n", min, to, old_to_counters, prefix_counters[to], total, increase);
 	}
 
-	if(unlikely(debug)) fprintf(stderr, "\nEliminated %d out of %d prefixes (%d remain in the final set).\n", eliminated, initial, initial - eliminated);
+	if(unlikely(debug)) fprintf(stderr, "\nEliminated %d out of %d prefixes (%d remain in the final set).\n\n", eliminated, initial, initial - eliminated);
 
 	// reset the prefix counters
 	for(i = 0; i <= 32; i++)
@@ -702,22 +703,15 @@ void ipset_print_reduce(ipset *ips, int acceptable_increase, int min_accepted) {
 
 	// enable printing
 	split_range_disable_printing = 0;
-
-	// print it
-	for(i = 0; i < n ;i++)
-		split_range(0, 0, ips->netaddrs[i].addr, ips->netaddrs[i].broadcast);
 }
 
 #define PRINT_RANGE 1
 #define PRINT_CIDR 2
 #define PRINT_SINGLE_IPS 3
-#define PRINT_REDUCED 4
-
-int ipset_reduce_factor = 120;
-int ipset_reduce_min_accepted = 16384;
 
 void ipset_print(ipset *ips, int print) {
 	int i, n = ips->entries;
+	unsigned long int total = 0;
 
 	// reset the prefix counters
 	for(i = 0; i <= 32; i++)
@@ -725,34 +719,45 @@ void ipset_print(ipset *ips, int print) {
 
 	if(unlikely(debug)) fprintf(stderr, "%s: Printing %s\n", PROG, ips->filename);
 
-	if(print == PRINT_REDUCED) {
-		ipset_print_reduce(ips, ipset_reduce_factor, ipset_reduce_min_accepted);
-	}
-	else {
-		for(i = 0; i < n ;i++)
-			if(likely(print == PRINT_CIDR))
-				split_range(0, 0, ips->netaddrs[i].addr, ips->netaddrs[i].broadcast);
+	for(i = 0; i < n ;i++) {
+		if(likely(print == PRINT_CIDR))
+			split_range(0, 0, ips->netaddrs[i].addr, ips->netaddrs[i].broadcast);
 
-			else if(likely(print == PRINT_SINGLE_IPS)) {
-				in_addr_t x, broadcast = ips->netaddrs[i].broadcast;
-				for(x = ips->netaddrs[i].addr; x <= broadcast ; x++)
-					print_addr_range(x, x);
+		else if(likely(print == PRINT_SINGLE_IPS)) {
+			in_addr_t x, broadcast = ips->netaddrs[i].broadcast;
+			for(x = ips->netaddrs[i].addr; x <= broadcast ; x++) {
+				print_addr_range(x, x);
+				total++;
 			}
-			else
-				print_addr_range(ips->netaddrs[i].addr, ips->netaddrs[i].broadcast);
+		}
+		else {
+			print_addr_range(ips->netaddrs[i].addr, ips->netaddrs[i].broadcast);
+			total++;
+		}
 	}
 
 	// print prefix break down
-	if(unlikely((print == PRINT_CIDR || print == PRINT_REDUCED) && debug)) {
-		fprintf(stderr, "\nBreak down by prefix:\n");
-		int total = 0;
-		for(i = 0; i <= 32 ;i++) {
-			if(prefix_counters[i]) {
-				fprintf(stderr, "	- prefix /%d counts %d entries\n", i, prefix_counters[i]);
-				total += prefix_counters[i];
+	if(unlikely(debug)) {
+		int prefixes = 0;
+
+		if (print == PRINT_CIDR) {
+			fprintf(stderr, "\nBreak down by prefix:\n");
+			for(i = 0; i <= 32 ;i++) {
+				if(prefix_counters[i]) {
+					fprintf(stderr, "	- prefix /%d counts %d entries\n", i, prefix_counters[i]);
+					total += prefix_counters[i];
+					prefixes++;
+				}
 			}
 		}
-		fprintf(stderr, "Total %d entries generated\n", total);
+		else if (print == PRINT_SINGLE_IPS) prefixes = 1;
+
+		char *units = "";
+		if (print == PRINT_CIDR) units = "CIDRs";
+		else if (print == PRINT_SINGLE_IPS) units = "IPs";
+		else units = "ranges";
+
+		fprintf(stderr, "\ntotals: %lu lines loaded, %lu distinct IP ranges, %d CIDR prefixes, %lu %s printed, %lu unique IPs\n", ips->lines, ips->entries, prefixes, total, units, ips->unique_ips);
 	}
 }
 
@@ -975,8 +980,15 @@ void usage(const char *me) {
 #define MODE_COMPARE_NEXT 4
 #define MODE_COUNT_UNIQUE_MERGED 5
 #define MODE_COUNT_UNIQUE_ALL 6
+#define MODE_REDUCE 7
 
 int main(int argc, char **argv) {
+	struct timeval start_dt, load_dt, print_dt, stop_dt;
+	gettimeofday(&start_dt, NULL);
+
+	int ipset_reduce_factor = 120;
+	int ipset_reduce_min_accepted = 16384;
+
 	if ((PROG = strrchr(argv[0], '/')))
 		PROG++;
 	else
@@ -1004,11 +1016,11 @@ int main(int argc, char **argv) {
 		}
 		else if(strcmp(argv[i], "--ipset-reduce") == 0 && i+1 < argc) {
 			ipset_reduce_factor = 100 + atoi(argv[++i]);
-			print = PRINT_REDUCED;
+			mode = MODE_REDUCE;
 		}
 		else if(strcmp(argv[i], "--ipset-reduce-entries") == 0 && i+1 < argc) {
 			ipset_reduce_min_accepted = atoi(argv[++i]);
-			print = PRINT_REDUCED;
+			mode = MODE_REDUCE;
 		}
 		else if(strcmp(argv[i], "--optimize") == 0 || strcmp(argv[i], "--combine") == 0 || strcmp(argv[i], "-J") == 0 || strcmp(argv[i], "--merge") == 0) {
 			mode = MODE_COMBINE;
@@ -1097,17 +1109,20 @@ int main(int argc, char **argv) {
 		}
 	}
 
-	if(mode == MODE_COMBINE || mode == MODE_COUNT_UNIQUE_MERGED) {
-		// if no ipset was given on the command line
-		// assume stdin
-		if(!root) {
-			root = ipset_load(NULL);
-			if(!root) {
-				fprintf(stderr, "%s: No ipsets to merge.\n", PROG);
-				exit(1);
-			}
-		}
+	// if no ipset was given on the command line
+	// assume stdin
 
+	if(!root) {
+		first = root = ipset_load(NULL);
+		if(!root) {
+			fprintf(stderr, "%s: No ipsets to merge.\n", PROG);
+			exit(1);
+		}
+	}
+
+	gettimeofday(&load_dt, NULL);
+
+	if(mode == MODE_COMBINE || mode == MODE_REDUCE || mode == MODE_COUNT_UNIQUE_MERGED) {
 		// for debug mode to show something meaningful
 		strcpy(root->filename, "combined ipset");
 
@@ -1115,8 +1130,11 @@ int main(int argc, char **argv) {
 			ipset_merge(root, ips);
 
 		ipset_optimize(root);
+		if(mode == MODE_REDUCE) ipset_reduce(root, ipset_reduce_factor, ipset_reduce_min_accepted);
 
-		if(mode == MODE_COMBINE)
+		gettimeofday(&print_dt, NULL);
+
+		if(mode == MODE_COMBINE || mode == MODE_REDUCE)
 			ipset_print(root, print);
 
 		else if(mode == MODE_COUNT_UNIQUE_MERGED) {
@@ -1128,7 +1146,7 @@ int main(int argc, char **argv) {
 		ipset_optimize_all(root);
 
 		if(mode == MODE_COMPARE) {
-			if(!root || !root->next) {
+			if(!root->next) {
 				fprintf(stderr, "%s: two ipsets at least are needed to be compared.\n", PROG);
 				exit(1);
 			}
@@ -1156,10 +1174,6 @@ int main(int argc, char **argv) {
 			}
 		}
 		if(mode == MODE_COMPARE_NEXT) {
-			if(!root) {
-				fprintf(stderr, "%s: no files given before the --compare-next parameter.\n", PROG);
-				exit(1);
-			}
 			if(!compare) {
 				fprintf(stderr, "%s: no files given after the --compare-next parameter.\n", PROG);
 				exit(1);
@@ -1187,7 +1201,7 @@ int main(int argc, char **argv) {
 			}
 		}
 		else if(mode == MODE_COMPARE_FIRST) {
-			if(!first || !root || !root->next) {
+			if(!root->next) {
 				fprintf(stderr, "%s: two ipsets at least are needed to be compared.\n", PROG);
 				exit(1);
 			}
@@ -1219,11 +1233,22 @@ int main(int argc, char **argv) {
 				printf("%s,%lu,%lu\n", ips->filename, ips->lines, ips->unique_ips);
 			}
 		}
+		
+		gettimeofday(&print_dt, NULL);
 	}
 	else {
 		fprintf(stderr, "%s: Unknown mode.\n", PROG);
 		exit(1);
 	}
+
+	gettimeofday(&stop_dt, NULL);
+	if(debug)
+		fprintf(stderr, "completed in %0.5f seconds (load %0.5f + think %0.5f + print %0.5f)\n"
+			, ((double)(stop_dt.tv_sec  * 1000000 + stop_dt.tv_usec) - (double)(start_dt.tv_sec * 1000000 + start_dt.tv_usec)) / (double)1000000
+			, ((double)(load_dt.tv_sec  * 1000000 + load_dt.tv_usec) - (double)(start_dt.tv_sec * 1000000 + start_dt.tv_usec)) / (double)1000000
+			, ((double)(print_dt.tv_sec  * 1000000 + print_dt.tv_usec) - (double)(load_dt.tv_sec * 1000000 + load_dt.tv_usec)) / (double)1000000
+			, ((double)(stop_dt.tv_sec  * 1000000 + stop_dt.tv_usec) - (double)(print_dt.tv_sec * 1000000 + print_dt.tv_usec)) / (double)1000000
+		);
 
 	exit(0);
 }
