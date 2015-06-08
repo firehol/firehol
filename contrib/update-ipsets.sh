@@ -352,9 +352,9 @@ commit_to_git() {
 	exit 0
 }
 # make sure we commit to git when we exit
-trap commit_to_git EXIT
-trap commit_to_git SIGHUP
-trap commit_to_git INT
+#trap commit_to_git EXIT
+#trap commit_to_git SIGHUP
+#trap commit_to_git INT
 
 # touch a file to a relative date in the past
 touch_in_the_past() {
@@ -2409,11 +2409,61 @@ badipscom
 
 
 # -----------------------------------------------------------------------------
-# TODO List
+# FireHOL lists
 
-#merge firehol_level1 \
-#	feodo.ipset palevo.ipset sslbl.ipset zeus.ipset dshield.netset spamhaus_drop.netset spamhaus_edrop.netset fullbogons.netset openbl.ipset blocklist.ipset
+merge() {
+	local to="${1}" info="${2}" included=()
+	shift 2
 
+	if [ ! -f "${to}.source" ]
+		then
+		echo >&2 "${to}: is disabled. To enable it run: touch ${base}/${to}.source"
+		return 1
+	fi
+
+	for x in "${@}"
+	do
+		if [ ! -z "${IPSET_FILE[${x}]}" -a -f "${IPSET_FILE[${x}]}" ]
+			then
+			# echo >&2 "Adding ${x}..."
+			cat "${IPSET_FILE[${x}]}"
+			included=("${included[@]}" "${x}")
+		fi
+	done >"${to}.tmp"
+
+	cat "${to}.tmp" | aggregate4 >"${to}.tmp2"
+	mv "${to}.tmp2" "${to}.tmp"
+
+	[ ! -f "${to}.netset" ] && touch "${to}.netset"
+	diff -q "${to}.netset" "${to}.tmp" >/dev/null 2>&1
+	if [ $? -ne 0 ]
+		then
+		finalize "${to}" "${to}.tmp" "${to}.setinfo" "${to}.source" "${to}.netset" "1" "0" "ipv4" "" "net" "" "${info} (includes: ${included[*]})"
+	else
+		rm "${to}.tmp"
+	fi
+}
+
+merge firehol_level1 "**FireHOL Level 1** - Maximum protection without false positives." \
+	fullbogons dshield feodo palevo sslbl zeus spamhaus_drop spamhaus_edrop
+
+merge firehol_level2 "**FireHOL Level 2** - Maximum protection from attacks took place in the last 48 hours." \
+	openbl_1d blocklist_de stopforumspam_1d
+
+merge firehol_level3 "**FireHOL Level 3** - All the bad IPs in last 30 days." \
+	openbl_30d stopforumspam_30d virbl malc0de shunlist malwaredomainlist bruteforceblocker \
+	ciarmy cleanmx_viruses ib_bluetack_spyware ib_bluetack_webexploit \
+	php_commenters php_dictionary php_harvesters php_spammers
+
+merge firehol_proxies "**FireHOL Proxies** - Known open proxies in the last 30 days." \
+	ib_bluetack_proxies maxmind_proxy_fraud proxyrss proxz \
+	ri_connect_proxies ri_web_proxies xroxy
+
+merge firehol_anonymous "**FireHOL Anonymous** - Known anonymizing IPs." \
+	firehol_proxies anonymous bm_tor dm_tor
+
+
+# -----------------------------------------------------------------------------
 # TODO
 #
 # add sets
@@ -2434,3 +2484,8 @@ badipscom
 #   and the "git pull" is done faster (now "git pull" waits the comparisons to be completed)
 # - save all comparisons in .json to allow generating charts on the site
 # - save set quantities in .json to allow monitoring the size of sets with charts
+
+
+# -----------------------------------------------------------------------------
+# this will do nothing if there no git initialized in /etc/firehol/ipsets
+commit_to_git
