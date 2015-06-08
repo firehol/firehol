@@ -667,6 +667,7 @@ compare_ipset() {
 	readme="${readme}.comparison.md"
 
 	[[ "${file}" =~ ^geolite2.* ]] && return 1
+	[[ "${file}" =~ ^ipdeny_country.* ]] && return 1
 
 	if [ -z "${file}" -o ! -f "${file}" ]
 		then
@@ -719,6 +720,7 @@ EOFMD
 		fi
 
 		[[ "${ofile}" =~ ^geolite2.* ]] && continue
+		[[ "${ofile}" =~ ^ipdeny_country.* ]] && continue
 
 		cache_update_ipset "${oipset}"
 		local oentries="${IPSET_ENTRIES[${oipset}]}"
@@ -765,6 +767,8 @@ compare_all_ipsets() {
 		fi
 
 		[[ "${IPSET_FILE[$x]}" =~ ^geolite2.* ]] && continue
+		[[ "${IPSET_FILE[$x]}" =~ ^ipdeny_country.* ]] && continue
+
 		all=("${all[@]}" "${IPSET_FILE[$x]}" "as" "${x}")
 	done
 
@@ -1592,6 +1596,95 @@ geolite2_country() {
 	return 0
 }
 
+declare -A IPDENY_COUNTRY_NAMES='([as]="American Samoa" [ge]="Georgia" [ar]="Argentina" [gd]="Grenada" [dm]="Dominica" [kp]="North Korea" [rw]="Rwanda" [gg]="Guernsey" [qa]="Qatar" [ni]="Nicaragua" [do]="Dominican Republic" [gf]="French Guiana" [ru]="Russia" [kr]="Republic of Korea" [aw]="Aruba" [ga]="Gabon" [rs]="Serbia" [no]="Norway" [nl]="Netherlands" [au]="Australia" [kw]="Kuwait" [dj]="Djibouti" [at]="Austria" [gb]="United Kingdom" [dk]="Denmark" [ky]="Cayman Islands" [gm]="Gambia" [ug]="Uganda" [gl]="Greenland" [de]="Germany" [nc]="New Caledonia" [az]="Azerbaijan" [hr]="Croatia" [na]="Namibia" [gn]="Guinea" [kz]="Kazakhstan" [et]="Ethiopia" [ht]="Haiti" [es]="Spain" [gi]="Gibraltar" [nf]="Norfolk Island" [ng]="Nigeria" [gh]="Ghana" [hu]="Hungary" [er]="Eritrea" [ua]="Ukraine" [ne]="Niger" [yt]="Mayotte" [gu]="Guam" [nz]="New Zealand" [om]="Oman" [gt]="Guatemala" [gw]="Guinea-Bissau" [hk]="Hong Kong" [re]="Réunion" [ag]="Antigua and Barbuda" [gq]="Equatorial Guinea" [ke]="Kenya" [gp]="Guadeloupe" [uz]="Uzbekistan" [af]="Afghanistan" [hn]="Honduras" [uy]="Uruguay" [dz]="Algeria" [kg]="Kyrgyzstan" [ae]="United Arab Emirates" [ad]="Andorra" [gr]="Greece" [ki]="Kiribati" [nr]="Nauru" [eg]="Egypt" [kh]="Cambodia" [ro]="Romania" [ai]="Anguilla" [np]="Nepal" [ee]="Estonia" [us]="United States" [ec]="Ecuador" [gy]="Guyana" [ao]="Angola" [km]="Comoros" [am]="Armenia" [ye]="Yemen" [nu]="Niue" [kn]="Saint Kitts and Nevis" [al]="Albania" [si]="Slovenia" [fr]="France" [bf]="Burkina Faso" [mw]="Malawi" [cy]="Cyprus" [vc]="Saint Vincent and the Grenadines" [mv]="Maldives" [bg]="Bulgaria" [pr]="Puerto Rico" [sk]="Slovak Republic" [bd]="Bangladesh" [mu]="Mauritius" [ps]="Palestine" [va]="Vatican City" [cz]="Czech Republic" [be]="Belgium" [mt]="Malta" [zm]="Zambia" [ms]="Montserrat" [bb]="Barbados" [sm]="San Marino" [pt]="Portugal" [io]="British Indian Ocean Territory" [vg]="British Virgin Islands" [sl]="Sierra Leone" [mr]="Mauritania" [la]="Laos" [in]="India" [ws]="Samoa" [mq]="Martinique" [im]="Isle of Man" [lb]="Lebanon" [tz]="Tanzania" [so]="Somalia" [mp]="Northern Mariana Islands" [ve]="Venezuela" [lc]="Saint Lucia" [ba]="Bosnia and Herzegovina" [sn]="Senegal" [pw]="Palau" [il]="Israel" [tt]="Trinidad and Tobago" [bn]="Brunei" [sa]="Saudi Arabia" [bo]="Bolivia" [py]="Paraguay" [bl]="Saint-Barthélemy" [tv]="Tuvalu" [sc]="Seychelles" [vi]="U.S. Virgin Islands" [cr]="Costa Rica" [bm]="Bermuda" [sb]="Solomon Islands" [tw]="Taiwan" [cu]="Cuba" [se]="Sweden" [bj]="Benin" [vn]="Vietnam" [li]="Liechtenstein" [mz]="Mozambique" [sd]="Sudan" [cw]="Curaçao" [ie]="Ireland" [sg]="Singapore" [jp]="Japan" [my]="Malaysia" [tr]="Turkey" [bh]="Bahrain" [mx]="Mexico" [cv]="Cape Verde" [id]="Indonesia" [lk]="Sri Lanka" [za]="South Africa" [bi]="Burundi" [ci]="Ivory Coast" [tl]="East Timor" [mg]="Madagascar" [lt]="Republic of Lithuania" [sy]="Syria" [sx]="Sint Maarten" [pa]="Panama" [mf]="Saint Martin" [lu]="Luxembourg" [ch]="Switzerland" [tm]="Turkmenistan" [bw]="Botswana" [jo]="Hashemite Kingdom of Jordan" [me]="Montenegro" [tn]="Tunisia" [ck]="Cook Islands" [bt]="Bhutan" [lv]="Latvia" [wf]="Wallis and Futuna" [to]="Tonga" [jm]="Jamaica" [sz]="Swaziland" [md]="Republic of Moldova" [br]="Brazil" [mc]="Monaco" [cm]="Cameroon" [th]="Thailand" [pe]="Peru" [cl]="Chile" [bs]="Bahamas" [pf]="French Polynesia" [co]="Colombia" [ma]="Morocco" [lr]="Liberia" [tj]="Tajikistan" [bq]="Bonaire, Sint Eustatius, and Saba" [tk]="Tokelau" [vu]="Vanuatu" [pg]="Papua New Guinea" [cn]="China" [ls]="Lesotho" [ca]="Canada" [is]="Iceland" [td]="Chad" [fj]="Fiji" [mo]="Macao" [ph]="Philippines" [mn]="Mongolia" [zw]="Zimbabwe" [ir]="Iran" [ss]="South Sudan" [mm]="Myanmar (Burma)" [iq]="Iraq" [sr]="Suriname" [je]="Jersey" [ml]="Mali" [tg]="Togo" [pk]="Pakistan" [fi]="Finland" [bz]="Belize" [pl]="Poland" [mk]="Macedonia" [pm]="Saint Pierre and Miquelon" [fo]="Faroe Islands" [st]="São Tomé and Príncipe" [ly]="Libya" [cd]="Congo" [cg]="Republic of the Congo" [sv]="El Salvador" [tc]="Turks and Caicos Islands" [it]="Italy" [fm]="Federated States of Micronesia" [mh]="Marshall Islands" [by]="Belarus" [cf]="Central African Republic" )'
+declare -A IPDENY_COUNTRY_CONTINENTS='([as]="oc" [ge]="as" [ar]="sa" [gd]="na" [dm]="na" [kp]="as" [rw]="af" [gg]="eu" [qa]="as" [ni]="na" [do]="na" [gf]="sa" [ru]="eu" [kr]="as" [aw]="na" [ga]="af" [rs]="eu" [no]="eu" [nl]="eu" [au]="oc" [kw]="as" [dj]="af" [at]="eu" [gb]="eu" [dk]="eu" [ky]="na" [gm]="af" [ug]="af" [gl]="na" [de]="eu" [nc]="oc" [az]="as" [hr]="eu" [na]="af" [gn]="af" [kz]="as" [et]="af" [ht]="na" [es]="eu" [gi]="eu" [nf]="oc" [ng]="af" [gh]="af" [hu]="eu" [er]="af" [ua]="eu" [ne]="af" [yt]="af" [gu]="oc" [nz]="oc" [om]="as" [gt]="na" [gw]="af" [hk]="as" [re]="af" [ag]="na" [gq]="af" [ke]="af" [gp]="na" [uz]="as" [af]="as" [hn]="na" [uy]="sa" [dz]="af" [kg]="as" [ae]="as" [ad]="eu" [gr]="eu" [ki]="oc" [nr]="oc" [eg]="af" [kh]="as" [ro]="eu" [ai]="na" [np]="as" [ee]="eu" [us]="na" [ec]="sa" [gy]="sa" [ao]="af" [km]="af" [am]="as" [ye]="as" [nu]="oc" [kn]="na" [al]="eu" [si]="eu" [fr]="eu" [bf]="af" [mw]="af" [cy]="eu" [vc]="na" [mv]="as" [bg]="eu" [pr]="na" [sk]="eu" [bd]="as" [mu]="af" [ps]="as" [va]="eu" [cz]="eu" [be]="eu" [mt]="eu" [zm]="af" [ms]="na" [bb]="na" [sm]="eu" [pt]="eu" [io]="as" [vg]="na" [sl]="af" [mr]="af" [la]="as" [in]="as" [ws]="oc" [mq]="na" [im]="eu" [lb]="as" [tz]="af" [so]="af" [mp]="oc" [ve]="sa" [lc]="na" [ba]="eu" [sn]="af" [pw]="oc" [il]="as" [tt]="na" [bn]="as" [sa]="as" [bo]="sa" [py]="sa" [bl]="na" [tv]="oc" [sc]="af" [vi]="na" [cr]="na" [bm]="na" [sb]="oc" [tw]="as" [cu]="na" [se]="eu" [bj]="af" [vn]="as" [li]="eu" [mz]="af" [sd]="af" [cw]="na" [ie]="eu" [sg]="as" [jp]="as" [my]="as" [tr]="as" [bh]="as" [mx]="na" [cv]="af" [id]="as" [lk]="as" [za]="af" [bi]="af" [ci]="af" [tl]="oc" [mg]="af" [lt]="eu" [sy]="as" [sx]="na" [pa]="na" [mf]="na" [lu]="eu" [ch]="eu" [tm]="as" [bw]="af" [jo]="as" [me]="eu" [tn]="af" [ck]="oc" [bt]="as" [lv]="eu" [wf]="oc" [to]="oc" [jm]="na" [sz]="af" [md]="eu" [br]="sa" [mc]="eu" [cm]="af" [th]="as" [pe]="sa" [cl]="sa" [bs]="na" [pf]="oc" [co]="sa" [ma]="af" [lr]="af" [tj]="as" [bq]="na" [tk]="oc" [vu]="oc" [pg]="oc" [cn]="as" [ls]="af" [ca]="na" [is]="eu" [td]="af" [fj]="oc" [mo]="as" [ph]="as" [mn]="as" [zw]="af" [ir]="as" [ss]="af" [mm]="as" [iq]="as" [sr]="sa" [je]="eu" [ml]="af" [tg]="af" [pk]="as" [fi]="eu" [bz]="na" [pl]="eu" [mk]="eu" [pm]="na" [fo]="eu" [st]="af" [ly]="af" [cd]="af" [cg]="af" [sv]="na" [tc]="na" [it]="eu" [fm]="oc" [mh]="oc" [by]="eu" [cf]="af" )'
+declare -A IPDENY_COUNTRIES=()
+declare -A IPDENY_CONTINENTS=()
+ipdeny_country() {
+	local ipset="ipdeny_country" type="" hash="net" ipv="ipv4" \
+		mins=$[24 * 60 * 1] history_mins=0 \
+		url="http://www.ipdeny.com/ipblocks/data/countries/all-zones.tar.gz" \
+		info="[IPDeny.com](http://www.ipdeny.com/)"
+
+	if [ ! -f "${ipset}.source" ]
+	then
+		echo >&2 "${ipset}: is disabled, to enable it run: touch -t 0001010000 '${base}/${ipset}.source'"
+		return 1
+	fi
+
+	# download it
+	download_manager "${ipset}" "${mins}" "${url}"
+	if [ $? -eq ${DOWNLOAD_FAILED} -o $? -eq ${DOWNLOAD_NOT_UPDATED} ]
+		then
+		[ -d ${ipset} -o ! -s "${ipset}.source" ] && return 1
+	fi
+
+	# create a temp dir
+	[ -d ${ipset}.tmp ] && rm -rf ${ipset}.tmp
+	mkdir ${ipset}.tmp || return 1
+
+	# create the final dir
+	if [ ! -d ${ipset} ]
+	then
+		mkdir ${ipset} || return 1
+	fi
+
+	# extract it - in a subshell to do it in the tmp dir
+	( cd "${base}/${ipset}.tmp" && tar -zxpf "${base}/${ipset}.source" )
+
+	# move them inside the tmp, and fix continents
+	local x=
+	for x in $(find "${ipset}.tmp/" -type f -a -name \*.zone)
+	do
+		x=${x/*\//}
+		x=${x/.zone/}
+		IPDENY_COUNTRIES[${x}]="1"
+
+		if [ ! -z "${IPDENY_COUNTRY_CONTINENTS[${x}]}" ]
+			then
+			[ ! -f "${ipset}.tmp/id_continent_${IPDENY_COUNTRY_CONTINENTS[${x}]}.source.tmp.info" ] && printf "%s" "Continent ${IPDENY_COUNTRY_CONTINENTS[${x}]}, with countries: " >"${ipset}.tmp/id_continent_${IPDENY_COUNTRY_CONTINENTS[${x}]}.source.tmp.info"
+			printf "%s" "${IPDENY_COUNTRY_NAMES[${x}]} (${x^^}), " >>"${ipset}.tmp/id_continent_${IPDENY_COUNTRY_CONTINENTS[${x}]}.source.tmp.info"
+			cat "${ipset}.tmp/${x}.zone" >>"${ipset}.tmp/id_continent_${IPDENY_COUNTRY_CONTINENTS[${x}]}.source.tmp"
+			IPDENY_CONTINENTS[${IPDENY_COUNTRY_CONTINENTS[${x}]}]="1"
+		else
+			echo >&2 "${ipset}: I don't know the continent of country ${x}."
+		fi
+
+		printf "%s" "${IPDENY_COUNTRY_NAMES[${x}]} (${x^^})" >"${ipset}.tmp/id_country_${x}.source.tmp.info"
+		mv "${ipset}.tmp/${x}.zone" "${ipset}.tmp/id_country_${x}.source.tmp"
+	done
+
+	echo >&2 "${ipset}: Aggregating country and continent netsets..."
+	for x in ${ipset}.tmp/*.source.tmp
+	do
+		cat "${x}" |\
+			filter_all4 |\
+			aggregate4 |\
+			filter_invalid4 >"${x/.source.tmp/.source}"
+
+		touch -r "${ipset}.source" "${x/.source.tmp/.source}"
+		rm "${x}"
+
+		local i=${x/.source.tmp/}
+		i=${i/${ipset}.tmp\//}
+
+		local info2="`cat "${x}.info"` -- ${info}"
+
+		finalize "${i}" "${x/.source.tmp/.source}" "${ipset}/${i}.setinfo" "${ipset}.source" "${ipset}/${i}.netset" "${mins}" "${history_mins}" "${ipv}" "${type}" "${hash}" "${url}" "${info2}"
+	done
+
+	if [ -d .git ]
+	then
+		# generate a setinfo for the home page
+		echo >"${ipset}.setinfo" "[${ipset}](https://github.com/ktsaou/blocklist-ipsets/tree/master/ipdeny_country)|[IPDeny.com](http://www.ipdeny.com/) geolocation database|ipv4 hash:net|All the world|updated every `mins_to_text ${mins}` from [this link](${url})"
+	fi
+
+	# remove the temporary dir
+	rm -rf "${ipset}.tmp"
+
+	return 0	
+}
+
 echo >&2
 
 # -----------------------------------------------------------------------------
@@ -1640,6 +1733,12 @@ echo >&2
 # MaxMind
 
 geolite2_country
+
+
+# -----------------------------------------------------------------------------
+# IPDeny.com
+
+ipdeny_country
 
 
 # -----------------------------------------------------------------------------
@@ -2474,19 +2573,12 @@ merge firehol_anonymous "**FireHOL Anonymous** - Known anonymizing IPs." \
 # - http://www.nothink.org/blacklist/blacklist_malware_irc.txt
 # - http://www.nothink.org/blacklist/blacklist_malware_http.txt
 # - http://check.torproject.org/cgi-bin/TorBulkExitList.py?ip=1.1.1.1
-# - http://www.ipdeny.com/ipblocks/ geo country db for both ipv4 and ipv6
+# - http://www.ipdeny.com/ipblocks/ geo country db for ipv6
 # - maxmind city geodb
 #
 # user specific features
-# - allow the user to request a merge of 2 or more sets
 # - allow the user to request an email if a set increases by a percentage or number of unique IPs
 # - allow the user to request an email if a set matches more than X entries of one or more other set
-#
-# site specific features
-# - find a way to compare ipsets faster, so that maxmind geodbs can be added to comparison
-#   and the "git pull" is done faster (now "git pull" waits the comparisons to be completed)
-# - save all comparisons in .json to allow generating charts on the site
-# - save set quantities in .json to allow monitoring the size of sets with charts
 
 
 # -----------------------------------------------------------------------------
