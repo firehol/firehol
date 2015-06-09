@@ -130,7 +130,7 @@ int prefix_counters[33] = { 0 };
 int prefix_enabled[33] = { 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1 };
 int split_range_disable_printing = 0;
 
-void print_addr(in_addr_t addr, int prefix)
+static inline void print_addr(in_addr_t addr, int prefix)
 {
 
 	if(likely(prefix >= 0 && prefix <= 32))
@@ -158,7 +158,7 @@ void print_addr(in_addr_t addr, int prefix)
  *       The maximum possible recursion depth is 32.
  */
 
-void split_range(in_addr_t addr, int prefix, in_addr_t lo, in_addr_t hi)
+static inline void split_range(in_addr_t addr, int prefix, in_addr_t lo, in_addr_t hi)
 {
 
 	in_addr_t bc, lower_half, upper_half;
@@ -278,7 +278,7 @@ int compar_netaddr(const void *p1, const void *p2)
 /*------------------------------------------------------*/
 /* Print out an address range in a.b.c.d-A.B.C.D format */
 /*------------------------------------------------------*/
-void print_addr_range(in_addr_t lo, in_addr_t hi)
+static inline void print_addr_range(in_addr_t lo, in_addr_t hi)
 {
 
 	struct in_addr in;
@@ -314,7 +314,7 @@ typedef struct ipset {
 	network_addr_t *netaddrs;
 } ipset;
 
-ipset *ipset_create(const char *filename, int entries) {
+static inline ipset *ipset_create(const char *filename, int entries) {
 	if(entries < NETADDR_INC) entries = NETADDR_INC;
 
 	ipset *ips = malloc(sizeof(ipset));
@@ -338,7 +338,7 @@ ipset *ipset_create(const char *filename, int entries) {
 	return ips;
 }
 
-void ipset_free(ipset *ips) {
+static inline void ipset_free(ipset *ips) {
 	if(ips->next) ips->next->prev = ips->prev;
 	if(ips->prev) ips->prev->next = ips->next;
 
@@ -346,7 +346,7 @@ void ipset_free(ipset *ips) {
 	free(ips);
 }
 
-void ipset_free_all(ipset *ips) {
+static inline void ipset_free_all(ipset *ips) {
 	if(ips->prev) {
 		ips->prev->next = NULL;
 		ipset_free_all(ips->prev);
@@ -455,13 +455,77 @@ static inline void ipset_optimize_all(ipset *root) {
 		ipset_optimize(ips);
 }
 
+static inline ipset *ipset_common(ipset *ips1, ipset *ips2) {
+	if(unlikely(debug)) fprintf(stderr, "%s: Finding common IPs in %s and %s\n", PROG, ips1->filename, ips2->filename);
+
+	ipset *ips = ipset_create("common", 0);
+	if(unlikely(!ips)) return NULL;
+
+	unsigned long int
+		n1 = ips1->entries,
+		n2 = ips2->entries,
+		i1 = 0,
+		i2 = 0;
+
+	in_addr_t
+		lo1 = ips1->netaddrs[0].addr,
+		lo2 = ips2->netaddrs[0].addr,
+		hi1 = ips1->netaddrs[0].broadcast,
+		hi2 = ips2->netaddrs[0].broadcast,
+		lo, hi;
+	
+	while(i1 < n1 && i2 < n2) {
+		if(lo1 > hi2) {
+			i2++;
+			if(i2 < n2) {
+				lo2 = ips2->netaddrs[i2].addr;
+				hi2 = ips2->netaddrs[i2].broadcast;
+			}
+			continue;
+		}
+
+		if(lo2 > hi1) {
+			i1++;
+			if(i1 < n1) {
+				lo1 = ips1->netaddrs[i1].addr;
+				hi1 = ips1->netaddrs[i1].broadcast;
+			}
+			continue;
+		}
+
+		if(lo1 > lo2) lo = lo1;
+		else lo = lo2;
+
+		if(hi1 < hi2) {
+			hi = hi1;
+			i1++;
+			if(i1 < n1) {
+				lo1 = ips1->netaddrs[i1].addr;
+				hi1 = ips1->netaddrs[i1].broadcast;
+			}
+		}
+		else {
+			hi = hi2;
+			i2++;
+			if(i2 < n2) {
+				lo2 = ips2->netaddrs[i2].addr;
+				hi2 = ips2->netaddrs[i2].broadcast;
+			}
+		}
+		
+		ipset_add(ips, lo, hi);
+	}
+
+	return ips;
+}
+
 
 // returns
 // -1 = cannot parse line
 //  0 = skip line - nothing useful here
 //  1 = parsed 1 ip address
 //  2 = parsed 2 ip addresses
-int parse_line(char *line, int lineid, char *ipstr, char *ipstr2, int len) {
+static inline int parse_line(char *line, int lineid, char *ipstr, char *ipstr2, int len) {
 	char *s = line;
 	
 	// skip all spaces
@@ -768,7 +832,7 @@ static inline void ipset_merge(ipset *to, ipset *add) {
 	to->lines += add->lines;
 }
 
-ipset *ipset_copy(ipset *ips1) {
+static inline ipset *ipset_copy(ipset *ips1) {
 	if(unlikely(debug)) fprintf(stderr, "%s: Copying %s\n", PROG, ips1->filename);
 
 	ipset *ips = ipset_create(ips1->filename, ips1->entries);
@@ -783,7 +847,7 @@ ipset *ipset_copy(ipset *ips1) {
 	return ips;
 }
 
-ipset *ipset_combine(ipset *ips1, ipset *ips2) {
+static inline ipset *ipset_combine(ipset *ips1, ipset *ips2) {
 	if(unlikely(debug)) fprintf(stderr, "%s: Combining %s and %s\n", PROG, ips1->filename, ips2->filename);
 
 	ipset *ips = ipset_create("combined", ips1->entries + ips2->entries);
@@ -813,12 +877,12 @@ void usage(const char *me) {
 		"\n"
 		"options:\n"
 		"	--optimize or --combine or --merge or -J\n"
-		"		> enables IPSET_COMBINE mode\n"
+		"		> enables MERGE mode (the default)\n"
 		"		merge all files and print the merged set\n"
 		"		this is the default\n"
 		"\n"
 		"	--ipset-reduce PERCENT\n"
-		"		> enables IPSET_REDUCE mode\n"
+		"		> enables IPSET REDUCE mode\n"
 		"		merge all files and print the merged set\n"
 		"		but try to reduce the number of prefixes (subnets)\n"
 		"		found, while allowing some increase in entries\n"
@@ -829,30 +893,36 @@ void usage(const char *me) {
 		"		(use -v to see exactly what it does)\n"
 		"\n"
 		"	--ipset-reduce-entries ENTRIES\n"
-		"		> enables IPSET_REDUCE mode\n"
+		"		> enables IPSET REDUCE mode\n"
 		"		allow increasing the entries above PERCENT, if\n"
 		"		they are below ENTRIES\n"
 		"		(the internal default ENTRIES is 16384)\n"
 		"\n"
 		"	--compare\n"
-		"		> enables IPSET_COMPARE mode\n"
+		"		> enables COMPARE ALL mode\n"
 		"		compare all files with all other files\n"
 		"		the output is CSV formatted\n"
 		"		add --header to get the CSV header too\n"
 		"\n"
 		"	--compare-first\n"
-		"		> enables IPSET_COMPARE_FIRST mode\n"
+		"		> enables COMPARE FIRST mode\n"
 		"		compare the first file with all other files\n"
 		"		the output is CSV formatted\n"
 		"		add --header to get the CSV header too\n"
 		"\n"
 		"	--compare-next\n"
-		"		> enables IPSET_COMPARE_NEXT mode\n"
+		"		> enables COMPARE NEXT mode\n"
 		"		compare all the files that appear before this\n"
 		"		parameter, to all files that appear after this\n"
 		"		parameter\n"
 		"		the output is CSV formatted\n"
 		"		add --header to get the CSV header too\n"
+		"\n"
+		"	--common\n"
+		"		> enables COMMON IPs mode\n"
+		"		print all IPs found on all files given\n"
+		"		this is not a text diff, but a per IP\n"
+		"		comparison of all files\n"
 		"\n"
 		"	--count-unique or -C\n"
 		"		> enables IPSET_COUNT_UNIQUE mode\n"
@@ -986,6 +1056,7 @@ void usage(const char *me) {
 #define MODE_COUNT_UNIQUE_MERGED 5
 #define MODE_COUNT_UNIQUE_ALL 6
 #define MODE_REDUCE 7
+#define MODE_COMMON 8
 
 int main(int argc, char **argv) {
 	struct timeval start_dt, load_dt, print_dt, stop_dt;
@@ -1056,6 +1127,9 @@ int main(int argc, char **argv) {
 		}
 		else if(strcmp(argv[i], "--compare") == 0) {
 			mode = MODE_COMPARE;
+		}
+		else if(strcmp(argv[i], "--common") == 0) {
+			mode = MODE_COMMON;
 		}
 		else if(strcmp(argv[i], "--compare-first") == 0) {
 			mode = MODE_COMPARE_FIRST;
@@ -1170,6 +1244,26 @@ int main(int argc, char **argv) {
 			if(unlikely(header)) printf("entries,unique_ips\n");
 			printf("%lu,%lu\n", root->lines, root->unique_ips);
 		}
+	}
+	else if(mode == MODE_COMMON) {
+		if(!root->next) {
+			fprintf(stderr, "%s: two ipsets at least are needed to be compared to find their common IPs.\n", PROG);
+			exit(1);
+		}
+
+		ipset_optimize_all(root);
+
+		ipset *common = NULL, *ips2 = NULL;
+
+		common = ipset_common(root, root->next);
+		for(ips = root->next->next; ips ;ips = ips->next) {
+			ips2 = ipset_common(common, ips);
+			ipset_free(common);
+			common = ips2;
+		}
+
+		gettimeofday(&print_dt, NULL);
+		ipset_print(common, print);
 	}
 	else if(mode == MODE_COMPARE || mode == MODE_COMPARE_FIRST || mode == MODE_COMPARE_NEXT || mode == MODE_COUNT_UNIQUE_ALL) {
 		ipset_optimize_all(root);
