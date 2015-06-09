@@ -1,18 +1,37 @@
 /* iprange
- * Copyright (C) 2003 Gabriel L. Somlo
  *
- * This program is free software; you can redistribute it and/or modify
- * it under the terms of the GNU General Public License version 2,
- * as published by the Free Software Foundation
+ * FireHOL - A firewall for humans...
  *
- * This program is distributed in the hope that it will be useful,
- * but WITHOUT ANY WARRANTY; without even the implied warranty of
- * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
- * GNU General Public License for more details.
+ * FireHOL Copyright
  *
- * You should have received a copy of the GNU General Public License
- * along with this program; if not, write to the Free Software
- * Foundation, Inc., 675 Mass Ave, Cambridge, MA 02139, USA.
+ *      Copyright (C) 2003-2015 Costa Tsaousis <costa@tsaousis.gr>
+ *      Copyright (C) 2012-2015 Phil Whineray <phil@sanewall.org>
+ *
+ * Original iprange.c Copyright:
+ *
+ *      Copyright (C) 2003 Gabriel L. Somlo
+ *
+ *      comment by Costa Tsaousis:
+ *      An excellent work by Gabriel Somlo for loading and merging CIDRs.
+ *      I have built all the features this tool provides on top of the
+ *      (still) almost untouched original source.
+ *
+ *  License
+ *
+ *      This program is free software; you can redistribute it and/or modify
+ *      it under the terms of the GNU General Public License as published by
+ *      the Free Software Foundation; either version 2 of the License, or
+ *      (at your option) any later version.
+ *
+ *      This program is distributed in the hope that it will be useful,
+ *      but WITHOUT ANY WARRANTY; without even the implied warranty of
+ *      MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE. See the
+ *      GNU General Public License for more details.
+ *
+ *      You should have received a copy of the GNU General Public License
+ *      along with this program. If not, see <http://www.gnu.org/licenses/>.
+ *
+ *      See the file COPYING for details.
  *
  * To compile:
  *  on Linux:
@@ -21,6 +40,8 @@
  *   cc -xO5 -xarch=v8plusa -xdepend iprange.c -o iprange -lnsl -lresolv
  *
  * CHANGELOG:
+ *  2003 Gabriel L. Somlo, the original author of iprange.c core
+ *   - found at http://www.cs.colostate.edu/~somlo/iprange.c
  *  2004-10-16 Paul Townsend (alpha alpha beta at purdue dot edu)
  *   - more general input/output formatting
  *  2015-05-31 Costa Tsaousis (costa@tsaousis.gr)
@@ -34,9 +55,14 @@
  *     (much like -s did for a single range)
  *   - added support for parsing netmasks
  *   - added support for min prefix generated
+ *   - added support for generated only specific prefixes
  *   - added support for reducing the prefixes for iptables ipsets
  *   - the output is now always optimized (reduced / merged)
  *   - removed option -s (convert a single IP range to CIDR)
+ *   - added support for finding the common IPs in multiple files
+ *   - added timings
+ *   - added verbose output
+ *   
  */
 
 #include <stdio.h>
@@ -817,7 +843,7 @@ void ipset_print(ipset *ips, int print) {
 		else if (print == PRINT_SINGLE_IPS) units = "IPs";
 		else units = "ranges";
 
-		fprintf(stderr, "\ntotals: %lu lines loaded, %lu distinct IP ranges, %d CIDR prefixes, %lu %s printed, %lu unique IPs\n", ips->lines, ips->entries, prefixes, total, units, ips->unique_ips);
+		fprintf(stderr, "\ntotals: %lu lines read, %lu distinct IP ranges found, %d CIDR prefixes, %lu %s printed, %lu unique IPs\n", ips->lines, ips->entries, prefixes, total, units, ips->unique_ips);
 	}
 }
 
@@ -1366,7 +1392,7 @@ int main(int argc, char **argv) {
 
 	gettimeofday(&stop_dt, NULL);
 	if(debug)
-		fprintf(stderr, "completed in %0.5f seconds (load %0.5f + think %0.5f + print %0.5f)\n"
+		fprintf(stderr, "completed in %0.5f seconds (read %0.5f + think %0.5f + speak %0.5f)\n"
 			, ((double)(stop_dt.tv_sec  * 1000000 + stop_dt.tv_usec) - (double)(start_dt.tv_sec * 1000000 + start_dt.tv_usec)) / (double)1000000
 			, ((double)(load_dt.tv_sec  * 1000000 + load_dt.tv_usec) - (double)(start_dt.tv_sec * 1000000 + start_dt.tv_usec)) / (double)1000000
 			, ((double)(print_dt.tv_sec  * 1000000 + print_dt.tv_usec) - (double)(load_dt.tv_sec * 1000000 + load_dt.tv_usec)) / (double)1000000
