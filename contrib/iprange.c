@@ -542,6 +542,7 @@ static inline ipset *ipset_common(ipset *ips1, ipset *ips2) {
 		ipset_add(ips, lo, hi);
 	}
 
+	ips->lines = ips1->lines + ips2->lines;
 	return ips;
 }
 
