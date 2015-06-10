@@ -84,6 +84,10 @@
 #define unlikely(x)     (x)
 #endif
 
+// if set, use MODE_COMMON to compare files
+// this is 20 times faster than MODE COMBINE
+#define COMPARE_WITH_COMMON 1
+
 static char *PROG;
 int debug = 0;
 int cidr_use_network = 1;
@@ -1303,23 +1307,30 @@ int main(int argc, char **argv) {
 
 			if(unlikely(header)) printf("name1,name2,entries1,entries2,ips1,ips2,combined_ips,common_ips\n");
 			
-			ipset *ips2, *combined;
+			ipset *ips2;
 			for(ips = root; ips ;ips = ips->next) {
 				for(ips2 = ips; ips2 ;ips2 = ips2->next) {
 					if(ips == ips2) continue;
 
-					combined = ipset_combine(ips, ips2);
+#ifdef COMPARE_WITH_COMMON
+					ipset *common = ipset_common(ips, ips2);
+					if(!common) {
+						fprintf(stderr, "%s: Cannot find the common IPs of ipset %s and %s\n", PROG, ips->filename, ips2->filename);
+						exit(1);
+					}
+					fprintf(stdout, "%s,%s,%lu,%lu,%lu,%lu,%lu,%lu\n", ips->filename, ips2->filename, ips->lines, ips2->lines, ips->unique_ips, ips2->unique_ips, ips->unique_ips + ips2->unique_ips - common->unique_ips, common->unique_ips);
+					ipset_free(common);
+#else
+					ipset *combined = ipset_combine(ips, ips2);
 					if(!combined) {
 						fprintf(stderr, "%s: Cannot merge ipset %s and %s\n", PROG, ips->filename, ips2->filename);
 						exit(1);
 					}
 
-					// for debug mode to show something meaningful
-					strcpy(combined->filename, "combined ipset");
-
 					ipset_optimize(combined);
 					fprintf(stdout, "%s,%s,%lu,%lu,%lu,%lu,%lu,%lu\n", ips->filename, ips2->filename, ips->lines, ips2->lines, ips->unique_ips, ips2->unique_ips, combined->unique_ips, ips->unique_ips + ips2->unique_ips - combined->unique_ips);
 					ipset_free(combined);
+#endif
 				}
 			}
 		}
@@ -1332,21 +1343,28 @@ int main(int argc, char **argv) {
 
 			if(unlikely(header)) printf("name1,name2,entries1,entries2,ips1,ips2,combined_ips,common_ips\n");
 
-			ipset *ips2, *combined;
+			ipset *ips2;
 			for(ips = root; ips ;ips = ips->next) {
 				for(ips2 = compare; ips2 ;ips2 = ips2->next) {
-					combined = ipset_combine(ips, ips2);
+#ifdef COMPARE_WITH_COMMON
+					ipset *common = ipset_common(ips, ips2);
+					if(!common) {
+						fprintf(stderr, "%s: Cannot find the common IPs of ipset %s and %s\n", PROG, ips->filename, ips2->filename);
+						exit(1);
+					}
+					fprintf(stdout, "%s,%s,%lu,%lu,%lu,%lu,%lu,%lu\n", ips->filename, ips2->filename, ips->lines, ips2->lines, ips->unique_ips, ips2->unique_ips, ips->unique_ips + ips2->unique_ips - common->unique_ips, common->unique_ips);
+					ipset_free(common);
+#else
+					ipset *combined = ipset_combine(ips, ips2);
 					if(!combined) {
 						fprintf(stderr, "%s: Cannot merge ipset %s and %s\n", PROG, ips->filename, ips2->filename);
 						exit(1);
 					}
 
-					// for debug mode to show something meaningful
-					strcpy(combined->filename, "combined ipset");
-
 					ipset_optimize(combined);
 					fprintf(stdout, "%s,%s,%lu,%lu,%lu,%lu,%lu,%lu\n", ips->filename, ips2->filename, ips->lines, ips2->lines, ips->unique_ips, ips2->unique_ips, combined->unique_ips, ips->unique_ips + ips2->unique_ips - combined->unique_ips);
 					ipset_free(combined);
+#endif
 				}
 			}
 		}
@@ -1358,22 +1376,28 @@ int main(int argc, char **argv) {
 			
 			if(unlikely(header)) printf("name,entries,unique_ips,common_ips\n");
 
-			ipset *combined;
 			for(ips = root; ips ;ips = ips->next) {
 				if(ips == first) continue;
 
-				combined = ipset_combine(ips, first);
+#ifdef COMPARE_WITH_COMMON
+				ipset *common = ipset_common(ips, first);
+				if(!common) {
+					fprintf(stderr, "%s: Cannot find the common IPs of ipset %s and %s\n", PROG, ips->filename, first->filename);
+					exit(1);
+				}
+				printf("%s,%lu,%lu,%lu\n", ips->filename, ips->lines, ips->unique_ips, common->unique_ips);
+				ipset_free(common);
+#else
+				ipset *combined = ipset_combine(ips, first);
 				if(!combined) {
 					fprintf(stderr, "%s: Cannot merge ipset %s and %s\n", PROG, ips->filename, first->filename);
 					exit(1);
 				}
 
-				// for debug mode to show something meaningful
-				strcpy(combined->filename, "combined ipset");
-
 				ipset_optimize(combined);
 				printf("%s,%lu,%lu,%lu\n", ips->filename, ips->lines, ips->unique_ips, ips->unique_ips + first->unique_ips - combined->unique_ips);
 				ipset_free(combined);
+#endif
 			}
 		}
 		else if(mode == MODE_COUNT_UNIQUE_ALL) {
