@@ -2402,6 +2402,25 @@ update dragon_http $[24*60] 0 ipv4 both \
 
 
 # -----------------------------------------------------------------------------
+# Nothink.org
+
+update nt_ssh_7d 60 0 ipv4 ip \
+	"http://www.nothink.org/blacklist/blacklist_ssh_week.txt" \
+	remove_comments \
+	"[No Think](http://www.nothink.org/) Last 7 days SSH attacks"
+
+update nt_malware_irc 60 0 ipv4 ip \
+	"http://www.nothink.org/blacklist/blacklist_malware_irc.txt" \
+	remove_comments \
+	"[No Think](http://www.nothink.org/) Malware IRC"
+
+update nt_malware_http 60 0 ipv4 ip \
+	"http://www.nothink.org/blacklist/blacklist_malware_http.txt" \
+	remove_comments \
+	"[No Think](http://www.nothink.org/) Malware HTTP"
+
+
+# -----------------------------------------------------------------------------
 # iBlocklist
 # https://www.iblocklist.com/lists.php
 # http://bluetack.co.uk/forums/index.php?autocom=faq&CODE=02&qid=17
@@ -2639,17 +2658,13 @@ merge firehol_anonymous "**FireHOL Anonymous** - Known anonymizing IPs." \
 	firehol_proxies anonymous bm_tor dm_tor tor_exits
 
 
+
 # -----------------------------------------------------------------------------
 # TODO
 #
 # add sets
-# - http://www.nothink.org/blacklist/blacklist_ssh_week.txt
-# - http://www.nothink.org/blacklist/blacklist_malware_irc.txt
-# - http://www.nothink.org/blacklist/blacklist_malware_http.txt
-# - http://check.torproject.org/cgi-bin/TorBulkExitList.py?ip=1.1.1.1 # 16 hours history of tor exit points
 # - http://www.ipdeny.com/ipblocks/ geo country db for ipv6
 # - maxmind city geodb
-# - http://antispam.imp.ch/spamlist
 # - https://github.com/Blueliv/api-python-sdk/wiki/Blueliv-REST-API-Documentation
 #
 # user specific features
