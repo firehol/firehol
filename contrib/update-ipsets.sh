@@ -301,6 +301,7 @@ check_git_committed() {
 	fi
 }
 
+declare -A DO_NOT_REDISTRIBUTE=()
 commit_to_git() {
 	if [ -d .git -a ! -z "${!UPDATED_SETS[*]}" ]
 	then
@@ -339,9 +340,18 @@ commit_to_git() {
 			rm "${d}"
 		done
 
+		declare -a to_be_pushed=()
+		for d in "${UPDATED_SETS[@]}"
+		do
+			[ ! -z "${DO_NOT_REDISTRIBUTE[${d}]}" ] && continue
+			[ ! -f "${d}" ] && continue
+
+			to_be_pushed=("${to_be_pushed[@]}" "${d}")
+		done
+
 		echo >&2 
-		syslog "Committing ${UPDATED_SETS[@]} to git repository"
-		git commit "${UPDATED_SETS[@]}" -m "`date -u` update"
+		syslog "Committing ${to_be_pushed[@]} to git repository"
+		git commit "${to_be_pushed[@]}" -m "`date -u` update"
 
 		if [ ${PUSH_TO_GIT} -ne 0 ]
 		then
@@ -940,7 +950,7 @@ EOFHEADER
 	if [ -d .git ]
 	then
 		echo >>"${setinfo/.setinfo/_history.csv}" "$(date -r "${src}" +%s),${entries},${ips}"
-		echo >"${setinfo}" "[${ipset}](#${ipset})|${info}|${ipv} hash:${hash}|${quantity}|updated every `mins_to_text ${mins}` from [this link](${url})"
+		echo >"${setinfo}" "[${ipset}](#${ipset})|${info}|${ipv} hash:${hash}|${quantity}|`if [ ! -z "${url}" ]; then echo "updated every $(mins_to_text ${mins}) from [this link](${url})"; fi`"
 		check_git_committed "${dst}"
 	fi
 
@@ -1025,7 +1035,7 @@ update() {
 
 	if [ ! -f "${install}.source" ]
 	then
-		[ -d .git ] && echo >"${install}.setinfo" "${ipset}|${info}|${ipv} hash:${hash}|disabled|updated every `mins_to_text ${mins}` from [this link](${url})"
+		[ -d .git ] && echo >"${install}.setinfo" "${ipset}|${info}|${ipv} hash:${hash}|disabled|`if [ ! -z "${url}" ]; then echo "updated every $(mins_to_text ${mins}) from [this link](${url})"; fi`"
 		echo >&2 "${ipset}: is disabled, to enable it run: touch -t 0001010000 '${base}/${install}.source'"
 		return 1
 	fi
@@ -1587,7 +1597,7 @@ geolite2_country() {
 	if [ -d .git ]
 	then
 		# generate a setinfo for the home page
-		echo >"${ipset}.setinfo" "[${ipset}](https://github.com/ktsaou/blocklist-ipsets/tree/master/geolite2_country)|[MaxMind GeoLite2](http://dev.maxmind.com/geoip/geoip2/geolite2/) databases are free IP geolocation databases comparable to, but less accurate than, MaxMind’s GeoIP2 databases. They include IPs per country, IPs per continent, IPs used by anonymous services (VPNs, Proxies, etc) and Satellite Providers.|ipv4 hash:net|All the world|updated every `mins_to_text ${mins}` from [this link](${url})"
+		echo >"${ipset}.setinfo" "[${ipset}](https://github.com/ktsaou/blocklist-ipsets/tree/master/geolite2_country)|[MaxMind GeoLite2](http://dev.maxmind.com/geoip/geoip2/geolite2/) databases are free IP geolocation databases comparable to, but less accurate than, MaxMind’s GeoIP2 databases. They include IPs per country, IPs per continent, IPs used by anonymous services (VPNs, Proxies, etc) and Satellite Providers.|ipv4 hash:net|All the world|`if [ ! -z "${url}" ]; then echo "updated every $(mins_to_text ${mins}) from [this link](${url})"; fi`"
 	fi
 
 	# remove the temporary dir
@@ -1596,7 +1606,7 @@ geolite2_country() {
 	return 0
 }
 
-declare -A IPDENY_COUNTRY_NAMES='([as]="American Samoa" [ge]="Georgia" [ar]="Argentina" [gd]="Grenada" [dm]="Dominica" [kp]="North Korea" [rw]="Rwanda" [gg]="Guernsey" [qa]="Qatar" [ni]="Nicaragua" [do]="Dominican Republic" [gf]="French Guiana" [ru]="Russia" [kr]="Republic of Korea" [aw]="Aruba" [ga]="Gabon" [rs]="Serbia" [no]="Norway" [nl]="Netherlands" [au]="Australia" [kw]="Kuwait" [dj]="Djibouti" [at]="Austria" [gb]="United Kingdom" [dk]="Denmark" [ky]="Cayman Islands" [gm]="Gambia" [ug]="Uganda" [gl]="Greenland" [de]="Germany" [nc]="New Caledonia" [az]="Azerbaijan" [hr]="Croatia" [na]="Namibia" [gn]="Guinea" [kz]="Kazakhstan" [et]="Ethiopia" [ht]="Haiti" [es]="Spain" [gi]="Gibraltar" [nf]="Norfolk Island" [ng]="Nigeria" [gh]="Ghana" [hu]="Hungary" [er]="Eritrea" [ua]="Ukraine" [ne]="Niger" [yt]="Mayotte" [gu]="Guam" [nz]="New Zealand" [om]="Oman" [gt]="Guatemala" [gw]="Guinea-Bissau" [hk]="Hong Kong" [re]="Réunion" [ag]="Antigua and Barbuda" [gq]="Equatorial Guinea" [ke]="Kenya" [gp]="Guadeloupe" [uz]="Uzbekistan" [af]="Afghanistan" [hn]="Honduras" [uy]="Uruguay" [dz]="Algeria" [kg]="Kyrgyzstan" [ae]="United Arab Emirates" [ad]="Andorra" [gr]="Greece" [ki]="Kiribati" [nr]="Nauru" [eg]="Egypt" [kh]="Cambodia" [ro]="Romania" [ai]="Anguilla" [np]="Nepal" [ee]="Estonia" [us]="United States" [ec]="Ecuador" [gy]="Guyana" [ao]="Angola" [km]="Comoros" [am]="Armenia" [ye]="Yemen" [nu]="Niue" [kn]="Saint Kitts and Nevis" [al]="Albania" [si]="Slovenia" [fr]="France" [bf]="Burkina Faso" [mw]="Malawi" [cy]="Cyprus" [vc]="Saint Vincent and the Grenadines" [mv]="Maldives" [bg]="Bulgaria" [pr]="Puerto Rico" [sk]="Slovak Republic" [bd]="Bangladesh" [mu]="Mauritius" [ps]="Palestine" [va]="Vatican City" [cz]="Czech Republic" [be]="Belgium" [mt]="Malta" [zm]="Zambia" [ms]="Montserrat" [bb]="Barbados" [sm]="San Marino" [pt]="Portugal" [io]="British Indian Ocean Territory" [vg]="British Virgin Islands" [sl]="Sierra Leone" [mr]="Mauritania" [la]="Laos" [in]="India" [ws]="Samoa" [mq]="Martinique" [im]="Isle of Man" [lb]="Lebanon" [tz]="Tanzania" [so]="Somalia" [mp]="Northern Mariana Islands" [ve]="Venezuela" [lc]="Saint Lucia" [ba]="Bosnia and Herzegovina" [sn]="Senegal" [pw]="Palau" [il]="Israel" [tt]="Trinidad and Tobago" [bn]="Brunei" [sa]="Saudi Arabia" [bo]="Bolivia" [py]="Paraguay" [bl]="Saint-Barthélemy" [tv]="Tuvalu" [sc]="Seychelles" [vi]="U.S. Virgin Islands" [cr]="Costa Rica" [bm]="Bermuda" [sb]="Solomon Islands" [tw]="Taiwan" [cu]="Cuba" [se]="Sweden" [bj]="Benin" [vn]="Vietnam" [li]="Liechtenstein" [mz]="Mozambique" [sd]="Sudan" [cw]="Curaçao" [ie]="Ireland" [sg]="Singapore" [jp]="Japan" [my]="Malaysia" [tr]="Turkey" [bh]="Bahrain" [mx]="Mexico" [cv]="Cape Verde" [id]="Indonesia" [lk]="Sri Lanka" [za]="South Africa" [bi]="Burundi" [ci]="Ivory Coast" [tl]="East Timor" [mg]="Madagascar" [lt]="Republic of Lithuania" [sy]="Syria" [sx]="Sint Maarten" [pa]="Panama" [mf]="Saint Martin" [lu]="Luxembourg" [ch]="Switzerland" [tm]="Turkmenistan" [bw]="Botswana" [jo]="Hashemite Kingdom of Jordan" [me]="Montenegro" [tn]="Tunisia" [ck]="Cook Islands" [bt]="Bhutan" [lv]="Latvia" [wf]="Wallis and Futuna" [to]="Tonga" [jm]="Jamaica" [sz]="Swaziland" [md]="Republic of Moldova" [br]="Brazil" [mc]="Monaco" [cm]="Cameroon" [th]="Thailand" [pe]="Peru" [cl]="Chile" [bs]="Bahamas" [pf]="French Polynesia" [co]="Colombia" [ma]="Morocco" [lr]="Liberia" [tj]="Tajikistan" [bq]="Bonaire, Sint Eustatius, and Saba" [tk]="Tokelau" [vu]="Vanuatu" [pg]="Papua New Guinea" [cn]="China" [ls]="Lesotho" [ca]="Canada" [is]="Iceland" [td]="Chad" [fj]="Fiji" [mo]="Macao" [ph]="Philippines" [mn]="Mongolia" [zw]="Zimbabwe" [ir]="Iran" [ss]="South Sudan" [mm]="Myanmar (Burma)" [iq]="Iraq" [sr]="Suriname" [je]="Jersey" [ml]="Mali" [tg]="Togo" [pk]="Pakistan" [fi]="Finland" [bz]="Belize" [pl]="Poland" [mk]="Macedonia" [pm]="Saint Pierre and Miquelon" [fo]="Faroe Islands" [st]="São Tomé and Príncipe" [ly]="Libya" [cd]="Congo" [cg]="Republic of the Congo" [sv]="El Salvador" [tc]="Turks and Caicos Islands" [it]="Italy" [fm]="Federated States of Micronesia" [mh]="Marshall Islands" [by]="Belarus" [cf]="Central African Republic" )'
+declare -A IPDENY_COUNTRY_NAMES='([as]="American Samoa" [ge]="Georgia" [ar]="Argentina" [gd]="Grenada" [dm]="Dominica" [kp]="North Korea" [rw]="Rwanda" [gg]="Guernsey" [qa]="Qatar" [ni]="Nicaragua" [do]="Dominican Republic" [gf]="French Guiana" [ru]="Russia" [kr]="Republic of Korea" [aw]="Aruba" [ga]="Gabon" [rs]="Serbia" [no]="Norway" [nl]="Netherlands" [au]="Australia" [kw]="Kuwait" [dj]="Djibouti" [at]="Austria" [gb]="United Kingdom" [dk]="Denmark" [ky]="Cayman Islands" [gm]="Gambia" [ug]="Uganda" [gl]="Greenland" [de]="Germany" [nc]="New Caledonia" [az]="Azerbaijan" [hr]="Croatia" [na]="Namibia" [gn]="Guinea" [kz]="Kazakhstan" [et]="Ethiopia" [ht]="Haiti" [es]="Spain" [gi]="Gibraltar" [nf]="Norfolk Island" [ng]="Nigeria" [gh]="Ghana" [hu]="Hungary" [er]="Eritrea" [ua]="Ukraine" [ne]="Niger" [yt]="Mayotte" [gu]="Guam" [nz]="New Zealand" [om]="Oman" [gt]="Guatemala" [gw]="Guinea-Bissau" [hk]="Hong Kong" [re]="Réunion" [ag]="Antigua and Barbuda" [gq]="Equatorial Guinea" [ke]="Kenya" [gp]="Guadeloupe" [uz]="Uzbekistan" [af]="Afghanistan" [hn]="Honduras" [uy]="Uruguay" [dz]="Algeria" [kg]="Kyrgyzstan" [ae]="United Arab Emirates" [ad]="Andorra" [gr]="Greece" [ki]="Kiribati" [nr]="Nauru" [eg]="Egypt" [kh]="Cambodia" [ro]="Romania" [ai]="Anguilla" [np]="Nepal" [ee]="Estonia" [us]="United States" [ec]="Ecuador" [gy]="Guyana" [ao]="Angola" [km]="Comoros" [am]="Armenia" [ye]="Yemen" [nu]="Niue" [kn]="Saint Kitts and Nevis" [al]="Albania" [si]="Slovenia" [fr]="France" [bf]="Burkina Faso" [mw]="Malawi" [cy]="Cyprus" [vc]="Saint Vincent and the Grenadines" [mv]="Maldives" [bg]="Bulgaria" [pr]="Puerto Rico" [sk]="Slovak Republic" [bd]="Bangladesh" [mu]="Mauritius" [ps]="Palestine" [va]="Vatican City" [cz]="Czech Republic" [be]="Belgium" [mt]="Malta" [zm]="Zambia" [ms]="Montserrat" [bb]="Barbados" [sm]="San Marino" [pt]="Portugal" [io]="British Indian Ocean Territory" [vg]="British Virgin Islands" [sl]="Sierra Leone" [mr]="Mauritania" [la]="Laos" [in]="India" [ws]="Samoa" [mq]="Martinique" [im]="Isle of Man" [lb]="Lebanon" [tz]="Tanzania" [so]="Somalia" [mp]="Northern Mariana Islands" [ve]="Venezuela" [lc]="Saint Lucia" [ba]="Bosnia and Herzegovina" [sn]="Senegal" [pw]="Palau" [il]="Israel" [tt]="Trinidad and Tobago" [bn]="Brunei" [sa]="Saudi Arabia" [bo]="Bolivia" [py]="Paraguay" [bl]="Saint-Barthélemy" [tv]="Tuvalu" [sc]="Seychelles" [vi]="U.S. Virgin Islands" [cr]="Costa Rica" [bm]="Bermuda" [sb]="Solomon Islands" [tw]="Taiwan" [cu]="Cuba" [se]="Sweden" [bj]="Benin" [vn]="Vietnam" [li]="Liechtenstein" [mz]="Mozambique" [sd]="Sudan" [cw]="Curaçao" [ie]="Ireland" [sg]="Singapore" [jp]="Japan" [my]="Malaysia" [tr]="Turkey" [bh]="Bahrain" [mx]="Mexico" [cv]="Cape Verde" [id]="Indonesia" [lk]="Sri Lanka" [za]="South Africa" [bi]="Burundi" [ci]="Ivory Coast" [tl]="East Timor" [mg]="Madagascar" [lt]="Republic of Lithuania" [sy]="Syria" [sx]="Sint Maarten" [pa]="Panama" [mf]="Saint Martin" [lu]="Luxembourg" [ch]="Switzerland" [tm]="Turkmenistan" [bw]="Botswana" [jo]="Hashemite Kingdom of Jordan" [me]="Montenegro" [tn]="Tunisia" [ck]="Cook Islands" [bt]="Bhutan" [lv]="Latvia" [wf]="Wallis and Futuna" [to]="Tonga" [jm]="Jamaica" [sz]="Swaziland" [md]="Republic of Moldova" [br]="Brazil" [mc]="Monaco" [cm]="Cameroon" [th]="Thailand" [pe]="Peru" [cl]="Chile" [bs]="Bahamas" [pf]="French Polynesia" [co]="Colombia" [ma]="Morocco" [lr]="Liberia" [tj]="Tajikistan" [bq]="Bonaire, Sint Eustatius, and Saba" [tk]="Tokelau" [vu]="Vanuatu" [pg]="Papua New Guinea" [cn]="China" [ls]="Lesotho" [ca]="Canada" [is]="Iceland" [td]="Chad" [fj]="Fiji" [mo]="Macao" [ph]="Philippines" [mn]="Mongolia" [zw]="Zimbabwe" [ir]="Iran" [ss]="South Sudan" [mm]="Myanmar (Burma)" [iq]="Iraq" [sr]="Suriname" [je]="Jersey" [ml]="Mali" [tg]="Togo" [pk]="Pakistan" [fi]="Finland" [bz]="Belize" [pl]="Poland" [mk]="Former Yugoslav Republic of Macedonia" [pm]="Saint Pierre and Miquelon" [fo]="Faroe Islands" [st]="São Tomé and Príncipe" [ly]="Libya" [cd]="Congo" [cg]="Republic of the Congo" [sv]="El Salvador" [tc]="Turks and Caicos Islands" [it]="Italy" [fm]="Federated States of Micronesia" [mh]="Marshall Islands" [by]="Belarus" [cf]="Central African Republic" )'
 declare -A IPDENY_COUNTRY_CONTINENTS='([as]="oc" [ge]="as" [ar]="sa" [gd]="na" [dm]="na" [kp]="as" [rw]="af" [gg]="eu" [qa]="as" [ni]="na" [do]="na" [gf]="sa" [ru]="eu" [kr]="as" [aw]="na" [ga]="af" [rs]="eu" [no]="eu" [nl]="eu" [au]="oc" [kw]="as" [dj]="af" [at]="eu" [gb]="eu" [dk]="eu" [ky]="na" [gm]="af" [ug]="af" [gl]="na" [de]="eu" [nc]="oc" [az]="as" [hr]="eu" [na]="af" [gn]="af" [kz]="as" [et]="af" [ht]="na" [es]="eu" [gi]="eu" [nf]="oc" [ng]="af" [gh]="af" [hu]="eu" [er]="af" [ua]="eu" [ne]="af" [yt]="af" [gu]="oc" [nz]="oc" [om]="as" [gt]="na" [gw]="af" [hk]="as" [re]="af" [ag]="na" [gq]="af" [ke]="af" [gp]="na" [uz]="as" [af]="as" [hn]="na" [uy]="sa" [dz]="af" [kg]="as" [ae]="as" [ad]="eu" [gr]="eu" [ki]="oc" [nr]="oc" [eg]="af" [kh]="as" [ro]="eu" [ai]="na" [np]="as" [ee]="eu" [us]="na" [ec]="sa" [gy]="sa" [ao]="af" [km]="af" [am]="as" [ye]="as" [nu]="oc" [kn]="na" [al]="eu" [si]="eu" [fr]="eu" [bf]="af" [mw]="af" [cy]="eu" [vc]="na" [mv]="as" [bg]="eu" [pr]="na" [sk]="eu" [bd]="as" [mu]="af" [ps]="as" [va]="eu" [cz]="eu" [be]="eu" [mt]="eu" [zm]="af" [ms]="na" [bb]="na" [sm]="eu" [pt]="eu" [io]="as" [vg]="na" [sl]="af" [mr]="af" [la]="as" [in]="as" [ws]="oc" [mq]="na" [im]="eu" [lb]="as" [tz]="af" [so]="af" [mp]="oc" [ve]="sa" [lc]="na" [ba]="eu" [sn]="af" [pw]="oc" [il]="as" [tt]="na" [bn]="as" [sa]="as" [bo]="sa" [py]="sa" [bl]="na" [tv]="oc" [sc]="af" [vi]="na" [cr]="na" [bm]="na" [sb]="oc" [tw]="as" [cu]="na" [se]="eu" [bj]="af" [vn]="as" [li]="eu" [mz]="af" [sd]="af" [cw]="na" [ie]="eu" [sg]="as" [jp]="as" [my]="as" [tr]="as" [bh]="as" [mx]="na" [cv]="af" [id]="as" [lk]="as" [za]="af" [bi]="af" [ci]="af" [tl]="oc" [mg]="af" [lt]="eu" [sy]="as" [sx]="na" [pa]="na" [mf]="na" [lu]="eu" [ch]="eu" [tm]="as" [bw]="af" [jo]="as" [me]="eu" [tn]="af" [ck]="oc" [bt]="as" [lv]="eu" [wf]="oc" [to]="oc" [jm]="na" [sz]="af" [md]="eu" [br]="sa" [mc]="eu" [cm]="af" [th]="as" [pe]="sa" [cl]="sa" [bs]="na" [pf]="oc" [co]="sa" [ma]="af" [lr]="af" [tj]="as" [bq]="na" [tk]="oc" [vu]="oc" [pg]="oc" [cn]="as" [ls]="af" [ca]="na" [is]="eu" [td]="af" [fj]="oc" [mo]="as" [ph]="as" [mn]="as" [zw]="af" [ir]="as" [ss]="af" [mm]="as" [iq]="as" [sr]="sa" [je]="eu" [ml]="af" [tg]="af" [pk]="as" [fi]="eu" [bz]="na" [pl]="eu" [mk]="eu" [pm]="na" [fo]="eu" [st]="af" [ly]="af" [cd]="af" [cg]="af" [sv]="na" [tc]="na" [it]="eu" [fm]="oc" [mh]="oc" [by]="eu" [cf]="af" )'
 declare -A IPDENY_COUNTRIES=()
 declare -A IPDENY_CONTINENTS=()
@@ -1683,6 +1693,46 @@ ipdeny_country() {
 	rm -rf "${ipset}.tmp"
 
 	return 0	
+}
+
+
+# -----------------------------------------------------------------------------
+# MERGE two or more ipsets
+
+merge() {
+	local to="${1}" info="${2}" included=()
+	shift 2
+
+	if [ ! -f "${to}.source" ]
+		then
+		echo >&2 "${to}: is disabled. To enable it run: touch ${base}/${to}.source"
+		return 1
+	fi
+
+	for x in "${@}"
+	do
+		if [ ! -z "${IPSET_FILE[${x}]}" -a -f "${IPSET_FILE[${x}]}" ]
+			then
+			# echo >&2 "Adding ${x}..."
+			cat "${IPSET_FILE[${x}]}"
+			included=("${included[@]}" "${x}")
+		else
+			echo >&2 "${to}: will be generated without '${x}' - enable it to be included"
+			# touch -t 0001010000 "${base}/${x}.source"
+		fi
+	done >"${to}.tmp"
+
+	cat "${to}.tmp" | aggregate4 >"${to}.tmp2"
+	mv "${to}.tmp2" "${to}.tmp"
+
+	[ ! -f "${to}.netset" ] && touch "${to}.netset"
+	diff -q "${to}.netset" "${to}.tmp" >/dev/null 2>&1
+	if [ $? -ne 0 ]
+		then
+		finalize "${to}" "${to}.tmp" "${to}.setinfo" "${to}.source" "${to}.netset" "1" "0" "ipv4" "" "net" "" "${info} (includes: ${included[*]})"
+	else
+		rm "${to}.tmp"
+	fi
 }
 
 echo >&2
@@ -1811,7 +1861,7 @@ update dshield $[4*60] 0 ipv4 both \
 update dm_tor 30 0 ipv4 ip \
 	"https://www.dan.me.uk/torlist/" \
 	remove_comments \
-	"[dan.me.uk](https://www.dan.me.uk) dynamic list of TOR exit points"
+	"[dan.me.uk](https://www.dan.me.uk) dynamic list of TOR nodes"
 
 update et_tor $[12*60] 0 ipv4 ip \
 	"http://rules.emergingthreats.net/blockrules/emerging-tor.rules" \
@@ -1823,6 +1873,13 @@ update bm_tor 30 0 ipv4 ip \
 	remove_comments \
 	"[torstatus.blutmagie.de](https://torstatus.blutmagie.de) list of all TOR network servers"
 
+
+torproject_exits() { grep "^ExitAddress " | cut -d ' ' -f 2; }
+
+update tor_exits 30 0 ipv4 ip \
+	"https://check.torproject.org/exit-addresses" \
+	torproject_exits \
+	"[TorProject.org](https://www.torproject.org) list of all current TOR exit points (TorDNSEL)"
 
 # -----------------------------------------------------------------------------
 # EmergingThreats
@@ -2225,6 +2282,23 @@ update cleanmx_viruses $[12*60] 0 ipv4 ip \
 
 
 # -----------------------------------------------------------------------------
+# ImproWare
+# http://antispam.imp.ch/
+
+antispam_ips() { remove_comments | cut -d ' ' -f 2; }
+
+update iw_spamlist 60 0 ipv4 ip \
+	"http://antispam.imp.ch/spamlist" \
+	antispam_ips \
+	"[ImproWare Antispam](http://antispam.imp.ch/) IPs sending spam, in the last 3 days"
+
+update iw_wormlist 60 0 ipv4 ip \
+	"http://antispam.imp.ch/wormlist" \
+	antispam_ips \
+	"[ImproWare Antispam](http://antispam.imp.ch/) IPs sending emails with viruses or worms, in the last 3 days"
+
+
+# -----------------------------------------------------------------------------
 # CI Army
 # http://ciarmy.com/
 
@@ -2311,6 +2385,20 @@ update lashback_ubl $[24*60] 0 ipv4 ip \
 	"http://www.unsubscore.com/blacklist.txt" \
 	remove_comments \
 	"[The LashBack UBL](http://blacklist.lashback.com/) The Unsubscribe Blacklist (UBL) is a real-time blacklist of IP addresses which are sending email to names harvested from suppression files (this is a big list, more than 500.000 IPs)"
+
+
+# -----------------------------------------------------------------------------
+# Dragon Research Group (DRG)
+# HTTP report
+# http://www.dragonresearchgroup.org/
+
+dragon_column3() { remove_comments | cut -d '|' -f 3 | trim; }
+
+DO_NOT_REDISTRIBUTE[dragon_http.netset]="1"
+update dragon_http $[24*60] 0 ipv4 both \
+	"http://www.dragonresearchgroup.org/insight/http-report.txt" \
+	dragon_column3 \
+	"[Dragon Search Group](http://www.dragonresearchgroup.org/) IPs that have been seen sending HTTP requests to Dragon Research Pods in the last 7 days. This report lists hosts that are highly suspicious and are likely conducting malicious HTTP attacks. LEGITIMATE SEARCH ENGINE BOTS MAY BE IN THIS LIST. This report is informational.  It is not a blacklist, but some operators may choose to use it to help protect their networks and hosts in the forms of automated reporting and mitigation services."
 
 
 # -----------------------------------------------------------------------------
@@ -2498,53 +2586,39 @@ badipscom
 
 # -----------------------------------------------------------------------------
 # SORBS test
+
 # this is a test - it does not work without another script that rsyncs files from sorbs.net
-#update sorbs_dul 1 0 ipv4 both "" remove_comments "[Sorbs.net](https://www.sorbs.net/) DUL, Dynamic User IPs extracted from deltas."
-#update sorbs_http 1 0 ipv4 both "" remove_comments "[Sorbs.net](https://www.sorbs.net/) HTTP proxies, extracted from deltas."
-#update sorbs_misc 1 0 ipv4 both "" remove_comments "[Sorbs.net](https://www.sorbs.net/) MISC proxies, extracted from deltas."
-#update sorbs_smtp 1 0 ipv4 both "" remove_comments "[Sorbs.net](https://www.sorbs.net/) SMTP Open Relays, extracted from deltas."
-#update sorbs_socks 1 0 ipv4 both "" remove_comments "[Sorbs.net](https://www.sorbs.net/) SOCKS proxies, extracted from deltas."
-#update sorbs_spam 1 0 ipv4 both "" remove_comments "[Sorbs.net](https://www.sorbs.net/) Spam senders, extracted from deltas."
-#update sorbs_new_spam 1 0 ipv4 both "" remove_comments "[Sorbs.net](https://www.sorbs.net/) NEW Spam senders, extracted from deltas."
-#update sorbs_recent_spam 1 0 ipv4 both "" remove_comments "[Sorbs.net](https://www.sorbs.net/) RECENT Spam senders, extracted from deltas."
-#update sorbs_web 1 0 ipv4 both "" remove_comments "[Sorbs.net](https://www.sorbs.net/) WEB exploits, extracted from deltas."
+
+DO_NOT_REDISTRIBUTE[sorbs_dul.netset]="1"
+update sorbs_dul 1 0 ipv4 both "" remove_comments "[Sorbs.net](https://www.sorbs.net/) DUL, Dynamic User IPs extracted from deltas."
+
+DO_NOT_REDISTRIBUTE[sorbs_http.netset]="1"
+update sorbs_http 1 0 ipv4 both "" remove_comments "[Sorbs.net](https://www.sorbs.net/) HTTP proxies, extracted from deltas."
+
+DO_NOT_REDISTRIBUTE[sorbs_misc.netset]="1"
+update sorbs_misc 1 0 ipv4 both "" remove_comments "[Sorbs.net](https://www.sorbs.net/) MISC proxies, extracted from deltas."
+
+DO_NOT_REDISTRIBUTE[sorbs_smtp.netset]="1"
+update sorbs_smtp 1 0 ipv4 both "" remove_comments "[Sorbs.net](https://www.sorbs.net/) SMTP Open Relays, extracted from deltas."
+
+DO_NOT_REDISTRIBUTE[sorbs_socks.netset]="1"
+update sorbs_socks 1 0 ipv4 both "" remove_comments "[Sorbs.net](https://www.sorbs.net/) SOCKS proxies, extracted from deltas."
+
+DO_NOT_REDISTRIBUTE[sorbs_spam.netset]="1"
+update sorbs_spam 1 0 ipv4 both "" remove_comments "[Sorbs.net](https://www.sorbs.net/) Spam senders, extracted from deltas."
+
+DO_NOT_REDISTRIBUTE[sorbs_new_spam.netset]="1"
+update sorbs_new_spam 1 0 ipv4 both "" remove_comments "[Sorbs.net](https://www.sorbs.net/) NEW Spam senders, extracted from deltas."
+
+DO_NOT_REDISTRIBUTE[sorbs_recent_spam.netset]="1"
+update sorbs_recent_spam 1 0 ipv4 both "" remove_comments "[Sorbs.net](https://www.sorbs.net/) RECENT Spam senders, extracted from deltas."
+
+DO_NOT_REDISTRIBUTE[sorbs_web.netset]="1"
+update sorbs_web 1 0 ipv4 both "" remove_comments "[Sorbs.net](https://www.sorbs.net/) WEB exploits, extracted from deltas."
 
 
 # -----------------------------------------------------------------------------
 # FireHOL lists
-
-merge() {
-	local to="${1}" info="${2}" included=()
-	shift 2
-
-	if [ ! -f "${to}.source" ]
-		then
-		echo >&2 "${to}: is disabled. To enable it run: touch ${base}/${to}.source"
-		return 1
-	fi
-
-	for x in "${@}"
-	do
-		if [ ! -z "${IPSET_FILE[${x}]}" -a -f "${IPSET_FILE[${x}]}" ]
-			then
-			# echo >&2 "Adding ${x}..."
-			cat "${IPSET_FILE[${x}]}"
-			included=("${included[@]}" "${x}")
-		fi
-	done >"${to}.tmp"
-
-	cat "${to}.tmp" | aggregate4 >"${to}.tmp2"
-	mv "${to}.tmp2" "${to}.tmp"
-
-	[ ! -f "${to}.netset" ] && touch "${to}.netset"
-	diff -q "${to}.netset" "${to}.tmp" >/dev/null 2>&1
-	if [ $? -ne 0 ]
-		then
-		finalize "${to}" "${to}.tmp" "${to}.setinfo" "${to}.source" "${to}.netset" "1" "0" "ipv4" "" "net" "" "${info} (includes: ${included[*]})"
-	else
-		rm "${to}.tmp"
-	fi
-}
 
 merge firehol_level1 "**FireHOL Level 1** - Maximum protection without false positives." \
 	fullbogons dshield feodo palevo sslbl zeus spamhaus_drop spamhaus_edrop
@@ -2555,14 +2629,14 @@ merge firehol_level2 "**FireHOL Level 2** - Maximum protection from attacks took
 merge firehol_level3 "**FireHOL Level 3** - All the bad IPs in last 30 days." \
 	openbl_30d stopforumspam_30d virbl malc0de shunlist malwaredomainlist bruteforceblocker \
 	ciarmy cleanmx_viruses snort_ipfilter ib_bluetack_spyware ib_bluetack_hijacked ib_bluetack_webexploit \
-	php_commenters php_dictionary php_harvesters php_spammers
+	php_commenters php_dictionary php_harvesters php_spammers iw_wormlist
 
 merge firehol_proxies "**FireHOL Proxies** - Known open proxies in the last 30 days." \
 	ib_bluetack_proxies maxmind_proxy_fraud proxyrss proxz \
 	ri_connect_proxies ri_web_proxies xroxy
 
 merge firehol_anonymous "**FireHOL Anonymous** - Known anonymizing IPs." \
-	firehol_proxies anonymous bm_tor dm_tor
+	firehol_proxies anonymous bm_tor dm_tor tor_exits
 
 
 # -----------------------------------------------------------------------------
@@ -2572,9 +2646,11 @@ merge firehol_anonymous "**FireHOL Anonymous** - Known anonymizing IPs." \
 # - http://www.nothink.org/blacklist/blacklist_ssh_week.txt
 # - http://www.nothink.org/blacklist/blacklist_malware_irc.txt
 # - http://www.nothink.org/blacklist/blacklist_malware_http.txt
-# - http://check.torproject.org/cgi-bin/TorBulkExitList.py?ip=1.1.1.1
+# - http://check.torproject.org/cgi-bin/TorBulkExitList.py?ip=1.1.1.1 # 16 hours history of tor exit points
 # - http://www.ipdeny.com/ipblocks/ geo country db for ipv6
 # - maxmind city geodb
+# - http://antispam.imp.ch/spamlist
+# - https://github.com/Blueliv/api-python-sdk/wiki/Blueliv-REST-API-Documentation
 #
 # user specific features
 # - allow the user to request an email if a set increases by a percentage or number of unique IPs
