@@ -526,6 +526,9 @@ dnsbl ${IGNORE} rep.mailspike.net # IP Reputation
 dnsbl 0 list.blogspambl.com
 	score ${BADKARMA} 127.0.0.2
 
+dnsbl 0 wormrbl.imp.ch
+	score ${EXPLOIT} 127.0.0.5 # worms, viruses of the last 3 days
+
 dnsbl ${GOODKARMA} list.dnswl.org # all responses include valid mail servers
 
 dnsbl ${SPAMWAVE} z.mailspike.net # participating in a distributed spam wave in the last 48 hours
