@@ -1165,79 +1165,135 @@ void usage(const char *me) {
 		"\n"
 		"Usage: %s [options] file1 file2 file3 ...\n"
 		"\n"
-		"options:\n"
-		"	--optimize or --combine or --merge or -J\n"
-		"		> enables MERGE mode (the default)\n"
-		"		merge all files and print the merged set\n"
-		"		this is the default\n"
+		"options (multiple options are aliases):\n"
+		"\n"
+		"	--------------------------------------------------------------\n"
+		"	CIDR OUTPUT MODES\n"
+		"\n"
+		"	--optimize\n"
+		"	--combine\n"
+		"	--merge\n"
+		"	--union\n"
+		"	--union-all\n"
+		"	-J\n"
+		"		> UNION mode (the default)\n"
+		"		returns all IPs found on all files\n"
+		"		the resulting set is sorted\n"
+		"\n"
+		"	--common\n"
+		"	--intersect\n"
+		"	--intersect-all\n"
+		"		> INTERSECT mode\n"
+		"		intersect all files to find their common IPs\n"
+		"		the resulting set is sorted\n"
+		"\n"
+		"	--exclude-next\n"
+		"	--complement\n"
+		"	--complement-next\n"
+		"		> COMPLEMENT mode\n"
+		"		1. union all files before this parameter (A set)\n"
+		"		2. remove all IPs found in the files after this\n"
+		"		   parameter, from the set A\n"
+		"		the resulting set is sorted\n"
 		"\n"
 		"	--ipset-reduce PERCENT\n"
-		"		> enables IPSET REDUCE mode\n"
-		"		merge all files and print the merged set\n"
+		"	--reduce-factor PERCENT\n"
+		"		> IPSET REDUCE mode\n"
+		"		union all files and print the merged set\n"
 		"		but try to reduce the number of prefixes (subnets)\n"
 		"		found, while allowing some increase in entries\n"
 		"		the PERCENT is how much percent to allow\n"
-		"		increase of the entries in order to reduce the\n"
-		"		prefixes (subnets)\n"
+		"		increase on the number of entries in order to reduce\n"
+		"		the prefixes (subnets)\n"
 		"		(the internal default PERCENT is 20)\n"
 		"		(use -v to see exactly what it does)\n"
+		"		the resulting set is sorted\n"
 		"\n"
 		"	--ipset-reduce-entries ENTRIES\n"
-		"		> enables IPSET REDUCE mode\n"
+		"	--reduce-entries ENTRIES\n"
+		"		> IPSET REDUCE mode\n"
 		"		allow increasing the entries above PERCENT, if\n"
 		"		they are below ENTRIES\n"
 		"		(the internal default ENTRIES is 16384)\n"
 		"\n"
+		"\n"
+		"	--------------------------------------------------------------\n"
+		"	CSV OUTPUT MODES\n"
+		"\n"
 		"	--compare\n"
-		"		> enables COMPARE ALL mode\n"
+		"		> COMPARE ALL mode (CSV output)\n"
 		"		compare all files with all other files\n"
-		"		the output is CSV formatted\n"
 		"		add --header to get the CSV header too\n"
 		"\n"
 		"	--compare-first\n"
-		"		> enables COMPARE FIRST mode\n"
+		"		> COMPARE FIRST mode (CSV output)\n"
 		"		compare the first file with all other files\n"
-		"		the output is CSV formatted\n"
 		"		add --header to get the CSV header too\n"
 		"\n"
 		"	--compare-next\n"
-		"		> enables COMPARE NEXT mode\n"
+		"		> COMPARE NEXT mode (CSV output)\n"
 		"		compare all the files that appear before this\n"
 		"		parameter, to all files that appear after this\n"
 		"		parameter\n"
-		"		the output is CSV formatted\n"
 		"		add --header to get the CSV header too\n"
 		"\n"
-		"	--common\n"
-		"		> enables COMMON IPs mode\n"
-		"		print all IPs found on all files given\n"
-		"		this is not a text diff, but a per IP\n"
-		"		comparison of all files\n"
-		"\n"
-		"	--exclude-next\n"
-		"		> enables EXCLUDE IPs mode\n"
-		"		merge all the files before this parameter\n"
-		"		and the exclude from them all the IPs found\n"
-		"		in the files after this parameter\n"
-		"\n"
-		"	--count-unique or -C\n"
-		"		> enables IPSET_COUNT_UNIQUE mode\n"
+		"	--count-unique\n"
+		"	-C\n"
+		"		> COUNT UNIQUE mode (CSV output)\n"
 		"		merge all files and print its counts\n"
-		"		the output is CSV formatted\n"
 		"		add --header to get the CSV header too\n"
 		"\n"
 		"	--count-unique-all\n"
-		"		> enables IPSET_COUNT_UNIQUE_ALL mode\n"
+		"		> COUNT UNIQUE ALL mode (CSV output)\n"
 		"		print counts for each file\n"
-		"		the output is CSV formatted\n"
 		"		add --header to get the CSV header too\n"
 		"\n"
-		"	--print-ranges or -j\n"
+		"\n"
+		"	--------------------------------------------------------------\n"
+		"	OPTIONS THAT AFFECT INPUT\n"
+		"\n"
+		"	--dont-fix-network\n"
+		"		by default, the network address of all CIDRs\n"
+		"		is used (i.e. 1.1.1.17/24 is read as 1.1.1.0/24)\n"
+		"		this option disables this feature\n"
+		"		(i.e. 1.1.1.17/24 is read as 1.1.1.17-1.1.1.255)\n"
+		"\n"
+		"	--default-prefix PREFIX\n"
+		"	-p PREFIX\n"
+		"		Set the default prefix for all IPs without mask\n"
+		"		the default is 32\n"
+		"\n"
+		"\n"
+		"	--------------------------------------------------------------\n"
+		"	OPTIONS THAT AFFECT CIDR OUTPUT\n"
+		"\n"
+		"	--min-prefix N\n"
+		"		do not generate prefixes larger than N\n"
+		"		i.e. if N is 24 then /24 to /32 entries will be\n"
+		"		     generated (a /16 network will be generated\n"
+		"		     using multiple /24 networks)\n"
+		"		this is useful to optimize netfilter/iptables\n"
+		"		ipsets, where each different prefix increases the\n"
+		"		lookup time for each packet, but the number of\n"
+		"		entries in the ipset do not affect its performance\n"
+		"		with this setting more entries will be produced\n"
+		"		to accomplish the same match\n"
+		"		warning: misuse of this parameter can create a large\n"
+		"		         number of entries in the generated set\n"
+		"\n"
+		"	--prefixes N,N,N, ...\n"
+		"		enable only the given prefixes to express all CIDRs\n"
+		"		prefix 32 is always enabled\n"
+		"		warning: misuse of this parameter can create a large\n"
+		"		         number of entries in the generated set\n"
+		"	--print-ranges\n"
+		"	-j\n"
 		"		print IP ranges (A.A.A.A-B.B.B.B)\n"
 		"		the default is to print CIDRs (A.A.A.A/B)\n"
 		"		it only applies when the output is not CSV\n"
 		"\n"
-		"	--print-single-ips or -1\n"
+		"	--print-single-ips\n"
+		"	-1\n"
 		"		print single IPs\n"
 		"		this can produce large output\n"
 		"		the default is to print CIDRs (A.A.A.A/B)\n"
@@ -1273,71 +1329,55 @@ void usage(const char *me) {
 		"		useful for giving subnets different\n"
 		"		ipset options\n"
 		"\n"
+		"\n"
+		"	--------------------------------------------------------------\n"
+		"	OPTIONS THAT AFFECT CSV OUTPUT\n"
+		"\n"
 		"	--header\n"
 		"		when the output is CSV, print the header line\n"
 		"		the default is to not print the header line\n"
 		"\n"
-		"	--dont-fix-network\n"
-		"		by default, the network address of all CIDRs\n"
-		"		is used (i.e. 1.1.1.17/24 is read as 1.1.1.0/24)\n"
-		"		this option disables this feature\n"
-		"		(i.e. 1.1.1.17/24 is read as 1.1.1.17-1.1.1.255)\n"
 		"\n"
-		"	--default-prefix PREFIX or -p PREFIX\n"
-		"		Set the default prefix for all IPs without mask\n"
-		"		the default is 32\n"
+		"	--------------------------------------------------------------\n"
+		"	OTHER OPTIONS\n"
 		"\n"
-		"	--min-prefix N\n"
-		"		do not generate prefixes larger than N\n"
-		"		i.e. if N is 24 then /24 to /32 entries will be\n"
-		"		     generated (a /16 network will be generated\n"
-		"		     using multiple /24 networks)\n"
-		"		this is useful to optimize netfilter/iptables\n"
-		"		ipsets, where each different prefix increases the\n"
-		"		lookup time for each packet, but the number of\n"
-		"		entries in the ipset do not affect its performance\n"
-		"		with this setting more entries will be produced\n"
-		"		to accomplish the same match\n"
-		"		warning: misuse of this parameter can create a large\n"
-		"		         number of entries in the generated set\n"
-		"\n"
-		"	--prefixes N,N,N, ...\n"
-		"		enable only the given prefixes to express all CIDRs\n"
-		"		prefix 32 is always enabled\n"
-		"		warning: misuse of this parameter can create a large\n"
-		"		         number of entries in the generated set\n"
-		"\n"
-		"	--has-compare or --has-reduce\n"
+		"	--has-compare\n"
+		"	--has-reduce\n"
 		"		exits with 0\n"
-		"		older versions of iprange will exit with 1\n"
+		"		other versions of iprange will exit with 1\n"
 		"		use this option in scripts to find if this\n"
 		"		version of iprange is present in a system\n"
 		"\n"
 		"	-v\n"
 		"		be verbose on stderr\n"
 		"\n"
-		"	--help or -h\n"
+		"	--help\n"
+		"	-h\n"
 		"		print this message\n"
+		"\n"
+		"\n"
+		"	--------------------------------------------------------------\n"
+		"	INPUT FILES\n"
 		"\n"
 		"	fileN\n"
 		"		a filename or - for stdin\n"
 		"		each filename can be followed by [as NAME]\n"
-		"		to change its name on the CSV output\n"
+		"		to change its name in the CSV output\n"
 		"\n"
 		"		if no filename is given, stdin is assumed\n"
 		"\n"
-		"		the files may contain:\n"
-		"		 - comments starting with # or ;\n"
-		"		 - one IP per line (without mask)\n"
-		"		 - a CIDR per line (A.A.A.A/B)\n"
-		"		 - an IP range per line (A.A.A.A - B.B.B.B)\n"
-		"		 - a CIDR range per line (A.A.A.A/B - C.C.C.C/D)\n"
-		"		   the range is calculated as the network address\n"
-		"		   of A.A.A.A/B to the broadcast address of C.C.C.C/D\n"
-		"		   (this is affected by --dont-fix-network)\n"
-		"		 - CIDRs can be given in either prefix or netmask\n"
-		"		   format in all cases (including ranges)\n"
-		"		 - spaces and empty lines are ignored\n"
+		"		files may contain:\n"
+		"		- comments starting with # or ;\n"
+		"		- one IP per line (without mask)\n"
+		"		- a CIDR per line (A.A.A.A/B)\n"
+		"		- an IP range per line (A.A.A.A - B.B.B.B)\n"
+		"		- a CIDR range per line (A.A.A.A/B - C.C.C.C/D)\n"
+		"		  the range is calculated as the network address of\n"
+		"		  A.A.A.A/B to the broadcast address of C.C.C.C/D\n"
+		"		  (this is affected by --dont-fix-network)\n"
+		"		- CIDRs can be given in either prefix or netmask\n"
+		"		  format in all cases (including ranges)\n"
+		"		- spaces and empty lines are ignored\n"
 		"\n"
 		"		any number of files can be given\n"
 		"\n"
@@ -1371,20 +1411,20 @@ int main(int argc, char **argv) {
 	int i, mode = MODE_COMBINE, print = PRINT_CIDR, header = 0, read_second = 0;
 
 	for(i = 1; i < argc ; i++) {
-		if(strcmp(argv[i], "as") == 0 && root && i+1 < argc) {
+		if(i+1 < argc && !strcmp(argv[i], "as") && root) {
 			strncpy(root->filename, argv[++i], FILENAME_MAX);
 			root->filename[FILENAME_MAX] = '\0';
 		}
-		else if(strcmp(argv[i], "--min-prefix") == 0 && i+1 < argc) {
+		else if(i+1 < argc && !strcmp(argv[i], "--min-prefix")) {
 			int j, min_prefix = atoi(argv[++i]);
-			if(min_prefix < 0 || min_prefix > 31) {
+			if(min_prefix < 1 || min_prefix > 32) {
 				fprintf(stderr, "Only prefixes 1 to 31 can be disabled. %d is invalid.\n", min_prefix);
 				exit(1);
 			}
 			for(j = 0; j < min_prefix; j++)
 				prefix_enabled[j] = 0;
 		}
-		else if(strcmp(argv[i], "--prefixes") == 0 && i+1 < argc) {
+		else if(i+1 < argc && !strcmp(argv[i], "--prefixes")) {
 			char *s = NULL, *e = argv[++i];
 			int j;
 
@@ -1395,7 +1435,7 @@ int main(int argc, char **argv) {
 				s = e;
 				j = strtol(s, &e, 10);
 				if(j <= 0 || j > 32) {
-					fprintf(stderr, "%s: Only prefixes from 1 to 32 can be set (32 is always enabled if needed). %d is invalid.\n", PROG, j);
+					fprintf(stderr, "%s: Only prefixes from 1 to 32 can be set (32 is always enabled). %d is invalid.\n", PROG, j);
 					exit(1);
 				}
 				if(debug) fprintf(stderr, "Enabling prefix %d\n", j);
@@ -1408,87 +1448,111 @@ int main(int argc, char **argv) {
 				exit(1);
 			}
 		}
-		else if((strcmp(argv[i], "--default-prefix") == 0 || strcmp(argv[i], "-p") == 0) && i+1 < argc) {
+		else if(i+1 < argc && (
+			   !strcmp(argv[i], "--default-prefix")
+			|| !strcmp(argv[i], "-p")
+			)) {
 			default_prefix = atoi(argv[++i]);
 		}
-		else if(strcmp(argv[i], "--ipset-reduce") == 0 && i+1 < argc) {
+		else if(i+1 < argc && (
+			   !strcmp(argv[i], "--ipset-reduce")
+			|| !strcmp(argv[i], "--reduce-factor")
+			)) {
 			ipset_reduce_factor = 100 + atoi(argv[++i]);
 			mode = MODE_REDUCE;
 		}
-		else if(strcmp(argv[i], "--ipset-reduce-entries") == 0 && i+1 < argc) {
+		else if(i+1 < argc && (
+			   !strcmp(argv[i], "--ipset-reduce-entries")
+			|| !strcmp(argv[i], "--reduce-entries")
+			)) {
 			ipset_reduce_min_accepted = atoi(argv[++i]);
 			mode = MODE_REDUCE;
 		}
-		else if(strcmp(argv[i], "--optimize") == 0 || strcmp(argv[i], "--combine") == 0 || strcmp(argv[i], "-J") == 0 || strcmp(argv[i], "--merge") == 0) {
+		else if(!strcmp(argv[i], "--optimize") 
+			|| !strcmp(argv[i], "--combine") 
+			|| !strcmp(argv[i], "--merge") 
+			|| !strcmp(argv[i], "--union") 
+			|| !strcmp(argv[i], "--union-all")
+			|| !strcmp(argv[i], "-J") 
+			) {
 			mode = MODE_COMBINE;
 		}
-		else if(strcmp(argv[i], "--compare") == 0) {
-			mode = MODE_COMPARE;
-		}
-		else if(strcmp(argv[i], "--common") == 0) {
+		else if(!strcmp(argv[i], "--common") 
+			|| !strcmp(argv[i], "--intersect") 
+			|| !strcmp(argv[i], "--intersect-all")) {
 			mode = MODE_COMMON;
 		}
-		else if(strcmp(argv[i], "--compare-first") == 0) {
-			mode = MODE_COMPARE_FIRST;
-		}
-		else if(strcmp(argv[i], "--compare-next") == 0) {
-			mode = MODE_COMPARE_NEXT;
-			read_second = 1;
-		}
-		else if(strcmp(argv[i], "--exclude-next") == 0) {
+		else if(!strcmp(argv[i], "--exclude-next")
+			|| !strcmp(argv[i], "--complement-next") 
+			|| !strcmp(argv[i], "--complement")) {
 			mode = MODE_EXCLUDE_NEXT;
 			read_second = 1;
 		}
-		else if(strcmp(argv[i], "--count-unique") == 0 || strcmp(argv[i], "-C") == 0) {
+		else if(!strcmp(argv[i], "--compare")) {
+			mode = MODE_COMPARE;
+		}
+		else if(!strcmp(argv[i], "--compare-first")) {
+			mode = MODE_COMPARE_FIRST;
+		}
+		else if(!strcmp(argv[i], "--compare-next")) {
+			mode = MODE_COMPARE_NEXT;
+			read_second = 1;
+		}
+		else if(!strcmp(argv[i], "--count-unique")
+			|| !strcmp(argv[i], "-C")) {
 			mode = MODE_COUNT_UNIQUE_MERGED;
 		}
-		else if(strcmp(argv[i], "--count-unique-all") == 0) {
+		else if(!strcmp(argv[i], "--count-unique-all")) {
 			mode = MODE_COUNT_UNIQUE_ALL;
 		}
-		else if(strcmp(argv[i], "--help") == 0 || strcmp(argv[i], "-h") == 0) {
+		else if(!strcmp(argv[i], "--help")
+			|| !strcmp(argv[i], "-h")) {
 			usage(argv[0]);
 		}
-		else if(strcmp(argv[i], "-v") == 0) {
+		else if(!strcmp(argv[i], "-v")) {
 			debug = 1;
 		}
-		else if(strcmp(argv[i], "--print-ranges") == 0 || strcmp(argv[i], "-j") == 0) {
+		else if(!strcmp(argv[i], "--print-ranges")
+			|| !strcmp(argv[i], "-j")) {
 			print = PRINT_RANGE;
 		}
-		else if(strcmp(argv[i], "--print-single-ips") == 0 || strcmp(argv[i], "-1") == 0) {
+		else if(!strcmp(argv[i], "--print-single-ips")
+			|| !strcmp(argv[i], "-1")) {
 			print = PRINT_SINGLE_IPS;
 		}
-		else if(strcmp(argv[i], "--print-prefix") == 0 && i+1 < argc) {
+		else if(i+1 < argc && !strcmp(argv[i], "--print-prefix")) {
 			print_prefix_ips  = argv[++i];
 			print_prefix_nets = print_prefix_ips;
 		}
-		else if(strcmp(argv[i], "--print-prefix-ips") == 0 && i+1 < argc) {
+		else if(i+1 < argc && !strcmp(argv[i], "--print-prefix-ips")) {
 			print_prefix_ips = argv[++i];
 		}
-		else if(strcmp(argv[i], "--print-prefix-nets") == 0 && i+1 < argc) {
+		else if(i+1 < argc && !strcmp(argv[i], "--print-prefix-nets")) {
 			print_prefix_nets = argv[++i];
 		}
-		else if(strcmp(argv[i], "--print-suffix") == 0 && i+1 < argc) {
+		else if(i+1 < argc && !strcmp(argv[i], "--print-suffix")) {
 			print_suffix_ips = argv[++i];
 			print_suffix_nets = print_suffix_ips;
 		}
-		else if(strcmp(argv[i], "--print-suffix-ips") == 0 && i+1 < argc) {
+		else if(i+1 < argc && !strcmp(argv[i], "--print-suffix-ips")) {
 			print_suffix_ips = argv[++i];
 		}
-		else if(strcmp(argv[i], "--print-suffix-nets") == 0 && i+1 < argc) {
+		else if(i+1 < argc && !strcmp(argv[i], "--print-suffix-nets")) {
 			print_suffix_nets = argv[++i];
 		}
-		else if(strcmp(argv[i], "--header") == 0) {
+		else if(!strcmp(argv[i], "--header")) {
 			header = 1;
 		}
-		else if(strcmp(argv[i], "--dont-fix-network") == 0) {
+		else if(!strcmp(argv[i], "--dont-fix-network")) {
 			cidr_use_network = 0;
 		}
-		else if(strcmp(argv[i], "--has-compare") == 0 || strcmp(argv[i], "--has-reduce") == 0) {
+		else if(!strcmp(argv[i], "--has-compare")
+			|| !strcmp(argv[i], "--has-reduce")) {
 			fprintf(stderr, "yes, compare and reduce is present.\n");
 			exit(0);
 		}
 		else {
-			if(strcmp(argv[i], "-") == 0)
+			if(!strcmp(argv[i], "-"))
 				ips = ipset_load(NULL);
 			else
 				ips = ipset_load(argv[i]);
