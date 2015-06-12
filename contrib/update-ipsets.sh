@@ -2395,10 +2395,22 @@ update lashback_ubl $[24*60] 0 ipv4 ip \
 dragon_column3() { remove_comments | cut -d '|' -f 3 | trim; }
 
 DO_NOT_REDISTRIBUTE[dragon_http.netset]="1"
-update dragon_http $[24*60] 0 ipv4 both \
+update dragon_http 60 0 ipv4 both \
 	"http://www.dragonresearchgroup.org/insight/http-report.txt" \
 	dragon_column3 \
 	"[Dragon Search Group](http://www.dragonresearchgroup.org/) IPs that have been seen sending HTTP requests to Dragon Research Pods in the last 7 days. This report lists hosts that are highly suspicious and are likely conducting malicious HTTP attacks. LEGITIMATE SEARCH ENGINE BOTS MAY BE IN THIS LIST. This report is informational.  It is not a blacklist, but some operators may choose to use it to help protect their networks and hosts in the forms of automated reporting and mitigation services."
+
+DO_NOT_REDISTRIBUTE[dragon_sshpauth.netset]="1"
+update dragon_sshpauth 60 0 ipv4 both \
+	"https://www.dragonresearchgroup.org/insight/sshpwauth.txt" \
+	dragon_column3 \
+	"[Dragon Search Group](http://www.dragonresearchgroup.org/) IP address that has been seen attempting to remotely login to a host using SSH password authentication, in the last 7 days. This report lists hosts that are highly suspicious and are likely conducting malicious SSH password authentication attacks."
+
+DO_NOT_REDISTRIBUTE[dragon_vncprobe.netset]="1"
+update dragon_vncprobe 60 0 ipv4 both \
+	"https://www.dragonresearchgroup.org/insight/vncprobe.txt" \
+	dragon_column3 \
+	"[Dragon Search Group](http://www.dragonresearchgroup.org/) IP address that has been seen attempting to remotely connect to a host running the VNC application service, in the last 7 days. This report lists hosts that are highly suspicious and are likely conducting malicious VNC probes or VNC brute force attacks."
 
 
 # -----------------------------------------------------------------------------
