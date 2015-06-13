@@ -755,6 +755,12 @@ FIREHOL_LOG_BURST="5"
 # FLUSH SWAP DESTROY in which case they be executed during postprocess
 IPSET_RESTORE_SUPPORTS_FLUSH_SWAP_DESTROY=1
 
+# if set to zero, firehol will not manage the maxelem parameter for
+# the ipsets, and openning large ipsets will require the maxelem
+# parameter to be given at the ipset create statement
+# Default: 1
+FIREHOL_IPSETS_ADAPT_MAXELEM=1
+
 # options that are appended to -m ipset matches when the ipset
 # is used instead of src and dst IPs.
 # The default is to prevent updating ipset counters
@@ -781,7 +787,12 @@ IPTRAP_DEFAULT_IPSET_COUNTERS_OPTIONS="timeout 3600 counters"
 # ----------------------------------------------------------------------
 # OLDER VERSIONS OF IPSET
 
-# IPSET_RESTORE_SUPPORTS_FLUSH_SWAP_DESTROY=0
+# older ipset versions do allow FLUSH SWAP or DESTROY commands
+# in restore files
+#IPSET_RESTORE_SUPPORTS_FLUSH_SWAP_DESTROY=0
+
+# older ipset versions do not support more than 65536 elements
+#FIREHOL_IPSETS_ADAPT_MAXELEM=0
 
 # older versions do not support the 'counters' option
 # even older versions do not support the 'timeout' option
@@ -5332,10 +5343,25 @@ ipset() {
 	esac
 }
 
+ipsets_adapt_maxelem() {
+	local name="${1}" entries="${2}"
+
+	if [ ${FIREHOL_IPSETS_ADAPT_MAXELEM} -eq 1 -a $[entries] -gt 65536 ]
+		then
+		# 1. remove the existing maxelem
+		# 2. add the proper one
+		${SED_CMD} \
+			-e "s|^\(${IPSET_CREATE_OPTION} ${name} .*\)[[:space:]]maxelem[[:space:]][0-9]\+\(.*\)$|\1 \2|g" \
+			-e "s|^\(${IPSET_CREATE_OPTION} ${name} .*\)$|\1 maxelem $[entries]|g"
+	else
+		cat
+	fi
+}
+
 FIREHOL_IPSET_TMP_COUNTER=0
 declare -A FIREHOL_IPSET_TMP_SETS=()
 ipset_to_temp_and_swap() {
-	local name="${1}"
+	local name="${1}" entries="${2}"
 
 	# find a temporary name for the new ipset
 	FIREHOL_IPSET_TMP_COUNTER=$[ FIREHOL_IPSET_TMP_COUNTER + 1 ]
@@ -5344,7 +5370,8 @@ ipset_to_temp_and_swap() {
 
 	# give the temporary name to the set
 	${SED_CMD} -e "s|^\([^[:space:]]*\) ${name} \(.*\)|\1 ${tmpname} \2|g" \
-	           -e "s|^\([^[:space:]]*\) ${name}$|\1 ${tmpname}|g"
+	           -e "s|^\([^[:space:]]*\) ${name}$|\1 ${tmpname}|g" |\
+	           ipsets_adapt_maxelem "${tmpname}" "${entries}"
 
 	# swap them, to activate the temporary ipset
 	echo "${IPSET_SWAP_OPTION} ${tmpname} ${name}"
@@ -5469,7 +5496,7 @@ ipsets_apply() {
 			test $restoring -eq 1 && continue
 			[ ${FIREHOL_IPSETS_RESPECT_KEEP} -eq 1 -a "${FIREHOL_IPSETS_KEEP[$x]}" = "1" ] && continue
 
-			ipset_to_temp_and_swap "${x}" <"${base}/ipset.${x}.rules" >>"${FIREHOL_DIR}/ipsets.restore"
+			ipset_to_temp_and_swap "${x}" $(wc -l <"${base}/ipset.${x}.rules") <"${base}/ipset.${x}.rules" >>"${FIREHOL_DIR}/ipsets.restore"
 		else
 			# it does not exist...
 			# copy the generated rules to the ipset restoration file
@@ -10390,7 +10417,7 @@ case "${arg}" in
 			fi
 
 			# lets rename it
-			ipset_to_temp_and_swap "${name}" <${tmp} >"${FIREHOL_DIR}/ipsets.restore"
+			ipset_to_temp_and_swap "${name}" $(wc -l <${tmp}) <${tmp} >"${FIREHOL_DIR}/ipsets.restore"
 
 			# cp "${FIREHOL_DIR}/ipsets.restore" /tmp/
 
