@@ -1411,9 +1411,19 @@ int main(int argc, char **argv) {
 	int i, mode = MODE_COMBINE, print = PRINT_CIDR, header = 0, read_second = 0;
 
 	for(i = 1; i < argc ; i++) {
-		if(i+1 < argc && !strcmp(argv[i], "as") && root) {
-			strncpy(root->filename, argv[++i], FILENAME_MAX);
-			root->filename[FILENAME_MAX] = '\0';
+		if(i+1 < argc && !strcmp(argv[i], "as")) {
+			if(!read_second) {
+				if(root) {
+					strncpy(root->filename, argv[++i], FILENAME_MAX);
+					root->filename[FILENAME_MAX] = '\0';
+				}
+			}
+			else {
+				if(second) {
+					strncpy(second->filename, argv[++i], FILENAME_MAX);
+					second->filename[FILENAME_MAX] = '\0';
+				}
+			}
 		}
 		else if(i+1 < argc && !strcmp(argv[i], "--min-prefix")) {
 			int j, min_prefix = atoi(argv[++i]);
