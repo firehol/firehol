@@ -86,10 +86,8 @@
 # it supports.
 # -----------------------------------------------------------------------------
 
-base="/etc/firehol/ipsets"
-
 # single line flock, from man flock
-[ "${UPDATE_IPSETS_LOCKER}" != "${0}" ] && exec env UPDATE_IPSETS_LOCKER="$0" flock -en "${base}/.lock" "${0}" "${@}" || :
+[ "${UPDATE_IPSETS_LOCKER}" != "${0}" ] && exec env UPDATE_IPSETS_LOCKER="$0" flock -en "/var/run/update-ipsets.lock" "${0}" "${@}" || :
 
 PATH="${PATH}:/sbin:/usr/sbin"
 
@@ -102,6 +100,33 @@ then
 	exit 1
 fi
 renice 10 $$ >/dev/null 2>/dev/null
+
+if [ -t 2 -a $[$(tput colors 2>/dev/null)] -ge 8 ]
+then
+	# Enable colors
+	COLOR_RESET="\e[0m"
+	COLOR_BLACK="\e[30m"
+	COLOR_RED="\e[31m"
+	COLOR_GREEN="\e[32m"
+	COLOR_YELLOW="\e[33m"
+	COLOR_BLUE="\e[34m"
+	COLOR_PURPLE="\e[35m"
+	COLOR_CYAN="\e[36m"
+	COLOR_WHITE="\e[37m"
+	COLOR_BGBLACK="\e[40m"
+	COLOR_BGRED="\e[41m"
+	COLOR_BGGREEN="\e[42m"
+	COLOR_BGYELLOW="\e[43m"
+	COLOR_BGBLUE="\e[44m"
+	COLOR_BGPURPLE="\e[45m"
+	COLOR_BGCYAN="\e[46m"
+	COLOR_BGWHITE="\e[47m"
+	COLOR_BOLD="\e[1m"
+	COLOR_DIM="\e[2m"
+	COLOR_UNDERLINED="\e[4m"
+	COLOR_BLINK="\e[5m"
+	COLOR_INVERTED="\e[7m"
+fi
 
 # -----------------------------------------------------------------------------
 # external commands management
@@ -146,6 +171,7 @@ require_cmd awk
 require_cmd touch
 require_cmd ipset
 require_cmd dirname
+require_cmd mktemp
 
 program_pwd="${PWD}"
 program_dir="`dirname ${0}`"
@@ -160,9 +186,16 @@ if [ ! -z "${IPRANGE_CMD}" -a -x "${IPRANGE_CMD}" ]
 	[ $? -ne 0 ] && IPRANGE_CMD=
 fi
 
-if [ -z "${IPRANGE_CMD}" -a -x "${base}/iprange" ]
+if [ -z "${IPRANGE_CMD}" -a -x "/etc/firehol/iprange" ]
 	then
-	IPRANGE_CMD="${base}/iprange"
+	IPRANGE_CMD="/etc/firehol/iprange"
+	"${IPRANGE_CMD}" --has-reduce >/dev/null 2>&1
+	[ $? -ne 0 ] && IPRANGE_CMD=
+fi
+
+if [ -z "${IPRANGE_CMD}" -a -x "/etc/firehol/ipsets/iprange" ]
+	then
+	IPRANGE_CMD="/etc/firehol/ipsets/iprange"
 	"${IPRANGE_CMD}" --has-reduce >/dev/null 2>&1
 	[ $? -ne 0 ] && IPRANGE_CMD=
 fi
@@ -171,7 +204,6 @@ if [ -z "${IPRANGE_CMD}" -a ! -x "${program_dir}/iprange" -a -f "${program_dir}/
 	then
 	echo >&2 "Attempting to compile FireHOL's iprange..."
 	gcc -O3 -o "${program_dir}/iprange" "${program_dir}/iprange.c"
-	[ $? -eq 0 ] && cp "${program_dir}/iprange" "${base}/iprange"
 fi
 
 if [ -z "${IPRANGE_CMD}" -a -x "${program_dir}/iprange" ]
@@ -195,12 +227,7 @@ ipv4_range_to_cidr() {
 
 # iprange filter to aggregate ipv4 addresses
 aggregate4() {
-	"${IPRANGE_CMD}" #--ipset-reduce 40 --ipset-reduce-entries 65536
-}
-
-# iprange filter to aggregate ipv4 addresses
-aggregate4_reduce() {
-	"${IPRANGE_CMD}" --ipset-reduce 20 --ipset-reduce-entries 65536
+	"${IPRANGE_CMD}"
 }
 
 # iprange filter to process ipsets (IPv4 IPs, not subnets)
@@ -209,15 +236,111 @@ ipset_uniq4() {
 }
 
 # -----------------------------------------------------------------------------
+# CONFIGURATION
+
+# where to store the files
+BASE_DIR="/etc/firehol/ipsets"
+
+# where to keep the run files
+# a subdirectory will be created as RUN_DIR
+RUN_PARENT_DIR="/var/run"
+
+# where to keep the history files
+HISTORY_DIR="${BASE_DIR}/history"
+
+# where to keep the files we cannot process
+# when empty, error files will be deleted
+ERRORS_DIR="${BASE_DIR}/errors"
+
+# where to put the CSV files for the web server
+WEB_DIR="/var/www/localhost/htdocs/blocklists"
+
+# how to chown web files
+WEB_OWNER="apache:apache"
+
+# options to be given to iprange for reducing netsets
+IPSET_REDUCE_FACTOR="20"
+IPSET_REDUCE_ENTRIES="65536"
+
+if [ -f "/etc/firehol/update-ipsets.conf" ]
+	then
+	source /etc/firehol/update-ipsets.conf
+fi
+
+# -----------------------------------------------------------------------------
+# FIX DIRECTORIES
+
+if [ -z "${BASE_DIR}" ]
+	then
+	echo >&2 "BASE_DIR cannot be empty."
+	exit 1
+fi
+
+if [ -z "${RUN_PARENT_DIR}" ]
+	then
+	echo >&2 "RUN_PARENT_DIR cannot be empty."
+	exit 1
+fi
+
+if [ ! -z "${WEB_DIR}" -a ! -d "${WEB_DIR}" ]
+	then
+	echo >&2 "WEB_DIR is invalid. Disabling it."
+	WEB_DIR=
+fi
+
+for d in "${BASE_DIR}" "${RUN_PARENT_DIR}" "${HISTORY_DIR}" "${ERRORS_DIR}"
+do
+	[ -z "${d}" -o -d "${d}" ] && continue
+
+	mkdir -p "${d}" || exit 1
+	echo >&2 "Created directory '${d}'."
+done
+cd "${BASE_DIR}" || exit 1
+
+# -----------------------------------------------------------------------------
+# CLEANUP
+
+RUN_DIR=$(${MKTEMP_CMD} -d "${RUN_PARENT_DIR}/update-ipsets-XXXXXXXXXX")
+if [ $? -ne 0 ]
+	then
+	echo >&2 "ERROR: Cannot create temporary directory in ${RUN_PARENT_DIR}."
+	exit 1
+fi
+
+PROGRAM_COMPLETED=0
+cleanup() {
+	if [ ! -z "${RUN_DIR}" -a -d "${RUN_DIR}" ]
+		then
+		#echo >&2 "Cleaning up temporary files in ${RUN_DIR}."
+		rm -rf "${RUN_DIR}"
+	fi
+	trap exit EXIT
+	
+	if [ ${PROGRAM_COMPLETED} -eq 1 ]
+		then
+		#echo >&2 "Completed successfully."
+		exit 0
+	fi
+
+	#echo >&2 "Completed with errors."
+	exit 1
+}
+trap cleanup EXIT
+trap cleanup SIGHUP
+trap cleanup INT
+
+# -----------------------------------------------------------------------------
 # Command line parsing
 
 GIT_COMPARE=0
 IGNORE_LASTCHECKED=0
+FORCE_WEB_REBUILD=0
 PUSH_TO_GIT=0
 SILENT=0
 while [ ! -z "${1}" ]
 do
 	case "${1}" in
+		-r) FORCE_WEB_REBUILD=1;;
 		silen|-s) SILENT=1;;
 		git|-g) PUSH_TO_GIT=1;;
 		recheck|-i) IGNORE_LASTCHECKED=1;;
@@ -231,16 +354,9 @@ done
 # -----------------------------------------------------------------------------
 # other preparations
 
-# create the directory to save the sets
-if [ ! -d "${base}" ]
-then
-	mkdir -p "${base}" || exit 1
-fi
-cd "${base}" || exit 1
-
 if [ ! -d ".git" -a ${PUSH_TO_GIT} -ne 0 ]
 then
-	echo >&2 "Git is not initialized in ${base}. Ignoring git support."
+	echo >&2 "Git is not initialized in ${BASE_DIR}. Ignoring git support."
 	PUSH_TO_GIT=0
 fi
 
@@ -305,8 +421,6 @@ declare -A DO_NOT_REDISTRIBUTE=()
 commit_to_git() {
 	if [ -d .git -a ! -z "${!UPDATED_SETS[*]}" ]
 	then
-		[ ${GIT_COMPARE} -eq 1 ] && compare_all_ipsets
-
 		local d=
 		for d in "${!UPDATED_DIRS[@]}"
 		do
@@ -325,19 +439,6 @@ commit_to_git() {
 
 			UPDATED_SETS[${d}/README.md]="${d}/README.md"
 			check_git_committed "${d}/README.md"
-		done
-
-		echo >>README.md
-		echo "# Comparison of ipsets" >>README.md
-		echo >>README.md
-		echo "Below we compare each ipset against all other." >>README.md
-		echo >>README.md
-
-		for d in `find . -name \*.comparison.md | sort`
-		do
-			echo >>README.md
-			cat "${d}" >>README.md
-			rm "${d}"
 		done
 
 		declare -a to_be_pushed=()
@@ -360,14 +461,7 @@ commit_to_git() {
 			git push
 		fi
 	fi
-
-	trap exit EXIT
-	exit 0
 }
-# make sure we commit to git when we exit
-#trap commit_to_git EXIT
-#trap commit_to_git SIGHUP
-#trap commit_to_git INT
 
 # touch a file to a relative date in the past
 touch_in_the_past() {
@@ -416,31 +510,24 @@ history_manager() {
 	local ipset="${1}" mins="${2}" file="${3}" \
 		tmp= x= slot="`date +%s`.set"
 
-	# make sure the directories exist
-	if [ ! -d "history" ]
+	if [ ! -d "${HISTORY_DIR}/${ipset}" ]
 	then
-		mkdir "history" || return 1
-		chmod 700 "history"
-	fi
-
-	if [ ! -d "history/${ipset}" ]
-	then
-		mkdir "history/${ipset}" || return 2
-		chmod 700 "history/${ipset}"
+		mkdir "${HISTORY_DIR}/${ipset}" || return 2
+		chmod 700 "${HISTORY_DIR}/${ipset}"
 	fi
 
 	# touch a reference file
-	touch_in_the_past ${mins} "history/${ipset}/.reference" || return 3
+	touch_in_the_past ${mins} "${RUN_DIR}/history.reference" || return 3
 
-	# move the new file to the rss history
-	mv "${file}" "history/${ipset}/${slot}"
-	touch "history/${ipset}/${slot}"
+	# move the new file to the history
+	mv "${file}" "${HISTORY_DIR}/${ipset}/${slot}"
+	touch "${HISTORY_DIR}/${ipset}/${slot}"
 
 	# replace the original file with a concatenation of
 	# all the files newer than the reference file
-	for x in history/${ipset}/*.set
+	for x in ${HISTORY_DIR}/${ipset}/*.set
 	do
-		if [ "${x}" -nt "history/${ipset}/.reference" ]
+		if [ "${x}" -nt "${RUN_DIR}/history.reference" ]
 		then
 			#test ${SILENT} -ne 1 && echo >&2 "${ipset}: merging history file '${x}'"
 			cat "${x}"
@@ -448,7 +535,6 @@ history_manager() {
 			rm "${x}"
 		fi
 	done | sort -u >"${file}"
-	rm "history/${ipset}/.reference"
 
 	return 0
 }
@@ -521,7 +607,7 @@ download_manager() {
 		install="${1}" \
 		tmp= now= date= check=
 
-	tmp=`mktemp "${install}.tmp-XXXXXXXXXX"` || return ${DOWNLOAD_FAILED}
+	tmp=`mktemp "${RUN_DIR}/download-${ipset}-XXXXXXXXXX"` || return ${DOWNLOAD_FAILED}
 
 	# touch a file $mins + 2 ago
 	# we add 2 to let the server update the file
@@ -590,224 +676,362 @@ download_manager() {
 }
 
 # -----------------------------------------------------------------------------
-# ipsets comparisons
+# keep a cache of the data about all completed ipsets
 
 declare -A IPSET_INFO=()
 declare -A IPSET_SOURCE=()
 declare -A IPSET_URL=()
 declare -A IPSET_FILE=()
+declare -A IPSET_IPV=()
+declare -A IPSET_HASH=()
+declare -A IPSET_MINS=()
+declare -A IPSET_HISTORY_MINS=()
 declare -A IPSET_ENTRIES=()
 declare -A IPSET_IPS=()
-declare -A IPSET_OVERLAPS=()
-declare -A IPSET_COMPARED=()
+
+# TODO - FIXME
+#declare -A IPSET_SOURCE_DATE=()
+#declare -A IPSET_PROCESSED_DATE=()
+#declare -A IPSET_CATEGORY=() # like proxies, spam, attacks, exploits, etc
+#declare -A IPSET_PREFIXES=()
+#declare -A IPSET_DOWNLOADER=()
+#declare -A IPSET_DOWNLOADER_OPTIONS=()
+
 cache_save() {
 	#echo >&2 "Saving cache"
-	declare -p IPSET_SOURCE IPSET_URL IPSET_INFO IPSET_FILE IPSET_ENTRIES IPSET_IPS IPSET_OVERLAPS IPSET_COMPARED >"${base}/.cache"
+	declare -p IPSET_SOURCE IPSET_URL IPSET_INFO IPSET_IPV IPSET_HASH IPSET_MINS IPSET_HISTORY_MINS IPSET_FILE IPSET_ENTRIES IPSET_IPS >"${BASE_DIR}/.cache"
 }
-if [ -f "${base}/.cache" ]
+
+if [ -f "${BASE_DIR}/.cache" ]
 	then
 	echo >&2 "Loading cache"
-	source "${base}/.cache"
-	cache_save
+	source "${BASE_DIR}/.cache"
 fi
+
 cache_remove_ipset() {
 	local ipset="${1}"
 
 	echo >&2 "${ipset}: removing from cache"
 
-	cache_clean_ipset "${ipset}"
-
 	unset IPSET_INFO[${ipset}]
 	unset IPSET_SOURCE[${ipset}]
 	unset IPSET_URL[${ipset}]
 	unset IPSET_FILE[${ipset}]
+	unset IPSET_IPV[${ipset}]
+	unset IPSET_HASH[${ipset}]
+	unset IPSET_MINS[${ipset}]
+	unset IPSET_HISTORY_MINS[${ipset}]
 	unset IPSET_ENTRIES[${ipset}]
 	unset IPSET_IPS[${ipset}]
-	unset IPSET_COMPARED[${ipset}]
-
-	cache_save
-}
-cache_clean_ipset() {
-	local ipset="${1}"
-
-	# echo >&2 "${ipset}: Cleaning cache"
-	unset IPSET_ENTRIES[${ipset}]
-	unset IPSET_IPS[${ipset}]
-	unset IPSET_COMPARED[${ipset}]
-	local x=
-	for x in "${!IPSET_FILE[@]}"
-	do
-		unset IPSET_OVERLAPS[,${ipset},${x},]
-		unset IPSET_OVERLAPS[,${x},${ipset},]
-	done
 	cache_save
 }
 
-cache_update_ipset() {
-	local ipset="${1}"
-	if [ \( -z "${IPSET_ENTRIES[${ipset}]}" -o -z "${IPSET_IPS[${ipset}]}" \) -a -f "${IPSET_FILE[${ipset}]}" ]
+ipset_json() {
+	local ipset="${1}" geolite2= ipdeny= comparison= info=
+
+	if [ -f "${RUN_DIR}/${ipset}_geolite2_country.json" ]
 		then
-		local t="$("${IPRANGE_CMD}" -C "${IPSET_FILE[${ipset}]}")"
-		IPSET_ENTRIES[${ipset}]=${t/,*/}
-		IPSET_IPS[${ipset}]=${t/*,/}
+		geolite2="${ipset}_geolite2_country.json"
 	fi
-	return 0
-}
 
-print_last_digit_decimal() {
-	local x="${1}" len= pl=
-	len="${#x}"
-	while [ ${len} -lt 2 ]
-	do
-		x="0${x}"
-		len="${#x}"
-	done
-	pl="$[len - 1]"
-	echo "${x:0:${pl}}.${x:${pl}:${len}}"
-}
+	if [ -f "${RUN_DIR}/${ipset}_ipdeny_country.json" ]
+		then
+		ipdeny="${ipset}_ipdeny_country.json"
+	fi
 
-compare_ipset() {
-	local ipset="${1}" file= readme= info= entries= ips=
-	shift
+	if [ -f "${RUN_DIR}/${ipset}_comparison.json" ]
+		then
+		comparison="${ipset}_comparison.json"
+	fi
 
-	file="${IPSET_FILE[${ipset}]}"
 	info="${IPSET_INFO[${ipset}]}"
-	readme="${file/.ipset/}"
-	readme="${readme/.netset/}"
-	readme="${readme}.comparison.md"
+	info=$(echo "${info}" | sed "s/)/)\n/g" | sed "s|\[\(.*\)\](\(.*\))|<a href=\"\2\">\1</a>|g" | tr "\n" " ") 
+	info="${info//\"/\\\"}"
 
-	[[ "${file}" =~ ^geolite2.* ]] && return 1
-	[[ "${file}" =~ ^ipdeny_country.* ]] && return 1
-
-	if [ -z "${file}" -o ! -f "${file}" ]
-		then
-		cache_remove_ipset "${ipset}"
-		return 1
-	fi
-
-	cache_update_ipset "${ipset}"
-	entries="${IPSET_ENTRIES[${ipset}]}"
-	ips="${IPSET_IPS[${ipset}]}"
-
-	if [ -z "${entries}" -o -z "${ips}" -o ! -f "${IPSET_FILE[${ipset}]}" -o ! -f "${IPSET_SOURCE[${ipset}]}" ]
-		then
-		cache_remove_ipset "${ipset}"
-		return 1
-	fi
-
-	printf >&2 "%31.31s: " "${ipset}"
-
-	cat >${readme} <<EOFMD
-## ${ipset}
-
-${info}
-
-Source is downloaded from [this link](${IPSET_URL[${ipset}]}).
-
-The last time downloaded was found to be dated: `date -r "${IPSET_SOURCE[${ipset}]}" -u`.
-
-The ipset \`${ipset}\` has **${entries}** entries, **${ips}** unique IPs.
-
-The following table shows the overlaps of \`${ipset}\` with all the other ipsets supported. Only the ipsets that have at least 1 IP overlap are shown. if an ipset is not shown here, it does not have any overlap with \`${ipset}\`.
-
-- \` them % \` is the percentage of IPs of each row ipset (them), found in \`${ipset}\`.
-- \` this % \` is the percentage **of this ipset (\`${ipset}\`)**, found in the IPs of each other ipset.
-
-ipset|entries|unique IPs|IPs on both| them % | this % |
-:---:|:-----:|:--------:|:---------:|:------:|:------:|
-EOFMD
-
-	local oipset=
-	for oipset in "${!IPSET_FILE[@]}"
-	do
-		[ "${ipset}" = "${oipset}" ] && continue
-
-		local ofile="${IPSET_FILE[${oipset}]}"
-		if [ ! -f "${ofile}" ]
-			then
-			cache_remove_ipset "${oipset}"
-			continue
-		fi
-
-		[[ "${ofile}" =~ ^geolite2.* ]] && continue
-		[[ "${ofile}" =~ ^ipdeny_country.* ]] && continue
-
-		cache_update_ipset "${oipset}"
-		local oentries="${IPSET_ENTRIES[${oipset}]}"
-		local oips="${IPSET_IPS[${oipset}]}"
-
-		if [ -z "${oentries}" -o -z "${oips}" -o ! -f "${IPSET_FILE[${oipset}]}" -o ! -f "${IPSET_SOURCE[${oipset}]}" ]
-			then
-			printf >&2 "%s" "-"
-			continue
-		fi
-
-		if [ -z "${IPSET_OVERLAPS[,${ipset},${oipset},]}${IPSET_OVERLAPS[,${oipset},${ipset},]}" ]
-			then
-			printf >&2 "+"
-			local mips=$("${IPRANGE_CMD}" -C "${file}" "${ofile}" | cut -d ',' -f 2)
-			IPSET_OVERLAPS[,${ipset},${oipset},]=$[(ips + oips) - mips]
-		else
-			printf >&2 "."
-		fi
-		local overlap="${IPSET_OVERLAPS[,${ipset},${oipset},]}${IPSET_OVERLAPS[,${oipset},${ipset},]}"
-
-		[ ${overlap} -gt 0 ] && echo "${overlap}|[${oipset}](#${oipset})|${oentries}|${oips}|${overlap}|$(print_last_digit_decimal $[overlap * 1000 / oips])%|$(print_last_digit_decimal $[overlap * 1000 / ips])%|" >>${readme}.tmp
-	done
-	if [ -f "${readme}.tmp" ]
-		then
-		cat "${readme}.tmp" | sort -n -r | cut -d '|' -f 2- >>${readme}
-		rm "${readme}.tmp"
-	fi
-
-	echo >&2
-	cache_save
+	cat <<EOFJSON
+{
+	"name": "${ipset}",
+	"entries": ${IPSET_ENTRIES[${ipset}]},
+	"ips": ${IPSET_IPS[${ipset}]},
+	"ipv": "${IPSET_IPV[${ipset}]}",
+	"hash": "${IPSET_HASH[${ipset}]}",
+	"frequency": ${IPSET_MINS[${ipset}]},
+	"aggregation": ${IPSET_HISTORY_MINS[${ipset}]},
+	"updated": $(date -r "${IPSET_SOURCE[${ipset}]}" +%s)000,
+	"processed": $(date +%s)000,
+	"info": "${info}",
+	"source": "${IPSET_URL[${ipset}]}",
+	"file": "${IPSET_FILE[${ipset}]}",
+	"history": "${ipset}_history.csv",
+	"geolite2": "${geolite2}",
+	"ipdeny": "${ipdeny}",
+	"comparison": "${comparison}"
+}
+EOFJSON
 }
 
-compare_all_ipsets() {
-	local x= all=()
+update_web() {
+	[ -z "${WEB_DIR}" -o ! -d "${WEB_DIR}" ] && return 1
+	[ "${#UPDATED_SETS[@]}" -eq 0 -a ! ${FORCE_WEB_REBUILD} -eq 1 ] && return 1
+
+	local x= all=() geolite2_country=() ipdeny_country=() i= to_all=
+	
 	echo >&2
-	echo >&2 "Cleaning ipsets..."
+	printf >&2 "updating history... "
 	for x in "${!IPSET_FILE[@]}"
 	do
+		# remove deleted files
 		if [ ! -f "${IPSET_FILE[$x]}" ]
 			then
 			echo >&2 "${x}: file ${IPSET_FILE[$x]} not found - removing it from cache"
-			cache_clean_ipset "${x}"
+			cache_remove_ipset "${x}"
+			
+			continue
 		fi
 
-		[[ "${IPSET_FILE[$x]}" =~ ^geolite2.* ]] && continue
-		[[ "${IPSET_FILE[$x]}" =~ ^ipdeny_country.* ]] && continue
+		# update the history CSV files
+		if [ ! -z "${UPDATED_SETS[${x}]}" -o ! -f "${WEB_DIR}/${x}_history.csv" ]
+			then
+			if [ ! -f "${WEB_DIR}/${x}_history.csv" ]
+				then
+				echo "DateTime,Entries,UniqueIPs" >"${WEB_DIR}/${x}_history.csv"
+				touch "${WEB_DIR}/${x}_history.csv"
+				chmod 0644 "${WEB_DIR}/${x}_history.csv"
+			fi
+			printf " ${x}"
+			echo >>"${WEB_DIR}/${x}_history.csv" "$(date -r "${IPSET_SOURCE[${x}]}" +%s),${IPSET_ENTRIES[${x}]},${IPSET_IPS[${x}]}"
+		fi
 
-		all=("${all[@]}" "${IPSET_FILE[$x]}" "as" "${x}")
+		to_all=1
+
+		# prepare the parameters for iprange to compare the sets
+		if [[ "${IPSET_FILE[$x]}" =~ ^geolite2.* ]]
+			then
+			to_all=0
+			case "${x}" in
+				country_*)		i=${x/country_/} ;;
+				continent_*)	i= ;;
+				anonymous)		to_all=1; i= ;;
+				satellite)		to_all=1; i= ;;
+				*)				i= ;;
+			esac
+			[ ! -z "${i}" ] && geolite2_country=("${geolite2_country[@]}" "${IPSET_FILE[$x]}" "as" "${i^^}")
+		elif [[ "${IPSET_FILE[$x]}" =~ ^ipdeny_country.* ]]
+			then
+			to_all=0
+			case "${x}" in
+				id_country_*)	i=${x/id_country_/} ;;
+				id_continent_*)	i= ;;
+				*)				i= ;;
+			esac
+			[ ! -z "${i}" ] && ipdeny_country=("${ipdeny_country[@]}" "${IPSET_FILE[$x]}" "as" "${i^^}")
+		fi
+
+		if [ ${to_all} -eq 1 ]
+			then
+			all=("${all[@]}" "${IPSET_FILE[$x]}" "as" "${x}")
+			
+			if [ ! -f "${RUN_DIR}/all-ipsets.json" ]
+				then
+				printf >"${RUN_DIR}/all-ipsets.json" "[\n	\"${x}\""
+			else
+				printf >>"${RUN_DIR}/all-ipsets.json" ",\n	\"${x}\""
+			fi
+		fi
+	done
+	printf >>"${RUN_DIR}/all-ipsets.json" "\n]\n"
+	cp "${RUN_DIR}/all-ipsets.json" "${WEB_DIR}/"
+	echo >&2
+
+	printf >&2 "comparing ipsets... "
+	"${IPRANGE_CMD}" --compare "${all[@]}" |\
+			while IFS="," read name1 name2 entries1 entries2 ips1 ips2 combined common
+			do
+				if [ ${common} -gt 0 ]
+					then
+					if [ ! -f "${RUN_DIR}/${name1}_comparison.json" ]
+						then
+						printf >"${RUN_DIR}/${name1}_comparison.json" "[\n"
+					else
+						printf >>"${RUN_DIR}/${name1}_comparison.json" ",\n"
+					fi
+					printf >>"${RUN_DIR}/${name1}_comparison.json" "	{\n		\"name\": \"${name2}\",\n		\"ips\": ${ips2},\n		\"common\": ${common}\n	}"
+
+					if [ ! -f "${RUN_DIR}/${name2}_comparison.json" ]
+						then
+						printf >"${RUN_DIR}/${name2}_comparison.json" "[\n"
+					else
+						printf >>"${RUN_DIR}/${name2}_comparison.json" ",\n"
+					fi
+					printf >>"${RUN_DIR}/${name2}_comparison.json" "	{\n		\"name\": \"${name1}\",\n		\"ips\": ${ips1},\n		\"common\": ${common}\n	}"
+				fi
+			done
+	echo >&2
+	for x in $(find "${RUN_DIR}" -name \*_comparison.json)
+	do
+		printf "\n]\n" >>${x}
+		cp "${x}" "${WEB_DIR}/"
 	done
 
-	echo >&2
-	printf >&2 "Updating comparison cache... "
-	time "${IPRANGE_CMD}" --compare "${all[@]}" |\
-			tr "," " " |\
-			while read name1 name2 entries1 entries2 ips1 ips2 combined common
+	printf >&2 "comparing geolite2 country... "
+	"${IPRANGE_CMD}" "${all[@]}" --compare-next "${geolite2_country[@]}" |\
+			while IFS="," read name1 name2 entries1 entries2 ips1 ips2 combined common
 			do
-				printf >&2 "."
-				echo "unset IPSET_OVERLAPS[,${name2},${name1},]"
-				echo "IPSET_OVERLAPS[,${name1},${name2},]=$[common]"
-				# echo "IPSET_ENTRIES[${name1}]=$[entries1]"
-				# echo "IPSET_ENTRIES[${name2}]=$[entries2]"
-				# echo "IPSET_IPS[${name1}]=$[ips1]"
-				# echo "IPSET_IPS[${name2}]=$[ips2]"
-			done >.compare.all
-	printf >&2 "\n"
-	echo >&2 "Loading comparison data... "
-	source .compare.all
-	rm .compare.all
-	cache_save
+				if [ ${common} -gt 0 ]
+					then
+					if [ ! -f "${RUN_DIR}/${name1}_geolite2_country.json" ]
+						then
+						printf "[\n" >"${RUN_DIR}/${name1}_geolite2_country.json"
+					else
+						printf ",\n" >>"${RUN_DIR}/${name1}_geolite2_country.json"
+					fi
 
+					printf "	{\n		\"code\": \"${name2}\",\n		\"value\": ${common}\n	}" >>"${RUN_DIR}/${name1}_geolite2_country.json"
+				fi
+			done
 	echo >&2
-	echo >&2 "Generating comprarion tables..."
+	for x in $(find "${RUN_DIR}" -name \*_geolite2_country.json)
+	do
+		printf "\n]\n" >>${x}
+		cp "${x}" "${WEB_DIR}/"
+	done
+
+	printf >&2 "comparing ipdeny country... "
+	"${IPRANGE_CMD}" "${all[@]}" --compare-next "${ipdeny_country[@]}" |\
+			while IFS="," read name1 name2 entries1 entries2 ips1 ips2 combined common
+			do
+				if [ ${common} -gt 0 ]
+					then
+					if [ ! -f "${RUN_DIR}/${name1}_ipdeny_country.json" ]
+						then
+						printf "[\n" >"${RUN_DIR}/${name1}_ipdeny_country.json"
+					else
+						printf ",\n" >>"${RUN_DIR}/${name1}_ipdeny_country.json"
+					fi
+
+					printf "	{\n		\"code\": \"${name2}\",\n		\"value\": ${common}\n	}" >>"${RUN_DIR}/${name1}_ipdeny_country.json"
+				fi
+			done
+	echo >&2
+	for x in $(find "${RUN_DIR}" -name \*_ipdeny_country.json)
+	do
+		printf "\n]\n" >>${x}
+		cp "${x}" "${WEB_DIR}/"
+	done
+
+	printf >&2 "generating javascript info... "
 	for x in "${!IPSET_FILE[@]}"
 	do
-		compare_ipset "${x}" "${!IPSET_FILE[@]}"
+		[ -z "${UPDATED_SETS[${x}]}" -a ! ${FORCE_WEB_REBUILD} -eq 1 ] && continue
+
+		ipset_json "${x}" >"${WEB_DIR}/${x}.json"
 	done
+	echo >&2
+
+	chown ${WEB_OWNER} "${WEB_DIR}"/*
+	chmod 0644 "${WEB_DIR}"/*
+
+	if [ ${PUSH_TO_GIT} -eq 1 ]
+		then
+		cd "${WEB_DIR}" || return 1
+		git add *.json *.csv
+		git commit -a -m "$(date -u) update"
+		git push origin gh-pages
+		cd "${BASE_DIR}" || exit 1
+	fi
+}
+
+ipset_apply_counter=0
+ipset_apply() {
+	local ipset="${1}" ipv="${2}" hash="${3}" file="${4}" entries= tmpname= opts= ret= ips=
+
+	ipset_apply_counter=$[ipset_apply_counter + 1]
+	tmpname="tmp-$$-${RANDOM}-${ipset_apply_counter}"
+
+	if [ "${ipv}" = "ipv4" ]
+		then
+		if [ -z "${sets[$ipset]}" ]
+		then
+			echo >&2 "${ipset}: creating ipset"
+			ipset --create ${ipset} "${hash}hash" || return 1
+		fi
+
+		if [ "${hash}" = "net" ]
+			then
+			"${IPRANGE_CMD}" "${file}" \
+				--ipset-reduce ${IPSET_REDUCE_FACTOR} \
+				--ipset-reduce-entries ${IPSET_REDUCE_ENTRIES} \
+				--print-prefix "-A ${tmpname} " >"${RUN_DIR}/${tmpname}"
+			ret=$?
+		elif [ "${hash}" = "ip" ]
+			then
+			"${IPRANGE_CMD}" -1 "${file}" --print-prefix "-A ${tmpname} " >"${RUN_DIR}/${tmpname}"
+			ret=$?
+		fi
+
+		if [ ${ret} -ne 0 ]
+			then
+			echo >&2 -e "${ipset}: ${COLOR_BGRED}${COLOR_WHITE}${COLOR_BOLD} iprange failed ${COLOR_RESET}"
+			rm "${RUN_DIR}/${tmpname}"
+			return 1
+		fi
+
+		entries=$(wc -l <"${RUN_DIR}/${tmpname}")
+		ips=$(iprange -C "${file}")
+		ips=${ips/*,/}
+
+		# this is needed for older versions of ipset
+		echo "COMMIT" >>"${RUN_DIR}/${tmpname}"
+
+		echo >&2 "${ipset}: loading to kernel (to temporary ipset)..."
+
+		opts=
+		if [ ${entries} -gt 65536 ]
+			then
+			opts="maxelem ${entries}"
+		fi
+		
+		ipset create "${tmpname}" ${hash}hash ${opts}
+		if [ $? -ne 0 ]
+			then
+			echo >&2 -e "${ipset}: ${COLOR_BGRED}${COLOR_WHITE}${COLOR_BOLD} failed to create temporary ipset ${tmpname} ${COLOR_RESET}"
+			rm "${RUN_DIR}/${tmpname}"
+			return 1
+		fi
+
+		ipset --flush "${tmpname}"
+		ipset --restore <"${RUN_DIR}/${tmpname}"
+		ret=$?
+		rm "${RUN_DIR}/${tmpname}"
+
+		if [ ${ret} -ne 0 ]
+			then
+			echo >&2 -e "${ipset}: ${COLOR_BGRED}${COLOR_WHITE}${COLOR_BOLD} failed to restore ipset from ${tmpname} ${COLOR_RESET}"
+			ipset --destroy "${tmpname}"
+			return 1
+		fi
+
+		echo >&2 "${ipset}: swapping temporary ipset to production..."
+		ipset --swap "${tmpname}" "${ipset}"
+		ret=$?
+		ipset --destroy "${tmpname}"
+		if [ $? -ne 0 ]
+			then
+			echo >&2 -e "${ipset}: ${COLOR_BGRED}${COLOR_WHITE}${COLOR_BOLD} failed to destroy temporary ipset ${COLOR_RESET}"
+			return 1
+		fi
+
+		if [ $ret -ne 0 ]
+			then
+			echo >&2 -e "${ipset}: ${COLOR_BGRED}${COLOR_WHITE}${COLOR_BOLD} failed to swap temporary ipset ${tmpname} ${COLOR_RESET}"
+			return 1
+		fi
+
+		echo >&2 -e "${ipset}: ${COLOR_BGGREEN}${COLOR_BLACK}${COLOR_BOLD} OK ${COLOR_RESET} (${entries} entries, ${ips} unique IPs)"
+	else
+		echo >&2 -e "${ipset}: ${COLOR_BGRED}${COLOR_WHITE}${COLOR_BOLD} CANNOT HANDLE THIS TYPE OF IPSET YET ${COLOR_RESET}"
+		return 1
+	fi
 }
 
 
@@ -846,56 +1070,14 @@ finalize() {
 	local entries=$("${IPRANGE_CMD}" -C "${tmp}")
 	local ips=${entries/*,/}
 	local entries=${entries/,*/}
-	local size=$[ ( ( (entries * 130 / 100) / 65536 ) + 1 ) * 65536 ]
 
-	# for net we have to reduce its subnets before giving it to firehol
-	[ -f "${tmp}.save" ] && rm "${tmp}.save"
-	if [ "${hash}" = "net" -a -f "${base}/.reduce" ]
-		then
-		cat "${tmp}" | aggregate4_reduce >"${tmp}.reduced"
-		if [ $? -eq 0 ]
-			then
-			local oprefixes=$(cat "${tmp}" | append_slash32 | cut -d '/' -f 2 | sort -u | wc -l)
-			local nprefixes=$(cat "${tmp}.reduced" | append_slash32 | cut -d '/' -f 2 | sort -u | wc -l)
-			local rentries=$(cat "${tmp}.reduced" | wc -l)
-			echo >&2 "${ipset}: reduced subnets from ${oprefixes} to ${nprefixes} while increasing entries from ${entries} to ${rentries}"
-			mv "${tmp}" "${tmp}.save"
-			mv "${tmp}.reduced" "${tmp}"
-			size=$[ ( ( (rentries * 200 / 100) / 65536 ) + 1 ) * 65536 ]
-		else
-			echo >&2 "${ipset}: failed to reduce subnets"
-			rm "${tmp}.reduced"
-		fi
-	fi
-
-	# if the ipset is not already in memory
-	if [ -z "${sets[$ipset]}" ]
+	ipset_apply ${ipset} ${ipv} ${hash} ${tmp}
+	if [ $? -ne 0 ]
 	then
-		# if the required size is above 65536
-		if [ ${size} -ne 65536 ]
+		if [ ! -z "${ERRORS_DIR}" -a -d "${ERRORS_DIR}" ]
 		then
-			echo >&2 "${ipset}: processed file gave ${entries} results - sizing to ${size} entries"
-			echo >&2 "${ipset}: remember to append this to your ipset line (in firehol.conf): maxelem ${size}"
-			ipset_opts="maxelem ${size}"
-		fi
-
-		echo >&2 "${ipset}: creating ipset with ${entries} entries"
-		ipset --create ${ipset} "${hash}hash" ${ipset_opts} || return 1
-	fi
-
-	# call firehol to update the ipset in memory
-	firehol ipset_update_from_file ${ipset} ${ipv} ${type} "${tmp}"
-	local ret=$?
-
-	# restore the non-reduced files, if any
-	[ -f "${tmp}.save" ] && mv "${tmp}.save" "${tmp}"
-
-	if [ $ret -ne 0 ]
-	then
-		if [ -d errors ]
-		then
-			mv "${tmp}" "errors/${ipset}.${hash}set"
-			syslog "${ipset}: failed to update ipset (error file left for you as 'errors/${ipset}.${hash}set')."
+			mv "${tmp}" "${ERRORS_DIR}/${ipset}.${hash}set"
+			syslog "${ipset}: failed to update ipset (error file left for you as '${ERRORS_DIR}/${ipset}.${hash}set')."
 		else
 			rm "${tmp}"
 			syslog "${ipset}: failed to update ipset."
@@ -935,8 +1117,11 @@ EOFHEADER
 	touch -r "${src}" "${tmp}.wh"
 	mv "${tmp}.wh" "${dst}" || return 1
 
-	cache_clean_ipset "${ipset}"
 	IPSET_FILE[${ipset}]="${dst}"
+	IPSET_IPV[${ipset}]="${ipv}"
+	IPSET_HASH[${ipset}]="${hash}"
+	IPSET_MINS[${ipset}]="${mins}"
+	IPSET_HISTORY_MINS[${ipset}]="${history_mins}"
 	IPSET_INFO[${ipset}]="${info}"
 	IPSET_ENTRIES[${ipset}]="${entries}"
 	IPSET_IPS[${ipset}]="${ips}"
@@ -949,10 +1134,11 @@ EOFHEADER
 
 	if [ -d .git ]
 	then
-		echo >>"${setinfo/.setinfo/_history.csv}" "$(date -r "${src}" +%s),${entries},${ips}"
 		echo >"${setinfo}" "[${ipset}](#${ipset})|${info}|${ipv} hash:${hash}|${quantity}|`if [ ! -z "${url}" ]; then echo "updated every $(mins_to_text ${mins}) from [this link](${url})"; fi`"
 		check_git_committed "${dst}"
 	fi
+
+	cache_save
 
 	return 0
 }
@@ -1036,7 +1222,7 @@ update() {
 	if [ ! -f "${install}.source" ]
 	then
 		[ -d .git ] && echo >"${install}.setinfo" "${ipset}|${info}|${ipv} hash:${hash}|disabled|`if [ ! -z "${url}" ]; then echo "updated every $(mins_to_text ${mins}) from [this link](${url})"; fi`"
-		echo >&2 "${ipset}: is disabled, to enable it run: touch -t 0001010000 '${base}/${install}.source'"
+		echo >&2 "${ipset}: is disabled, to enable it run: touch -t 0001010000 '${BASE_DIR}/${install}.source'"
 		return 1
 	fi
 
@@ -1079,7 +1265,7 @@ update() {
 
 	# convert it
 	test ${SILENT} -ne 1 && echo >&2 "${ipset}: converting with processor '${processor}'"
-	tmp=`mktemp "${install}.tmp-XXXXXXXXXX"` || return 1
+	tmp=`mktemp "${RUN_DIR}/${install}.tmp-XXXXXXXXXX"` || return 1
 	${processor} <"${install}.source" |\
 		trim |\
 		${pre_filter} |\
@@ -1095,18 +1281,6 @@ update() {
 		check_file_too_old "${ipset}" "${install}.${hash}set"
 		return 1
 	fi
-
-	# allow it to be empty
-	#if [ ! -s "${tmp}" ]
-	#then
-	#	syslog "${ipset}: processed file gave no results."
-	#	rm "${tmp}"
-	#
-	#	# keep the old set, but make it think it was from this source
-	#	touch -r "${install}.source" "${install}.${hash}set"
-	#	check_file_too_old "${ipset}" "${install}.${hash}set"
-	#	return 2
-	#fi
 
 	if [ $[history_mins + 0] -gt 0 ]
 	then
@@ -1166,10 +1340,10 @@ rename_ipset() {
 		fi
 	done
 
-	if [ -d "history/${old}" -a ! -d "history/${new}" ]
+	if [ -d "${HISTORY_DIR}/${old}" -a ! -d "${HISTORY_DIR}/${new}" ]
 		then
-		echo "Renaming history/${old} history/${new}"
-		mv "history/${old}" "history/${new}"
+		echo "Renaming ${HISTORY_DIR}/${old} ${HISTORY_DIR}/${new}"
+		mv "${HISTORY_DIR}/${old}" "${HISTORY_DIR}/${new}"
 	fi
 
 	[ -f ".${old}.lastchecked" -a ! -f ".${new}.lastchecked" ] && mv ".${old}.lastchecked" ".${new}.lastchecked"
@@ -1487,7 +1661,7 @@ geolite2_country() {
 
 	if [ ! -f "${ipset}.source" ]
 	then
-		echo >&2 "${ipset}: is disabled, to enable it run: touch -t 0001010000 '${base}/${ipset}.source'"
+		echo >&2 "${ipset}: is disabled, to enable it run: touch -t 0001010000 '${BASE_DIR}/${ipset}.source'"
 		return 1
 	fi
 
@@ -1618,7 +1792,7 @@ ipdeny_country() {
 
 	if [ ! -f "${ipset}.source" ]
 	then
-		echo >&2 "${ipset}: is disabled, to enable it run: touch -t 0001010000 '${base}/${ipset}.source'"
+		echo >&2 "${ipset}: is disabled, to enable it run: touch -t 0001010000 '${BASE_DIR}/${ipset}.source'"
 		return 1
 	fi
 
@@ -1640,7 +1814,7 @@ ipdeny_country() {
 	fi
 
 	# extract it - in a subshell to do it in the tmp dir
-	( cd "${base}/${ipset}.tmp" && tar -zxpf "${base}/${ipset}.source" )
+	( cd "${BASE_DIR}/${ipset}.tmp" && tar -zxpf "${BASE_DIR}/${ipset}.source" )
 
 	# move them inside the tmp, and fix continents
 	local x=
@@ -1705,34 +1879,49 @@ merge() {
 
 	if [ ! -f "${to}.source" ]
 		then
-		echo >&2 "${to}: is disabled. To enable it run: touch ${base}/${to}.source"
+		echo >&2 "${to}: is disabled. To enable it run: touch ${BASE_DIR}/${to}.source"
 		return 1
 	fi
 
+	local -a files=()
+	local found_updated=0 max_date=""
 	for x in "${@}"
 	do
 		if [ ! -z "${IPSET_FILE[${x}]}" -a -f "${IPSET_FILE[${x}]}" ]
 			then
-			# echo >&2 "Adding ${x}..."
-			cat "${IPSET_FILE[${x}]}"
+
+			# find the file with max date
+			[ -z "${max_date}" ] && max_date="${IPSET_FILE[${x}]}"
+			[ "${IPSET_FILE[${x}]}" -nt "${max_date}" ] && max_date="${IPSET_FILE[${x}]}"
+
+			files=("${files[@]}" "${IPSET_FILE[${x}]}")
 			included=("${included[@]}" "${x}")
+
+			if [ ! -z "${UPDATED_SETS[${x}]}" -o "${IPSET_FILE[${x}]}" -nt "${to}.source" ]
+				then
+				found_updated=$[ found_updated + 1 ]
+			fi
 		else
 			echo >&2 "${to}: will be generated without '${x}' - enable it to be included"
-			# touch -t 0001010000 "${base}/${x}.source"
+			# touch -t 0001010000 "${BASE_DIR}/${x}.source"
 		fi
-	done >"${to}.tmp"
+	done
 
-	cat "${to}.tmp" | aggregate4 >"${to}.tmp2"
-	mv "${to}.tmp2" "${to}.tmp"
-
-	[ ! -f "${to}.netset" ] && touch "${to}.netset"
-	diff -q "${to}.netset" "${to}.tmp" >/dev/null 2>&1
-	if [ $? -ne 0 ]
+	if [ -z "${files[*]}" ]
 		then
-		finalize "${to}" "${to}.tmp" "${to}.setinfo" "${to}.source" "${to}.netset" "1" "0" "ipv4" "" "net" "" "${info} (includes: ${included[*]})"
-	else
-		rm "${to}.tmp"
+		echo >&2 "${to}: no files available to merge."
+		return 1
 	fi
+
+	if [ ${found_updated} -eq 0 ]
+		then
+		echo >&2 "${to}: source files have not been updated."
+		return 1
+	fi
+
+	"${IPRANGE_CMD}" "${files[@]}" >"${RUN_DIR}/${to}.tmp"
+	touch -r "${max_date}" "${to}.tmp" "${to}.source"
+	finalize "${to}" "${RUN_DIR}/${to}.tmp" "${to}.setinfo" "${to}.source" "${to}.netset" "1" "0" "ipv4" "" "net" "" "${info} (includes: ${included[*]})"
 }
 
 echo >&2
@@ -1754,7 +1943,7 @@ echo >&2
 # - It creates the ipset if it does not exist
 # - FireHOL will be called to update the ipset
 # - both downloaded and converted files are saved in
-#   ${base} (/etc/firehol/ipsets)
+#   ${BASE_DIR} (/etc/firehol/ipsets)
 
 # RUNNING THIS SCRIPT WILL JUST INSTALL THE IPSETS.
 # IT WILL NOT BLOCK OR BLACKLIST ANYTHING.
@@ -1866,7 +2055,7 @@ update dm_tor 30 0 ipv4 ip \
 update et_tor $[12*60] 0 ipv4 ip \
 	"http://rules.emergingthreats.net/blockrules/emerging-tor.rules" \
 	snort_alert_rules_to_ipv4 \
-	"[EmergingThreats.net](http://www.emergingthreats.net/) [list](http://doc.emergingthreats.net/bin/view/Main/TorRules) of TOR network IPs"
+	"[EmergingThreats.net TOR list](http://doc.emergingthreats.net/bin/view/Main/TorRules) of TOR network IPs"
 
 update bm_tor 30 0 ipv4 ip \
 	"https://torstatus.blutmagie.de/ip_list_all.php/Tor_ip_list_ALL.csv" \
@@ -1976,7 +2165,7 @@ update blocklist_de_ftp 30 0 ipv4 ip \
 update blocklist_de_sip 30 0 ipv4 ip \
 	"http://lists.blocklist.de/lists/sip.txt" \
 	remove_comments \
-	"[Blocklist.de](https://www.blocklist.de/) All IP addresses that tried to login in a SIP, VOIP or Asterisk Server and are included in the IPs list from [infiltrated.net](www.infiltrated.net)"
+	"[Blocklist.de](https://www.blocklist.de/) All IP addresses that tried to login in a SIP, VOIP or Asterisk Server and are included in the IPs list from infiltrated.net"
 
 update blocklist_de_bots 30 0 ipv4 ip \
 	"http://lists.blocklist.de/lists/bots.txt" \
@@ -2323,7 +2512,7 @@ update ciarmy $[3*60] 0 ipv4 ip \
 update bruteforceblocker $[3*60] 0 ipv4 ip \
 	"http://danger.rulez.sk/projects/bruteforceblocker/blist.php" \
 	remove_comments \
-	"[danger.rulez.sk](http://danger.rulez.sk/) IPs detected by [bruteforceblocker](http://danger.rulez.sk/index.php/bruteforceblocker/) (fail2ban alternative for SSH on OpenBSD). This is an automatically generated list from users reporting failed authentication attempts. An IP seems to be included if 3 or more users report it. Its retention pocily seems 30 days."
+	"[danger.rulez.sk bruteforceblocker](http://danger.rulez.sk/index.php/bruteforceblocker/) (fail2ban alternative for SSH on OpenBSD). This is an automatically generated list from users reporting failed authentication attempts. An IP seems to be included if 3 or more users report it. Its retention pocily seems 30 days."
 
 
 # -----------------------------------------------------------------------------
@@ -2442,7 +2631,7 @@ update nt_malware_http 60 0 ipv4 ip \
 update ib_bluetack_proxies $[12*60] 0 ipv4 ip \
 	"http://list.iblocklist.com/?list=xoebmbyexwuiogmbyprb&fileformat=p2p&archiveformat=gz" \
 	p2p_gz_proxy \
-	"[iBlocklist.com](https://www.iblocklist.com/) free version of [BlueTack.co.uk](http://www.bluetack.co.uk/) Open Proxies IPs list (without TOR)"
+	"[iBlocklist.com](https://www.iblocklist.com/) free version of BlueTack.co.uk Open Proxies IPs list (without TOR)"
 
 
 # This list is a compilation of known malicious SPYWARE and ADWARE IP Address ranges.
@@ -2452,14 +2641,14 @@ update ib_bluetack_proxies $[12*60] 0 ipv4 ip \
 update ib_bluetack_spyware $[12*60] 0 ipv4 both \
 	"http://list.iblocklist.com/?list=llvtlsjyoyiczbkjsxpf&fileformat=p2p&archiveformat=gz" \
 	p2p_gz \
-	"[iBlocklist.com](https://www.iblocklist.com/) free version of [BlueTack.co.uk](http://www.bluetack.co.uk/) known malicious SPYWARE and ADWARE IP Address ranges"
+	"[iBlocklist.com](https://www.iblocklist.com/) free version of BlueTack.co.uk known malicious SPYWARE and ADWARE IP Address ranges"
 
 
 # List of people who have been reported for bad deeds in p2p.
 update ib_bluetack_badpeers $[12*60] 0 ipv4 ip \
 	"http://list.iblocklist.com/?list=cwworuawihqvocglcoss&fileformat=p2p&archiveformat=gz" \
 	p2p_gz \
-	"[iBlocklist.com](https://www.iblocklist.com/) free version of [BlueTack.co.uk](http://www.bluetack.co.uk/) IPs that have been reported for bad deeds in p2p"
+	"[iBlocklist.com](https://www.iblocklist.com/) free version of BlueTack.co.uk IPs that have been reported for bad deeds in p2p"
 
 
 # Contains hijacked IP-Blocks and known IP-Blocks that are used to deliver Spam. 
@@ -2471,7 +2660,7 @@ update ib_bluetack_badpeers $[12*60] 0 ipv4 ip \
 update ib_bluetack_hijacked $[12*60] 0 ipv4 both \
 	"http://list.iblocklist.com/?list=usrcshglbiilevmyfhse&fileformat=p2p&archiveformat=gz" \
 	p2p_gz \
-	"[iBlocklist.com](https://www.iblocklist.com/) free version of [BlueTack.co.uk](http://www.bluetack.co.uk/) hijacked IP-Blocks Hijacked IP space are IP blocks that are being used without permission"
+	"[iBlocklist.com](https://www.iblocklist.com/) free version of BlueTack.co.uk hijacked IP-Blocks Hijacked IP space are IP blocks that are being used without permission"
 
 
 # IP addresses related to current web server hack and exploit attempts that have been
@@ -2484,7 +2673,7 @@ update ib_bluetack_hijacked $[12*60] 0 ipv4 both \
 update ib_bluetack_webexploit $[12*60] 0 ipv4 ip \
 	"http://list.iblocklist.com/?list=ghlzqtqxnzctvvajwwag&fileformat=p2p&archiveformat=gz" \
 	p2p_gz \
-	"[iBlocklist.com](https://www.iblocklist.com/) free version of [BlueTack.co.uk](http://www.bluetack.co.uk/) web server hack and exploit attempts"
+	"[iBlocklist.com](https://www.iblocklist.com/) free version of BlueTack.co.uk web server hack and exploit attempts"
 
 
 # Companies or organizations who are clearly involved with trying to stop filesharing
@@ -2504,7 +2693,7 @@ update ib_bluetack_webexploit $[12*60] 0 ipv4 ip \
 update ib_bluetack_level1 $[12*60] 0 ipv4 both \
 	"http://list.iblocklist.com/?list=ydxerpxkpcfqjaybcssw&fileformat=p2p&archiveformat=gz" \
 	p2p_gz \
-	"[iBlocklist.com](https://www.iblocklist.com/) free version of [BlueTack.co.uk](http://www.bluetack.co.uk/) Level 1 (for use in p2p): Companies or organizations who are clearly involved with trying to stop filesharing (e.g. Baytsp, MediaDefender, Mediasentry a.o.). Companies which anti-p2p activity has been seen from. Companies that produce or have a strong financial interest in copyrighted material (e.g. music, movie, software industries a.o.). Government ranges or companies that have a strong financial interest in doing work for governments. Legal industry ranges. IPs or ranges of ISPs from which anti-p2p activity has been observed. Basically this list will block all kinds of internet connections that most people would rather not have during their internet travels."
+	"[iBlocklist.com](https://www.iblocklist.com/) free version of BlueTack.co.uk Level 1 (for use in p2p): Companies or organizations who are clearly involved with trying to stop filesharing (e.g. Baytsp, MediaDefender, Mediasentry a.o.). Companies which anti-p2p activity has been seen from. Companies that produce or have a strong financial interest in copyrighted material (e.g. music, movie, software industries a.o.). Government ranges or companies that have a strong financial interest in doing work for governments. Legal industry ranges. IPs or ranges of ISPs from which anti-p2p activity has been observed. Basically this list will block all kinds of internet connections that most people would rather not have during their internet travels."
 
 
 # General corporate ranges. 
@@ -2532,7 +2721,7 @@ badipscom() {
 	if [ ! -f "badips.source" ]
 		then
 		[ -d .git ] && echo >"${install}.setinfo" "badips.com categories ipsets|[BadIPs.com](https://www.badips.com) community based IP blacklisting. They score IPs based on the reports they reports.|ipv4 hash:ip|disabled|disabled"
-		echo >&2 "badips: is disabled, to enable it run: touch -t 0001010000 '${base}/badips.source'"
+		echo >&2 "badips: is disabled, to enable it run: touch -t 0001010000 '${BASE_DIR}/badips.source'"
 		return 0
 	fi
 
@@ -2608,7 +2797,7 @@ badipscom() {
 
 		if [ ${count} -eq 0 ]
 			then
-			echo >&2 "bi_${category}_SCORE_AGE: is disabled (SCORE=[0-9\.]+ and AGE=[0-9]+[dwmy]. AGE can be ommitted. To enable it run: touch -t 0001010000 '${base}/bi_${category}_SCORE_AGE.source'"
+			echo >&2 "bi_${category}_SCORE_AGE: is disabled (SCORE=[0-9\.]+ and AGE=[0-9]+[dwmy]. AGE can be ommitted. To enable it run: touch -t 0001010000 '${BASE_DIR}/bi_${category}_SCORE_AGE.source'"
 		fi
 	done
 }
@@ -2651,22 +2840,22 @@ update sorbs_web 1 0 ipv4 both "" remove_comments "[Sorbs.net](https://www.sorbs
 # -----------------------------------------------------------------------------
 # FireHOL lists
 
-merge firehol_level1 "**FireHOL Level 1** - Maximum protection without false positives." \
-	fullbogons dshield feodo palevo sslbl zeus spamhaus_drop spamhaus_edrop
+merge firehol_level1 "An ipset made from blocklists that provide the maximum of protection, with the minimum of false positives. Suitable for basic protection on all systems." \
+	fullbogons dshield feodo palevo sslbl zeus_badips spamhaus_drop spamhaus_edrop
 
-merge firehol_level2 "**FireHOL Level 2** - Maximum protection from attacks took place in the last 48 hours." \
+merge firehol_level2 "An ipset made from blocklists that track attacks, during the last one or two days." \
 	openbl_1d blocklist_de stopforumspam_1d
 
-merge firehol_level3 "**FireHOL Level 3** - All the bad IPs in last 30 days." \
+merge firehol_level3 "An ipset made from blocklists that track attacks, spyware, viruses. It includes IPs than have been reported or detected in the last 30 days." \
 	openbl_30d stopforumspam_30d virbl malc0de shunlist malwaredomainlist bruteforceblocker \
 	ciarmy cleanmx_viruses snort_ipfilter ib_bluetack_spyware ib_bluetack_hijacked ib_bluetack_webexploit \
-	php_commenters php_dictionary php_harvesters php_spammers iw_wormlist
+	php_commenters php_dictionary php_harvesters php_spammers iw_wormlist zeus maxmind_proxy_fraud
 
-merge firehol_proxies "**FireHOL Proxies** - Known open proxies in the last 30 days." \
+merge firehol_proxies "An ipset made from all sources that track open proxies. It includes IPs reported or detected in the last 30 days." \
 	ib_bluetack_proxies maxmind_proxy_fraud proxyrss proxz \
 	ri_connect_proxies ri_web_proxies xroxy
 
-merge firehol_anonymous "**FireHOL Anonymous** - Known anonymizing IPs." \
+merge firehol_anonymous "An ipset that includes all the anonymizing IPs of the world." \
 	firehol_proxies anonymous bm_tor dm_tor tor_exits
 
 
@@ -2685,5 +2874,11 @@ merge firehol_anonymous "**FireHOL Anonymous** - Known anonymizing IPs." \
 
 
 # -----------------------------------------------------------------------------
-# this will do nothing if there no git initialized in /etc/firehol/ipsets
+# updates
+update_web
+
+# commit changes to git (dows does nothing is not enabled)
 commit_to_git
+
+# let the cleanup function exit with success
+PROGRAM_COMPLETED=1
