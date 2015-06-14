@@ -755,12 +755,6 @@ FIREHOL_LOG_BURST="5"
 # FLUSH SWAP DESTROY in which case they be executed during postprocess
 IPSET_RESTORE_SUPPORTS_FLUSH_SWAP_DESTROY=1
 
-# if set to zero, firehol will not manage the maxelem parameter for
-# the ipsets, and openning large ipsets will require the maxelem
-# parameter to be given at the ipset create statement
-# Default: 1
-FIREHOL_IPSETS_ADAPT_MAXELEM=1
-
 # options that are appended to -m ipset matches when the ipset
 # is used instead of src and dst IPs.
 # The default is to prevent updating ipset counters
@@ -787,12 +781,7 @@ IPTRAP_DEFAULT_IPSET_COUNTERS_OPTIONS="timeout 3600 counters"
 # ----------------------------------------------------------------------
 # OLDER VERSIONS OF IPSET
 
-# older ipset versions do allow FLUSH SWAP or DESTROY commands
-# in restore files
-#IPSET_RESTORE_SUPPORTS_FLUSH_SWAP_DESTROY=0
-
-# older ipset versions do not support more than 65536 elements
-#FIREHOL_IPSETS_ADAPT_MAXELEM=0
+# IPSET_RESTORE_SUPPORTS_FLUSH_SWAP_DESTROY=0
 
 # older versions do not support the 'counters' option
 # even older versions do not support the 'timeout' option
@@ -1017,6 +1006,22 @@ which_cmd UNAME_CMD uname
 which_cmd UNIQ_CMD uniq
 which_cmd LOGGER_CMD logger
 which_cmd FLOCK_CMD flock
+
+IPRANGE_CMD=
+FIREHOL_HAVE_IPRANGE=
+IPRANGE_CMD=$(which iprange 2>/dev/null)
+if [ ! -z "${IPRANGE_CMD}" ]
+	then
+	"${IPRANGE_CMD}" --has-reduce 2>/dev/null || IPRANGE_CMD=
+fi
+if [ -z "${IPRANGE_CMD}" ]
+	then
+	FIREHOL_HAVE_IPRANGE=0
+	IPRANGE_CMD=
+	echo >&2 "Warning: iprange command is not installed - ipsets will not be optimal."
+else
+	FIREHOL_HAVE_IPRANGE=1
+fi
 
 ENABLE_ACCOUNTING=1
 ACCOUNTING_WARNING=0
@@ -5165,17 +5170,45 @@ tcpmss() {
 	return 0
 }
 
+ipset_file_to_restore_filter() {
+	local name="${1}" ipv="${2}" hash="${3}"
+	shift 3
+
+	if [ ${FIREHOL_HAVE_IPRANGE} -eq 1 -a "${ipv}" = "ipv4" -a \( "${hash}" = "hash:net" -o "${hash}" = "nethash" -o "${hash}" = "hash:ip"  -o "${hash}" = "iphash" \) ]
+		then
+		local opts=
+		[ "${hash}" = "hash:net" -o "${hash}" = "nethash" ] && opts="--ipset-reduce 20 --ipset-reduce-entries 65536"
+		[ "${hash}" = "hash:ip"  -o "${hash}" = "iphash"  ] && opts="-1"
+		"${IPRANGE_CMD}" ${opts} \
+			--print-prefix "${IPSET_ADD_OPTION} ${name} " \
+			--print-suffix " ${*}"
+	else
+		${SORT_CMD} -u |\
+		while read
+		do
+			echo "${IPSET_ADD_OPTION} ${name} ${REPLY} ${*}"
+		done
+	fi
+}
+
 ipset_addfile() {
-	local name="${1}" file= opts= final_cmd="${CAT_CMD}" ipv_match="^[0-9a-fA-F\.:/\-]+$"
+	local name="${1}" file= opts= filter="${CAT_CMD}" ipv_match="^[0-9a-fA-F\.:/\-]+$" ipv= hash=
 	shift
+
+	hash="${FIREHOL_IPSETS_HASH[${name}]}"
+	ipv="${FIREHOL_IPSETS_IPV[${name}]}"
+	case "${ipv}" in
+			ipv4)		ipv_match="^[0-9\./\-]+$";;
+			ipv6)		ipv_match="^[0-9a-fA-F:/\-]+$";;
+	esac
 
 	while [ ! -z "${1}" ]
 	do
 		case "${1}" in
-			ip|ips)		final_cmd="${GREP_CMD} -v /";;
-			net|nets)	final_cmd="${GREP_CMD} /";;
-			ipv4)		ipv_match="^[0-9\./\-]+$";;
-			ipv6)		ipv_match="^[0-9a-fA-F:/\-]+$";;
+			ip|ips)		filter="${GREP_CMD} -v /";;
+			net|nets)	filter="${GREP_CMD} /";;
+			ipv4)		;; # backward compatibility
+			ipv6)		;; # backward compatibility
 			*)		break;;
 		esac
 		shift
@@ -5196,12 +5229,8 @@ ipset_addfile() {
 	${CAT_CMD} "${file}" |\
 		${SED_CMD} -e "s/#.*$//g" -e "s/[\t ]\+//g" |\
 		${EGREP_CMD} "${ipv_match}" |\
-		${final_cmd} |\
-		${SORT_CMD} -u |\
-		while read
-		do
-			echo "${IPSET_ADD_OPTION} ${name} ${REPLY} ${opts}"
-		done
+		${filter} |\
+		ipset_file_to_restore_filter "${name}" "${ipv}" "${hash}" ${opts}
 }
 
 ipset_warning() {
@@ -5229,8 +5258,9 @@ declare -A FIREHOL_IPSETS_IPV=()
 declare -A FIREHOL_IPSETS_KEEP=()
 FIREHOL_IPSETS_RESPECT_KEEP=1
 
-declare -A FIREHOL_IPSETS_TYPES=()
+declare -A FIREHOL_IPSETS_HASH=()
 declare -A FIREHOL_IPSETS_OPTIONS=()
+declare -A FIREHOL_IPSETS_MAXELEM=()
 
 # this is a wrapper around ipset
 # it has the same syntax
@@ -5257,7 +5287,7 @@ ipset() {
 
 	case "${cmd}" in
 		create|-N|--create)
-			local type="${1}" inet= opts=
+			local hash="${1}" inet= opts=
 			shift
 
 			if [ ! -z "${FIREHOL_IPSETS_USED[$name]}" ]
@@ -5278,21 +5308,31 @@ ipset() {
 				FIREHOL_IPSETS_IPV[$name]="ipv4"
 			fi
 
-			opts="${*}"
-			if [ "${opts/*prevent_reset_on_restart*/prevent_reset_on_restart}" = "prevent_reset_on_restart" ]
-			then
+			FIREHOL_IPSETS_MAXELEM[$name]=0
+			FIREHOL_IPSETS_KEEP[$name]=0
+			opts=
+			while [ ! -z "${1}" ]
+			do
+				case "${1}" in
+					maxelem)
+						FIREHOL_IPSETS_MAXELEM[$name]="${2}"
+						shift
+						;;
+
+					prevent_reset_on_restart)
+						FIREHOL_IPSETS_KEEP[$name]=1
+						;;
+
+					*)
+						opts="${opts} ${1}"
+						;;
+				esac
 				shift
-				FIREHOL_IPSETS_KEEP[$name]=1
-				opts="${opts/prevent_reset_on_restart/}"
-			else
-				FIREHOL_IPSETS_KEEP[$name]=0
-			fi
+			done
 
 			FIREHOL_IPSETS_OPTIONS[$name]="${inet} ${opts}"
-			FIREHOL_IPSETS_TYPES[$name]="${type}"
+			FIREHOL_IPSETS_HASH[$name]="${hash}"
 
-			echo "${IPSET_CREATE_OPTION} ${name} ${FIREHOL_IPSETS_TYPES[$name]} ${FIREHOL_IPSETS_OPTIONS[$name]}" >"${FIREHOL_DIR}/ipset.${name}.rules"
-			echo "${IPSET_FLUSH_OPTION} ${name}" >>"${FIREHOL_DIR}/ipset.${name}.rules"
 			FIREHOL_IPSETS_USED[$name]="CREATED"
 			;;
 
@@ -5332,7 +5372,7 @@ ipset() {
 				return 1
 			fi
 
-			ipset_addfile "${name}" ${FIREHOL_IPSETS_IPV[$name]} "${@}" >>"${FIREHOL_DIR}/ipset.${name}.rules" || return 1
+			ipset_addfile "${name}" "${@}" >>"${FIREHOL_DIR}/ipset.${name}.rules" || return 1
 			;;
 
 		*)
@@ -5343,41 +5383,77 @@ ipset() {
 	esac
 }
 
-ipsets_adapt_maxelem() {
-	local name="${1}" entries="${2}"
-
-	if [ ${FIREHOL_IPSETS_ADAPT_MAXELEM} -eq 1 -a $[entries] -gt 65536 ]
-		then
-		# 1. remove the existing maxelem
-		# 2. add the proper one
-		${SED_CMD} \
-			-e "s|^\(${IPSET_CREATE_OPTION} ${name} .*\)[[:space:]]maxelem[[:space:]][0-9]\+\(.*\)$|\1 \2|g" \
-			-e "s|^\(${IPSET_CREATE_OPTION} ${name} .*\)$|\1 maxelem $[entries]|g"
-	else
-		cat
-	fi
-}
-
 FIREHOL_IPSET_TMP_COUNTER=0
 declare -A FIREHOL_IPSET_TMP_SETS=()
-ipset_to_temp_and_swap() {
-	local name="${1}" entries="${2}"
+ipset_apply() {
+	local name="${1}" file="${2}" swap="${3}" entries=0 opts= hash= tmpname=
 
-	# find a temporary name for the new ipset
-	FIREHOL_IPSET_TMP_COUNTER=$[ FIREHOL_IPSET_TMP_COUNTER + 1 ]
-	local tmpname="tmp-$$-${RANDOM}-${FIREHOL_IPSET_TMP_COUNTER}"
-	FIREHOL_IPSET_TMP_SETS[$tmpname]=1
+	# echo >&2 "Applying ipset ${name} from ${file} with options: ${swap}..."
 
-	# give the temporary name to the set
-	${SED_CMD} -e "s|^\([^[:space:]]*\) ${name} \(.*\)|\1 ${tmpname} \2|g" \
-	           -e "s|^\([^[:space:]]*\) ${name}$|\1 ${tmpname}|g" |\
-	           ipsets_adapt_maxelem "${tmpname}" "${entries}"
+	echo "COMMIT" >>"${file}"
 
-	# swap them, to activate the temporary ipset
-	echo "${IPSET_SWAP_OPTION} ${tmpname} ${name}"
+	if [ "${swap}" = "swap" ]
+		then
+		# find a temporary name for the new ipset
+		FIREHOL_IPSET_TMP_COUNTER=$[ FIREHOL_IPSET_TMP_COUNTER + 1 ]
+		tmpname="tmp-$$-${RANDOM}-${FIREHOL_IPSET_TMP_COUNTER}"
+		FIREHOL_IPSET_TMP_SETS[$tmpname]=1
+	else
+		tmpname="${name}"
+	fi
 
-	# destroy the temporary ipset
-	echo "${IPSET_DESTROY_OPTION} ${tmpname}"
+	hash="${FIREHOL_IPSETS_HASH[$name]}"
+	opts="${FIREHOL_IPSETS_OPTIONS[$name]}"
+
+	if [ "${hash}" = "iphash" -o "${hash}" = "hash:ip" -o "${hash}" = "nethash" -o "${hash}" = "hash:net" ]
+	then
+		# count the entries in the file
+		entries=$(wc -l <"${file}")
+
+		# if the user gave maxelem, keep the max
+		if [ ${entries} -lt ${FIREHOL_IPSETS_MAXELEM[$name]} ]
+		then
+			entries=${FIREHOL_IPSETS_MAXELEM[$name]}
+		fi
+
+		# if the entries is above the default, or the user gave something
+		if [ ${entries} -gt 65536 -o ${FIREHOL_IPSETS_MAXELEM[$name]} -gt 0 ]
+		then
+			opts="${opts} maxelem ${entries}"
+		fi
+	elif [ ${FIREHOL_IPSETS_MAXELEM[$name]} -gt 0 ]
+	then
+		# the user gave something, respect it
+		opts="${opts} maxelem ${FIREHOL_IPSETS_MAXELEM[$name]}"
+	fi
+
+	${IPSET_CMD} ${IPSET_CREATE_OPTION} ${tmpname} ${FIREHOL_IPSETS_HASH[$name]} ${opts} || return 1
+	${IPSET_CMD} ${IPSET_FLUSH_OPTION} ${tmpname} || return 1
+
+	if [ ! "${swap}" = "swap" ]
+	then
+		${IPSET_CMD} ${IPSET_RESTORE_OPTION} <"${file}"
+		[ $? -ne 0 ] && return 1
+	else
+		# give the temporary name to the set
+		${SED_CMD} <"${file}" \
+			-e "s|^\([^[:space:]]*\) ${name} \(.*\)|\1 ${tmpname} \2|g" \
+			-e "s|^\([^[:space:]]*\) ${name}$|\1 ${tmpname}|g" |\
+			${IPSET_CMD} ${IPSET_RESTORE_OPTION}
+		[ $? -ne 0 ] && return 1
+
+		# swap them, to activate the temporary ipset
+		${IPSET_CMD} ${IPSET_SWAP_OPTION} ${tmpname} ${name} || return 1
+
+		# destroy the temporary ipset
+		${IPSET_CMD} ${IPSET_DESTROY_OPTION} ${tmpname} || return 1
+	fi
+
+	# keep the file, if it is not our spool file
+	if [ ! "${file}" -ef "${FIREHOL_SPOOL_DIR}/ipset.${name}.rules" ]
+		then
+		cp "${file}" "${FIREHOL_SPOOL_DIR}/ipset.${name}.rules"
+	fi
 }
 
 ipset_done_all_tmp_sets() {
@@ -5397,44 +5473,8 @@ ipset_remove_all_tmp_sets() {
 	fi
 }
 
-ipsets_restore() {
-	local file="${1}"
-
-	if [ ${IPSET_RESTORE_SUPPORTS_FLUSH_SWAP_DESTROY} -eq 1 ]
-	then
-		${IPSET_CMD} ${IPSET_RESTORE_OPTION} <"${file}"
-		return $?
-	fi
-
-	# get all the CREATE and FLUSH statements
-	${CAT_CMD} "${file}" | ${EGREP_CMD} "^(${IPSET_CREATE_OPTION}|${IPSET_FLUSH_OPTION}) " >"${file}.pre"
-	${CAT_CMD} "${file}" | ${EGREP_CMD} "^(${IPSET_SWAP_OPTION}|${IPSET_DESTROY_OPTION}) " >"${file}.post"
-	${CAT_CMD} "${file}" | ${EGREP_CMD} -v "^(${IPSET_FLUSH_OPTION}|${IPSET_SWAP_OPTION}|${IPSET_DESTROY_OPTION}) " >"${file}.add"
-	echo "COMMIT" >>"${file}.add"
-
-	# the older versions of ipset will return an error if the
-	# ipset to be created already exists.
-
-	#set_work_function -ne "Executing IPSET pre-rules"
-	#while read
-	#do
-	#	${IPSET_CMD} ${REPLY} || return $?
-	#done <"${file}.pre"
-
-	set_work_function -ne "Executing IPSET add-rules"
-	${IPSET_CMD} ${IPSET_RESTORE_OPTION} <"${file}.add" || return $?
-
-	set_work_function -ne "Executing IPSET post-rules"
-	while read
-	do
-		${IPSET_CMD} ${REPLY} || return $?
-	done <"${file}.post"
-
-	return 0
-}
-
-ipsets_apply() {
-	local from="${1}" base="${FIREHOL_DIR}" restoring=0 x=
+ipsets_apply_all() {
+	local from="${1}" base="${FIREHOL_DIR}" restoring=0 x= swap=
 
 	# if we have nothing to do, return
 	# if we are called with 'spool', FIREHOL_IPSETS_USED is empty and we will load it from the spool file
@@ -5446,7 +5486,6 @@ ipsets_apply() {
 		error "ipset is not enabled. Do you have ipset installed?"
 		return 1
 	fi
-
 
 	if [ "${from}" = "spool" ]
 	then
@@ -5487,62 +5526,37 @@ ipsets_apply() {
 
 	for x in ${!FIREHOL_IPSETS_USED[@]}
 	do
+		swap=
+
 		# did we had an ipset helper for this ipset?
 		[ ! -s "${base}/ipset.${x}.rules" ] && continue
 
 		# shall we restore this ipset?
 		if [ "${FIREHOL_IPSETS_USED[$x]}" = "EXISTS" ]
 		then
-			test $restoring -eq 1 && continue
 			[ ${FIREHOL_IPSETS_RESPECT_KEEP} -eq 1 -a "${FIREHOL_IPSETS_KEEP[$x]}" = "1" ] && continue
-
-			ipset_to_temp_and_swap "${x}" $(wc -l <"${base}/ipset.${x}.rules") <"${base}/ipset.${x}.rules" >>"${FIREHOL_DIR}/ipsets.restore"
-		else
-			# it does not exist...
-			# copy the generated rules to the ipset restoration file
-			${CAT_CMD} "${base}/ipset.${x}.rules" >>"${FIREHOL_DIR}/ipsets.restore"
+			swap="swap"
 		fi
 
-		FIREHOL_IPSETS_USED[$x]="RESTORED"
-	done
-
-	if [ -s "${FIREHOL_DIR}/ipsets.restore" ]
-	then
-		ipsets_restore "${FIREHOL_DIR}/ipsets.restore"
+		# restore the flag
+		FIREHOL_IPSETS_USED[$x]="CREATED"
+		
+		# apply it
+		ipset_apply "${x}" "${base}/ipset.${x}.rules" ${swap}
 		if [ $? -ne 0 ]
 		then
-			error "${FUNCNAME}: Cannot apply generated ipset rules."
-
-			# remove all temporary ipsets
 			ipset_remove_all_tmp_sets
 			return 1
-		else
-			ipset_done_all_tmp_sets
-			success
 		fi
+	done
 
-		if [ ! "${from}" = "spool" ]
-		then
-			# save the list and the new rules to our spool directory
-			for x in ${!FIREHOL_IPSETS_USED[@]}
-			do
-				if [ "${FIREHOL_IPSETS_USED[$x]}" = "RESTORED" ]
-				then
-					cp -p "${base}/ipset.${x}.rules" "${FIREHOL_SPOOL_DIR}/ipset.${x}.rules"
-					FIREHOL_IPSETS_USED[$x]="CREATED"
+	ipset_done_all_tmp_sets
+	success
 
-				elif [ "${FIREHOL_IPSETS_USED[$x]}" = "EXISTS" ]
-				then
-					FIREHOL_IPSETS_USED[$x]="CREATED"
-				fi
-			done
-
-			declare -p FIREHOL_IPSETS_USED FIREHOL_IPSETS_IPV FIREHOL_IPSETS_KEEP FIREHOL_IPSETS_TYPES FIREHOL_IPSETS_OPTIONS >"${FIREHOL_SPOOL_DIR}/ipsets.conf"
-			cp "${FIREHOL_DIR}/ipsets.restore" "${FIREHOL_SPOOL_DIR}/last.ipsets.restore"
-			ipset_save_active_to_spool
-		fi
-	else
-		success "sets already exist, not updated IPs"
+	if [ ! "${from}" = "spool" ]
+	then
+		declare -p FIREHOL_IPSETS_USED FIREHOL_IPSETS_IPV FIREHOL_IPSETS_KEEP FIREHOL_IPSETS_HASH FIREHOL_IPSETS_OPTIONS FIREHOL_IPSETS_MAXELEM >"${FIREHOL_SPOOL_DIR}/ipsets.conf"
+		ipset_save_active_to_spool
 	fi
 
 	return 0
@@ -6612,7 +6626,7 @@ close_master() {
 	done
 
 	# FIXME
-	# ipsets_apply() should generate post-processing commands
+	# ipsets_apply_all() should generate post-processing commands
 	# which should be added here
 
 	return 0
@@ -9976,7 +9990,7 @@ firehol_can_restore_saved_firewall() {
 
 	if [ ${ENABLE_IPSET} -eq 1 ]
 	then
-		ipsets_apply spool || return 6
+		ipsets_apply_all spool || return 6
 	fi
 
 	return 0
@@ -10370,133 +10384,78 @@ case "${arg}" in
 		name="${1}"
 		shift
 
-		progress "Updating ipset '${name}' with options: ${*}"
+		if [ -f "${FIREHOL_SPOOL_DIR}/ipsets.conf" ]
+		then
+			source "${FIREHOL_SPOOL_DIR}/ipsets.conf"
+			if [ $? -ne 0 ]
+			then
+				warning "Cannot load ${FIREHOL_SPOOL_DIR}/ipsets.conf"
+				exit 1
+			fi
+		fi
+
+		if [ -z "${FIREHOL_IPSETS_USED[$name]}" -o ! -f "${FIREHOL_SPOOL_DIR}/ipset.${name}.rules" ]
+			then
+			error "ipset ${name} is not configured by firehol. Cannot proceed."
+			exit 1
+		fi
+
 		found=0
 		for x in $( ipset_list_active_names )
 		do
 			[ "$x" = "${name}" ] && found=1 && break
 		done
-		if [ $found -eq 1 ]
-		then
-			tmp=$(${MKTEMP_CMD} "${FIREHOL_DIR}/ipset-XXXXXXXXXX") || exit 1
 
-			# save the current set
-			${IPSET_CMD} ${IPSET_SAVE_OPTION} ${name} >${tmp}.old
-
-			# find the create statement
-			${EGREP_CMD} "^(${IPSET_CREATE_OPTION}|create|-N|--create) " <${tmp}.old >${tmp}
-
-			if [ ! -s ${tmp} -a -f "${FIREHOL_SPOOL_DIR}/ipset.${name}.rules" ]
+		if [ ${found} -eq 0 ]
 			then
-				# try the rules we generated previously
-				${GREP_CMD} "^${IPSET_CREATE_OPTION} ${name} " \
-					<"${FIREHOL_SPOOL_DIR}/ipset.${name}.rules" \
-					>${tmp}
-			fi
-
-			# do we have a 'create' statement?
-			if [ ! -s ${tmp} ]
-			then
-				failure "cannot find ipset create statement" # "Updating ipset '${name}' with options: ${*}"
-				echo >&2 "Sorry. Cannot find the template to re-create ipset '${name}'."
-				echo >&2 "Make sure the firehol-defaults.conf reflects your ipset create statement."
-				exit 1
-			fi
-
-			# ok, we have the ipset 'create' statement in $tmp
-
-			# add a flush to it
-			echo "${IPSET_FLUSH_OPTION} ${name}" >>${tmp}
-
-			# add the IPs from the file
-			ipset_addfile "${name}" "${@}" >>${tmp}
-			if [ $? -ne 0 ]
-			then
-				failure # "Updating ipset '${name}' with options: ${*}"
-				exit 1
-			fi
-
-			# lets rename it
-			ipset_to_temp_and_swap "${name}" $(wc -l <${tmp}) <${tmp} >"${FIREHOL_DIR}/ipsets.restore"
-
-			# cp "${FIREHOL_DIR}/ipsets.restore" /tmp/
-
-			# and activate it
-			ipsets_restore "${FIREHOL_DIR}/ipsets.restore"
-			if [ $? -ne 0 ]
-			then
-				failure # "Updating ipset '${name}' with options: ${*}"
-				ipset_remove_all_tmp_sets
-				exit 1
-			fi
-			ipset_done_all_tmp_sets
-
-			# let the user know
-			success "$(( $(cat ${tmp} | wc -l) - 2 )) entries" # "Updating ipset '${name}' with options: ${*}"
-
-			# save the new ipset
-			${IPSET_CMD} ${IPSET_SAVE_OPTION} ${name} >${tmp}.new
-
-			# sort the two sets
-			# we use the files saved from ipset, so that if the kernel is
-			# making something magic to them (it does not currently),
-			# we will compare what the kernel actually sees.
-			${SORT_CMD} <${tmp}.new >${tmp}.new.sorted
-			${SORT_CMD} <${tmp}.old >${tmp}.old.sorted
-
-			diff ${tmp}.old.sorted ${tmp}.new.sorted |\
-				${SED_CMD} -e "s|[\t ]\+| |g" -e "s|^ \+||g" -e "s| \+$||g" \
-					   -e "s|^\([<>]\) [^[:space:]]* ${name} \([0-9a-fA-F/\.:-]\+\) .*$|\1 \2|g" \
-				           -e "s|^\([<>]\) [^[:space:]]* ${name} \([0-9a-fA-F/\.:-]\+\)$|\1 \2|g" |\
-				${EGREP_CMD} "^[<>] [0-9a-fA-F/\.:-]+$" >${tmp}.diff
-
-			echo
-
-			if [ ! -s ${tmp}.diff ]
-			then
-				echo " >> No differences - the new set is exactly the same with the old."
-			else
-				cat ${tmp}.diff | ${GREP_CMD} "^< " | ${SED_CMD} "s|^< ||g" | ${TR_CMD} "\n" " " >${tmp}.removed
-				cat ${tmp}.diff | ${GREP_CMD} "^> " | ${SED_CMD} "s|^> ||g" | ${TR_CMD} "\n" " " >${tmp}.added
-
-				if [ -s ${tmp}.removed ]
-				then
-					echo -n " < Removed: "
-					cat ${tmp}.removed
-					echo
-				fi
-				if [ -s ${tmp}.added ]
-				then
-					echo -n " > Added  : "
-					cat ${tmp}.added
-					echo
-				fi
-			fi
-			echo
-
-			# keep it for restoration
-			if [ -f "${FIREHOL_SPOOL_DIR}/ipset.${name}.rules" ]
-			then
-				progress "Keeping ipset '${name}' for later restoration"
-				cp ${tmp} "${FIREHOL_SPOOL_DIR}/ipset.${name}.rules"
-				if [ $? -eq 0 ]
-				then
-					success
-				else
-					failure
-				fi
-			fi
-
-			# save the whole ipset to spool
-			ipset_save_active_to_spool
-
-			# make the exit handler exit with 0
-			FIREHOL_ACTIVATED_SUCCESSFULLY=1
-			exit 0
-		else
-			failure "no collection with name '${name}'" # "Updating ipset '${name}' with options: ${*}"
+			error "ipset ${name} is not active in the system. Cannot proceed."
+			exit 1
 		fi
-		exit 1
+
+		progress "Updating ipset ${name} with options: ${*}"
+
+		tmp=$(${MKTEMP_CMD} "${FIREHOL_DIR}/ipset-XXXXXXXXXX") || exit 1
+		
+		# add the IPs from the file
+		ipset_addfile "${name}" "${@}" >>${tmp}
+		if [ $? -ne 0 ]
+		then
+			failure # "Updating ipset '${name}' with options: ${*}"
+			exit 1
+		fi
+
+		# lets rename it
+		ipset_apply "${name}" "${tmp}" swap
+		if [ $? -ne 0 ]
+		then
+			failure # "Updating ipset '${name}' with options: ${*}"
+			ipset_remove_all_tmp_sets
+			exit 1
+		fi
+		ipset_done_all_tmp_sets
+
+		# let the user know
+		success "$(( $(wc -l <"${tmp}"))) entries" # "Updating ipset '${name}' with options: ${*}"
+
+		# keep it for restoration
+		if [ -f "${FIREHOL_SPOOL_DIR}/ipset.${name}.rules" ]
+		then
+			progress "Keeping ipset '${name}' for later restoration"
+			cp ${tmp} "${FIREHOL_SPOOL_DIR}/ipset.${name}.rules"
+			if [ $? -eq 0 ]
+			then
+				success
+			else
+				failure
+			fi
+		fi
+
+		# save the whole ipset to spool
+		ipset_save_active_to_spool
+
+		# make the exit handler exit with 0
+		FIREHOL_ACTIVATED_SUCCESSFULLY=1
+		exit 0
 		;;
 
 	*)	if [ ! -z "${arg}" -a -f "${arg}" ]
@@ -11987,7 +11946,7 @@ then
 	# apply the new ipsets
 	if [ ${ENABLE_IPSET} -eq 1 ]
 	then
-		ipsets_apply || exit 1
+		ipsets_apply_all || exit 1
 	fi
 
 	progress "Fast activating new firewall"
@@ -12067,7 +12026,7 @@ else
 	# apply the new ipsets
 	if [ ${ENABLE_IPSET} -eq 1 ]
 	then
-		ipsets_apply || exit 1
+		ipsets_apply_all || exit 1
 	fi
 
 	syslog info "Activating new firewall from ${FIREHOL_CONFIG} (translated to ${FIREHOL_COMMAND_COUNTER} iptables rules)."
