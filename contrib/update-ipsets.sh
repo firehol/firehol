@@ -87,17 +87,20 @@
 # -----------------------------------------------------------------------------
 
 # single line flock, from man flock
-[ "${UPDATE_IPSETS_LOCKER}" != "${0}" ] && exec env UPDATE_IPSETS_LOCKER="$0" flock -en "/var/run/update-ipsets.lock" "${0}" "${@}" || :
+LOCK_FILE="/var/run/update-ipsets.lock"
+[ ! "${UID}" = "0" ] && LOCK_FILE="${HOME}/.update-upsets.lock"
+[ "${UPDATE_IPSETS_LOCKER}" != "${0}" ] && exec env UPDATE_IPSETS_LOCKER="$0" flock -en "${LOCK_FILE}" "${0}" "${@}" || :
 
 PATH="${PATH}:/sbin:/usr/sbin"
 
 LC_ALL=C
 umask 077
 
-if [ ! "$UID" = "0" ]
+IPSETS_APPLY=1
+if [ ! "${UID}" = "0" ]
 then
-	echo >&2 "Please run me as root."
-	exit 1
+	echo >&2 "I run as a normal user. I'll not be able to load ipsets to the kernel."
+	IPSETS_APPLY=0
 fi
 renice 10 $$ >/dev/null 2>/dev/null
 
@@ -258,13 +261,48 @@ WEB_DIR="/var/www/localhost/htdocs/blocklists"
 # how to chown web files
 WEB_OWNER="apache:apache"
 
+# where to store the web retention detection cache
+CACHE_DIR="/data/var/cache/update-ipsets"
+
+# where is the web url to show info about each ipset
+# the ipset name is appended to it
+WEB_URL="http://ktsaou.github.io/blocklist-ipsets/?ipset="
+
 # options to be given to iprange for reducing netsets
 IPSET_REDUCE_FACTOR="20"
 IPSET_REDUCE_ENTRIES="65536"
 
-if [ -f "/etc/firehol/update-ipsets.conf" ]
+# if the .git directory is present, push it also
+PUSH_TO_GIT=0
+
+
+# -----------------------------------------------------------------------------
+# Command line parsing
+
+IGNORE_LASTCHECKED=0
+FORCE_WEB_REBUILD=0
+SILENT=0
+VERBOSE=0
+CONFIG_FILE="/etc/firehol/update-ipsets.conf"
+while [ ! -z "${1}" ]
+do
+	case "${1}" in
+		-r) FORCE_WEB_REBUILD=1;;
+		silen|-s) SILENT=1;;
+		git|-g) PUSH_TO_GIT=1;;
+		recheck|-i) IGNORE_LASTCHECKED=1;;
+		compare|-c) ;; # obsolete
+		verbose|-v) VERBOSE=1;;
+		config|-f) CONFIG_FILE="${2}"; shift ;;
+		*) echo >&2 "Unknown parameter '${1}'".; exit 1 ;;
+	esac
+	shift
+done
+
+if [ -f "${CONFIG_FILE}" ]
 	then
-	source /etc/firehol/update-ipsets.conf
+	echo >&2 "Loading configuration from ${CONFIG_FILE}"
+	source "${CONFIG_FILE}"
 fi
 
 # -----------------------------------------------------------------------------
@@ -311,45 +349,23 @@ PROGRAM_COMPLETED=0
 cleanup() {
 	if [ ! -z "${RUN_DIR}" -a -d "${RUN_DIR}" ]
 		then
-		#echo >&2 "Cleaning up temporary files in ${RUN_DIR}."
+		[ ${VERBOSE} -eq 1 ] && echo >&2 "Cleaning up temporary files in ${RUN_DIR}."
 		rm -rf "${RUN_DIR}"
 	fi
 	trap exit EXIT
 	
 	if [ ${PROGRAM_COMPLETED} -eq 1 ]
 		then
-		#echo >&2 "Completed successfully."
+		[ ${VERBOSE} -eq 1 ] && echo >&2 "Completed successfully."
 		exit 0
 	fi
 
-	#echo >&2 "Completed with errors."
+	[ ${VERBOSE} -eq 1 ] && echo >&2 "Completed with errors."
 	exit 1
 }
 trap cleanup EXIT
 trap cleanup SIGHUP
 trap cleanup INT
-
-# -----------------------------------------------------------------------------
-# Command line parsing
-
-GIT_COMPARE=0
-IGNORE_LASTCHECKED=0
-FORCE_WEB_REBUILD=0
-PUSH_TO_GIT=0
-SILENT=0
-while [ ! -z "${1}" ]
-do
-	case "${1}" in
-		-r) FORCE_WEB_REBUILD=1;;
-		silen|-s) SILENT=1;;
-		git|-g) PUSH_TO_GIT=1;;
-		recheck|-i) IGNORE_LASTCHECKED=1;;
-		compare|-c) GIT_COMPARE=1;;
-		*) echo >&2 "Unknown parameter '${1}'".; exit 1 ;;
-	esac
-	shift
-done
-
 
 # -----------------------------------------------------------------------------
 # other preparations
@@ -417,6 +433,16 @@ check_git_committed() {
 	fi
 }
 
+# http://stackoverflow.com/questions/3046436/how-do-you-stop-tracking-a-remote-branch-in-git
+# to delete a branch on git
+# localy only - remote will not be affected
+#
+# BRANCH_TO_DELETE_LOCALY_ONLY="master"
+# git branch -d -r origin/${BRANCH_TO_DELETE_LOCALY_ONLY}
+# git config --unset branch.${BRANCH_TO_DELETE_LOCALY_ONLY}.remote
+# git config --unset branch.${BRANCH_TO_DELETE_LOCALY_ONLY}.merge
+# git gc --aggressive --prune=all --force
+
 declare -A DO_NOT_REDISTRIBUTE=()
 commit_to_git() {
 	if [ -d .git -a ! -z "${!UPDATED_SETS[*]}" ]
@@ -475,7 +501,12 @@ touch_in_the_past $[7 * 24 * 60] ".warn_if_last_downloaded_before_this"
 
 # get all the active ipsets in the system
 ipset_list_names() {
-	( ipset --list -t || ipset --list ) | grep "^Name: " | cut -d ' ' -f 2
+	if [ ${IPSETS_APPLY} -eq 1 ]
+		then
+		( ipset --list -t || ipset --list ) | grep "^Name: " | cut -d ' ' -f 2
+		return $?
+	fi
+	return 0
 }
 
 echo
@@ -529,7 +560,7 @@ history_manager() {
 	do
 		if [ "${x}" -nt "${RUN_DIR}/history.reference" ]
 		then
-			#test ${SILENT} -ne 1 && echo >&2 "${ipset}: merging history file '${x}'"
+			[ ${VERBOSE} -eq 1 ] && echo >&2 "${ipset}: merging history file '${x}'"
 			cat "${x}"
 		else
 			rm "${x}"
@@ -556,6 +587,8 @@ geturl() {
 	# to our file
 	touch -r "${reference}" "${file}"
 
+	test ${SILENT} -ne 1 && printf >&2 "${ipset}: downlading from '%s'... " "${url}"
+
 	http_code=$(curl --connect-timeout 10 --max-time 300 --retry 0 --fail --compressed \
 		--user-agent "FireHOL-Update-Ipsets/3.0" \
 		--referer "https://github.com/ktsaou/firehol/blob/master/contrib/update-ipsets.sh" \
@@ -564,35 +597,35 @@ geturl() {
 
 	ret=$?
 
-	printf >&2 "HTTP/${http_code} "
+	test ${SILENT} -ne 1 && printf >&2 "HTTP/${http_code} "
 
 	case "${ret}" in
 		0)	if [ "${http_code}" = "304" -a ! "${file}" -nt "${reference}" ]
 			then
-				echo >&2 "Not Modified"
+				test ${SILENT} -ne 1 && echo >&2 "Not Modified"
 				return 99
 			fi
-			echo >&2 "OK"
+			test ${SILENT} -ne 1 && echo >&2 "OK"
 			;;
 
-		1)	echo >&2 "Unsupported Protocol" ;;
-		2)	echo >&2 "Failed to initialize" ;;
-		3)	echo >&2 "Malformed URL" ;;
-		5)	echo >&2 "Can't resolve proxy" ;;
-		6)	echo >&2 "Can't resolve host" ;;
-		7)	echo >&2 "Failed to connect" ;;
-		18)	echo >&2 "Partial Transfer" ;;
-		22)	echo >&2 "HTTP Error" ;;
-		23)	echo >&2 "Cannot write local file" ;;
-		26)	echo >&2 "Read Error" ;;
-		28)	echo >&2 "Timeout" ;;
-		35)	echo >&2 "SSL Error" ;;
-		47)	echo >&2 "Too many redirects" ;;
-		52)	echo >&2 "Server did not reply anything" ;;
-		55)	echo >&2 "Failed sending network data" ;;
-		56)	echo >&2 "Failure in receiving network data" ;;
-		61)	echo >&2 "Unrecognized transfer encoding" ;;
-		*) echo >&2 "Error ${ret} returned by curl" ;;
+		1)	test ${SILENT} -ne 1 && echo >&2 "Unsupported Protocol" ;;
+		2)	test ${SILENT} -ne 1 && echo >&2 "Failed to initialize" ;;
+		3)	test ${SILENT} -ne 1 && echo >&2 "Malformed URL" ;;
+		5)	test ${SILENT} -ne 1 && echo >&2 "Can't resolve proxy" ;;
+		6)	test ${SILENT} -ne 1 && echo >&2 "Can't resolve host" ;;
+		7)	test ${SILENT} -ne 1 && echo >&2 "Failed to connect" ;;
+		18)	test ${SILENT} -ne 1 && echo >&2 "Partial Transfer" ;;
+		22)	test ${SILENT} -ne 1 && echo >&2 "HTTP Error" ;;
+		23)	test ${SILENT} -ne 1 && echo >&2 "Cannot write local file" ;;
+		26)	test ${SILENT} -ne 1 && echo >&2 "Read Error" ;;
+		28)	test ${SILENT} -ne 1 && echo >&2 "Timeout" ;;
+		35)	test ${SILENT} -ne 1 && echo >&2 "SSL Error" ;;
+		47)	test ${SILENT} -ne 1 && echo >&2 "Too many redirects" ;;
+		52)	test ${SILENT} -ne 1 && echo >&2 "Server did not reply anything" ;;
+		55)	test ${SILENT} -ne 1 && echo >&2 "Failed sending network data" ;;
+		56)	test ${SILENT} -ne 1 && echo >&2 "Failure in receiving network data" ;;
+		61)	test ${SILENT} -ne 1 && echo >&2 "Unrecognized transfer encoding" ;;
+		*) test ${SILENT} -ne 1 && echo >&2 "Error ${ret} returned by curl" ;;
 	esac
 
 	return ${ret}
@@ -625,7 +658,6 @@ download_manager() {
 	fi
 
 	# download it
-	test ${SILENT} -ne 1 && printf >&2 "${ipset}: downlading from '${url}'... "
 	geturl "${tmp}" "${install}.source" "${url}"
 	case $? in
 		0)	;;
@@ -647,13 +679,13 @@ download_manager() {
 	[ -f ".${install}.lastchecked" ] && rm ".${install}.lastchecked"
 
 	# check if the downloaded file is empty
-	if [ ! -s "${tmp}" ]
-	then
-		# it is empty
-		rm "${tmp}"
-		syslog "${ipset}: empty file downloaded from url '${url}'."
-		return ${DOWNLOAD_FAILED}
-	fi
+	#if [ ! -s "${tmp}" ]
+	#then
+	#	# it is empty
+	#	rm "${tmp}"
+	#	syslog "${ipset}: empty file downloaded from url '${url}'."
+	#	return ${DOWNLOAD_FAILED}
+	#fi
 
 	# check if the downloaded file is the same with the last one
 	diff -q "${install}.source" "${tmp}" >/dev/null 2>&1
@@ -688,10 +720,10 @@ declare -A IPSET_MINS=()
 declare -A IPSET_HISTORY_MINS=()
 declare -A IPSET_ENTRIES=()
 declare -A IPSET_IPS=()
+declare -A IPSET_SOURCE_DATE=()
+declare -A IPSET_PROCESSED_DATE=()
 
 # TODO - FIXME
-#declare -A IPSET_SOURCE_DATE=()
-#declare -A IPSET_PROCESSED_DATE=()
 #declare -A IPSET_CATEGORY=() # like proxies, spam, attacks, exploits, etc
 #declare -A IPSET_PREFIXES=()
 #declare -A IPSET_DOWNLOADER=()
@@ -699,7 +731,20 @@ declare -A IPSET_IPS=()
 
 cache_save() {
 	#echo >&2 "Saving cache"
-	declare -p IPSET_SOURCE IPSET_URL IPSET_INFO IPSET_IPV IPSET_HASH IPSET_MINS IPSET_HISTORY_MINS IPSET_FILE IPSET_ENTRIES IPSET_IPS >"${BASE_DIR}/.cache"
+	declare -p \
+		IPSET_INFO \
+		IPSET_SOURCE \
+		IPSET_URL \
+		IPSET_FILE \
+		IPSET_IPV \
+		IPSET_HASH \
+		IPSET_MINS \
+		IPSET_HISTORY_MINS \
+		IPSET_ENTRIES \
+		IPSET_IPS \
+		IPSET_SOURCE_DATE \
+		IPSET_PROCESSED_DATE \
+		>"${BASE_DIR}/.cache"
 }
 
 if [ -f "${BASE_DIR}/.cache" ]
@@ -723,6 +768,9 @@ cache_remove_ipset() {
 	unset IPSET_HISTORY_MINS[${ipset}]
 	unset IPSET_ENTRIES[${ipset}]
 	unset IPSET_IPS[${ipset}]
+	unset IPSET_SOURCE_DATE[${ipset}]
+	unset IPSET_PROCESSED_DATE[${ipset}]
+
 	cache_save
 }
 
@@ -757,8 +805,8 @@ ipset_json() {
 	"hash": "${IPSET_HASH[${ipset}]}",
 	"frequency": ${IPSET_MINS[${ipset}]},
 	"aggregation": ${IPSET_HISTORY_MINS[${ipset}]},
-	"updated": $(date -r "${IPSET_SOURCE[${ipset}]}" +%s)000,
-	"processed": $(date +%s)000,
+	"updated": ${IPSET_SOURCE_DATE[${ipset}]}000,
+	"processed": ${IPSET_PROCESSED_DATE[${ipset}]}000,
 	"info": "${info}",
 	"source": "${IPSET_URL[${ipset}]}",
 	"file": "${IPSET_FILE[${ipset}]}",
@@ -770,22 +818,216 @@ ipset_json() {
 EOFJSON
 }
 
+declare -a RETENTION_HISTOGRAM=()
+declare -a RETENTION_HISTOGRAM_REST=()
+
+# should only be called from retention_detect()
+# because it needs the RETENTION_HISTOGRAM array loaded
+retention_print() {
+	local ipset="${1}"
+
+	printf "{\n	\"ipset\": \"${ipset}\",\n	\"updated\": ${IPSET_SOURCE_DATE[${ipset}]}000,\n"
+
+	[ ${VERBOSE} -eq 1 ] && echo >&2 "${ipset}: calculating retention hours..."
+	local x= hours= ips= sum=0 pad=
+	for x in "${!RETENTION_HISTOGRAM[@]}"
+	do
+		(( sum += ${RETENTION_HISTOGRAM[${x}]} ))
+		hours="${hours}${pad}${x}"
+		ips="${ips}${pad}${RETENTION_HISTOGRAM[${x}]}"
+		pad=", "
+	done
+	printf "	\"past\": {\n		\"hours\": [ ${hours} ],\n		\"ips\": [ ${ips} ],\n		\"total\": ${sum}\n	},\n"
+
+	[ ${VERBOSE} -eq 1 ] && echo >&2 "${ipset}: calculating current hours..."
+	local x= hours= ips= sum=0 pad=
+	for x in "${!RETENTION_HISTOGRAM_REST[@]}"
+	do
+		(( sum += ${RETENTION_HISTOGRAM_REST[${x}]} ))
+		hours="${hours}${pad}${x}"
+		ips="${ips}${pad}${RETENTION_HISTOGRAM_REST[${x}]}"
+		pad=", "
+	done
+	printf "	\"current\": {\n		\"hours\": [ ${hours} ],\n		\"ips\": [ ${ips} ],\n		\"total\": ${sum}\n	}\n}\n"
+}
+
+retention_detect() {
+	local ipset="${1}"
+
+	# can we do it?
+	[ -z "${IPSET_FILE[${ipset}]}" -o -z "${CACHE_DIR}" -o ! -d "${CACHE_DIR}" ] && return 1
+
+	# load the ipset retention histogram
+	RETENTION_HISTOGRAM=()
+	RETENTION_HISTOGRAM_REST=()
+	if [ -f "${CACHE_DIR}/${ipset}/histogram" ]
+		then
+		source "${CACHE_DIR}/${ipset}/histogram"
+	fi
+
+	ndate=$(date -r "${IPSET_FILE[${ipset}]}" +%s)
+
+	printf >&2 " ${ipset}:"
+
+	# create the cache directory for this ipset
+	if [ ! -d "${CACHE_DIR}/${ipset}" ]
+		then
+		mkdir -p "${CACHE_DIR}/${ipset}" || return 2
+		mkdir -p "${CACHE_DIR}/${ipset}/new" || return 2
+	fi
+
+	# if we don't have an older version
+	# keep this and return
+	if [ ! -f "${CACHE_DIR}/${ipset}/latest" ]
+		then
+		[ ${VERBOSE} -eq 1 ] && echo >&2 "${ipset}: ${CACHE_DIR}/${ipset}/latest: first time - assuming start from empty"
+		touch -r "${IPSET_FILE[${ipset}]}" "${CACHE_DIR}/${ipset}/latest"
+
+	elif [ ! "${IPSET_FILE[${ipset}]}" -nt "${CAHCE_DIR}/${ipset}/latest" ]
+		# if the new file is not newer than the latest, return
+		then
+		[ ${VERBOSE} -eq 1 ] && echo >&2 "${ipset}: ${CACHE_DIR}/${ipset}/latest: source file is not newer"
+		retention_print "${ipset}"
+		return 0
+	fi
+
+	# if we already have a file for this date, return
+	if [ -f "${CACHE_DIR}/${ipset}/new/${ndate}" ]
+		then
+		[ ${VERBOSE} -eq 1 ] && echo >&2 "${ipset}: ${CACHE_DIR}/${ipset}/new/${ndate}: already exists"
+		retention_print "${ipset}"
+		return 0
+	fi
+
+	# find the new ips in this set
+	"${IPRANGE_CMD}" "${IPSET_FILE[${ipset}]}" --exclude-next "${CACHE_DIR}/${ipset}/latest" >"${CACHE_DIR}/${ipset}/new/${ndate}"
+	touch -r "${IPSET_FILE[${ipset}]}" "${CACHE_DIR}/${ipset}/new/${ndate}"
+
+	# if there weren't any new IPs, return
+	if [ ! -s "${CACHE_DIR}/${ipset}/new/${ndate}" ]
+		then
+		[ ${VERBOSE} -eq 1 ] && echo >&2 "${ipset}: ${CACHE_DIR}/${ipset}/new/${ndate}: nothing new in this"
+		rm "${CACHE_DIR}/${ipset}/new/${ndate}"
+		retention_print "${ipset}"
+		return 0
+	fi
+
+	# ok keep it
+	[ ${VERBOSE} -eq 1 ] && echo >&2 "${ipset}: keeping it..."
+	"${IPRANGE_CMD}" "${IPSET_FILE[${ipset}]}" >"${CACHE_DIR}/${ipset}/latest"
+	touch -r "${IPSET_FILE[${ipset}]}" "${CACHE_DIR}/${ipset}/latest"
+
+	if [ ! -f "${CACHE_DIR}/${ipset}/retention.csv" ]
+		then
+		echo "date_removed,date_added,hours,ips" >"${CACHE_DIR}/${ipset}/retention.csv"
+	fi
+
+	# empty the remaining IPs counters
+	# they will be re-calculated below
+	RETENTION_HISTOGRAM_REST=()
+
+	local x=
+	for x in $(ls "${CACHE_DIR}/${ipset}/new"/*)
+	do
+		printf >&2 "."
+
+		# find how many hours have passed
+		local odate="${x/*\//}"
+		local hours=$[ (ndate + 1800 - odate) / 3600 ]
+		#echo >&2 "${ipset}: ${x}: ${hours} hours have passed"
+
+		# are all the IPs of this file still the latest?
+		"${IPRANGE_CMD}" --common "${x}" "${CACHE_DIR}/${ipset}/latest" >"${x}.stillthere"
+		"${IPRANGE_CMD}" "${x}" --exclude-next "${x}.stillthere" >"${x}.removed"
+		if [ -s "${x}.removed" ]
+			then
+			# no, something removed, find it
+			local removed=$("${IPRANGE_CMD}" -C "${x}.removed")
+			rm "${x}.removed"
+
+			# these are the unique IPs removed
+			removed="${removed/*,/}"
+			#echo >&2 "${ipset}: ${x}: ${removed} IPs removed"
+
+			echo "${ndate},${odate},${hours},${removed}" >>"${CACHE_DIR}/${ipset}/retention.csv"
+
+			# update the histogram
+			RETENTION_HISTOGRAM[${hours}]=$[ ${RETENTION_HISTOGRAM[${hours}]} + removed ]
+		else
+			# yes, nothing removed from this run
+			#echo >&2 "${ipset}: ${x}: nothing removed"
+			rm "${x}.removed"
+		fi
+
+		# check if there is something still left
+		if [ ! -s "${x}.stillthere" ]
+			then
+			# nothing left for this timestamp, remove files
+			#echo >&2 "${ipset}: ${x}: nothing left in this"
+			rm "${x}" "${x}.stillthere"
+		else
+			# there is something left in it
+			#echo >&2 "${ipset}: ${x}: there is still something in it"
+			touch -r "${x}" "${x}.stillthere"
+			mv "${x}.stillthere" "${x}"
+			local still="$("${IPRANGE_CMD}" -C "${x}")"
+			still="${still/*,/}"
+			RETENTION_HISTOGRAM_REST[${hours}]=$[ ${RETENTION_HISTOGRAM_REST[${hours}]} + still ]
+		fi
+	done
+
+	[ ${VERBOSE} -eq 1 ] && echo >&2 "${ipset}: cleaning up retention cache..."
+	# cleanup empty slots in our arrays
+	for x in "${!RETENTION_HISTOGRAM[@]}"
+	do
+		if [ $[ RETENTION_HISTOGRAM[${x}] ] -eq 0 ]
+			then
+			unset RETENTION_HISTOGRAM[${x}]
+		fi
+	done
+	for x in "${!RETENTION_HISTOGRAM_REST[@]}"
+	do
+		if [ $[ RETENTION_HISTOGRAM_REST[${x}] ] -eq 0 ]
+			then
+			unset RETENTION_HISTOGRAM_REST[${x}]
+		fi
+	done
+
+	# save the histogram
+	[ ${VERBOSE} -eq 1 ] && echo >&2 "${ipset}: saving retention cache..."
+	declare -p RETENTION_HISTOGRAM RETENTION_HISTOGRAM_REST >"${CACHE_DIR}/${ipset}/histogram"
+
+	[ ${VERBOSE} -eq 1 ] && echo >&2 "${ipset}: printing retension..."
+	retention_print "${ipset}"
+
+	#echo >&2 "${ipset}: printed retention histogram"
+	return 0
+}
+
+params_sort() {
+	local x=
+	for x in "${@}"
+	do
+		echo "${x}"
+	done | sort
+}
+
 update_web() {
 	[ -z "${WEB_DIR}" -o ! -d "${WEB_DIR}" ] && return 1
 	[ "${#UPDATED_SETS[@]}" -eq 0 -a ! ${FORCE_WEB_REBUILD} -eq 1 ] && return 1
 
 	local x= all=() geolite2_country=() ipdeny_country=() i= to_all=
-	
+
 	echo >&2
 	printf >&2 "updating history... "
-	for x in "${!IPSET_FILE[@]}"
+	for x in $(params_sort "${!IPSET_FILE[@]}")
 	do
 		# remove deleted files
 		if [ ! -f "${IPSET_FILE[$x]}" ]
 			then
 			echo >&2 "${x}: file ${IPSET_FILE[$x]} not found - removing it from cache"
 			cache_remove_ipset "${x}"
-			
+
 			continue
 		fi
 
@@ -830,7 +1072,7 @@ update_web() {
 		if [ ${to_all} -eq 1 ]
 			then
 			all=("${all[@]}" "${IPSET_FILE[$x]}" "as" "${x}")
-			
+
 			if [ ! -f "${RUN_DIR}/all-ipsets.json" ]
 				then
 				printf >"${RUN_DIR}/all-ipsets.json" "[\n	\"${x}\""
@@ -845,27 +1087,28 @@ update_web() {
 
 	printf >&2 "comparing ipsets... "
 	"${IPRANGE_CMD}" --compare "${all[@]}" |\
-			while IFS="," read name1 name2 entries1 entries2 ips1 ips2 combined common
-			do
-				if [ ${common} -gt 0 ]
+		sort |\
+		while IFS="," read name1 name2 entries1 entries2 ips1 ips2 combined common
+		do
+			if [ ${common} -gt 0 ]
+				then
+				if [ ! -f "${RUN_DIR}/${name1}_comparison.json" ]
 					then
-					if [ ! -f "${RUN_DIR}/${name1}_comparison.json" ]
-						then
-						printf >"${RUN_DIR}/${name1}_comparison.json" "[\n"
-					else
-						printf >>"${RUN_DIR}/${name1}_comparison.json" ",\n"
-					fi
-					printf >>"${RUN_DIR}/${name1}_comparison.json" "	{\n		\"name\": \"${name2}\",\n		\"ips\": ${ips2},\n		\"common\": ${common}\n	}"
-
-					if [ ! -f "${RUN_DIR}/${name2}_comparison.json" ]
-						then
-						printf >"${RUN_DIR}/${name2}_comparison.json" "[\n"
-					else
-						printf >>"${RUN_DIR}/${name2}_comparison.json" ",\n"
-					fi
-					printf >>"${RUN_DIR}/${name2}_comparison.json" "	{\n		\"name\": \"${name1}\",\n		\"ips\": ${ips1},\n		\"common\": ${common}\n	}"
+					printf >"${RUN_DIR}/${name1}_comparison.json" "[\n"
+				else
+					printf >>"${RUN_DIR}/${name1}_comparison.json" ",\n"
 				fi
-			done
+				printf >>"${RUN_DIR}/${name1}_comparison.json" "	{\n		\"name\": \"${name2}\",\n		\"ips\": ${ips2},\n		\"common\": ${common}\n	}"
+
+				if [ ! -f "${RUN_DIR}/${name2}_comparison.json" ]
+					then
+					printf >"${RUN_DIR}/${name2}_comparison.json" "[\n"
+				else
+					printf >>"${RUN_DIR}/${name2}_comparison.json" ",\n"
+				fi
+				printf >>"${RUN_DIR}/${name2}_comparison.json" "	{\n		\"name\": \"${name1}\",\n		\"ips\": ${ips1},\n		\"common\": ${common}\n	}"
+			fi
+		done
 	echo >&2
 	for x in $(find "${RUN_DIR}" -name \*_comparison.json)
 	do
@@ -875,20 +1118,21 @@ update_web() {
 
 	printf >&2 "comparing geolite2 country... "
 	"${IPRANGE_CMD}" "${all[@]}" --compare-next "${geolite2_country[@]}" |\
-			while IFS="," read name1 name2 entries1 entries2 ips1 ips2 combined common
-			do
-				if [ ${common} -gt 0 ]
+		sort |\
+		while IFS="," read name1 name2 entries1 entries2 ips1 ips2 combined common
+		do
+			if [ ${common} -gt 0 ]
+				then
+				if [ ! -f "${RUN_DIR}/${name1}_geolite2_country.json" ]
 					then
-					if [ ! -f "${RUN_DIR}/${name1}_geolite2_country.json" ]
-						then
-						printf "[\n" >"${RUN_DIR}/${name1}_geolite2_country.json"
-					else
-						printf ",\n" >>"${RUN_DIR}/${name1}_geolite2_country.json"
-					fi
-
-					printf "	{\n		\"code\": \"${name2}\",\n		\"value\": ${common}\n	}" >>"${RUN_DIR}/${name1}_geolite2_country.json"
+					printf "[\n" >"${RUN_DIR}/${name1}_geolite2_country.json"
+				else
+					printf ",\n" >>"${RUN_DIR}/${name1}_geolite2_country.json"
 				fi
-			done
+
+				printf "	{\n		\"code\": \"${name2}\",\n		\"value\": ${common}\n	}" >>"${RUN_DIR}/${name1}_geolite2_country.json"
+			fi
+		done
 	echo >&2
 	for x in $(find "${RUN_DIR}" -name \*_geolite2_country.json)
 	do
@@ -898,20 +1142,21 @@ update_web() {
 
 	printf >&2 "comparing ipdeny country... "
 	"${IPRANGE_CMD}" "${all[@]}" --compare-next "${ipdeny_country[@]}" |\
-			while IFS="," read name1 name2 entries1 entries2 ips1 ips2 combined common
-			do
-				if [ ${common} -gt 0 ]
+		sort |\
+		while IFS="," read name1 name2 entries1 entries2 ips1 ips2 combined common
+		do
+			if [ ${common} -gt 0 ]
+				then
+				if [ ! -f "${RUN_DIR}/${name1}_ipdeny_country.json" ]
 					then
-					if [ ! -f "${RUN_DIR}/${name1}_ipdeny_country.json" ]
-						then
-						printf "[\n" >"${RUN_DIR}/${name1}_ipdeny_country.json"
-					else
-						printf ",\n" >>"${RUN_DIR}/${name1}_ipdeny_country.json"
-					fi
-
-					printf "	{\n		\"code\": \"${name2}\",\n		\"value\": ${common}\n	}" >>"${RUN_DIR}/${name1}_ipdeny_country.json"
+					printf "[\n" >"${RUN_DIR}/${name1}_ipdeny_country.json"
+				else
+					printf ",\n" >>"${RUN_DIR}/${name1}_ipdeny_country.json"
 				fi
-			done
+
+				printf "	{\n		\"code\": \"${name2}\",\n		\"value\": ${common}\n	}" >>"${RUN_DIR}/${name1}_ipdeny_country.json"
+			fi
+		done
 	echo >&2
 	for x in $(find "${RUN_DIR}" -name \*_ipdeny_country.json)
 	do
@@ -926,6 +1171,18 @@ update_web() {
 
 		ipset_json "${x}" >"${WEB_DIR}/${x}.json"
 	done
+	echo >&2
+
+	printf >&2 "generating retention histogram... "
+	for x in "${!IPSET_FILE[@]}"
+	do
+		[ -z "${UPDATED_SETS[${x}]}" -a ! ${FORCE_WEB_REBUILD} -eq 1 ] && continue
+		[[ "${IPSET_FILE[$x]}" =~ ^geolite2.* ]] && continue
+		[[ "${IPSET_FILE[$x]}" =~ ^ipdeny.* ]] && continue
+
+		retention_detect "${x}" >"${RUN_DIR}/${x}_retention.json" || rm "${RUN_DIR}/${x}_retention.json"
+	done
+	cp "${RUN_DIR}"/*_retention.json "${WEB_DIR}/"
 	echo >&2
 
 	chown ${WEB_OWNER} "${WEB_DIR}"/*
@@ -945,6 +1202,12 @@ ipset_apply_counter=0
 ipset_apply() {
 	local ipset="${1}" ipv="${2}" hash="${3}" file="${4}" entries= tmpname= opts= ret= ips=
 
+	if [ ${IPSETS_APPLY} -eq 0 ]
+		then
+		echo >&2 -e "${ipset}: ${COLOR_BGYELLOW}${COLOR_BLACK}${COLOR_BOLD} SAVED ${COLOR_RESET} I am not allowed to talk to the kernel."
+		return 0
+	fi
+
 	ipset_apply_counter=$[ipset_apply_counter + 1]
 	tmpname="tmp-$$-${RANDOM}-${ipset_apply_counter}"
 
@@ -952,8 +1215,9 @@ ipset_apply() {
 		then
 		if [ -z "${sets[$ipset]}" ]
 		then
-			echo >&2 "${ipset}: creating ipset"
-			ipset --create ${ipset} "${hash}hash" || return 1
+			echo >&2 -e "${ipset}: ${COLOR_BGYELLOW}${COLOR_BLACK}${COLOR_BOLD} SAVED ${COLOR_RESET} no need to load ipset in kernel"
+			# ipset --create ${ipset} "${hash}hash" || return 1
+			return 0
 		fi
 
 		if [ "${hash}" = "net" ]
@@ -990,7 +1254,7 @@ ipset_apply() {
 			then
 			opts="maxelem ${entries}"
 		fi
-		
+
 		ipset create "${tmpname}" ${hash}hash ${opts}
 		if [ $? -ne 0 ]
 			then
@@ -1027,11 +1291,13 @@ ipset_apply() {
 			return 1
 		fi
 
-		echo >&2 -e "${ipset}: ${COLOR_BGGREEN}${COLOR_BLACK}${COLOR_BOLD} OK ${COLOR_RESET} (${entries} entries, ${ips} unique IPs)"
+		echo >&2 -e "${ipset}: ${COLOR_BGGREEN}${COLOR_BLACK}${COLOR_BOLD} LOADED ${COLOR_RESET} (${entries} entries, ${ips} unique IPs)"
 	else
 		echo >&2 -e "${ipset}: ${COLOR_BGRED}${COLOR_WHITE}${COLOR_BOLD} CANNOT HANDLE THIS TYPE OF IPSET YET ${COLOR_RESET}"
 		return 1
 	fi
+
+	return 0
 }
 
 
@@ -1086,9 +1352,21 @@ finalize() {
 		return 1
 	fi
 
-	# find how many IPs are there
 	local quantity="${ips} unique IPs"
 	[ "${hash}" = "net" ] && quantity="${entries} subnets, ${ips} unique IPs"
+
+	IPSET_FILE[${ipset}]="${dst}"
+	IPSET_IPV[${ipset}]="${ipv}"
+	IPSET_HASH[${ipset}]="${hash}"
+	IPSET_MINS[${ipset}]="${mins}"
+	IPSET_HISTORY_MINS[${ipset}]="${history_mins}"
+	IPSET_INFO[${ipset}]="${info}"
+	IPSET_ENTRIES[${ipset}]="${entries}"
+	IPSET_IPS[${ipset}]="${ips}"
+	IPSET_URL[${ipset}]="${url}"
+	IPSET_SOURCE[${ipset}]="${src}"
+	IPSET_SOURCE_DATE[${ipset}]=$(date -r "${src}" +%s)
+	IPSET_PROCESSED_DATE[${ipset}]=$(date +%s)
 
 	# generate the final file
 	# we do this on another tmp file
@@ -1117,24 +1395,13 @@ EOFHEADER
 	touch -r "${src}" "${tmp}.wh"
 	mv "${tmp}.wh" "${dst}" || return 1
 
-	IPSET_FILE[${ipset}]="${dst}"
-	IPSET_IPV[${ipset}]="${ipv}"
-	IPSET_HASH[${ipset}]="${hash}"
-	IPSET_MINS[${ipset}]="${mins}"
-	IPSET_HISTORY_MINS[${ipset}]="${history_mins}"
-	IPSET_INFO[${ipset}]="${info}"
-	IPSET_ENTRIES[${ipset}]="${entries}"
-	IPSET_IPS[${ipset}]="${ips}"
-	IPSET_URL[${ipset}]="${url}"
-	IPSET_SOURCE[${ipset}]="${src}"
-
 	UPDATED_SETS[${ipset}]="${dst}"
 	local dir="`dirname "${dst}"`"
 	UPDATED_DIRS[${dir}]="${dir}"
 
 	if [ -d .git ]
 	then
-		echo >"${setinfo}" "[${ipset}](#${ipset})|${info}|${ipv} hash:${hash}|${quantity}|`if [ ! -z "${url}" ]; then echo "updated every $(mins_to_text ${mins}) from [this link](${url})"; fi`"
+		echo >"${setinfo}" "[${ipset}](${WEB_URL}${ipset})|${info}|${ipv} hash:${hash}|${quantity}|`if [ ! -z "${url}" ]; then echo "updated every $(mins_to_text ${mins}) from [this link](${url})"; fi`"
 		check_git_committed "${dst}"
 	fi
 
@@ -1230,7 +1497,7 @@ update() {
 	then
 		# download it
 		download_manager "${ipset}" "${mins}" "${url}"
-		if [ $? -eq ${DOWNLOAD_FAILED} -o $? -eq ${DOWNLOAD_NOT_UPDATED} ]
+		if [ $? -eq ${DOWNLOAD_FAILED} -o \( $? -eq ${DOWNLOAD_NOT_UPDATED} -a -f "${install}.${hash}net" \) ]
 			then
 			if [ ! -s "${install}.source" ]; then return 1
 			elif [ -f "${install}.${hash}set" ]
@@ -1866,7 +2133,7 @@ ipdeny_country() {
 	# remove the temporary dir
 	rm -rf "${ipset}.tmp"
 
-	return 0	
+	return 0
 }
 
 
@@ -2034,7 +2301,7 @@ update openbl_all $[4*60] 0 ipv4 ip \
 # https://www.dshield.org/xml.html
 
 # Top 20 attackers (networks) by www.dshield.org
-update dshield $[4*60] 0 ipv4 both \
+update dshield 15 0 ipv4 both \
 	"http://feeds.dshield.org/block.txt" \
 	dshield_parser \
 	"[DShield.org](https://dshield.org/) top 20 attacking class C (/24) subnets over the last three days - **excellent list**"
@@ -2464,7 +2731,7 @@ update alienvault_reputation $[6*60] 0 ipv4 ip \
 # Clean-MX
 # Viruses
 
-update cleanmx_viruses $[12*60] 0 ipv4 ip \
+update cleanmx_viruses 30 0 ipv4 ip \
 	"http://support.clean-mx.de/clean-mx/xmlviruses.php?sort=id%20desc&response=alive" \
 	parse_xml_clean_mx \
 	"[Clean-MX.de](http://support.clean-mx.de/clean-mx/viruses.php) IPs with viruses"
@@ -2587,19 +2854,19 @@ DO_NOT_REDISTRIBUTE[dragon_http.netset]="1"
 update dragon_http 60 0 ipv4 both \
 	"http://www.dragonresearchgroup.org/insight/http-report.txt" \
 	dragon_column3 \
-	"[Dragon Search Group](http://www.dragonresearchgroup.org/) IPs that have been seen sending HTTP requests to Dragon Research Pods in the last 7 days. This report lists hosts that are highly suspicious and are likely conducting malicious HTTP attacks. LEGITIMATE SEARCH ENGINE BOTS MAY BE IN THIS LIST. This report is informational.  It is not a blacklist, but some operators may choose to use it to help protect their networks and hosts in the forms of automated reporting and mitigation services."
+	"[Dragon Research Group](http://www.dragonresearchgroup.org/) IPs that have been seen sending HTTP requests to Dragon Research Pods in the last 7 days. This report lists hosts that are highly suspicious and are likely conducting malicious HTTP attacks. LEGITIMATE SEARCH ENGINE BOTS MAY BE IN THIS LIST. This report is informational.  It is not a blacklist, but some operators may choose to use it to help protect their networks and hosts in the forms of automated reporting and mitigation services."
 
 DO_NOT_REDISTRIBUTE[dragon_sshpauth.netset]="1"
 update dragon_sshpauth 60 0 ipv4 both \
 	"https://www.dragonresearchgroup.org/insight/sshpwauth.txt" \
 	dragon_column3 \
-	"[Dragon Search Group](http://www.dragonresearchgroup.org/) IP address that has been seen attempting to remotely login to a host using SSH password authentication, in the last 7 days. This report lists hosts that are highly suspicious and are likely conducting malicious SSH password authentication attacks."
+	"[Dragon Research Group](http://www.dragonresearchgroup.org/) IP address that has been seen attempting to remotely login to a host using SSH password authentication, in the last 7 days. This report lists hosts that are highly suspicious and are likely conducting malicious SSH password authentication attacks."
 
 DO_NOT_REDISTRIBUTE[dragon_vncprobe.netset]="1"
 update dragon_vncprobe 60 0 ipv4 both \
 	"https://www.dragonresearchgroup.org/insight/vncprobe.txt" \
 	dragon_column3 \
-	"[Dragon Search Group](http://www.dragonresearchgroup.org/) IP address that has been seen attempting to remotely connect to a host running the VNC application service, in the last 7 days. This report lists hosts that are highly suspicious and are likely conducting malicious VNC probes or VNC brute force attacks."
+	"[Dragon Research Group](http://www.dragonresearchgroup.org/) IP address that has been seen attempting to remotely connect to a host running the VNC application service, in the last 7 days. This report lists hosts that are highly suspicious and are likely conducting malicious VNC probes or VNC brute force attacks."
 
 
 # -----------------------------------------------------------------------------
@@ -2730,7 +2997,7 @@ badipscom() {
 
 	local categories="$(cat badips.source |\
 		tr "[]{}," "\n\n\n\n\n" |\
-		egrep '^"Name":"[a-zA-Z0-9_-]+"$' |\
+		egrep '^"(Name|Parent)":"[a-zA-Z0-9_-]+"$' |\
 		cut -d ':' -f 2 |\
 		cut -d '"' -f 2 |\
 		sort -u)"
@@ -2792,12 +3059,34 @@ badipscom() {
 				continue
 			fi
 
-			update "${ipset}" 30 0 ipv4 ip "${url}" remove_comments "${info}"
+			local freq=$[7 * 24 * 60]
+			if [ ! -z "${age}" ]
+				then
+				case "${age}" in
+					*d) age=$[${age/d/} * 1] ;;
+					*w) age=$[${age/w/} * 7] ;;
+					*m) age=$[${age/m/} * 30] ;;
+					*y) age=$[${age/y/} * 365] ;;
+					*)  age=0; echo >&2 "${ipset}: unknown age '${age}'" ;;
+				esac
+
+				[ $[age] -eq 0   ] && freq=$[7 * 24 * 60] # invalid age
+				[ $[age] -gt 0   ] && freq=$[         30] # 1-2 days of age
+				[ $[age] -gt 2   ] && freq=$[     6 * 60] # 3-7 days
+				[ $[age] -gt 7   ] && freq=$[1 * 24 * 60] # 8-90 days
+				[ $[age] -gt 90  ] && freq=$[2 * 24 * 60] # 91-180 days
+				[ $[age] -gt 180 ] && freq=$[4 * 24 * 60] # 181-365 days
+				[ $[age] -gt 365 ] && freq=$[7 * 24 * 60] # 366-ever days
+
+				# echo >&2 "${ipset}: update frequency set to ${freq} mins"
+			fi
+
+			update "${ipset}" ${freq} 0 ipv4 ip "${url}" remove_comments "${info}"
 		done
 
 		if [ ${count} -eq 0 ]
 			then
-			echo >&2 "bi_${category}_SCORE_AGE: is disabled (SCORE=[0-9\.]+ and AGE=[0-9]+[dwmy]. AGE can be ommitted. To enable it run: touch -t 0001010000 '${BASE_DIR}/bi_${category}_SCORE_AGE.source'"
+			echo >&2 "bi_${category}_SCORE_AGE: is disabled (SCORE=X and AGE=Y[dwmy]). To enable it run: touch -t 0001010000 '${BASE_DIR}/bi_${category}_SCORE_AGE.source'"
 		fi
 	done
 }
