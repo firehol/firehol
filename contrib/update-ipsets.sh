@@ -279,6 +279,7 @@ PUSH_TO_GIT=0
 # -----------------------------------------------------------------------------
 # Command line parsing
 
+ENABLE_ALL=0
 IGNORE_LASTCHECKED=0
 FORCE_WEB_REBUILD=0
 SILENT=0
@@ -287,13 +288,15 @@ CONFIG_FILE="/etc/firehol/update-ipsets.conf"
 while [ ! -z "${1}" ]
 do
 	case "${1}" in
-		-r) FORCE_WEB_REBUILD=1;;
-		silen|-s) SILENT=1;;
-		git|-g) PUSH_TO_GIT=1;;
-		recheck|-i) IGNORE_LASTCHECKED=1;;
-		compare|-c) ;; # obsolete
-		verbose|-v) VERBOSE=1;;
-		config|-f) CONFIG_FILE="${2}"; shift ;;
+		--rebuild|-r) FORCE_WEB_REBUILD=1;;
+		--silent|-s) SILENT=1;;
+		--push-git|-g) PUSH_TO_GIT=1;;
+		--recheck|-i) IGNORE_LASTCHECKED=1;;
+		--compare|-c) ;; # obsolete
+		--verbose|-v) VERBOSE=1;;
+		--config|-f) CONFIG_FILE="${2}"; shift ;;
+		--enable-all) ENABLE_ALL=1;;
+		--help|-h) echo "${0} [--verbose|-v] [--push-git|-g] [--recheck|-i] [--rebuild|-r] [--enable-all] [--config|-f FILE]"; exit 1 ;;
 		*) echo >&2 "Unknown parameter '${1}'".; exit 1 ;;
 	esac
 	shift
@@ -1488,9 +1491,14 @@ update() {
 
 	if [ ! -f "${install}.source" ]
 	then
-		[ -d .git ] && echo >"${install}.setinfo" "${ipset}|${info}|${ipv} hash:${hash}|disabled|`if [ ! -z "${url}" ]; then echo "updated every $(mins_to_text ${mins}) from [this link](${url})"; fi`"
-		echo >&2 "${ipset}: is disabled, to enable it run: touch -t 0001010000 '${BASE_DIR}/${install}.source'"
-		return 1
+		if [ ${ENABLE_ALL} -eq 1 ]
+			then
+			touch -t 0001010000 "${BASE_DIR}/${install}.source" || return 1
+		else
+			[ -d .git ] && echo >"${install}.setinfo" "${ipset}|${info}|${ipv} hash:${hash}|disabled|`if [ ! -z "${url}" ]; then echo "updated every $(mins_to_text ${mins}) from [this link](${url})"; fi`"
+			echo >&2 "${ipset}: is disabled, to enable it run: touch -t 0001010000 '${BASE_DIR}/${install}.source'"
+			return 1
+		fi
 	fi
 
 	if [ ! -z "${url}" ]
@@ -1928,8 +1936,13 @@ geolite2_country() {
 
 	if [ ! -f "${ipset}.source" ]
 	then
-		echo >&2 "${ipset}: is disabled, to enable it run: touch -t 0001010000 '${BASE_DIR}/${ipset}.source'"
-		return 1
+		if [ ${ENABLE_ALL} -eq 1 ]
+			then
+			touch -t 0001010000 "${BASE_DIR}/${ipset}.source" || return 1
+		else
+			echo >&2 "${ipset}: is disabled, to enable it run: touch -t 0001010000 '${BASE_DIR}/${ipset}.source'"
+			return 1
+		fi
 	fi
 
 	# download it
@@ -1947,6 +1960,11 @@ geolite2_country() {
 	if [ ! -d ${ipset} ]
 	then
 		mkdir ${ipset} || return 1
+	fi
+
+	if [ -d "${BASE}/.git" ]
+		then
+		git checkout ${ipset}/README-EDIT.md
 	fi
 
 	# extract it
@@ -2059,8 +2077,13 @@ ipdeny_country() {
 
 	if [ ! -f "${ipset}.source" ]
 	then
-		echo >&2 "${ipset}: is disabled, to enable it run: touch -t 0001010000 '${BASE_DIR}/${ipset}.source'"
-		return 1
+		if [ ${ENABLE_ALL} -eq 1 ]
+			then
+			touch -t 0001010000 "${BASE_DIR}/${ipset}.source" || return 1
+		else
+			echo >&2 "${ipset}: is disabled, to enable it run: touch -t 0001010000 '${BASE_DIR}/${ipset}.source'"
+			return 1
+		fi
 	fi
 
 	# download it
@@ -2146,8 +2169,13 @@ merge() {
 
 	if [ ! -f "${to}.source" ]
 		then
-		echo >&2 "${to}: is disabled. To enable it run: touch ${BASE_DIR}/${to}.source"
-		return 1
+		if [ ${ENABLE_ALL} -eq 1 ]
+			then
+			touch -t 0001010000 "${BASE_DIR}/${to}.source" || return 1
+		else
+			echo >&2 "${to}: is disabled. To enable it run: touch -t 0001010000 ${BASE_DIR}/${to}.source"
+			return 1
+		fi
 	fi
 
 	local -a files=()
@@ -2180,7 +2208,7 @@ merge() {
 		return 1
 	fi
 
-	if [ ${found_updated} -eq 0 ]
+	if [ ${found_updated} -eq 0 -a -f "${to}.netset" ]
 		then
 		echo >&2 "${to}: source files have not been updated."
 		return 1
@@ -2517,10 +2545,10 @@ update sslbl 30 0 ipv4 ip \
 # infiltrated.net
 # http://www.infiltrated.net/blacklisted
 
-update infiltrated $[12*60] 0 ipv4 ip \
-	"http://www.infiltrated.net/blacklisted" \
-	remove_comments \
-	"[infiltrated.net](http://www.infiltrated.net) (this list seems to be updated frequently, but we found no information about it)"
+#update infiltrated $[12*60] 0 ipv4 ip \
+#	"http://www.infiltrated.net/blacklisted" \
+#	remove_comments \
+#	"[infiltrated.net](http://www.infiltrated.net) (this list seems to be updated frequently, but we found no information about it)"
 
 
 # -----------------------------------------------------------------------------
@@ -2987,9 +3015,18 @@ update ib_bluetack_level3 $[12*60] 0 ipv4 both \
 badipscom() {
 	if [ ! -f "badips.source" ]
 		then
-		[ -d .git ] && echo >"${install}.setinfo" "badips.com categories ipsets|[BadIPs.com](https://www.badips.com) community based IP blacklisting. They score IPs based on the reports they reports.|ipv4 hash:ip|disabled|disabled"
-		echo >&2 "badips: is disabled, to enable it run: touch -t 0001010000 '${BASE_DIR}/badips.source'"
-		return 0
+		if [ ${ENABLE_ALL} -eq 1 ]
+			then
+			local x=
+			for x in badips bi_bruteforce_2_30d bi_ftp_2_30d bi_http_2_30d bi_mail_2_30d bi_proxy_2_30d bi_sql_2_30d bi_ssh_2_30d bi_voip_2_30d
+			do
+				touch -t 0001010000 "${BASE_DIR}/${x}.source" || return 1
+			done
+		else
+			[ -d .git ] && echo >"${install}.setinfo" "badips.com categories ipsets|[BadIPs.com](https://www.badips.com) community based IP blacklisting. They score IPs based on the reports they reports.|ipv4 hash:ip|disabled|disabled"
+			echo >&2 "badips: is disabled, to enable it run: touch -t 0001010000 '${BASE_DIR}/badips.source'"
+			return 1
+		fi
 	fi
 
 	download_manager "badips" $[24*60] "https://www.badips.com/get/categories"
