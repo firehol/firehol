@@ -450,6 +450,8 @@ declare -A DO_NOT_REDISTRIBUTE=()
 commit_to_git() {
 	if [ -d .git -a ! -z "${!UPDATED_SETS[*]}" ]
 	then
+		cd "${BASE}" || return 1
+
 		local d=
 		for d in "${!UPDATED_DIRS[@]}"
 		do
@@ -479,9 +481,20 @@ commit_to_git() {
 			to_be_pushed=("${to_be_pushed[@]}" "${d}")
 		done
 
+		echo >&2 "Generating script to fix timestamps..."
+		(
+			echo "#!/bin/bash"
+			echo "[ ! \"\$1\" = \"YES_I_AM_SURE_DO_IT_PLEASE\" ] && echo \"READ ME NOW\" && exit 1"
+			for d in $(params_sort "${!IPSET_FILE[@]}")
+			do
+				echo "[ -f '${IPSET_FILE[${d}]}' ] && touch --date=@${IPSET_SOURCE_DATE[${d}]} '${IPSET_FILE[${d}]}'"
+			done
+		) | sed "s|'${BASE}/|'|g" >set_file_timestamps.sh
+		check_git_committed set_file_timestamps.sh
+
 		echo >&2 
 		syslog "Committing ${to_be_pushed[@]} to git repository"
-		git commit "${to_be_pushed[@]}" -m "`date -u` update"
+		git commit "${to_be_pushed[@]}" set_file_timestamps.sh -m "`date -u` update"
 
 		if [ ${PUSH_TO_GIT} -ne 0 ]
 		then
