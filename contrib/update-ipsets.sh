@@ -836,13 +836,15 @@ EOFJSON
 
 declare -a RETENTION_HISTOGRAM=()
 declare -a RETENTION_HISTOGRAM_REST=()
+declare RETENTION_HISTOGRAM_STARTED=
+declare RETENTION_HISTOGRAM_INCOMPLETE=
 
 # should only be called from retention_detect()
 # because it needs the RETENTION_HISTOGRAM array loaded
 retention_print() {
 	local ipset="${1}"
 
-	printf "{\n	\"ipset\": \"${ipset}\",\n	\"updated\": ${IPSET_SOURCE_DATE[${ipset}]}000,\n"
+	printf "{\n	\"ipset\": \"${ipset}\",\n	\"started\": ${RETENTION_HISTOGRAM_STARTED}000,\n	\"updated\": ${IPSET_SOURCE_DATE[${ipset}]}000,\n	\"incomplete\": ${RETENTION_HISTOGRAM_INCOMPLETE},\n"
 
 	[ ${VERBOSE} -eq 1 ] && echo >&2 "${ipset}: calculating retention hours..."
 	local x= hours= ips= sum=0 pad=
@@ -876,6 +878,8 @@ retention_detect() {
 	# load the ipset retention histogram
 	RETENTION_HISTOGRAM=()
 	RETENTION_HISTOGRAM_REST=()
+	RETENTION_HISTOGRAM_STARTED=
+	RETENTION_HISTOGRAM_INCOMPLETE=
 	if [ -f "${CACHE_DIR}/${ipset}/histogram" ]
 		then
 		source "${CACHE_DIR}/${ipset}/histogram"
@@ -892,24 +896,25 @@ retention_detect() {
 		mkdir -p "${CACHE_DIR}/${ipset}/new" || return 2
 	fi
 
-	# if we don't have an older version
-	# keep this and return
 	if [ ! -f "${CACHE_DIR}/${ipset}/latest" ]
 		then
+		# we don't have an older version
 		[ ${VERBOSE} -eq 1 ] && echo >&2 "${ipset}: ${CACHE_DIR}/${ipset}/latest: first time - assuming start from empty"
 		touch -r "${IPSET_FILE[${ipset}]}" "${CACHE_DIR}/${ipset}/latest"
 
+		RETENTION_HISTOGRAM_STARTED="${IPSET_SOURCE_DATE[${ipset}]}"
+
 	elif [ ! "${IPSET_FILE[${ipset}]}" -nt "${CAHCE_DIR}/${ipset}/latest" ]
-		# if the new file is not newer than the latest, return
+		# the new file is older than the latest, return
 		then
 		[ ${VERBOSE} -eq 1 ] && echo >&2 "${ipset}: ${CACHE_DIR}/${ipset}/latest: source file is not newer"
 		retention_print "${ipset}"
 		return 0
 	fi
 
-	# if we already have a file for this date, return
 	if [ -f "${CACHE_DIR}/${ipset}/new/${ndate}" ]
 		then
+		# we already have a file for this date, return
 		[ ${VERBOSE} -eq 1 ] && echo >&2 "${ipset}: ${CACHE_DIR}/${ipset}/new/${ndate}: already exists"
 		retention_print "${ipset}"
 		return 0
@@ -919,9 +924,9 @@ retention_detect() {
 	"${IPRANGE_CMD}" "${IPSET_FILE[${ipset}]}" --exclude-next "${CACHE_DIR}/${ipset}/latest" >"${CACHE_DIR}/${ipset}/new/${ndate}"
 	touch -r "${IPSET_FILE[${ipset}]}" "${CACHE_DIR}/${ipset}/new/${ndate}"
 
-	# if there weren't any new IPs, return
 	if [ ! -s "${CACHE_DIR}/${ipset}/new/${ndate}" ]
 		then
+		# there are no new IPs included
 		[ ${VERBOSE} -eq 1 ] && echo >&2 "${ipset}: ${CACHE_DIR}/${ipset}/new/${ndate}: nothing new in this"
 		rm "${CACHE_DIR}/${ipset}/new/${ndate}"
 	fi
@@ -939,6 +944,7 @@ retention_detect() {
 	# empty the remaining IPs counters
 	# they will be re-calculated below
 	RETENTION_HISTOGRAM_REST=()
+	RETENTION_HISTOGRAM_INCOMPLETE=0
 
 	local x=
 	for x in $(ls "${CACHE_DIR}/${ipset}/new"/*)
@@ -949,6 +955,8 @@ retention_detect() {
 		local odate="${x/*\//}"
 		local hours=$[ (ndate + 1800 - odate) / 3600 ]
 		#echo >&2 "${ipset}: ${x}: ${hours} hours have passed"
+
+		[ ${odate} -le ${RETENTION_HISTOGRAM_STARTED} ] && RETENTION_HISTOGRAM_INCOMPLETE=1
 
 		# are all the IPs of this file still the latest?
 		"${IPRANGE_CMD}" --common "${x}" "${CACHE_DIR}/${ipset}/latest" >"${x}.stillthere"
@@ -1009,7 +1017,7 @@ retention_detect() {
 
 	# save the histogram
 	[ ${VERBOSE} -eq 1 ] && echo >&2 "${ipset}: saving retention cache..."
-	declare -p RETENTION_HISTOGRAM RETENTION_HISTOGRAM_REST >"${CACHE_DIR}/${ipset}/histogram"
+	declare -p RETENTION_HISTOGRAM_STARTED RETENTION_HISTOGRAM_INCOMPLETE RETENTION_HISTOGRAM RETENTION_HISTOGRAM_REST >"${CACHE_DIR}/${ipset}/histogram"
 
 	[ ${VERBOSE} -eq 1 ] && echo >&2 "${ipset}: printing retension..."
 	retention_print "${ipset}"
