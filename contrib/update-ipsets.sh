@@ -924,8 +924,6 @@ retention_detect() {
 		then
 		[ ${VERBOSE} -eq 1 ] && echo >&2 "${ipset}: ${CACHE_DIR}/${ipset}/new/${ndate}: nothing new in this"
 		rm "${CACHE_DIR}/${ipset}/new/${ndate}"
-		retention_print "${ipset}"
-		return 0
 	fi
 
 	# ok keep it
