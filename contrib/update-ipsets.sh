@@ -834,10 +834,18 @@ ipset_json() {
 EOFJSON
 }
 
+# array to store hourly retention of past IPs
 declare -a RETENTION_HISTOGRAM=()
+
+# array to store hourly age of currently listed IPs
 declare -a RETENTION_HISTOGRAM_REST=()
+
+# the timestamp we started monitoring this ipset
 declare RETENTION_HISTOGRAM_STARTED=
-declare RETENTION_HISTOGRAM_INCOMPLETE=
+
+# if set to 0, the ipset has been completely refreshed
+# i.e. all IPs have been removed / recycled at least once
+declare RETENTION_HISTOGRAM_INCOMPLETE=1
 
 # should only be called from retention_detect()
 # because it needs the RETENTION_HISTOGRAM array loaded
@@ -879,7 +887,7 @@ retention_detect() {
 	RETENTION_HISTOGRAM=()
 	RETENTION_HISTOGRAM_REST=()
 	RETENTION_HISTOGRAM_STARTED=
-	RETENTION_HISTOGRAM_INCOMPLETE=
+	RETENTION_HISTOGRAM_INCOMPLETE=1
 	if [ -f "${CACHE_DIR}/${ipset}/histogram" ]
 		then
 		source "${CACHE_DIR}/${ipset}/histogram"
@@ -944,7 +952,6 @@ retention_detect() {
 	# empty the remaining IPs counters
 	# they will be re-calculated below
 	RETENTION_HISTOGRAM_REST=()
-	RETENTION_HISTOGRAM_INCOMPLETE=0
 
 	local x=
 	for x in $(ls "${CACHE_DIR}/${ipset}/new"/*)
@@ -954,7 +961,7 @@ retention_detect() {
 		# find how many hours have passed
 		local odate="${x/*\//}"
 		local hours=$[ (ndate + 1800 - odate) / 3600 ]
-		#echo >&2 "${ipset}: ${x}: ${hours} hours have passed"
+		[ ${VERBOSE} -eq 1 ] && echo >&2 "${ipset}: ${x}: ${hours} hours have passed"
 
 		[ ${odate} -le ${RETENTION_HISTOGRAM_STARTED} ] && RETENTION_HISTOGRAM_INCOMPLETE=1
 
@@ -969,15 +976,16 @@ retention_detect() {
 
 			# these are the unique IPs removed
 			removed="${removed/*,/}"
-			#echo >&2 "${ipset}: ${x}: ${removed} IPs removed"
+			[ ${VERBOSE} -eq 1 ] && echo >&2 "${ipset}: ${x}: ${removed} IPs removed"
 
 			echo "${ndate},${odate},${hours},${removed}" >>"${CACHE_DIR}/${ipset}/retention.csv"
 
 			# update the histogram
-			RETENTION_HISTOGRAM[${hours}]=$[ ${RETENTION_HISTOGRAM[${hours}]} + removed ]
+			# only if the date added is after the date we started
+			[ ${odate} -gt ${RETENTION_HISTOGRAM_STARTED} ] && RETENTION_HISTOGRAM[${hours}]=$[ ${RETENTION_HISTOGRAM[${hours}]} + removed ]
 		else
 			# yes, nothing removed from this run
-			#echo >&2 "${ipset}: ${x}: nothing removed"
+			[ ${VERBOSE} -eq 1 ] && echo >&2 "${ipset}: ${x}: nothing removed"
 			rm "${x}.removed"
 		fi
 
@@ -985,11 +993,11 @@ retention_detect() {
 		if [ ! -s "${x}.stillthere" ]
 			then
 			# nothing left for this timestamp, remove files
-			#echo >&2 "${ipset}: ${x}: nothing left in this"
+			[ ${VERBOSE} -eq 1 ] && echo >&2 "${ipset}: ${x}: nothing left in this"
 			rm "${x}" "${x}.stillthere"
 		else
 			# there is something left in it
-			#echo >&2 "${ipset}: ${x}: there is still something in it"
+			[ ${VERBOSE} -eq 1 ] && echo >&2 "${ipset}: ${x}: there is still something in it"
 			touch -r "${x}" "${x}.stillthere"
 			mv "${x}.stillthere" "${x}"
 			local still="$("${IPRANGE_CMD}" -C "${x}")"
@@ -1019,10 +1027,10 @@ retention_detect() {
 	[ ${VERBOSE} -eq 1 ] && echo >&2 "${ipset}: saving retention cache..."
 	declare -p RETENTION_HISTOGRAM_STARTED RETENTION_HISTOGRAM_INCOMPLETE RETENTION_HISTOGRAM RETENTION_HISTOGRAM_REST >"${CACHE_DIR}/${ipset}/histogram"
 
-	[ ${VERBOSE} -eq 1 ] && echo >&2 "${ipset}: printing retension..."
+	[ ${VERBOSE} -eq 1 ] && echo >&2 "${ipset}: printing retention..."
 	retention_print "${ipset}"
 
-	#echo >&2 "${ipset}: printed retention histogram"
+	[ ${VERBOSE} -eq 1 ] && echo >&2 "${ipset}: printed retention histogram"
 	return 0
 }
 
