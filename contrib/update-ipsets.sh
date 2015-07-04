@@ -2361,6 +2361,12 @@ update dshield 15 0 ipv4 both \
 	dshield_parser \
 	"[DShield.org](https://dshield.org/) top 20 attacking class C (/24) subnets over the last three days - **excellent list**"
 
+[ -f dshield.source -a -f dshield_1d.source -a dshield.source -nt dshield_1d.source ] && cp -p dshield.source dshield_1d.source
+update dshield_1d 15 $[24*60] ipv4 both \
+	"http://feeds.dshield.org/block.txt" \
+	dshield_parser \
+	"[DShield.org](https://dshield.org/) top 20 attacking class C (/24) subnets over the last three days - test case: dshield has a very short retention, less than 1 hour - here we aggregate it for 1 day to check what we will get"
+
 
 # -----------------------------------------------------------------------------
 # TOR lists
