@@ -3900,18 +3900,21 @@ action() {
 				for t in ${tables//,/ }
 				do
 					set_work_function "Rules for ${name}_sockets iptrap under table ${t}: ${args[@]}"
+					create_chain ${t} "${name}_sockets" || return 1
 					iptrap ${name}_sockets src,dst,dst ${suspects_timeout} method "hash:ip,port,ip" counters \
 						chain "${name}" table ${t} \
 						state NEW log "${name} NEW SOCKET" \
 						"${args[@]}" || return 1
 
 					set_work_function "Rules for ${name}_suspects iptrap under table ${t}"
+					create_chain ${t} "${name}_suspects" || return 1
 					iptrap ${name}_suspects src ${suspects_timeout} counters \
 						chain "${name}" table ${t} \
 						state NEW log "${name} NEW SUSPECT" \
 						ipset ${name}_sockets src,dst,dst no-counters packets 1 || return 1
 
 					set_work_function "Rules for ${name}_trap iptrap under table ${t}"
+					create_chain ${t} "${name}_trap" || return 1
 					iptrap ${name}_trap src ${trap_timeout} \
 						chain "${name}" table ${t} \
 						state NEW log "${name} TRAPPED" \
@@ -5334,6 +5337,7 @@ ipset() {
 			FIREHOL_IPSETS_HASH[$name]="${hash}"
 
 			FIREHOL_IPSETS_USED[$name]="CREATED"
+			set_work_function "Created ipset ${name} of type ${FIREHOL_IPSETS_HASH[$name]} with options: ${FIREHOL_IPSETS_OPTIONS[$name]}"
 			;;
 
 		add|-A|--add)
@@ -5388,7 +5392,7 @@ declare -A FIREHOL_IPSET_TMP_SETS=()
 ipset_apply() {
 	local name="${1}" file="${2}" swap="${3}" entries=0 opts= hash= tmpname=
 
-	# echo >&2 "Applying ipset ${name} from ${file} with options: ${swap}..."
+	#echo >&2 "Applying ipset ${name} from ${file} with options: ${swap}..."
 
 	echo "COMMIT" >>"${file}"
 
@@ -5529,7 +5533,7 @@ ipsets_apply_all() {
 		swap=
 
 		# did we had an ipset helper for this ipset?
-		[ ! -s "${base}/ipset.${x}.rules" ] && continue
+		[ "${FIREHOL_IPSETS_USED[$x]}" = "USED" ] && continue
 
 		# shall we restore this ipset?
 		if [ "${FIREHOL_IPSETS_USED[$x]}" = "EXISTS" ]
