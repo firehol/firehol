@@ -262,7 +262,7 @@ WEB_DIR="/var/www/localhost/htdocs/blocklists"
 WEB_OWNER="apache:apache"
 
 # where to store the web retention detection cache
-CACHE_DIR="/data/var/cache/update-ipsets"
+CACHE_DIR="/var/lib/update-ipsets"
 
 # where is the web url to show info about each ipset
 # the ipset name is appended to it
@@ -952,6 +952,7 @@ retention_detect() {
 	# empty the remaining IPs counters
 	# they will be re-calculated below
 	RETENTION_HISTOGRAM_REST=()
+	RETENTION_HISTOGRAM_INCOMPLETE=0
 
 	local x=
 	for x in $(ls "${CACHE_DIR}/${ipset}/new"/*)
