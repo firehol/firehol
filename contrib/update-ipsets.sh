@@ -553,9 +553,10 @@ check_file_too_old() {
 	return 0
 }
 
-history_manager() {
-	local ipset="${1}" mins="${2}" file="${3}" \
-		tmp= x= slot="`date +%s`.set"
+history_keep() {
+	local ipset="${1}" file="${2}" slot=
+
+	slot="`date -r "${file}" +%s`.set"
 
 	if [ ! -d "${HISTORY_DIR}/${ipset}" ]
 	then
@@ -563,25 +564,48 @@ history_manager() {
 		chmod 700 "${HISTORY_DIR}/${ipset}"
 	fi
 
+	# copy the new file to the history
+	cp -p "${file}" "${HISTORY_DIR}/${ipset}/${slot}"
+}
+
+history_cleanup() {
+	local ipset="${1}" mins="${2}"
+
 	# touch a reference file
 	touch_in_the_past ${mins} "${RUN_DIR}/history.reference" || return 3
 
-	# move the new file to the history
-	mv "${file}" "${HISTORY_DIR}/${ipset}/${slot}"
-	touch "${HISTORY_DIR}/${ipset}/${slot}"
+	for x in ${HISTORY_DIR}/${ipset}/*.set
+	do
+		if [ ! "${x}" -nt "${RUN_DIR}/history.reference" ]
+		then
+			[ ${VERBOSE} -eq 1 ] && echo >&2 "${ipset}: deleting history file '${x}'"
+			rm "${x}"
+		fi
+	done
+}
+
+history_get() {
+	local ipset="${1}" mins="${2}" \
+		tmp= x=
+
+	# touch a reference file
+	touch_in_the_past ${mins} "${RUN_DIR}/history.reference" || return 3
 
 	# replace the original file with a concatenation of
 	# all the files newer than the reference file
+	local -a hfiles=()
 	for x in ${HISTORY_DIR}/${ipset}/*.set
 	do
 		if [ "${x}" -nt "${RUN_DIR}/history.reference" ]
 		then
 			[ ${VERBOSE} -eq 1 ] && echo >&2 "${ipset}: merging history file '${x}'"
-			cat "${x}"
-		else
-			rm "${x}"
+			hfiles=("${hfiles[@]}" "${x}")
 		fi
-	done | sort -u >"${file}"
+	done
+
+	"${IPRANGE_CMD}" --union-all "${hfiles[@]}"
+
+	rm "${RUN_DIR}/history.reference"
 
 	return 0
 }
@@ -1585,12 +1609,55 @@ update() {
 		return 1
 	fi
 
-	if [ $[history_mins + 0] -gt 0 ]
-	then
-		history_manager "${ipset}" "${history_mins}" "${tmp}"
+	local h= hmax=-1
+	[ -z "${history_mins}" ] && history_mins="0"
+	
+	if [ ! "${history_mins}" = "0" ]
+		then
+		history_keep "${ipset}" "${tmp}"
 	fi
 
-	finalize "${ipset}" "${tmp}" "${install}.setinfo" "${install}.source" "${install}.${hash}set" "${mins}" "${history_mins}" "${ipv}" "${type}" "${hash}" "${url}" "${info}"
+	for h in ${history_mins/,/ }
+	do
+		local hmins=${h/\/*/}
+		hmins=$[ hmins + 0 ]
+		local htag=
+
+		if [ ${hmins} -gt 0 ]
+			then
+			if [ ${hmins} -gt ${hmax} ]
+				then
+				hmax=${hmins}
+			fi
+
+			if [ ${hmins} -ge $[24 * 60] ]
+				then
+				local hd=$[ hmins / (24 * 60) ]
+				htag="_${hd}d"
+
+				if [ $[ hd * (24 * 60) ] -ne ${hmins} ]
+					then
+					htag="${htag}$[hmins - (hd * 1440)]h"
+				fi
+			else
+				htag="_$[hmins/60]h"
+			fi
+			
+			cp "${tmp}" "${tmp}${htag}"
+			history_get "${ipset}" "${hmins}" >"${tmp}${htag}"
+
+			cp "${tmp}${htag}" "${BASE_DIR}/${install}${htag}.source"
+			touch -r "${BASE_DIR}/${install}.source" "${BASE_DIR}/${install}${htag}.source"
+		fi
+
+		finalize "${ipset}${htag}" "${tmp}${htag}" "${install}${htag}.setinfo" "${install}${htag}.source" "${install}${htag}.${hash}set" "${mins}" "${hmins}" "${ipv}" "${type}" "${hash}" "${url}" "${info}"
+	done
+
+	if [ ! "${history_mins}" = "0" ]
+		then
+		history_cleanup "${ipset}" "${hmax}"
+	fi
+
 	return $?
 }
 
@@ -2357,17 +2424,16 @@ update openbl_all $[4*60] 0 ipv4 ip \
 # https://www.dshield.org/xml.html
 
 # Top 20 attackers (networks) by www.dshield.org
-update dshield 15 0 ipv4 both \
+update dshield 15 "$[24*60] $[24*60*7]" ipv4 both \
 	"http://feeds.dshield.org/block.txt" \
 	dshield_parser \
 	"[DShield.org](https://dshield.org/) top 20 attacking class C (/24) subnets over the last three days - **excellent list**"
 
-[ -f dshield.source -a -f dshield_1d.source -a dshield.source -nt dshield_1d.source ] && cp -p dshield.source dshield_1d.source
-update dshield_1d 15 $[24*60] ipv4 both \
-	"http://feeds.dshield.org/block.txt" \
-	dshield_parser \
-	"[DShield.org](https://dshield.org/) top 20 attacking class C (/24) subnets over the last three days - test case: dshield has a very short retention, less than 1 hour - here we aggregate it for 1 day to check what we will get"
-
+#[ -f dshield.source -a -f dshield_1d.source -a dshield.source -nt dshield_1d.source ] && cp -p dshield.source dshield_1d.source
+#update dshield_1d 15 $[24*60] ipv4 both \
+#	"http://feeds.dshield.org/block.txt" \
+#	dshield_parser \
+#	"[DShield.org](https://dshield.org/) top 20 attacking class C (/24) subnets over the last three days - test case: dshield has a very short retention, less than 1 hour - here we aggregate it for 1 day to check what we will get"
 
 # -----------------------------------------------------------------------------
 # TOR lists
@@ -2686,12 +2752,12 @@ update fullbogons $[24*60] 0 ipv4 both \
 # Open Proxies from rosinstruments
 # http://tools.rosinstrument.com/proxy/
 
-update ri_web_proxies 60 $[30*24*60] ipv4 ip \
+update ri_web_proxies 60 "$[24*60] $[7*24*60] $[30*24*60]" ipv4 ip \
 	"http://tools.rosinstrument.com/proxy/l100.xml" \
 	parse_rss_rosinstrument \
 	"[rosinstrument.com](http://www.rosinstrument.com) open HTTP proxies (this list is composed using an RSS feed and aggregated for the last 30 days)"
 
-update ri_connect_proxies 60 $[30*24*60] ipv4 ip \
+update ri_connect_proxies 60 "$[24*60] $[7*24*60] $[30*24*60]" ipv4 ip \
 	"http://tools.rosinstrument.com/proxy/plab100.xml" \
 	parse_rss_rosinstrument \
 	"[rosinstrument.com](http://www.rosinstrument.com) open CONNECT proxies (this list is composed using an RSS feed and aggregated for the last 30 days)"
@@ -2701,7 +2767,7 @@ update ri_connect_proxies 60 $[30*24*60] ipv4 ip \
 # Open Proxies from xroxy.com
 # http://www.xroxy.com
 
-update xroxy 60 $[30*24*60] ipv4 ip \
+update xroxy 60 "$[24*60] $[7*24*60] $[30*24*60]" ipv4 ip \
 	"http://www.xroxy.com/proxyrss.xml" \
 	parse_rss_proxy \
 	"[xroxy.com](http://www.xroxy.com) open proxies (this list is composed using an RSS feed and aggregated for the last 30 days)"
@@ -2711,7 +2777,7 @@ update xroxy 60 $[30*24*60] ipv4 ip \
 # Open Proxies from proxz.com
 # http://www.proxz.com/
 
-update proxz 60 $[30*24*60] ipv4 ip \
+update proxz 60 "$[24*60] $[7*24*60] $[30*24*60]" ipv4 ip \
 	"http://www.proxz.com/proxylists.xml" \
 	parse_rss_proxy \
 	"[proxz.com](http://www.proxz.com) open proxies (this list is composed using an RSS feed and aggregated for the last 30 days)"
@@ -2721,7 +2787,7 @@ update proxz 60 $[30*24*60] ipv4 ip \
 # Open Proxies from proxyrss.com
 # http://www.proxyrss.com/
 
-update proxyrss $[4*60] 0 ipv4 ip \
+update proxyrss $[4*60] "$[24*60] $[7*24*60] $[30*24*60]" ipv4 ip \
 	"http://www.proxyrss.com/proxylists/all.gz" \
 	gz_proxyrss \
 	"[proxyrss.com](http://www.proxyrss.com) open proxies syndicated from multiple sources."
@@ -2731,7 +2797,7 @@ update proxyrss $[4*60] 0 ipv4 ip \
 # Anonymous Proxies
 # https://www.maxmind.com/en/anonymous-proxy-fraudulent-ip-address-list
 
-update maxmind_proxy_fraud $[4*60] $[30*24*60] ipv4 ip \
+update maxmind_proxy_fraud $[4*60] "$[24*60] $[7*24*60] $[30*24*60]" ipv4 ip \
 	"https://www.maxmind.com/en/anonymous-proxy-fraudulent-ip-address-list" \
 	parse_maxmind_proxy_fraud \
 	"[MaxMind.com](https://www.maxmind.com/en/anonymous-proxy-fraudulent-ip-address-list) list of anonymous proxy fraudelent IP addresses."
@@ -2741,27 +2807,27 @@ update maxmind_proxy_fraud $[4*60] $[30*24*60] ipv4 ip \
 # Project Honey Pot
 # http://www.projecthoneypot.org/?rf=192670
 
-update php_harvesters 60 $[30*24*60] ipv4 ip \
+update php_harvesters 60 "$[24*60] $[7*24*60] $[30*24*60]" ipv4 ip \
 	"http://www.projecthoneypot.org/list_of_ips.php?t=h&rss=1" \
 	parse_php_rss \
 	"[projecthoneypot.org](http://www.projecthoneypot.org/?rf=192670) harvesters (IPs that surf the internet looking for email addresses) (this list is composed using an RSS feed and aggregated for the last 30 days)"
 
-update php_spammers 60 $[30*24*60] ipv4 ip \
+update php_spammers 60 "$[24*60] $[7*24*60] $[30*24*60]" ipv4 ip \
 	"http://www.projecthoneypot.org/list_of_ips.php?t=s&rss=1" \
 	parse_php_rss \
 	"[projecthoneypot.org](http://www.projecthoneypot.org/?rf=192670) spam servers (IPs used by spammers to send messages) (this list is composed using an RSS feed and aggregated for the last 30 days)"
 
-update php_bad 60 $[30*24*60] ipv4 ip \
+update php_bad 60 "$[24*60] $[7*24*60] $[30*24*60]" ipv4 ip \
 	"http://www.projecthoneypot.org/list_of_ips.php?t=b&rss=1" \
 	parse_php_rss \
 	"[projecthoneypot.org](http://www.projecthoneypot.org/?rf=192670) bad web hosts (this list is composed using an RSS feed and aggregated for the last 30 days)"
 
-update php_commenters 60 $[30*24*60] ipv4 ip \
+update php_commenters 60 "$[24*60] $[7*24*60] $[30*24*60]" ipv4 ip \
 	"http://www.projecthoneypot.org/list_of_ips.php?t=c&rss=1" \
 	parse_php_rss \
 	"[projecthoneypot.org](http://www.projecthoneypot.org/?rf=192670) comment spammers (this list is composed using an RSS feed and aggregated for the last 30 days)"
 
-update php_dictionary 60 $[30*24*60] ipv4 ip \
+update php_dictionary 60 "$[24*60] $[7*24*60] $[30*24*60]" ipv4 ip \
 	"http://www.projecthoneypot.org/list_of_ips.php?t=d&rss=1" \
 	parse_php_rss \
 	"[projecthoneypot.org](http://www.projecthoneypot.org/?rf=192670) directory attackers (this list is composed using an RSS feed and aggregated for the last 30 days)"
