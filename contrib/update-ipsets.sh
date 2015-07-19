@@ -1379,6 +1379,7 @@ finalize() {
 		test ${SILENT} -ne 1 && echo >&2 "${ipset}: processed set is the same with the previous one."
 
 		# keep the old set, but make it think it was from this source
+		test ${SILENT} -ne 1 && echo >&2 "${ipset}: touching ${dst} from ${src}."
 		touch -r "${src}" "${dst}"
 
 		check_file_too_old "${ipset}" "${dst}"
@@ -1610,14 +1611,14 @@ update() {
 	fi
 
 	local h= hmax=-1
-	[ -z "${history_mins}" ] && history_mins="0"
+	[ "${history_mins}" = "0" ] && history_mins=
 	
-	if [ ! "${history_mins}" = "0" ]
+	if [ ! -z "${history_mins}" ]
 		then
 		history_keep "${ipset}" "${tmp}"
 	fi
 
-	for h in ${history_mins/,/ }
+	for h in 0 ${history_mins/,/ }
 	do
 		local hmins=${h/\/*/}
 		hmins=$[ hmins + 0 ]
@@ -1653,7 +1654,7 @@ update() {
 		finalize "${ipset}${htag}" "${tmp}${htag}" "${install}${htag}.setinfo" "${install}${htag}.source" "${install}${htag}.${hash}set" "${mins}" "${hmins}" "${ipv}" "${type}" "${hash}" "${url}" "${info}"
 	done
 
-	if [ ! "${history_mins}" = "0" ]
+	if [ ! -z "${history_mins}" ]
 		then
 		history_cleanup "${ipset}" "${hmax}"
 	fi
