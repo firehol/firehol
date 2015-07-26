@@ -3024,27 +3024,30 @@ update nt_malware_http 60 0 ipv4 ip \
 
 # open proxies and tor
 # we only keep the proxies IPs (tor IPs are not parsed)
+DO_NOT_REDISTRIBUTE[ib_bluetack_proxies.ipset]="1"
 update ib_bluetack_proxies $[12*60] 0 ipv4 ip \
 	"http://list.iblocklist.com/?list=xoebmbyexwuiogmbyprb&fileformat=p2p&archiveformat=gz" \
 	p2p_gz_proxy \
-	"[iBlocklist.com](https://www.iblocklist.com/) free version of BlueTack.co.uk Open Proxies IPs list (without TOR)"
+	"[iBlocklist.com](https://www.iblocklist.com/) version of BlueTack.co.uk Open Proxies IPs list (without TOR)"
 
 
 # This list is a compilation of known malicious SPYWARE and ADWARE IP Address ranges.
 # It is compiled from various sources, including other available Spyware Blacklists,
 # HOSTS files, from research found at many of the top Anti-Spyware forums, logs of
 # Spyware victims and also from the Malware Research Section here at Bluetack.
+DO_NOT_REDISTRIBUTE[ib_bluetack_spyware.netset]="1"
 update ib_bluetack_spyware $[12*60] 0 ipv4 both \
 	"http://list.iblocklist.com/?list=llvtlsjyoyiczbkjsxpf&fileformat=p2p&archiveformat=gz" \
 	p2p_gz \
-	"[iBlocklist.com](https://www.iblocklist.com/) free version of BlueTack.co.uk known malicious SPYWARE and ADWARE IP Address ranges"
+	"[iBlocklist.com](https://www.iblocklist.com/) version of BlueTack.co.uk known malicious SPYWARE and ADWARE IP Address ranges"
 
 
 # List of people who have been reported for bad deeds in p2p.
+DO_NOT_REDISTRIBUTE[ib_bluetack_badpeers.ipset]="1"
 update ib_bluetack_badpeers $[12*60] 0 ipv4 ip \
 	"http://list.iblocklist.com/?list=cwworuawihqvocglcoss&fileformat=p2p&archiveformat=gz" \
 	p2p_gz \
-	"[iBlocklist.com](https://www.iblocklist.com/) free version of BlueTack.co.uk IPs that have been reported for bad deeds in p2p"
+	"[iBlocklist.com](https://www.iblocklist.com/) version of BlueTack.co.uk IPs that have been reported for bad deeds in p2p"
 
 
 # Contains hijacked IP-Blocks and known IP-Blocks that are used to deliver Spam. 
@@ -3053,10 +3056,11 @@ update ib_bluetack_badpeers $[12*60] 0 ipv4 ip \
 # organizations that have no relation to original organization (or its legal
 # successor) that received the IP block. In essence it's stealing of somebody
 # else's IP resources
+DO_NOT_REDISTRIBUTE[ib_bluetack_hijacked.netset]="1"
 update ib_bluetack_hijacked $[12*60] 0 ipv4 both \
 	"http://list.iblocklist.com/?list=usrcshglbiilevmyfhse&fileformat=p2p&archiveformat=gz" \
 	p2p_gz \
-	"[iBlocklist.com](https://www.iblocklist.com/) free version of BlueTack.co.uk hijacked IP-Blocks Hijacked IP space are IP blocks that are being used without permission"
+	"[iBlocklist.com](https://www.iblocklist.com/) version of BlueTack.co.uk hijacked IP-Blocks Hijacked IP space are IP blocks that are being used without permission"
 
 
 # IP addresses related to current web server hack and exploit attempts that have been
@@ -3066,10 +3070,11 @@ update ib_bluetack_hijacked $[12*60] 0 ipv4 both \
 # used for negative SEO hijacks, unauthorised site mirroring, harvesting, scraping,
 # snooping and data mining / spy bot / security & copyright enforcement companies that
 # target and continuosly scan webservers.
+DO_NOT_REDISTRIBUTE[ib_bluetack_webexploit.ipset]="1"
 update ib_bluetack_webexploit $[12*60] 0 ipv4 ip \
 	"http://list.iblocklist.com/?list=ghlzqtqxnzctvvajwwag&fileformat=p2p&archiveformat=gz" \
 	p2p_gz \
-	"[iBlocklist.com](https://www.iblocklist.com/) free version of BlueTack.co.uk web server hack and exploit attempts"
+	"[iBlocklist.com](https://www.iblocklist.com/) version of BlueTack.co.uk web server hack and exploit attempts"
 
 
 # Companies or organizations who are clearly involved with trying to stop filesharing
@@ -3086,29 +3091,32 @@ update ib_bluetack_webexploit $[12*60] 0 ipv4 ip \
 # PLEASE NOTE: The Level1 list is recommended for general P2P users, but it all comes
 # down to your personal choice. 
 # IMPORTANT: THIS IS A BIG LIST
+DO_NOT_REDISTRIBUTE[ib_bluetack_level1.netset]="1"
 update ib_bluetack_level1 $[12*60] 0 ipv4 both \
 	"http://list.iblocklist.com/?list=ydxerpxkpcfqjaybcssw&fileformat=p2p&archiveformat=gz" \
 	p2p_gz \
-	"[iBlocklist.com](https://www.iblocklist.com/) free version of BlueTack.co.uk Level 1 (for use in p2p): Companies or organizations who are clearly involved with trying to stop filesharing (e.g. Baytsp, MediaDefender, Mediasentry a.o.). Companies which anti-p2p activity has been seen from. Companies that produce or have a strong financial interest in copyrighted material (e.g. music, movie, software industries a.o.). Government ranges or companies that have a strong financial interest in doing work for governments. Legal industry ranges. IPs or ranges of ISPs from which anti-p2p activity has been observed. Basically this list will block all kinds of internet connections that most people would rather not have during their internet travels."
+	"[iBlocklist.com](https://www.iblocklist.com/) version of BlueTack.co.uk Level 1 (for use in p2p): Companies or organizations who are clearly involved with trying to stop filesharing (e.g. Baytsp, MediaDefender, Mediasentry a.o.). Companies which anti-p2p activity has been seen from. Companies that produce or have a strong financial interest in copyrighted material (e.g. music, movie, software industries a.o.). Government ranges or companies that have a strong financial interest in doing work for governments. Legal industry ranges. IPs or ranges of ISPs from which anti-p2p activity has been observed. Basically this list will block all kinds of internet connections that most people would rather not have during their internet travels."
 
 
 # General corporate ranges. 
 # Ranges used by labs or researchers. 
 # Proxies. 
+DO_NOT_REDISTRIBUTE[ib_bluetack_level2.netset]="1"
 update ib_bluetack_level2 $[12*60] 0 ipv4 both \
 	"http://list.iblocklist.com/?list=gyisgnzbhppbvsphucsw&fileformat=p2p&archiveformat=gz" \
 	p2p_gz \
-	"[iBlocklist.com](https://www.iblocklist.com/) free version of BlueTack.co.uk Level 2 (for use in p2p). General corporate ranges. Ranges used by labs or researchers. Proxies."
+	"[iBlocklist.com](https://www.iblocklist.com/) version of BlueTack.co.uk Level 2 (for use in p2p). General corporate ranges. Ranges used by labs or researchers. Proxies."
 
 
 # Many portal-type websites. 
 # ISP ranges that may be dodgy for some reason. 
 # Ranges that belong to an individual, but which have not been determined to be used by a particular company. 
 # Ranges for things that are unusual in some way. The L3 list is aka the paranoid list.
+DO_NOT_REDISTRIBUTE[ib_bluetack_level3.netset]="1"
 update ib_bluetack_level3 $[12*60] 0 ipv4 both \
 	"http://list.iblocklist.com/?list=uwnukjqktoggdknzrhgh&fileformat=p2p&archiveformat=gz" \
 	p2p_gz \
-	"[iBlocklist.com](https://www.iblocklist.com/) free version of BlueTack.co.uk Level 3 (for use in p2p). Many portal-type websites. ISP ranges that may be dodgy for some reason. Ranges that belong to an individual, but which have not been determined to be used by a particular company. Ranges for things that are unusual in some way. The L3 list is aka the paranoid list."
+	"[iBlocklist.com](https://www.iblocklist.com/) version of BlueTack.co.uk Level 3 (for use in p2p). Many portal-type websites. ISP ranges that may be dodgy for some reason. Ranges that belong to an individual, but which have not been determined to be used by a particular company. Ranges for things that are unusual in some way. The L3 list is aka the paranoid list."
 
 # -----------------------------------------------------------------------------
 # BadIPs.com
