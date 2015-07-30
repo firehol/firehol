@@ -3018,6 +3018,53 @@ update nt_malware_http 60 0 ipv4 ip \
 
 
 # -----------------------------------------------------------------------------
+# Bambenek Consulting
+# http://osint.bambenekconsulting.com/feeds/
+
+bambenek_filter() { remove_comments | cut -d ',' -f 1; }
+
+update bambenek_c2 30 0 ipv4 ip \
+	"http://osint.bambenekconsulting.com/feeds/c2-ipmasterlist.txt" \
+	bambenek_filter \
+	"[Bambenek Consulting](http://osint.bambenekconsulting.com/feeds/) master feed of known, active and non-sinkholed C&Cs IP addresses"
+
+for list in banjori bebloh cl cryptowall dircrypt dyre geodo hesperbot matsnu necurs p2pgoz pushdo pykspa qakbot ramnit ranbyus simda suppobox symmi tinba volatile
+do
+	update bambenek_${list} 30 0 ipv4 ip \
+		"http://osint.bambenekconsulting.com/feeds/${list}-iplist.txt" \
+		bambenek_filter \
+		"[Bambenek Consulting](http://osint.bambenekconsulting.com/feeds/) feed of current IPs of ${list} C&Cs with 90 minute lookback"
+done
+
+
+# -----------------------------------------------------------------------------
+# BotScout
+# http://botscout.com/
+
+botscout_filter() {
+	while read_xml_dom
+	do
+		[[ "${XML_ENTITY}" =~ ^a\ .*/ipcheck.htm\?ip=.* ]] && echo "${XML_CONTENT}"
+	done
+}
+
+update botscout 30 "$[24*60] $[7*24*60] $[30*24*60]" ipv4 ip \
+	"http://botscout.com/last_caught_cache.htm" \
+	botscout_filter \
+	"[BotScout](http://botscout.com/) helps prevent automated web scripts, known as bots, from registering on forums, polluting databases, spreading spam, and abusing forms on web sites. They do this by tracking the names, IPs, and email addresses that bots use and logging them as unique signatures for future reference. They also provide a simple yet powerful API that you can use to test forms when they're submitted on your site. This list is composed of the most recently-caught bots."
+
+
+# -----------------------------------------------------------------------------
+# GreenSnow
+# https://greensnow.co/
+
+update greensnow 30 0 ipv4 ip \
+	"http://blocklist.greensnow.co/greensnow.txt" \
+	remove_comments \
+	"[GreenSnow](https://greensnow.co/) is a team harvesting a large number of IPs from different computers located around the world. GreenSnow is comparable with SpamHaus.org for attacks of any kind except for spam. Their list is updated automatically and you can withdraw at any time your IP address if it has been listed. Attacks / bruteforce that are monitored are: Scan Port, FTP, POP3, mod_security, IMAP, SMTP, SSH, cPanel, etc."
+
+
+# -----------------------------------------------------------------------------
 # iBlocklist
 # https://www.iblocklist.com/lists.php
 # http://bluetack.co.uk/forums/index.php?autocom=faq&CODE=02&qid=17
@@ -3141,7 +3188,7 @@ badipscom() {
 	download_manager "badips" $[24*60] "https://www.badips.com/get/categories"
 	[ ! -s "badips.source" ] && return 0
 
-	local categories="$(cat badips.source |\
+	local categories="any $(cat badips.source |\
 		tr "[]{}," "\n\n\n\n\n" |\
 		egrep '^"(Name|Parent)":"[a-zA-Z0-9_-]+"$' |\
 		cut -d ':' -f 2 |\
@@ -3302,6 +3349,23 @@ merge firehol_anonymous "An ipset that includes all the anonymizing IPs of the w
 # - http://www.ipdeny.com/ipblocks/ geo country db for ipv6
 # - maxmind city geodb
 # - https://github.com/Blueliv/api-python-sdk/wiki/Blueliv-REST-API-Documentation
+# - https://atlas.arbor.net/summary/attacks.csv
+# - https://atlas.arbor.net/summary/botnets.csv
+# - https://atlas.arbor.net/summary/fastflux.csv
+# - https://atlas.arbor.net/summary/phishing.csv
+# - https://atlas.arbor.net/summary/scans.csv
+# - http://www.cyber-ta.org/releases/malware/SOURCES/Attacker.Cumulative.Summary
+# - http://www.cyber-ta.org/releases/malware/SOURCES/CandC.Cumulative.Summary
+# - http://www.reputationauthority.org/toptens.php
+# - https://vmx.yourcmc.ru/BAD_HOSTS.IP4
+# - http://www.geopsy.org/blacklist.html
+# - https://www.juniper.net/security/auto/spam/
+# - http://www.malwaregroup.com/ipaddresses/malicious
+# - http://toastedspam.com/deny
+# - http://rss.uribl.com/reports/7d/dns_a.html
+# - http://spamcop.net/w3m?action=map;net=cmaxcnt;mask=65535;sort=spamcnt;format=text
+# - https://gist.github.com/BBcan177/3cbd01b5b39bb3ce216a
+# - https://github.com/rshipp/awesome-malware-analysis
 #
 # user specific features
 # - allow the user to request an email if a set increases by a percentage or number of unique IPs
