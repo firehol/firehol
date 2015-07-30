@@ -363,6 +363,15 @@ exec() {
   return 0
 }
 
+is_ipv6() {
+  case "$1" in
+    *:*)
+      return 0
+    ;;
+  esac
+  return 1
+}
+
 cd $MYTMP/setup
 . $setupbase
 errline=""
@@ -489,7 +498,8 @@ then
       while read ip
       do
         error="adding ip address to virtual ethernet"
-        ip netns exec $ns ip addr add $ip broadcast + dev $dev
+        if is_ipv6 $ip; then bc=""; v6="-6"; else bc="broadcast +"; v6=""; fi
+        ip netns exec $ns ip $v6 addr add $ip $bc dev $dev
       done < $MYTMP/ns/$ns/devices/$dev
     done < $MYTMP/ns/$ns/devlist
 
@@ -506,7 +516,8 @@ then
       while read ip
       do
         error="adding ip to virtual interface"
-        ip netns exec $ns ip addr add $ip broadcast + dev $bridge
+        if is_ipv6 $ip; then bc=""; v6="-6"; else bc="broadcast +"; v6=""; fi
+        ip netns exec $ns ip $v6 addr add $ip $bc dev $dev
       done < $MYTMP/ns/$ns/devices/$bridge
     done < $MYTMP/ns/$ns/bridgelist
   done < $MYTMP/nslist
@@ -523,7 +534,8 @@ then
     do
       errline=$(tr "\n" "/" < $MYTMP/runtime-lines/$ns-routes | sed -e s:/$::)
       error="adding route to $ns"
-      ip netns exec $ns ip route add $route
+      if is_ipv6 "$route"; then bc=""; v6="-6"; else bc="broadcast +"; v6=""; fi
+      ip netns exec $ns ip $v6 route add $route
     done < $MYTMP/ns/$ns/routes
 
     if [ -f $MYTMP/ns/$ns/exec ]
