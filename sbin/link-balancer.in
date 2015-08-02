@@ -1056,26 +1056,30 @@ update_table() {
 	# 2. if 'table.${table}.default' or 'table.${table}.origin_default' exist, we set the default gateway
 	# 3. if none of the above is present, we do nothing
 
-	local routing_filter_cmd="cat"
+	local routing_filter_cmd="$cat_cmd"
 	if [ -f "${LB_DIR}/table.${table}.origin_routes.${LB_IPV}" -a \( -f "${LB_DIR}/table.${table}.default.${LB_IPV}" -o -f "${LB_DIR}/table.${table}.fallback.${LB_IPV}" -o -f "${LB_DIR}/table.${table}.origin_default.${LB_IPV}" \) ]
 	then
 		# we do both routes copy and set default gateway
-		local routing_filter_cmd="$cat_cmd"
+		routing_filter_cmd="$cat_cmd"
 
 	elif [ -f "${LB_DIR}/table.${table}.default.${LB_IPV}" -o -f "${LB_DIR}/table.${table}.origin_default.${LB_IPV}" ]
 	then
 		# we should only process default gateway
-		local routing_filter_cmd="$grep_cmd ^default"
+		routing_filter_cmd="$grep_cmd ^default"
 
 	elif [ -f "${LB_DIR}/table.${table}.origin_routes.${LB_IPV}" ]
 	then
 		# we should only copy the routing table without the default gateway
-		local routing_filter_cmd="$grep_cmd -v ^default"
+		routing_filter_cmd="$grep_cmd -v ^default"
 
 	else
+		# process both routes and default gateway
+		routing_filter_cmd="$cat_cmd"
+
+		# commented due to issue 78
 		# nothing to be done - just return
-		echo >&2 -e "    ${COLOR_GREEN}${COLOR_BOLD}Nothing to be done for table ${table}${COLOR_RESET}"
-		return 0
+		#echo >&2 -e "    ${COLOR_GREEN}${COLOR_BOLD}Nothing to be done for table ${table}${COLOR_RESET}"
+		#return 0
 	fi
 
 
