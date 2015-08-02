@@ -928,6 +928,10 @@ retention_detect() {
 	if [ ! -d "${CACHE_DIR}/${ipset}" ]
 		then
 		mkdir -p "${CACHE_DIR}/${ipset}" || return 2
+	fi
+
+	if [ ! -d "${CACHE_DIR}/${ipset}/new" ]
+		then
 		mkdir -p "${CACHE_DIR}/${ipset}/new" || return 2
 	fi
 
@@ -939,7 +943,7 @@ retention_detect() {
 
 		RETENTION_HISTOGRAM_STARTED="${IPSET_SOURCE_DATE[${ipset}]}"
 
-	elif [ ! "${IPSET_FILE[${ipset}]}" -nt "${CAHCE_DIR}/${ipset}/latest" ]
+	elif [ ! "${IPSET_FILE[${ipset}]}" -nt "${CACHE_DIR}/${ipset}/latest" ]
 		# the new file is older than the latest, return
 		then
 		[ ${VERBOSE} -eq 1 ] && echo >&2 "${ipset}: ${CACHE_DIR}/${ipset}/latest: source file is not newer"
@@ -1092,17 +1096,34 @@ update_web() {
 			continue
 		fi
 
-		# update the history CSV files
-		if [ ! -z "${UPDATED_SETS[${x}]}" -o ! -f "${WEB_DIR}/${x}_history.csv" ]
+		if [ ! -z "${CACHE_DIR}" ]
 			then
-			if [ ! -f "${WEB_DIR}/${x}_history.csv" ]
+			if [ ! -d "${CACHE_DIR}/${x}" ]
 				then
-				echo "DateTime,Entries,UniqueIPs" >"${WEB_DIR}/${x}_history.csv"
-				touch "${WEB_DIR}/${x}_history.csv"
-				chmod 0644 "${WEB_DIR}/${x}_history.csv"
+				mkdir -p "${CACHE_DIR}/${x}"
 			fi
-			printf " ${x}"
-			echo >>"${WEB_DIR}/${x}_history.csv" "$(date -r "${IPSET_SOURCE[${x}]}" +%s),${IPSET_ENTRIES[${x}]},${IPSET_IPS[${x}]}"
+
+			# copy the history from the old location to CACHE_DIR
+			if [ -f "${WEB_DIR}/${x}_history.csv" -a ! -f "${CACHE_DIR}/${x}/history.csv" ]
+				then
+				cp "${WEB_DIR}/${x}_history.csv" "${CACHE_DIR}/${x}/history.csv"
+			fi
+
+			# update the history CSV files
+			if [ ! -z "${UPDATED_SETS[${x}]}" -o ! -f "${CACHE_DIR}/${x}/history.csv" ]
+				then
+				if [ ! -f "${CACHE_DIR}/${x}/history.csv" ]
+					then
+					echo "DateTime,Entries,UniqueIPs" >"${CACHE_DIR}/${x}/history.csv"
+					# touch "${CACHE_DIR}/${x}/history.csv"
+					chmod 0644 "${CACHE_DIR}/${x}/history.csv"
+				fi
+				printf " ${x}"
+				echo >>"${CACHE_DIR}/${x}/history.csv" "$(date -r "${IPSET_SOURCE[${x}]}" +%s),${IPSET_ENTRIES[${x}]},${IPSET_IPS[${x}]}"
+				
+				echo >"${WEB_DIR}/${x}_history.csv" "DateTime,Entries,UniqueIPs"
+				tail -n 1000 "${CACHE_DIR}/${x}/history.csv" | grep -v "^DateTime" >>"${WEB_DIR}/${x}_history.csv"
+			fi
 		fi
 
 		to_all=1
