@@ -1144,7 +1144,7 @@ update_web() {
 cat >>"${RUN_DIR}/sitemap.xml" <<EOFSITEMAP
 	<url>
 		<loc>http://ktsaou.github.io/blocklist-ipsets/?ipset=${x}</loc>
-		<lastmod>$(date -Is)</lastmod>
+		<lastmod>$(date -I)</lastmod>
 		<changefreq>always</changefreq>
 	</url>
 EOFSITEMAP
