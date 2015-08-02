@@ -164,6 +164,7 @@ then
 	secs="${1}"
 	secs=$[ secs + 1 - 1 ]
 	test "${secs}" = "0" && secs=300
+	shift
 
 	while [ 1 ]
 	do
