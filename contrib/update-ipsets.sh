@@ -2377,7 +2377,7 @@ ipdeny_country
 update openbl $[4*60] 0 ipv4 ip \
 	"http://www.openbl.org/lists/base.txt" \
 	remove_comments \
-	"[OpenBL.org](http://www.openbl.org/) default blacklist (currently it is the same with 90 days). OpenBL.org is detecting, logging and reporting various types of internet abuse. Currently they monitor ports 21 (FTP), 22 (SSH), 23 (TELNET), 25 (SMTP), 110 (POP3), 143 (IMAP), 587 (Submission), 993 (IMAPS) and 995 (POP3S) for bruteforce login attacks as well as scans on ports 80 (HTTP) and 443 (HTTPS) for vulnerable installations of phpMyAdmin and other web applications - **excellent list**"
+	"[OpenBL.org](http://www.openbl.org/) default blacklist (currently it is the same with 90 days). OpenBL.org is detecting, logging and reporting various types of internet abuse. Currently they monitor ports 21 (FTP), 22 (SSH), 23 (TELNET), 25 (SMTP), 110 (POP3), 143 (IMAP), 587 (Submission), 993 (IMAPS) and 995 (POP3S) for bruteforce login attacks as well as scans on ports 80 (HTTP) and 443 (HTTPS) for vulnerable installations of phpMyAdmin and other web applications"
 
 update openbl_1d $[1*60] 0 ipv4 ip \
 	"http://www.openbl.org/lists/base_1days.txt" \
@@ -2428,7 +2428,7 @@ update openbl_all $[4*60] 0 ipv4 ip \
 update dshield 15 "$[24*60] $[24*60*7]" ipv4 both \
 	"http://feeds.dshield.org/block.txt" \
 	dshield_parser \
-	"[DShield.org](https://dshield.org/) top 20 attacking class C (/24) subnets over the last three days - **excellent list**"
+	"[DShield.org](https://dshield.org/) top 20 attacking class C (/24) subnets over the last three days"
 
 #[ -f dshield.source -a -f dshield_1d.source -a dshield.source -nt dshield_1d.source ] && cp -p dshield.source dshield_1d.source
 #update dshield_1d 15 $[24*60] ipv4 both \
@@ -2511,14 +2511,14 @@ update et_block $[12*60] 0 ipv4 both \
 update spamhaus_drop $[12*60] 0 ipv4 both \
 	"http://www.spamhaus.org/drop/drop.txt" \
 	remove_comments_semi_colon \
-	"[Spamhaus.org](http://www.spamhaus.org) DROP list (according to their site this list should be dropped at tier-1 ISPs globaly) - **excellent list**"
+	"[Spamhaus.org](http://www.spamhaus.org) DROP list (according to their site this list should be dropped at tier-1 ISPs globaly)"
 
 # extended DROP (EDROP) list.
 # Should be used together with their DROP list.
 update spamhaus_edrop $[12*60] 0 ipv4 both \
 	"http://www.spamhaus.org/drop/edrop.txt" \
 	remove_comments_semi_colon \
-	"[Spamhaus.org](http://www.spamhaus.org) EDROP (extended matches that should be used with DROP) - **excellent list**"
+	"[Spamhaus.org](http://www.spamhaus.org) EDROP (extended matches that should be used with DROP)"
 
 
 # -----------------------------------------------------------------------------
@@ -2531,7 +2531,7 @@ update spamhaus_edrop $[12*60] 0 ipv4 both \
 update blocklist_de 30 0 ipv4 ip \
 	"http://lists.blocklist.de/lists/all.txt" \
 	remove_comments \
-	"[Blocklist.de](https://www.blocklist.de/) IPs that have been detected by fail2ban in the last 48 hours - **excellent list**"
+	"[Blocklist.de](https://www.blocklist.de/) IPs that have been detected by fail2ban in the last 48 hours"
 
 update blocklist_de_ssh 30 0 ipv4 ip \
 	"http://lists.blocklist.de/lists/ssh.txt" \
@@ -2593,7 +2593,7 @@ update blocklist_de_bruteforce 30 0 ipv4 ip \
 update zeus_badips 30 0 ipv4 ip \
 	"https://zeustracker.abuse.ch/blocklist.php?download=badips" \
 	remove_comments \
-	"[Abuse.ch Zeus tracker](https://zeustracker.abuse.ch) badips includes IPv4 addresses that are used by the ZeuS trojan. It is the recommened blocklist if you want to block only ZeuS IPs. It excludes IP addresses that ZeuS Tracker believes to be hijacked (level 2) or belong to a free web hosting provider (level 3). Hence the false postive rate should be much lower compared to the standard ZeuS IP blocklist. **excellent list**"
+	"[Abuse.ch Zeus tracker](https://zeustracker.abuse.ch) badips includes IPv4 addresses that are used by the ZeuS trojan. It is the recommened blocklist if you want to block only ZeuS IPs. It excludes IP addresses that ZeuS Tracker believes to be hijacked (level 2) or belong to a free web hosting provider (level 3). Hence the false postive rate should be much lower compared to the standard ZeuS IP blocklist."
 
 # This blocklist contains the same data as the ZeuS IP blocklist (BadIPs)
 # but with the slight difference that it doesn't exclude hijacked websites
@@ -2601,7 +2601,7 @@ update zeus_badips 30 0 ipv4 ip \
 update zeus 30 0 ipv4 ip \
 	"https://zeustracker.abuse.ch/blocklist.php?download=ipblocklist" \
 	remove_comments \
-	"[Abuse.ch Zeus tracker](https://zeustracker.abuse.ch) standard, contains the same data as the ZeuS IP blocklist (zeus_badips) but with the slight difference that it doesn't exclude hijacked websites (level 2) and free web hosting providers (level 3). This means that this blocklist contains all IPv4 addresses associated with ZeuS C&Cs which are currently being tracked by ZeuS Tracker. Hence this blocklist will likely cause some false positives. - **excellent list**"
+	"[Abuse.ch Zeus tracker](https://zeustracker.abuse.ch) standard, contains the same data as the ZeuS IP blocklist (zeus_badips) but with the slight difference that it doesn't exclude hijacked websites (level 2) and free web hosting providers (level 3). This means that this blocklist contains all IPv4 addresses associated with ZeuS C&Cs which are currently being tracked by ZeuS Tracker. Hence this blocklist will likely cause some false positives."
 
 
 # -----------------------------------------------------------------------------
@@ -2613,7 +2613,7 @@ update zeus 30 0 ipv4 ip \
 update palevo 30 0 ipv4 ip \
 	"https://palevotracker.abuse.ch/blocklists.php?download=ipblocklist" \
 	remove_comments \
-	"[Abuse.ch Palevo tracker](https://palevotracker.abuse.ch) worm includes IPs which are being used as botnet C&C for the Palevo crimeware - **excellent list**"
+	"[Abuse.ch Palevo tracker](https://palevotracker.abuse.ch) worm includes IPs which are being used as botnet C&C for the Palevo crimeware"
 
 
 # -----------------------------------------------------------------------------
@@ -2627,7 +2627,7 @@ update palevo 30 0 ipv4 ip \
 update feodo 30 0 ipv4 ip \
 	"https://feodotracker.abuse.ch/blocklist/?download=ipblocklist" \
 	remove_comments \
-	"[Abuse.ch Feodo tracker](https://feodotracker.abuse.ch) trojan includes IPs which are being used by Feodo (also known as Cridex or Bugat) which commits ebanking fraud - **excellent list**"
+	"[Abuse.ch Feodo tracker](https://feodotracker.abuse.ch) trojan includes IPs which are being used by Feodo (also known as Cridex or Bugat) which commits ebanking fraud"
 
 
 # -----------------------------------------------------------------------------
@@ -2639,7 +2639,7 @@ update feodo 30 0 ipv4 ip \
 update sslbl 30 0 ipv4 ip \
 	"https://sslbl.abuse.ch/blacklist/sslipblacklist.csv" \
 	csv_comma_first_column \
-	"[Abuse.ch SSL Blacklist](https://sslbl.abuse.ch/) bad SSL traffic related to malware or botnet activities - **excellent list**"
+	"[Abuse.ch SSL Blacklist](https://sslbl.abuse.ch/) bad SSL traffic related to malware or botnet activities"
 
 
 # -----------------------------------------------------------------------------
@@ -2681,7 +2681,7 @@ update stopforumspam_ever $[24*60] 0 ipv4 ip \
 update stopforumspam_1d 60 0 ipv4 ip \
 	"http://www.stopforumspam.com/downloads/listed_ip_1.zip" \
 	unzip_and_extract \
-	"[StopForumSpam.com](http://www.stopforumspam.com) IPs used by forum spammers in the last 24 hours - **excellent list**"
+	"[StopForumSpam.com](http://www.stopforumspam.com) IPs used by forum spammers in the last 24 hours"
 
 # daily update with IPs from the last 7 days
 update stopforumspam_7d $[24*60] 0 ipv4 ip \
@@ -2731,7 +2731,7 @@ update stopforumspam_365d $[24*60] 0 ipv4 ip \
 update bogons $[24*60] 0 ipv4 both \
 	"http://www.team-cymru.org/Services/Bogons/bogon-bn-agg.txt" \
 	remove_comments \
-	"[Team-Cymru.org](http://www.team-cymru.org) private and reserved addresses defined by RFC 1918, RFC 5735, and RFC 6598 and netblocks that have not been allocated to a regional internet registry - **excellent list - use it only your internet interface**"
+	"[Team-Cymru.org](http://www.team-cymru.org) private and reserved addresses defined by RFC 1918, RFC 5735, and RFC 6598 and netblocks that have not been allocated to a regional internet registry"
 
 
 # http://www.team-cymru.org/bogon-reference.html
@@ -2741,7 +2741,7 @@ update bogons $[24*60] 0 ipv4 both \
 update fullbogons $[24*60] 0 ipv4 both \
 	"http://www.team-cymru.org/Services/Bogons/fullbogons-ipv4.txt" \
 	remove_comments \
-	"[Team-Cymru.org](http://www.team-cymru.org) IP space that has been allocated to an RIR, but not assigned by that RIR to an actual ISP or other end-user - **excellent list - use it only your internet interface**"
+	"[Team-Cymru.org](http://www.team-cymru.org) IP space that has been allocated to an RIR, but not assigned by that RIR to an actual ISP or other end-user"
 
 #update fullbogons6 $[24*60-10] ipv6 both \
 #	"http://www.team-cymru.org/Services/Bogons/fullbogons-ipv6.txt" \
@@ -2756,12 +2756,12 @@ update fullbogons $[24*60] 0 ipv4 both \
 update ri_web_proxies 60 "$[24*60] $[7*24*60] $[30*24*60]" ipv4 ip \
 	"http://tools.rosinstrument.com/proxy/l100.xml" \
 	parse_rss_rosinstrument \
-	"[rosinstrument.com](http://www.rosinstrument.com) open HTTP proxies (this list is composed using an RSS feed and aggregated for the last 30 days)"
+	"[rosinstrument.com](http://www.rosinstrument.com) open HTTP proxies (this list is composed using an RSS feed)"
 
 update ri_connect_proxies 60 "$[24*60] $[7*24*60] $[30*24*60]" ipv4 ip \
 	"http://tools.rosinstrument.com/proxy/plab100.xml" \
 	parse_rss_rosinstrument \
-	"[rosinstrument.com](http://www.rosinstrument.com) open CONNECT proxies (this list is composed using an RSS feed and aggregated for the last 30 days)"
+	"[rosinstrument.com](http://www.rosinstrument.com) open CONNECT proxies (this list is composed using an RSS feed)"
 
 
 # -----------------------------------------------------------------------------
@@ -2771,7 +2771,7 @@ update ri_connect_proxies 60 "$[24*60] $[7*24*60] $[30*24*60]" ipv4 ip \
 update xroxy 60 "$[24*60] $[7*24*60] $[30*24*60]" ipv4 ip \
 	"http://www.xroxy.com/proxyrss.xml" \
 	parse_rss_proxy \
-	"[xroxy.com](http://www.xroxy.com) open proxies (this list is composed using an RSS feed and aggregated for the last 30 days)"
+	"[xroxy.com](http://www.xroxy.com) open proxies (this list is composed using an RSS feed)"
 
 
 # -----------------------------------------------------------------------------
@@ -2781,7 +2781,7 @@ update xroxy 60 "$[24*60] $[7*24*60] $[30*24*60]" ipv4 ip \
 update proxz 60 "$[24*60] $[7*24*60] $[30*24*60]" ipv4 ip \
 	"http://www.proxz.com/proxylists.xml" \
 	parse_rss_proxy \
-	"[proxz.com](http://www.proxz.com) open proxies (this list is composed using an RSS feed and aggregated for the last 30 days)"
+	"[proxz.com](http://www.proxz.com) open proxies (this list is composed using an RSS feed)"
 
 
 # -----------------------------------------------------------------------------
@@ -2811,27 +2811,27 @@ update maxmind_proxy_fraud $[4*60] "$[24*60] $[7*24*60] $[30*24*60]" ipv4 ip \
 update php_harvesters 60 "$[24*60] $[7*24*60] $[30*24*60]" ipv4 ip \
 	"http://www.projecthoneypot.org/list_of_ips.php?t=h&rss=1" \
 	parse_php_rss \
-	"[projecthoneypot.org](http://www.projecthoneypot.org/?rf=192670) harvesters (IPs that surf the internet looking for email addresses) (this list is composed using an RSS feed and aggregated for the last 30 days)"
+	"[projecthoneypot.org](http://www.projecthoneypot.org/?rf=192670) harvesters (IPs that surf the internet looking for email addresses) (this list is composed using an RSS feed)"
 
 update php_spammers 60 "$[24*60] $[7*24*60] $[30*24*60]" ipv4 ip \
 	"http://www.projecthoneypot.org/list_of_ips.php?t=s&rss=1" \
 	parse_php_rss \
-	"[projecthoneypot.org](http://www.projecthoneypot.org/?rf=192670) spam servers (IPs used by spammers to send messages) (this list is composed using an RSS feed and aggregated for the last 30 days)"
+	"[projecthoneypot.org](http://www.projecthoneypot.org/?rf=192670) spam servers (IPs used by spammers to send messages) (this list is composed using an RSS feed)"
 
 update php_bad 60 "$[24*60] $[7*24*60] $[30*24*60]" ipv4 ip \
 	"http://www.projecthoneypot.org/list_of_ips.php?t=b&rss=1" \
 	parse_php_rss \
-	"[projecthoneypot.org](http://www.projecthoneypot.org/?rf=192670) bad web hosts (this list is composed using an RSS feed and aggregated for the last 30 days)"
+	"[projecthoneypot.org](http://www.projecthoneypot.org/?rf=192670) bad web hosts (this list is composed using an RSS feed)"
 
 update php_commenters 60 "$[24*60] $[7*24*60] $[30*24*60]" ipv4 ip \
 	"http://www.projecthoneypot.org/list_of_ips.php?t=c&rss=1" \
 	parse_php_rss \
-	"[projecthoneypot.org](http://www.projecthoneypot.org/?rf=192670) comment spammers (this list is composed using an RSS feed and aggregated for the last 30 days)"
+	"[projecthoneypot.org](http://www.projecthoneypot.org/?rf=192670) comment spammers (this list is composed using an RSS feed)"
 
 update php_dictionary 60 "$[24*60] $[7*24*60] $[30*24*60]" ipv4 ip \
 	"http://www.projecthoneypot.org/list_of_ips.php?t=d&rss=1" \
 	parse_php_rss \
-	"[projecthoneypot.org](http://www.projecthoneypot.org/?rf=192670) directory attackers (this list is composed using an RSS feed and aggregated for the last 30 days)"
+	"[projecthoneypot.org](http://www.projecthoneypot.org/?rf=192670) directory attackers (this list is composed using an RSS feed)"
 
 
 # -----------------------------------------------------------------------------
@@ -3376,7 +3376,7 @@ merge firehol_anonymous "An ipset that includes all the anonymizing IPs of the w
 # updates
 update_web
 
-# commit changes to git (dows does nothing is not enabled)
+# commit changes to git (does nothing if not enabled)
 commit_to_git
 
 # let the cleanup function exit with success
