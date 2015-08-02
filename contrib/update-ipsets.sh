@@ -762,9 +762,9 @@ declare -A IPSET_ENTRIES=()
 declare -A IPSET_IPS=()
 declare -A IPSET_SOURCE_DATE=()
 declare -A IPSET_PROCESSED_DATE=()
+declare -A IPSET_CATEGORY=()
 
 # TODO - FIXME
-#declare -A IPSET_CATEGORY=() # like proxies, spam, attacks, exploits, etc
 #declare -A IPSET_PREFIXES=()
 #declare -A IPSET_DOWNLOADER=()
 #declare -A IPSET_DOWNLOADER_OPTIONS=()
@@ -784,6 +784,7 @@ cache_save() {
 		IPSET_IPS \
 		IPSET_SOURCE_DATE \
 		IPSET_PROCESSED_DATE \
+		IPSET_CATEGORY \
 		>"${BASE_DIR}/.cache"
 }
 
@@ -810,6 +811,7 @@ cache_remove_ipset() {
 	unset IPSET_IPS[${ipset}]
 	unset IPSET_SOURCE_DATE[${ipset}]
 	unset IPSET_PROCESSED_DATE[${ipset}]
+	unset IPSET_CATEGORY[${ipset}]
 
 	cache_save
 }
@@ -847,6 +849,7 @@ ipset_json() {
 	"aggregation": ${IPSET_HISTORY_MINS[${ipset}]},
 	"updated": ${IPSET_SOURCE_DATE[${ipset}]}000,
 	"processed": ${IPSET_PROCESSED_DATE[${ipset}]}000,
+	"category": "${IPSET_CATEGORY[${ipset}]}",
 	"info": "${info}",
 	"source": "${IPSET_URL[${ipset}]}",
 	"file": "${IPSET_FILE[${ipset}]}",
@@ -1073,6 +1076,9 @@ update_web() {
 
 	local x= all=() geolite2_country=() ipdeny_country=() i= to_all=
 
+	echo '<?xml version="1.0" encoding="UTF-8"?>' >${RUN_DIR}/sitemap.xml
+	echo '<urlset xmlns="http://www.sitemaps.org/schemas/sitemap/0.9">' >>${RUN_DIR}/sitemap.xml
+
 	echo >&2
 	printf >&2 "updating history... "
 	for x in $(params_sort "${!IPSET_FILE[@]}")
@@ -1134,10 +1140,21 @@ update_web() {
 			else
 				printf >>"${RUN_DIR}/all-ipsets.json" ",\n	\"${x}\""
 			fi
+
+cat >>"${RUN_DIR}/sitemap.xml" <<EOFSITEMAP
+	<url>
+		<loc>http://ktsaou.github.io/blocklist-ipsets/?ipset=${x}</loc>
+		<lastmod>$(date -Is)</lastmod>
+		<changefreq>always</changefreq>
+	</url>
+EOFSITEMAP
+
 		fi
 	done
 	printf >>"${RUN_DIR}/all-ipsets.json" "\n]\n"
 	cp "${RUN_DIR}/all-ipsets.json" "${WEB_DIR}/"
+	echo '</urlset>' >>"${RUN_DIR}/sitemap.xml"
+	cp "${RUN_DIR}/sitemap.xml" "${WEB_DIR}/"
 	echo >&2
 
 	printf >&2 "comparing ipsets... "
@@ -1246,7 +1263,7 @@ update_web() {
 	if [ ${PUSH_TO_GIT} -eq 1 ]
 		then
 		cd "${WEB_DIR}" || return 1
-		git add *.json *.csv
+		git add *.json *.csv *.xml
 		git commit -a -m "$(date -u) update"
 		git push origin gh-pages
 		cd "${BASE_DIR}" || exit 1
@@ -1360,7 +1377,14 @@ ipset_apply() {
 # finalize() is called when a successful download and convertion completes
 # to update the ipset in the kernel and possibly commit it to git
 finalize() {
-	local ipset="${1}" tmp="${2}" setinfo="${3}" src="${4}" dst="${5}" mins="${6}" history_mins="${7}" ipv="${8}" type="${9}" hash="${10}" url="${11}" info="${12}"
+	local ipset="${1}" tmp="${2}" setinfo="${3}" src="${4}" dst="${5}" mins="${6}" history_mins="${7}" ipv="${8}" type="${9}" hash="${10}" url="${11}" category="${12}" info="${13}"
+
+	# check
+	if [ -z "${info}" ]
+		then
+		echo >&2 "${ipset}: INTERNAL ERROR (finalize): no info supplied"
+		info="${category}"
+	fi
 
 	# remove the comments from the existing file
 	if [ -f "${dst}" ]
@@ -1423,6 +1447,7 @@ finalize() {
 	IPSET_SOURCE[${ipset}]="${src}"
 	IPSET_SOURCE_DATE[${ipset}]=$(date -r "${src}" +%s)
 	IPSET_PROCESSED_DATE[${ipset}]=$(date +%s)
+	IPSET_CATEGORY[${ipset}]="${category}"
 
 	# generate the final file
 	# we do this on another tmp file
@@ -1469,9 +1494,16 @@ EOFHEADER
 # -----------------------------------------------------------------------------
 
 update() {
-	local 	ipset="${1}" mins="${2}" history_mins="${3}" ipv="${4}" type="${5}" url="${6}" processor="${7-cat}" info="${8}"
+	local 	ipset="${1}" mins="${2}" history_mins="${3}" ipv="${4}" type="${5}" url="${6}" processor="${7-cat}" category="${8}" info="${9}"
 		install="${1}" tmp= error=0 now= date= pre_filter="cat" post_filter="cat" post_filter2="cat" filter="cat"
-	shift 8
+	shift 9
+
+	# check
+	if [ -z "${info}" ]
+		then
+		echo >&2 "${ipset}: INTERNAL ERROR (update): no info supplied"
+		info="${category}"
+	fi
 
 	case "${ipv}" in
 		ipv4)
@@ -1651,7 +1683,7 @@ update() {
 			touch -r "${BASE_DIR}/${install}.source" "${BASE_DIR}/${install}${htag}.source"
 		fi
 
-		finalize "${ipset}${htag}" "${tmp}${htag}" "${install}${htag}.setinfo" "${install}${htag}.source" "${install}${htag}.${hash}set" "${mins}" "${hmins}" "${ipv}" "${type}" "${hash}" "${url}" "${info}"
+		finalize "${ipset}${htag}" "${tmp}${htag}" "${install}${htag}.setinfo" "${install}${htag}.source" "${install}${htag}.${hash}set" "${mins}" "${hmins}" "${ipv}" "${type}" "${hash}" "${url}" "${category}" "${info}"
 	done
 
 	if [ ! -z "${history_mins}" ]
@@ -2146,7 +2178,7 @@ geolite2_country() {
 
 		local info2="`cat "${x}.info"` -- ${info}"
 
-		finalize "${i}" "${x/.source.tmp/.source}" "${ipset}/${i}.setinfo" "${ipset}.source" "${ipset}/${i}.netset" "${mins}" "${history_mins}" "${ipv}" "${type}" "${hash}" "${url}" "${info2}"
+		finalize "${i}" "${x/.source.tmp/.source}" "${ipset}/${i}.setinfo" "${ipset}.source" "${ipset}/${i}.netset" "${mins}" "${history_mins}" "${ipv}" "${type}" "${hash}" "${url}" "geolocation" "${info2}"
 	done
 
 	if [ -d .git ]
@@ -2240,7 +2272,7 @@ ipdeny_country() {
 
 		local info2="`cat "${x}.info"` -- ${info}"
 
-		finalize "${i}" "${x/.source.tmp/.source}" "${ipset}/${i}.setinfo" "${ipset}.source" "${ipset}/${i}.netset" "${mins}" "${history_mins}" "${ipv}" "${type}" "${hash}" "${url}" "${info2}"
+		finalize "${i}" "${x/.source.tmp/.source}" "${ipset}/${i}.setinfo" "${ipset}.source" "${ipset}/${i}.netset" "${mins}" "${history_mins}" "${ipv}" "${type}" "${hash}" "${url}" "geolocation" "${info2}"
 	done
 
 	if [ -d .git ]
@@ -2260,8 +2292,8 @@ ipdeny_country() {
 # MERGE two or more ipsets
 
 merge() {
-	local to="${1}" info="${2}" included=()
-	shift 2
+	local to="${1}" category="${2}" info="${3}" included=()
+	shift 3
 
 	if [ ! -f "${to}.source" ]
 		then
@@ -2312,7 +2344,7 @@ merge() {
 
 	"${IPRANGE_CMD}" "${files[@]}" >"${RUN_DIR}/${to}.tmp"
 	touch -r "${max_date}" "${to}.tmp" "${to}.source"
-	finalize "${to}" "${RUN_DIR}/${to}.tmp" "${to}.setinfo" "${to}.source" "${to}.netset" "1" "0" "ipv4" "" "net" "" "${info} (includes: ${included[*]})"
+	finalize "${to}" "${RUN_DIR}/${to}.tmp" "${to}.setinfo" "${to}.source" "${to}.netset" "1" "0" "ipv4" "" "net" "" "${category}" "${info} (includes: ${included[*]})"
 }
 
 echo >&2
@@ -2377,46 +2409,55 @@ ipdeny_country
 update openbl $[4*60] 0 ipv4 ip \
 	"http://www.openbl.org/lists/base.txt" \
 	remove_comments \
+	"attacks" \
 	"[OpenBL.org](http://www.openbl.org/) default blacklist (currently it is the same with 90 days). OpenBL.org is detecting, logging and reporting various types of internet abuse. Currently they monitor ports 21 (FTP), 22 (SSH), 23 (TELNET), 25 (SMTP), 110 (POP3), 143 (IMAP), 587 (Submission), 993 (IMAPS) and 995 (POP3S) for bruteforce login attacks as well as scans on ports 80 (HTTP) and 443 (HTTPS) for vulnerable installations of phpMyAdmin and other web applications"
 
 update openbl_1d $[1*60] 0 ipv4 ip \
 	"http://www.openbl.org/lists/base_1days.txt" \
 	remove_comments \
+	"attacks" \
 	"[OpenBL.org](http://www.openbl.org/) last 24 hours IPs.  OpenBL.org is detecting, logging and reporting various types of internet abuse. Currently they monitor ports 21 (FTP), 22 (SSH), 23 (TELNET), 25 (SMTP), 110 (POP3), 143 (IMAP), 587 (Submission), 993 (IMAPS) and 995 (POP3S) for bruteforce login attacks as well as scans on ports 80 (HTTP) and 443 (HTTPS) for vulnerable installations of phpMyAdmin and other web applications."
 
 update openbl_7d $[4*60] 0 ipv4 ip \
 	"http://www.openbl.org/lists/base_7days.txt" \
 	remove_comments \
+	"attacks" \
 	"[OpenBL.org](http://www.openbl.org/) last 7 days IPs.  OpenBL.org is detecting, logging and reporting various types of internet abuse. Currently they monitor ports 21 (FTP), 22 (SSH), 23 (TELNET), 25 (SMTP), 110 (POP3), 143 (IMAP), 587 (Submission), 993 (IMAPS) and 995 (POP3S) for bruteforce login attacks as well as scans on ports 80 (HTTP) and 443 (HTTPS) for vulnerable installations of phpMyAdmin and other web applications."
 
 update openbl_30d $[4*60] 0 ipv4 ip \
 	"http://www.openbl.org/lists/base_30days.txt" \
 	remove_comments \
+	"attacks" \
 	"[OpenBL.org](http://www.openbl.org/) last 30 days IPs.  OpenBL.org is detecting, logging and reporting various types of internet abuse. Currently they monitor ports 21 (FTP), 22 (SSH), 23 (TELNET), 25 (SMTP), 110 (POP3), 143 (IMAP), 587 (Submission), 993 (IMAPS) and 995 (POP3S) for bruteforce login attacks as well as scans on ports 80 (HTTP) and 443 (HTTPS) for vulnerable installations of phpMyAdmin and other web applications."
 
 update openbl_60d $[4*60] 0 ipv4 ip \
 	"http://www.openbl.org/lists/base_60days.txt" \
 	remove_comments \
+	"attacks" \
 	"[OpenBL.org](http://www.openbl.org/) last 60 days IPs.  OpenBL.org is detecting, logging and reporting various types of internet abuse. Currently they monitor ports 21 (FTP), 22 (SSH), 23 (TELNET), 25 (SMTP), 110 (POP3), 143 (IMAP), 587 (Submission), 993 (IMAPS) and 995 (POP3S) for bruteforce login attacks as well as scans on ports 80 (HTTP) and 443 (HTTPS) for vulnerable installations of phpMyAdmin and other web applications."
 
 update openbl_90d $[4*60] 0 ipv4 ip \
 	"http://www.openbl.org/lists/base_90days.txt" \
 	remove_comments \
+	"attacks" \
 	"[OpenBL.org](http://www.openbl.org/) last 90 days IPs.  OpenBL.org is detecting, logging and reporting various types of internet abuse. Currently they monitor ports 21 (FTP), 22 (SSH), 23 (TELNET), 25 (SMTP), 110 (POP3), 143 (IMAP), 587 (Submission), 993 (IMAPS) and 995 (POP3S) for bruteforce login attacks as well as scans on ports 80 (HTTP) and 443 (HTTPS) for vulnerable installations of phpMyAdmin and other web applications."
 
 update openbl_180d $[4*60] 0 ipv4 ip \
 	"http://www.openbl.org/lists/base_180days.txt" \
 	remove_comments \
+	"attacks" \
 	"[OpenBL.org](http://www.openbl.org/) last 180 days IPs.  OpenBL.org is detecting, logging and reporting various types of internet abuse. Currently they monitor ports 21 (FTP), 22 (SSH), 23 (TELNET), 25 (SMTP), 110 (POP3), 143 (IMAP), 587 (Submission), 993 (IMAPS) and 995 (POP3S) for bruteforce login attacks as well as scans on ports 80 (HTTP) and 443 (HTTPS) for vulnerable installations of phpMyAdmin and other web applications."
 
 update openbl_360d $[4*60] 0 ipv4 ip \
 	"http://www.openbl.org/lists/base_360days.txt" \
 	remove_comments \
+	"attacks" \
 	"[OpenBL.org](http://www.openbl.org/) last 360 days IPs.  OpenBL.org is detecting, logging and reporting various types of internet abuse. Currently they monitor ports 21 (FTP), 22 (SSH), 23 (TELNET), 25 (SMTP), 110 (POP3), 143 (IMAP), 587 (Submission), 993 (IMAPS) and 995 (POP3S) for bruteforce login attacks as well as scans on ports 80 (HTTP) and 443 (HTTPS) for vulnerable installations of phpMyAdmin and other web applications."
 
 update openbl_all $[4*60] 0 ipv4 ip \
 	"http://www.openbl.org/lists/base_all.txt" \
 	remove_comments \
+	"attacks" \
 	"[OpenBL.org](http://www.openbl.org/) last all IPs.  OpenBL.org is detecting, logging and reporting various types of internet abuse. Currently they monitor ports 21 (FTP), 22 (SSH), 23 (TELNET), 25 (SMTP), 110 (POP3), 143 (IMAP), 587 (Submission), 993 (IMAPS) and 995 (POP3S) for bruteforce login attacks as well as scans on ports 80 (HTTP) and 443 (HTTPS) for vulnerable installations of phpMyAdmin and other web applications."
 
 
@@ -2425,16 +2466,11 @@ update openbl_all $[4*60] 0 ipv4 ip \
 # https://www.dshield.org/xml.html
 
 # Top 20 attackers (networks) by www.dshield.org
-update dshield 15 "$[24*60] $[24*60*7]" ipv4 both \
+update dshield 15 "$[24*60] $[7*24*60] $[30*24*60]" ipv4 both \
 	"http://feeds.dshield.org/block.txt" \
 	dshield_parser \
+	"attacks" \
 	"[DShield.org](https://dshield.org/) top 20 attacking class C (/24) subnets over the last three days"
-
-#[ -f dshield.source -a -f dshield_1d.source -a dshield.source -nt dshield_1d.source ] && cp -p dshield.source dshield_1d.source
-#update dshield_1d 15 $[24*60] ipv4 both \
-#	"http://feeds.dshield.org/block.txt" \
-#	dshield_parser \
-#	"[DShield.org](https://dshield.org/) top 20 attacking class C (/24) subnets over the last three days - test case: dshield has a very short retention, less than 1 hour - here we aggregate it for 1 day to check what we will get"
 
 # -----------------------------------------------------------------------------
 # TOR lists
@@ -2446,16 +2482,19 @@ update dshield 15 "$[24*60] $[24*60*7]" ipv4 both \
 update dm_tor 30 0 ipv4 ip \
 	"https://www.dan.me.uk/torlist/" \
 	remove_comments \
+	"anonymizers" \
 	"[dan.me.uk](https://www.dan.me.uk) dynamic list of TOR nodes"
 
 update et_tor $[12*60] 0 ipv4 ip \
 	"http://rules.emergingthreats.net/blockrules/emerging-tor.rules" \
 	snort_alert_rules_to_ipv4 \
+	"anonymizers" \
 	"[EmergingThreats.net TOR list](http://doc.emergingthreats.net/bin/view/Main/TorRules) of TOR network IPs"
 
 update bm_tor 30 0 ipv4 ip \
 	"https://torstatus.blutmagie.de/ip_list_all.php/Tor_ip_list_ALL.csv" \
 	remove_comments \
+	"anonymizers" \
 	"[torstatus.blutmagie.de](https://torstatus.blutmagie.de) list of all TOR network servers"
 
 
@@ -2464,6 +2503,7 @@ torproject_exits() { grep "^ExitAddress " | cut -d ' ' -f 2; }
 update tor_exits 30 0 ipv4 ip \
 	"https://check.torproject.org/exit-addresses" \
 	torproject_exits \
+	"anonymizers" \
 	"[TorProject.org](https://www.torproject.org) list of all current TOR exit points (TorDNSEL)"
 
 # -----------------------------------------------------------------------------
@@ -2474,18 +2514,21 @@ update tor_exits 30 0 ipv4 ip \
 update et_compromised $[12*60] 0 ipv4 ip \
 	"http://rules.emergingthreats.net/blockrules/compromised-ips.txt" \
 	remove_comments \
-	"[EmergingThreats.net compromised hosts](http://doc.emergingthreats.net/bin/view/Main/CompromisedHost) - (this seems to be based on bruteforceblocker)"
+	"attacks" \
+	"[EmergingThreats.net compromised hosts](http://doc.emergingthreats.net/bin/view/Main/CompromisedHost)"
 
 # Command & Control servers by shadowserver.org
 update et_botcc $[12*60] 0 ipv4 ip \
 	"http://rules.emergingthreats.net/fwrules/emerging-PIX-CC.rules" \
 	pix_deny_rules_to_ipv4 \
+	"bots" \
 	"[EmergingThreats.net Command and Control IPs](http://doc.emergingthreats.net/bin/view/Main/BotCC) These IPs are updates every 24 hours and should be considered VERY highly reliable indications that a host is communicating with a known and active Bot or Malware command and control server - (although they say this includes abuse.ch trackers, it does not - most probably it is the shadowserver.org C&C list)"
 
 # This appears to be the SPAMHAUS DROP list
 update et_spamhaus $[12*60] 0 ipv4 both \
 	"http://rules.emergingthreats.net/fwrules/emerging-PIX-DROP.rules" \
 	pix_deny_rules_to_ipv4 \
+	"attacks" \
 	"[EmergingThreats.net](http://www.emergingthreats.net/) spamhaus blocklist"
 
 # Top 20 attackers by www.dshield.org
@@ -2493,12 +2536,14 @@ update et_spamhaus $[12*60] 0 ipv4 both \
 update et_dshield $[12*60] 0 ipv4 both \
 	"http://rules.emergingthreats.net/fwrules/emerging-PIX-DSHIELD.rules" \
 	pix_deny_rules_to_ipv4 \
+	"attacks" \
 	"[EmergingThreats.net](http://www.emergingthreats.net/) dshield blocklist"
 
 # includes spamhaus and dshield
 update et_block $[12*60] 0 ipv4 both \
 	"http://rules.emergingthreats.net/fwrules/emerging-Block-IPs.txt" \
 	remove_comments \
+	"attacks" \
 	"[EmergingThreats.net](http://www.emergingthreats.net/) default blacklist (at the time of writing includes spamhaus DROP, dshield and abuse.ch trackers, which are available separately too - prefer to use the direct ipsets instead of this, they seem to lag a bit in updates)"
 
 
@@ -2511,6 +2556,7 @@ update et_block $[12*60] 0 ipv4 both \
 update spamhaus_drop $[12*60] 0 ipv4 both \
 	"http://www.spamhaus.org/drop/drop.txt" \
 	remove_comments_semi_colon \
+	"attacks" \
 	"[Spamhaus.org](http://www.spamhaus.org) DROP list (according to their site this list should be dropped at tier-1 ISPs globaly)"
 
 # extended DROP (EDROP) list.
@@ -2518,6 +2564,7 @@ update spamhaus_drop $[12*60] 0 ipv4 both \
 update spamhaus_edrop $[12*60] 0 ipv4 both \
 	"http://www.spamhaus.org/drop/edrop.txt" \
 	remove_comments_semi_colon \
+	"attacks" \
 	"[Spamhaus.org](http://www.spamhaus.org) EDROP (extended matches that should be used with DROP)"
 
 
@@ -2531,56 +2578,67 @@ update spamhaus_edrop $[12*60] 0 ipv4 both \
 update blocklist_de 30 0 ipv4 ip \
 	"http://lists.blocklist.de/lists/all.txt" \
 	remove_comments \
+	"attacks" \
 	"[Blocklist.de](https://www.blocklist.de/) IPs that have been detected by fail2ban in the last 48 hours"
 
 update blocklist_de_ssh 30 0 ipv4 ip \
 	"http://lists.blocklist.de/lists/ssh.txt" \
 	remove_comments \
+	"attacks" \
 	"[Blocklist.de](https://www.blocklist.de/) All IP addresses which have been reported within the last 48 hours as having run attacks on the service SSH."
 
 update blocklist_de_mail 30 0 ipv4 ip \
 	"http://lists.blocklist.de/lists/mail.txt" \
 	remove_comments \
+	"attacks" \
 	"[Blocklist.de](https://www.blocklist.de/) All IP addresses which have been reported within the last 48 hours as having run attacks on the service Mail, Postfix."
 
 update blocklist_de_apache 30 0 ipv4 ip \
 	"http://lists.blocklist.de/lists/apache.txt" \
 	remove_comments \
+	"attacks" \
 	"[Blocklist.de](https://www.blocklist.de/) All IP addresses which have been reported within the last 48 hours as having run attacks on the service Apache, Apache-DDOS, RFI-Attacks."
 
 update blocklist_de_imap 30 0 ipv4 ip \
 	"http://lists.blocklist.de/lists/imap.txt" \
 	remove_comments \
+	"attacks" \
 	"[Blocklist.de](https://www.blocklist.de/) All IP addresses which have been reported within the last 48 hours for attacks on the Service imap, sasl, pop3, etc."
 
 update blocklist_de_ftp 30 0 ipv4 ip \
 	"http://lists.blocklist.de/lists/ftp.txt" \
 	remove_comments \
+	"attacks" \
 	"[Blocklist.de](https://www.blocklist.de/) All IP addresses which have been reported within the last 48 hours for attacks on the Service FTP."
 
 update blocklist_de_sip 30 0 ipv4 ip \
 	"http://lists.blocklist.de/lists/sip.txt" \
 	remove_comments \
+	"attacks" \
 	"[Blocklist.de](https://www.blocklist.de/) All IP addresses that tried to login in a SIP, VOIP or Asterisk Server and are included in the IPs list from infiltrated.net"
 
 update blocklist_de_bots 30 0 ipv4 ip \
 	"http://lists.blocklist.de/lists/bots.txt" \
 	remove_comments \
+	"attacks" \
 	"[Blocklist.de](https://www.blocklist.de/) All IP addresses which have been reported within the last 48 hours as having run attacks on the RFI-Attacks, REG-Bots, IRC-Bots or BadBots (BadBots = he has posted a Spam-Comment on a open Forum or Wiki)."
 
 update blocklist_de_strongips 30 0 ipv4 ip \
 	"http://lists.blocklist.de/lists/strongips.txt" \
 	remove_comments \
+	"attacks" \
 	"[Blocklist.de](https://www.blocklist.de/) All IPs which are older then 2 month and have more then 5.000 attacks."
 
 #update blocklist_de_ircbot 30 0 ipv4 ip \
 #	"http://lists.blocklist.de/lists/ircbot.txt" \
 #	remove_comments \
+#	"attacks" \
 #	"[Blocklist.de](https://www.blocklist.de/) (no information supplied)"
 
 update blocklist_de_bruteforce 30 0 ipv4 ip \
 	"http://lists.blocklist.de/lists/bruteforcelogin.txt" \
 	remove_comments \
+	"attacks" \
 	"[Blocklist.de](https://www.blocklist.de/) All IPs which attacks Joomlas, Wordpress and other Web-Logins with Brute-Force Logins."
 
 
@@ -2593,6 +2651,7 @@ update blocklist_de_bruteforce 30 0 ipv4 ip \
 update zeus_badips 30 0 ipv4 ip \
 	"https://zeustracker.abuse.ch/blocklist.php?download=badips" \
 	remove_comments \
+	"bots" \
 	"[Abuse.ch Zeus tracker](https://zeustracker.abuse.ch) badips includes IPv4 addresses that are used by the ZeuS trojan. It is the recommened blocklist if you want to block only ZeuS IPs. It excludes IP addresses that ZeuS Tracker believes to be hijacked (level 2) or belong to a free web hosting provider (level 3). Hence the false postive rate should be much lower compared to the standard ZeuS IP blocklist."
 
 # This blocklist contains the same data as the ZeuS IP blocklist (BadIPs)
@@ -2601,6 +2660,7 @@ update zeus_badips 30 0 ipv4 ip \
 update zeus 30 0 ipv4 ip \
 	"https://zeustracker.abuse.ch/blocklist.php?download=ipblocklist" \
 	remove_comments \
+	"bots" \
 	"[Abuse.ch Zeus tracker](https://zeustracker.abuse.ch) standard, contains the same data as the ZeuS IP blocklist (zeus_badips) but with the slight difference that it doesn't exclude hijacked websites (level 2) and free web hosting providers (level 3). This means that this blocklist contains all IPv4 addresses associated with ZeuS C&Cs which are currently being tracked by ZeuS Tracker. Hence this blocklist will likely cause some false positives."
 
 
@@ -2613,6 +2673,7 @@ update zeus 30 0 ipv4 ip \
 update palevo 30 0 ipv4 ip \
 	"https://palevotracker.abuse.ch/blocklists.php?download=ipblocklist" \
 	remove_comments \
+	"bots" \
 	"[Abuse.ch Palevo tracker](https://palevotracker.abuse.ch) worm includes IPs which are being used as botnet C&C for the Palevo crimeware"
 
 
@@ -2627,6 +2688,7 @@ update palevo 30 0 ipv4 ip \
 update feodo 30 0 ipv4 ip \
 	"https://feodotracker.abuse.ch/blocklist/?download=ipblocklist" \
 	remove_comments \
+	"bots" \
 	"[Abuse.ch Feodo tracker](https://feodotracker.abuse.ch) trojan includes IPs which are being used by Feodo (also known as Cridex or Bugat) which commits ebanking fraud"
 
 
@@ -2639,6 +2701,7 @@ update feodo 30 0 ipv4 ip \
 update sslbl 30 0 ipv4 ip \
 	"https://sslbl.abuse.ch/blacklist/sslipblacklist.csv" \
 	csv_comma_first_column \
+	"bots" \
 	"[Abuse.ch SSL Blacklist](https://sslbl.abuse.ch/) bad SSL traffic related to malware or botnet activities"
 
 
@@ -2649,6 +2712,7 @@ update sslbl 30 0 ipv4 ip \
 #update infiltrated $[12*60] 0 ipv4 ip \
 #	"http://www.infiltrated.net/blacklisted" \
 #	remove_comments \
+#	"attacks" \
 #	"[infiltrated.net](http://www.infiltrated.net) (this list seems to be updated frequently, but we found no information about it)"
 
 
@@ -2660,6 +2724,7 @@ update sslbl 30 0 ipv4 ip \
 update malc0de $[24*60] 0 ipv4 ip \
 	"http://malc0de.com/bl/IP_Blacklist.txt" \
 	remove_comments \
+	"attacks" \
 	"[Malc0de.com](http://malc0de.com) malicious IPs of the last 30 days"
 
 
@@ -2675,24 +2740,28 @@ update malc0de $[24*60] 0 ipv4 ip \
 update stopforumspam_ever $[24*60] 0 ipv4 ip \
 	"http://www.stopforumspam.com/downloads/bannedips.zip" \
 	unzip_and_split_csv \
+	"abuse" \
 	"[StopForumSpam.com](http://www.stopforumspam.com) all IPs used by forum spammers, **ever** (normally you don't want to use this ipset, use the hourly one which includes last 24 hours IPs or the 7 days one)"
 
 # hourly update with IPs from the last 24 hours
 update stopforumspam_1d 60 0 ipv4 ip \
 	"http://www.stopforumspam.com/downloads/listed_ip_1.zip" \
 	unzip_and_extract \
+	"abuse" \
 	"[StopForumSpam.com](http://www.stopforumspam.com) IPs used by forum spammers in the last 24 hours"
 
 # daily update with IPs from the last 7 days
 update stopforumspam_7d $[24*60] 0 ipv4 ip \
 	"http://www.stopforumspam.com/downloads/listed_ip_7.zip" \
 	unzip_and_extract \
+	"abuse" \
 	"[StopForumSpam.com](http://www.stopforumspam.com) IPs used by forum spammers (last 7 days)"
 
 # daily update with IPs from the last 30 days
 update stopforumspam_30d $[24*60] 0 ipv4 ip \
 	"http://www.stopforumspam.com/downloads/listed_ip_30.zip" \
 	unzip_and_extract \
+	"abuse" \
 	"[StopForumSpam.com](http://www.stopforumspam.com) IPs used by forum spammers (last 30 days)"
 
 # daily update with IPs from the last 90 days
@@ -2700,6 +2769,7 @@ update stopforumspam_30d $[24*60] 0 ipv4 ip \
 update stopforumspam_90d $[24*60] 0 ipv4 ip \
 	"http://www.stopforumspam.com/downloads/listed_ip_90.zip" \
 	unzip_and_extract \
+	"abuse" \
 	"[StopForumSpam.com](http://www.stopforumspam.com) IPs used by forum spammers (last 90 days)"
 
 # daily update with IPs from the last 180 days
@@ -2707,6 +2777,7 @@ update stopforumspam_90d $[24*60] 0 ipv4 ip \
 update stopforumspam_180d $[24*60] 0 ipv4 ip \
 	"http://www.stopforumspam.com/downloads/listed_ip_180.zip" \
 	unzip_and_extract \
+	"abuse" \
 	"[StopForumSpam.com](http://www.stopforumspam.com) IPs used by forum spammers (last 180 days)"
 
 # daily update with IPs from the last 365 days
@@ -2714,6 +2785,7 @@ update stopforumspam_180d $[24*60] 0 ipv4 ip \
 update stopforumspam_365d $[24*60] 0 ipv4 ip \
 	"http://www.stopforumspam.com/downloads/listed_ip_365.zip" \
 	unzip_and_extract \
+	"abuse" \
 	"[StopForumSpam.com](http://www.stopforumspam.com) IPs used by forum spammers (last 365 days)"
 
 
@@ -2731,6 +2803,7 @@ update stopforumspam_365d $[24*60] 0 ipv4 ip \
 update bogons $[24*60] 0 ipv4 both \
 	"http://www.team-cymru.org/Services/Bogons/bogon-bn-agg.txt" \
 	remove_comments \
+	"unroutable" \
 	"[Team-Cymru.org](http://www.team-cymru.org) private and reserved addresses defined by RFC 1918, RFC 5735, and RFC 6598 and netblocks that have not been allocated to a regional internet registry"
 
 
@@ -2741,11 +2814,13 @@ update bogons $[24*60] 0 ipv4 both \
 update fullbogons $[24*60] 0 ipv4 both \
 	"http://www.team-cymru.org/Services/Bogons/fullbogons-ipv4.txt" \
 	remove_comments \
+	"unroutable" \
 	"[Team-Cymru.org](http://www.team-cymru.org) IP space that has been allocated to an RIR, but not assigned by that RIR to an actual ISP or other end-user"
 
 #update fullbogons6 $[24*60-10] ipv6 both \
 #	"http://www.team-cymru.org/Services/Bogons/fullbogons-ipv6.txt" \
 #	remove_comments \
+#	"unroutable" \
 #	"Team-Cymru.org provided"
 
 
@@ -2756,11 +2831,13 @@ update fullbogons $[24*60] 0 ipv4 both \
 update ri_web_proxies 60 "$[24*60] $[7*24*60] $[30*24*60]" ipv4 ip \
 	"http://tools.rosinstrument.com/proxy/l100.xml" \
 	parse_rss_rosinstrument \
+	"anonymizers" \
 	"[rosinstrument.com](http://www.rosinstrument.com) open HTTP proxies (this list is composed using an RSS feed)"
 
 update ri_connect_proxies 60 "$[24*60] $[7*24*60] $[30*24*60]" ipv4 ip \
 	"http://tools.rosinstrument.com/proxy/plab100.xml" \
 	parse_rss_rosinstrument \
+	"anonymizers" \
 	"[rosinstrument.com](http://www.rosinstrument.com) open CONNECT proxies (this list is composed using an RSS feed)"
 
 
@@ -2771,6 +2848,7 @@ update ri_connect_proxies 60 "$[24*60] $[7*24*60] $[30*24*60]" ipv4 ip \
 update xroxy 60 "$[24*60] $[7*24*60] $[30*24*60]" ipv4 ip \
 	"http://www.xroxy.com/proxyrss.xml" \
 	parse_rss_proxy \
+	"anonymizers" \
 	"[xroxy.com](http://www.xroxy.com) open proxies (this list is composed using an RSS feed)"
 
 
@@ -2781,6 +2859,7 @@ update xroxy 60 "$[24*60] $[7*24*60] $[30*24*60]" ipv4 ip \
 update proxz 60 "$[24*60] $[7*24*60] $[30*24*60]" ipv4 ip \
 	"http://www.proxz.com/proxylists.xml" \
 	parse_rss_proxy \
+	"anonymizers" \
 	"[proxz.com](http://www.proxz.com) open proxies (this list is composed using an RSS feed)"
 
 
@@ -2791,6 +2870,7 @@ update proxz 60 "$[24*60] $[7*24*60] $[30*24*60]" ipv4 ip \
 update proxyrss $[4*60] "$[24*60] $[7*24*60] $[30*24*60]" ipv4 ip \
 	"http://www.proxyrss.com/proxylists/all.gz" \
 	gz_proxyrss \
+	"anonymizers" \
 	"[proxyrss.com](http://www.proxyrss.com) open proxies syndicated from multiple sources."
 
 
@@ -2801,6 +2881,7 @@ update proxyrss $[4*60] "$[24*60] $[7*24*60] $[30*24*60]" ipv4 ip \
 update maxmind_proxy_fraud $[4*60] "$[24*60] $[7*24*60] $[30*24*60]" ipv4 ip \
 	"https://www.maxmind.com/en/anonymous-proxy-fraudulent-ip-address-list" \
 	parse_maxmind_proxy_fraud \
+	"anonymizers" \
 	"[MaxMind.com](https://www.maxmind.com/en/anonymous-proxy-fraudulent-ip-address-list) list of anonymous proxy fraudelent IP addresses."
 
 
@@ -2811,26 +2892,31 @@ update maxmind_proxy_fraud $[4*60] "$[24*60] $[7*24*60] $[30*24*60]" ipv4 ip \
 update php_harvesters 60 "$[24*60] $[7*24*60] $[30*24*60]" ipv4 ip \
 	"http://www.projecthoneypot.org/list_of_ips.php?t=h&rss=1" \
 	parse_php_rss \
+	"abuse" \
 	"[projecthoneypot.org](http://www.projecthoneypot.org/?rf=192670) harvesters (IPs that surf the internet looking for email addresses) (this list is composed using an RSS feed)"
 
 update php_spammers 60 "$[24*60] $[7*24*60] $[30*24*60]" ipv4 ip \
 	"http://www.projecthoneypot.org/list_of_ips.php?t=s&rss=1" \
 	parse_php_rss \
+	"abuse" \
 	"[projecthoneypot.org](http://www.projecthoneypot.org/?rf=192670) spam servers (IPs used by spammers to send messages) (this list is composed using an RSS feed)"
 
 update php_bad 60 "$[24*60] $[7*24*60] $[30*24*60]" ipv4 ip \
 	"http://www.projecthoneypot.org/list_of_ips.php?t=b&rss=1" \
 	parse_php_rss \
+	"abuse" \
 	"[projecthoneypot.org](http://www.projecthoneypot.org/?rf=192670) bad web hosts (this list is composed using an RSS feed)"
 
 update php_commenters 60 "$[24*60] $[7*24*60] $[30*24*60]" ipv4 ip \
 	"http://www.projecthoneypot.org/list_of_ips.php?t=c&rss=1" \
 	parse_php_rss \
+	"abuse" \
 	"[projecthoneypot.org](http://www.projecthoneypot.org/?rf=192670) comment spammers (this list is composed using an RSS feed)"
 
 update php_dictionary 60 "$[24*60] $[7*24*60] $[30*24*60]" ipv4 ip \
 	"http://www.projecthoneypot.org/list_of_ips.php?t=d&rss=1" \
 	parse_php_rss \
+	"abuse" \
 	"[projecthoneypot.org](http://www.projecthoneypot.org/?rf=192670) directory attackers (this list is composed using an RSS feed)"
 
 
@@ -2841,6 +2927,7 @@ update php_dictionary 60 "$[24*60] $[7*24*60] $[30*24*60]" ipv4 ip \
 update malwaredomainlist $[12*60] 0 ipv4 ip \
 	"http://www.malwaredomainlist.com/hostslist/ip.txt" \
 	remove_comments \
+	"bots" \
 	"[malwaredomainlist.com](http://www.malwaredomainlist.com) list of malware active ip addresses"
 
 
@@ -2853,7 +2940,8 @@ update malwaredomainlist $[12*60] 0 ipv4 ip \
 update alienvault_reputation $[6*60] 0 ipv4 ip \
 	"https://reputation.alienvault.com/reputation.generic" \
 	remove_comments \
-	"[AlienVault.com](https://www.alienvault.com/) IP reputation database (this list seems to include port scanning hosts and to be updated regularly, but we found no information about its retention policy)"
+	"reputation" \
+	"[AlienVault.com](https://www.alienvault.com/) IP reputation database"
 
 
 # -----------------------------------------------------------------------------
@@ -2863,6 +2951,7 @@ update alienvault_reputation $[6*60] 0 ipv4 ip \
 update cleanmx_viruses 30 0 ipv4 ip \
 	"http://support.clean-mx.de/clean-mx/xmlviruses.php?sort=id%20desc&response=alive" \
 	parse_xml_clean_mx \
+	"bots" \
 	"[Clean-MX.de](http://support.clean-mx.de/clean-mx/viruses.php) IPs with viruses"
 
 
@@ -2875,11 +2964,13 @@ antispam_ips() { remove_comments | cut -d ' ' -f 2; }
 update iw_spamlist 60 0 ipv4 ip \
 	"http://antispam.imp.ch/spamlist" \
 	antispam_ips \
+	"spam" \
 	"[ImproWare Antispam](http://antispam.imp.ch/) IPs sending spam, in the last 3 days"
 
 update iw_wormlist 60 0 ipv4 ip \
 	"http://antispam.imp.ch/wormlist" \
 	antispam_ips \
+	"spam" \
 	"[ImproWare Antispam](http://antispam.imp.ch/) IPs sending emails with viruses or worms, in the last 3 days"
 
 
@@ -2898,6 +2989,7 @@ update iw_wormlist 60 0 ipv4 ip \
 update ciarmy $[3*60] 0 ipv4 ip \
 	"http://cinsscore.com/list/ci-badguys.txt" \
 	remove_comments \
+	"reputation" \
 	"[CIArmy.com](http://ciarmy.com/) IPs with poor Rogue Packet score that have not yet been identified as malicious by the community"
 
 
@@ -2908,6 +3000,7 @@ update ciarmy $[3*60] 0 ipv4 ip \
 update bruteforceblocker $[3*60] 0 ipv4 ip \
 	"http://danger.rulez.sk/projects/bruteforceblocker/blist.php" \
 	remove_comments \
+	"attacks" \
 	"[danger.rulez.sk bruteforceblocker](http://danger.rulez.sk/index.php/bruteforceblocker/) (fail2ban alternative for SSH on OpenBSD). This is an automatically generated list from users reporting failed authentication attempts. An IP seems to be included if 3 or more users report it. Its retention pocily seems 30 days."
 
 
@@ -2918,6 +3011,7 @@ update bruteforceblocker $[3*60] 0 ipv4 ip \
 update snort_ipfilter $[12*60] 0 ipv4 ip \
 	"http://labs.snort.org/feeds/ip-filter.blf" \
 	remove_comments \
+	"attacks" \
 	"[labs.snort.org](https://labs.snort.org/) supplied IP blacklist (this list seems to be updated frequently, but we found no information about it)"
 
 
@@ -2928,6 +3022,7 @@ update snort_ipfilter $[12*60] 0 ipv4 ip \
 update nixspam 15 0 ipv4 ip \
 	"http://www.dnsbl.manitu.net/download/nixspam-ip.dump.gz" \
 	gz_second_word \
+	"spam" \
 	"[NiX Spam](http://www.heise.de/ix/NiX-Spam-DNSBL-and-blacklist-for-download-499637.html) IP addresses that sent spam in the last hour - automatically generated entries without distinguishing open proxies from relays, dialup gateways, and so on. All IPs are removed after 12 hours if there is no spam from there."
 
 
@@ -2938,6 +3033,7 @@ update nixspam 15 0 ipv4 ip \
 update virbl 60 0 ipv4 ip \
 	"http://virbl.bit.nl/download/virbl.dnsbl.bit.nl.txt" \
 	remove_comments \
+	"spam" \
 	"[VirBL](http://virbl.bit.nl/) is a project of which the idea was born during the RIPE-48 meeting. The plan was to get reports of virusscanning mailservers, and put the IP-addresses that were reported to send viruses on a blacklist."
 
 
@@ -2948,6 +3044,7 @@ update virbl 60 0 ipv4 ip \
 update shunlist $[4*60] 0 ipv4 ip \
 	"http://www.autoshun.org/files/shunlist.csv" \
 	csv_comma_first_column \
+	"attacks" \
 	"[AutoShun.org](http://autoshun.org/) IPs identified as hostile by correlating logs from distributed snort installations running the autoshun plugin"
 
 
@@ -2958,6 +3055,7 @@ update shunlist $[4*60] 0 ipv4 ip \
 update voipbl $[4*60] 0 ipv4 both \
 	"http://www.voipbl.org/update/" \
 	remove_comments \
+	"attacks" \
 	"[VoIPBL.org](http://www.voipbl.org/) a distributed VoIP blacklist that is aimed to protects against VoIP Fraud and minimizing abuse for network that have publicly accessible PBX's. Several algorithms, external sources and manual confirmation are used before they categorize something as an attack and determine the threat level."
 
 
@@ -2969,6 +3067,7 @@ update voipbl $[4*60] 0 ipv4 both \
 update lashback_ubl $[24*60] 0 ipv4 ip \
 	"http://www.unsubscore.com/blacklist.txt" \
 	remove_comments \
+	"spam" \
 	"[The LashBack UBL](http://blacklist.lashback.com/) The Unsubscribe Blacklist (UBL) is a real-time blacklist of IP addresses which are sending email to names harvested from suppression files (this is a big list, more than 500.000 IPs)"
 
 
@@ -2983,18 +3082,21 @@ DO_NOT_REDISTRIBUTE[dragon_http.netset]="1"
 update dragon_http 60 0 ipv4 both \
 	"http://www.dragonresearchgroup.org/insight/http-report.txt" \
 	dragon_column3 \
+	"attacks" \
 	"[Dragon Research Group](http://www.dragonresearchgroup.org/) IPs that have been seen sending HTTP requests to Dragon Research Pods in the last 7 days. This report lists hosts that are highly suspicious and are likely conducting malicious HTTP attacks. LEGITIMATE SEARCH ENGINE BOTS MAY BE IN THIS LIST. This report is informational.  It is not a blacklist, but some operators may choose to use it to help protect their networks and hosts in the forms of automated reporting and mitigation services."
 
 DO_NOT_REDISTRIBUTE[dragon_sshpauth.netset]="1"
 update dragon_sshpauth 60 0 ipv4 both \
 	"https://www.dragonresearchgroup.org/insight/sshpwauth.txt" \
 	dragon_column3 \
+	"attacks" \
 	"[Dragon Research Group](http://www.dragonresearchgroup.org/) IP address that has been seen attempting to remotely login to a host using SSH password authentication, in the last 7 days. This report lists hosts that are highly suspicious and are likely conducting malicious SSH password authentication attacks."
 
 DO_NOT_REDISTRIBUTE[dragon_vncprobe.netset]="1"
 update dragon_vncprobe 60 0 ipv4 both \
 	"https://www.dragonresearchgroup.org/insight/vncprobe.txt" \
 	dragon_column3 \
+	"attacks" \
 	"[Dragon Research Group](http://www.dragonresearchgroup.org/) IP address that has been seen attempting to remotely connect to a host running the VNC application service, in the last 7 days. This report lists hosts that are highly suspicious and are likely conducting malicious VNC probes or VNC brute force attacks."
 
 
@@ -3004,16 +3106,19 @@ update dragon_vncprobe 60 0 ipv4 both \
 update nt_ssh_7d 60 0 ipv4 ip \
 	"http://www.nothink.org/blacklist/blacklist_ssh_week.txt" \
 	remove_comments \
+	"attacks" \
 	"[No Think](http://www.nothink.org/) Last 7 days SSH attacks"
 
 update nt_malware_irc 60 0 ipv4 ip \
 	"http://www.nothink.org/blacklist/blacklist_malware_irc.txt" \
 	remove_comments \
+	"bots" \
 	"[No Think](http://www.nothink.org/) Malware IRC"
 
 update nt_malware_http 60 0 ipv4 ip \
 	"http://www.nothink.org/blacklist/blacklist_malware_http.txt" \
 	remove_comments \
+	"bots" \
 	"[No Think](http://www.nothink.org/) Malware HTTP"
 
 
@@ -3026,6 +3131,7 @@ bambenek_filter() { remove_comments | cut -d ',' -f 1; }
 update bambenek_c2 30 0 ipv4 ip \
 	"http://osint.bambenekconsulting.com/feeds/c2-ipmasterlist.txt" \
 	bambenek_filter \
+	"bots" \
 	"[Bambenek Consulting](http://osint.bambenekconsulting.com/feeds/) master feed of known, active and non-sinkholed C&Cs IP addresses"
 
 for list in banjori bebloh cl cryptowall dircrypt dyre geodo hesperbot matsnu necurs p2pgoz pushdo pykspa qakbot ramnit ranbyus simda suppobox symmi tinba volatile
@@ -3033,6 +3139,7 @@ do
 	update bambenek_${list} 30 0 ipv4 ip \
 		"http://osint.bambenekconsulting.com/feeds/${list}-iplist.txt" \
 		bambenek_filter \
+		"bots" \
 		"[Bambenek Consulting](http://osint.bambenekconsulting.com/feeds/) feed of current IPs of ${list} C&Cs with 90 minute lookback"
 done
 
@@ -3051,6 +3158,7 @@ botscout_filter() {
 update botscout 30 "$[24*60] $[7*24*60] $[30*24*60]" ipv4 ip \
 	"http://botscout.com/last_caught_cache.htm" \
 	botscout_filter \
+	"bots" \
 	"[BotScout](http://botscout.com/) helps prevent automated web scripts, known as bots, from registering on forums, polluting databases, spreading spam, and abusing forms on web sites. They do this by tracking the names, IPs, and email addresses that bots use and logging them as unique signatures for future reference. They also provide a simple yet powerful API that you can use to test forms when they're submitted on your site. This list is composed of the most recently-caught bots."
 
 
@@ -3061,6 +3169,7 @@ update botscout 30 "$[24*60] $[7*24*60] $[30*24*60]" ipv4 ip \
 update greensnow 30 0 ipv4 ip \
 	"http://blocklist.greensnow.co/greensnow.txt" \
 	remove_comments \
+	"attacks" \
 	"[GreenSnow](https://greensnow.co/) is a team harvesting a large number of IPs from different computers located around the world. GreenSnow is comparable with SpamHaus.org for attacks of any kind except for spam. Their list is updated automatically and you can withdraw at any time your IP address if it has been listed. Attacks / bruteforce that are monitored are: Scan Port, FTP, POP3, mod_security, IMAP, SMTP, SSH, cPanel, etc."
 
 
@@ -3075,6 +3184,7 @@ DO_NOT_REDISTRIBUTE[ib_bluetack_proxies.ipset]="1"
 update ib_bluetack_proxies $[12*60] 0 ipv4 ip \
 	"http://list.iblocklist.com/?list=xoebmbyexwuiogmbyprb&fileformat=p2p&archiveformat=gz" \
 	p2p_gz_proxy \
+	"anonymizers" \
 	"[iBlocklist.com](https://www.iblocklist.com/) version of BlueTack.co.uk Open Proxies IPs list (without TOR)"
 
 
@@ -3086,6 +3196,7 @@ DO_NOT_REDISTRIBUTE[ib_bluetack_spyware.netset]="1"
 update ib_bluetack_spyware $[12*60] 0 ipv4 both \
 	"http://list.iblocklist.com/?list=llvtlsjyoyiczbkjsxpf&fileformat=p2p&archiveformat=gz" \
 	p2p_gz \
+	"bots" \
 	"[iBlocklist.com](https://www.iblocklist.com/) version of BlueTack.co.uk known malicious SPYWARE and ADWARE IP Address ranges"
 
 
@@ -3094,6 +3205,7 @@ DO_NOT_REDISTRIBUTE[ib_bluetack_badpeers.ipset]="1"
 update ib_bluetack_badpeers $[12*60] 0 ipv4 ip \
 	"http://list.iblocklist.com/?list=cwworuawihqvocglcoss&fileformat=p2p&archiveformat=gz" \
 	p2p_gz \
+	"reputation" \
 	"[iBlocklist.com](https://www.iblocklist.com/) version of BlueTack.co.uk IPs that have been reported for bad deeds in p2p"
 
 
@@ -3107,6 +3219,7 @@ DO_NOT_REDISTRIBUTE[ib_bluetack_hijacked.netset]="1"
 update ib_bluetack_hijacked $[12*60] 0 ipv4 both \
 	"http://list.iblocklist.com/?list=usrcshglbiilevmyfhse&fileformat=p2p&archiveformat=gz" \
 	p2p_gz \
+	"bots" \
 	"[iBlocklist.com](https://www.iblocklist.com/) version of BlueTack.co.uk hijacked IP-Blocks Hijacked IP space are IP blocks that are being used without permission"
 
 
@@ -3121,6 +3234,7 @@ DO_NOT_REDISTRIBUTE[ib_bluetack_webexploit.ipset]="1"
 update ib_bluetack_webexploit $[12*60] 0 ipv4 ip \
 	"http://list.iblocklist.com/?list=ghlzqtqxnzctvvajwwag&fileformat=p2p&archiveformat=gz" \
 	p2p_gz \
+	"attacks" \
 	"[iBlocklist.com](https://www.iblocklist.com/) version of BlueTack.co.uk web server hack and exploit attempts"
 
 
@@ -3142,6 +3256,7 @@ DO_NOT_REDISTRIBUTE[ib_bluetack_level1.netset]="1"
 update ib_bluetack_level1 $[12*60] 0 ipv4 both \
 	"http://list.iblocklist.com/?list=ydxerpxkpcfqjaybcssw&fileformat=p2p&archiveformat=gz" \
 	p2p_gz \
+	"reputation" \
 	"[iBlocklist.com](https://www.iblocklist.com/) version of BlueTack.co.uk Level 1 (for use in p2p): Companies or organizations who are clearly involved with trying to stop filesharing (e.g. Baytsp, MediaDefender, Mediasentry a.o.). Companies which anti-p2p activity has been seen from. Companies that produce or have a strong financial interest in copyrighted material (e.g. music, movie, software industries a.o.). Government ranges or companies that have a strong financial interest in doing work for governments. Legal industry ranges. IPs or ranges of ISPs from which anti-p2p activity has been observed. Basically this list will block all kinds of internet connections that most people would rather not have during their internet travels."
 
 
@@ -3152,6 +3267,7 @@ DO_NOT_REDISTRIBUTE[ib_bluetack_level2.netset]="1"
 update ib_bluetack_level2 $[12*60] 0 ipv4 both \
 	"http://list.iblocklist.com/?list=gyisgnzbhppbvsphucsw&fileformat=p2p&archiveformat=gz" \
 	p2p_gz \
+	"reputation" \
 	"[iBlocklist.com](https://www.iblocklist.com/) version of BlueTack.co.uk Level 2 (for use in p2p). General corporate ranges. Ranges used by labs or researchers. Proxies."
 
 
@@ -3163,6 +3279,7 @@ DO_NOT_REDISTRIBUTE[ib_bluetack_level3.netset]="1"
 update ib_bluetack_level3 $[12*60] 0 ipv4 both \
 	"http://list.iblocklist.com/?list=uwnukjqktoggdknzrhgh&fileformat=p2p&archiveformat=gz" \
 	p2p_gz \
+	"reputation" \
 	"[iBlocklist.com](https://www.iblocklist.com/) version of BlueTack.co.uk Level 3 (for use in p2p). Many portal-type websites. ISP ranges that may be dodgy for some reason. Ranges that belong to an individual, but which have not been determined to be used by a particular company. Ranges for things that are unusual in some way. The L3 list is aka the paranoid list."
 
 # -----------------------------------------------------------------------------
@@ -3274,7 +3391,7 @@ badipscom() {
 				# echo >&2 "${ipset}: update frequency set to ${freq} mins"
 			fi
 
-			update "${ipset}" ${freq} 0 ipv4 ip "${url}" remove_comments "${info}"
+			update "${ipset}" ${freq} 0 ipv4 ip "${url}" remove_comments "attacks" "${info}"
 		done
 
 		if [ ${count} -eq 0 ]
@@ -3292,52 +3409,53 @@ badipscom
 # this is a test - it does not work without another script that rsyncs files from sorbs.net
 
 DO_NOT_REDISTRIBUTE[sorbs_dul.netset]="1"
-update sorbs_dul 1 0 ipv4 both "" remove_comments "[Sorbs.net](https://www.sorbs.net/) DUL, Dynamic User IPs extracted from deltas."
+update sorbs_dul 1 0 ipv4 both "" remove_comments "test" "[Sorbs.net](https://www.sorbs.net/) DUL, Dynamic User IPs extracted from deltas."
 
 DO_NOT_REDISTRIBUTE[sorbs_http.netset]="1"
-update sorbs_http 1 0 ipv4 both "" remove_comments "[Sorbs.net](https://www.sorbs.net/) HTTP proxies, extracted from deltas."
+update sorbs_http 1 0 ipv4 both "" remove_comments "test" "[Sorbs.net](https://www.sorbs.net/) HTTP proxies, extracted from deltas."
 
 DO_NOT_REDISTRIBUTE[sorbs_misc.netset]="1"
-update sorbs_misc 1 0 ipv4 both "" remove_comments "[Sorbs.net](https://www.sorbs.net/) MISC proxies, extracted from deltas."
+update sorbs_misc 1 0 ipv4 both "" remove_comments "test" "[Sorbs.net](https://www.sorbs.net/) MISC proxies, extracted from deltas."
 
 DO_NOT_REDISTRIBUTE[sorbs_smtp.netset]="1"
-update sorbs_smtp 1 0 ipv4 both "" remove_comments "[Sorbs.net](https://www.sorbs.net/) SMTP Open Relays, extracted from deltas."
+update sorbs_smtp 1 0 ipv4 both "" remove_comments "test" "[Sorbs.net](https://www.sorbs.net/) SMTP Open Relays, extracted from deltas."
 
 DO_NOT_REDISTRIBUTE[sorbs_socks.netset]="1"
-update sorbs_socks 1 0 ipv4 both "" remove_comments "[Sorbs.net](https://www.sorbs.net/) SOCKS proxies, extracted from deltas."
+update sorbs_socks 1 0 ipv4 both "" remove_comments "test" "[Sorbs.net](https://www.sorbs.net/) SOCKS proxies, extracted from deltas."
 
 DO_NOT_REDISTRIBUTE[sorbs_spam.netset]="1"
-update sorbs_spam 1 0 ipv4 both "" remove_comments "[Sorbs.net](https://www.sorbs.net/) Spam senders, extracted from deltas."
+update sorbs_spam 1 0 ipv4 both "" remove_comments "test" "[Sorbs.net](https://www.sorbs.net/) Spam senders, extracted from deltas."
 
 DO_NOT_REDISTRIBUTE[sorbs_new_spam.netset]="1"
-update sorbs_new_spam 1 0 ipv4 both "" remove_comments "[Sorbs.net](https://www.sorbs.net/) NEW Spam senders, extracted from deltas."
+update sorbs_new_spam 1 0 ipv4 both "" remove_comments "test" "[Sorbs.net](https://www.sorbs.net/) NEW Spam senders, extracted from deltas."
 
 DO_NOT_REDISTRIBUTE[sorbs_recent_spam.netset]="1"
-update sorbs_recent_spam 1 0 ipv4 both "" remove_comments "[Sorbs.net](https://www.sorbs.net/) RECENT Spam senders, extracted from deltas."
+update sorbs_recent_spam 1 0 ipv4 both "" remove_comments "test" "[Sorbs.net](https://www.sorbs.net/) RECENT Spam senders, extracted from deltas."
 
 DO_NOT_REDISTRIBUTE[sorbs_web.netset]="1"
-update sorbs_web 1 0 ipv4 both "" remove_comments "[Sorbs.net](https://www.sorbs.net/) WEB exploits, extracted from deltas."
+update sorbs_web 1 0 ipv4 both "" remove_comments "test" "[Sorbs.net](https://www.sorbs.net/) WEB exploits, extracted from deltas."
 
 
 # -----------------------------------------------------------------------------
 # FireHOL lists
 
-merge firehol_level1 "An ipset made from blocklists that provide the maximum of protection, with the minimum of false positives. Suitable for basic protection on all systems." \
+merge firehol_level1 "attacks" "An ipset made from blocklists that provide the maximum of protection, with the minimum of false positives. Suitable for basic protection on all systems." \
 	fullbogons dshield feodo palevo sslbl zeus_badips spamhaus_drop spamhaus_edrop
 
-merge firehol_level2 "An ipset made from blocklists that track attacks, during the last one or two days." \
-	openbl_1d blocklist_de stopforumspam_1d
+merge firehol_level2 "attacks" "An ipset made from blocklists that track attacks, during the last one or two days." \
+	openbl_1d dshield_1d blocklist_de stopforumspam_1d botscout_1d greensnow
 
-merge firehol_level3 "An ipset made from blocklists that track attacks, spyware, viruses. It includes IPs than have been reported or detected in the last 30 days." \
-	openbl_30d stopforumspam_30d virbl malc0de shunlist malwaredomainlist bruteforceblocker \
+merge firehol_level3 "attacks" "An ipset made from blocklists that track attacks, spyware, viruses. It includes IPs than have been reported or detected in the last 30 days." \
+	openbl_30d dshield_30d stopforumspam_30d virbl malc0de shunlist malwaredomainlist bruteforceblocker \
 	ciarmy cleanmx_viruses snort_ipfilter ib_bluetack_spyware ib_bluetack_hijacked ib_bluetack_webexploit \
-	php_commenters php_dictionary php_harvesters php_spammers iw_wormlist zeus maxmind_proxy_fraud
+	php_commenters php_dictionary php_harvesters php_spammers iw_wormlist zeus maxmind_proxy_fraud \
+	dragon_http dragon_sshpauth dragon_vncprobe bambenek_c2
 
-merge firehol_proxies "An ipset made from all sources that track open proxies. It includes IPs reported or detected in the last 30 days." \
-	ib_bluetack_proxies maxmind_proxy_fraud proxyrss proxz \
-	ri_connect_proxies ri_web_proxies xroxy
+merge firehol_proxies "anonymizers" "An ipset made from all sources that track open proxies. It includes IPs reported or detected in the last 30 days." \
+	ib_bluetack_proxies maxmind_proxy_fraud proxyrss_30d proxz_30d \
+	ri_connect_proxies_30d ri_web_proxies_30d xroxy_30d
 
-merge firehol_anonymous "An ipset that includes all the anonymizing IPs of the world." \
+merge firehol_anonymous "anonymizers" "An ipset that includes all the anonymizing IPs of the world." \
 	firehol_proxies anonymous bm_tor dm_tor tor_exits
 
 
