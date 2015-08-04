@@ -1782,6 +1782,22 @@ rename_ipset() {
 
 	[ -f ".${old}.lastchecked" -a ! -f ".${new}.lastchecked" ] && mv ".${old}.lastchecked" ".${new}.lastchecked"
 
+	if [ ! -z "${CACHE_DIR}" -a -d "${CACHE_DIR}" -a -d "${CACHE_DIR}/${old}" -a ! -d "${CACHE_DIR}/${new}" ]
+		then
+		mv -f "${CACHE_DIR}/${old}" "${CACHE_DIR}/${new}" || exit 1
+	fi
+
+	if [ -d "${WEB_DIR}" ]
+		then
+		for x in _comparison.json _geolite2_country.json _history.csv _ipdeny_country.json retention.json .json
+		do
+			if [ -f "${WEB_DIR}/${old}${x}" -a ! -f "${WEB_DIR}/${new}${x}" ]
+				then
+				mv -f "${WEB_DIR}/${old}${x}" "${WEB_DIR}/${new}${x}"
+			fi
+		done
+	fi
+
 	return 0
 }
 
@@ -2565,7 +2581,7 @@ update et_compromised $[12*60] 0 ipv4 ip \
 update et_botcc $[12*60] 0 ipv4 ip \
 	"http://rules.emergingthreats.net/fwrules/emerging-PIX-CC.rules" \
 	pix_deny_rules_to_ipv4 \
-	"bots" \
+	"malware" \
 	"[EmergingThreats.net Command and Control IPs](http://doc.emergingthreats.net/bin/view/Main/BotCC) These IPs are updates every 24 hours and should be considered VERY highly reliable indications that a host is communicating with a known and active Bot or Malware command and control server - (although they say this includes abuse.ch trackers, it does not - most probably it is the shadowserver.org C&C list)" \
 	"Emerging Threats" "http://www.emergingthreats.net/"
 
@@ -2712,7 +2728,7 @@ update blocklist_de_bruteforce 30 0 ipv4 ip \
 update zeus_badips 30 0 ipv4 ip \
 	"https://zeustracker.abuse.ch/blocklist.php?download=badips" \
 	remove_comments \
-	"bots" \
+	"malware" \
 	"[Abuse.ch Zeus tracker](https://zeustracker.abuse.ch) badips includes IPv4 addresses that are used by the ZeuS trojan. It is the recommened blocklist if you want to block only ZeuS IPs. It excludes IP addresses that ZeuS Tracker believes to be hijacked (level 2) or belong to a free web hosting provider (level 3). Hence the false postive rate should be much lower compared to the standard ZeuS IP blocklist." \
 	"Abuse.ch" "https://zeustracker.abuse.ch/"
 
@@ -2722,7 +2738,7 @@ update zeus_badips 30 0 ipv4 ip \
 update zeus 30 0 ipv4 ip \
 	"https://zeustracker.abuse.ch/blocklist.php?download=ipblocklist" \
 	remove_comments \
-	"bots" \
+	"malware" \
 	"[Abuse.ch Zeus tracker](https://zeustracker.abuse.ch) standard, contains the same data as the ZeuS IP blocklist (zeus_badips) but with the slight difference that it doesn't exclude hijacked websites (level 2) and free web hosting providers (level 3). This means that this blocklist contains all IPv4 addresses associated with ZeuS C&Cs which are currently being tracked by ZeuS Tracker. Hence this blocklist will likely cause some false positives." \
 	"Abuse.ch" "https://zeustracker.abuse.ch/"
 
@@ -2736,7 +2752,7 @@ update zeus 30 0 ipv4 ip \
 update palevo 30 0 ipv4 ip \
 	"https://palevotracker.abuse.ch/blocklists.php?download=ipblocklist" \
 	remove_comments \
-	"bots" \
+	"malware" \
 	"[Abuse.ch Palevo tracker](https://palevotracker.abuse.ch) worm includes IPs which are being used as botnet C&C for the Palevo crimeware" \
 	"Abuse.ch" "https://palevotracker.abuse.ch/"
 
@@ -2752,7 +2768,7 @@ update palevo 30 0 ipv4 ip \
 update feodo 30 0 ipv4 ip \
 	"https://feodotracker.abuse.ch/blocklist/?download=ipblocklist" \
 	remove_comments \
-	"bots" \
+	"malware" \
 	"[Abuse.ch Feodo tracker](https://feodotracker.abuse.ch) trojan includes IPs which are being used by Feodo (also known as Cridex or Bugat) which commits ebanking fraud" \
 	"Abuse.ch" "https://palevotracker.abuse.ch/"
 
@@ -2766,7 +2782,7 @@ update feodo 30 0 ipv4 ip \
 update sslbl 30 0 ipv4 ip \
 	"https://sslbl.abuse.ch/blacklist/sslipblacklist.csv" \
 	csv_comma_first_column \
-	"bots" \
+	"malware" \
 	"[Abuse.ch SSL Blacklist](https://sslbl.abuse.ch/) bad SSL traffic related to malware or botnet activities" \
 	"Abuse.ch" "https://sslbl.abuse.ch/"
 
@@ -2861,6 +2877,28 @@ update stopforumspam_365d $[24*60] 0 ipv4 ip \
 	"abuse" \
 	"[StopForumSpam.com](http://www.stopforumspam.com) IPs used by forum spammers (last 365 days)" \
 	"StopForumSpam.com" "http://www.stopforumspam.com/"
+
+
+# -----------------------------------------------------------------------------
+# sblam.com
+
+update sblam $[24*60] 0 ipv4 ip \
+	"http://sblam.com/blacklist.txt" \
+	remove_comments \
+	"abuse" \
+	"[sblam.com](http://sblam.com) IPs used by web form spammers, during the last month" \
+	"sblam.com" "http://sblam.com/"
+
+
+# -----------------------------------------------------------------------------
+# myip.ms
+
+update myip $[24*60] 0 ipv4 ip \
+	"http://www.myip.ms/files/blacklist/csf/latest_blacklist.txt" \
+	remove_comments \
+	"abuse" \
+	"[myip.ms](http://www.myip.ms/info/about) IPs identified as web bots in the last 10 days, using several sites that require human action" \
+	"myip.ms" "http://myip.ms/"
 
 
 # -----------------------------------------------------------------------------
@@ -3015,7 +3053,7 @@ update php_dictionary 60 "$[24*60] $[7*24*60] $[30*24*60]" ipv4 ip \
 update malwaredomainlist $[12*60] 0 ipv4 ip \
 	"http://www.malwaredomainlist.com/hostslist/ip.txt" \
 	remove_comments \
-	"bots" \
+	"malware" \
 	"[malwaredomainlist.com](http://www.malwaredomainlist.com) list of malware active ip addresses" \
 	"MalwareDomainList.com" "http://www.malwaredomainlist.com/"
 
@@ -3041,7 +3079,7 @@ update alienvault_reputation $[6*60] 0 ipv4 ip \
 update cleanmx_viruses 30 0 ipv4 ip \
 	"http://support.clean-mx.de/clean-mx/xmlviruses.php?sort=id%20desc&response=alive" \
 	parse_xml_clean_mx \
-	"bots" \
+	"malware" \
 	"[Clean-MX.de](http://support.clean-mx.de/clean-mx/viruses.php) IPs with viruses" \
 	"Clean-MX.de" "http://support.clean-mx.de/clean-mx/viruses.php"
 
@@ -3098,6 +3136,20 @@ update bruteforceblocker $[3*60] 0 ipv4 ip \
 	"attacks" \
 	"[danger.rulez.sk bruteforceblocker](http://danger.rulez.sk/index.php/bruteforceblocker/) (fail2ban alternative for SSH on OpenBSD). This is an automatically generated list from users reporting failed authentication attempts. An IP seems to be included if 3 or more users report it. Its retention pocily seems 30 days." \
 	"danger.rulez.sk" "http://danger.rulez.sk/index.php/bruteforceblocker/"
+
+
+# -----------------------------------------------------------------------------
+# Charles Haley
+# http://charles.the-haleys.org/ssh_dico_attack_hdeny_format.php/hostsdeny.txt
+
+haley_ssh() { cut -d ':' -f 2; }
+
+update haley_ssh $[4*60] 0 ipv4 ip \
+	"http://charles.the-haleys.org/ssh_dico_attack_hdeny_format.php/hostsdeny.txt" \
+	haley_ssh \
+	"attacks" \
+	"[Charles Haley](http://charles.the-haleys.org) IPs launching SSH dictionary attacks." \
+	"Charles Haley" "http://charles.the-haleys.org"
 
 
 # -----------------------------------------------------------------------------
@@ -3217,17 +3269,23 @@ update nt_ssh_7d 60 0 ipv4 ip \
 update nt_malware_irc 60 0 ipv4 ip \
 	"http://www.nothink.org/blacklist/blacklist_malware_irc.txt" \
 	remove_comments \
-	"bots" \
+	"malware" \
 	"[No Think](http://www.nothink.org/) Malware IRC" \
 	"NoThink" "http://www.nothink.org/"
 
 update nt_malware_http 60 0 ipv4 ip \
 	"http://www.nothink.org/blacklist/blacklist_malware_http.txt" \
 	remove_comments \
-	"bots" \
+	"malware" \
 	"[No Think](http://www.nothink.org/) Malware HTTP" \
 	"NoThink" "http://www.nothink.org/"
 
+update nt_malware_dns 60 0 ipv4 ip \
+	"http://www.nothink.org/blacklist/blacklist_malware_dns.txt" \
+	remove_comments \
+	"malware" \
+	"[No Think](http://www.nothink.org/) Malware DNS (the original list includes hostnames and domains, which are ignored)" \
+	"NoThink" "http://www.nothink.org/"
 
 # -----------------------------------------------------------------------------
 # Bambenek Consulting
@@ -3238,7 +3296,7 @@ bambenek_filter() { remove_comments | cut -d ',' -f 1; }
 update bambenek_c2 30 0 ipv4 ip \
 	"http://osint.bambenekconsulting.com/feeds/c2-ipmasterlist.txt" \
 	bambenek_filter \
-	"bots" \
+	"malware" \
 	"[Bambenek Consulting](http://osint.bambenekconsulting.com/feeds/) master feed of known, active and non-sinkholed C&Cs IP addresses" \
 	"Bambenek Consulting" "http://osint.bambenekconsulting.com/feeds/"
 
@@ -3247,7 +3305,7 @@ do
 	update bambenek_${list} 30 0 ipv4 ip \
 		"http://osint.bambenekconsulting.com/feeds/${list}-iplist.txt" \
 		bambenek_filter \
-		"bots" \
+		"malware" \
 		"[Bambenek Consulting](http://osint.bambenekconsulting.com/feeds/) feed of current IPs of ${list} C&Cs with 90 minute lookback" \
 		"Bambenek Consulting" "http://osint.bambenekconsulting.com/feeds/"
 done
@@ -3267,7 +3325,7 @@ botscout_filter() {
 update botscout 30 "$[24*60] $[7*24*60] $[30*24*60]" ipv4 ip \
 	"http://botscout.com/last_caught_cache.htm" \
 	botscout_filter \
-	"bots" \
+	"abuse" \
 	"[BotScout](http://botscout.com/) helps prevent automated web scripts, known as bots, from registering on forums, polluting databases, spreading spam, and abusing forms on web sites. They do this by tracking the names, IPs, and email addresses that bots use and logging them as unique signatures for future reference. They also provide a simple yet powerful API that you can use to test forms when they're submitted on your site. This list is composed of the most recently-caught bots." \
 	"BotScout" "http://botscout.com/"
 
@@ -3307,7 +3365,7 @@ DO_NOT_REDISTRIBUTE[ib_bluetack_spyware.netset]="1"
 update ib_bluetack_spyware $[12*60] 0 ipv4 both \
 	"http://list.iblocklist.com/?list=llvtlsjyoyiczbkjsxpf&fileformat=p2p&archiveformat=gz" \
 	p2p_gz \
-	"bots" \
+	"malware" \
 	"[iBlocklist.com](https://www.iblocklist.com/) version of BlueTack.co.uk known malicious SPYWARE and ADWARE IP Address ranges" \
 	"iBlocklist" "https://www.iblocklist.com/"
 
@@ -3332,7 +3390,7 @@ DO_NOT_REDISTRIBUTE[ib_bluetack_hijacked.netset]="1"
 update ib_bluetack_hijacked $[12*60] 0 ipv4 both \
 	"http://list.iblocklist.com/?list=usrcshglbiilevmyfhse&fileformat=p2p&archiveformat=gz" \
 	p2p_gz \
-	"bots" \
+	"malware" \
 	"[iBlocklist.com](https://www.iblocklist.com/) version of BlueTack.co.uk hijacked IP-Blocks Hijacked IP space are IP blocks that are being used without permission" \
 	"iBlocklist" "https://www.iblocklist.com/"
 
