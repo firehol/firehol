@@ -2812,6 +2812,21 @@ update malc0de $[24*60] 0 ipv4 ip \
 
 
 # -----------------------------------------------------------------------------
+# ASPROX
+# http://atrack.h3x.eu/
+
+parse_asprox() { sed -e "s|<div class=code>|\n|g" -e "s|</div>|\n|g" | trim | egrep "^${IP4_MATCH}$"; }
+
+# updated daily and populated with the last 30 days of malicious IP addresses.
+update asprox_c2 $[60] 0 ipv4 ip \
+	"http://atrack.h3x.eu/c2" \
+	parse_asprox \
+	"malware" \
+	"[h3x.eu](http://atrack.h3x.eu/) ASPROX Tracker - Asprox C&C Sites" \
+	"h3x.eu" "http://atrack.h3x.eu/"
+
+
+# -----------------------------------------------------------------------------
 # Stop Forum Spam
 # http://www.stopforumspam.com/downloads/
 
