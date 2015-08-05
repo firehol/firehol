@@ -2983,6 +2983,20 @@ update proxz 60 "$[24*60] $[7*24*60] $[30*24*60]" ipv4 ip \
 
 
 # -----------------------------------------------------------------------------
+# Open Proxies from proxyspy.net
+# http://spys.ru/en/
+
+parse_proxyspy() { remove_comments | cut -d ':' -f 1; }
+
+update proxyspy 60 "$[24*60] $[7*24*60] $[30*24*60]" ipv4 ip \
+	"http://txt.proxyspy.net/proxy.txt" \
+	parse_proxyspy \
+	"anonymizers" \
+	"[ProxySpy](http://spys.ru/en/) open proxies (updated hourly)" \
+	"ProxySpy" "http://spys.ru/en/"
+
+
+# -----------------------------------------------------------------------------
 # Open Proxies from proxyrss.com
 # http://www.proxyrss.com/
 
@@ -3342,6 +3356,18 @@ update greensnow 30 0 ipv4 ip \
 
 
 # -----------------------------------------------------------------------------
+# BinaryDefense
+# https://greensnow.co/
+
+update bds_atif 60 0 ipv4 ip \
+	"https://www.binarydefense.com/banlist.txt" \
+	remove_comments \
+	"reputation" \
+	"[Binary Defense Systems Artillery Threat Intelligence Feed and Banlist Feed](https://www.binarydefense.com/banlist.txt)" \
+	"Binary Defense Systems" "https://www.binarydefense.com/"
+
+
+# -----------------------------------------------------------------------------
 # iBlocklist
 # https://www.iblocklist.com/lists.php
 # http://bluetack.co.uk/forums/index.php?autocom=faq&CODE=02&qid=17
@@ -3629,7 +3655,8 @@ merge firehol_level3 "attacks" "An ipset made from blocklists that track attacks
 
 merge firehol_proxies "anonymizers" "An ipset made from all sources that track open proxies. It includes IPs reported or detected in the last 30 days." \
 	ib_bluetack_proxies maxmind_proxy_fraud proxyrss_30d proxz_30d \
-	ri_connect_proxies_30d ri_web_proxies_30d xroxy_30d
+	ri_connect_proxies_30d ri_web_proxies_30d xroxy_30d \
+	proxyspy_30d
 
 merge firehol_anonymous "anonymizers" "An ipset that includes all the anonymizing IPs of the world." \
 	firehol_proxies anonymous bm_tor dm_tor tor_exits
