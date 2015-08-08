@@ -2818,7 +2818,7 @@ update malc0de $[24*60] 0 ipv4 ip \
 parse_asprox() { sed -e "s|<div class=code>|\n|g" -e "s|</div>|\n|g" | trim | egrep "^${IP4_MATCH}$"; }
 
 # updated daily and populated with the last 30 days of malicious IP addresses.
-update asprox_c2 $[60] 0 ipv4 ip \
+update asprox_c2 $[24*60] 0 ipv4 ip \
 	"http://atrack.h3x.eu/c2" \
 	parse_asprox \
 	"malware" \
@@ -3374,7 +3374,7 @@ update greensnow 30 0 ipv4 ip \
 # BinaryDefense
 # https://greensnow.co/
 
-update bds_atif 60 0 ipv4 ip \
+update bds_atif $[24*60] 0 ipv4 ip \
 	"https://www.binarydefense.com/banlist.txt" \
 	remove_comments \
 	"reputation" \
