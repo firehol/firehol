@@ -88,6 +88,9 @@
 // this is 20 times faster than MODE COMBINE
 #define COMPARE_WITH_COMMON 1
 
+#define BINARY_HEADER_V10 "iprange binary format v1.0\n"
+uint32_t endianess = 0x1A2B3C4D;
+
 static char *PROG;
 int debug = 0;
 int cidr_use_network = 1;
@@ -907,6 +910,130 @@ static inline int parse_line(char *line, int lineid, char *ipstr, char *ipstr2, 
 }
 
 
+
+/* ----------------------------------------------------------------------------
+ * binary files v1.0
+ *
+ */
+
+int ipset_load_binary_v10(FILE *fp, ipset *ips, int first_line_missing) {
+	char buffer[MAX_LINE + 1], *s;
+
+	if(!first_line_missing) {
+		s = fgets(buffer, MAX_LINE, fp);
+		buffer[MAX_LINE] = '\0';
+		if(!s || strcmp(s, BINARY_HEADER_V10)) {
+			fprintf(stderr, "%s: %s expecting binary header but found '%s'.\n", PROG, ips->filename, s?s:"");
+			return 1;
+		}
+	}
+
+	s = fgets(buffer, MAX_LINE, fp);
+	buffer[MAX_LINE] = '\0';
+	if(!s || ( strcmp(s, "optimized\n") && strcmp(s, "non-optimized\n") )) {
+		fprintf(stderr, "%s: %s 2nd line should be the optimized flag, but found '%s'.\n", PROG, ips->filename, s?s:"");
+		return 1;
+	}
+	if(!strcmp(s, "optimized\n")) ips->flags |= IPSET_FLAG_OPTIMIZED;
+	else if(ips->flags & IPSET_FLAG_OPTIMIZED) ips->flags ^= IPSET_FLAG_OPTIMIZED;
+
+	s = fgets(buffer, MAX_LINE, fp);
+	buffer[MAX_LINE] = '\0';
+	if(!s || strncmp(s, "record size ", 12)) {
+		fprintf(stderr, "%s: %s 3rd line should be the record size, but found '%s'.\n", PROG, ips->filename, s?s:"");
+		return 1;
+	}
+	if(atol(&s[12]) != sizeof(network_addr_t)) {
+		fprintf(stderr, "%s: %s: invalid record size %lu (expected %lu)\n", PROG, ips->filename, atol(&s[12]), sizeof(network_addr_t));
+		return 1;
+	}
+
+	s = fgets(buffer, MAX_LINE, fp);
+	buffer[MAX_LINE] = '\0';
+	if(!s || strncmp(s, "records ", 8)) {
+		fprintf(stderr, "%s: %s 4th line should be the number of records, but found '%s'.\n", PROG, ips->filename, s?s:"");
+		return 1;
+	}
+	unsigned long entries = strtoul(&s[8], NULL, 10);
+
+	s = fgets(buffer, MAX_LINE, fp);
+	buffer[MAX_LINE] = '\0';
+	if(!s || strncmp(s, "bytes ", 6)) {
+		fprintf(stderr, "%s: %s 5th line should be the number of bytes, but found '%s'.\n", PROG, ips->filename, s?s:"");
+		return 1;
+	}
+	unsigned long bytes = strtoul(&s[6], NULL, 10);
+
+	s = fgets(buffer, MAX_LINE, fp);
+	buffer[MAX_LINE] = '\0';
+	if(!s || strncmp(s, "lines ", 6)) {
+		fprintf(stderr, "%s: %s 6th line should be the number of lines read, but found '%s'.\n", PROG, ips->filename, s?s:"");
+		return 1;
+	}
+	unsigned long lines = strtoul(&s[6], NULL, 10);
+
+	s = fgets(buffer, MAX_LINE, fp);
+	buffer[MAX_LINE] = '\0';
+	if(!s || strncmp(s, "unique ips ", 11)) {
+		fprintf(stderr, "%s: %s 7th line should be the number of unique IPs, but found '%s'.\n", PROG, ips->filename, s?s:"");
+		return 1;
+	}
+	unsigned long unique_ips = strtoul(&s[11], NULL, 10);
+
+	if(bytes != ((sizeof(network_addr_t) * entries) + sizeof(uint32_t))) {
+		fprintf(stderr, "%s: %s invalid number of bytes, found %lu, expected %lu.\n", PROG, ips->filename, bytes, ((sizeof(network_addr_t) * entries) + sizeof(uint32_t)));
+		return 1;
+	}
+
+	uint32_t endian;
+
+	size_t loaded = fread(&endian, sizeof(uint32_t), 1, fp);
+	if(endian != endianess) {
+		fprintf(stderr, "%s: %s: incompatible endianess\n", PROG, ips->filename);
+		return 1;
+	}
+
+	if(unique_ips < entries) {
+		fprintf(stderr, "%s: %s: unique IPs (%lu) cannot be less than entries (%lu)\n", PROG, ips->filename, unique_ips, entries);
+		return 1;
+	}
+
+	if(lines < entries) {
+		fprintf(stderr, "%s: %s: lines (%lu) cannot be less than entries (%lu)\n", PROG, ips->filename, lines, entries);
+		return 1;
+	}
+
+	ipset_expand(ips, entries);
+
+	loaded = fread(&ips->netaddrs[ips->entries], sizeof(network_addr_t), entries, fp);
+
+	if(loaded != entries) {
+		fprintf(stderr, "%s: %s: expected to load %lu entries, loaded %zd\n", PROG, ips->filename, entries, loaded);
+		return 1;
+	}
+
+	ips->entries += loaded;
+	ips->lines += lines;
+	ips->unique_ips += unique_ips;
+
+	return 0;
+}
+
+void ipset_save_binary_v10(ipset *ips) {
+	if(!ips->entries) return;
+
+	fprintf(stdout, BINARY_HEADER_V10);
+	if(ips->flags & IPSET_FLAG_OPTIMIZED) fprintf(stdout, "optimized\n");
+	else fprintf(stdout, "non-optimized\n");
+	fprintf(stdout, "record size %lu\n", sizeof(network_addr_t));
+	fprintf(stdout, "records %lu\n", ips->entries);
+	fprintf(stdout, "bytes %lu\n", (sizeof(network_addr_t) * ips->entries) + sizeof(uint32_t));
+	fprintf(stdout, "lines %lu\n", ips->lines);
+	fprintf(stdout, "unique ips %lu\n", ips->unique_ips);
+	fwrite(&endianess, sizeof(uint32_t), 1, stdout);
+	fwrite(ips->netaddrs, sizeof(network_addr_t), ips->entries, stdout);
+}
+
 /* ----------------------------------------------------------------------------
  * ipset_load()
  *
@@ -938,7 +1065,22 @@ ipset *ipset_load(const char *filename) {
 
 	int lineid = 0;
 	char line[MAX_LINE + 1], ipstr[101], ipstr2[101];
-	while(likely(ips && fgets(line, MAX_LINE, fp))) {
+	if(!fgets(line, MAX_LINE, fp)) return ips;
+
+	if(unlikely(!strcmp(line, BINARY_HEADER_V10))) {
+		if(ipset_load_binary_v10(fp, ips, 1)) {
+			fprintf(stderr, "%s: Cannot fast load %s\n", PROG, filename);
+			ipset_free(ips);
+			ips = NULL;
+		}
+
+		if(likely(fp != stdin)) fclose(fp);
+		if(unlikely(debug)) if(ips) fprintf(stderr, "%s: Binary loaded %s %s\n", PROG, (ips->flags & IPSET_FLAG_OPTIMIZED)?"optimized":"non-optimized", ips->filename);
+
+		return ips;
+	}
+
+	do {
 		lineid++;
 
 		switch(parse_line(line, lineid, ipstr, ipstr2, 100)) {
@@ -975,7 +1117,7 @@ ipset *ipset_load(const char *filename) {
 				exit(1);
 				break;
 		}
-	}
+	} while(likely(ips && fgets(line, MAX_LINE, fp)));
 
 	if(likely(fp != stdin)) fclose(fp);
 
@@ -1114,10 +1256,16 @@ void ipset_reduce(ipset *ips, int acceptable_increase, int min_accepted) {
 #define PRINT_RANGE 1
 #define PRINT_CIDR 2
 #define PRINT_SINGLE_IPS 3
+#define PRINT_BINARY 4
 
 void ipset_print(ipset *ips, int print) {
 	if(unlikely(!(ips->flags & IPSET_FLAG_OPTIMIZED)))
 		ipset_optimize(ips);
+
+	if(print == PRINT_BINARY) {
+		ipset_save_binary_v10(ips);
+		return;
+	}
 
 	int i, n = ips->entries;
 	unsigned long int total = 0;
@@ -1438,6 +1586,9 @@ void usage(const char *me) {
 		"		the default is to print CIDRs (A.A.A.A/B)\n"
 		"		it only applies when the output is not CSV\n"
 		"\n"
+		"	--print-binary\n"
+		"		print binary data\n"
+		"\n"
 		"	--print-prefix STRING\n"
 		"		print STRING before each IP, range or CIDR\n"
 		"		this sets both --print-prefix-ips and\n"
@@ -1674,6 +1825,9 @@ int main(int argc, char **argv) {
 		else if(!strcmp(argv[i], "--print-ranges")
 			|| !strcmp(argv[i], "-j")) {
 			print = PRINT_RANGE;
+		}
+		else if(!strcmp(argv[i], "--print-binary")) {
+			print = PRINT_BINARY;
 		}
 		else if(!strcmp(argv[i], "--print-single-ips")
 			|| !strcmp(argv[i], "-1")) {

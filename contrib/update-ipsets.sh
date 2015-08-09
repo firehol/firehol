@@ -965,7 +965,7 @@ retention_detect() {
 	fi
 
 	# find the new ips in this set
-	"${IPRANGE_CMD}" "${IPSET_FILE[${ipset}]}" --exclude-next "${CACHE_DIR}/${ipset}/latest" >"${CACHE_DIR}/${ipset}/new/${ndate}"
+	"${IPRANGE_CMD}" "${IPSET_FILE[${ipset}]}" --exclude-next "${CACHE_DIR}/${ipset}/latest" --print-binary >"${CACHE_DIR}/${ipset}/new/${ndate}"
 	touch -r "${IPSET_FILE[${ipset}]}" "${CACHE_DIR}/${ipset}/new/${ndate}"
 
 	if [ ! -s "${CACHE_DIR}/${ipset}/new/${ndate}" ]
@@ -977,7 +977,7 @@ retention_detect() {
 
 	# ok keep it
 	[ ${VERBOSE} -eq 1 ] && echo >&2 "${ipset}: keeping it..."
-	"${IPRANGE_CMD}" "${IPSET_FILE[${ipset}]}" >"${CACHE_DIR}/${ipset}/latest"
+	"${IPRANGE_CMD}" "${IPSET_FILE[${ipset}]}" --print-binary >"${CACHE_DIR}/${ipset}/latest"
 	touch -r "${IPSET_FILE[${ipset}]}" "${CACHE_DIR}/${ipset}/latest"
 
 	if [ ! -f "${CACHE_DIR}/${ipset}/retention.csv" ]
@@ -1003,8 +1003,8 @@ retention_detect() {
 		[ ${odate} -le ${RETENTION_HISTOGRAM_STARTED} ] && RETENTION_HISTOGRAM_INCOMPLETE=1
 
 		# are all the IPs of this file still the latest?
-		"${IPRANGE_CMD}" --common "${x}" "${CACHE_DIR}/${ipset}/latest" >"${x}.stillthere"
-		"${IPRANGE_CMD}" "${x}" --exclude-next "${x}.stillthere" >"${x}.removed"
+		"${IPRANGE_CMD}" --common "${x}" "${CACHE_DIR}/${ipset}/latest" --print-binary >"${x}.stillthere"
+		"${IPRANGE_CMD}" "${x}" --exclude-next "${x}.stillthere" --print-binary >"${x}.removed"
 		if [ -s "${x}.removed" ]
 			then
 			# no, something removed, find it
