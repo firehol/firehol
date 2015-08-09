@@ -1196,7 +1196,7 @@ EOFSITEMAP
 				else
 					printf >>"${RUN_DIR}/${name1}_comparison.json" ",\n"
 				fi
-				printf >>"${RUN_DIR}/${name1}_comparison.json" "	{\n		\"name\": \"${name2}\",\n		\"ips\": ${ips2},\n		\"common\": ${common}\n	}"
+				printf >>"${RUN_DIR}/${name1}_comparison.json" "	{\n		\"name\": \"${name2}\",\n		\"category\": \"${IPSET_CATEGORY[${name2}]}\",\n		\"ips\": ${ips2},\n		\"common\": ${common}\n	}"
 
 				if [ ! -f "${RUN_DIR}/${name2}_comparison.json" ]
 					then
@@ -1204,7 +1204,7 @@ EOFSITEMAP
 				else
 					printf >>"${RUN_DIR}/${name2}_comparison.json" ",\n"
 				fi
-				printf >>"${RUN_DIR}/${name2}_comparison.json" "	{\n		\"name\": \"${name1}\",\n		\"ips\": ${ips1},\n		\"common\": ${common}\n	}"
+				printf >>"${RUN_DIR}/${name2}_comparison.json" "	{\n		\"name\": \"${name1}\",\n		\"category\": \"${IPSET_CATEGORY[${name1}]}\",\n		\"ips\": ${ips1},\n		\"common\": ${common}\n	}"
 			fi
 		done
 	echo >&2
