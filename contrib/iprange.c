@@ -331,12 +331,18 @@ static inline void print_addr_range(in_addr_t lo, in_addr_t hi)
 #define NETADDR_INC 1024
 #define MAX_LINE 1024
 
+#define IPSET_FLAG_OPTIMIZED 	0x00000001
+
 typedef struct ipset {
 	char filename[FILENAME_MAX+1];
+	// char name[FILENAME_MAX+1];
+
 	unsigned long int lines;
 	unsigned long int entries;
 	unsigned long int entries_max;
 	unsigned long int unique_ips;		// this is updated only after calling ipset_optimize()
+
+	uint32_t flags;
 
 	struct ipset *next;
 	struct ipset *prev;
@@ -370,8 +376,12 @@ static inline ipset *ipset_create(const char *filename, int entries) {
 	ips->unique_ips = 0;
 	ips->next = NULL;
 	ips->prev = NULL;
+	ips->flags = 0;
+
 	strncpy(ips->filename, (filename && *filename)?filename:"stdin", FILENAME_MAX);
 	ips->filename[FILENAME_MAX] = '\0';
+	
+	//strcpy(ips->name, ips->filename);
 
 	return ips;
 }
@@ -439,6 +449,50 @@ static inline void ipset_expand(ipset *ips, unsigned long int free_entries_neede
 	}
 }
 
+static inline void ipset_added_entry(ipset *ips) {
+	register unsigned long entries = ips->entries;
+
+	ips->lines++;
+	ips->unique_ips += ips->netaddrs[entries].broadcast - ips->netaddrs[entries].addr + 1;
+
+	if(likely(ips->flags & IPSET_FLAG_OPTIMIZED && entries > 0)) {
+		// the new is just next to the last
+		if(unlikely(ips->netaddrs[entries].addr == (ips->netaddrs[entries - 1].broadcast + 1))) {
+			ips->netaddrs[entries - 1].broadcast = ips->netaddrs[entries].broadcast;
+			return;
+		}
+
+		// the new is after the end of the last
+		if(likely(ips->netaddrs[entries].addr > ips->netaddrs[entries - 1].broadcast)) {
+			ips->entries++;
+			return;
+		}
+
+		// the new is before the beginning of the last
+		ips->flags ^= IPSET_FLAG_OPTIMIZED;
+
+		if(unlikely(debug)) {
+			in_addr_t new_from = ips->netaddrs[ips->entries].addr;
+			in_addr_t new_to = ips->netaddrs[ips->entries].broadcast;
+
+			in_addr_t last_from = ips->netaddrs[ips->entries - 1].addr;
+			in_addr_t last_to = ips->netaddrs[ips->entries - 1].broadcast;
+
+			struct in_addr nf, nt, lf, lt;
+			nf.s_addr = htonl(new_from);
+			nt.s_addr = htonl(new_to);
+			lf.s_addr = htonl(last_from);
+			lt.s_addr = htonl(last_to);
+
+			fprintf(stderr, "%s: NON-OPTIMIZED %s at line %lu, entry %lu, last was %s (%u) - ", PROG, ips->filename, ips->lines, ips->entries, inet_ntoa(lf), last_from);
+			fprintf(stderr, "%s (%u), new is ", inet_ntoa(lt), last_to);
+			fprintf(stderr, "%s (%u) - ", inet_ntoa(nf), new_from);
+			fprintf(stderr, "%s (%u)\n", inet_ntoa(nt), new_to);
+		}
+	}
+
+	ips->entries++;
+}
 
 /* ----------------------------------------------------------------------------
  * ipset_add_ipstr()
@@ -451,9 +505,8 @@ static inline void ipset_add_ipstr(ipset *ips, char *ipstr) {
 	ipset_expand(ips, 1);
 
 	ips->netaddrs[ips->entries] = str_to_netaddr(ipstr);
-	ips->unique_ips += ips->netaddrs[ips->entries].broadcast - ips->netaddrs[ips->entries].addr + 1;
-	ips->entries++;
-	ips->lines++;
+	ipset_added_entry(ips);
+
 }
 
 
@@ -468,9 +521,9 @@ static inline void ipset_add(ipset *ips, in_addr_t from, in_addr_t to) {
 	ipset_expand(ips, 1);
 
 	ips->netaddrs[ips->entries].addr = from;
-	ips->netaddrs[ips->entries++].broadcast = to;
-	ips->unique_ips += to - from + 1;
-	ips->lines++;
+	ips->netaddrs[ips->entries].broadcast = to;
+	ipset_added_entry(ips);
+
 }
 
 
@@ -485,6 +538,11 @@ static inline void ipset_add(ipset *ips, in_addr_t from, in_addr_t to) {
  */
 
 static inline void ipset_optimize(ipset *ips) {
+	if(unlikely(ips->flags & IPSET_FLAG_OPTIMIZED)) {
+		fprintf(stderr, "%s: Is already optimized %s\n", PROG, ips->filename);
+		return;
+	}
+
 	if(unlikely(debug)) fprintf(stderr, "%s: Optimizing %s\n", PROG, ips->filename);
 
 	// sort it
@@ -536,7 +594,16 @@ static inline void ipset_optimize(ipset *ips) {
 	ipset_add(ips, lo, hi);
 	ips->lines = lines;
 
+	ips->flags |= IPSET_FLAG_OPTIMIZED;
+
 	free(oaddrs);
+}
+
+unsigned long int ipset_unique_ips(ipset *ips) {
+	if(unlikely(!(ips->flags & IPSET_FLAG_OPTIMIZED)))
+		ipset_optimize(ips);
+
+	return(ips->unique_ips);
 }
 
 /* ----------------------------------------------------------------------------
@@ -564,6 +631,12 @@ static inline void ipset_optimize_all(ipset *root) {
  */
 
 static inline ipset *ipset_common(ipset *ips1, ipset *ips2) {
+	if(unlikely(!(ips1->flags & IPSET_FLAG_OPTIMIZED)))
+		ipset_optimize(ips1);
+
+	if(unlikely(!(ips2->flags & IPSET_FLAG_OPTIMIZED)))
+		ipset_optimize(ips2);
+
 	if(unlikely(debug)) fprintf(stderr, "%s: Finding common IPs in %s and %s\n", PROG, ips1->filename, ips2->filename);
 
 	ipset *ips = ipset_create("common", 0);
@@ -627,6 +700,8 @@ static inline ipset *ipset_common(ipset *ips1, ipset *ips2) {
 	}
 
 	ips->lines = ips1->lines + ips2->lines;
+	ips->flags |= IPSET_FLAG_OPTIMIZED;
+
 	return ips;
 }
 
@@ -641,6 +716,12 @@ static inline ipset *ipset_common(ipset *ips1, ipset *ips2) {
  */
 
 static inline ipset *ipset_exclude(ipset *ips1, ipset *ips2) {
+	if(unlikely(!(ips1->flags & IPSET_FLAG_OPTIMIZED)))
+		ipset_optimize(ips1);
+
+	if(unlikely(!(ips2->flags & IPSET_FLAG_OPTIMIZED)))
+		ipset_optimize(ips2);
+
 	if(unlikely(debug)) fprintf(stderr, "%s: Removing IPs in %s from %s\n", PROG, ips2->filename, ips1->filename);
 
 	ipset *ips = ipset_create(ips1->filename, 0);
@@ -728,6 +809,7 @@ static inline ipset *ipset_exclude(ipset *ips1, ipset *ips2) {
 	}
 
 	ips->lines = ips1->lines + ips2->lines;
+	ips->flags |= IPSET_FLAG_OPTIMIZED;
 	return ips;
 }
 
@@ -851,6 +933,9 @@ ipset *ipset_load(const char *filename) {
 	// load it
 	if(unlikely(debug)) fprintf(stderr, "%s: Loading from %s\n", PROG, ips->filename);
 
+	// it will be removed, if the loaded ipset is not optimized on disk
+	ips->flags |= IPSET_FLAG_OPTIMIZED;
+
 	int lineid = 0;
 	char line[MAX_LINE + 1], ipstr[101], ipstr2[101];
 	while(likely(ips && fgets(line, MAX_LINE, fp))) {
@@ -892,7 +977,11 @@ ipset *ipset_load(const char *filename) {
 		}
 	}
 
+	if(likely(fp != stdin)) fclose(fp);
+
 	if(unlikely(!ips)) return NULL;
+
+	if(unlikely(debug)) fprintf(stderr, "%s: Loaded %s %s\n", PROG, (ips->flags & IPSET_FLAG_OPTIMIZED)?"optimized":"non-optimized", ips->filename);
 
 	//if(unlikely(!ips->entries)) {
 	//	free(ips);
@@ -919,6 +1008,9 @@ ipset *ipset_load(const char *filename) {
  */
 
 void ipset_reduce(ipset *ips, int acceptable_increase, int min_accepted) {
+	if(unlikely(!(ips->flags & IPSET_FLAG_OPTIMIZED)))
+		ipset_optimize(ips);
+
 	int i, n = ips->entries, total = 0, acceptable, iterations = 0, initial = 0, eliminated = 0;
 
 	// reset the prefix counters
@@ -1024,6 +1116,9 @@ void ipset_reduce(ipset *ips, int acceptable_increase, int min_accepted) {
 #define PRINT_SINGLE_IPS 3
 
 void ipset_print(ipset *ips, int print) {
+	if(unlikely(!(ips->flags & IPSET_FLAG_OPTIMIZED)))
+		ipset_optimize(ips);
+
 	int i, n = ips->entries;
 	unsigned long int total = 0;
 
@@ -1095,6 +1190,9 @@ static inline void ipset_merge(ipset *to, ipset *add) {
 
 	to->entries = to->entries + add->entries;
 	to->lines += add->lines;
+
+	if(unlikely(to->flags & IPSET_FLAG_OPTIMIZED))
+		to->flags ^= IPSET_FLAG_OPTIMIZED;
 }
 
 
@@ -1111,11 +1209,13 @@ static inline ipset *ipset_copy(ipset *ips1) {
 	ipset *ips = ipset_create(ips1->filename, ips1->entries);
 	if(unlikely(!ips)) return NULL;
 
+	//strcpy(ips->name, ips1->name);
 	memcpy(&ips->netaddrs[0], &ips1->netaddrs[0], ips1->entries * sizeof(network_addr_t));
 
 	ips->entries = ips1->entries;
 	ips->unique_ips = ips1->unique_ips;
 	ips->lines = ips1->lines;
+	ips->flags = ips1->flags;
 
 	return ips;
 }
@@ -1124,7 +1224,7 @@ static inline ipset *ipset_copy(ipset *ips1) {
 /* ----------------------------------------------------------------------------
  * ipset_combine()
  *
- * it returns a new ipset that has all the entries of bother ipsets given
+ * it returns a new ipset that has all the entries of both ipsets given
  * the result is never optimized, even when the source ipsets are
  *
  */
@@ -1143,6 +1243,36 @@ static inline ipset *ipset_combine(ipset *ips1, ipset *ips2) {
 
 	return ips;
 }
+
+/* ----------------------------------------------------------------------------
+ * ipset_histogram()
+ *
+ * generate histogram for ipset
+ *
+ */
+
+//int ipset_histogram(ipset *ips, const char *path) {
+	// make sure the path exists
+	// if this is the first time:
+	//  - create a directory for this ipset, in path
+	//  - create the 'new' directory inside this ipset path
+	//  - assume the 'latest' is empty
+	//  - keep the starting date
+	//  - print an empty histogram
+	// save in 'new' the IPs of current excluding the 'latest'
+	// save 'current' as 'latest'
+	// assume the histogram is complete
+	// for each file in 'new'
+	//  - if the file is <= to histogram start date, the histogram is incomplete
+	//  - calculate the hours passed to the 'current'
+	//  - find the IPs in this file common to 'current' = 'stillthere'
+	//  - find the IPs in this file not in 'stillthere' = 'removed'
+	//  - if there are IPs in 'removed', add an entry to the retention histogram
+	//  - if there are no IPs in 'stillthere', delete the file
+	//  - else replace the file with the contents of 'stillthere'
+//
+//	return 0;
+//}
 
 
 /* ----------------------------------------------------------------------------
@@ -1215,6 +1345,15 @@ void usage(const char *me) {
 		"		allow increasing the entries above PERCENT, if\n"
 		"		they are below ENTRIES\n"
 		"		(the internal default ENTRIES is 16384)\n"
+//		"\n"
+//		"	--histogram\n"
+//		"		> IPSET HISTOGRAM mode\n"
+//		"		maintain histogram data for ipset and dump current\n"
+//		"		status\n"
+//		"\n"
+//		"	--histogram-dir PATH\n"
+//		"		> IPSET HISTOGRAM mode\n"
+//		"		the directory to keep histogram data\n"
 		"\n"
 		"\n"
 		"	--------------------------------------------------------------\n"
@@ -1394,8 +1533,11 @@ void usage(const char *me) {
 #define MODE_REDUCE 7
 #define MODE_COMMON 8
 #define MODE_EXCLUDE_NEXT 9
+//#define MODE_HISTOGRAM 10
 
 int main(int argc, char **argv) {
+//	char histogram_dir[FILENAME_MAX + 1] = "/var/lib/iprange";
+
 	struct timeval start_dt, load_dt, print_dt, stop_dt;
 	gettimeofday(&start_dt, NULL);
 
@@ -1515,6 +1657,13 @@ int main(int argc, char **argv) {
 		else if(!strcmp(argv[i], "--count-unique-all")) {
 			mode = MODE_COUNT_UNIQUE_ALL;
 		}
+//		else if(!strcmp(argv[i], "--histogram")) {
+//			mode = MODE_HISTOGRAM;
+//		}
+//		else if(i+1 < argc && !strcmp(argv[i], "--histogram-dir")) {
+//			mode = MODE_HISTOGRAM;
+//			strncpy(histogram_dir, argv[++i], FILENAME_MAX);
+//		}
 		else if(!strcmp(argv[i], "--help")
 			|| !strcmp(argv[i], "-h")) {
 			usage(argv[0]);
@@ -1606,7 +1755,7 @@ int main(int argc, char **argv) {
 		for(ips = root->next; ips ;ips = ips->next)
 			ipset_merge(root, ips);
 
-		ipset_optimize(root);
+		// ipset_optimize(root);
 		if(mode == MODE_REDUCE) ipset_reduce(root, ipset_reduce_factor, ipset_reduce_min_accepted);
 
 		gettimeofday(&print_dt, NULL);
@@ -1616,7 +1765,7 @@ int main(int argc, char **argv) {
 
 		else if(mode == MODE_COUNT_UNIQUE_MERGED) {
 			if(unlikely(header)) printf("entries,unique_ips\n");
-			printf("%lu,%lu\n", root->lines, root->unique_ips);
+			printf("%lu,%lu\n", root->lines, ipset_unique_ips(root));
 		}
 	}
 	else if(mode == MODE_COMMON) {
@@ -1625,7 +1774,7 @@ int main(int argc, char **argv) {
 			exit(1);
 		}
 
-		ipset_optimize_all(root);
+		// ipset_optimize_all(root);
 
 		ipset *common = NULL, *ips2 = NULL;
 
@@ -1647,7 +1796,7 @@ int main(int argc, char **argv) {
 
 		if(unlikely(header)) printf("name1,name2,entries1,entries2,ips1,ips2,combined_ips,common_ips\n");
 		
-		ipset_optimize_all(root);
+		// ipset_optimize_all(root);
 		
 		ipset *ips2;
 		for(ips = root; ips ;ips = ips->next) {
@@ -1685,8 +1834,8 @@ int main(int argc, char **argv) {
 
 		if(unlikely(header)) printf("name1,name2,entries1,entries2,ips1,ips2,combined_ips,common_ips\n");
 
-		ipset_optimize_all(root);
-		ipset_optimize_all(second);
+		// ipset_optimize_all(root);
+		// ipset_optimize_all(second);
 		
 		ipset *ips2;
 		for(ips = root; ips ;ips = ips->next) {
@@ -1722,7 +1871,7 @@ int main(int argc, char **argv) {
 		
 		if(unlikely(header)) printf("name,entries,unique_ips,common_ips\n");
 
-		ipset_optimize_all(root);
+		// ipset_optimize_all(root);
 		
 		for(ips = root; ips ;ips = ips->next) {
 			if(ips == first) continue;
@@ -1759,8 +1908,8 @@ int main(int argc, char **argv) {
 		for(ips = root->next; ips ;ips = ips->next)
 			ipset_merge(root, ips);
 
-		ipset_optimize(root);
-		ipset_optimize_all(second);
+		// ipset_optimize(root);
+		// ipset_optimize_all(second);
 
 		ipset *excluded = root;
 		root = root->next;
@@ -1787,6 +1936,11 @@ int main(int argc, char **argv) {
 		}
 		gettimeofday(&print_dt, NULL);
 	}
+//	else if(mode == MODE_HISTOGRAM) {
+//		for(ips = root; ips ;ips = ips->next) {
+//			ipset_histogram(ips, histogram_dir);
+//		}
+//	}
 	else {
 		fprintf(stderr, "%s: Unknown mode.\n", PROG);
 		exit(1);
