@@ -1412,10 +1412,24 @@ finalize() {
 		info="${category}"
 	fi
 
-	# remove the comments from the existing file
+	# make sure the new file is optimized
+	if [ "${hash}" == "ip" ]
+		then
+		"${IPRANGE_CMD}" -1 "${tmp}" >"${tmp}.final"
+	else
+		"${IPRANGE_CMD}" "${tmp}" >"${tmp}.final"
+	fi
+	mv "${tmp}.final" "${tmp}"
+
+	# make sure the old file is optimized
 	if [ -f "${dst}" ]
-	then
-		cat "${dst}" | grep -v "^#" > "${tmp}.old"
+		then
+		if [ "${hash}" == "ip" ]
+			then
+			"${IPRANGE_CMD}" -1 "${dst}" >"${tmp}.old"
+		else
+			"${IPRANGE_CMD}" "${dst}" >"${tmp}.old"
+		fi
 	else
 		echo "# EMPTY SET" >"${tmp}.old"
 	fi
@@ -1573,6 +1587,9 @@ update() {
 			esac
 			;;
 		ipv6)
+			echo >&2 "${ipset}: IPv6 is not yet supported."
+			return 1
+
 			case "${type}" in
 				ip|ips)	
 						hash="ip"
