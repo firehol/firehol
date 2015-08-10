@@ -1209,17 +1209,6 @@ cat >>"${RUN_DIR}/sitemap.xml" <<EOFSITEMAP2
 	</url>
 EOFSITEMAP2
 fi
-
-if [ -z "${DO_NOT_REDISTRIBUTE[${IPSET_FILE[$x]}]}" ]
-then
-cat >>"${RUN_DIR}/sitemap.xml" <<EOFSITEMAP3
-	<url>
-		<loc>${GITHUB_LOCAL_COPY_URL}${x}</loc>
-		<lastmod>${sitemap_date}</lastmod>
-		<changefreq>always</changefreq>
-	</url>
-EOFSITEMAP3
-fi
 		fi
 	done
 	printf >>"${RUN_DIR}/all-ipsets.json" "\n]\n"
