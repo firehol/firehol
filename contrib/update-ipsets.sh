@@ -779,6 +779,11 @@ declare -A IPSET_MAINTAINER_URL=()
 #declare -A IPSET_PREFIXES=()
 #declare -A IPSET_DOWNLOADER=()
 #declare -A IPSET_DOWNLOADER_OPTIONS=()
+#declare -A IPSET_ENTRIES_MIN=()
+#declare -A IPSET_ENTRIES_MAX=()
+#declare -A IPSET_IPS_MIN=()
+#declare -A IPSET_IPS_MAX=()
+#declare -A IPSET_STARTED_DATE=()
 
 cache_save() {
 	#echo >&2 "Saving cache"
@@ -3158,6 +3163,18 @@ update malwaredomainlist $[12*60] 0 ipv4 ip \
 	"malware" \
 	"[malwaredomainlist.com](http://www.malwaredomainlist.com) list of malware active ip addresses" \
 	"MalwareDomainList.com" "http://www.malwaredomainlist.com/"
+
+
+# -----------------------------------------------------------------------------
+# blocklist.net.ua
+# https://blocklist.net.ua
+
+update blocklist_net_ua $[10] 0 ipv4 ip \
+	"https://blocklist.net.ua/blocklist.csv" \
+	remove_comments_semi_colon \
+	"abuse" \
+	"[blocklist.net.ua](https://blocklist.net.ua) The BlockList project was created to become protection against negative influence of the harmful and potentially dangerous events on the Internet. First of all this service will help internet and hosting providers to protect subscribers sites from being hacked. BlockList will help to stop receiving a large amount of spam from dubious SMTP relays or from attempts of brute force passwords to servers and network equipment." \
+	"blocklist.net.ua" "https://blocklist.net.ua"
 
 
 # -----------------------------------------------------------------------------
