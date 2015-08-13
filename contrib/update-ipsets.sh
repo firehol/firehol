@@ -1186,10 +1186,19 @@ update_web() {
 
 			if [ ! -f "${RUN_DIR}/all-ipsets.json" ]
 				then
-				printf >"${RUN_DIR}/all-ipsets.json" "[\n	\"${x}\""
+				printf >"${RUN_DIR}/all-ipsets.json" "[\n"
 			else
-				printf >>"${RUN_DIR}/all-ipsets.json" ",\n	\"${x}\""
+				printf >>"${RUN_DIR}/all-ipsets.json" ",\n"
 			fi
+cat >>"${RUN_DIR}/all-ipsets.json" <<EOFALL
+	{
+		"ipset": "${x}",
+		"category": "${IPSET_CATEGORY[${x}]}",
+		"maintainer": "${IPSET_MAINTAINER[${x}]}",
+		"updated": ${IPSET_SOURCE_DATE[${x}]}000,
+		"ips": ${IPSET_IPS[${x}]}
+EOFALL
+printf "	}" >>"${RUN_DIR}/all-ipsets.json"
 
 cat >>"${RUN_DIR}/sitemap.xml" <<EOFSITEMAP1
 	<url>
@@ -2686,7 +2695,7 @@ update spamhaus_drop $[12*60] 0 ipv4 both \
 	remove_comments_semi_colon \
 	"attacks" \
 	"[Spamhaus.org](http://www.spamhaus.org) DROP list (according to their site this list should be dropped at tier-1 ISPs globaly)" \
-	"Spamhaus" "http://www.spamhaus.org/"
+	"Spamhaus.org" "http://www.spamhaus.org/"
 
 # extended DROP (EDROP) list.
 # Should be used together with their DROP list.
@@ -2695,7 +2704,7 @@ update spamhaus_edrop $[12*60] 0 ipv4 both \
 	remove_comments_semi_colon \
 	"attacks" \
 	"[Spamhaus.org](http://www.spamhaus.org) EDROP (extended matches that should be used with DROP)" \
-	"Spamhaus" "http://www.spamhaus.org/"
+	"Spamhaus.org" "http://www.spamhaus.org/"
 
 
 # -----------------------------------------------------------------------------
@@ -2834,7 +2843,7 @@ update feodo 30 0 ipv4 ip \
 	remove_comments \
 	"malware" \
 	"[Abuse.ch Feodo tracker](https://feodotracker.abuse.ch) trojan includes IPs which are being used by Feodo (also known as Cridex or Bugat) which commits ebanking fraud" \
-	"Abuse.ch" "https://palevotracker.abuse.ch/"
+	"Abuse.ch" "https://feodotracker.abuse.ch/"
 
 
 # -----------------------------------------------------------------------------
@@ -2872,7 +2881,7 @@ update malc0de $[24*60] 0 ipv4 ip \
 	remove_comments \
 	"attacks" \
 	"[Malc0de.com](http://malc0de.com) malicious IPs of the last 30 days" \
-	"Malc0de.com" "http://malc0de.com/"
+	"malc0de.com" "http://malc0de.com/"
 
 
 # -----------------------------------------------------------------------------
@@ -2977,7 +2986,7 @@ update myip $[24*60] 0 ipv4 ip \
 	remove_comments \
 	"abuse" \
 	"[myip.ms](http://www.myip.ms/info/about) IPs identified as web bots in the last 10 days, using several sites that require human action" \
-	"myip.ms" "http://myip.ms/"
+	"MyIP.ms" "http://myip.ms/"
 
 
 # -----------------------------------------------------------------------------
@@ -3058,7 +3067,7 @@ update proxz 60 "$[24*60] $[7*24*60] $[30*24*60]" ipv4 ip \
 	parse_rss_proxy \
 	"anonymizers" \
 	"[proxz.com](http://www.proxz.com) open proxies (this list is composed using an RSS feed)" \
-	"proxz.com" "http://www.proxz.com/"
+	"ProxZ.com" "http://www.proxz.com/"
 
 
 # -----------------------------------------------------------------------------
@@ -3072,7 +3081,7 @@ update proxyspy 60 "$[24*60] $[7*24*60] $[30*24*60]" ipv4 ip \
 	parse_proxyspy \
 	"anonymizers" \
 	"[ProxySpy](http://spys.ru/en/) open proxies (updated hourly)" \
-	"ProxySpy" "http://spys.ru/en/"
+	"ProxySpy (spys.ru)" "http://spys.ru/en/"
 
 
 # -----------------------------------------------------------------------------
@@ -3084,7 +3093,7 @@ update proxyrss $[4*60] "$[24*60] $[7*24*60] $[30*24*60]" ipv4 ip \
 	gz_proxyrss \
 	"anonymizers" \
 	"[proxyrss.com](http://www.proxyrss.com) open proxies syndicated from multiple sources." \
-	"proxyrss.com" "http://www.proxyrss.com/"
+	"ProxyRSS.com" "http://www.proxyrss.com/"
 
 
 # -----------------------------------------------------------------------------
@@ -3096,7 +3105,7 @@ update maxmind_proxy_fraud $[4*60] "$[24*60] $[7*24*60] $[30*24*60]" ipv4 ip \
 	parse_maxmind_proxy_fraud \
 	"anonymizers" \
 	"[MaxMind.com](https://www.maxmind.com/en/anonymous-proxy-fraudulent-ip-address-list) list of anonymous proxy fraudelent IP addresses." \
-	"MaxMind" "https://www.maxmind.com/en/anonymous-proxy-fraudulent-ip-address-list"
+	"MaxMind.com" "https://www.maxmind.com/en/anonymous-proxy-fraudulent-ip-address-list"
 
 
 # -----------------------------------------------------------------------------
@@ -3162,7 +3171,7 @@ update alienvault_reputation $[6*60] 0 ipv4 ip \
 	remove_comments \
 	"reputation" \
 	"[AlienVault.com](https://www.alienvault.com/) IP reputation database" \
-	"AlienVault" "https://www.alienvault.com/"
+	"Alien Vault" "https://www.alienvault.com/"
 
 
 # -----------------------------------------------------------------------------
@@ -3216,7 +3225,7 @@ update ciarmy $[3*60] 0 ipv4 ip \
 	remove_comments \
 	"reputation" \
 	"[CIArmy.com](http://ciarmy.com/) IPs with poor Rogue Packet score that have not yet been identified as malicious by the community" \
-	"CINS Score" "http://ciarmy.com/"
+	"Collective Intelligence Network Security" "http://ciarmy.com/"
 
 
 # -----------------------------------------------------------------------------
@@ -3254,8 +3263,19 @@ update snort_ipfilter $[12*60] 0 ipv4 ip \
 	remove_comments \
 	"attacks" \
 	"[labs.snort.org](https://labs.snort.org/) supplied IP blacklist (this list seems to be updated frequently, but we found no information about it)" \
-	"Snort Labs" "https://labs.snort.org/"
+	"Snort.org Labs" "https://labs.snort.org/"
 
+
+# -----------------------------------------------------------------------------
+# TalosIntel
+# http://talosintel.com
+
+update talosintel_ipfilter $[4*60] 0 ipv4 ip \
+	"http://talosintel.com/files/additional_resources/ips_blacklist/ip-filter.blf" \
+	remove_comments \
+	"attacks" \
+	"[TalosIntel.com](http://talosintel.com/additional-resources/) List of known malicious network threats" \
+	"TalosIntel.com" "http://talosintel.com/"
 
 # -----------------------------------------------------------------------------
 # NiX Spam
@@ -3278,7 +3298,7 @@ update virbl 60 0 ipv4 ip \
 	remove_comments \
 	"spam" \
 	"[VirBL](http://virbl.bit.nl/) is a project of which the idea was born during the RIPE-48 meeting. The plan was to get reports of virusscanning mailservers, and put the IP-addresses that were reported to send viruses on a blacklist." \
-	"VirBL" "http://virbl.bit.nl/"
+	"VirBL.bit.nl" "http://virbl.bit.nl/"
 
 
 # -----------------------------------------------------------------------------
@@ -3290,7 +3310,7 @@ update shunlist $[4*60] 0 ipv4 ip \
 	csv_comma_first_column \
 	"attacks" \
 	"[AutoShun.org](http://autoshun.org/) IPs identified as hostile by correlating logs from distributed snort installations running the autoshun plugin" \
-	"AutoShun" "http://autoshun.org/"
+	"AutoShun.org" "http://autoshun.org/"
 
 
 # -----------------------------------------------------------------------------
@@ -3302,7 +3322,7 @@ update voipbl $[4*60] 0 ipv4 both \
 	remove_comments \
 	"attacks" \
 	"[VoIPBL.org](http://www.voipbl.org/) a distributed VoIP blacklist that is aimed to protects against VoIP Fraud and minimizing abuse for network that have publicly accessible PBX's. Several algorithms, external sources and manual confirmation are used before they categorize something as an attack and determine the threat level." \
-	"VoIPBL" "http://www.voipbl.org/"
+	"VoIPBL.org" "http://www.voipbl.org/"
 
 
 # -----------------------------------------------------------------------------
@@ -3315,7 +3335,7 @@ update lashback_ubl $[24*60] 0 ipv4 ip \
 	remove_comments \
 	"spam" \
 	"[The LashBack UBL](http://blacklist.lashback.com/) The Unsubscribe Blacklist (UBL) is a real-time blacklist of IP addresses which are sending email to names harvested from suppression files (this is a big list, more than 500.000 IPs)" \
-	"The LashBack UBL" "http://blacklist.lashback.com/"
+	"The LashBack Unsubscribe Blacklist" "http://blacklist.lashback.com/"
 
 # -----------------------------------------------------------------------------
 # Dragon Research Group (DRG)
@@ -3357,28 +3377,28 @@ update nt_ssh_7d 60 0 ipv4 ip \
 	remove_comments \
 	"attacks" \
 	"[NoThink](http://www.nothink.org/) Last 7 days SSH attacks" \
-	"NoThink" "http://www.nothink.org/"
+	"NoThink.org" "http://www.nothink.org/"
 
 update nt_malware_irc 60 0 ipv4 ip \
 	"http://www.nothink.org/blacklist/blacklist_malware_irc.txt" \
 	remove_comments \
 	"malware" \
 	"[No Think](http://www.nothink.org/) Malware IRC" \
-	"NoThink" "http://www.nothink.org/"
+	"NoThink.org" "http://www.nothink.org/"
 
 update nt_malware_http 60 0 ipv4 ip \
 	"http://www.nothink.org/blacklist/blacklist_malware_http.txt" \
 	remove_comments \
 	"malware" \
 	"[No Think](http://www.nothink.org/) Malware HTTP" \
-	"NoThink" "http://www.nothink.org/"
+	"NoThink.org" "http://www.nothink.org/"
 
 update nt_malware_dns 60 0 ipv4 ip \
 	"http://www.nothink.org/blacklist/blacklist_malware_dns.txt" \
 	remove_comments \
 	"malware" \
 	"[No Think](http://www.nothink.org/) Malware DNS (the original list includes hostnames and domains, which are ignored)" \
-	"NoThink" "http://www.nothink.org/"
+	"NoThink.org" "http://www.nothink.org/"
 
 # -----------------------------------------------------------------------------
 # Bambenek Consulting
@@ -3420,7 +3440,7 @@ update botscout 30 "$[24*60] $[7*24*60] $[30*24*60]" ipv4 ip \
 	botscout_filter \
 	"abuse" \
 	"[BotScout](http://botscout.com/) helps prevent automated web scripts, known as bots, from registering on forums, polluting databases, spreading spam, and abusing forms on web sites. They do this by tracking the names, IPs, and email addresses that bots use and logging them as unique signatures for future reference. They also provide a simple yet powerful API that you can use to test forms when they're submitted on your site. This list is composed of the most recently-caught bots." \
-	"BotScout" "http://botscout.com/"
+	"BotScout.com" "http://botscout.com/"
 
 # -----------------------------------------------------------------------------
 # GreenSnow
@@ -3431,7 +3451,7 @@ update greensnow 30 0 ipv4 ip \
 	remove_comments \
 	"attacks" \
 	"[GreenSnow](https://greensnow.co/) is a team harvesting a large number of IPs from different computers located around the world. GreenSnow is comparable with SpamHaus.org for attacks of any kind except for spam. Their list is updated automatically and you can withdraw at any time your IP address if it has been listed. Attacks / bruteforce that are monitored are: Scan Port, FTP, POP3, mod_security, IMAP, SMTP, SSH, cPanel, etc." \
-	"GreenSnow" "https://greensnow.co/"
+	"GreenSnow.co" "https://greensnow.co/"
 
 
 # -----------------------------------------------------------------------------
@@ -3459,7 +3479,7 @@ update ib_bluetack_proxies $[12*60] 0 ipv4 ip \
 	p2p_gz_proxy \
 	"anonymizers" \
 	"[iBlocklist.com](https://www.iblocklist.com/) version of BlueTack.co.uk Open Proxies IPs list (without TOR)" \
-	"iBlocklist" "https://www.iblocklist.com/"
+	"iBlocklist.com" "https://www.iblocklist.com/"
 
 
 # This list is a compilation of known malicious SPYWARE and ADWARE IP Address ranges.
@@ -3472,7 +3492,7 @@ update ib_bluetack_spyware $[12*60] 0 ipv4 both \
 	p2p_gz \
 	"malware" \
 	"[iBlocklist.com](https://www.iblocklist.com/) version of BlueTack.co.uk known malicious SPYWARE and ADWARE IP Address ranges" \
-	"iBlocklist" "https://www.iblocklist.com/"
+	"iBlocklist.com" "https://www.iblocklist.com/"
 
 
 # List of people who have been reported for bad deeds in p2p.
@@ -3482,7 +3502,7 @@ update ib_bluetack_badpeers $[12*60] 0 ipv4 ip \
 	p2p_gz \
 	"reputation" \
 	"[iBlocklist.com](https://www.iblocklist.com/) version of BlueTack.co.uk IPs that have been reported for bad deeds in p2p" \
-	"iBlocklist" "https://www.iblocklist.com/"
+	"iBlocklist.com" "https://www.iblocklist.com/"
 
 
 # Contains hijacked IP-Blocks and known IP-Blocks that are used to deliver Spam. 
@@ -3497,7 +3517,7 @@ update ib_bluetack_hijacked $[12*60] 0 ipv4 both \
 	p2p_gz \
 	"malware" \
 	"[iBlocklist.com](https://www.iblocklist.com/) version of BlueTack.co.uk hijacked IP-Blocks Hijacked IP space are IP blocks that are being used without permission" \
-	"iBlocklist" "https://www.iblocklist.com/"
+	"iBlocklist.com" "https://www.iblocklist.com/"
 
 
 # IP addresses related to current web server hack and exploit attempts that have been
@@ -3513,7 +3533,7 @@ update ib_bluetack_webexploit $[12*60] 0 ipv4 ip \
 	p2p_gz \
 	"attacks" \
 	"[iBlocklist.com](https://www.iblocklist.com/) version of BlueTack.co.uk web server hack and exploit attempts" \
-	"iBlocklist" "https://www.iblocklist.com/"
+	"iBlocklist.com" "https://www.iblocklist.com/"
 
 
 # Companies or organizations who are clearly involved with trying to stop filesharing
@@ -3536,7 +3556,7 @@ update ib_bluetack_level1 $[12*60] 0 ipv4 both \
 	p2p_gz \
 	"reputation" \
 	"[iBlocklist.com](https://www.iblocklist.com/) version of BlueTack.co.uk Level 1 (for use in p2p): Companies or organizations who are clearly involved with trying to stop filesharing (e.g. Baytsp, MediaDefender, Mediasentry a.o.). Companies which anti-p2p activity has been seen from. Companies that produce or have a strong financial interest in copyrighted material (e.g. music, movie, software industries a.o.). Government ranges or companies that have a strong financial interest in doing work for governments. Legal industry ranges. IPs or ranges of ISPs from which anti-p2p activity has been observed. Basically this list will block all kinds of internet connections that most people would rather not have during their internet travels." \
-	"iBlocklist" "https://www.iblocklist.com/"
+	"iBlocklist.com" "https://www.iblocklist.com/"
 
 
 # General corporate ranges. 
@@ -3548,7 +3568,7 @@ update ib_bluetack_level2 $[12*60] 0 ipv4 both \
 	p2p_gz \
 	"reputation" \
 	"[iBlocklist.com](https://www.iblocklist.com/) version of BlueTack.co.uk Level 2 (for use in p2p). General corporate ranges. Ranges used by labs or researchers. Proxies." \
-	"iBlocklist" "https://www.iblocklist.com/"
+	"iBlocklist.com" "https://www.iblocklist.com/"
 
 
 # Many portal-type websites. 
@@ -3561,7 +3581,7 @@ update ib_bluetack_level3 $[12*60] 0 ipv4 both \
 	p2p_gz \
 	"reputation" \
 	"[iBlocklist.com](https://www.iblocklist.com/) version of BlueTack.co.uk Level 3 (for use in p2p). Many portal-type websites. ISP ranges that may be dodgy for some reason. Ranges that belong to an individual, but which have not been determined to be used by a particular company. Ranges for things that are unusual in some way. The L3 list is aka the paranoid list." \
-	"iBlocklist" "https://www.iblocklist.com/"
+	"iBlocklist.com" "https://www.iblocklist.com/"
 
 # -----------------------------------------------------------------------------
 # BadIPs.com
@@ -3690,31 +3710,31 @@ badipscom
 # this is a test - it does not work without another script that rsyncs files from sorbs.net
 
 DO_NOT_REDISTRIBUTE[sorbs_dul.netset]="1"
-update sorbs_dul 1 0 ipv4 both "" remove_comments "test" "[Sorbs.net](https://www.sorbs.net/) DUL, Dynamic User IPs extracted from deltas." "Sorbs.net" "https://www.sorbs.net/"
+update sorbs_dul 1 0 ipv4 both "" remove_comments "tests" "[Sorbs.net](https://www.sorbs.net/) DUL, Dynamic User IPs extracted from deltas." "Sorbs.net" "https://www.sorbs.net/"
 
 DO_NOT_REDISTRIBUTE[sorbs_http.netset]="1"
-update sorbs_http 1 0 ipv4 both "" remove_comments "test" "[Sorbs.net](https://www.sorbs.net/) HTTP proxies, extracted from deltas." "Sorbs.net" "https://www.sorbs.net/"
+update sorbs_http 1 0 ipv4 both "" remove_comments "tests" "[Sorbs.net](https://www.sorbs.net/) HTTP proxies, extracted from deltas." "Sorbs.net" "https://www.sorbs.net/"
 
 DO_NOT_REDISTRIBUTE[sorbs_misc.netset]="1"
-update sorbs_misc 1 0 ipv4 both "" remove_comments "test" "[Sorbs.net](https://www.sorbs.net/) MISC proxies, extracted from deltas." "Sorbs.net" "https://www.sorbs.net/"
+update sorbs_misc 1 0 ipv4 both "" remove_comments "tests" "[Sorbs.net](https://www.sorbs.net/) MISC proxies, extracted from deltas." "Sorbs.net" "https://www.sorbs.net/"
 
 DO_NOT_REDISTRIBUTE[sorbs_smtp.netset]="1"
-update sorbs_smtp 1 0 ipv4 both "" remove_comments "test" "[Sorbs.net](https://www.sorbs.net/) SMTP Open Relays, extracted from deltas." "Sorbs.net" "https://www.sorbs.net/"
+update sorbs_smtp 1 0 ipv4 both "" remove_comments "tests" "[Sorbs.net](https://www.sorbs.net/) SMTP Open Relays, extracted from deltas." "Sorbs.net" "https://www.sorbs.net/"
 
 DO_NOT_REDISTRIBUTE[sorbs_socks.netset]="1"
-update sorbs_socks 1 0 ipv4 both "" remove_comments "test" "[Sorbs.net](https://www.sorbs.net/) SOCKS proxies, extracted from deltas." "Sorbs.net" "https://www.sorbs.net/"
+update sorbs_socks 1 0 ipv4 both "" remove_comments "tests" "[Sorbs.net](https://www.sorbs.net/) SOCKS proxies, extracted from deltas." "Sorbs.net" "https://www.sorbs.net/"
 
 DO_NOT_REDISTRIBUTE[sorbs_spam.netset]="1"
-update sorbs_spam 1 0 ipv4 both "" remove_comments "test" "[Sorbs.net](https://www.sorbs.net/) Spam senders, extracted from deltas." "Sorbs.net" "https://www.sorbs.net/"
+update sorbs_spam 1 0 ipv4 both "" remove_comments "tests" "[Sorbs.net](https://www.sorbs.net/) Spam senders, extracted from deltas." "Sorbs.net" "https://www.sorbs.net/"
 
 DO_NOT_REDISTRIBUTE[sorbs_new_spam.netset]="1"
-update sorbs_new_spam 1 0 ipv4 both "" remove_comments "test" "[Sorbs.net](https://www.sorbs.net/) NEW Spam senders, extracted from deltas." "Sorbs.net" "https://www.sorbs.net/"
+update sorbs_new_spam 1 0 ipv4 both "" remove_comments "tests" "[Sorbs.net](https://www.sorbs.net/) NEW Spam senders, extracted from deltas." "Sorbs.net" "https://www.sorbs.net/"
 
 DO_NOT_REDISTRIBUTE[sorbs_recent_spam.netset]="1"
-update sorbs_recent_spam 1 0 ipv4 both "" remove_comments "test" "[Sorbs.net](https://www.sorbs.net/) RECENT Spam senders, extracted from deltas." "Sorbs.net" "https://www.sorbs.net/"
+update sorbs_recent_spam 1 0 ipv4 both "" remove_comments "tests" "[Sorbs.net](https://www.sorbs.net/) RECENT Spam senders, extracted from deltas." "Sorbs.net" "https://www.sorbs.net/"
 
 DO_NOT_REDISTRIBUTE[sorbs_web.netset]="1"
-update sorbs_web 1 0 ipv4 both "" remove_comments "test" "[Sorbs.net](https://www.sorbs.net/) WEB exploits, extracted from deltas." "Sorbs.net" "https://www.sorbs.net/"
+update sorbs_web 1 0 ipv4 both "" remove_comments "tests" "[Sorbs.net](https://www.sorbs.net/) WEB exploits, extracted from deltas." "Sorbs.net" "https://www.sorbs.net/"
 
 
 # -----------------------------------------------------------------------------
