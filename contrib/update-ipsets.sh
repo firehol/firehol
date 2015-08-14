@@ -2174,7 +2174,7 @@ gz_proxyrss() {
 
 # extract IPs from the maxmind proxy fraud page
 parse_maxmind_proxy_fraud() {
-	grep "a href=\"proxy/" |\
+	grep "href=\"proxy" |\
 		cut -d '>' -f 2 |\
 		cut -d '<' -f 1
 }
