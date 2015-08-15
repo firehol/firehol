@@ -289,9 +289,18 @@ REPROCESS_ALL=0
 SILENT=0
 VERBOSE=0
 CONFIG_FILE="/etc/firehol/update-ipsets.conf"
+
+declare -a LISTS_TO_ENABLE=()
+
 while [ ! -z "${1}" ]
 do
 	case "${1}" in
+		enable)
+			shift
+			LISTS_TO_ENABLE=("${@}")
+			break
+			;;
+
 		--rebuild|-r) FORCE_WEB_REBUILD=1;;
 		--reprocess|-p) REPROCESS_ALL=1;;
 		--silent|-s) SILENT=1;;
@@ -311,6 +320,16 @@ if [ -f "${CONFIG_FILE}" ]
 	then
 	echo >&2 "Loading configuration from ${CONFIG_FILE}"
 	source "${CONFIG_FILE}"
+fi
+
+if [ "${#LISTS_TO_ENABLE[@]}" -gt 0 ]
+	then
+	for x in "${LISTS_TO_ENABLE[@]}"
+	do
+		echo "Enabling ${x}..."
+		touch -t 0001010000 "${BASE_DIR}/${x}.source" || exit 1
+	done
+	exit 0
 fi
 
 # -----------------------------------------------------------------------------
@@ -2672,7 +2691,7 @@ update et_botcc $[12*60] 0 ipv4 ip \
 	"http://rules.emergingthreats.net/fwrules/emerging-PIX-CC.rules" \
 	pix_deny_rules_to_ipv4 \
 	"malware" \
-	"[EmergingThreats.net Command and Control IPs](http://doc.emergingthreats.net/bin/view/Main/BotCC) These IPs are updates every 24 hours and should be considered VERY highly reliable indications that a host is communicating with a known and active Bot or Malware command and control server - (although they say this includes abuse.ch trackers, it does not - most probably it is the shadowserver.org C&C list)" \
+	"[EmergingThreats.net Command and Control IPs](http://doc.emergingthreats.net/bin/view/Main/BotCC) These IPs are updates every 24 hours and should be considered VERY highly reliable indications that a host is communicating with a known and active Bot or Malware command and control server - (although they say this includes abuse.ch trackers, it does not - check its overlaps)" \
 	"Emerging Threats" "http://www.emergingthreats.net/"
 
 # This appears to be the SPAMHAUS DROP list
@@ -2874,6 +2893,14 @@ update sslbl 30 0 ipv4 ip \
 	csv_comma_first_column \
 	"malware" \
 	"[Abuse.ch SSL Blacklist](https://sslbl.abuse.ch/) bad SSL traffic related to malware or botnet activities" \
+	"Abuse.ch" "https://sslbl.abuse.ch/"
+
+# The aggressive version of the SSL IP Blacklist contains all IPs that SSLBL ever detected being associated with a malicious SSL certificate. Since IP addresses can be reused (e.g. when the customer changes), this blacklist may cause false positives. Hence I highly recommend you to use the standard version instead of the aggressive one.
+update sslbl_aggressive 30 0 ipv4 ip \
+	"https://sslbl.abuse.ch/blacklist/sslipblacklist_aggressive.csv" \
+	csv_comma_first_column \
+	"malware" \
+	"[Abuse.ch SSL Blacklist](https://sslbl.abuse.ch/) The aggressive version of the SSL IP Blacklist contains all IPs that SSLBL ever detected being associated with a malicious SSL certificate. Since IP addresses can be reused (e.g. when the customer changes), this blacklist may cause false positives. Hence I highly recommend you to use the standard version instead of the aggressive one." \
 	"Abuse.ch" "https://sslbl.abuse.ch/"
 
 
@@ -3232,7 +3259,7 @@ update iw_spamlist 60 0 ipv4 ip \
 update iw_wormlist 60 0 ipv4 ip \
 	"http://antispam.imp.ch/wormlist" \
 	antispam_ips \
-	"spam" \
+	"malware" \
 	"[ImproWare Antispam](http://antispam.imp.ch/) IPs sending emails with viruses or worms, in the last 3 days" \
 	"ImproWare Antispam" "http://antispam.imp.ch/"
 
@@ -3325,7 +3352,7 @@ update nixspam 15 0 ipv4 ip \
 update virbl 60 0 ipv4 ip \
 	"http://virbl.bit.nl/download/virbl.dnsbl.bit.nl.txt" \
 	remove_comments \
-	"spam" \
+	"malware" \
 	"[VirBL](http://virbl.bit.nl/) is a project of which the idea was born during the RIPE-48 meeting. The plan was to get reports of virusscanning mailservers, and put the IP-addresses that were reported to send viruses on a blacklist." \
 	"VirBL.bit.nl" "http://virbl.bit.nl/"
 
@@ -3544,7 +3571,7 @@ DO_NOT_REDISTRIBUTE[ib_bluetack_hijacked.netset]="1"
 update ib_bluetack_hijacked $[12*60] 0 ipv4 both \
 	"http://list.iblocklist.com/?list=usrcshglbiilevmyfhse&fileformat=p2p&archiveformat=gz" \
 	p2p_gz \
-	"malware" \
+	"attacks" \
 	"[iBlocklist.com](https://www.iblocklist.com/) version of BlueTack.co.uk hijacked IP-Blocks Hijacked IP space are IP blocks that are being used without permission" \
 	"iBlocklist.com" "https://www.iblocklist.com/"
 
