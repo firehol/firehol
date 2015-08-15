@@ -273,6 +273,8 @@ GITHUB_CHANGES_URL="https://github.com/ktsaou/blocklist-ipsets/commits/master/"
 IPSET_REDUCE_FACTOR="20"
 IPSET_REDUCE_ENTRIES="65536"
 
+WEB_CHARTS_ENTRIES="500"
+
 # if the .git directory is present, push it also
 PUSH_TO_GIT=0
 
@@ -995,12 +997,22 @@ retention_detect() {
 	"${IPRANGE_CMD}" "${IPSET_FILE[${ipset}]}" --exclude-next "${CACHE_DIR}/${ipset}/latest" --print-binary >"${CACHE_DIR}/${ipset}/new/${ndate}"
 	touch -r "${IPSET_FILE[${ipset}]}" "${CACHE_DIR}/${ipset}/new/${ndate}"
 
+	local ips_added=0
 	if [ ! -s "${CACHE_DIR}/${ipset}/new/${ndate}" ]
 		then
 		# there are no new IPs included
 		[ ${VERBOSE} -eq 1 ] && echo >&2 "${ipset}: ${CACHE_DIR}/${ipset}/new/${ndate}: nothing new in this"
 		rm "${CACHE_DIR}/${ipset}/new/${ndate}"
+	else
+		ips_added=$("${IPRANGE_CMD}" -C "${CACHE_DIR}/${ipset}/new/${ndate}")
+		ips_added=${ips_added/*,/}
 	fi
+
+	local ips_removed=$("${IPRANGE_CMD}" "${CACHE_DIR}/${ipset}/latest" --exclude-next "${IPSET_FILE[${ipset}]}" | "${IPRANGE_CMD}" -C)
+	ips_removed=${ips_removed/*,/}
+
+	[ ! -f "${CACHE_DIR}/${ipset}/changesets.csv" ] && echo >"${CACHE_DIR}/${ipset}/changesets.csv" "DateTime,IPsAdded,IPsRemoved"
+	echo >>"${CACHE_DIR}/${ipset}/changesets.csv" "${ndate},${ips_added},${ips_removed}"
 
 	# ok keep it
 	[ ${VERBOSE} -eq 1 ] && echo >&2 "${ipset}: keeping it..."
@@ -1155,8 +1167,8 @@ update_web() {
 				printf " ${x}"
 				echo >>"${CACHE_DIR}/${x}/history.csv" "$(date -r "${IPSET_SOURCE[${x}]}" +%s),${IPSET_ENTRIES[${x}]},${IPSET_IPS[${x}]}"
 				
-				echo >"${WEB_DIR}/${x}_history.csv" "DateTime,Entries,UniqueIPs"
-				tail -n 1000 "${CACHE_DIR}/${x}/history.csv" | grep -v "^DateTime" >>"${WEB_DIR}/${x}_history.csv"
+				echo >"${RUN_DIR}/${x}_history.csv" "DateTime,Entries,UniqueIPs"
+				tail -n ${WEB_CHARTS_ENTRIES} "${CACHE_DIR}/${x}/history.csv" | grep -v "^DateTime" >>"${RUN_DIR}/${x}_history.csv"
 			fi
 		fi
 
@@ -1226,9 +1238,7 @@ fi
 		fi
 	done
 	printf >>"${RUN_DIR}/all-ipsets.json" "\n]\n"
-	cp "${RUN_DIR}/all-ipsets.json" "${WEB_DIR}/"
 	echo '</urlset>' >>"${RUN_DIR}/sitemap.xml"
-	cp "${RUN_DIR}/sitemap.xml" "${WEB_DIR}/"
 	echo >&2
 
 	printf >&2 "comparing ipsets... "
@@ -1259,7 +1269,6 @@ fi
 	for x in $(find "${RUN_DIR}" -name \*_comparison.json)
 	do
 		printf "\n]\n" >>${x}
-		cp "${x}" "${WEB_DIR}/"
 	done
 
 	printf >&2 "comparing geolite2 country... "
@@ -1283,7 +1292,6 @@ fi
 	for x in $(find "${RUN_DIR}" -name \*_geolite2_country.json)
 	do
 		printf "\n]\n" >>${x}
-		cp "${x}" "${WEB_DIR}/"
 	done
 
 	printf >&2 "comparing ipdeny country... "
@@ -1307,7 +1315,6 @@ fi
 	for x in $(find "${RUN_DIR}" -name \*_ipdeny_country.json)
 	do
 		printf "\n]\n" >>${x}
-		cp "${x}" "${WEB_DIR}/"
 	done
 
 	printf >&2 "generating javascript info... "
@@ -1315,7 +1322,7 @@ fi
 	do
 		[ -z "${UPDATED_SETS[${x}]}" -a ! ${FORCE_WEB_REBUILD} -eq 1 ] && continue
 
-		ipset_json "${x}" >"${WEB_DIR}/${x}.json"
+		ipset_json "${x}" >"${RUN_DIR}/${x}.json"
 	done
 	echo >&2
 
@@ -1323,14 +1330,19 @@ fi
 	for x in "${!IPSET_FILE[@]}"
 	do
 		[ -z "${UPDATED_SETS[${x}]}" -a ! ${FORCE_WEB_REBUILD} -eq 1 ] && continue
+		
 		[[ "${IPSET_FILE[$x]}" =~ ^geolite2.* ]] && continue
 		[[ "${IPSET_FILE[$x]}" =~ ^ipdeny.* ]] && continue
 
 		retention_detect "${x}" >"${RUN_DIR}/${x}_retention.json" || rm "${RUN_DIR}/${x}_retention.json"
+
+		# this has to be done after retention_detect()
+		echo >"${RUN_DIR}"/${x}_changesets.csv "DateTime,AddedIPs,RemovedIPs"
+		tail -n ${WEB_CHARTS_ENTRIES} "${CACHE_DIR}/${x}/changesets.csv" | grep -v "^DateTime" >>"${RUN_DIR}/${x}_changesets.csv"
 	done
-	cp "${RUN_DIR}"/*_retention.json "${WEB_DIR}/"
 	echo >&2
 
+	mv -f "${RUN_DIR}"/*.{json,csv,xml} "${WEB_DIR}/"
 	chown ${WEB_OWNER} "${WEB_DIR}"/*
 	chmod 0644 "${WEB_DIR}"/*
 
@@ -3196,7 +3208,7 @@ update alienvault_reputation $[6*60] 0 ipv4 ip \
 # Viruses
 
 update cleanmx_viruses 30 0 ipv4 ip \
-	"http://support.clean-mx.de/clean-mx/xmlviruses.php?sort=id%20desc&response=alive" \
+	"http://support.clean-mx.de/clean-mx/xmlviruses.php?response=alive&fields=ip" \
 	parse_xml_clean_mx \
 	"malware" \
 	"[Clean-MX.de](http://support.clean-mx.de/clean-mx/viruses.php) IPs with viruses" \
