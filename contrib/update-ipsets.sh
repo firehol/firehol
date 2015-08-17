@@ -3382,6 +3382,18 @@ update voipbl $[4*60] 0 ipv4 both \
 
 
 # -----------------------------------------------------------------------------
+# Stefan Gofferje
+# http://stefan.gofferje.net/
+
+update gofferje_sip $[6*60] 0 ipv4 both \
+	"http://stefan.gofferje.net/sipblocklist.zone" \
+	remove_comments \
+	"attacks" \
+	"[Stefan Gofferje](http://stefan.gofferje.net/it-stuff/sipfraud/sip-attacker-blacklist) A personal blacklist of networks and IPs of SIP attackers. To end up here, the IP or network must have been the origin of considerable and repeated attacks on my PBX and additionally, the ISP didn't react to any complaint. Note from the author: I don't give any guarantees of accuracy, completeness or even usability! USE AT YOUR OWN RISK! Also note that I block complete countries, namely China, Korea and Palestine with blocklists from ipdeny.com, so some attackers will never even get the chance to get noticed by me to be put on this blacklist. I also don't accept any liabilities related to this blocklist. If you're an ISP and don't like your IPs being listed here, too bad! You should have done something about your customers' behavior and reacted to my complaints. This blocklist is nothing but an expression of my personal opinion and exercising my right of free speech." \
+	"Stefan Gofferje" "http://stefan.gofferje.net/it-stuff/sipfraud/sip-attacker-blacklist"
+
+
+# -----------------------------------------------------------------------------
 # LashBack Unsubscribe Blacklist
 # http://blacklist.lashback.com/
 # (this is a big list, more than 500.000 IPs)
@@ -3797,9 +3809,9 @@ update sorbs_web 1 0 ipv4 both "" remove_comments "tests" "[Sorbs.net](https://w
 # FireHOL lists
 
 merge firehol_level1 "attacks" "An ipset made from blocklists that provide the maximum of protection, with the minimum of false positives. Suitable for basic protection on all systems." \
-	fullbogons dshield feodo palevo sslbl zeus_badips spamhaus_drop spamhaus_edrop
+	fullbogons dshield feodo palevo sslbl zeus_badips spamhaus_drop spamhaus_edrop bambenek_c2
 
-merge firehol_level2 "attacks" "An ipset made from blocklists that track attacks, during the last one or two days." \
+merge firehol_level2 "attacks" "An ipset made from blocklists that track attacks and abuse, during the last one or two days." \
 	openbl_1d dshield_1d blocklist_de stopforumspam_1d botscout_1d greensnow
 
 merge firehol_level3 "attacks" "An ipset made from blocklists that track attacks, spyware, viruses. It includes IPs than have been reported or detected in the last 30 days." \
