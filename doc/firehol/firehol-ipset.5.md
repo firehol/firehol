@@ -87,6 +87,9 @@ multiple IPs separated by comma or enclosed in quotes and separated by space.
  ipv4 ipset add badguys "11.22.33.44 55.66.77.88"  # << space separated in quotes
 ~~~
 
+ipsets with IP Lists for abuse, malware, attacks, proxies, anonymizers, etc can be
+downloaded with the contrib/update-ipsets.sh script. Information about the
+supported ipsets can be found at [FireHOL IP Lists](http://iplists.firehol.org/)
 
 # SEE ALSO
 
@@ -99,6 +102,7 @@ multiple IPs separated by comma or enclosed in quotes and separated by space.
 * [FireHOL Website](http://firehol.org/)
 * [FireHOL Online PDF Manual](http://firehol.org/firehol-manual.pdf)
 * [FireHOL Online Documentation](http://firehol.org/documentation/)
+* [FireHOL IP Lists](http://iplists.firehol.org/)
 * [NAT HOWTO](http://www.netfilter.org/documentation/HOWTO/NAT-HOWTO-6.html)
 * [netfilter flow diagram][netfilter flow diagram]
 

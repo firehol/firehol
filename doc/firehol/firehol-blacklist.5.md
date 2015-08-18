@@ -45,6 +45,9 @@ details.
 
 Blacklists must be declared before the first router or interface.
 
+IP Lists for abuse, malware, attacks, proxies, anonymizers, etc can be
+downloaded with the contrib/update-ipsets.sh script. Information about the
+supported IP Lists can be found at [FireHOL IP Lists](http://iplists.firehol.org/)
 
 # EXAMPLES
 
@@ -61,3 +64,4 @@ blacklist full inface eth0 log "BADGUY" 192.0.1.1 192.0.1.2
 * [FireHOL Website](http://firehol.org/)
 * [FireHOL Online PDF Manual](http://firehol.org/firehol-manual.pdf)
 * [FireHOL Online Documentation](http://firehol.org/documentation/)
+* [FireHOL IP Lists](http://iplists.firehol.org/)
