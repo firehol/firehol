@@ -1145,8 +1145,26 @@ update_web() {
 
 	local x= all=() geolite2_country=() ipdeny_country=() i= to_all=
 
-	echo '<?xml version="1.0" encoding="UTF-8"?>' >${RUN_DIR}/sitemap.xml
-	echo '<urlset xmlns="http://www.sitemaps.org/schemas/sitemap/0.9">' >>${RUN_DIR}/sitemap.xml
+cat >${RUN_DIR}/sitemap.xml <<EOFSITEMAPA
+<?xml version="1.0" encoding="UTF-8"?>
+<urlset xmlns="http://www.sitemaps.org/schemas/sitemap/0.9">
+	<url>
+		<loc>${WEB_URL/\?*/}</loc>
+		<lastmod>${sitemap_date}</lastmod>
+		<changefreq>always</changefreq>
+	</url>
+EOFSITEMAPA
+
+if [ ! -z "${WEB_URL2}" ]
+then
+cat >>"${RUN_DIR}/sitemap.xml" <<EOFSITEMAPB
+	<url>
+		<loc>${WEB_URL2/\?*/}</loc>
+		<lastmod>${sitemap_date}</lastmod>
+		<changefreq>always</changefreq>
+	</url>
+EOFSITEMAPB
+fi
 
 	echo >&2
 	printf >&2 "updating history... "
@@ -1357,13 +1375,13 @@ fi
 
 		# this has to be done after retention_detect()
 		echo >"${RUN_DIR}"/${x}_changesets.csv "DateTime,AddedIPs,RemovedIPs"
-		tail -n ${WEB_CHARTS_ENTRIES} "${CACHE_DIR}/${x}/changesets.csv" | grep -v "^DateTime" >>"${RUN_DIR}/${x}_changesets.csv"
+		tail -n $[ WEB_CHARTS_ENTRIES + 1] "${CACHE_DIR}/${x}/changesets.csv" | grep -v "^DateTime" | tail -n +2 >>"${RUN_DIR}/${x}_changesets.csv"
 	done
 	echo >&2
 
 	mv -f "${RUN_DIR}"/*.{json,csv,xml} "${WEB_DIR}/"
 	chown ${WEB_OWNER} "${WEB_DIR}"/*
-	chmod 0644 "${WEB_DIR}"/*
+	chmod 0644 "${WEB_DIR}"/*.{json,csv,xml}
 
 	if [ ${PUSH_TO_GIT} -eq 1 ]
 		then
