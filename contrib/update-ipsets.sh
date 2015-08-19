@@ -623,17 +623,17 @@ history_get() {
 
 	# replace the original file with a concatenation of
 	# all the files newer than the reference file
-	local -a hfiles=()
-	for x in ${HISTORY_DIR}/${ipset}/*.set
-	do
-		if [ "${x}" -nt "${RUN_DIR}/history.reference" ]
-		then
-			[ ${VERBOSE} -eq 1 ] && echo >&2 "${ipset}: merging history file '${x}'"
-			hfiles=("${hfiles[@]}" "${x}")
-		fi
-	done
+	#local -a hfiles=()
+	#for x in ${HISTORY_DIR}/${ipset}/*.set
+	#do
+	#	if [ "${x}" -nt "${RUN_DIR}/history.reference" ]
+	#	then
+	#		[ ${VERBOSE} -eq 1 ] && echo >&2 "${ipset}: merging history file '${x}'"
+	#		hfiles=("${hfiles[@]}" "${x}")
+	#	fi
+	#done
 
-	"${IPRANGE_CMD}" --union-all "${hfiles[@]}"
+	"${IPRANGE_CMD}" --union-all $(find "${HISTORY_DIR}/${ipset}"/*.set -newer "${RUN_DIR}/history.reference")
 
 	rm "${RUN_DIR}/history.reference"
 
@@ -708,13 +708,25 @@ DOWNLOAD_NOT_UPDATED=2
 download_manager() {
 	local 	ipset="${1}" mins="${2}" url="${3}" \
 		install="${1}" \
-		tmp= now= date= check=
+		tmp= now= date= check= inc=
 
 	tmp=`mktemp "${RUN_DIR}/download-${ipset}-XXXXXXXXXX"` || return ${DOWNLOAD_FAILED}
 
+	# make sure it is numeric
+	[ "$[mins + 0]" -eq 0 ] && mins=0
+
+	# add some time (1/100th), to make sure the source is updated
+	inc=$[ (mins + 50) / 100 ]
+
+	# if the download period is less than 30min, do not add anything
+	[ ${mins} -le 30 ] && inc=0
+
+	# if the added time is above 10min, make it 10 min
+	[ ${inc} -gt 10 ] && inc=10
+
 	# touch a file $mins + 2 ago
 	# we add 2 to let the server update the file
-	touch_in_the_past "$[mins + 2]" "${tmp}"
+	touch_in_the_past "$[mins + inc]" "${tmp}"
 
 	check="${install}.source"
 	[ ${IGNORE_LASTCHECKED} -eq 0 -a -f ".${install}.lastchecked" ] && check=".${install}.lastchecked"
@@ -723,7 +735,7 @@ download_manager() {
 	if [ "${check}" -nt "${tmp}" ]
 	then
 		rm "${tmp}"
-		echo >&2 "${ipset}: should not be downloaded so soon."
+		echo >&2 "${ipset}: should not be downloaded so soon (within ${mins} + ${inc} = $[mins + inc] mins)."
 		return ${DOWNLOAD_NOT_UPDATED}
 	fi
 
@@ -2580,7 +2592,7 @@ ip2location_country() {
 			name=${IP2LOCATION_COUNTRY_NAMES[${x}]}
 		fi
 
-		echo >&2 "${ipset}: extracting from '${file}' country '${x}' (code='${code}', name='${name}')..."
+		echo >&2 "${ipset}: extracting country '${x}' (code='${code}', name='${name}')..."
 		cat "${file}" 			|\
 			grep ",\"${x}\"," 	|\
 			cut -d ',' -f 1,2 	|\
@@ -2592,14 +2604,14 @@ ip2location_country() {
 		if [ ! -z "${IP2LOCATION_COUNTRY_CONTINENTS[${code}]}" ]
 			then
 			[ ! -f "${ipset}.tmp/id_continent_${IP2LOCATION_COUNTRY_CONTINENTS[${code}]}.source.tmp.info" ] && printf "%s" "Continent ${IP2LOCATION_COUNTRY_CONTINENTS[${code}]}, with countries: " >"${ipset}.tmp/id_continent_${IP2LOCATION_COUNTRY_CONTINENTS[${code}]}.source.tmp.info"
-			printf "%s" "${IP2LOCATION_COUNTRY_NAMES[${code}]} (${code^^}), " >>"${ipset}.tmp/ip2location_continent_${IP2LOCATION_COUNTRY_CONTINENTS[${code}]}.source.tmp.info"
+			printf "%s" "${IP2LOCATION_COUNTRY_NAMES[${x}]} (${code^^}), " >>"${ipset}.tmp/ip2location_continent_${IP2LOCATION_COUNTRY_CONTINENTS[${code}]}.source.tmp.info"
 			cat "${ipset}.tmp/ip2location_country_${code}.source.tmp" >>"${ipset}.tmp/ip2location_continent_${IP2LOCATION_COUNTRY_CONTINENTS[${code}]}.source.tmp"
 			IP2LOCATION_CONTINENTS[${IP2LOCATION_COUNTRY_CONTINENTS[${code}]}]="1"
 		else
 			echo >&2 "${ipset}: I don't know the continent of country ${code}."
 		fi
 
-		printf "%s" "${IP2LOCATION_COUNTRY_NAMES[${code}]} (${code^^})" >"${ipset}.tmp/ip2location_country_${code}.source.tmp.info"
+		printf "%s" "${IP2LOCATION_COUNTRY_NAMES[${x}]} (${code^^})" >"${ipset}.tmp/ip2location_country_${code}.source.tmp.info"
 	done
 
 	echo >&2 "${ipset}: Aggregating country and continent netsets..."
@@ -2857,7 +2869,7 @@ update bm_tor 30 0 ipv4 ip \
 	"torstatus.blutmagie.de" "https://torstatus.blutmagie.de/"
 
 torproject_exits() { grep "^ExitAddress " | cut -d ' ' -f 2; }
-update tor_exits 30 0 ipv4 ip \
+update tor_exits 5 0 ipv4 ip \
 	"https://check.torproject.org/exit-addresses" \
 	torproject_exits \
 	"anonymizers" \
@@ -3484,6 +3496,20 @@ update bruteforceblocker $[3*60] 0 ipv4 ip \
 	"attacks" \
 	"[danger.rulez.sk bruteforceblocker](http://danger.rulez.sk/index.php/bruteforceblocker/) (fail2ban alternative for SSH on OpenBSD). This is an automatically generated list from users reporting failed authentication attempts. An IP seems to be included if 3 or more users report it. Its retention pocily seems 30 days." \
 	"danger.rulez.sk" "http://danger.rulez.sk/index.php/bruteforceblocker/"
+
+
+# -----------------------------------------------------------------------------
+# PacketMail
+# https://www.packetmail.net/iprep.txt
+
+parse_packetmail() { remove_comments | cut -d ';' -f 1; }
+
+update packetmail $[4*60] 0 ipv4 ip \
+	"https://www.packetmail.net/iprep.txt" \
+	 parse_packetmail \
+	"reputation" \
+	"[PacketMail.net](https://www.packetmail.net/iprep.txt) IP addresses have been detected performing TCP SYN to 206.82.85.196/30 to a non-listening service or daemon. No assertion is made, nor implied, that any of the below listed IP addresses are accurate, malicious, hostile, or engaged in nefarious acts. Use this list at your own risk." \
+	"PacketMail.net" "https://www.packetmail.net/iprep.txt"
 
 
 # -----------------------------------------------------------------------------
