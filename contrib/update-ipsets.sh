@@ -263,7 +263,7 @@ CACHE_DIR="/var/lib/update-ipsets"
 
 # where is the web url to show info about each ipset
 # the ipset name is appended to it
-WEB_URL="http://ktsaou.github.io/blocklist-ipsets/?ipset="
+WEB_URL="http://iplists.firehol.org/?ipset="
 WEB_URL2="https://ktsaou.github.io/blocklist-ipsets/?ipset="
 
 GITHUB_LOCAL_COPY_URL="https://raw.githubusercontent.com/ktsaou/blocklist-ipsets/master/"
@@ -858,7 +858,7 @@ cache_remove_ipset() {
 }
 
 ipset_json() {
-	local ipset="${1}" geolite2= ipdeny= comparison= info=
+	local ipset="${1}" geolite2= ipdeny= ip2location= comparison= info=
 
 	if [ -f "${RUN_DIR}/${ipset}_geolite2_country.json" ]
 		then
@@ -868,6 +868,11 @@ ipset_json() {
 	if [ -f "${RUN_DIR}/${ipset}_ipdeny_country.json" ]
 		then
 		ipdeny="${ipset}_ipdeny_country.json"
+	fi
+
+	if [ -f "${RUN_DIR}/${ipset}_ip2location_country.json" ]
+		then
+		ip2location="${ipset}_ip2location_country.json"
 	fi
 
 	if [ -f "${RUN_DIR}/${ipset}_comparison.json" ]
@@ -907,6 +912,7 @@ ipset_json() {
 	"history": "${ipset}_history.csv",
 	"geolite2": "${geolite2}",
 	"ipdeny": "${ipdeny}",
+	"ip2location": "${ip2location}",
 	"comparison": "${comparison}",
 	"file_local": "${file_local}",
 	"commit_history": "${commit_history}"
@@ -1143,7 +1149,7 @@ update_web() {
 	[ -z "${WEB_DIR}" -o ! -d "${WEB_DIR}" ] && return 1
 	[ "${#UPDATED_SETS[@]}" -eq 0 -a ! ${FORCE_WEB_REBUILD} -eq 1 ] && return 1
 
-	local x= all=() geolite2_country=() ipdeny_country=() i= to_all=
+	local x= all=() geolite2_country=() ipdeny_country=() ip2location_country=() i= to_all=
 
 cat >${RUN_DIR}/sitemap.xml <<EOFSITEMAPA
 <?xml version="1.0" encoding="UTF-8"?>
@@ -1223,6 +1229,7 @@ fi
 				*)				i= ;;
 			esac
 			[ ! -z "${i}" ] && geolite2_country=("${geolite2_country[@]}" "${IPSET_FILE[$x]}" "as" "${i^^}")
+		
 		elif [[ "${IPSET_FILE[$x]}" =~ ^ipdeny_country.* ]]
 			then
 			to_all=0
@@ -1232,6 +1239,16 @@ fi
 				*)				i= ;;
 			esac
 			[ ! -z "${i}" ] && ipdeny_country=("${ipdeny_country[@]}" "${IPSET_FILE[$x]}" "as" "${i^^}")
+		
+		elif [[ "${IPSET_FILE[$x]}" =~ ^ip2location_country.* ]]
+			then
+			to_all=0
+			case "${x}" in
+				ip2location_country_*)		i=${x/ip2location_country_/} ;;
+				ip2location_continent_*)	i= ;;
+				*)							i= ;;
+			esac
+			[ ! -z "${i}" ] && ip2location_country=("${ip2location_country[@]}" "${IPSET_FILE[$x]}" "as" "${i^^}")
 		fi
 
 		if [ ${to_all} -eq 1 ]
@@ -1354,6 +1371,29 @@ fi
 		printf "\n]\n" >>${x}
 	done
 
+	printf >&2 "comparing ip2location country... "
+	"${IPRANGE_CMD}" "${all[@]}" --compare-next "${ip2location_country[@]}" |\
+		sort |\
+		while IFS="," read name1 name2 entries1 entries2 ips1 ips2 combined common
+		do
+			if [ ${common} -gt 0 ]
+				then
+				if [ ! -f "${RUN_DIR}/${name1}_ip2location_country.json" ]
+					then
+					printf "[\n" >"${RUN_DIR}/${name1}_ip2location_country.json"
+				else
+					printf ",\n" >>"${RUN_DIR}/${name1}_ip2location_country.json"
+				fi
+
+				printf "	{\n		\"code\": \"${name2}\",\n		\"value\": ${common}\n	}" >>"${RUN_DIR}/${name1}_ip2location_country.json"
+			fi
+		done
+	echo >&2
+	for x in $(find "${RUN_DIR}" -name \*_ip2location_country.json)
+	do
+		printf "\n]\n" >>${x}
+	done
+
 	printf >&2 "generating javascript info... "
 	for x in "${!IPSET_FILE[@]}"
 	do
@@ -1370,6 +1410,7 @@ fi
 		
 		[[ "${IPSET_FILE[$x]}" =~ ^geolite2.* ]] && continue
 		[[ "${IPSET_FILE[$x]}" =~ ^ipdeny.* ]] && continue
+		[[ "${IPSET_FILE[$x]}" =~ ^ip2location.* ]] && continue
 
 		retention_detect "${x}" >"${RUN_DIR}/${x}_retention.json" || rm "${RUN_DIR}/${x}_retention.json"
 
@@ -1909,7 +1950,7 @@ rename_ipset() {
 
 	if [ -d "${WEB_DIR}" ]
 		then
-		for x in _comparison.json _geolite2_country.json _history.csv _ipdeny_country.json retention.json .json
+		for x in _comparison.json _geolite2_country.json _ipdeny_country.json _ip2location_country.json _history.csv retention.json .json
 		do
 			if [ -f "${WEB_DIR}/${old}${x}" -a ! -f "${WEB_DIR}/${new}${x}" ]
 				then
@@ -2461,6 +2502,131 @@ ipdeny_country() {
 	return 0
 }
 
+declare -A IP2LOCATION_COUNTRY_NAMES=()
+declare -A IP2LOCATION_COUNTRY_CONTINENTS='([um]="na" [fk]="sa" [ax]="eu" [as]="oc" [ge]="as" [ar]="sa" [gd]="na" [dm]="na" [kp]="as" [rw]="af" [gg]="eu" [qa]="as" [ni]="na" [do]="na" [gf]="sa" [ru]="eu" [kr]="as" [aw]="na" [ga]="af" [rs]="eu" [no]="eu" [nl]="eu" [au]="oc" [kw]="as" [dj]="af" [at]="eu" [gb]="eu" [dk]="eu" [ky]="na" [gm]="af" [ug]="af" [gl]="na" [de]="eu" [nc]="oc" [az]="as" [hr]="eu" [na]="af" [gn]="af" [kz]="as" [et]="af" [ht]="na" [es]="eu" [gi]="eu" [nf]="oc" [ng]="af" [gh]="af" [hu]="eu" [er]="af" [ua]="eu" [ne]="af" [yt]="af" [gu]="oc" [nz]="oc" [om]="as" [gt]="na" [gw]="af" [hk]="as" [re]="af" [ag]="na" [gq]="af" [ke]="af" [gp]="na" [uz]="as" [af]="as" [hn]="na" [uy]="sa" [dz]="af" [kg]="as" [ae]="as" [ad]="eu" [gr]="eu" [ki]="oc" [nr]="oc" [eg]="af" [kh]="as" [ro]="eu" [ai]="na" [np]="as" [ee]="eu" [us]="na" [ec]="sa" [gy]="sa" [ao]="af" [km]="af" [am]="as" [ye]="as" [nu]="oc" [kn]="na" [al]="eu" [si]="eu" [fr]="eu" [bf]="af" [mw]="af" [cy]="eu" [vc]="na" [mv]="as" [bg]="eu" [pr]="na" [sk]="eu" [bd]="as" [mu]="af" [ps]="as" [va]="eu" [cz]="eu" [be]="eu" [mt]="eu" [zm]="af" [ms]="na" [bb]="na" [sm]="eu" [pt]="eu" [io]="as" [vg]="na" [sl]="af" [mr]="af" [la]="as" [in]="as" [ws]="oc" [mq]="na" [im]="eu" [lb]="as" [tz]="af" [so]="af" [mp]="oc" [ve]="sa" [lc]="na" [ba]="eu" [sn]="af" [pw]="oc" [il]="as" [tt]="na" [bn]="as" [sa]="as" [bo]="sa" [py]="sa" [bl]="na" [tv]="oc" [sc]="af" [vi]="na" [cr]="na" [bm]="na" [sb]="oc" [tw]="as" [cu]="na" [se]="eu" [bj]="af" [vn]="as" [li]="eu" [mz]="af" [sd]="af" [cw]="na" [ie]="eu" [sg]="as" [jp]="as" [my]="as" [tr]="as" [bh]="as" [mx]="na" [cv]="af" [id]="as" [lk]="as" [za]="af" [bi]="af" [ci]="af" [tl]="oc" [mg]="af" [lt]="eu" [sy]="as" [sx]="na" [pa]="na" [mf]="na" [lu]="eu" [ch]="eu" [tm]="as" [bw]="af" [jo]="as" [me]="eu" [tn]="af" [ck]="oc" [bt]="as" [lv]="eu" [wf]="oc" [to]="oc" [jm]="na" [sz]="af" [md]="eu" [br]="sa" [mc]="eu" [cm]="af" [th]="as" [pe]="sa" [cl]="sa" [bs]="na" [pf]="oc" [co]="sa" [ma]="af" [lr]="af" [tj]="as" [bq]="na" [tk]="oc" [vu]="oc" [pg]="oc" [cn]="as" [ls]="af" [ca]="na" [is]="eu" [td]="af" [fj]="oc" [mo]="as" [ph]="as" [mn]="as" [zw]="af" [ir]="as" [ss]="af" [mm]="as" [iq]="as" [sr]="sa" [je]="eu" [ml]="af" [tg]="af" [pk]="as" [fi]="eu" [bz]="na" [pl]="eu" [mk]="eu" [pm]="na" [fo]="eu" [st]="af" [ly]="af" [cd]="af" [cg]="af" [sv]="na" [tc]="na" [it]="eu" [fm]="oc" [mh]="oc" [by]="eu" [cf]="af" )'
+declare -A IP2LOCATION_COUNTRIES=()
+declare -A IP2LOCATION_CONTINENTS=()
+ip2location_country() {
+	local ipset="ip2location_country" type="both" hash="net" ipv="ipv4" \
+		mins=$[24 * 60 * 1] history_mins=0 \
+		url="http://download.ip2location.com/lite/IP2LOCATION-LITE-DB1.CSV.ZIP" \
+		info="[IP2Location.com](http://lite.ip2location.com/database-ip-country)"
+
+	if [ ! -f "${ipset}.source" ]
+	then
+		if [ ${ENABLE_ALL} -eq 1 ]
+			then
+			touch -t 0001010000 "${BASE_DIR}/${ipset}.source" || return 1
+		else
+			echo >&2 "${ipset}: is disabled, to enable it run: touch -t 0001010000 '${BASE_DIR}/${ipset}.source'"
+			return 1
+		fi
+	fi
+
+	# download it
+	download_manager "${ipset}" "${mins}" "${url}"
+	if [ $? -eq ${DOWNLOAD_FAILED} -o $? -eq ${DOWNLOAD_NOT_UPDATED} ]
+		then
+		[ ! -s "${ipset}.source" ] && return 1
+		[ -d ${ipset} -a ${REPROCESS_ALL} -eq 0 ] && return 1
+	fi
+
+	# create a temp dir
+	[ -d ${ipset}.tmp ] && rm -rf ${ipset}.tmp
+	mkdir ${ipset}.tmp || return 1
+
+	# extract it - in a subshell to do it in the tmp dir
+	( cd "${BASE_DIR}/${ipset}.tmp" && unzip -x "${BASE_DIR}/${ipset}.source" )
+	local file="${ipset}.tmp/IP2LOCATION-LITE-DB1.CSV"
+
+	if [ ! -f "${file}" ]
+		then
+		echo >&2 "${ipset}: failed to find file ${file/*\//} in downloaded archive"
+		rm -rf "${ipset}.tmp"
+		return 1
+	fi
+
+	# create the final dir
+	if [ ! -d ${ipset} ]
+	then
+		mkdir ${ipset} || return 1
+	fi
+
+	# find all the countries in the file
+
+	echo >&2 "${ipset}: Finding included countries..."
+	cat "${file}" | cut -d ',' -f 3,4 | sort -u | sed 's/","/|/g' | tr '"\r' '  ' | trim >"${ipset}.tmp/countries"
+	local code= name=
+	while IFS="|" read code name
+	do
+		if [ "a${code}" = "a-" ]
+			then
+			name="IPs that do not belong to any country"
+		fi
+
+		IP2LOCATION_COUNTRY_NAMES[${code}]="${name}"
+	done <"${ipset}.tmp/countries"
+
+	echo >&2 "${ipset}: Extracting countries..."
+	local x=
+	for x in ${!IP2LOCATION_COUNTRY_NAMES[@]}
+	do
+		if [ "a${x}" = "a-" ]
+			then
+			code="countryless"
+			name="IPs that do not belong to any country"
+		else
+			code="${x,,}"
+			name=${IP2LOCATION_COUNTRY_NAMES[${x}]}
+		fi
+
+		echo >&2 "${ipset}: extracting from '${file}' country '${x}' (code='${code}', name='${name}')..."
+		cat "${file}" 			|\
+			grep ",\"${x}\"," 	|\
+			cut -d ',' -f 1,2 	|\
+			sed 's/","/ - /g' 	|\
+			tr '"' ' ' 			|\
+			"${IPRANGE_CMD}" 	|\
+			filter_invalid4 >"${ipset}.tmp/ip2location_country_${code}.source.tmp"
+
+		if [ ! -z "${IP2LOCATION_COUNTRY_CONTINENTS[${code}]}" ]
+			then
+			[ ! -f "${ipset}.tmp/id_continent_${IP2LOCATION_COUNTRY_CONTINENTS[${code}]}.source.tmp.info" ] && printf "%s" "Continent ${IP2LOCATION_COUNTRY_CONTINENTS[${code}]}, with countries: " >"${ipset}.tmp/id_continent_${IP2LOCATION_COUNTRY_CONTINENTS[${code}]}.source.tmp.info"
+			printf "%s" "${IP2LOCATION_COUNTRY_NAMES[${code}]} (${code^^}), " >>"${ipset}.tmp/ip2location_continent_${IP2LOCATION_COUNTRY_CONTINENTS[${code}]}.source.tmp.info"
+			cat "${ipset}.tmp/ip2location_country_${code}.source.tmp" >>"${ipset}.tmp/ip2location_continent_${IP2LOCATION_COUNTRY_CONTINENTS[${code}]}.source.tmp"
+			IP2LOCATION_CONTINENTS[${IP2LOCATION_COUNTRY_CONTINENTS[${code}]}]="1"
+		else
+			echo >&2 "${ipset}: I don't know the continent of country ${code}."
+		fi
+
+		printf "%s" "${IP2LOCATION_COUNTRY_NAMES[${code}]} (${code^^})" >"${ipset}.tmp/ip2location_country_${code}.source.tmp.info"
+	done
+
+	echo >&2 "${ipset}: Aggregating country and continent netsets..."
+	for x in ${ipset}.tmp/*.source.tmp
+	do
+		mv "${x}" "${x/.source.tmp/.source}"
+		touch -r "${ipset}.source" "${x/.source.tmp/.source}"
+
+		local i=${x/.source.tmp/}
+		i=${i/${ipset}.tmp\//}
+
+		local info2="`cat "${x}.info"` -- ${info}"
+
+		finalize "${i}" "${x/.source.tmp/.source}" "${ipset}/${i}.setinfo" "${ipset}.source" "${ipset}/${i}.netset" "${mins}" "${history_mins}" "${ipv}" "${type}" "${hash}" "${url}" "geolocation" "${info2}" "IP2Location.com" "http://lite.ip2location.com/database-ip-country"
+	done
+
+	if [ -d .git ]
+	then
+		# generate a setinfo for the home page
+		echo >"${ipset}.setinfo" "[${ipset}](https://github.com/ktsaou/blocklist-ipsets/tree/master/ip2location_country)|[IP2Location.com](http://lite.ip2location.com/database-ip-country) geolocation database|ipv4 hash:net|All the world|updated every `mins_to_text ${mins}` from [this link](${url})"
+	fi
+
+	# remove the temporary dir
+	rm -rf "${ipset}.tmp"
+
+	return 0
+}
 
 # -----------------------------------------------------------------------------
 # MERGE two or more ipsets
@@ -2575,6 +2741,12 @@ geolite2_country
 # IPDeny.com
 
 ipdeny_country
+
+
+# -----------------------------------------------------------------------------
+# IP2Location.com
+
+ip2location_country
 
 
 # -----------------------------------------------------------------------------
