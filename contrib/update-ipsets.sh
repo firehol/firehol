@@ -1161,7 +1161,7 @@ update_web() {
 	[ -z "${WEB_DIR}" -o ! -d "${WEB_DIR}" ] && return 1
 	[ "${#UPDATED_SETS[@]}" -eq 0 -a ! ${FORCE_WEB_REBUILD} -eq 1 ] && return 1
 
-	local x= all=() geolite2_country=() ipdeny_country=() ip2location_country=() i= to_all=
+	local x= all=() updated=() geolite2_country=() ipdeny_country=() ip2location_country=() i= to_all=
 
 cat >${RUN_DIR}/sitemap.xml <<EOFSITEMAPA
 <?xml version="1.0" encoding="UTF-8"?>
@@ -1266,6 +1266,7 @@ fi
 		if [ ${to_all} -eq 1 ]
 			then
 			all=("${all[@]}" "${IPSET_FILE[$x]}" "as" "${x}")
+			[ ! -z "${UPDATED_SETS[${x}]}" ] && updated=("${updated[@]}" "${IPSET_FILE[$x]}" "as" "${x}")
 
 			if [ ! -f "${RUN_DIR}/all-ipsets.json" ]
 				then
@@ -1307,6 +1308,9 @@ fi
 	echo '</urlset>' >>"${RUN_DIR}/sitemap.xml"
 	echo >&2
 
+	#echo >&2 "ALL: ${all[@]}"
+	#echo >&2 "UPDATED: ${updated[@]}"
+
 	printf >&2 "comparing ipsets... "
 	"${IPRANGE_CMD}" --compare "${all[@]}" |\
 		sort |\
@@ -1338,7 +1342,7 @@ fi
 	done
 
 	printf >&2 "comparing geolite2 country... "
-	"${IPRANGE_CMD}" "${all[@]}" --compare-next "${geolite2_country[@]}" |\
+	"${IPRANGE_CMD}" "${updated[@]}" --compare-next "${geolite2_country[@]}" |\
 		sort |\
 		while IFS="," read name1 name2 entries1 entries2 ips1 ips2 combined common
 		do
@@ -1361,7 +1365,7 @@ fi
 	done
 
 	printf >&2 "comparing ipdeny country... "
-	"${IPRANGE_CMD}" "${all[@]}" --compare-next "${ipdeny_country[@]}" |\
+	"${IPRANGE_CMD}" "${updated[@]}" --compare-next "${ipdeny_country[@]}" |\
 		sort |\
 		while IFS="," read name1 name2 entries1 entries2 ips1 ips2 combined common
 		do
@@ -1384,7 +1388,7 @@ fi
 	done
 
 	printf >&2 "comparing ip2location country... "
-	"${IPRANGE_CMD}" "${all[@]}" --compare-next "${ip2location_country[@]}" |\
+	"${IPRANGE_CMD}" "${updated[@]}" --compare-next "${ip2location_country[@]}" |\
 		sort |\
 		while IFS="," read name1 name2 entries1 entries2 ips1 ips2 combined common
 		do
@@ -3992,34 +3996,112 @@ badipscom
 # SORBS test
 
 # this is a test - it does not work without another script that rsyncs files from sorbs.net
+# we don't have yet the license to add this script here
+# (the script is ours, but sorbs.net is very sceptical about this)
 
 DO_NOT_REDISTRIBUTE[sorbs_dul.netset]="1"
-update sorbs_dul 1 0 ipv4 both "" remove_comments "tests" "[Sorbs.net](https://www.sorbs.net/) DUL, Dynamic User IPs extracted from deltas." "Sorbs.net" "https://www.sorbs.net/"
+update sorbs_dul 1 0 ipv4 both "" \
+	cat \
+	"spam" "[Sorbs.net](https://www.sorbs.net/) Dynamic IP Addresses." \
+	"Sorbs.net" "https://www.sorbs.net/"
 
-DO_NOT_REDISTRIBUTE[sorbs_http.netset]="1"
-update sorbs_http 1 0 ipv4 both "" remove_comments "tests" "[Sorbs.net](https://www.sorbs.net/) HTTP proxies, extracted from deltas." "Sorbs.net" "https://www.sorbs.net/"
+#DO_NOT_REDISTRIBUTE[sorbs_socks.netset]="1"
+#update sorbs_socks 1 0 ipv4 both "" \
+#	cat \
+#	"anonymizers" \
+#	"[Sorbs.net](https://www.sorbs.net/) List of open SOCKS proxy servers." \
+#	"Sorbs.net" "https://www.sorbs.net/"
 
-DO_NOT_REDISTRIBUTE[sorbs_misc.netset]="1"
-update sorbs_misc 1 0 ipv4 both "" remove_comments "tests" "[Sorbs.net](https://www.sorbs.net/) MISC proxies, extracted from deltas." "Sorbs.net" "https://www.sorbs.net/"
+#DO_NOT_REDISTRIBUTE[sorbs_http.netset]="1"
+#update sorbs_http 1 0 ipv4 both "" \
+#	cat \
+#	"anonymizers" \
+#	"[Sorbs.net](https://www.sorbs.net/) List of open HTTP proxies." \
+#	"Sorbs.net" "https://www.sorbs.net/"
+
+#DO_NOT_REDISTRIBUTE[sorbs_misc.netset]="1"
+#update sorbs_misc 1 0 ipv4 both "" \
+#	cat \
+#	"anonymizers" \
+#	"[Sorbs.net](https://www.sorbs.net/) List of open proxy servers (not listed in HTTP or SOCKS)." \
+#	"Sorbs.net" "https://www.sorbs.net/"
+
+# all the above are here:
+DO_NOT_REDISTRIBUTE[sorbs_anonymizers.netset]="1"
+update sorbs_anonymizers 1 0 ipv4 both "" \
+	cat \
+	"spam" \
+	"[Sorbs.net](https://www.sorbs.net/) List of open HTTP and SOCKS proxies." \
+	"Sorbs.net" "https://www.sorbs.net/"
+
+DO_NOT_REDISTRIBUTE[sorbs_zombie.netset]="1"
+update sorbs_zombie 1 0 ipv4 both "" \
+	cat \
+	"spam" \
+	"[Sorbs.net](https://www.sorbs.net/) List of networks hijacked from their original owners, some of which have already used for spamming." \
+	"Sorbs.net" "https://www.sorbs.net/"
 
 DO_NOT_REDISTRIBUTE[sorbs_smtp.netset]="1"
-update sorbs_smtp 1 0 ipv4 both "" remove_comments "tests" "[Sorbs.net](https://www.sorbs.net/) SMTP Open Relays, extracted from deltas." "Sorbs.net" "https://www.sorbs.net/"
+update sorbs_smtp 1 0 ipv4 both "" \
+	cat "spam" "[Sorbs.net](https://www.sorbs.net/) List of SMTP Open Relays." \
+	"Sorbs.net" "https://www.sorbs.net/"
 
-DO_NOT_REDISTRIBUTE[sorbs_socks.netset]="1"
-update sorbs_socks 1 0 ipv4 both "" remove_comments "tests" "[Sorbs.net](https://www.sorbs.net/) SOCKS proxies, extracted from deltas." "Sorbs.net" "https://www.sorbs.net/"
+# this is HUGE !!!
+#DO_NOT_REDISTRIBUTE[sorbs_spam.netset]="1"
+#update sorbs_spam 1 0 ipv4 both "" \
+#	remove_comments \
+#	"spam" \
+#	"[Sorbs.net](https://www.sorbs.net/) List of hosts that have been noted as sending spam/UCE/UBE at any time, and not subsequently resolving the matter and/or requesting a delisting. (Includes both sorbs_old_spam and sorbs_escalations)." \
+#	"Sorbs.net" "https://www.sorbs.net/"
 
-DO_NOT_REDISTRIBUTE[sorbs_spam.netset]="1"
-update sorbs_spam 1 0 ipv4 both "" remove_comments "tests" "[Sorbs.net](https://www.sorbs.net/) Spam senders, extracted from deltas." "Sorbs.net" "https://www.sorbs.net/"
+#DO_NOT_REDISTRIBUTE[sorbs_old_spam.netset]="1"
+#update sorbs_old_spam 1 0 ipv4 both "" \
+#	remove_comments \
+#	"spam" \
+#	"[Sorbs.net](https://www.sorbs.net/) List of hosts that have been noted as sending spam/UCE/UBE within the last year. (includes sorbs_recent_spam)." \
+#	"Sorbs.net" "https://www.sorbs.net/"
 
 DO_NOT_REDISTRIBUTE[sorbs_new_spam.netset]="1"
-update sorbs_new_spam 1 0 ipv4 both "" remove_comments "tests" "[Sorbs.net](https://www.sorbs.net/) NEW Spam senders, extracted from deltas." "Sorbs.net" "https://www.sorbs.net/"
+update sorbs_new_spam 1 0 ipv4 both "" \
+	cat \
+	"spam" \
+	"[Sorbs.net](https://www.sorbs.net/) List of hosts that have been noted as sending spam/UCE/UBE within the last 48 hours" \
+	"Sorbs.net" "https://www.sorbs.net/"
 
 DO_NOT_REDISTRIBUTE[sorbs_recent_spam.netset]="1"
-update sorbs_recent_spam 1 0 ipv4 both "" remove_comments "tests" "[Sorbs.net](https://www.sorbs.net/) RECENT Spam senders, extracted from deltas." "Sorbs.net" "https://www.sorbs.net/"
+update sorbs_recent_spam 1 0 ipv4 both "" \
+	cat \
+	"spam" \
+	"[Sorbs.net](https://www.sorbs.net/) List of hosts that have been noted as sending spam/UCE/UBE within the last 28 days (includes sorbs_new_spam)" \
+	"Sorbs.net" "https://www.sorbs.net/"
 
 DO_NOT_REDISTRIBUTE[sorbs_web.netset]="1"
-update sorbs_web 1 0 ipv4 both "" remove_comments "tests" "[Sorbs.net](https://www.sorbs.net/) WEB exploits, extracted from deltas." "Sorbs.net" "https://www.sorbs.net/"
+update sorbs_web 1 0 ipv4 both "" \
+	cat \
+	"spam" \
+	"[Sorbs.net](https://www.sorbs.net/) List of IPs which have spammer abusable vulnerabilities (e.g. FormMail scripts)" \
+	"Sorbs.net" "https://www.sorbs.net/"
 
+DO_NOT_REDISTRIBUTE[sorbs_escalations.netset]="1"
+update sorbs_escalations 1 0 ipv4 both "" \
+	cat \
+	"spam" \
+	"[Sorbs.net](https://www.sorbs.net/) Netblocks of spam supporting service providers, including those who provide websites, DNS or drop boxes for a spammer. Spam supporters are added on a 'third strike and you are out' basis, where the third spam will cause the supporter to be added to the list." \
+	"Sorbs.net" "https://www.sorbs.net/"
+
+DO_NOT_REDISTRIBUTE[sorbs_noserver.netset]="1"
+update sorbs_noserver 1 0 ipv4 both "" \
+	cat \
+	"spam" \
+	"[Sorbs.net](https://www.sorbs.net/) IP addresses and Netblocks of where system administrators and ISPs owning the network have indicated that servers should not be present." \
+	"Sorbs.net" "https://www.sorbs.net/"
+
+DO_NOT_REDISTRIBUTE[sorbs_block.netset]="1"
+update sorbs_block 1 0 ipv4 both "" \
+	cat \
+	"spam" \
+	"[Sorbs.net](https://www.sorbs.net/) List of hosts demanding that they never be tested by SORBS." \
+	"Sorbs.net" "https://www.sorbs.net/"
 
 # -----------------------------------------------------------------------------
 # FireHOL lists
