@@ -808,15 +808,22 @@ declare -A IPSET_CATEGORY=()
 declare -A IPSET_MAINTAINER=()
 declare -A IPSET_MAINTAINER_URL=()
 
+declare -A IPSET_LICENSE=()
+declare -A IPSET_GRADE=()
+declare -A IPSET_PROTECTION=()
+declare -A IPSET_INTENDED_USE=()
+declare -A IPSET_FALSE_POSITIVES=()
+declare -A IPSET_POISONING=()
+declare -A IPSET_ENTRIES_MIN=()
+declare -A IPSET_ENTRIES_MAX=()
+declare -A IPSET_IPS_MIN=()
+declare -A IPSET_IPS_MAX=()
+declare -A IPSET_STARTED_DATE=()
+
 # TODO - FIXME
 #declare -A IPSET_PREFIXES=()
 #declare -A IPSET_DOWNLOADER=()
 #declare -A IPSET_DOWNLOADER_OPTIONS=()
-#declare -A IPSET_ENTRIES_MIN=()
-#declare -A IPSET_ENTRIES_MAX=()
-#declare -A IPSET_IPS_MIN=()
-#declare -A IPSET_IPS_MAX=()
-#declare -A IPSET_STARTED_DATE=()
 
 cache_save() {
 	#echo >&2 "Saving cache"
@@ -836,6 +843,17 @@ cache_save() {
 		IPSET_CATEGORY \
 		IPSET_MAINTAINER \
 		IPSET_MAINTAINER_URL \
+		IPSET_LICENSE \
+		IPSET_GRADE \
+		IPSET_PROTECTION \
+		IPSET_INTENDED_USE \
+		IPSET_FALSE_POSITIVES \
+		IPSET_POISONING \
+		IPSET_ENTRIES_MIN \
+		IPSET_ENTRIES_MAX \
+		IPSET_IPS_MIN \
+		IPSET_IPS_MAX \
+		IPSET_STARTED_DATE \
 		>"${BASE_DIR}/.cache"
 }
 
@@ -865,6 +883,17 @@ cache_remove_ipset() {
 	unset IPSET_CATEGORY[${ipset}]
 	unset IPSET_MAINTAINER[${ipset}]
 	unset IPSET_MAINTAINER_URL[${ipset}]
+	unset IPSET_LICENSE[${ipset}]
+	unset IPSET_GRADE[${ipset}]
+	unset IPSET_PROTECTION[${ipset}]
+	unset IPSET_INTENDED_USE[${ipset}]
+	unset IPSET_FALSE_POSITIVES[${ipset}]
+	unset IPSET_POISONING[${ipset}]
+	unset IPSET_ENTRIES_MIN[${ipset}]
+	unset IPSET_ENTRIES_MAX[${ipset}]
+	unset IPSET_IPS_MIN[${ipset}]
+	unset IPSET_IPS_MAX[${ipset}]
+	unset IPSET_STARTED_DATE[${ipset}]
 
 	cache_save
 }
@@ -904,15 +933,44 @@ ipset_json() {
 		commit_history="${GITHUB_CHANGES_URL}${IPSET_FILE[${ipset}]}"
 	fi
 
+	if [ -z "${IPSET_ENTRIES_MIN[${ipset}]}" ]
+		then
+		IPSET_ENTRIES_MIN[${ipset}]="${IPSET_ENTRIES[${ipset}]}"
+	fi
+	if [ -z "${IPSET_ENTRIES_MAX[${ipset}]}" ]
+		then
+		IPSET_ENTRIES_MAX[${ipset}]="${IPSET_ENTRIES[${ipset}]}"
+	fi
+
+	if [ -z "${IPSET_IPS_MIN[${ipset}]}" ]
+		then
+		IPSET_IPS_MIN[${ipset}]="${IPSET_IPS[${ipset}]}"
+	fi
+	if [ -z "${IPSET_IPS_MAX[${ipset}]}" ]
+		then
+		IPSET_IPS_MAX[${ipset}]="${IPSET_IPS[${ipset}]}"
+	fi
+
+	if [ -z "${IPSET_STARTED_DATE[${ipset}]}" ]
+		then
+		IPSET_STARTED_DATE[${ipset}]="${IPSET_SOURCE_DATE[${ipset}]}"
+	fi
+
+
 	cat <<EOFJSON
 {
 	"name": "${ipset}",
 	"entries": ${IPSET_ENTRIES[${ipset}]},
+	"entries_min": ${IPSET_ENTRIES_MIN[${ipset}]},
+	"entries_max": ${IPSET_ENTRIES_MAX[${ipset}]},
 	"ips": ${IPSET_IPS[${ipset}]},
+	"ips_min": ${IPSET_IPS_MIN[${ipset}]},
+	"ips_max": ${IPSET_IPS_MAX[${ipset}]},
 	"ipv": "${IPSET_IPV[${ipset}]}",
 	"hash": "${IPSET_HASH[${ipset}]}",
 	"frequency": ${IPSET_MINS[${ipset}]},
 	"aggregation": ${IPSET_HISTORY_MINS[${ipset}]},
+	"started": ${IPSET_STARTED_DATE[${ipset}]}000,
 	"updated": ${IPSET_SOURCE_DATE[${ipset}]}000,
 	"processed": ${IPSET_PROCESSED_DATE[${ipset}]}000,
 	"category": "${IPSET_CATEGORY[${ipset}]}",
@@ -927,9 +985,29 @@ ipset_json() {
 	"ip2location": "${ip2location}",
 	"comparison": "${comparison}",
 	"file_local": "${file_local}",
-	"commit_history": "${commit_history}"
+	"commit_history": "${commit_history}",
+	"license": "${IPSET_LICENSE[${ipset}]}",
+	"grade": "${IPSET_GRADE[${ipset}]}",
+	"protection": "${IPSET_PROTECTION[${ipset}]}",
+	"intended_use": "${IPSET_INTENDED_USE[${ipset}]}",
+	"false_positives": "${IPSET_FALSE_POSITIVES[${ipset}]}",
+	"poisoning": "${IPSET_POISONING[${ipset}]}"
 }
 EOFJSON
+}
+
+ipset_json_index() {
+	local ipset="${1}"
+
+cat <<EOFALL
+	{
+		"ipset": "${ipset}",
+		"category": "${IPSET_CATEGORY[${ipset}]}",
+		"maintainer": "${IPSET_MAINTAINER[${ipset}]}",
+		"updated": ${IPSET_SOURCE_DATE[${ipset}]}000,
+		"ips": ${IPSET_IPS[${ipset}]}
+EOFALL
+printf "	}"
 }
 
 # array to store hourly retention of past IPs
@@ -989,6 +1067,13 @@ retention_detect() {
 	if [ -f "${CACHE_DIR}/${ipset}/histogram" ]
 		then
 		source "${CACHE_DIR}/${ipset}/histogram"
+
+		if [ -z "${IPSET_STARTED_DATE[${ipset}]}" -o "${IPSET_STARTED_DATE[${ipset}]}" -gt "${RETENTION_HISTOGRAM_STARTED}" ]
+			then
+			# this is a bit stupid here
+			# but anyway is a way to get the real date we started monitoring this ipset
+			IPSET_STARTED_DATE[${ipset}]="${RETENTION_HISTOGRAM_STARTED}"
+		fi
 	fi
 
 	ndate=$(date -r "${IPSET_FILE[${ipset}]}" +%s)
@@ -1155,13 +1240,8 @@ params_sort() {
 	done | sort
 }
 
-update_web() {
-	local sitemap_date="$(date -I)"
-
-	[ -z "${WEB_DIR}" -o ! -d "${WEB_DIR}" ] && return 1
-	[ "${#UPDATED_SETS[@]}" -eq 0 -a ! ${FORCE_WEB_REBUILD} -eq 1 ] && return 1
-
-	local x= all=() updated=() geolite2_country=() ipdeny_country=() ip2location_country=() i= to_all=
+sitemap_init() {
+	local sitemap_date="${1}"
 
 cat >${RUN_DIR}/sitemap.xml <<EOFSITEMAPA
 <?xml version="1.0" encoding="UTF-8"?>
@@ -1183,6 +1263,40 @@ cat >>"${RUN_DIR}/sitemap.xml" <<EOFSITEMAPB
 	</url>
 EOFSITEMAPB
 fi
+}
+
+sitemap_ipset() {
+	local ipset="${1}" sitemap_date="${2}"
+
+cat >>"${RUN_DIR}/sitemap.xml" <<EOFSITEMAP1
+	<url>
+		<loc>${WEB_URL}${ipset}</loc>
+		<lastmod>${sitemap_date}</lastmod>
+		<changefreq>always</changefreq>
+	</url>
+EOFSITEMAP1
+
+if [ ! -z "${WEB_URL2}" ]
+then
+cat >>"${RUN_DIR}/sitemap.xml" <<EOFSITEMAP2
+	<url>
+		<loc>${WEB_URL2}${ipset}</loc>
+		<lastmod>${sitemap_date}</lastmod>
+		<changefreq>always</changefreq>
+	</url>
+EOFSITEMAP2
+fi
+}
+
+update_web() {
+	local sitemap_date="$(date -I)"
+
+	[ -z "${WEB_DIR}" -o ! -d "${WEB_DIR}" ] && return 1
+	[ "${#UPDATED_SETS[@]}" -eq 0 -a ! ${FORCE_WEB_REBUILD} -eq 1 ] && return 1
+
+	local x= all=() updated=() geolite2_country=() ipdeny_country=() ip2location_country=() i= to_all=
+
+	sitemap_init "${sitemap_date}"
 
 	echo >&2
 	printf >&2 "updating history... "
@@ -1193,7 +1307,6 @@ fi
 			then
 			echo >&2 "${x}: file ${IPSET_FILE[$x]} not found - removing it from cache"
 			cache_remove_ipset "${x}"
-
 			continue
 		fi
 
@@ -1274,34 +1387,9 @@ fi
 			else
 				printf >>"${RUN_DIR}/all-ipsets.json" ",\n"
 			fi
-cat >>"${RUN_DIR}/all-ipsets.json" <<EOFALL
-	{
-		"ipset": "${x}",
-		"category": "${IPSET_CATEGORY[${x}]}",
-		"maintainer": "${IPSET_MAINTAINER[${x}]}",
-		"updated": ${IPSET_SOURCE_DATE[${x}]}000,
-		"ips": ${IPSET_IPS[${x}]}
-EOFALL
-printf "	}" >>"${RUN_DIR}/all-ipsets.json"
+			ipset_json_index "${x}" >>"${RUN_DIR}/all-ipsets.json"
 
-cat >>"${RUN_DIR}/sitemap.xml" <<EOFSITEMAP1
-	<url>
-		<loc>${WEB_URL}${x}</loc>
-		<lastmod>${sitemap_date}</lastmod>
-		<changefreq>always</changefreq>
-	</url>
-EOFSITEMAP1
-
-if [ ! -z "${WEB_URL2}" ]
-then
-cat >>"${RUN_DIR}/sitemap.xml" <<EOFSITEMAP2
-	<url>
-		<loc>${WEB_URL2}${x}</loc>
-		<lastmod>${sitemap_date}</lastmod>
-		<changefreq>always</changefreq>
-	</url>
-EOFSITEMAP2
-fi
+			sitemap_ipset "${x}" "${sitemap_date}"
 		fi
 	done
 	printf >>"${RUN_DIR}/all-ipsets.json" "\n]\n"
@@ -1552,12 +1640,49 @@ ipset_apply() {
 	return 0
 }
 
+ipset_attributes() {
+	local ipset="${1}"
+	shift
+
+	while [ ! -z "${1}" ]
+	do
+		case "${1}" in
+			category)			IPSET_CATEGORY[${ipset}]="${2}" ;;
+			maintainer)			IPSET_MAINTAINER[${ipset}]="${2}" ;;
+			maintainer_url)		IPSET_MAINTAINER_URL[${ipset}]="${2}" ;;
+			license)			IPSET_LICENSE[${ipset}]="${2}" ;;
+			grade)				IPSET_GRADE[${ipset}]="${2}" ;;
+			protection)			IPSET_PROTECTION[${ipset}]="${2}" ;;
+			intended_use)		IPSET_INTENDED_USE[${ipset}]="${2}" ;;
+			false_positives)	IPSET_FALSE_POSITIVES[${ipset}]="${2}" ;;
+			poisoning)			IPSET_POISONING[${ipset}]="${2}" ;;
+			*)	echo >&2 "${ipset}: Unknown ipset option '${1}' with value '${2}'." ;;
+		esac
+
+		shift 2
+	done
+
+	[ -z "${IPSET_LICENSE[${ipset}]}"         ] && IPSET_LICENSE[${ipset}]="unknown"
+	[ -z "${IPSET_GRADE[${ipset}]}"           ] && IPSET_GRADE[${ipset}]="unknown"
+	[ -z "${IPSET_PROTECTION[${ipset}]}"      ] && IPSET_PROTECTION[${ipset}]="unknown"
+	[ -z "${IPSET_INTENDED_USE[${ipset}]}"    ] && IPSET_INTENDED_USE[${ipset}]="unknown"
+	[ -z "${IPSET_FALSE_POSITIVES[${ipset}]}" ] && IPSET_FALSE_POSITIVES[${ipset}]="unknown"
+	[ -z "${IPSET_POISONING[${ipset}]}"       ] && IPSET_POISONING[${ipset}]="unknown"
+
+	return 0
+}
 
 # -----------------------------------------------------------------------------
 # finalize() is called when a successful download and convertion completes
 # to update the ipset in the kernel and possibly commit it to git
 finalize() {
-	local ipset="${1}" tmp="${2}" setinfo="${3}" src="${4}" dst="${5}" mins="${6}" history_mins="${7}" ipv="${8}" type="${9}" hash="${10}" url="${11}" category="${12}" info="${13}" maintainer="${14}" maintainer_url="${15}"
+	local 	ipset="${1}" tmp="${2}" setinfo="${3}" \
+			src="${4}" dst="${5}" \
+			mins="${6}" history_mins="${7}" \
+			ipv="${8}" limit="${9}" hash="${10}" \
+			url="${11}" category="${12}" info="${13}" \
+			maintainer="${14}" maintainer_url="${15}"
+	shift 15
 
 	# check
 	if [ -z "${info}" ]
@@ -1645,6 +1770,22 @@ finalize() {
 	IPSET_MAINTAINER[${ipset}]="${maintainer}"
 	IPSET_MAINTAINER_URL[${ipset}]="${maintainer_url}"
 
+	[ -z "${IPSET_ENTRIES_MIN[${ipset}]}" ] && IPSET_ENTRIES_MIN[${ipset}]="${IPSET_ENTRIES[${ipset}]}"
+	[ "${IPSET_ENTRIES_MIN[${ipset}]}" -gt "${IPSET_ENTRIES[${ipset}]}" ] && IPSET_ENTRIES_MIN[${ipset}]="${IPSET_ENTRIES[${ipset}]}"
+
+	[ -z "${IPSET_ENTRIES_MAX[${ipset}]}" ] && IPSET_ENTRIES_MAX[${ipset}]="${IPSET_ENTRIES[${ipset}]}"
+	[ "${IPSET_ENTRIES_MAX[${ipset}]}" -lt "${IPSET_ENTRIES[${ipset}]}" ] && IPSET_ENTRIES_MAX[${ipset}]="${IPSET_ENTRIES[${ipset}]}"
+
+	[ -z "${IPSET_IPS_MIN[${ipset}]}" ] && IPSET_IPS_MIN[${ipset}]="${IPSET_IPS[${ipset}]}"
+	[ "${IPSET_IPS_MIN[${ipset}]}" -gt "${IPSET_IPS[${ipset}]}" ] && IPSET_IPS_MIN[${ipset}]="${IPSET_IPS[${ipset}]}"
+
+	[ -z "${IPSET_IPS_MAX[${ipset}]}" ] && IPSET_IPS_MAX[${ipset}]="${IPSET_IPS[${ipset}]}"
+	[ "${IPSET_IPS_MAX[${ipset}]}" -lt "${IPSET_IPS[${ipset}]}" ] && IPSET_IPS_MAX[${ipset}]="${IPSET_IPS[${ipset}]}"
+
+	[ -z "${IPSET_STARTED_DATE[${ipset}]}" ] && IPSET_STARTED_DATE[${ipset}]="${IPSET_SOURCE_DATE[${ipset}]}"
+
+	ipset_attributes "${ipset}" "${@}"
+
 	# generate the final file
 	# we do this on another tmp file
 	cat >"${tmp}.wh" <<EOFHEADER
@@ -1701,9 +1842,16 @@ EOFHEADER
 # -----------------------------------------------------------------------------
 
 update() {
-	local 	ipset="${1}" mins="${2}" history_mins="${3}" ipv="${4}" type="${5}" url="${6}" processor="${7-cat}" category="${8}" info="${9}" maintainer="${10}" maintainer_url="${11}"
-		install="${1}" tmp= error=0 now= date= pre_filter="cat" post_filter="cat" post_filter2="cat" filter="cat"
+	local 	ipset="${1}" mins="${2}" history_mins="${3}" ipv="${4}" limit="${5}" \
+			url="${6}" \
+			processor="${7-cat}" \
+			category="${8}" \
+			info="${9}" \
+			maintainer="${10}" maintainer_url="${11}"
 	shift 11
+
+	local	install="${ipset}" tmp= error=0 now= date= \
+			pre_filter="cat" post_filter="cat" post_filter2="cat" filter="cat"
 
 	# check
 	if [ -z "${info}" ]
@@ -1715,10 +1863,10 @@ update() {
 	case "${ipv}" in
 		ipv4)
 			post_filter2="filter_invalid4"
-			case "${type}" in
+			case "${limit}" in
 				ip|ips)		# output is single ipv4 IPs without /
 						hash="ip"
-						type="ip"
+						limit="ip"
 						pre_filter="cat"
 						filter="filter_ip4"	# without this, ipset_uniq4 may output huge number of IPs
 						post_filter="ipset_uniq4"
@@ -1726,7 +1874,7 @@ update() {
 
 				net|nets)	# output is full CIDRs without any single IPs (/32)
 						hash="net"
-						type="net"
+						limit="net"
 						pre_filter="filter_all4"
 						filter="aggregate4"
 						post_filter="filter_net4"
@@ -1734,7 +1882,7 @@ update() {
 
 				both|all)	# output is full CIDRs with single IPs in CIDR notation (with /32)
 						hash="net"
-						type=""
+						limit=""
 						pre_filter="filter_all4"
 						filter="aggregate4"
 						post_filter="cat"
@@ -1742,7 +1890,7 @@ update() {
 
 				split)	;;
 
-				*)		echo >&2 "${ipset}: unknown type '${type}'."
+				*)		echo >&2 "${ipset}: unknown limit '${limit}'."
 						return 1
 						;;
 			esac
@@ -1750,33 +1898,6 @@ update() {
 		ipv6)
 			echo >&2 "${ipset}: IPv6 is not yet supported."
 			return 1
-
-			case "${type}" in
-				ip|ips)	
-						hash="ip"
-						type="ip"
-						pre_filter="remove_slash128"
-						filter="filter_ip6"
-						;;
-
-				net|nets)
-						hash="net"
-						type="net"
-						filter="filter_net6"
-						;;
-
-				both|all)
-						hash="net"
-						type=""
-						filter="filter_all6"
-						;;
-
-				split)	;;
-
-				*)		echo >&2 "${ipset}: unknown type '${type}'."
-						return 1
-						;;
-			esac
 			;;
 
 		*)	syslog "${ipset}: unknown IP version '${ipv}'."
@@ -1813,15 +1934,28 @@ update() {
 
 	# support for older systems where hash:net cannot get hash:ip entries
 	# if the .split file exists, create 2 ipsets, one for IPs and one for subnets
-	if [ "${type}" = "split" -o \( -z "${type}" -a -f "${install}.split" \) ]
+	if [ "${limit}" = "split" -o \( -z "${limit}" -a -f "${install}.split" \) ]
 	then
 		echo >&2 "${ipset}: spliting IPs and networks..."
 		test -f "${install}_ip.source" && rm "${install}_ip.source"
 		test -f "${install}_net.source" && rm "${install}_net.source"
 		ln -s "${install}.source" "${install}_ip.source"
 		ln -s "${install}.source" "${install}_net.source"
-		update "${ipset}_ip" "${mins}" "${history_mins}" "${ipv}" ip  "" "${processor}" "${category}" "${info}" "${maintainer}" "${maintainer_url}"
-		update "${ipset}_net" "${mins}" "${history_mins}" "${ipv}" net "" "${processor}" "${category}" "${info}" "${maintainer}" "${maintainer_url}"
+		
+		update "${ipset}_ip" "${mins}" "${history_mins}" "${ipv}" ip  \
+			"" \
+			"${processor}" \
+			"${category}" \
+			"${info}" \
+			"${maintainer}" "${maintainer_url}"
+		
+		update "${ipset}_net" "${mins}" "${history_mins}" "${ipv}" net \
+			"" \
+			"${processor}" \
+			"${category}" \
+			"${info}" \
+			"${maintainer}" "${maintainer_url}"
+		
 		return $?
 	fi
 
@@ -1891,7 +2025,13 @@ update() {
 			touch -r "${BASE_DIR}/${install}.source" "${BASE_DIR}/${install}${htag}.source"
 		fi
 
-		finalize "${ipset}${htag}" "${tmp}${htag}" "${install}${htag}.setinfo" "${install}${htag}.source" "${install}${htag}.${hash}set" "${mins}" "${hmins}" "${ipv}" "${type}" "${hash}" "${url}" "${category}" "${info}" "${maintainer}" "${maintainer_url}"
+		finalize "${ipset}${htag}" "${tmp}${htag}" "${install}${htag}.setinfo" \
+			"${install}${htag}.source" "${install}${htag}.${hash}set" \
+			"${mins}" "${hmins}" "${ipv}" "${limit}" "${hash}" \
+			"${url}" \
+			"${category}" \
+			"${info}" \
+			"${maintainer}" "${maintainer_url}"
  	done
 
 	if [ ! -z "${history_mins}" ]
@@ -2286,7 +2426,7 @@ parse_maxmind_proxy_fraud() {
 }
 
 geolite2_country() {
-	local ipset="geolite2_country" type="" hash="net" ipv="ipv4" \
+	local ipset="geolite2_country" limit="" hash="net" ipv="ipv4" \
 		mins=$[24 * 60 * 7] history_mins=0 \
 		url="http://geolite.maxmind.com/download/geoip/database/GeoLite2-Country-CSV.zip" \
 		info="[MaxMind GeoLite2](http://dev.maxmind.com/geoip/geoip2/geolite2/)"
@@ -2408,7 +2548,7 @@ geolite2_country() {
 
 		local info2="`cat "${x}.info"` -- ${info}"
 
-		finalize "${i}" "${x/.source.tmp/.source}" "${ipset}/${i}.setinfo" "${ipset}.source" "${ipset}/${i}.netset" "${mins}" "${history_mins}" "${ipv}" "${type}" "${hash}" "${url}" "geolocation" "${info2}" "MaxMind.com" "http://www.maxmind.com/"
+		finalize "${i}" "${x/.source.tmp/.source}" "${ipset}/${i}.setinfo" "${ipset}.source" "${ipset}/${i}.netset" "${mins}" "${history_mins}" "${ipv}" "${limit}" "${hash}" "${url}" "geolocation" "${info2}" "MaxMind.com" "http://www.maxmind.com/"
 	done
 
 	if [ -d .git ]
@@ -2428,7 +2568,7 @@ declare -A IPDENY_COUNTRY_CONTINENTS='([as]="oc" [ge]="as" [ar]="sa" [gd]="na" [
 declare -A IPDENY_COUNTRIES=()
 declare -A IPDENY_CONTINENTS=()
 ipdeny_country() {
-	local ipset="ipdeny_country" type="" hash="net" ipv="ipv4" \
+	local ipset="ipdeny_country" limit="" hash="net" ipv="ipv4" \
 		mins=$[24 * 60 * 1] history_mins=0 \
 		url="http://www.ipdeny.com/ipblocks/data/countries/all-zones.tar.gz" \
 		info="[IPDeny.com](http://www.ipdeny.com/)"
@@ -2503,7 +2643,7 @@ ipdeny_country() {
 
 		local info2="`cat "${x}.info"` -- ${info}"
 
-		finalize "${i}" "${x/.source.tmp/.source}" "${ipset}/${i}.setinfo" "${ipset}.source" "${ipset}/${i}.netset" "${mins}" "${history_mins}" "${ipv}" "${type}" "${hash}" "${url}" "geolocation" "${info2}" "IPDeny.com" "http://www.ipdeny.com/"
+		finalize "${i}" "${x/.source.tmp/.source}" "${ipset}/${i}.setinfo" "${ipset}.source" "${ipset}/${i}.netset" "${mins}" "${history_mins}" "${ipv}" "${limit}" "${hash}" "${url}" "geolocation" "${info2}" "IPDeny.com" "http://www.ipdeny.com/"
 	done
 
 	if [ -d .git ]
@@ -2523,7 +2663,7 @@ declare -A IP2LOCATION_COUNTRY_CONTINENTS='([um]="na" [fk]="sa" [ax]="eu" [as]="
 declare -A IP2LOCATION_COUNTRIES=()
 declare -A IP2LOCATION_CONTINENTS=()
 ip2location_country() {
-	local ipset="ip2location_country" type="both" hash="net" ipv="ipv4" \
+	local ipset="ip2location_country" limit="" hash="net" ipv="ipv4" \
 		mins=$[24 * 60 * 1] history_mins=0 \
 		url="http://download.ip2location.com/lite/IP2LOCATION-LITE-DB1.CSV.ZIP" \
 		info="[IP2Location.com](http://lite.ip2location.com/database-ip-country)"
@@ -2629,7 +2769,7 @@ ip2location_country() {
 
 		local info2="`cat "${x}.info"` -- ${info}"
 
-		finalize "${i}" "${x/.source.tmp/.source}" "${ipset}/${i}.setinfo" "${ipset}.source" "${ipset}/${i}.netset" "${mins}" "${history_mins}" "${ipv}" "${type}" "${hash}" "${url}" "geolocation" "${info2}" "IP2Location.com" "http://lite.ip2location.com/database-ip-country"
+		finalize "${i}" "${x/.source.tmp/.source}" "${ipset}/${i}.setinfo" "${ipset}.source" "${ipset}/${i}.netset" "${mins}" "${history_mins}" "${ipv}" "${limit}" "${hash}" "${url}" "geolocation" "${info2}" "IP2Location.com" "http://lite.ip2location.com/database-ip-country"
 	done
 
 	if [ -d .git ]
@@ -4156,6 +4296,13 @@ merge firehol_anonymous "anonymizers" "An ipset that includes all the anonymizin
 # user specific features
 # - allow the user to request an email if a set increases by a percentage or number of unique IPs
 # - allow the user to request an email if a set matches more than X entries of one or more other set
+
+# intended use    : 20:firewall_block_all 10:firewall_block_service 02:[reputation_generic] 01:[reputation_specific] 00:[antispam] 
+# false positives : 3:none 2:rare 1:some 0:[common]
+# poisoning       : 0:[not_checked] 1:reactive 2:predictive 3:not_possible
+# grade           : 0:[personal] 1:community 2:commercial 3:carrier / service_provider
+# protection      : 0:[both] 1:inbound 2:outbound
+# license         : 
 
 
 # -----------------------------------------------------------------------------
