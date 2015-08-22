@@ -326,8 +326,13 @@ if [ "${#LISTS_TO_ENABLE[@]}" -gt 0 ]
 	then
 	for x in "${LISTS_TO_ENABLE[@]}"
 	do
-		echo "Enabling ${x}..."
-		touch -t 0001010000 "${BASE_DIR}/${x}.source" || exit 1
+		if [ -f "${BASE_DIR}/${x}.source" ]
+			then
+			echo >&2 "${x}: is already enabled"
+		else
+			echo "${x}: Enabling ${x}..."
+			touch -t 0001010000 "${BASE_DIR}/${x}.source" || exit 1
+		fi
 	done
 	exit 0
 fi
@@ -3036,7 +3041,7 @@ update et_compromised $[12*60] 0 ipv4 ip \
 update et_botcc $[12*60] 0 ipv4 ip \
 	"http://rules.emergingthreats.net/fwrules/emerging-PIX-CC.rules" \
 	pix_deny_rules_to_ipv4 \
-	"malware" \
+	"reputation" \
 	"[EmergingThreats.net Command and Control IPs](http://doc.emergingthreats.net/bin/view/Main/BotCC) These IPs are updates every 24 hours and should be considered VERY highly reliable indications that a host is communicating with a known and active Bot or Malware command and control server - (although they say this includes abuse.ch trackers, it does not - check its overlaps)" \
 	"Emerging Threats" "http://www.emergingthreats.net/"
 
@@ -3075,7 +3080,7 @@ update et_block $[12*60] 0 ipv4 both \
 update spamhaus_drop $[12*60] 0 ipv4 both \
 	"http://www.spamhaus.org/drop/drop.txt" \
 	remove_comments_semi_colon \
-	"attacks" \
+	"reputation" \
 	"[Spamhaus.org](http://www.spamhaus.org) DROP list (according to their site this list should be dropped at tier-1 ISPs globaly)" \
 	"Spamhaus.org" "http://www.spamhaus.org/"
 
@@ -3084,7 +3089,7 @@ update spamhaus_drop $[12*60] 0 ipv4 both \
 update spamhaus_edrop $[12*60] 0 ipv4 both \
 	"http://www.spamhaus.org/drop/edrop.txt" \
 	remove_comments_semi_colon \
-	"attacks" \
+	"reputation" \
 	"[Spamhaus.org](http://www.spamhaus.org) EDROP (extended matches that should be used with DROP)" \
 	"Spamhaus.org" "http://www.spamhaus.org/"
 
@@ -3269,7 +3274,7 @@ update sslbl_aggressive 30 0 ipv4 ip \
 update malc0de $[24*60] 0 ipv4 ip \
 	"http://malc0de.com/bl/IP_Blacklist.txt" \
 	remove_comments \
-	"attacks" \
+	"malware" \
 	"[Malc0de.com](http://malc0de.com) malicious IPs of the last 30 days" \
 	"malc0de.com" "http://malc0de.com/"
 
@@ -3583,7 +3588,7 @@ update alienvault_reputation $[6*60] 0 ipv4 ip \
 update cleanmx_viruses 30 0 ipv4 ip \
 	"http://support.clean-mx.de/clean-mx/xmlviruses.php?response=alive&fields=ip" \
 	parse_xml_clean_mx \
-	"malware" \
+	"spam" \
 	"[Clean-MX.de](http://support.clean-mx.de/clean-mx/viruses.php) IPs with viruses" \
 	"Clean-MX.de" "http://support.clean-mx.de/clean-mx/viruses.php"
 
@@ -3605,7 +3610,7 @@ update iw_spamlist 60 0 ipv4 ip \
 update iw_wormlist 60 0 ipv4 ip \
 	"http://antispam.imp.ch/wormlist" \
 	antispam_ips \
-	"malware" \
+	"spam" \
 	"[ImproWare Antispam](http://antispam.imp.ch/) IPs sending emails with viruses or worms, in the last 3 days" \
 	"ImproWare Antispam" "http://antispam.imp.ch/"
 
@@ -3712,7 +3717,7 @@ update nixspam 15 0 ipv4 ip \
 update virbl 60 0 ipv4 ip \
 	"http://virbl.bit.nl/download/virbl.dnsbl.bit.nl.txt" \
 	remove_comments \
-	"malware" \
+	"spam" \
 	"[VirBL](http://virbl.bit.nl/) is a project of which the idea was born during the RIPE-48 meeting. The plan was to get reports of virusscanning mailservers, and put the IP-addresses that were reported to send viruses on a blacklist." \
 	"VirBL.bit.nl" "http://virbl.bit.nl/"
 
@@ -3810,21 +3815,21 @@ update nt_ssh_7d 60 0 ipv4 ip \
 update nt_malware_irc 60 0 ipv4 ip \
 	"http://www.nothink.org/blacklist/blacklist_malware_irc.txt" \
 	remove_comments \
-	"malware" \
+	"attacks" \
 	"[No Think](http://www.nothink.org/) Malware IRC" \
 	"NoThink.org" "http://www.nothink.org/"
 
 update nt_malware_http 60 0 ipv4 ip \
 	"http://www.nothink.org/blacklist/blacklist_malware_http.txt" \
 	remove_comments \
-	"malware" \
+	"attacks" \
 	"[No Think](http://www.nothink.org/) Malware HTTP" \
 	"NoThink.org" "http://www.nothink.org/"
 
 update nt_malware_dns 60 0 ipv4 ip \
 	"http://www.nothink.org/blacklist/blacklist_malware_dns.txt" \
 	remove_comments \
-	"malware" \
+	"attacks" \
 	"[No Think](http://www.nothink.org/) Malware DNS (the original list includes hostnames and domains, which are ignored)" \
 	"NoThink.org" "http://www.nothink.org/"
 
@@ -3899,7 +3904,6 @@ update bds_atif $[24*60] 0 ipv4 ip \
 # https://www.iblocklist.com/lists.php
 # http://bluetack.co.uk/forums/index.php?autocom=faq&CODE=02&qid=17
 
-# open proxies and tor
 # we only keep the proxies IPs (tor IPs are not parsed)
 DO_NOT_REDISTRIBUTE[ib_bluetack_proxies.ipset]="1"
 update ib_bluetack_proxies $[12*60] 0 ipv4 ip \
@@ -3909,75 +3913,40 @@ update ib_bluetack_proxies $[12*60] 0 ipv4 ip \
 	"[iBlocklist.com](https://www.iblocklist.com/) version of BlueTack.co.uk Open Proxies IPs list (without TOR)" \
 	"iBlocklist.com" "https://www.iblocklist.com/"
 
-
-# This list is a compilation of known malicious SPYWARE and ADWARE IP Address ranges.
-# It is compiled from various sources, including other available Spyware Blacklists,
-# HOSTS files, from research found at many of the top Anti-Spyware forums, logs of
-# Spyware victims and also from the Malware Research Section here at Bluetack.
 DO_NOT_REDISTRIBUTE[ib_bluetack_spyware.netset]="1"
 update ib_bluetack_spyware $[12*60] 0 ipv4 both \
 	"http://list.iblocklist.com/?list=llvtlsjyoyiczbkjsxpf&fileformat=p2p&archiveformat=gz" \
 	p2p_gz \
-	"malware" \
-	"[iBlocklist.com](https://www.iblocklist.com/) version of BlueTack.co.uk known malicious SPYWARE and ADWARE IP Address ranges" \
+	"reputation" \
+	"[iBlocklist.com](https://www.iblocklist.com/) version of BlueTack.co.uk known malicious SPYWARE and ADWARE IP Address ranges. It is compiled from various sources, including other available Spyware Blacklists, HOSTS files, from research found at many of the top Anti-Spyware forums, logs of Spyware victims and also from the Malware Research Section here at Bluetack." \
 	"iBlocklist.com" "https://www.iblocklist.com/"
 
-
-# List of people who have been reported for bad deeds in p2p.
 DO_NOT_REDISTRIBUTE[ib_bluetack_badpeers.ipset]="1"
 update ib_bluetack_badpeers $[12*60] 0 ipv4 ip \
 	"http://list.iblocklist.com/?list=cwworuawihqvocglcoss&fileformat=p2p&archiveformat=gz" \
 	p2p_gz \
 	"reputation" \
-	"[iBlocklist.com](https://www.iblocklist.com/) version of BlueTack.co.uk IPs that have been reported for bad deeds in p2p" \
+	"[iBlocklist.com](https://www.iblocklist.com/) version of BlueTack.co.uk IPs that have been reported for bad deeds in p2p." \
 	"iBlocklist.com" "https://www.iblocklist.com/"
 
-
-# Contains hijacked IP-Blocks and known IP-Blocks that are used to deliver Spam. 
-# This list is a combination of lists with hijacked IP-Blocks 
-# Hijacked IP space are IP blocks that are being used without permission by
-# organizations that have no relation to original organization (or its legal
-# successor) that received the IP block. In essence it's stealing of somebody
-# else's IP resources
 DO_NOT_REDISTRIBUTE[ib_bluetack_hijacked.netset]="1"
 update ib_bluetack_hijacked $[12*60] 0 ipv4 both \
 	"http://list.iblocklist.com/?list=usrcshglbiilevmyfhse&fileformat=p2p&archiveformat=gz" \
 	p2p_gz \
-	"attacks" \
-	"[iBlocklist.com](https://www.iblocklist.com/) version of BlueTack.co.uk hijacked IP-Blocks Hijacked IP space are IP blocks that are being used without permission" \
+	"reputation" \
+	"[iBlocklist.com](https://www.iblocklist.com/) version of BlueTack.co.uk hijacked IP-Blocks. # Contains hijacked IP-Blocks and known IP-Blocks that are used to deliver Spam. This list is a combination of lists with hijacked IP-Blocks. Hijacked IP space are IP blocks that are being used without permission by organizations that have no relation to original organization (or its legal successor) that received the IP block. In essence it's stealing of somebody else's IP resources." \
 	"iBlocklist.com" "https://www.iblocklist.com/"
 
-
-# IP addresses related to current web server hack and exploit attempts that have been
-# logged by us or can be found in and cross referenced with other related IP databases.
-# Malicious and other non search engine bots will also be listed here, along with anything
-# we find that can have a negative impact on a website or webserver such as proxies being
-# used for negative SEO hijacks, unauthorised site mirroring, harvesting, scraping,
-# snooping and data mining / spy bot / security & copyright enforcement companies that
-# target and continuosly scan webservers.
 DO_NOT_REDISTRIBUTE[ib_bluetack_webexploit.ipset]="1"
 update ib_bluetack_webexploit $[12*60] 0 ipv4 ip \
 	"http://list.iblocklist.com/?list=ghlzqtqxnzctvvajwwag&fileformat=p2p&archiveformat=gz" \
 	p2p_gz \
-	"attacks" \
-	"[iBlocklist.com](https://www.iblocklist.com/) version of BlueTack.co.uk web server hack and exploit attempts" \
+	"reputation" \
+	"[iBlocklist.com](https://www.iblocklist.com/) version of BlueTack.co.uk web server hack and exploit attempts. IP addresses related to current web server hack and exploit attempts that have been logged by Bluetack or can be found in and cross referenced with other related IP databases. Malicious and other non search engine bots will also be listed here, along with anything found that can have a negative impact on a website or webserver such as proxies being used for negative SEO hijacks, unauthorised site mirroring, harvesting, scraping, snooping and data mining / spy bot / security & copyright enforcement companies that target and continuosly scan webservers." \
 	"iBlocklist.com" "https://www.iblocklist.com/"
 
-
-# Companies or organizations who are clearly involved with trying to stop filesharing
-# (e.g. Baytsp, MediaDefender, Mediasentry a.o.). 
-# Companies which anti-p2p activity has been seen from. 
-# Companies that produce or have a strong financial interest in copyrighted material
-# (e.g. music, movie, software industries a.o.). 
-# Government ranges or companies that have a strong financial interest in doing work
-# for governments. 
-# Legal industry ranges. 
-# IPs or ranges of ISPs from which anti-p2p activity has been observed. Basically this
-# list will block all kinds of internet connections that most people would rather not
-# have during their internet travels. 
-# PLEASE NOTE: The Level1 list is recommended for general P2P users, but it all comes
-# down to your personal choice. 
-# IMPORTANT: THIS IS A BIG LIST
+# The Level1 list is recommended for general P2P users, but it all comes
+# down to your personal choice.
 DO_NOT_REDISTRIBUTE[ib_bluetack_level1.netset]="1"
 update ib_bluetack_level1 $[12*60] 0 ipv4 both \
 	"http://list.iblocklist.com/?list=ydxerpxkpcfqjaybcssw&fileformat=p2p&archiveformat=gz" \
@@ -3986,10 +3955,6 @@ update ib_bluetack_level1 $[12*60] 0 ipv4 both \
 	"[iBlocklist.com](https://www.iblocklist.com/) version of BlueTack.co.uk Level 1 (for use in p2p): Companies or organizations who are clearly involved with trying to stop filesharing (e.g. Baytsp, MediaDefender, Mediasentry a.o.). Companies which anti-p2p activity has been seen from. Companies that produce or have a strong financial interest in copyrighted material (e.g. music, movie, software industries a.o.). Government ranges or companies that have a strong financial interest in doing work for governments. Legal industry ranges. IPs or ranges of ISPs from which anti-p2p activity has been observed. Basically this list will block all kinds of internet connections that most people would rather not have during their internet travels." \
 	"iBlocklist.com" "https://www.iblocklist.com/"
 
-
-# General corporate ranges. 
-# Ranges used by labs or researchers. 
-# Proxies. 
 DO_NOT_REDISTRIBUTE[ib_bluetack_level2.netset]="1"
 update ib_bluetack_level2 $[12*60] 0 ipv4 both \
 	"http://list.iblocklist.com/?list=gyisgnzbhppbvsphucsw&fileformat=p2p&archiveformat=gz" \
@@ -3998,11 +3963,6 @@ update ib_bluetack_level2 $[12*60] 0 ipv4 both \
 	"[iBlocklist.com](https://www.iblocklist.com/) version of BlueTack.co.uk Level 2 (for use in p2p). General corporate ranges. Ranges used by labs or researchers. Proxies." \
 	"iBlocklist.com" "https://www.iblocklist.com/"
 
-
-# Many portal-type websites. 
-# ISP ranges that may be dodgy for some reason. 
-# Ranges that belong to an individual, but which have not been determined to be used by a particular company. 
-# Ranges for things that are unusual in some way. The L3 list is aka the paranoid list.
 DO_NOT_REDISTRIBUTE[ib_bluetack_level3.netset]="1"
 update ib_bluetack_level3 $[12*60] 0 ipv4 both \
 	"http://list.iblocklist.com/?list=uwnukjqktoggdknzrhgh&fileformat=p2p&archiveformat=gz" \
@@ -4010,6 +3970,189 @@ update ib_bluetack_level3 $[12*60] 0 ipv4 both \
 	"reputation" \
 	"[iBlocklist.com](https://www.iblocklist.com/) version of BlueTack.co.uk Level 3 (for use in p2p). Many portal-type websites. ISP ranges that may be dodgy for some reason. Ranges that belong to an individual, but which have not been determined to be used by a particular company. Ranges for things that are unusual in some way. The L3 list is aka the paranoid list." \
 	"iBlocklist.com" "https://www.iblocklist.com/"
+
+DO_NOT_REDISTRIBUTE[ib_bluetack_edu.netset]="1"
+update ib_bluetack_edu $[12*60] 0 ipv4 both \
+	"http://list.iblocklist.com/?list=imlmncgrkbnacgcwfjvh&fileformat=p2p&archiveformat=gz" \
+	p2p_gz \
+	"organizations" \
+	"[iBlocklist.com](https://www.iblocklist.com/) version of BlueTack.co.uk IP list with all known Educational Institutions." \
+	"iBlocklist.com" "https://www.iblocklist.com/"
+
+DO_NOT_REDISTRIBUTE[ib_bluetack_rangetest.netset]="1"
+update ib_bluetack_rangetest $[12*60] 0 ipv4 both \
+	"http://list.iblocklist.com/?list=plkehquoahljmyxjixpu&fileformat=p2p&archiveformat=gz" \
+	p2p_gz \
+	"reputation" \
+	"[iBlocklist.com](https://www.iblocklist.com/) version of BlueTack.co.uk suspicious IPs that are under investigation." \
+	"iBlocklist.com" "https://www.iblocklist.com/"
+
+DO_NOT_REDISTRIBUTE[ib_bluetack_bogons.netset]="1"
+update ib_bluetack_bogons $[12*60] 0 ipv4 both \
+	"http://list.iblocklist.com/?list=gihxqmhyunbxhbmgqrla&fileformat=p2p&archiveformat=gz" \
+	p2p_gz \
+	"unroutable" \
+	"[iBlocklist.com](https://www.iblocklist.com/) version of BlueTack.co.uk unallocated address space." \
+	"iBlocklist.com" "https://www.iblocklist.com/"
+
+DO_NOT_REDISTRIBUTE[ib_bluetack_ads.netset]="1"
+update ib_bluetack_ads $[12*60] 0 ipv4 both \
+	"http://list.iblocklist.com/?list=dgxtneitpuvgqqcpfulq&fileformat=p2p&archiveformat=gz" \
+	p2p_gz \
+	"organizations" \
+	"[iBlocklist.com](https://www.iblocklist.com/) version of BlueTack.co.uk IPs advertising trackers and a short list of bad/intrusive porn sites." \
+	"iBlocklist.com" "https://www.iblocklist.com/"
+
+DO_NOT_REDISTRIBUTE[ib_bluetack_ms.netset]="1"
+update ib_bluetack_ms $[12*60] 0 ipv4 both \
+	"http://list.iblocklist.com/?list=xshktygkujudfnjfioro&fileformat=p2p&archiveformat=gz" \
+	p2p_gz \
+	"organizations" \
+	"[iBlocklist.com](https://www.iblocklist.com/) version of BlueTack.co.uk with all the known Microsoft ranges." \
+	"iBlocklist.com" "https://www.iblocklist.com/"
+
+DO_NOT_REDISTRIBUTE[ib_bluetack_spider.netset]="1"
+update ib_bluetack_spider $[12*60] 0 ipv4 both \
+	"http://list.iblocklist.com/?list=mcvxsnihddgutbjfbghy&fileformat=p2p&archiveformat=gz" \
+	p2p_gz \
+	"organizations" \
+	"[iBlocklist.com](https://www.iblocklist.com/) version of BlueTack.co.uk, intended to be used by webmasters to block hostile spiders from their web sites." \
+	"iBlocklist.com" "https://www.iblocklist.com/"
+
+DO_NOT_REDISTRIBUTE[ib_bluetack_dshield.netset]="1"
+update ib_bluetack_dshield $[12*60] 0 ipv4 both \
+	"http://list.iblocklist.com/?list=xpbqleszmajjesnzddhv&fileformat=p2p&archiveformat=gz" \
+	p2p_gz \
+	"reputation" \
+	"[iBlocklist.com](https://www.iblocklist.com/) version of BlueTack.co.uk, Contains known Hackers and such people in it." \
+	"iBlocklist.com" "https://www.iblocklist.com/"
+
+DO_NOT_REDISTRIBUTE[ib_bluetack_iana_reserved.netset]="1"
+update ib_bluetack_iana_reserved $[12*60] 0 ipv4 both \
+	"http://list.iblocklist.com/?list=bcoepfyewziejvcqyhqo&fileformat=p2p&archiveformat=gz" \
+	p2p_gz \
+	"unroutable" \
+	"[iBlocklist.com](https://www.iblocklist.com/) version of BlueTack.co.uk, IANA Reserved IPs." \
+	"iBlocklist.com" "https://www.iblocklist.com/"
+
+DO_NOT_REDISTRIBUTE[ib_bluetack_iana_private.netset]="1"
+update ib_bluetack_iana_private $[12*60] 0 ipv4 both \
+	"http://list.iblocklist.com/?list=cslpybexmxyuacbyuvib&fileformat=p2p&archiveformat=gz" \
+	p2p_gz \
+	"unroutable" \
+	"[iBlocklist.com](https://www.iblocklist.com/) version of BlueTack.co.uk, IANA Private IPs." \
+	"iBlocklist.com" "https://www.iblocklist.com/"
+
+DO_NOT_REDISTRIBUTE[ib_bluetack_iana_multicast.netset]="1"
+update ib_bluetack_iana_multicast $[12*60] 0 ipv4 both \
+	"http://list.iblocklist.com/?list=pwqnlynprfgtjbgqoizj&fileformat=p2p&archiveformat=gz" \
+	p2p_gz \
+	"unroutable" \
+	"[iBlocklist.com](https://www.iblocklist.com/) version of BlueTack.co.uk, IANA Multicast IPs." \
+	"iBlocklist.com" "https://www.iblocklist.com/"
+
+DO_NOT_REDISTRIBUTE[ib_bluetack_fornonlancomputers.netset]="1"
+update ib_bluetack_fornonlancomputers $[12*60] 0 ipv4 both \
+	"http://list.iblocklist.com/?list=jhaoawihmfxgnvmaqffp&fileformat=p2p&archiveformat=gz" \
+	p2p_gz \
+	"reputation" \
+	"[iBlocklist.com](https://www.iblocklist.com/) version of BlueTack.co.uk, IP blocklist for non-LAN computers." \
+	"iBlocklist.com" "https://www.iblocklist.com/"
+
+DO_NOT_REDISTRIBUTE[ib_bluetack_exclusions.netset]="1"
+update ib_bluetack_exclusions $[12*60] 0 ipv4 both \
+	"http://list.iblocklist.com/?list=mtxmiireqmjzazcsoiem&fileformat=p2p&archiveformat=gz" \
+	p2p_gz \
+	"reputation" \
+	"[iBlocklist.com](https://www.iblocklist.com/) version of BlueTack.co.uk, exclusions." \
+	"iBlocklist.com" "https://www.iblocklist.com/"
+
+DO_NOT_REDISTRIBUTE[ib_bluetack_forumspam.netset]="1"
+update ib_bluetack_forumspam $[12*60] 0 ipv4 both \
+	"http://list.iblocklist.com/?list=ficutxiwawokxlcyoeye&fileformat=p2p&archiveformat=gz" \
+	p2p_gz \
+	"abuse" \
+	"[iBlocklist.com](https://www.iblocklist.com/) version of BlueTack.co.uk, forum spam." \
+	"iBlocklist.com" "https://www.iblocklist.com/"
+
+update ib_pedophiles $[12*60] 0 ipv4 both \
+	"http://list.iblocklist.com/?list=dufcxgnbjsdwmwctgfuj&fileformat=p2p&archiveformat=gz" \
+	p2p_gz \
+	"reputation" \
+	"[iBlocklist.com](https://www.iblocklist.com/) version of BlueTack.co.uk, IP ranges of people who we have found to be sharing child pornography in the p2p community." \
+	"iBlocklist.com" "https://www.iblocklist.com/"
+
+update ib_cruzit_web_attacks $[12*60] 0 ipv4 both \
+	"http://list.iblocklist.com/?list=czvaehmjpsnwwttrdoyl&fileformat=p2p&archiveformat=gz" \
+	p2p_gz \
+	"attacks" \
+	"[iBlocklist.com](https://www.iblocklist.com/) version of CruzIT list with individual IP addresses of compromised machines scanning for vulnerabilities and DDOS attacks." \
+	"iBlocklist.com" "https://www.iblocklist.com/"
+
+update ib_yoyo_adservers $[12*60] 0 ipv4 both \
+	"http://list.iblocklist.com/?list=zhogegszwduurnvsyhdf&fileformat=p2p&archiveformat=gz" \
+	p2p_gz \
+	"organizations" \
+	"[iBlocklist.com](https://www.iblocklist.com/) version of pgl.yoyo.org ad servers" \
+	"iBlocklist.com" "https://www.iblocklist.com/"
+
+update ib_spamhaus_drop $[12*60] 0 ipv4 both \
+	"http://list.iblocklist.com/?list=zbdlwrqkabxbcppvrnos&fileformat=p2p&archiveformat=gz" \
+	p2p_gz \
+	"reputation" \
+	"[iBlocklist.com](https://www.iblocklist.com/) version of spamhaus.org DROP (Don't Route Or Peer) list." \
+	"iBlocklist.com" "https://www.iblocklist.com/"
+
+update ib_abuse_zeus $[12*60] 0 ipv4 both \
+	"http://list.iblocklist.com/?list=ynkdjqsjyfmilsgbogqf&fileformat=p2p&archiveformat=gz" \
+	p2p_gz \
+	"malware" \
+	"[iBlocklist.com](https://www.iblocklist.com/) version of zeustracker.abuse.ch IP blocklist that contains IP addresses which are currently beeing tracked on the abuse.ch ZeuS Tracker." \
+	"iBlocklist.com" "https://www.iblocklist.com/"
+
+update ib_abuse_spyeye $[12*60] 0 ipv4 both \
+	"http://list.iblocklist.com/?list=zvjxsfuvdhoxktpeiokq&fileformat=p2p&archiveformat=gz" \
+	p2p_gz \
+	"malware" \
+	"[iBlocklist.com](https://www.iblocklist.com/) version of spyeyetracker.abuse.ch IP blocklist." \
+	"iBlocklist.com" "https://www.iblocklist.com/"
+
+update ib_abuse_palevo $[12*60] 0 ipv4 both \
+	"http://list.iblocklist.com/?list=erqajhwrxiuvjxqrrwfj&fileformat=p2p&archiveformat=gz" \
+	p2p_gz \
+	"malware" \
+	"[iBlocklist.com](https://www.iblocklist.com/) version of palevotracker.abuse.ch IP blocklist." \
+	"iBlocklist.com" "https://www.iblocklist.com/"
+
+update ib_ciarmy_malicious $[12*60] 0 ipv4 both \
+	"http://list.iblocklist.com/?list=npkuuhuxcsllnhoamkvm&fileformat=p2p&archiveformat=gz" \
+	p2p_gz \
+	"reputation" \
+	"[iBlocklist.com](https://www.iblocklist.com/) version of ciarmy.com IP blocklist. Based on information from a network of Sentinel devices deployed around the world, they compile a list of known bad IP addresses. Sentinel devices are uniquely positioned to pick up traffic from bad guys without requiring any type of signature-based or rate-based identification. If an IP is identified in this way by a significant number of Sentinels, the IP is malicious and should be blocked." \
+	"iBlocklist.com" "https://www.iblocklist.com/"
+
+update ib_malc0de $[12*60] 0 ipv4 both \
+	"http://list.iblocklist.com/?list=pbqcylkejciyhmwttify&fileformat=p2p&archiveformat=gz" \
+	p2p_gz \
+	"malware" \
+	"[iBlocklist.com](https://www.iblocklist.com/) version of malc0de.com IP blocklist. Addresses that have been indentified distributing malware during the past 30 days." \
+	"iBlocklist.com" "https://www.iblocklist.com/"
+
+update ib_cidr_report_bogons $[12*60] 0 ipv4 both \
+	"http://list.iblocklist.com/?list=lujdnbasfaaixitgmxpp&fileformat=p2p&archiveformat=gz" \
+	p2p_gz \
+	"unroutable" \
+	"[iBlocklist.com](https://www.iblocklist.com/) version of cidr-report.org IP list of Unallocated address space." \
+	"iBlocklist.com" "https://www.iblocklist.com/"
+
+update ib_onion_router $[12*60] 0 ipv4 both \
+	"http://list.iblocklist.com/?list=togdoptykrlolpddwbvz&fileformat=p2p&archiveformat=gz" \
+	p2p_gz \
+	"anonymizers" \
+	"[iBlocklist.com](https://www.iblocklist.com/) The Onion Router IP addresses." \
+	"iBlocklist.com" "https://www.iblocklist.com/"
+
+
 
 # -----------------------------------------------------------------------------
 # BadIPs.com
@@ -4272,27 +4415,27 @@ merge firehol_anonymous "anonymizers" "An ipset that includes all the anonymizin
 # TODO
 #
 # add sets
-# - http://www.ipdeny.com/ipblocks/ geo country db for ipv6
-# - maxmind city geodb
 # - https://github.com/Blueliv/api-python-sdk/wiki/Blueliv-REST-API-Documentation
 # - https://atlas.arbor.net/summary/attacks.csv
 # - https://atlas.arbor.net/summary/botnets.csv
 # - https://atlas.arbor.net/summary/fastflux.csv
 # - https://atlas.arbor.net/summary/phishing.csv
 # - https://atlas.arbor.net/summary/scans.csv
-# - http://www.cyber-ta.org/releases/malware/SOURCES/Attacker.Cumulative.Summary
-# - http://www.cyber-ta.org/releases/malware/SOURCES/CandC.Cumulative.Summary
-# - http://www.reputationauthority.org/toptens.php
-# - https://vmx.yourcmc.ru/BAD_HOSTS.IP4
-# - http://www.geopsy.org/blacklist.html
-# - https://www.juniper.net/security/auto/spam/
-# - http://www.malwaregroup.com/ipaddresses/malicious
-# - http://toastedspam.com/deny
-# - http://rss.uribl.com/reports/7d/dns_a.html
-# - http://spamcop.net/w3m?action=map;net=cmaxcnt;mask=65535;sort=spamcnt;format=text
+# - spam: http://www.reputationauthority.org/toptens.php
+# - spam: https://www.juniper.net/security/auto/spam/
+# - spam: http://toastedspam.com/deny
+# - spam: http://rss.uribl.com/reports/7d/dns_a.html
+# - spam: http://spamcop.net/w3m?action=map;net=cmaxcnt;mask=65535;sort=spamcnt;format=text
 # - https://gist.github.com/BBcan177/3cbd01b5b39bb3ce216a
 # - https://github.com/rshipp/awesome-malware-analysis
-#
+
+# obsolete - these do not seem to be updated any more
+# - http://www.cyber-ta.org/releases/malware/SOURCES/Attacker.Cumulative.Summary
+# - http://www.cyber-ta.org/releases/malware/SOURCES/CandC.Cumulative.Summary
+# - https://vmx.yourcmc.ru/BAD_HOSTS.IP4
+# - http://www.geopsy.org/blacklist.html
+# - http://www.malwaregroup.com/ipaddresses/malicious
+
 # user specific features
 # - allow the user to request an email if a set increases by a percentage or number of unique IPs
 # - allow the user to request an email if a set matches more than X entries of one or more other set
