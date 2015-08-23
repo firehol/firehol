@@ -2849,20 +2849,22 @@ merge() {
 	fi
 
 	local -a files=()
-	local found_updated=0 max_date=""
+	local found_updated=0 max_date=0
 	for x in "${@}"
 	do
 		if [ ! -z "${IPSET_FILE[${x}]}" -a -f "${IPSET_FILE[${x}]}" ]
 			then
 
-			# find the file with max date
-			[ -z "${max_date}" ] && max_date="${IPSET_FILE[${x}]}"
-			[ "${IPSET_FILE[${x}]}" -nt "${max_date}" ] && max_date="${IPSET_FILE[${x}]}"
+			# check if it is newer
+			if [ "$[ IPSET_SOURCE_DATE[${x}] - IPSET_CLOCK_SKEW[${x}] ]" -gt "${max_date}" ]
+				then
+				max_date="$[ IPSET_SOURCE_DATE[${x}] - IPSET_CLOCK_SKEW[${x}] ]"
+			fi
 
 			files=("${files[@]}" "${IPSET_FILE[${x}]}")
 			included=("${included[@]}" "${x}")
 
-			if [ ! -z "${UPDATED_SETS[${x}]}" -o "${IPSET_FILE[${x}]}" -nt "${to}.source" ]
+			if [ ! -z "${UPDATED_SETS[${x}]}" -o "$[ IPSET_SOURCE_DATE[${x}] - IPSET_CLOCK_SKEW[${x}] ]" -gt "$[ IPSET_SOURCE_DATE[${to}] - IPSET_CLOCK_SKEW[${to}] ]" ]
 				then
 				found_updated=$[ found_updated + 1 ]
 			fi
@@ -2885,7 +2887,7 @@ merge() {
 	fi
 
 	"${IPRANGE_CMD}" "${files[@]}" >"${RUN_DIR}/${to}.tmp"
-	touch -r "${max_date}" "${to}.tmp" "${to}.source"
+	touch --date=@${max_date} "${to}.tmp" "${to}.source"
 	finalize "${to}" "${RUN_DIR}/${to}.tmp" "${to}.setinfo" "${to}.source" "${to}.netset" "1" "0" "ipv4" "" "net" "" "${category}" "${info} (includes: ${included[*]})" "FireHOL" "${WEB_URL}${to}"
 }
 
@@ -3530,6 +3532,18 @@ update proxz 60 "$[24*60] $[7*24*60] $[30*24*60]" ipv4 ip \
 	"anonymizers" \
 	"[proxz.com](http://www.proxz.com) open proxies (this list is composed using an RSS feed)" \
 	"ProxZ.com" "http://www.proxz.com/"
+
+
+# -----------------------------------------------------------------------------
+# Open Proxies from proxylists.net
+# http://www.proxylists.net/proxylists.xml
+
+update proxylists 60 "$[24*60] $[7*24*60] $[30*24*60]" ipv4 ip \
+	"http://www.proxylists.net/proxylists.xml" \
+	parse_rss_proxy \
+	"anonymizers" \
+	"[proxylists.net](http://www.proxylists.net/) open proxies (this list is composed using an RSS feed)" \
+	"ProxyLists.net" "http://www.proxylists.net/"
 
 
 # -----------------------------------------------------------------------------
@@ -4492,7 +4506,7 @@ merge firehol_level3 "attacks" "An ipset made from blocklists that track attacks
 merge firehol_proxies "anonymizers" "An ipset made from all sources that track open proxies. It includes IPs reported or detected in the last 30 days." \
 	ib_bluetack_proxies maxmind_proxy_fraud proxyrss_30d proxz_30d \
 	ri_connect_proxies_30d ri_web_proxies_30d xroxy_30d \
-	proxyspy_30d sslproxies_30d socks_proxy_30d
+	proxyspy_30d sslproxies_30d socks_proxy_30d proxylists_30d
 
 merge firehol_anonymous "anonymizers" "An ipset that includes all the anonymizing IPs of the world." \
 	firehol_proxies anonymous bm_tor dm_tor tor_exits
