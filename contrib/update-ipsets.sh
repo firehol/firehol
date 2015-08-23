@@ -2430,6 +2430,24 @@ parse_maxmind_proxy_fraud() {
 		cut -d '<' -f 1
 }
 
+extract_ipv4_from_any_file() {
+	grep -oP "${IP4_MATCH}"
+}
+
+# convert hphosts file to IPs, by resolving all IPs
+hphosts2ips() {
+	tr "\t\r" "  " |\
+		trim |\
+		cut -d ' ' -f 2- |\
+		tr " " "\n" |\
+		sort -u |\
+		grep -v "^$" |\
+		grep -v "^localhost$" |\
+		adnshost --pipe 2>/dev/null |\
+		grep " A INET " |\
+		cut -d ' ' -f 4
+}
+
 geolite2_country() {
 	local ipset="geolite2_country" limit="" hash="net" ipv="ipv4" \
 		mins=$[24 * 60 * 7] history_mins=0 \
@@ -3018,12 +3036,19 @@ update bm_tor 30 0 ipv4 ip \
 	"torstatus.blutmagie.de" "https://torstatus.blutmagie.de/"
 
 torproject_exits() { grep "^ExitAddress " | cut -d ' ' -f 2; }
-update tor_exits 5 0 ipv4 ip \
+update tor_exits 5 "$[24*60] $[7*24*60] $[30*24*60]" ipv4 ip \
 	"https://check.torproject.org/exit-addresses" \
 	torproject_exits \
 	"anonymizers" \
 	"[TorProject.org](https://www.torproject.org) list of all current TOR exit points (TorDNSEL)" \
 	"TorProject.org" "https://www.torproject.org/"
+
+update darklist_de 30 0 ipv4 both \
+	"http://www.darklist.de/raw.php" \
+	remove_comments \
+	"attacks" \
+	"[darklist.de](http://www.darklist.de/) ssh fail2ban reporting" \
+	"darklist.de" "http://www.darklist.de/"
 
 # -----------------------------------------------------------------------------
 # EmergingThreats
@@ -3886,6 +3911,27 @@ update greensnow 30 0 ipv4 ip \
 	"[GreenSnow](https://greensnow.co/) is a team harvesting a large number of IPs from different computers located around the world. GreenSnow is comparable with SpamHaus.org for attacks of any kind except for spam. Their list is updated automatically and you can withdraw at any time your IP address if it has been listed. Attacks / bruteforce that are monitored are: Scan Port, FTP, POP3, mod_security, IMAP, SMTP, SSH, cPanel, etc." \
 	"GreenSnow.co" "https://greensnow.co/"
 
+
+# -----------------------------------------------------------------------------
+# http://cybercrime-tracker.net/fuckerz.php
+
+update cybercrime $[12 * 60] 0 ipv4 ip \
+	"http://cybercrime-tracker.net/fuckerz.php" \
+	extract_ipv4_from_any_file \
+	"malware" \
+	"[CyberCrime](http://cybercrime-tracker.net/) A project tracking Command and Control." \
+	"CyberCrime" "http://cybercrime-tracker.net/"
+
+
+# -----------------------------------------------------------------------------
+# http://vxvault.net/ViriList.php?s=0&m=100
+
+update vxvault $[12 * 60] 0 ipv4 ip \
+	"http://vxvault.net/ViriList.php?s=0&m=100" \
+	extract_ipv4_from_any_file \
+	"malware" \
+	"[VxVault](http://vxvault.net) The latest 100 additions of VxVault." \
+	"VxVault" "http://vxvault.net"
 
 # -----------------------------------------------------------------------------
 # BinaryDefense
