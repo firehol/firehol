@@ -825,6 +825,8 @@ declare -A IPSET_IPS_MIN=()
 declare -A IPSET_IPS_MAX=()
 declare -A IPSET_STARTED_DATE=()
 
+declare -A IPSET_CLOCK_SKEW=()
+
 # TODO - FIXME
 #declare -A IPSET_PREFIXES=()
 #declare -A IPSET_DOWNLOADER=()
@@ -859,6 +861,7 @@ cache_save() {
 		IPSET_IPS_MIN \
 		IPSET_IPS_MAX \
 		IPSET_STARTED_DATE \
+		IPSET_CLOCK_SKEW \
 		>"${BASE_DIR}/.cache"
 }
 
@@ -899,6 +902,7 @@ cache_remove_ipset() {
 	unset IPSET_IPS_MIN[${ipset}]
 	unset IPSET_IPS_MAX[${ipset}]
 	unset IPSET_STARTED_DATE[${ipset}]
+	unset IPSET_CLOCK_SKEW[${ipset}]
 
 	cache_save
 }
@@ -961,6 +965,10 @@ ipset_json() {
 		IPSET_STARTED_DATE[${ipset}]="${IPSET_SOURCE_DATE[${ipset}]}"
 	fi
 
+	if [ -z "${IPSET_CLOCK_SKEW[${ipset}]}" ]
+		then
+		IPSET_CLOCK_SKEW[${ipset}]=0
+	fi
 
 	cat <<EOFJSON
 {
@@ -978,6 +986,7 @@ ipset_json() {
 	"started": ${IPSET_STARTED_DATE[${ipset}]}000,
 	"updated": ${IPSET_SOURCE_DATE[${ipset}]}000,
 	"processed": ${IPSET_PROCESSED_DATE[${ipset}]}000,
+	"clock_skew": $[ IPSET_CLOCK_SKEW[${ipset}] * 1000 ],
 	"category": "${IPSET_CATEGORY[${ipset}]}",
 	"maintainer": "${IPSET_MAINTAINER[${ipset}]}",
 	"maintainer_url": "${IPSET_MAINTAINER_URL[${ipset}]}",
@@ -1004,12 +1013,18 @@ EOFJSON
 ipset_json_index() {
 	local ipset="${1}"
 
+	if [ -z "${IPSET_CLOCK_SKEW[${ipset}]}" ]
+		then
+		IPSET_CLOCK_SKEW[${ipset}]=0
+	fi
+
 cat <<EOFALL
 	{
 		"ipset": "${ipset}",
 		"category": "${IPSET_CATEGORY[${ipset}]}",
 		"maintainer": "${IPSET_MAINTAINER[${ipset}]}",
 		"updated": ${IPSET_SOURCE_DATE[${ipset}]}000,
+		"clock_skew": $[ IPSET_CLOCK_SKEW[${ipset}] * 1000 ],
 		"ips": ${IPSET_IPS[${ipset}]}
 EOFALL
 printf "	}"
@@ -1788,6 +1803,14 @@ finalize() {
 	[ "${IPSET_IPS_MAX[${ipset}]}" -lt "${IPSET_IPS[${ipset}]}" ] && IPSET_IPS_MAX[${ipset}]="${IPSET_IPS[${ipset}]}"
 
 	[ -z "${IPSET_STARTED_DATE[${ipset}]}" ] && IPSET_STARTED_DATE[${ipset}]="${IPSET_SOURCE_DATE[${ipset}]}"
+
+	local now="$(date +%s)"
+	if [ "${now}" -lt "${IPSET_SOURCE_DATE[${ipset}]}" ]
+		then
+		IPSET_CLOCK_SKEW[${ipset}]=$[ IPSET_SOURCE_DATE[${ipset}] - now ]
+	else
+		IPSET_CLOCK_SKEW[${ipset}]=0
+	fi
 
 	ipset_attributes "${ipset}" "${@}"
 
@@ -3479,6 +3502,25 @@ update xroxy 60 "$[24*60] $[7*24*60] $[30*24*60]" ipv4 ip \
 
 
 # -----------------------------------------------------------------------------
+# Free Proxy List
+
+# http://www.sslproxies.org/
+update sslproxies 10 "$[24*60] $[7*24*60] $[30*24*60]" ipv4 ip \
+	"http://www.sslproxies.org/" \
+	extract_ipv4_from_any_file \
+	"anonymizers" \
+	"[SSLProxies.org](http://www.sslproxies.org/) open SSL proxies" \
+	"Free Proxy List" "http://free-proxy-list.net/"
+
+# http://www.socks-proxy.net/
+update socks_proxy 10 "$[24*60] $[7*24*60] $[30*24*60]" ipv4 ip \
+	"http://www.socks-proxy.net/" \
+	extract_ipv4_from_any_file \
+	"anonymizers" \
+	"[socks-proxy.net](http://www.socks-proxy.net/) open SOCKS proxies" \
+	"Free Proxy List" "http://free-proxy-list.net/"
+
+# -----------------------------------------------------------------------------
 # Open Proxies from proxz.com
 # http://www.proxz.com/
 
@@ -3520,7 +3562,7 @@ update proxyrss $[4*60] "$[24*60] $[7*24*60] $[30*24*60]" ipv4 ip \
 # Anonymous Proxies
 # https://www.maxmind.com/en/anonymous-proxy-fraudulent-ip-address-list
 
-update maxmind_proxy_fraud $[4*60] "$[24*60] $[7*24*60] $[30*24*60]" ipv4 ip \
+update maxmind_proxy_fraud $[4*60] 0 ipv4 ip \
 	"https://www.maxmind.com/en/anonymous-proxy-fraudulent-ip-address-list" \
 	parse_maxmind_proxy_fraud \
 	"anonymizers" \
@@ -4450,7 +4492,7 @@ merge firehol_level3 "attacks" "An ipset made from blocklists that track attacks
 merge firehol_proxies "anonymizers" "An ipset made from all sources that track open proxies. It includes IPs reported or detected in the last 30 days." \
 	ib_bluetack_proxies maxmind_proxy_fraud proxyrss_30d proxz_30d \
 	ri_connect_proxies_30d ri_web_proxies_30d xroxy_30d \
-	proxyspy_30d
+	proxyspy_30d sslproxies_30d socks_proxy_30d
 
 merge firehol_anonymous "anonymizers" "An ipset that includes all the anonymizing IPs of the world." \
 	firehol_proxies anonymous bm_tor dm_tor tor_exits
