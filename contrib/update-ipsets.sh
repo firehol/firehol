@@ -1756,6 +1756,11 @@ finalize() {
 	local ips=${entries/*,/}
 	local entries=${entries/,*/}
 
+	if [ ${ips} -eq 0 ]
+		then
+		syslog "${ipset}: processed file has no valid entries (zero unique IPs)"
+	fi
+
 	ipset_apply ${ipset} ${ipv} ${hash} ${tmp}
 	if [ $? -ne 0 ]
 	then
@@ -3990,6 +3995,23 @@ update vxvault $[12 * 60] 0 ipv4 ip \
 	"VxVault" "http://vxvault.net"
 
 # -----------------------------------------------------------------------------
+# Bitcoin connected hosts
+
+update bitcoin_online 10 "$[24*60] $[7*24*60] $[30*24*60]" ipv4 ip \
+	"https://blockchain.info/en/connected-nodes" \
+	extract_ipv4_from_any_file \
+	"reputation" \
+	"[Blockchain.info](https://blockchain.info/en/connected-nodes) Bitcoin connected nodes." \
+	"Blockchain.info" "https://blockchain.info/en/connected-nodes"
+
+update bitcoin_nodes 10 "$[24*60] $[7*24*60] $[30*24*60]" ipv4 ip \
+	"https://getaddr.bitnodes.io/api/v1/snapshots/latest/" \
+	extract_ipv4_from_any_file \
+	"reputation" \
+	"[BitNodes](https://getaddr.bitnodes.io/) Bitcoin connected nodes." \
+	"BitNodes" "https://getaddr.bitnodes.io/"
+
+# -----------------------------------------------------------------------------
 # BinaryDefense
 # https://greensnow.co/
 
@@ -4254,7 +4276,215 @@ update ib_onion_router $[12*60] 0 ipv4 both \
 	"[iBlocklist.com](https://www.iblocklist.com/) The Onion Router IP addresses." \
 	"iBlocklist.com" "https://www.iblocklist.com/"
 
+update ib_org_apple $[24*60] 0 ipv4 both \
+	"http://list.iblocklist.com/?list=aphcqvpxuqgrkgufjruj&fileformat=p2p&archiveformat=gz" \
+	p2p_gz \
+	"organizations" \
+	"[iBlocklist.com](https://www.iblocklist.com/) Apple IPs." \
+	"iBlocklist.com" "https://www.iblocklist.com/"
 
+update ib_org_logmein $[24*60] 0 ipv4 both \
+	"http://list.iblocklist.com/?list=tgbankumtwtrzllndbmb&fileformat=p2p&archiveformat=gz" \
+	p2p_gz \
+	"organizations" \
+	"[iBlocklist.com](https://www.iblocklist.com/) LogMeIn IPs." \
+	"iBlocklist.com" "https://www.iblocklist.com/"
+
+update ib_org_steam $[24*60] 0 ipv4 both \
+	"http://list.iblocklist.com/?list=cnxkgiklecdaihzukrud&fileformat=p2p&archiveformat=gz" \
+	p2p_gz \
+	"organizations" \
+	"[iBlocklist.com](https://www.iblocklist.com/) Steam IPs." \
+	"iBlocklist.com" "https://www.iblocklist.com/"
+
+update ib_org_xfire $[24*60] 0 ipv4 both \
+	"http://list.iblocklist.com/?list=ppqqnyihmcrryraaqsjo&fileformat=p2p&archiveformat=gz" \
+	p2p_gz \
+	"organizations" \
+	"[iBlocklist.com](https://www.iblocklist.com/) XFire IPs." \
+	"iBlocklist.com" "https://www.iblocklist.com/"
+
+update ib_org_blizzard $[24*60] 0 ipv4 both \
+	"http://list.iblocklist.com/?list=ercbntshuthyykfkmhxc&fileformat=p2p&archiveformat=gz" \
+	p2p_gz \
+	"organizations" \
+	"[iBlocklist.com](https://www.iblocklist.com/) Blizzard IPs." \
+	"iBlocklist.com" "https://www.iblocklist.com/"
+
+update ib_org_ubisoft $[24*60] 0 ipv4 both \
+	"http://list.iblocklist.com/?list=etmcrglomupyxtaebzht&fileformat=p2p&archiveformat=gz" \
+	p2p_gz \
+	"organizations" \
+	"[iBlocklist.com](https://www.iblocklist.com/) Ubisoft IPs." \
+	"iBlocklist.com" "https://www.iblocklist.com/"
+
+update ib_org_nintendo $[24*60] 0 ipv4 both \
+	"http://list.iblocklist.com/?list=pevkykuhgaegqyayzbnr&fileformat=p2p&archiveformat=gz" \
+	p2p_gz \
+	"organizations" \
+	"[iBlocklist.com](https://www.iblocklist.com/) Nintendo IPs." \
+	"iBlocklist.com" "https://www.iblocklist.com/"
+
+update ib_org_activision $[24*60] 0 ipv4 both \
+	"http://list.iblocklist.com/?list=gfnxlhxsijzrcuxwzebb&fileformat=p2p&archiveformat=gz" \
+	p2p_gz \
+	"organizations" \
+	"[iBlocklist.com](https://www.iblocklist.com/) Activision IPs." \
+	"iBlocklist.com" "https://www.iblocklist.com/"
+
+update ib_org_sony_online $[24*60] 0 ipv4 both \
+	"http://list.iblocklist.com/?list=tukpvrvlubsputmkmiwg&fileformat=p2p&archiveformat=gz" \
+	p2p_gz \
+	"organizations" \
+	"[iBlocklist.com](https://www.iblocklist.com/) Sony Online Entertainment IPs." \
+	"iBlocklist.com" "https://www.iblocklist.com/"
+
+update ib_org_crowd_control $[24*60] 0 ipv4 both \
+	"http://list.iblocklist.com/?list=eveiyhgmusglurfmjyag&fileformat=p2p&archiveformat=gz" \
+	p2p_gz \
+	"organizations" \
+	"[iBlocklist.com](https://www.iblocklist.com/) Crowd Control Productions IPs." \
+	"iBlocklist.com" "https://www.iblocklist.com/"
+
+update ib_org_linden_lab $[24*60] 0 ipv4 both \
+	"http://list.iblocklist.com/?list=qnjdimxnaupjmpqolxcv&fileformat=p2p&archiveformat=gz" \
+	p2p_gz \
+	"organizations" \
+	"[iBlocklist.com](https://www.iblocklist.com/) Linden Lab IPs." \
+	"iBlocklist.com" "https://www.iblocklist.com/"
+
+update ib_org_electronic_arts $[24*60] 0 ipv4 both \
+	"http://list.iblocklist.com/?list=ejqebpcdmffinaetsvxj&fileformat=p2p&archiveformat=gz" \
+	p2p_gz \
+	"organizations" \
+	"[iBlocklist.com](https://www.iblocklist.com/) Electronic Arts IPs." \
+	"iBlocklist.com" "https://www.iblocklist.com/"
+
+update ib_org_square_enix $[24*60] 0 ipv4 both \
+	"http://list.iblocklist.com/?list=odyaqontcydnodrlyina&fileformat=p2p&archiveformat=gz" \
+	p2p_gz \
+	"organizations" \
+	"[iBlocklist.com](https://www.iblocklist.com/) Square Enix IPs." \
+	"iBlocklist.com" "https://www.iblocklist.com/"
+
+update ib_org_ncsoft $[24*60] 0 ipv4 both \
+	"http://list.iblocklist.com/?list=mwjuwmebrnzyyxpbezxu&fileformat=p2p&archiveformat=gz" \
+	p2p_gz \
+	"organizations" \
+	"[iBlocklist.com](https://www.iblocklist.com/) NCsoft IPs." \
+	"iBlocklist.com" "https://www.iblocklist.com/"
+
+update ib_org_riot_games $[24*60] 0 ipv4 both \
+	"http://list.iblocklist.com/?list=sdlvfabdjvrdttfjotcy&fileformat=p2p&archiveformat=gz" \
+	p2p_gz \
+	"organizations" \
+	"[iBlocklist.com](https://www.iblocklist.com/) Riot Games IPs." \
+	"iBlocklist.com" "https://www.iblocklist.com/"
+
+update ib_org_punkbuster $[24*60] 0 ipv4 both \
+	"http://list.iblocklist.com/?list=zvwwndvzulqcltsicwdg&fileformat=p2p&archiveformat=gz" \
+	p2p_gz \
+	"organizations" \
+	"[iBlocklist.com](https://www.iblocklist.com/) Punkbuster IPs." \
+	"iBlocklist.com" "https://www.iblocklist.com/"
+
+update ib_org_joost $[24*60] 0 ipv4 both \
+	"http://list.iblocklist.com/?list=alxugfmeszbhpxqfdits&fileformat=p2p&archiveformat=gz" \
+	p2p_gz \
+	"organizations" \
+	"[iBlocklist.com](https://www.iblocklist.com/) Joost IPs." \
+	"iBlocklist.com" "https://www.iblocklist.com/"
+
+update ib_org_pandora $[24*60] 0 ipv4 both \
+	"http://list.iblocklist.com/?list=aevzidimyvwybzkletsg&fileformat=p2p&archiveformat=gz" \
+	p2p_gz \
+	"organizations" \
+	"[iBlocklist.com](https://www.iblocklist.com/) Pandora IPs." \
+	"iBlocklist.com" "https://www.iblocklist.com/"
+
+update ib_org_pirate_bay $[24*60] 0 ipv4 both \
+	"http://list.iblocklist.com/?list=nzldzlpkgrcncdomnttb&fileformat=p2p&archiveformat=gz" \
+	p2p_gz \
+	"organizations" \
+	"[iBlocklist.com](https://www.iblocklist.com/) The Pirate Bay IPs." \
+	"iBlocklist.com" "https://www.iblocklist.com/"
+
+update ib_isp_aol $[24*60] 0 ipv4 both \
+	"http://list.iblocklist.com/?list=toboaiysofkflwgrttmb&fileformat=p2p&archiveformat=gz" \
+	p2p_gz \
+	"organizations" \
+	"[iBlocklist.com](https://www.iblocklist.com/) AOL IPs." \
+	"iBlocklist.com" "https://www.iblocklist.com/"
+
+update ib_isp_comcast $[24*60] 0 ipv4 both \
+	"http://list.iblocklist.com/?list=rsgyxvuklicibautguia&fileformat=p2p&archiveformat=gz" \
+	p2p_gz \
+	"organizations" \
+	"[iBlocklist.com](https://www.iblocklist.com/) Comcast IPs." \
+	"iBlocklist.com" "https://www.iblocklist.com/"
+
+update ib_isp_cablevision $[24*60] 0 ipv4 both \
+	"http://list.iblocklist.com/?list=dwwbsmzirrykdlvpqozb&fileformat=p2p&archiveformat=gz" \
+	p2p_gz \
+	"organizations" \
+	"[iBlocklist.com](https://www.iblocklist.com/) Cablevision IPs." \
+	"iBlocklist.com" "https://www.iblocklist.com/"
+
+update ib_isp_verizon $[24*60] 0 ipv4 both \
+	"http://list.iblocklist.com/?list=cdmdbprvldivlqsaqjol&fileformat=p2p&archiveformat=gz" \
+	p2p_gz \
+	"organizations" \
+	"[iBlocklist.com](https://www.iblocklist.com/) Verizon IPs." \
+	"iBlocklist.com" "https://www.iblocklist.com/"
+
+update ib_isp_att $[24*60] 0 ipv4 both \
+	"http://list.iblocklist.com/?list=grbtkzijgrowvobvessf&fileformat=p2p&archiveformat=gz" \
+	p2p_gz \
+	"organizations" \
+	"[iBlocklist.com](https://www.iblocklist.com/) AT&T IPs." \
+	"iBlocklist.com" "https://www.iblocklist.com/"
+
+update ib_isp_twc $[24*60] 0 ipv4 both \
+	"http://list.iblocklist.com/?list=aqtsnttnqmcucwrjmohd&fileformat=p2p&archiveformat=gz" \
+	p2p_gz \
+	"organizations" \
+	"[iBlocklist.com](https://www.iblocklist.com/) Time Warner Cable IPs." \
+	"iBlocklist.com" "https://www.iblocklist.com/"
+
+update ib_isp_charter $[24*60] 0 ipv4 both \
+	"http://list.iblocklist.com/?list=htnzojgossawhpkbulqw&fileformat=p2p&archiveformat=gz" \
+	p2p_gz \
+	"organizations" \
+	"[iBlocklist.com](https://www.iblocklist.com/) Charter IPs." \
+	"iBlocklist.com" "https://www.iblocklist.com/"
+
+update ib_isp_qwest $[24*60] 0 ipv4 both \
+	"http://list.iblocklist.com/?list=jezlifrpefawuoawnfez&fileformat=p2p&archiveformat=gz" \
+	p2p_gz \
+	"organizations" \
+	"[iBlocklist.com](https://www.iblocklist.com/) Qwest IPs." \
+	"iBlocklist.com" "https://www.iblocklist.com/"
+
+update ib_isp_embarq $[24*60] 0 ipv4 both \
+	"http://list.iblocklist.com/?list=twdblifaysaqtypevvdp&fileformat=p2p&archiveformat=gz" \
+	p2p_gz \
+	"organizations" \
+	"[iBlocklist.com](https://www.iblocklist.com/) Embarq IPs." \
+	"iBlocklist.com" "https://www.iblocklist.com/"
+
+update ib_isp_suddenlink $[24*60] 0 ipv4 both \
+	"http://list.iblocklist.com/?list=psaoblrwylfrdsspfuiq&fileformat=p2p&archiveformat=gz" \
+	p2p_gz \
+	"organizations" \
+	"[iBlocklist.com](https://www.iblocklist.com/) Suddenlink IPs." \
+	"iBlocklist.com" "https://www.iblocklist.com/"
+
+update ib_isp_sprint $[24*60] 0 ipv4 both \
+	"http://list.iblocklist.com/?list=hngtqrhhuadlceqxbrob&fileformat=p2p&archiveformat=gz" \
+	p2p_gz \
+	"organizations" \
+	"[iBlocklist.com](https://www.iblocklist.com/) Sprint IPs." \
+	"iBlocklist.com" "https://www.iblocklist.com/"
 
 # -----------------------------------------------------------------------------
 # BadIPs.com
