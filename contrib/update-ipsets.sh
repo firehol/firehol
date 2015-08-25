@@ -664,7 +664,7 @@ geturl() {
 
 	test ${SILENT} -ne 1 && printf >&2 "${ipset}: downlading from '%s'... " "${url}"
 
-	http_code=$(curl --connect-timeout 10 --max-time 300 --retry 0 --fail --compressed \
+	http_code=$(curl --connect-timeout 10 --max-time 180 --retry 0 --fail --compressed \
 		--user-agent "FireHOL-Update-Ipsets/3.0" \
 		--referer "https://github.com/ktsaou/firehol/blob/master/contrib/update-ipsets.sh" \
 		-z "${reference}" -o "${file}" -s -L -R -w "%{http_code}" \
@@ -3073,7 +3073,7 @@ update tor_exits 5 "$[24*60] $[7*24*60] $[30*24*60]" ipv4 ip \
 	"[TorProject.org](https://www.torproject.org) list of all current TOR exit points (TorDNSEL)" \
 	"TorProject.org" "https://www.torproject.org/"
 
-update darklist_de 30 0 ipv4 both \
+update darklist_de $[24 * 60] 0 ipv4 both \
 	"http://www.darklist.de/raw.php" \
 	remove_comments \
 	"attacks" \
@@ -3131,12 +3131,12 @@ update et_block $[12*60] 0 ipv4 both \
 # http://www.spamhaus.org
 
 # http://www.spamhaus.org/drop/
-# These guys say that this list should be dropped at tier-1 ISPs globaly!
+# These guys say that this list should be dropped at tier-1 ISPs globally!
 update spamhaus_drop $[12*60] 0 ipv4 both \
 	"http://www.spamhaus.org/drop/drop.txt" \
 	remove_comments_semi_colon \
 	"reputation" \
-	"[Spamhaus.org](http://www.spamhaus.org) DROP list (according to their site this list should be dropped at tier-1 ISPs globaly)" \
+	"[Spamhaus.org](http://www.spamhaus.org) DROP list (according to their site this list should be dropped at tier-1 ISPs globally)" \
 	"Spamhaus.org" "http://www.spamhaus.org/"
 
 # extended DROP (EDROP) list.
@@ -3997,23 +3997,24 @@ update vxvault $[12 * 60] 0 ipv4 ip \
 # -----------------------------------------------------------------------------
 # Bitcoin connected hosts
 
-update bitcoin_online 10 "$[24*60] $[7*24*60] $[30*24*60]" ipv4 ip \
+update bitcoin_blockchain_info 10 "$[24*60] $[7*24*60] $[30*24*60]" ipv4 ip \
 	"https://blockchain.info/en/connected-nodes" \
 	extract_ipv4_from_any_file \
 	"reputation" \
-	"[Blockchain.info](https://blockchain.info/en/connected-nodes) Bitcoin connected nodes." \
+	"[Blockchain.info](https://blockchain.info/en/connected-nodes) Bitcoin nodes connected to Blockchain.info." \
 	"Blockchain.info" "https://blockchain.info/en/connected-nodes"
 
 update bitcoin_nodes 10 "$[24*60] $[7*24*60] $[30*24*60]" ipv4 ip \
 	"https://getaddr.bitnodes.io/api/v1/snapshots/latest/" \
 	extract_ipv4_from_any_file \
 	"reputation" \
-	"[BitNodes](https://getaddr.bitnodes.io/) Bitcoin connected nodes." \
+	"[BitNodes](https://getaddr.bitnodes.io/) Bitcoin connected nodes, globally." \
 	"BitNodes" "https://getaddr.bitnodes.io/"
+
 
 # -----------------------------------------------------------------------------
 # BinaryDefense
-# https://greensnow.co/
+# https://www.binarydefense.com/
 
 update bds_atif $[24*60] 0 ipv4 ip \
 	"https://www.binarydefense.com/banlist.txt" \
@@ -4022,6 +4023,25 @@ update bds_atif $[24*60] 0 ipv4 ip \
 	"[Binary Defense Systems Artillery Threat Intelligence Feed and Banlist Feed](https://www.binarydefense.com/banlist.txt)" \
 	"Binary Defense Systems" "https://www.binarydefense.com/"
 
+
+# -----------------------------------------------------------------------------
+# Pushing Inertia
+# https://github.com/pushinginertia/ip-blacklist
+
+parse_pushing_inertia() { grep "^deny from " | cut -d ' ' -f 3-; }
+
+update pushing_inertia_blocklist $[24*60] 0 ipv4 both \
+	"https://raw.githubusercontent.com/pushinginertia/ip-blacklist/master/ip_blacklist.conf" \
+	parse_pushing_inertia \
+	"reputation" \
+	"[Pushing Inertia](https://github.com/pushinginertia/ip-blacklist) IPs of hosting providers that are known to host various bots, spiders, scrapers, etc. to block access from these providers to web servers." \
+	"Pushing Inertia" "https://github.com/pushinginertia/ip-blacklist" \
+	license "MIT" \
+	intended_use "firewall_block_service" \
+	protection "inbound" \
+	grade "unknown" \
+	false_positives "none" \
+	poisoning "not_possible"
 
 # -----------------------------------------------------------------------------
 # iBlocklist
