@@ -819,6 +819,7 @@ declare -A IPSET_PROTECTION=()
 declare -A IPSET_INTENDED_USE=()
 declare -A IPSET_FALSE_POSITIVES=()
 declare -A IPSET_POISONING=()
+declare -A IPSET_SERVICES=()
 declare -A IPSET_ENTRIES_MIN=()
 declare -A IPSET_ENTRIES_MAX=()
 declare -A IPSET_IPS_MIN=()
@@ -856,6 +857,7 @@ cache_save() {
 		IPSET_INTENDED_USE \
 		IPSET_FALSE_POSITIVES \
 		IPSET_POISONING \
+		IPSET_SERVICES \
 		IPSET_ENTRIES_MIN \
 		IPSET_ENTRIES_MAX \
 		IPSET_IPS_MIN \
@@ -897,6 +899,7 @@ cache_remove_ipset() {
 	unset IPSET_INTENDED_USE[${ipset}]
 	unset IPSET_FALSE_POSITIVES[${ipset}]
 	unset IPSET_POISONING[${ipset}]
+	unset IPSET_SERVICES[${ipset}]
 	unset IPSET_ENTRIES_MIN[${ipset}]
 	unset IPSET_ENTRIES_MAX[${ipset}]
 	unset IPSET_IPS_MIN[${ipset}]
@@ -905,6 +908,16 @@ cache_remove_ipset() {
 	unset IPSET_CLOCK_SKEW[${ipset}]
 
 	cache_save
+}
+
+ipset_services_to_json_array() {
+	local x= i=0
+	for x in "${@}"
+	do
+		i=$[i + 1]
+		[ $i -gt 1 ] && printf ", "
+		printf "\"%s\"" "${x}"
+	done
 }
 
 ipset_json() {
@@ -1005,7 +1018,8 @@ ipset_json() {
 	"protection": "${IPSET_PROTECTION[${ipset}]}",
 	"intended_use": "${IPSET_INTENDED_USE[${ipset}]}",
 	"false_positives": "${IPSET_FALSE_POSITIVES[${ipset}]}",
-	"poisoning": "${IPSET_POISONING[${ipset}]}"
+	"poisoning": "${IPSET_POISONING[${ipset}]}",
+	"services": [ $(ipset_services_to_json_array ${IPSET_SERVICES[${ipset}]}) ]
 }
 EOFJSON
 }
@@ -1664,9 +1678,13 @@ ipset_attributes() {
 	local ipset="${1}"
 	shift
 
+	echo >&2 "${ipset}: parsing attributes: ${*}"
+
 	while [ ! -z "${1}" ]
 	do
 		case "${1}" in
+			inbound|outbound)	IPSET_PROTECTION[${ipset}]="${1}"; shift; continue ;;
+			
 			category)			IPSET_CATEGORY[${ipset}]="${2}" ;;
 			maintainer)			IPSET_MAINTAINER[${ipset}]="${2}" ;;
 			maintainer_url)		IPSET_MAINTAINER_URL[${ipset}]="${2}" ;;
@@ -1676,6 +1694,7 @@ ipset_attributes() {
 			intended_use)		IPSET_INTENDED_USE[${ipset}]="${2}" ;;
 			false_positives)	IPSET_FALSE_POSITIVES[${ipset}]="${2}" ;;
 			poisoning)			IPSET_POISONING[${ipset}]="${2}" ;;
+			service|services)	IPSET_SERVICES[${ipset}]="${2}" ;;
 			*)	echo >&2 "${ipset}: Unknown ipset option '${1}' with value '${2}'." ;;
 		esac
 
@@ -1688,6 +1707,7 @@ ipset_attributes() {
 	[ -z "${IPSET_INTENDED_USE[${ipset}]}"    ] && IPSET_INTENDED_USE[${ipset}]="unknown"
 	[ -z "${IPSET_FALSE_POSITIVES[${ipset}]}" ] && IPSET_FALSE_POSITIVES[${ipset}]="unknown"
 	[ -z "${IPSET_POISONING[${ipset}]}"       ] && IPSET_POISONING[${ipset}]="unknown"
+	[ -z "${IPSET_SERVICES[${ipset}]}"        ] && IPSET_SERVICES[${ipset}]="unknown"
 
 	return 0
 }
@@ -1851,6 +1871,13 @@ finalize() {
 # Processed with FireHOL's iprange
 #
 EOFHEADER
+# Intended Use    : ${IPSET_INTENDED_USE[${ipset}]}
+# Services        : ${IPSET_SERVICES[${ipset}]}
+# Protection      : ${IPSET_PROTECTION[${ipset}]}
+# Grade           : ${IPSET_GRADE[${ipset}]}
+# License         : ${IPSET_LICENSE[${ipset}]}
+# False Positives : ${IPSET_FALSE_POSITIVES[${ipset}]}
+# Poisoning       : ${IPSET_POISONING[${ipset}]}
 
 	cat "${tmp}" >>"${tmp}.wh"
 	rm "${tmp}"
@@ -1864,7 +1891,7 @@ EOFHEADER
 	if [ -d .git ]
 	then
 		echo >"${setinfo}" "[${ipset}](${WEB_URL}${ipset})|${info}|${ipv} hash:${hash}|${quantity}|`if [ ! -z "${url}" ]; then echo "updated every $(mins_to_text ${mins}) from [this link](${url})"; fi`"
-		check_git_committed "${dst}"
+		[ ! -z "${DO_NOT_REDISTRIBUTE[${ipset}]}" ] && check_git_committed "${dst}"
 	fi
 
 	cache_save
@@ -2064,7 +2091,8 @@ update() {
 			"${url}" \
 			"${category}" \
 			"${info}" \
-			"${maintainer}" "${maintainer_url}"
+			"${maintainer}" "${maintainer_url}" \
+			"${@}"
  	done
 
 	if [ ! -z "${history_mins}" ]
@@ -2139,13 +2167,17 @@ rename_ipset() {
 
 	if [ -d "${WEB_DIR}" ]
 		then
+		cd "${WEB_DIR}" || exit 1
+
 		for x in _comparison.json _geolite2_country.json _ipdeny_country.json _ip2location_country.json _history.csv retention.json .json
 		do
-			if [ -f "${WEB_DIR}/${old}${x}" -a ! -f "${WEB_DIR}/${new}${x}" ]
+			if [ -f "${old}${x}" -a ! -f "${new}${x}" ]
 				then
-				mv -f "${WEB_DIR}/${old}${x}" "${WEB_DIR}/${new}${x}"
+				git mv -f "${old}${x}" "${new}${x}"
 			fi
 		done
+
+		cd "${BASE_DIR}" || exit 1
 	fi
 
 	return 0
@@ -2459,7 +2491,10 @@ parse_maxmind_proxy_fraud() {
 }
 
 extract_ipv4_from_any_file() {
-	grep -oP "${IP4_MATCH}"
+	grep -oP "(^|[[:punct:]]|[[:space:]]|[[:cntrl:]])${IP4_MATCH}([[:punct:]]|[[:space:]]|[[:cntrl:]]|$)" |\
+		egrep -v "${IP4_MATCH}\." |\
+		egrep -v "\.${IP4_MATCH}" |\
+		grep -oP "${IP4_MATCH}"
 }
 
 # convert hphosts file to IPs, by resolving all IPs
@@ -2599,7 +2634,8 @@ geolite2_country() {
 
 		local info2="`cat "${x}.info"` -- ${info}"
 
-		finalize "${i}" "${x/.source.tmp/.source}" "${ipset}/${i}.setinfo" "${ipset}.source" "${ipset}/${i}.netset" "${mins}" "${history_mins}" "${ipv}" "${limit}" "${hash}" "${url}" "geolocation" "${info2}" "MaxMind.com" "http://www.maxmind.com/"
+		finalize "${i}" "${x/.source.tmp/.source}" "${ipset}/${i}.setinfo" "${ipset}.source" "${ipset}/${i}.netset" "${mins}" "${history_mins}" "${ipv}" "${limit}" "${hash}" "${url}" "geolocation" "${info2}" "MaxMind.com" "http://www.maxmind.com/" \
+			service "geolocation"
 	done
 
 	if [ -d .git ]
@@ -2694,7 +2730,8 @@ ipdeny_country() {
 
 		local info2="`cat "${x}.info"` -- ${info}"
 
-		finalize "${i}" "${x/.source.tmp/.source}" "${ipset}/${i}.setinfo" "${ipset}.source" "${ipset}/${i}.netset" "${mins}" "${history_mins}" "${ipv}" "${limit}" "${hash}" "${url}" "geolocation" "${info2}" "IPDeny.com" "http://www.ipdeny.com/"
+		finalize "${i}" "${x/.source.tmp/.source}" "${ipset}/${i}.setinfo" "${ipset}.source" "${ipset}/${i}.netset" "${mins}" "${history_mins}" "${ipv}" "${limit}" "${hash}" "${url}" "geolocation" "${info2}" "IPDeny.com" "http://www.ipdeny.com/" \
+			service "geolocation"
 	done
 
 	if [ -d .git ]
@@ -2820,7 +2857,8 @@ ip2location_country() {
 
 		local info2="`cat "${x}.info"` -- ${info}"
 
-		finalize "${i}" "${x/.source.tmp/.source}" "${ipset}/${i}.setinfo" "${ipset}.source" "${ipset}/${i}.netset" "${mins}" "${history_mins}" "${ipv}" "${limit}" "${hash}" "${url}" "geolocation" "${info2}" "IP2Location.com" "http://lite.ip2location.com/database-ip-country"
+		finalize "${i}" "${x/.source.tmp/.source}" "${ipset}/${i}.setinfo" "${ipset}.source" "${ipset}/${i}.netset" "${mins}" "${history_mins}" "${ipv}" "${limit}" "${hash}" "${url}" "geolocation" "${info2}" "IP2Location.com" "http://lite.ip2location.com/database-ip-country" \
+			service "geolocation"		
 	done
 
 	if [ -d .git ]
@@ -3073,12 +3111,42 @@ update tor_exits 5 "$[24*60] $[7*24*60] $[30*24*60]" ipv4 ip \
 	"[TorProject.org](https://www.torproject.org) list of all current TOR exit points (TorDNSEL)" \
 	"TorProject.org" "https://www.torproject.org/"
 
+
+# -----------------------------------------------------------------------------
+# Darklist.de
+
 update darklist_de $[24 * 60] 0 ipv4 both \
 	"http://www.darklist.de/raw.php" \
 	remove_comments \
 	"attacks" \
 	"[darklist.de](http://www.darklist.de/) ssh fail2ban reporting" \
-	"darklist.de" "http://www.darklist.de/"
+	"darklist.de" "http://www.darklist.de/" \
+	intended_use "inbound ssh blacklist" \
+	protection "inbound" \
+	services "ssh"
+
+
+# -----------------------------------------------------------------------------
+# cruzit.com
+
+update cruzit_web_attacks $[12 * 60] 0 ipv4 ip \
+	"http://www.cruzit.com/xwbl2txt.php" \
+	cat \
+	"attacks" \
+	"[CruzIt.com](http://www.cruzit.com/wbl.php) IPs of compromised machines scanning for vulnerabilities and DDOS attacks" \
+	"CruzIt.com" "http://www.cruzit.com/wbl.php"
+
+
+# -----------------------------------------------------------------------------
+# pgl.yoyo.org
+
+update yoyo_adservers $[12 * 60] 0 ipv4 ip \
+	"http://pgl.yoyo.org/adservers/iplist.php?ipformat=plain&showintro=0&mimetype=plaintext" \
+	cat \
+	"organizations" \
+	"[Yoyo.org](http://pgl.yoyo.org/adservers/) IPs of ad servers" \
+	"Yoyo.org" "http://pgl.yoyo.org/adservers/"
+
 
 # -----------------------------------------------------------------------------
 # EmergingThreats
@@ -3596,35 +3664,35 @@ update maxmind_proxy_fraud $[4*60] 0 ipv4 ip \
 update php_harvesters 60 "$[24*60] $[7*24*60] $[30*24*60]" ipv4 ip \
 	"http://www.projecthoneypot.org/list_of_ips.php?t=h&rss=1" \
 	parse_php_rss \
-	"abuse" \
+	"spam" \
 	"[projecthoneypot.org](http://www.projecthoneypot.org/?rf=192670) harvesters (IPs that surf the internet looking for email addresses) (this list is composed using an RSS feed)" \
 	"ProjectHoneypot.org" "http://www.projecthoneypot.org/"
 
 update php_spammers 60 "$[24*60] $[7*24*60] $[30*24*60]" ipv4 ip \
 	"http://www.projecthoneypot.org/list_of_ips.php?t=s&rss=1" \
 	parse_php_rss \
-	"abuse" \
+	"spam" \
 	"[projecthoneypot.org](http://www.projecthoneypot.org/?rf=192670) spam servers (IPs used by spammers to send messages) (this list is composed using an RSS feed)" \
 	"ProjectHoneypot.org" "http://www.projecthoneypot.org/"
 
 update php_bad 60 "$[24*60] $[7*24*60] $[30*24*60]" ipv4 ip \
 	"http://www.projecthoneypot.org/list_of_ips.php?t=b&rss=1" \
 	parse_php_rss \
-	"abuse" \
+	"spam" \
 	"[projecthoneypot.org](http://www.projecthoneypot.org/?rf=192670) bad web hosts (this list is composed using an RSS feed)" \
 	"ProjectHoneypot.org" "http://www.projecthoneypot.org/"
 
 update php_commenters 60 "$[24*60] $[7*24*60] $[30*24*60]" ipv4 ip \
 	"http://www.projecthoneypot.org/list_of_ips.php?t=c&rss=1" \
 	parse_php_rss \
-	"abuse" \
+	"spam" \
 	"[projecthoneypot.org](http://www.projecthoneypot.org/?rf=192670) comment spammers (this list is composed using an RSS feed)" \
 	"ProjectHoneypot.org" "http://www.projecthoneypot.org/"
 
 update php_dictionary 60 "$[24*60] $[7*24*60] $[30*24*60]" ipv4 ip \
 	"http://www.projecthoneypot.org/list_of_ips.php?t=d&rss=1" \
 	parse_php_rss \
-	"abuse" \
+	"spam" \
 	"[projecthoneypot.org](http://www.projecthoneypot.org/?rf=192670) directory attackers (this list is composed using an RSS feed)" \
 	"ProjectHoneypot.org" "http://www.projecthoneypot.org/"
 
@@ -4738,6 +4806,74 @@ update sorbs_block 1 0 ipv4 both "" \
 	"[Sorbs.net](https://www.sorbs.net/) List of hosts demanding that they never be tested by SORBS." \
 	"Sorbs.net" "https://www.sorbs.net/"
 
+
+# -----------------------------------------------------------------------------
+# DroneBL.org lists
+
+DO_NOT_REDISTRIBUTE[dronebl_anonymizers.netset]="1"
+update dronebl_anonymizers 1 0 ipv4 both "" \
+	cat \
+	"anonymizers" \
+	"[DroneBL.org](https://dronebl.org) List of open proxies. It includes IPs which DroneBL categorizes as SOCKS proxies (8), HTTP proxies (9), web page proxies (11), WinGate proxies (14), proxy chains (10)." \
+	"DroneBL.org" "https://dronebl.org"
+
+DO_NOT_REDISTRIBUTE[dronebl_irc_drones.netset]="1"
+update dronebl_irc_drones 1 0 ipv4 both "" \
+	cat \
+	"abuse" \
+	"[DroneBL.org](https://dronebl.org) List of IRC spam drones (litmus/sdbot/fyle). It includes IPs for which DroneBL responds with 3." \
+	"DroneBL.org" "https://dronebl.org"
+
+DO_NOT_REDISTRIBUTE[dronebl_worms_bots.netset]="1"
+update dronebl_worms_bots 1 0 ipv4 both "" \
+	cat \
+	"malware" \
+	"[DroneBL.org](https://dronebl.org) IPs of unknown worms or spambots. It includes IPs for which DroneBL responds with 6" \
+	"DroneBL.org" "https://dronebl.org"
+
+DO_NOT_REDISTRIBUTE[dronebl_ddos_drones.netset]="1"
+update dronebl_ddos_drones 1 0 ipv4 both "" \
+	cat \
+	"attacks" \
+	"[DroneBL.org](https://dronebl.org) IPs of DDoS drones. It includes IPs for which DroneBL responds with 7." \
+	"DroneBL.org" "https://dronebl.org"
+
+DO_NOT_REDISTRIBUTE[dronebl_compromised.netset]="1"
+update dronebl_compromised 1 0 ipv4 both "" \
+	cat \
+	"attacks" \
+	"[DroneBL.org](https://dronebl.org) IPs of compromised routers / gateways. It includes IPs for which DroneBL responds with 15 (BOPM detected)." \
+	"DroneBL.org" "https://dronebl.org"
+
+DO_NOT_REDISTRIBUTE[dronebl_autorooting_worms.netset]="1"
+update dronebl_autorooting_worms 1 0 ipv4 both "" \
+	cat \
+	"attacks" \
+	"[DroneBL.org](https://dronebl.org) IPs of autorooting worms. It includes IPs for which DroneBL responds with 16. These are usually SSH bruteforce attacks." \
+	"DroneBL.org" "https://dronebl.org"
+
+DO_NOT_REDISTRIBUTE[dronebl_auto_botnets.netset]="1"
+update dronebl_auto_botnets 1 0 ipv4 both "" \
+	cat \
+	"reputation" \
+	"[DroneBL.org](https://dronebl.org) IPs of automatically detected botnets. It includes IPs for which DroneBL responds with 17." \
+	"DroneBL.org" "https://dronebl.org"
+
+DO_NOT_REDISTRIBUTE[dronebl_dns_mx_on_irc.netset]="1"
+update dronebl_dns_mx_on_irc 1 0 ipv4 both "" \
+	cat \
+	"reputation" \
+	"[DroneBL.org](https://dronebl.org) List of IPs of DNS / MX hostname detected on IRC. It includes IPs for which DroneBL responds with 18." \
+	"DroneBL.org" "https://dronebl.org"
+
+DO_NOT_REDISTRIBUTE[dronebl_unknown.netset]="1"
+update dronebl_unknown 1 0 ipv4 both "" \
+	cat \
+	"reputation" \
+	"[DroneBL.org](https://dronebl.org) List of IPs of uncategorized threats. It includes IPs for which DroneBL responds with 255." \
+	"DroneBL.org" "https://dronebl.org"
+
+
 # -----------------------------------------------------------------------------
 # FireHOL lists
 
@@ -4767,6 +4903,9 @@ merge firehol_anonymous "anonymizers" "An ipset that includes all the anonymizin
 # TODO
 #
 # add sets
+# - https://graphiclineweb.wordpress.com/tech-notes/ip-blacklist/
+# - http://www.ip-finder.me/ip-full-list/
+#
 # - https://github.com/Blueliv/api-python-sdk/wiki/Blueliv-REST-API-Documentation
 # - https://atlas.arbor.net/summary/attacks.csv
 # - https://atlas.arbor.net/summary/botnets.csv
