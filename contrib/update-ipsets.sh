@@ -1180,22 +1180,26 @@ retention_detect() {
 		echo "date_removed,date_added,hours,ips" >"${CACHE_DIR}/${ipset}/retention.csv"
 	fi
 
-	# empty the remaining IPs counters
-	# they will be re-calculated below
-	RETENTION_HISTOGRAM_REST=()
-	RETENTION_HISTOGRAM_INCOMPLETE=0
+	# -------------------------------------------------------------------------
+
+	[ ${VERBOSE} -eq 1 ] && echo >&2 "${ipset}: calculating retention histogram..."
+
+	# find the new/* files that are affected
+	local name1= name2= entries1= entries2= ips1= ips2= combined= common= odate= hours= removed=
+	"${IPRANGE_CMD}" "${CACHE_DIR}/${ipset}/latest" --compare-next "${CACHE_DIR}/${ipset}/new"/* |\
+		while IFS="," read name1 name2 entries1 entries2 ips1 ips2 combined common
+		do
+			[ $[ combined - ips1 ] -ne 0 -o $[ ips2 - common ] -ne 0 ] && echo "${name2}"
+		done | sort -u >"${RUN_DIR}/retention_affacted_updates"
 
 	local x=
-	for x in $(ls "${CACHE_DIR}/${ipset}/new"/*)
+	for x in $(cat "${RUN_DIR}/retention_affacted_updates")
 	do
 		printf >&2 "."
 
 		# find how many hours have passed
-		local odate="${x/*\//}"
-		local hours=$[ (ndate + 1800 - odate) / 3600 ]
-		[ ${VERBOSE} -eq 1 ] && echo >&2 "${ipset}: ${x}: ${hours} hours have passed"
-
-		[ ${odate} -le ${RETENTION_HISTOGRAM_STARTED} ] && RETENTION_HISTOGRAM_INCOMPLETE=1
+		odate="${x/*\//}"
+		hours=$[ (ndate + 1800 - odate) / 3600 ]
 
 		# are all the IPs of this file still the latest?
 		"${IPRANGE_CMD}" --common "${x}" "${CACHE_DIR}/${ipset}/latest" --print-binary >"${x}.stillthere"
@@ -1203,7 +1207,7 @@ retention_detect() {
 		if [ -s "${x}.removed" ]
 			then
 			# no, something removed, find it
-			local removed=$("${IPRANGE_CMD}" -C "${x}.removed")
+			removed=$("${IPRANGE_CMD}" -C "${x}.removed")
 			rm "${x}.removed"
 
 			# these are the unique IPs removed
@@ -1216,6 +1220,7 @@ retention_detect() {
 			# only if the date added is after the date we started
 			[ ${odate} -gt ${RETENTION_HISTOGRAM_STARTED} ] && RETENTION_HISTOGRAM[${hours}]=$[ ${RETENTION_HISTOGRAM[${hours}]} + removed ]
 		else
+			removed=0
 			# yes, nothing removed from this run
 			[ ${VERBOSE} -eq 1 ] && echo >&2 "${ipset}: ${x}: nothing removed"
 			rm "${x}.removed"
@@ -1228,13 +1233,9 @@ retention_detect() {
 			[ ${VERBOSE} -eq 1 ] && echo >&2 "${ipset}: ${x}: nothing left in this"
 			rm "${x}" "${x}.stillthere"
 		else
-			# there is something left in it
 			[ ${VERBOSE} -eq 1 ] && echo >&2 "${ipset}: ${x}: there is still something in it"
 			touch -r "${x}" "${x}.stillthere"
 			mv "${x}.stillthere" "${x}"
-			local still="$("${IPRANGE_CMD}" -C "${x}")"
-			still="${still/*,/}"
-			RETENTION_HISTOGRAM_REST[${hours}]=$[ ${RETENTION_HISTOGRAM_REST[${hours}]} + still ]
 		fi
 	done
 
@@ -1247,13 +1248,32 @@ retention_detect() {
 			unset RETENTION_HISTOGRAM[${x}]
 		fi
 	done
-	for x in "${!RETENTION_HISTOGRAM_REST[@]}"
+
+	# -------------------------------------------------------------------------
+
+	[ ${VERBOSE} -eq 1 ] && echo >&2 "${ipset}: determining the age of currently listed IPs..."
+
+	# empty the remaining IPs counters
+	# they will be re-calculated below
+	RETENTION_HISTOGRAM_REST=()
+	RETENTION_HISTOGRAM_INCOMPLETE=0
+
+	# find the IPs in all new/*
+	"${IPRANGE_CMD}" --count-unique-all "${CACHE_DIR}/${ipset}/new"/* >"${RUN_DIR}/retention_rest" 2>/dev/null
+
+	local entries= ips=
+	while IFS="," read x entries ips
 	do
-		if [ $[ RETENTION_HISTOGRAM_REST[${x}] ] -eq 0 ]
-			then
-			unset RETENTION_HISTOGRAM_REST[${x}]
-		fi
-	done
+		odate="${x/*\//}"
+		hours=$[ (ndate + 1800 - odate) / 3600 ]
+		[ ${VERBOSE} -eq 1 ] && echo >&2 "${ipset}: ${x}: ${hours} hours have passed"
+
+		[ ${odate} -le ${RETENTION_HISTOGRAM_STARTED} ] && RETENTION_HISTOGRAM_INCOMPLETE=1
+
+		RETENTION_HISTOGRAM_REST[${hours}]=$[ ${RETENTION_HISTOGRAM_REST[${hours}]} + ips ]
+	done <"${RUN_DIR}/retention_rest"
+
+	# -------------------------------------------------------------------------
 
 	# save the histogram
 	[ ${VERBOSE} -eq 1 ] && echo >&2 "${ipset}: saving retention cache..."
