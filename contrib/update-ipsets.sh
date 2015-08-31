@@ -658,6 +658,12 @@ history_get() {
 geturl() {
 	local file="${1}" reference="${2}" url="${3}" ret= http_code=
 
+	if [ -z "${reference}" ]
+		then
+		reference="${RUN_DIR}/geturl-reference"
+		touch -t 0001010000 "${reference}"
+	fi
+
 	# copy the timestamp of the reference
 	# to our file
 	touch -r "${reference}" "${file}"
@@ -710,6 +716,7 @@ geturl() {
 DOWNLOAD_OK=0
 DOWNLOAD_FAILED=1
 DOWNLOAD_NOT_UPDATED=2
+declare -A IPSET_DOWNLOADER_NO_IF_MODIFIED_SINCE=()
 download_manager() {
 	local 	ipset="${1}" mins="${2}" url="${3}" \
 		install="${1}" \
@@ -745,7 +752,10 @@ download_manager() {
 	fi
 
 	# download it
-	geturl "${tmp}" "${install}.source" "${url}"
+	local reference="${install}.source"
+	[ ! -z "${IPSET_DOWNLOADER_NO_IF_MODIFIED_SINCE[${ipset}]}" ] && reference=""
+
+	geturl "${tmp}" "${reference}" "${url}"
 	case $? in
 		0)	;;
 		99)
@@ -762,6 +772,8 @@ download_manager() {
 			;;
 	esac
 
+	[ ! -z "${IPSET_DOWNLOADER_NO_IF_MODIFIED_SINCE[${ipset}]}" ] && touch "${tmp}"
+	
 	# we downloaded something - remove the lastchecked file
 	[ -f ".${install}.lastchecked" ] && rm ".${install}.lastchecked"
 
@@ -3160,6 +3172,7 @@ update cruzit_web_attacks $[12 * 60] 0 ipv4 ip \
 # -----------------------------------------------------------------------------
 # pgl.yoyo.org
 
+IPSET_DOWNLOADER_NO_IF_MODIFIED_SINCE[yoyo_adservers]=1
 update yoyo_adservers $[12 * 60] 0 ipv4 ip \
 	"http://pgl.yoyo.org/adservers/iplist.php?ipformat=plain&showintro=0&mimetype=plaintext" \
 	cat \
@@ -3865,8 +3878,8 @@ update snort_ipfilter $[12*60] 0 ipv4 ip \
 # TalosIntel
 # http://talosintel.com
 
-update talosintel_ipfilter $[4*60] 0 ipv4 ip \
-	"http://talosintel.com/files/additional_resources/ips_blacklist/ip-filter.blf" \
+update talosintel_ipfilter 15 0 ipv4 ip \
+	"http://talosintel.com/feeds/ip-filter.blf" \
 	remove_comments \
 	"attacks" \
 	"[TalosIntel.com](http://talosintel.com/additional-resources/) List of known malicious network threats" \
