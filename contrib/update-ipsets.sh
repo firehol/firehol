@@ -1711,7 +1711,7 @@ ipset_attributes() {
 	local ipset="${1}"
 	shift
 
-	echo >&2 "${ipset}: parsing attributes: ${*}"
+	# echo >&2 "${ipset}: parsing attributes: ${*}"
 
 	while [ ! -z "${1}" ]
 	do
@@ -2227,7 +2227,7 @@ rename_ipset rosi_connect_proxies ri_connect_proxies
 rename_ipset danmetor dm_tor
 rename_ipset autoshun shunlist
 rename_ipset tor_servers bm_tor
-rename_ipset stop_forum_spam stopforumspam_ever
+rename_ipset stop_forum_spam stopforumspam
 rename_ipset stop_forum_spam_1h stopforumspam_1d
 rename_ipset stop_forum_spam_7d stopforumspam_7d
 rename_ipset stop_forum_spam_30d stopforumspam_30d
@@ -3455,16 +3455,20 @@ update asprox_c2 $[24*60] 0 ipv4 ip \
 # Stop Forum Spam
 # http://www.stopforumspam.com/downloads/
 
-# to use this, create the ipset like this (in firehol.conf):
-# >> ipset4 create stop_forum_spam hash:ip maxelem 500000
-# -- normally, you don't need this set --
-# -- use the hourly and the daily ones instead --
-# IMPORTANT: THIS IS A BIG LIST - you will have to add maxelem to ipset to fit it
-update stopforumspam_ever $[24*60] 0 ipv4 ip \
+# toxic
+update stopforumspam_toxic $[24*60] 0 ipv4 both \
+	"http://www.stopforumspam.com/downloads/toxic_ip_cidr.txt" \
+	remove_comments \
+	"abuse" \
+	"[StopForumSpam.com](http://www.stopforumspam.com) Networks that have large amounts of spambots and are flagged as toxic. Toxic IP ranges are infrequently changed." \
+	"StopForumSpam.com" "http://www.stopforumspam.com/"
+
+# banned
+update stopforumspam $[24*60] 0 ipv4 ip \
 	"http://www.stopforumspam.com/downloads/bannedips.zip" \
 	unzip_and_split_csv \
 	"abuse" \
-	"[StopForumSpam.com](http://www.stopforumspam.com) all IPs used by forum spammers, ever (normally you don't want to use this ipset, use the hourly one which includes last 24 hours IPs or the 7 days one)" \
+	"[StopForumSpam.com](http://www.stopforumspam.com) Banned IPs used by forum spammers" \
 	"StopForumSpam.com" "http://www.stopforumspam.com/"
 
 # hourly update with IPs from the last 24 hours
