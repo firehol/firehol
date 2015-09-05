@@ -461,6 +461,7 @@ check_git_committed() {
 	git ls-files "${1}" --error-unmatch >/dev/null 2>&1
 	if [ $? -ne 0 ]
 		then
+		echo >&2 "Adding '${1}' to git"
 		git add "${1}"
 	fi
 }
@@ -1923,7 +1924,7 @@ EOFHEADER
 	if [ -d .git ]
 	then
 		echo >"${setinfo}" "[${ipset}](${WEB_URL}${ipset})|${info}|${ipv} hash:${hash}|${quantity}|`if [ ! -z "${url}" ]; then echo "updated every $(mins_to_text ${mins}) from [this link](${url})"; fi`"
-		[ ! -z "${DO_NOT_REDISTRIBUTE[${ipset}]}" ] && check_git_committed "${dst}"
+		[ -z "${DO_NOT_REDISTRIBUTE[${ipset}]}" ] && check_git_committed "${dst}"
 	fi
 
 	cache_save
