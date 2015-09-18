@@ -198,7 +198,7 @@ static inline void split_range(in_addr_t addr, int prefix, in_addr_t lo, in_addr
 
 	if (unlikely((prefix < 0) || (prefix > 32))) {
 		fprintf(stderr, "%s: Invalid mask size %d!\n", PROG, prefix);
-		exit(1);
+		return;
 	}
 
 	bc = broadcast(addr, prefix);
@@ -206,7 +206,7 @@ static inline void split_range(in_addr_t addr, int prefix, in_addr_t lo, in_addr
 	if (unlikely((lo < addr) || (hi > bc))) {
 		fprintf(stderr, "%s: Out of range limits: %x, %x for "
 			"network %x/%d, broadcast: %x!\n", PROG, lo, hi, addr, prefix, bc);
-		exit(1);
+		return;
 	}
 
 	if ((lo == addr) && (hi == bc) && prefix_enabled[prefix]) {
@@ -237,7 +237,8 @@ static inline in_addr_t a_to_hl(char *ipstr) {
 
 	if (unlikely(!inet_aton(ipstr, &in))) {
 		fprintf(stderr, "%s: Invalid address %s. Reason: %s\n", PROG, ipstr, strerror(errno));
-		exit(1);
+		in.s_addr = 0;
+		return (ntohl(in.s_addr));
 	}
 
 	return (ntohl(in.s_addr));
@@ -271,7 +272,9 @@ static inline network_addr_t str_to_netaddr(char *ipstr) {
 
 			if(unlikely(mask)) {
 				fprintf(stderr, "%s: Invalid netmask %s (calculated prefix = %ld, remaining = 0x%08x)\n", PROG, prefixstr, prefix, mask << (32 - prefix));
-				exit(1);
+				netaddr.addr = 0;
+				netaddr.broadcast = 0;
+				return (netaddr);
 			}
 		}
 	}
@@ -1113,7 +1116,7 @@ ipset *ipset_load(const char *filename) {
 				break;
 
 			default:
-				fprintf(stderr, "%s: Cannot understand result code.\n", PROG);
+				fprintf(stderr, "%s: Cannot understand result code. This is an internal error.\n", PROG);
 				exit(1);
 				break;
 		}
