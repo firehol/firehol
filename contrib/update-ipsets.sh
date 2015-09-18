@@ -264,7 +264,6 @@ CACHE_DIR="/var/lib/update-ipsets"
 # where is the web url to show info about each ipset
 # the ipset name is appended to it
 WEB_URL="http://iplists.firehol.org/?ipset="
-WEB_URL2="https://ktsaou.github.io/blocklist-ipsets/?ipset="
 
 GITHUB_LOCAL_COPY_URL="https://raw.githubusercontent.com/ktsaou/blocklist-ipsets/master/"
 GITHUB_CHANGES_URL="https://github.com/ktsaou/blocklist-ipsets/commits/master/"
@@ -503,12 +502,13 @@ commit_to_git() {
 		done
 
 		declare -a to_be_pushed=()
-		for d in "${UPDATED_SETS[@]}"
+		local ipset=
+		for ipset in "${!UPDATED_SETS[@]}"
 		do
-			[ ! -z "${DO_NOT_REDISTRIBUTE[${d}]}" ] && continue
-			[ ! -f "${d}" ] && continue
+			[ ! -z "${DO_NOT_REDISTRIBUTE[${ipset}]}" ] && continue
+			[ ! -f "${UPDATED_SETS[${ipset}]}" ] && continue
 
-			to_be_pushed=("${to_be_pushed[@]}" "${d}")
+			to_be_pushed=("${to_be_pushed[@]}" "${UPDATED_SETS[${ipset}]}")
 		done
 
 		echo >&2 "Generating script to fix timestamps..."
@@ -962,7 +962,7 @@ ipset_json() {
 
 	local file_local=
 	local commit_history=
-	if [ -z "${DO_NOT_REDISTRIBUTE[${IPSET_FILE[${ipset}]}]}" ]
+	if [ -z "${DO_NOT_REDISTRIBUTE[${ipset}]}" ]
 		then
 		file_local="${GITHUB_LOCAL_COPY_URL}${IPSET_FILE[${ipset}]}"
 		commit_history="${GITHUB_CHANGES_URL}${IPSET_FILE[${ipset}]}"
@@ -1319,17 +1319,6 @@ cat >${RUN_DIR}/sitemap.xml <<EOFSITEMAPA
 		<changefreq>always</changefreq>
 	</url>
 EOFSITEMAPA
-
-if [ ! -z "${WEB_URL2}" ]
-then
-cat >>"${RUN_DIR}/sitemap.xml" <<EOFSITEMAPB
-	<url>
-		<loc>${WEB_URL2/\?*/}</loc>
-		<lastmod>${sitemap_date}</lastmod>
-		<changefreq>always</changefreq>
-	</url>
-EOFSITEMAPB
-fi
 }
 
 sitemap_ipset() {
@@ -1342,17 +1331,6 @@ cat >>"${RUN_DIR}/sitemap.xml" <<EOFSITEMAP1
 		<changefreq>always</changefreq>
 	</url>
 EOFSITEMAP1
-
-if [ ! -z "${WEB_URL2}" ]
-then
-cat >>"${RUN_DIR}/sitemap.xml" <<EOFSITEMAP2
-	<url>
-		<loc>${WEB_URL2}${ipset}</loc>
-		<lastmod>${sitemap_date}</lastmod>
-		<changefreq>always</changefreq>
-	</url>
-EOFSITEMAP2
-fi
 }
 
 update_web() {
@@ -2145,12 +2123,17 @@ update() {
 rename_ipset() {
 	local old="${1}" new="${2}"
 
+	if [ ! -f "${old}.source" -o -f "${new}.source" ]
+		then
+		return 1
+	fi
+
 	local x=
 	for x in ipset netset
 	do
 		if [ -f "${old}.${x}" -a ! -f "${new}.${x}" ]
 			then
-			if [ -d .git ]
+			if [ -d .git -a ! -z "$(git ls-files "${old}.${x}")" ]
 				then
 				echo >&2 "GIT Renaming ${old}.${x} to ${new}.${x}..."
 				git mv "${old}.${x}" "${new}.${x}" || exit 1
@@ -2202,16 +2185,48 @@ rename_ipset() {
 		then
 		cd "${WEB_DIR}" || exit 1
 
-		for x in _comparison.json _geolite2_country.json _ipdeny_country.json _ip2location_country.json _history.csv retention.json .json
+		for x in _comparison.json _geolite2_country.json _ipdeny_country.json _ip2location_country.json _history.csv retention.json .json .html
 		do
 			if [ -f "${old}${x}" -a ! -f "${new}${x}" ]
 				then
 				git mv -f "${old}${x}" "${new}${x}"
+				git commit "${old}${x}" "${new}${x}" -m "renamed from ${old}${x} to ${new}${x}"
 			fi
 		done
 
 		cd "${BASE_DIR}" || exit 1
 	fi
+
+	# rename the cache
+	[ -z "${IPSET_INFO[${new}]}" ] && IPSET_INFO[${new}]="${IPSET_INFO[${old}]}"; unset IPSET_INFO[${old}];
+	[ -z "${IPSET_SOURCE[${new}]}" ] && IPSET_SOURCE[${new}]="${IPSET_SOURCE[${old}]}"; unset IPSET_SOURCE[${old}];
+	[ -z "${IPSET_URL[${new}]}" ] && IPSET_URL[${new}]="${IPSET_URL[${old}]}"; unset IPSET_URL[${old}];
+	[ -z "${IPSET_FILE[${new}]}" ] && IPSET_FILE[${new}]="${IPSET_FILE[${old}]}"; unset IPSET_FILE[${old}];
+	[ -z "${IPSET_IPV[${new}]}" ] && IPSET_IPV[${new}]="${IPSET_IPV[${old}]}"; unset IPSET_IPV[${old}];
+	[ -z "${IPSET_HASH[${new}]}" ] && IPSET_HASH[${new}]="${IPSET_HASH[${old}]}"; unset IPSET_HASH[${old}];
+	[ -z "${IPSET_MINS[${new}]}" ] && IPSET_MINS[${new}]="${IPSET_MINS[${old}]}"; unset IPSET_MINS[${old}];
+	[ -z "${IPSET_HISTORY_MINS[${new}]}" ] && IPSET_HISTORY_MINS[${new}]="${IPSET_HISTORY_MINS[${old}]}"; unset IPSET_HISTORY_MINS[${old}];
+	[ -z "${IPSET_ENTRIES[${new}]}" ] && IPSET_ENTRIES[${new}]="${IPSET_ENTRIES[${old}]}"; unset IPSET_ENTRIES[${old}];
+	[ -z "${IPSET_IPS[${new}]}" ] && IPSET_IPS[${new}]="${IPSET_IPS[${old}]}"; unset IPSET_IPS[${old}];
+	[ -z "${IPSET_SOURCE_DATE[${new}]}" ] && IPSET_SOURCE_DATE[${new}]="${IPSET_SOURCE_DATE[${old}]}"; unset IPSET_SOURCE_DATE[${old}];
+	[ -z "${IPSET_PROCESSED_DATE[${new}]}" ] && IPSET_PROCESSED_DATE[${new}]="${IPSET_PROCESSED_DATE[${old}]}"; unset IPSET_PROCESSED_DATE[${old}];
+	[ -z "${IPSET_CATEGORY[${new}]}" ] && IPSET_CATEGORY[${new}]="${IPSET_CATEGORY[${old}]}"; unset IPSET_CATEGORY[${old}];
+	[ -z "${IPSET_MAINTAINER[${new}]}" ] && IPSET_MAINTAINER[${new}]="${IPSET_MAINTAINER[${old}]}"; unset IPSET_MAINTAINER[${old}];
+	[ -z "${IPSET_MAINTAINER_URL[${new}]}" ] && IPSET_MAINTAINER_URL[${new}]="${IPSET_MAINTAINER_URL[${old}]}"; unset IPSET_MAINTAINER_URL[${old}];
+	[ -z "${IPSET_LICENSE[${new}]}" ] && IPSET_LICENSE[${new}]="${IPSET_LICENSE[${old}]}"; unset IPSET_LICENSE[${old}];
+	[ -z "${IPSET_GRADE[${new}]}" ] && IPSET_GRADE[${new}]="${IPSET_GRADE[${old}]}"; unset IPSET_GRADE[${old}];
+	[ -z "${IPSET_PROTECTION[${new}]}" ] && IPSET_PROTECTION[${new}]="${IPSET_PROTECTION[${old}]}"; unset IPSET_PROTECTION[${old}];
+	[ -z "${IPSET_INTENDED_USE[${new}]}" ] && IPSET_INTENDED_USE[${new}]="${IPSET_INTENDED_USE[${old}]}"; unset IPSET_INTENDED_USE[${old}];
+	[ -z "${IPSET_FALSE_POSITIVES[${new}]}" ] && IPSET_FALSE_POSITIVES[${new}]="${IPSET_FALSE_POSITIVES[${old}]}"; unset IPSET_FALSE_POSITIVES[${old}];
+	[ -z "${IPSET_POISONING[${new}]}" ] && IPSET_POISONING[${new}]="${IPSET_POISONING[${old}]}"; unset IPSET_POISONING[${old}];
+	[ -z "${IPSET_SERVICES[${new}]}" ] && IPSET_SERVICES[${new}]="${IPSET_SERVICES[${old}]}"; unset IPSET_SERVICES[${old}];
+	[ -z "${IPSET_ENTRIES_MIN[${new}]}" ] && IPSET_ENTRIES_MIN[${new}]="${IPSET_ENTRIES_MIN[${old}]}"; unset IPSET_ENTRIES_MIN[${old}];
+	[ -z "${IPSET_ENTRIES_MAX[${new}]}" ] && IPSET_ENTRIES_MAX[${new}]="${IPSET_ENTRIES_MAX[${old}]}"; unset IPSET_ENTRIES_MAX[${old}];
+	[ -z "${IPSET_IPS_MIN[${new}]}" ] && IPSET_IPS_MIN[${new}]="${IPSET_IPS_MIN[${old}]}"; unset IPSET_IPS_MIN[${old}];
+	[ -z "${IPSET_IPS_MAX[${new}]}" ] && IPSET_IPS_MAX[${new}]="${IPSET_IPS_MAX[${old}]}"; unset IPSET_IPS_MAX[${old}];
+	[ -z "${IPSET_STARTED_DATE[${new}]}" ] && IPSET_STARTED_DATE[${new}]="${IPSET_STARTED_DATE[${old}]}"; unset IPSET_STARTED_DATE[${old}];
+	[ -z "${IPSET_CLOCK_SKEW[${new}]}" ] && IPSET_CLOCK_SKEW[${new}]="${IPSET_CLOCK_SKEW[${old}]}"; unset IPSET_CLOCK_SKEW[${old}];
+	cache_save
 
 	return 0
 }
@@ -2235,6 +2250,69 @@ rename_ipset stop_forum_spam_90d stopforumspam_90d
 rename_ipset stop_forum_spam_180d stopforumspam_180d
 rename_ipset stop_forum_spam_365d stopforumspam_365d
 rename_ipset clean_mx_viruses cleanmx_viruses
+
+rename_ipset ib_bluetack_proxies iblocklist_proxies
+rename_ipset ib_bluetack_spyware iblocklist_spyware
+rename_ipset ib_bluetack_badpeers iblocklist_badpeers
+rename_ipset ib_bluetack_hijacked iblocklist_hijacked
+rename_ipset ib_bluetack_webexploit iblocklist_webexploit
+rename_ipset ib_bluetack_level1 iblocklist_level1
+rename_ipset ib_bluetack_level2 iblocklist_level2
+rename_ipset ib_bluetack_level3 iblocklist_level3
+rename_ipset ib_bluetack_edu iblocklist_edu
+rename_ipset ib_bluetack_rangetest iblocklist_rangetest
+rename_ipset ib_bluetack_bogons iblocklist_bogons
+rename_ipset ib_bluetack_ads iblocklist_ads
+rename_ipset ib_bluetack_ms iblocklist_org_microsoft
+rename_ipset ib_bluetack_spider iblocklist_spider
+rename_ipset ib_bluetack_dshield iblocklist_dshield
+rename_ipset ib_bluetack_iana_reserved iblocklist_iana_reserved
+rename_ipset ib_bluetack_iana_private iblocklist_iana_private
+rename_ipset ib_bluetack_iana_multicast iblocklist_iana_multicast
+rename_ipset ib_bluetack_fornonlancomputers iblocklist_fornonlancomputers
+rename_ipset ib_bluetack_exclusions iblocklist_exclusions
+rename_ipset ib_bluetack_forumspam iblocklist_forumspam
+rename_ipset ib_pedophiles iblocklist_pedophiles
+rename_ipset ib_cruzit_web_attacks iblocklist_cruzit_web_attacks
+rename_ipset ib_yoyo_adservers iblocklist_yoyo_adservers
+rename_ipset ib_spamhaus_drop iblocklist_spamhaus_drop
+rename_ipset ib_abuse_zeus iblocklist_abuse_zeus
+rename_ipset ib_abuse_spyeye iblocklist_abuse_spyeye
+rename_ipset ib_abuse_palevo iblocklist_abuse_palevo
+rename_ipset ib_ciarmy_malicious iblocklist_ciarmy_malicious
+rename_ipset ib_malc0de iblocklist_malc0de
+rename_ipset ib_cidr_report_bogons iblocklist_cidr_report_bogons
+rename_ipset ib_onion_router iblocklist_onion_router
+rename_ipset ib_org_apple iblocklist_org_apple
+rename_ipset ib_org_logmein iblocklist_org_logmein
+rename_ipset ib_org_steam iblocklist_org_steam
+rename_ipset ib_org_xfire iblocklist_org_xfire
+rename_ipset ib_org_blizzard iblocklist_org_blizzard
+rename_ipset ib_org_ubisoft iblocklist_org_ubisoft
+rename_ipset ib_org_nintendo iblocklist_org_nintendo
+rename_ipset ib_org_activision iblocklist_org_activision
+rename_ipset ib_org_sony_online iblocklist_org_sony_online
+rename_ipset ib_org_crowd_control iblocklist_org_crowd_control
+rename_ipset ib_org_linden_lab iblocklist_org_linden_lab
+rename_ipset ib_org_electronic_arts iblocklist_org_electronic_arts
+rename_ipset ib_org_square_enix iblocklist_org_square_enix
+rename_ipset ib_org_ncsoft iblocklist_org_ncsoft
+rename_ipset ib_org_riot_games iblocklist_org_riot_games
+rename_ipset ib_org_punkbuster iblocklist_org_punkbuster
+rename_ipset ib_org_joost iblocklist_org_joost
+rename_ipset ib_org_pandora iblocklist_org_pandora
+rename_ipset ib_org_pirate_bay iblocklist_org_pirate_bay
+rename_ipset ib_isp_aol iblocklist_isp_aol
+rename_ipset ib_isp_comcast iblocklist_isp_comcast
+rename_ipset ib_isp_cablevision iblocklist_isp_cablevision
+rename_ipset ib_isp_verizon iblocklist_isp_verizon
+rename_ipset ib_isp_att iblocklist_isp_att
+rename_ipset ib_isp_twc iblocklist_isp_twc
+rename_ipset ib_isp_charter iblocklist_isp_charter
+rename_ipset ib_isp_qwest iblocklist_isp_qwest
+rename_ipset ib_isp_embarq iblocklist_isp_embarq
+rename_ipset ib_isp_suddenlink iblocklist_isp_suddenlink
+rename_ipset ib_isp_sprint iblocklist_isp_sprint
 
 
 # -----------------------------------------------------------------------------
@@ -3556,6 +3634,7 @@ update myip $[24*60] 0 ipv4 ip \
 # private and reserved addresses defined by RFC 1918, RFC 5735, and RFC 6598
 # and netblocks that have not been allocated to a regional internet registry
 # (RIR) by the Internet Assigned Numbers Authority.
+DO_NOT_REDISTRIBUTE[bogons]="1"
 update bogons $[24*60] 0 ipv4 both \
 	"http://www.team-cymru.org/Services/Bogons/bogon-bn-agg.txt" \
 	remove_comments \
@@ -3568,6 +3647,7 @@ update bogons $[24*60] 0 ipv4 both \
 # Fullbogons are a larger set which also includes IP space that has been
 # allocated to an RIR, but not assigned by that RIR to an actual ISP or other
 # end-user.
+DO_NOT_REDISTRIBUTE[fullbogons]="1"
 update fullbogons $[24*60] 0 ipv4 both \
 	"http://www.team-cymru.org/Services/Bogons/fullbogons-ipv4.txt" \
 	remove_comments \
@@ -3575,12 +3655,23 @@ update fullbogons $[24*60] 0 ipv4 both \
 	"[Team-Cymru.org](http://www.team-cymru.org) IP space that has been allocated to an RIR, but not assigned by that RIR to an actual ISP or other end-user" \
 	"Team Cymru" "http://www.team-cymru.org/"
 
+#DO_NOT_REDISTRIBUTE[fullbogons6]="1"
 #update fullbogons6 $[24*60-10] ipv6 both \
 #	"http://www.team-cymru.org/Services/Bogons/fullbogons-ipv6.txt" \
 #	remove_comments \
 #	"unroutable" \
 #	"Team-Cymru.org provided" \
 #	"Team Cymru" "http://www.team-cymru.org/"
+
+# -----------------------------------------------------------------------------
+# CIDR Report.org
+
+update cidr_report_bogons $[24*60] 0 ipv4 both \
+	"http://www.cidr-report.org/bogons/freespace-prefix.txt" \
+	remove_comments \
+	"unroutable" \
+	"Unallocated (Free) Address Space, generated on a daily basis using the IANA registry files, the Regional Internet Registry stats files and the Regional Internet Registry whois data." \
+	"CIDR-Report.org" "http://www.cidr-report.org"
 
 
 # -----------------------------------------------------------------------------
@@ -3969,7 +4060,7 @@ update lashback_ubl $[24*60] 0 ipv4 ip \
 
 dragon_column3() { remove_comments | cut -d '|' -f 3 | trim; }
 
-DO_NOT_REDISTRIBUTE[dragon_http.netset]="1"
+DO_NOT_REDISTRIBUTE[dragon_http]="1"
 update dragon_http 60 0 ipv4 both \
 	"http://www.dragonresearchgroup.org/insight/http-report.txt" \
 	dragon_column3 \
@@ -3977,7 +4068,7 @@ update dragon_http 60 0 ipv4 both \
 	"[Dragon Research Group](http://www.dragonresearchgroup.org/) IPs that have been seen sending HTTP requests to Dragon Research Pods in the last 7 days. This report lists hosts that are highly suspicious and are likely conducting malicious HTTP attacks. LEGITIMATE SEARCH ENGINE BOTS MAY BE IN THIS LIST. This report is informational.  It is not a blacklist, but some operators may choose to use it to help protect their networks and hosts in the forms of automated reporting and mitigation services." \
 	"Dragon Research Group (DRG)" "http://www.dragonresearchgroup.org/"
 
-DO_NOT_REDISTRIBUTE[dragon_sshpauth.netset]="1"
+DO_NOT_REDISTRIBUTE[dragon_sshpauth]="1"
 update dragon_sshpauth 60 0 ipv4 both \
 	"https://www.dragonresearchgroup.org/insight/sshpwauth.txt" \
 	dragon_column3 \
@@ -3985,7 +4076,7 @@ update dragon_sshpauth 60 0 ipv4 both \
 	"[Dragon Research Group](http://www.dragonresearchgroup.org/) IP address that has been seen attempting to remotely login to a host using SSH password authentication, in the last 7 days. This report lists hosts that are highly suspicious and are likely conducting malicious SSH password authentication attacks." \
 	"Dragon Research Group (DRG)" "http://www.dragonresearchgroup.org/"
 
-DO_NOT_REDISTRIBUTE[dragon_vncprobe.netset]="1"
+DO_NOT_REDISTRIBUTE[dragon_vncprobe]="1"
 update dragon_vncprobe 60 0 ipv4 both \
 	"https://www.dragonresearchgroup.org/insight/vncprobe.txt" \
 	dragon_column3 \
@@ -4152,464 +4243,463 @@ update pushing_inertia_blocklist $[24*60] 0 ipv4 both \
 # -----------------------------------------------------------------------------
 # iBlocklist
 # https://www.iblocklist.com/lists.php
-# http://bluetack.co.uk/forums/index.php?autocom=faq&CODE=02&qid=17
 
 # we only keep the proxies IPs (tor IPs are not parsed)
-DO_NOT_REDISTRIBUTE[ib_bluetack_proxies.ipset]="1"
-update ib_bluetack_proxies $[12*60] 0 ipv4 ip \
+DO_NOT_REDISTRIBUTE[iblocklist_proxies]="1"
+update iblocklist_proxies $[12*60] 0 ipv4 ip \
 	"http://list.iblocklist.com/?list=xoebmbyexwuiogmbyprb&fileformat=p2p&archiveformat=gz" \
 	p2p_gz_proxy \
 	"anonymizers" \
-	"[iBlocklist.com](https://www.iblocklist.com/) version of BlueTack.co.uk Open Proxies IPs list (without TOR)" \
+	"Open Proxies IPs list (without TOR)" \
 	"iBlocklist.com" "https://www.iblocklist.com/"
 
-DO_NOT_REDISTRIBUTE[ib_bluetack_spyware.netset]="1"
-update ib_bluetack_spyware $[12*60] 0 ipv4 both \
+DO_NOT_REDISTRIBUTE[iblocklist_spyware]="1"
+update iblocklist_spyware $[12*60] 0 ipv4 both \
 	"http://list.iblocklist.com/?list=llvtlsjyoyiczbkjsxpf&fileformat=p2p&archiveformat=gz" \
 	p2p_gz \
 	"reputation" \
-	"[iBlocklist.com](https://www.iblocklist.com/) version of BlueTack.co.uk known malicious SPYWARE and ADWARE IP Address ranges. It is compiled from various sources, including other available Spyware Blacklists, HOSTS files, from research found at many of the top Anti-Spyware forums, logs of Spyware victims and also from the Malware Research Section here at Bluetack." \
+	"Known malicious SPYWARE and ADWARE IP Address ranges. It is compiled from various sources, including other available spyware blacklists, HOSTS files, from research found at many of the top anti-spyware forums, logs of spyware victims, etc." \
 	"iBlocklist.com" "https://www.iblocklist.com/"
 
-DO_NOT_REDISTRIBUTE[ib_bluetack_badpeers.ipset]="1"
-update ib_bluetack_badpeers $[12*60] 0 ipv4 ip \
+DO_NOT_REDISTRIBUTE[iblocklist_badpeers]="1"
+update iblocklist_badpeers $[12*60] 0 ipv4 ip \
 	"http://list.iblocklist.com/?list=cwworuawihqvocglcoss&fileformat=p2p&archiveformat=gz" \
 	p2p_gz \
 	"reputation" \
-	"[iBlocklist.com](https://www.iblocklist.com/) version of BlueTack.co.uk IPs that have been reported for bad deeds in p2p." \
+	"IPs that have been reported for bad deeds in p2p." \
 	"iBlocklist.com" "https://www.iblocklist.com/"
 
-DO_NOT_REDISTRIBUTE[ib_bluetack_hijacked.netset]="1"
-update ib_bluetack_hijacked $[12*60] 0 ipv4 both \
+DO_NOT_REDISTRIBUTE[iblocklist_hijacked]="1"
+update iblocklist_hijacked $[12*60] 0 ipv4 both \
 	"http://list.iblocklist.com/?list=usrcshglbiilevmyfhse&fileformat=p2p&archiveformat=gz" \
 	p2p_gz \
 	"reputation" \
-	"[iBlocklist.com](https://www.iblocklist.com/) version of BlueTack.co.uk hijacked IP-Blocks. # Contains hijacked IP-Blocks and known IP-Blocks that are used to deliver Spam. This list is a combination of lists with hijacked IP-Blocks. Hijacked IP space are IP blocks that are being used without permission by organizations that have no relation to original organization (or its legal successor) that received the IP block. In essence it's stealing of somebody else's IP resources." \
+	"Hijacked IP-Blocks. Contains hijacked IP-Blocks and known IP-Blocks that are used to deliver Spam. This list is a combination of lists with hijacked IP-Blocks. Hijacked IP space are IP blocks that are being used without permission by organizations that have no relation to original organization (or its legal successor) that received the IP block. In essence it's stealing of somebody else's IP resources." \
 	"iBlocklist.com" "https://www.iblocklist.com/"
 
-DO_NOT_REDISTRIBUTE[ib_bluetack_webexploit.ipset]="1"
-update ib_bluetack_webexploit $[12*60] 0 ipv4 ip \
+DO_NOT_REDISTRIBUTE[iblocklist_webexploit]="1"
+update iblocklist_webexploit $[12*60] 0 ipv4 ip \
 	"http://list.iblocklist.com/?list=ghlzqtqxnzctvvajwwag&fileformat=p2p&archiveformat=gz" \
 	p2p_gz \
 	"reputation" \
-	"[iBlocklist.com](https://www.iblocklist.com/) version of BlueTack.co.uk web server hack and exploit attempts. IP addresses related to current web server hack and exploit attempts that have been logged by Bluetack or can be found in and cross referenced with other related IP databases. Malicious and other non search engine bots will also be listed here, along with anything found that can have a negative impact on a website or webserver such as proxies being used for negative SEO hijacks, unauthorised site mirroring, harvesting, scraping, snooping and data mining / spy bot / security & copyright enforcement companies that target and continuosly scan webservers." \
+	"Web server hack and exploit attempts. IP addresses related to current web server hack and exploit attempts that have been logged or can be found in and cross referenced with other related IP databases. Malicious and other non search engine bots will also be listed here, along with anything found that can have a negative impact on a website or webserver such as proxies being used for negative SEO hijacks, unauthorised site mirroring, harvesting, scraping, snooping and data mining / spy bot / security & copyright enforcement companies that target and continuosly scan webservers." \
 	"iBlocklist.com" "https://www.iblocklist.com/"
 
 # The Level1 list is recommended for general P2P users, but it all comes
 # down to your personal choice.
-DO_NOT_REDISTRIBUTE[ib_bluetack_level1.netset]="1"
-update ib_bluetack_level1 $[12*60] 0 ipv4 both \
+DO_NOT_REDISTRIBUTE[iblocklist_level1]="1"
+update iblocklist_level1 $[12*60] 0 ipv4 both \
 	"http://list.iblocklist.com/?list=ydxerpxkpcfqjaybcssw&fileformat=p2p&archiveformat=gz" \
 	p2p_gz \
 	"reputation" \
-	"[iBlocklist.com](https://www.iblocklist.com/) version of BlueTack.co.uk Level 1 (for use in p2p): Companies or organizations who are clearly involved with trying to stop filesharing (e.g. Baytsp, MediaDefender, Mediasentry a.o.). Companies which anti-p2p activity has been seen from. Companies that produce or have a strong financial interest in copyrighted material (e.g. music, movie, software industries a.o.). Government ranges or companies that have a strong financial interest in doing work for governments. Legal industry ranges. IPs or ranges of ISPs from which anti-p2p activity has been observed. Basically this list will block all kinds of internet connections that most people would rather not have during their internet travels." \
+	"Level 1 (for use in p2p): Companies or organizations who are clearly involved with trying to stop filesharing (e.g. Baytsp, MediaDefender, Mediasentry a.o.). Companies which anti-p2p activity has been seen from. Companies that produce or have a strong financial interest in copyrighted material (e.g. music, movie, software industries a.o.). Government ranges or companies that have a strong financial interest in doing work for governments. Legal industry ranges. IPs or ranges of ISPs from which anti-p2p activity has been observed. Basically this list will block all kinds of internet connections that most people would rather not have during their internet travels." \
 	"iBlocklist.com" "https://www.iblocklist.com/"
 
-DO_NOT_REDISTRIBUTE[ib_bluetack_level2.netset]="1"
-update ib_bluetack_level2 $[12*60] 0 ipv4 both \
+DO_NOT_REDISTRIBUTE[iblocklist_level2]="1"
+update iblocklist_level2 $[12*60] 0 ipv4 both \
 	"http://list.iblocklist.com/?list=gyisgnzbhppbvsphucsw&fileformat=p2p&archiveformat=gz" \
 	p2p_gz \
 	"reputation" \
-	"[iBlocklist.com](https://www.iblocklist.com/) version of BlueTack.co.uk Level 2 (for use in p2p). General corporate ranges. Ranges used by labs or researchers. Proxies." \
+	"Level 2 (for use in p2p). General corporate ranges. Ranges used by labs or researchers. Proxies." \
 	"iBlocklist.com" "https://www.iblocklist.com/"
 
-DO_NOT_REDISTRIBUTE[ib_bluetack_level3.netset]="1"
-update ib_bluetack_level3 $[12*60] 0 ipv4 both \
+DO_NOT_REDISTRIBUTE[iblocklist_level3]="1"
+update iblocklist_level3 $[12*60] 0 ipv4 both \
 	"http://list.iblocklist.com/?list=uwnukjqktoggdknzrhgh&fileformat=p2p&archiveformat=gz" \
 	p2p_gz \
 	"reputation" \
-	"[iBlocklist.com](https://www.iblocklist.com/) version of BlueTack.co.uk Level 3 (for use in p2p). Many portal-type websites. ISP ranges that may be dodgy for some reason. Ranges that belong to an individual, but which have not been determined to be used by a particular company. Ranges for things that are unusual in some way. The L3 list is aka the paranoid list." \
+	"Level 3 (for use in p2p). Many portal-type websites. ISP ranges that may be dodgy for some reason. Ranges that belong to an individual, but which have not been determined to be used by a particular company. Ranges for things that are unusual in some way. The L3 list is aka the paranoid list." \
 	"iBlocklist.com" "https://www.iblocklist.com/"
 
-DO_NOT_REDISTRIBUTE[ib_bluetack_edu.netset]="1"
-update ib_bluetack_edu $[12*60] 0 ipv4 both \
+DO_NOT_REDISTRIBUTE[iblocklist_edu]="1"
+update iblocklist_edu $[12*60] 0 ipv4 both \
 	"http://list.iblocklist.com/?list=imlmncgrkbnacgcwfjvh&fileformat=p2p&archiveformat=gz" \
 	p2p_gz \
 	"organizations" \
-	"[iBlocklist.com](https://www.iblocklist.com/) version of BlueTack.co.uk IP list with all known Educational Institutions." \
+	"IPs used by Educational Institutions." \
 	"iBlocklist.com" "https://www.iblocklist.com/"
 
-DO_NOT_REDISTRIBUTE[ib_bluetack_rangetest.netset]="1"
-update ib_bluetack_rangetest $[12*60] 0 ipv4 both \
+DO_NOT_REDISTRIBUTE[iblocklist_rangetest]="1"
+update iblocklist_rangetest $[12*60] 0 ipv4 both \
 	"http://list.iblocklist.com/?list=plkehquoahljmyxjixpu&fileformat=p2p&archiveformat=gz" \
 	p2p_gz \
 	"reputation" \
-	"[iBlocklist.com](https://www.iblocklist.com/) version of BlueTack.co.uk suspicious IPs that are under investigation." \
+	"Suspicious IPs that are under investigation." \
 	"iBlocklist.com" "https://www.iblocklist.com/"
 
-DO_NOT_REDISTRIBUTE[ib_bluetack_bogons.netset]="1"
-update ib_bluetack_bogons $[12*60] 0 ipv4 both \
+DO_NOT_REDISTRIBUTE[iblocklist_bogons]="1"
+update iblocklist_bogons $[12*60] 0 ipv4 both \
 	"http://list.iblocklist.com/?list=gihxqmhyunbxhbmgqrla&fileformat=p2p&archiveformat=gz" \
 	p2p_gz \
 	"unroutable" \
-	"[iBlocklist.com](https://www.iblocklist.com/) version of BlueTack.co.uk unallocated address space." \
+	"Unallocated address space." \
 	"iBlocklist.com" "https://www.iblocklist.com/"
 
-DO_NOT_REDISTRIBUTE[ib_bluetack_ads.netset]="1"
-update ib_bluetack_ads $[12*60] 0 ipv4 both \
+DO_NOT_REDISTRIBUTE[iblocklist_ads]="1"
+update iblocklist_ads $[12*60] 0 ipv4 both \
 	"http://list.iblocklist.com/?list=dgxtneitpuvgqqcpfulq&fileformat=p2p&archiveformat=gz" \
 	p2p_gz \
 	"organizations" \
-	"[iBlocklist.com](https://www.iblocklist.com/) version of BlueTack.co.uk IPs advertising trackers and a short list of bad/intrusive porn sites." \
+	"Advertising trackers and a short list of bad/intrusive porn sites." \
 	"iBlocklist.com" "https://www.iblocklist.com/"
 
-DO_NOT_REDISTRIBUTE[ib_bluetack_ms.netset]="1"
-update ib_bluetack_ms $[12*60] 0 ipv4 both \
+DO_NOT_REDISTRIBUTE[iblocklist_org_microsoft]="1"
+update iblocklist_org_microsoft $[12*60] 0 ipv4 both \
 	"http://list.iblocklist.com/?list=xshktygkujudfnjfioro&fileformat=p2p&archiveformat=gz" \
 	p2p_gz \
 	"organizations" \
-	"[iBlocklist.com](https://www.iblocklist.com/) version of BlueTack.co.uk with all the known Microsoft ranges." \
+	"Microsoft IP ranges." \
 	"iBlocklist.com" "https://www.iblocklist.com/"
 
-DO_NOT_REDISTRIBUTE[ib_bluetack_spider.netset]="1"
-update ib_bluetack_spider $[12*60] 0 ipv4 both \
+DO_NOT_REDISTRIBUTE[iblocklist_spider]="1"
+update iblocklist_spider $[12*60] 0 ipv4 both \
 	"http://list.iblocklist.com/?list=mcvxsnihddgutbjfbghy&fileformat=p2p&archiveformat=gz" \
 	p2p_gz \
 	"organizations" \
-	"[iBlocklist.com](https://www.iblocklist.com/) version of BlueTack.co.uk, intended to be used by webmasters to block hostile spiders from their web sites." \
+	"IP list intended to be used by webmasters to block hostile spiders from their web sites." \
 	"iBlocklist.com" "https://www.iblocklist.com/"
 
-DO_NOT_REDISTRIBUTE[ib_bluetack_dshield.netset]="1"
-update ib_bluetack_dshield $[12*60] 0 ipv4 both \
+DO_NOT_REDISTRIBUTE[iblocklist_dshield]="1"
+update iblocklist_dshield $[12*60] 0 ipv4 both \
 	"http://list.iblocklist.com/?list=xpbqleszmajjesnzddhv&fileformat=p2p&archiveformat=gz" \
 	p2p_gz \
 	"reputation" \
-	"[iBlocklist.com](https://www.iblocklist.com/) version of BlueTack.co.uk, Contains known Hackers and such people in it." \
+	"known Hackers and such people." \
 	"iBlocklist.com" "https://www.iblocklist.com/"
 
-DO_NOT_REDISTRIBUTE[ib_bluetack_iana_reserved.netset]="1"
-update ib_bluetack_iana_reserved $[12*60] 0 ipv4 both \
+DO_NOT_REDISTRIBUTE[iblocklist_iana_reserved]="1"
+update iblocklist_iana_reserved $[12*60] 0 ipv4 both \
 	"http://list.iblocklist.com/?list=bcoepfyewziejvcqyhqo&fileformat=p2p&archiveformat=gz" \
 	p2p_gz \
 	"unroutable" \
-	"[iBlocklist.com](https://www.iblocklist.com/) version of BlueTack.co.uk, IANA Reserved IPs." \
+	"IANA Reserved IPs." \
 	"iBlocklist.com" "https://www.iblocklist.com/"
 
-DO_NOT_REDISTRIBUTE[ib_bluetack_iana_private.netset]="1"
-update ib_bluetack_iana_private $[12*60] 0 ipv4 both \
+DO_NOT_REDISTRIBUTE[iblocklist_iana_private]="1"
+update iblocklist_iana_private $[12*60] 0 ipv4 both \
 	"http://list.iblocklist.com/?list=cslpybexmxyuacbyuvib&fileformat=p2p&archiveformat=gz" \
 	p2p_gz \
 	"unroutable" \
-	"[iBlocklist.com](https://www.iblocklist.com/) version of BlueTack.co.uk, IANA Private IPs." \
+	"IANA Private IPs." \
 	"iBlocklist.com" "https://www.iblocklist.com/"
 
-DO_NOT_REDISTRIBUTE[ib_bluetack_iana_multicast.netset]="1"
-update ib_bluetack_iana_multicast $[12*60] 0 ipv4 both \
+DO_NOT_REDISTRIBUTE[iblocklist_iana_multicast]="1"
+update iblocklist_iana_multicast $[12*60] 0 ipv4 both \
 	"http://list.iblocklist.com/?list=pwqnlynprfgtjbgqoizj&fileformat=p2p&archiveformat=gz" \
 	p2p_gz \
 	"unroutable" \
-	"[iBlocklist.com](https://www.iblocklist.com/) version of BlueTack.co.uk, IANA Multicast IPs." \
+	"IANA Multicast IPs." \
 	"iBlocklist.com" "https://www.iblocklist.com/"
 
-DO_NOT_REDISTRIBUTE[ib_bluetack_fornonlancomputers.netset]="1"
-update ib_bluetack_fornonlancomputers $[12*60] 0 ipv4 both \
+DO_NOT_REDISTRIBUTE[iblocklist_fornonlancomputers]="1"
+update iblocklist_fornonlancomputers $[12*60] 0 ipv4 both \
 	"http://list.iblocklist.com/?list=jhaoawihmfxgnvmaqffp&fileformat=p2p&archiveformat=gz" \
 	p2p_gz \
 	"reputation" \
-	"[iBlocklist.com](https://www.iblocklist.com/) version of BlueTack.co.uk, IP blocklist for non-LAN computers." \
+	"IP blocklist for non-LAN computers." \
 	"iBlocklist.com" "https://www.iblocklist.com/"
 
-DO_NOT_REDISTRIBUTE[ib_bluetack_exclusions.netset]="1"
-update ib_bluetack_exclusions $[12*60] 0 ipv4 both \
+DO_NOT_REDISTRIBUTE[iblocklist_exclusions]="1"
+update iblocklist_exclusions $[12*60] 0 ipv4 both \
 	"http://list.iblocklist.com/?list=mtxmiireqmjzazcsoiem&fileformat=p2p&archiveformat=gz" \
 	p2p_gz \
 	"reputation" \
-	"[iBlocklist.com](https://www.iblocklist.com/) version of BlueTack.co.uk, exclusions." \
+	"Exclusions." \
 	"iBlocklist.com" "https://www.iblocklist.com/"
 
-DO_NOT_REDISTRIBUTE[ib_bluetack_forumspam.netset]="1"
-update ib_bluetack_forumspam $[12*60] 0 ipv4 both \
+DO_NOT_REDISTRIBUTE[iblocklist_forumspam]="1"
+update iblocklist_forumspam $[12*60] 0 ipv4 both \
 	"http://list.iblocklist.com/?list=ficutxiwawokxlcyoeye&fileformat=p2p&archiveformat=gz" \
 	p2p_gz \
 	"abuse" \
-	"[iBlocklist.com](https://www.iblocklist.com/) version of BlueTack.co.uk, forum spam." \
+	"Forum spam." \
 	"iBlocklist.com" "https://www.iblocklist.com/"
 
-update ib_pedophiles $[12*60] 0 ipv4 both \
+update iblocklist_pedophiles $[12*60] 0 ipv4 both \
 	"http://list.iblocklist.com/?list=dufcxgnbjsdwmwctgfuj&fileformat=p2p&archiveformat=gz" \
 	p2p_gz \
 	"reputation" \
-	"[iBlocklist.com](https://www.iblocklist.com/) version of BlueTack.co.uk, IP ranges of people who we have found to be sharing child pornography in the p2p community." \
+	"IP ranges of people who we have found to be sharing child pornography in the p2p community." \
 	"iBlocklist.com" "https://www.iblocklist.com/"
 
-update ib_cruzit_web_attacks $[12*60] 0 ipv4 both \
+update iblocklist_cruzit_web_attacks $[12*60] 0 ipv4 both \
 	"http://list.iblocklist.com/?list=czvaehmjpsnwwttrdoyl&fileformat=p2p&archiveformat=gz" \
 	p2p_gz \
 	"attacks" \
-	"[iBlocklist.com](https://www.iblocklist.com/) version of CruzIT list with individual IP addresses of compromised machines scanning for vulnerabilities and DDOS attacks." \
+	"CruzIT IP list with individual IP addresses of compromised machines scanning for vulnerabilities and DDOS attacks." \
 	"iBlocklist.com" "https://www.iblocklist.com/"
 
-update ib_yoyo_adservers $[12*60] 0 ipv4 both \
+update iblocklist_yoyo_adservers $[12*60] 0 ipv4 both \
 	"http://list.iblocklist.com/?list=zhogegszwduurnvsyhdf&fileformat=p2p&archiveformat=gz" \
 	p2p_gz \
 	"organizations" \
-	"[iBlocklist.com](https://www.iblocklist.com/) version of pgl.yoyo.org ad servers" \
+	"pgl.yoyo.org ad servers" \
 	"iBlocklist.com" "https://www.iblocklist.com/"
 
-update ib_spamhaus_drop $[12*60] 0 ipv4 both \
+update iblocklist_spamhaus_drop $[12*60] 0 ipv4 both \
 	"http://list.iblocklist.com/?list=zbdlwrqkabxbcppvrnos&fileformat=p2p&archiveformat=gz" \
 	p2p_gz \
 	"reputation" \
-	"[iBlocklist.com](https://www.iblocklist.com/) version of spamhaus.org DROP (Don't Route Or Peer) list." \
+	"Spamhaus.org DROP (Don't Route Or Peer) list." \
 	"iBlocklist.com" "https://www.iblocklist.com/"
 
-update ib_abuse_zeus $[12*60] 0 ipv4 both \
+update iblocklist_abuse_zeus $[12*60] 0 ipv4 both \
 	"http://list.iblocklist.com/?list=ynkdjqsjyfmilsgbogqf&fileformat=p2p&archiveformat=gz" \
 	p2p_gz \
 	"malware" \
-	"[iBlocklist.com](https://www.iblocklist.com/) version of zeustracker.abuse.ch IP blocklist that contains IP addresses which are currently beeing tracked on the abuse.ch ZeuS Tracker." \
+	"zeustracker.abuse.ch IP blocklist that contains IP addresses which are currently beeing tracked on the abuse.ch ZeuS Tracker." \
 	"iBlocklist.com" "https://www.iblocklist.com/"
 
-update ib_abuse_spyeye $[12*60] 0 ipv4 both \
+update iblocklist_abuse_spyeye $[12*60] 0 ipv4 both \
 	"http://list.iblocklist.com/?list=zvjxsfuvdhoxktpeiokq&fileformat=p2p&archiveformat=gz" \
 	p2p_gz \
 	"malware" \
-	"[iBlocklist.com](https://www.iblocklist.com/) version of spyeyetracker.abuse.ch IP blocklist." \
+	"spyeyetracker.abuse.ch IP blocklist." \
 	"iBlocklist.com" "https://www.iblocklist.com/"
 
-update ib_abuse_palevo $[12*60] 0 ipv4 both \
+update iblocklist_abuse_palevo $[12*60] 0 ipv4 both \
 	"http://list.iblocklist.com/?list=erqajhwrxiuvjxqrrwfj&fileformat=p2p&archiveformat=gz" \
 	p2p_gz \
 	"malware" \
-	"[iBlocklist.com](https://www.iblocklist.com/) version of palevotracker.abuse.ch IP blocklist." \
+	"palevotracker.abuse.ch IP blocklist." \
 	"iBlocklist.com" "https://www.iblocklist.com/"
 
-update ib_ciarmy_malicious $[12*60] 0 ipv4 both \
+update iblocklist_ciarmy_malicious $[12*60] 0 ipv4 both \
 	"http://list.iblocklist.com/?list=npkuuhuxcsllnhoamkvm&fileformat=p2p&archiveformat=gz" \
 	p2p_gz \
 	"reputation" \
-	"[iBlocklist.com](https://www.iblocklist.com/) version of ciarmy.com IP blocklist. Based on information from a network of Sentinel devices deployed around the world, they compile a list of known bad IP addresses. Sentinel devices are uniquely positioned to pick up traffic from bad guys without requiring any type of signature-based or rate-based identification. If an IP is identified in this way by a significant number of Sentinels, the IP is malicious and should be blocked." \
+	"ciarmy.com IP blocklist. Based on information from a network of Sentinel devices deployed around the world, they compile a list of known bad IP addresses. Sentinel devices are uniquely positioned to pick up traffic from bad guys without requiring any type of signature-based or rate-based identification. If an IP is identified in this way by a significant number of Sentinels, the IP is malicious and should be blocked." \
 	"iBlocklist.com" "https://www.iblocklist.com/"
 
-update ib_malc0de $[12*60] 0 ipv4 both \
+update iblocklist_malc0de $[12*60] 0 ipv4 both \
 	"http://list.iblocklist.com/?list=pbqcylkejciyhmwttify&fileformat=p2p&archiveformat=gz" \
 	p2p_gz \
 	"malware" \
-	"[iBlocklist.com](https://www.iblocklist.com/) version of malc0de.com IP blocklist. Addresses that have been indentified distributing malware during the past 30 days." \
+	"malc0de.com IP blocklist. Addresses that have been indentified distributing malware during the past 30 days." \
 	"iBlocklist.com" "https://www.iblocklist.com/"
 
-update ib_cidr_report_bogons $[12*60] 0 ipv4 both \
+update iblocklist_cidr_report_bogons $[12*60] 0 ipv4 both \
 	"http://list.iblocklist.com/?list=lujdnbasfaaixitgmxpp&fileformat=p2p&archiveformat=gz" \
 	p2p_gz \
 	"unroutable" \
-	"[iBlocklist.com](https://www.iblocklist.com/) version of cidr-report.org IP list of Unallocated address space." \
+	"cidr-report.org IP list of Unallocated address space." \
 	"iBlocklist.com" "https://www.iblocklist.com/"
 
-update ib_onion_router $[12*60] 0 ipv4 both \
+update iblocklist_onion_router $[12*60] 0 ipv4 both \
 	"http://list.iblocklist.com/?list=togdoptykrlolpddwbvz&fileformat=p2p&archiveformat=gz" \
 	p2p_gz \
 	"anonymizers" \
-	"[iBlocklist.com](https://www.iblocklist.com/) The Onion Router IP addresses." \
+	"The Onion Router IP addresses." \
 	"iBlocklist.com" "https://www.iblocklist.com/"
 
-update ib_org_apple $[24*60] 0 ipv4 both \
+update iblocklist_org_apple $[24*60] 0 ipv4 both \
 	"http://list.iblocklist.com/?list=aphcqvpxuqgrkgufjruj&fileformat=p2p&archiveformat=gz" \
 	p2p_gz \
 	"organizations" \
-	"[iBlocklist.com](https://www.iblocklist.com/) Apple IPs." \
+	"Apple IPs." \
 	"iBlocklist.com" "https://www.iblocklist.com/"
 
-update ib_org_logmein $[24*60] 0 ipv4 both \
+update iblocklist_org_logmein $[24*60] 0 ipv4 both \
 	"http://list.iblocklist.com/?list=tgbankumtwtrzllndbmb&fileformat=p2p&archiveformat=gz" \
 	p2p_gz \
 	"organizations" \
-	"[iBlocklist.com](https://www.iblocklist.com/) LogMeIn IPs." \
+	"LogMeIn IPs." \
 	"iBlocklist.com" "https://www.iblocklist.com/"
 
-update ib_org_steam $[24*60] 0 ipv4 both \
+update iblocklist_org_steam $[24*60] 0 ipv4 both \
 	"http://list.iblocklist.com/?list=cnxkgiklecdaihzukrud&fileformat=p2p&archiveformat=gz" \
 	p2p_gz \
 	"organizations" \
-	"[iBlocklist.com](https://www.iblocklist.com/) Steam IPs." \
+	"Steam IPs." \
 	"iBlocklist.com" "https://www.iblocklist.com/"
 
-update ib_org_xfire $[24*60] 0 ipv4 both \
+update iblocklist_org_xfire $[24*60] 0 ipv4 both \
 	"http://list.iblocklist.com/?list=ppqqnyihmcrryraaqsjo&fileformat=p2p&archiveformat=gz" \
 	p2p_gz \
 	"organizations" \
-	"[iBlocklist.com](https://www.iblocklist.com/) XFire IPs." \
+	"XFire IPs." \
 	"iBlocklist.com" "https://www.iblocklist.com/"
 
-update ib_org_blizzard $[24*60] 0 ipv4 both \
+update iblocklist_org_blizzard $[24*60] 0 ipv4 both \
 	"http://list.iblocklist.com/?list=ercbntshuthyykfkmhxc&fileformat=p2p&archiveformat=gz" \
 	p2p_gz \
 	"organizations" \
-	"[iBlocklist.com](https://www.iblocklist.com/) Blizzard IPs." \
+	"Blizzard IPs." \
 	"iBlocklist.com" "https://www.iblocklist.com/"
 
-update ib_org_ubisoft $[24*60] 0 ipv4 both \
+update iblocklist_org_ubisoft $[24*60] 0 ipv4 both \
 	"http://list.iblocklist.com/?list=etmcrglomupyxtaebzht&fileformat=p2p&archiveformat=gz" \
 	p2p_gz \
 	"organizations" \
-	"[iBlocklist.com](https://www.iblocklist.com/) Ubisoft IPs." \
+	"Ubisoft IPs." \
 	"iBlocklist.com" "https://www.iblocklist.com/"
 
-update ib_org_nintendo $[24*60] 0 ipv4 both \
+update iblocklist_org_nintendo $[24*60] 0 ipv4 both \
 	"http://list.iblocklist.com/?list=pevkykuhgaegqyayzbnr&fileformat=p2p&archiveformat=gz" \
 	p2p_gz \
 	"organizations" \
-	"[iBlocklist.com](https://www.iblocklist.com/) Nintendo IPs." \
+	"Nintendo IPs." \
 	"iBlocklist.com" "https://www.iblocklist.com/"
 
-update ib_org_activision $[24*60] 0 ipv4 both \
+update iblocklist_org_activision $[24*60] 0 ipv4 both \
 	"http://list.iblocklist.com/?list=gfnxlhxsijzrcuxwzebb&fileformat=p2p&archiveformat=gz" \
 	p2p_gz \
 	"organizations" \
-	"[iBlocklist.com](https://www.iblocklist.com/) Activision IPs." \
+	"Activision IPs." \
 	"iBlocklist.com" "https://www.iblocklist.com/"
 
-update ib_org_sony_online $[24*60] 0 ipv4 both \
+update iblocklist_org_sony_online $[24*60] 0 ipv4 both \
 	"http://list.iblocklist.com/?list=tukpvrvlubsputmkmiwg&fileformat=p2p&archiveformat=gz" \
 	p2p_gz \
 	"organizations" \
-	"[iBlocklist.com](https://www.iblocklist.com/) Sony Online Entertainment IPs." \
+	"Sony Online Entertainment IPs." \
 	"iBlocklist.com" "https://www.iblocklist.com/"
 
-update ib_org_crowd_control $[24*60] 0 ipv4 both \
+update iblocklist_org_crowd_control $[24*60] 0 ipv4 both \
 	"http://list.iblocklist.com/?list=eveiyhgmusglurfmjyag&fileformat=p2p&archiveformat=gz" \
 	p2p_gz \
 	"organizations" \
-	"[iBlocklist.com](https://www.iblocklist.com/) Crowd Control Productions IPs." \
+	"Crowd Control Productions IPs." \
 	"iBlocklist.com" "https://www.iblocklist.com/"
 
-update ib_org_linden_lab $[24*60] 0 ipv4 both \
+update iblocklist_org_linden_lab $[24*60] 0 ipv4 both \
 	"http://list.iblocklist.com/?list=qnjdimxnaupjmpqolxcv&fileformat=p2p&archiveformat=gz" \
 	p2p_gz \
 	"organizations" \
-	"[iBlocklist.com](https://www.iblocklist.com/) Linden Lab IPs." \
+	"Linden Lab IPs." \
 	"iBlocklist.com" "https://www.iblocklist.com/"
 
-update ib_org_electronic_arts $[24*60] 0 ipv4 both \
+update iblocklist_org_electronic_arts $[24*60] 0 ipv4 both \
 	"http://list.iblocklist.com/?list=ejqebpcdmffinaetsvxj&fileformat=p2p&archiveformat=gz" \
 	p2p_gz \
 	"organizations" \
-	"[iBlocklist.com](https://www.iblocklist.com/) Electronic Arts IPs." \
+	"Electronic Arts IPs." \
 	"iBlocklist.com" "https://www.iblocklist.com/"
 
-update ib_org_square_enix $[24*60] 0 ipv4 both \
+update iblocklist_org_square_enix $[24*60] 0 ipv4 both \
 	"http://list.iblocklist.com/?list=odyaqontcydnodrlyina&fileformat=p2p&archiveformat=gz" \
 	p2p_gz \
 	"organizations" \
-	"[iBlocklist.com](https://www.iblocklist.com/) Square Enix IPs." \
+	"Square Enix IPs." \
 	"iBlocklist.com" "https://www.iblocklist.com/"
 
-update ib_org_ncsoft $[24*60] 0 ipv4 both \
+update iblocklist_org_ncsoft $[24*60] 0 ipv4 both \
 	"http://list.iblocklist.com/?list=mwjuwmebrnzyyxpbezxu&fileformat=p2p&archiveformat=gz" \
 	p2p_gz \
 	"organizations" \
-	"[iBlocklist.com](https://www.iblocklist.com/) NCsoft IPs." \
+	"NCsoft IPs." \
 	"iBlocklist.com" "https://www.iblocklist.com/"
 
-update ib_org_riot_games $[24*60] 0 ipv4 both \
+update iblocklist_org_riot_games $[24*60] 0 ipv4 both \
 	"http://list.iblocklist.com/?list=sdlvfabdjvrdttfjotcy&fileformat=p2p&archiveformat=gz" \
 	p2p_gz \
 	"organizations" \
-	"[iBlocklist.com](https://www.iblocklist.com/) Riot Games IPs." \
+	"Riot Games IPs." \
 	"iBlocklist.com" "https://www.iblocklist.com/"
 
-update ib_org_punkbuster $[24*60] 0 ipv4 both \
+update iblocklist_org_punkbuster $[24*60] 0 ipv4 both \
 	"http://list.iblocklist.com/?list=zvwwndvzulqcltsicwdg&fileformat=p2p&archiveformat=gz" \
 	p2p_gz \
 	"organizations" \
-	"[iBlocklist.com](https://www.iblocklist.com/) Punkbuster IPs." \
+	"Punkbuster IPs." \
 	"iBlocklist.com" "https://www.iblocklist.com/"
 
-update ib_org_joost $[24*60] 0 ipv4 both \
+update iblocklist_org_joost $[24*60] 0 ipv4 both \
 	"http://list.iblocklist.com/?list=alxugfmeszbhpxqfdits&fileformat=p2p&archiveformat=gz" \
 	p2p_gz \
 	"organizations" \
-	"[iBlocklist.com](https://www.iblocklist.com/) Joost IPs." \
+	"Joost IPs." \
 	"iBlocklist.com" "https://www.iblocklist.com/"
 
-update ib_org_pandora $[24*60] 0 ipv4 both \
+update iblocklist_org_pandora $[24*60] 0 ipv4 both \
 	"http://list.iblocklist.com/?list=aevzidimyvwybzkletsg&fileformat=p2p&archiveformat=gz" \
 	p2p_gz \
 	"organizations" \
-	"[iBlocklist.com](https://www.iblocklist.com/) Pandora IPs." \
+	"Pandora IPs." \
 	"iBlocklist.com" "https://www.iblocklist.com/"
 
-update ib_org_pirate_bay $[24*60] 0 ipv4 both \
+update iblocklist_org_pirate_bay $[24*60] 0 ipv4 both \
 	"http://list.iblocklist.com/?list=nzldzlpkgrcncdomnttb&fileformat=p2p&archiveformat=gz" \
 	p2p_gz \
 	"organizations" \
-	"[iBlocklist.com](https://www.iblocklist.com/) The Pirate Bay IPs." \
+	"The Pirate Bay IPs." \
 	"iBlocklist.com" "https://www.iblocklist.com/"
 
-update ib_isp_aol $[24*60] 0 ipv4 both \
+update iblocklist_isp_aol $[24*60] 0 ipv4 both \
 	"http://list.iblocklist.com/?list=toboaiysofkflwgrttmb&fileformat=p2p&archiveformat=gz" \
 	p2p_gz \
 	"organizations" \
-	"[iBlocklist.com](https://www.iblocklist.com/) AOL IPs." \
+	"AOL IPs." \
 	"iBlocklist.com" "https://www.iblocklist.com/"
 
-update ib_isp_comcast $[24*60] 0 ipv4 both \
+update iblocklist_isp_comcast $[24*60] 0 ipv4 both \
 	"http://list.iblocklist.com/?list=rsgyxvuklicibautguia&fileformat=p2p&archiveformat=gz" \
 	p2p_gz \
 	"organizations" \
-	"[iBlocklist.com](https://www.iblocklist.com/) Comcast IPs." \
+	"Comcast IPs." \
 	"iBlocklist.com" "https://www.iblocklist.com/"
 
-update ib_isp_cablevision $[24*60] 0 ipv4 both \
+update iblocklist_isp_cablevision $[24*60] 0 ipv4 both \
 	"http://list.iblocklist.com/?list=dwwbsmzirrykdlvpqozb&fileformat=p2p&archiveformat=gz" \
 	p2p_gz \
 	"organizations" \
-	"[iBlocklist.com](https://www.iblocklist.com/) Cablevision IPs." \
+	"Cablevision IPs." \
 	"iBlocklist.com" "https://www.iblocklist.com/"
 
-update ib_isp_verizon $[24*60] 0 ipv4 both \
+update iblocklist_isp_verizon $[24*60] 0 ipv4 both \
 	"http://list.iblocklist.com/?list=cdmdbprvldivlqsaqjol&fileformat=p2p&archiveformat=gz" \
 	p2p_gz \
 	"organizations" \
-	"[iBlocklist.com](https://www.iblocklist.com/) Verizon IPs." \
+	"Verizon IPs." \
 	"iBlocklist.com" "https://www.iblocklist.com/"
 
-update ib_isp_att $[24*60] 0 ipv4 both \
+update iblocklist_isp_att $[24*60] 0 ipv4 both \
 	"http://list.iblocklist.com/?list=grbtkzijgrowvobvessf&fileformat=p2p&archiveformat=gz" \
 	p2p_gz \
 	"organizations" \
-	"[iBlocklist.com](https://www.iblocklist.com/) AT&T IPs." \
+	"AT&T IPs." \
 	"iBlocklist.com" "https://www.iblocklist.com/"
 
-update ib_isp_twc $[24*60] 0 ipv4 both \
+update iblocklist_isp_twc $[24*60] 0 ipv4 both \
 	"http://list.iblocklist.com/?list=aqtsnttnqmcucwrjmohd&fileformat=p2p&archiveformat=gz" \
 	p2p_gz \
 	"organizations" \
-	"[iBlocklist.com](https://www.iblocklist.com/) Time Warner Cable IPs." \
+	"Time Warner Cable IPs." \
 	"iBlocklist.com" "https://www.iblocklist.com/"
 
-update ib_isp_charter $[24*60] 0 ipv4 both \
+update iblocklist_isp_charter $[24*60] 0 ipv4 both \
 	"http://list.iblocklist.com/?list=htnzojgossawhpkbulqw&fileformat=p2p&archiveformat=gz" \
 	p2p_gz \
 	"organizations" \
-	"[iBlocklist.com](https://www.iblocklist.com/) Charter IPs." \
+	"Charter IPs." \
 	"iBlocklist.com" "https://www.iblocklist.com/"
 
-update ib_isp_qwest $[24*60] 0 ipv4 both \
+update iblocklist_isp_qwest $[24*60] 0 ipv4 both \
 	"http://list.iblocklist.com/?list=jezlifrpefawuoawnfez&fileformat=p2p&archiveformat=gz" \
 	p2p_gz \
 	"organizations" \
-	"[iBlocklist.com](https://www.iblocklist.com/) Qwest IPs." \
+	"Qwest IPs." \
 	"iBlocklist.com" "https://www.iblocklist.com/"
 
-update ib_isp_embarq $[24*60] 0 ipv4 both \
+update iblocklist_isp_embarq $[24*60] 0 ipv4 both \
 	"http://list.iblocklist.com/?list=twdblifaysaqtypevvdp&fileformat=p2p&archiveformat=gz" \
 	p2p_gz \
 	"organizations" \
-	"[iBlocklist.com](https://www.iblocklist.com/) Embarq IPs." \
+	"Embarq IPs." \
 	"iBlocklist.com" "https://www.iblocklist.com/"
 
-update ib_isp_suddenlink $[24*60] 0 ipv4 both \
+update iblocklist_isp_suddenlink $[24*60] 0 ipv4 both \
 	"http://list.iblocklist.com/?list=psaoblrwylfrdsspfuiq&fileformat=p2p&archiveformat=gz" \
 	p2p_gz \
 	"organizations" \
-	"[iBlocklist.com](https://www.iblocklist.com/) Suddenlink IPs." \
+	"Suddenlink IPs." \
 	"iBlocklist.com" "https://www.iblocklist.com/"
 
-update ib_isp_sprint $[24*60] 0 ipv4 both \
+update iblocklist_isp_sprint $[24*60] 0 ipv4 both \
 	"http://list.iblocklist.com/?list=hngtqrhhuadlceqxbrob&fileformat=p2p&archiveformat=gz" \
 	p2p_gz \
 	"organizations" \
-	"[iBlocklist.com](https://www.iblocklist.com/) Sprint IPs." \
+	"Sprint IPs." \
 	"iBlocklist.com" "https://www.iblocklist.com/"
 
 # -----------------------------------------------------------------------------
@@ -4740,27 +4830,27 @@ badipscom
 # we don't have yet the license to add this script here
 # (the script is ours, but sorbs.net is very sceptical about this)
 
-DO_NOT_REDISTRIBUTE[sorbs_dul.netset]="1"
+DO_NOT_REDISTRIBUTE[sorbs_dul]="1"
 update sorbs_dul 1 0 ipv4 both "" \
 	cat \
 	"spam" "[Sorbs.net](https://www.sorbs.net/) Dynamic IP Addresses." \
 	"Sorbs.net" "https://www.sorbs.net/"
 
-#DO_NOT_REDISTRIBUTE[sorbs_socks.netset]="1"
+#DO_NOT_REDISTRIBUTE[sorbs_socks]="1"
 #update sorbs_socks 1 0 ipv4 both "" \
 #	cat \
 #	"anonymizers" \
 #	"[Sorbs.net](https://www.sorbs.net/) List of open SOCKS proxy servers." \
 #	"Sorbs.net" "https://www.sorbs.net/"
 
-#DO_NOT_REDISTRIBUTE[sorbs_http.netset]="1"
+#DO_NOT_REDISTRIBUTE[sorbs_http]="1"
 #update sorbs_http 1 0 ipv4 both "" \
 #	cat \
 #	"anonymizers" \
 #	"[Sorbs.net](https://www.sorbs.net/) List of open HTTP proxies." \
 #	"Sorbs.net" "https://www.sorbs.net/"
 
-#DO_NOT_REDISTRIBUTE[sorbs_misc.netset]="1"
+#DO_NOT_REDISTRIBUTE[sorbs_misc]="1"
 #update sorbs_misc 1 0 ipv4 both "" \
 #	cat \
 #	"anonymizers" \
@@ -4768,76 +4858,76 @@ update sorbs_dul 1 0 ipv4 both "" \
 #	"Sorbs.net" "https://www.sorbs.net/"
 
 # all the above are here:
-DO_NOT_REDISTRIBUTE[sorbs_anonymizers.netset]="1"
+DO_NOT_REDISTRIBUTE[sorbs_anonymizers]="1"
 update sorbs_anonymizers 1 0 ipv4 both "" \
 	cat \
 	"spam" \
 	"[Sorbs.net](https://www.sorbs.net/) List of open HTTP and SOCKS proxies." \
 	"Sorbs.net" "https://www.sorbs.net/"
 
-DO_NOT_REDISTRIBUTE[sorbs_zombie.netset]="1"
+DO_NOT_REDISTRIBUTE[sorbs_zombie]="1"
 update sorbs_zombie 1 0 ipv4 both "" \
 	cat \
 	"spam" \
 	"[Sorbs.net](https://www.sorbs.net/) List of networks hijacked from their original owners, some of which have already used for spamming." \
 	"Sorbs.net" "https://www.sorbs.net/"
 
-DO_NOT_REDISTRIBUTE[sorbs_smtp.netset]="1"
+DO_NOT_REDISTRIBUTE[sorbs_smtp]="1"
 update sorbs_smtp 1 0 ipv4 both "" \
 	cat "spam" "[Sorbs.net](https://www.sorbs.net/) List of SMTP Open Relays." \
 	"Sorbs.net" "https://www.sorbs.net/"
 
 # this is HUGE !!!
-#DO_NOT_REDISTRIBUTE[sorbs_spam.netset]="1"
+#DO_NOT_REDISTRIBUTE[sorbs_spam]="1"
 #update sorbs_spam 1 0 ipv4 both "" \
 #	remove_comments \
 #	"spam" \
 #	"[Sorbs.net](https://www.sorbs.net/) List of hosts that have been noted as sending spam/UCE/UBE at any time, and not subsequently resolving the matter and/or requesting a delisting. (Includes both sorbs_old_spam and sorbs_escalations)." \
 #	"Sorbs.net" "https://www.sorbs.net/"
 
-#DO_NOT_REDISTRIBUTE[sorbs_old_spam.netset]="1"
+#DO_NOT_REDISTRIBUTE[sorbs_old_spam]="1"
 #update sorbs_old_spam 1 0 ipv4 both "" \
 #	remove_comments \
 #	"spam" \
 #	"[Sorbs.net](https://www.sorbs.net/) List of hosts that have been noted as sending spam/UCE/UBE within the last year. (includes sorbs_recent_spam)." \
 #	"Sorbs.net" "https://www.sorbs.net/"
 
-DO_NOT_REDISTRIBUTE[sorbs_new_spam.netset]="1"
+DO_NOT_REDISTRIBUTE[sorbs_new_spam]="1"
 update sorbs_new_spam 1 0 ipv4 both "" \
 	cat \
 	"spam" \
 	"[Sorbs.net](https://www.sorbs.net/) List of hosts that have been noted as sending spam/UCE/UBE within the last 48 hours" \
 	"Sorbs.net" "https://www.sorbs.net/"
 
-DO_NOT_REDISTRIBUTE[sorbs_recent_spam.netset]="1"
+DO_NOT_REDISTRIBUTE[sorbs_recent_spam]="1"
 update sorbs_recent_spam 1 0 ipv4 both "" \
 	cat \
 	"spam" \
 	"[Sorbs.net](https://www.sorbs.net/) List of hosts that have been noted as sending spam/UCE/UBE within the last 28 days (includes sorbs_new_spam)" \
 	"Sorbs.net" "https://www.sorbs.net/"
 
-DO_NOT_REDISTRIBUTE[sorbs_web.netset]="1"
+DO_NOT_REDISTRIBUTE[sorbs_web]="1"
 update sorbs_web 1 0 ipv4 both "" \
 	cat \
 	"spam" \
 	"[Sorbs.net](https://www.sorbs.net/) List of IPs which have spammer abusable vulnerabilities (e.g. FormMail scripts)" \
 	"Sorbs.net" "https://www.sorbs.net/"
 
-DO_NOT_REDISTRIBUTE[sorbs_escalations.netset]="1"
+DO_NOT_REDISTRIBUTE[sorbs_escalations]="1"
 update sorbs_escalations 1 0 ipv4 both "" \
 	cat \
 	"spam" \
 	"[Sorbs.net](https://www.sorbs.net/) Netblocks of spam supporting service providers, including those who provide websites, DNS or drop boxes for a spammer. Spam supporters are added on a 'third strike and you are out' basis, where the third spam will cause the supporter to be added to the list." \
 	"Sorbs.net" "https://www.sorbs.net/"
 
-DO_NOT_REDISTRIBUTE[sorbs_noserver.netset]="1"
+DO_NOT_REDISTRIBUTE[sorbs_noserver]="1"
 update sorbs_noserver 1 0 ipv4 both "" \
 	cat \
 	"spam" \
 	"[Sorbs.net](https://www.sorbs.net/) IP addresses and Netblocks of where system administrators and ISPs owning the network have indicated that servers should not be present." \
 	"Sorbs.net" "https://www.sorbs.net/"
 
-DO_NOT_REDISTRIBUTE[sorbs_block.netset]="1"
+DO_NOT_REDISTRIBUTE[sorbs_block]="1"
 update sorbs_block 1 0 ipv4 both "" \
 	cat \
 	"spam" \
@@ -4848,63 +4938,63 @@ update sorbs_block 1 0 ipv4 both "" \
 # -----------------------------------------------------------------------------
 # DroneBL.org lists
 
-DO_NOT_REDISTRIBUTE[dronebl_anonymizers.netset]="1"
+DO_NOT_REDISTRIBUTE[dronebl_anonymizers]="1"
 update dronebl_anonymizers 1 0 ipv4 both "" \
 	cat \
 	"anonymizers" \
 	"[DroneBL.org](https://dronebl.org) List of open proxies. It includes IPs which DroneBL categorizes as SOCKS proxies (8), HTTP proxies (9), web page proxies (11), WinGate proxies (14), proxy chains (10)." \
 	"DroneBL.org" "https://dronebl.org"
 
-DO_NOT_REDISTRIBUTE[dronebl_irc_drones.netset]="1"
+DO_NOT_REDISTRIBUTE[dronebl_irc_drones]="1"
 update dronebl_irc_drones 1 0 ipv4 both "" \
 	cat \
 	"abuse" \
 	"[DroneBL.org](https://dronebl.org) List of IRC spam drones (litmus/sdbot/fyle). It includes IPs for which DroneBL responds with 3." \
 	"DroneBL.org" "https://dronebl.org"
 
-DO_NOT_REDISTRIBUTE[dronebl_worms_bots.netset]="1"
+DO_NOT_REDISTRIBUTE[dronebl_worms_bots]="1"
 update dronebl_worms_bots 1 0 ipv4 both "" \
 	cat \
 	"malware" \
 	"[DroneBL.org](https://dronebl.org) IPs of unknown worms or spambots. It includes IPs for which DroneBL responds with 6" \
 	"DroneBL.org" "https://dronebl.org"
 
-DO_NOT_REDISTRIBUTE[dronebl_ddos_drones.netset]="1"
+DO_NOT_REDISTRIBUTE[dronebl_ddos_drones]="1"
 update dronebl_ddos_drones 1 0 ipv4 both "" \
 	cat \
 	"attacks" \
 	"[DroneBL.org](https://dronebl.org) IPs of DDoS drones. It includes IPs for which DroneBL responds with 7." \
 	"DroneBL.org" "https://dronebl.org"
 
-DO_NOT_REDISTRIBUTE[dronebl_compromised.netset]="1"
+DO_NOT_REDISTRIBUTE[dronebl_compromised]="1"
 update dronebl_compromised 1 0 ipv4 both "" \
 	cat \
 	"attacks" \
 	"[DroneBL.org](https://dronebl.org) IPs of compromised routers / gateways. It includes IPs for which DroneBL responds with 15 (BOPM detected)." \
 	"DroneBL.org" "https://dronebl.org"
 
-DO_NOT_REDISTRIBUTE[dronebl_autorooting_worms.netset]="1"
+DO_NOT_REDISTRIBUTE[dronebl_autorooting_worms]="1"
 update dronebl_autorooting_worms 1 0 ipv4 both "" \
 	cat \
 	"attacks" \
 	"[DroneBL.org](https://dronebl.org) IPs of autorooting worms. It includes IPs for which DroneBL responds with 16. These are usually SSH bruteforce attacks." \
 	"DroneBL.org" "https://dronebl.org"
 
-DO_NOT_REDISTRIBUTE[dronebl_auto_botnets.netset]="1"
+DO_NOT_REDISTRIBUTE[dronebl_auto_botnets]="1"
 update dronebl_auto_botnets 1 0 ipv4 both "" \
 	cat \
 	"reputation" \
 	"[DroneBL.org](https://dronebl.org) IPs of automatically detected botnets. It includes IPs for which DroneBL responds with 17." \
 	"DroneBL.org" "https://dronebl.org"
 
-DO_NOT_REDISTRIBUTE[dronebl_dns_mx_on_irc.netset]="1"
+DO_NOT_REDISTRIBUTE[dronebl_dns_mx_on_irc]="1"
 update dronebl_dns_mx_on_irc 1 0 ipv4 both "" \
 	cat \
 	"reputation" \
 	"[DroneBL.org](https://dronebl.org) List of IPs of DNS / MX hostname detected on IRC. It includes IPs for which DroneBL responds with 18." \
 	"DroneBL.org" "https://dronebl.org"
 
-DO_NOT_REDISTRIBUTE[dronebl_unknown.netset]="1"
+DO_NOT_REDISTRIBUTE[dronebl_unknown]="1"
 update dronebl_unknown 1 0 ipv4 both "" \
 	cat \
 	"reputation" \
@@ -4915,7 +5005,7 @@ update dronebl_unknown 1 0 ipv4 both "" \
 # -----------------------------------------------------------------------------
 # FireHOL lists
 
-merge firehol_level1 "attacks" "An ipset made from blocklists that provide the maximum of protection, with the minimum of false positives. Suitable for basic protection on all systems." \
+merge firehol_level1 "attacks" "A firewall blacklist composed from IP lists, providing maximum protection with minimum false positives. Suitable for basic protection on all internet facing servers, routers and firewalls." \
 	fullbogons dshield feodo palevo sslbl zeus_badips spamhaus_drop spamhaus_edrop bambenek_c2
 
 merge firehol_level2 "attacks" "An ipset made from blocklists that track attacks and abuse, during the last one or two days." \
@@ -4923,12 +5013,12 @@ merge firehol_level2 "attacks" "An ipset made from blocklists that track attacks
 
 merge firehol_level3 "attacks" "An ipset made from blocklists that track attacks, spyware, viruses. It includes IPs than have been reported or detected in the last 30 days." \
 	openbl_30d dshield_30d stopforumspam_30d virbl malc0de shunlist malwaredomainlist bruteforceblocker \
-	ciarmy cleanmx_viruses snort_ipfilter ib_bluetack_spyware ib_bluetack_hijacked ib_bluetack_webexploit \
+	ciarmy cleanmx_viruses snort_ipfilter iblocklist_spyware iblocklist_hijacked iblocklist_webexploit \
 	php_commenters php_dictionary php_harvesters php_spammers iw_wormlist zeus maxmind_proxy_fraud \
 	dragon_http dragon_sshpauth dragon_vncprobe bambenek_c2
 
 merge firehol_proxies "anonymizers" "An ipset made from all sources that track open proxies. It includes IPs reported or detected in the last 30 days." \
-	ib_bluetack_proxies maxmind_proxy_fraud proxyrss_30d proxz_30d \
+	iblocklist_proxies maxmind_proxy_fraud proxyrss_30d proxz_30d \
 	ri_connect_proxies_30d ri_web_proxies_30d xroxy_30d \
 	proxyspy_30d sslproxies_30d socks_proxy_30d proxylists_30d
 
@@ -4943,6 +5033,7 @@ merge firehol_anonymous "anonymizers" "An ipset that includes all the anonymizin
 # add sets
 # - https://graphiclineweb.wordpress.com/tech-notes/ip-blacklist/
 # - http://www.ip-finder.me/ip-full-list/
+# - http://www.cidr-report.org/bogons/freespace-prefix6.txt
 #
 # - https://github.com/Blueliv/api-python-sdk/wiki/Blueliv-REST-API-Documentation
 # - https://atlas.arbor.net/summary/attacks.csv
