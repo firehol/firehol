@@ -2457,6 +2457,16 @@ parse_xml_clean_mx() {
 	done
 }
 
+parse_dshield_api() {
+	while read_xml_dom
+		do
+		case "${XML_ENTITY}" in
+			ip) echo "${XML_CONTENT}"
+		esac
+	done |\
+		sed -e "s|0\([1-9][1-9]\)|\1|g" -e "s|00\([1-9]\)|\1|g" -e "s|000|0|g"
+}
+
 
 # -----------------------------------------------------------------------------
 # CONVERTERS
@@ -3186,6 +3196,13 @@ update dshield 15 "$[24*60] $[7*24*60] $[30*24*60]" ipv4 both \
 	"[DShield.org](https://dshield.org/) top 20 attacking class C (/24) subnets over the last three days" \
 	"DShield.org" "https://dshield.org/"
 
+update dshield_top_1000 60 0 ipv4 ip \
+	"https://isc.sans.edu/api/sources/attacks/1000/" \
+	parse_dshield_api \
+	"attacks" \
+	"[DShield.org](https://dshield.org/) top 1000 attacking hosts in the last 30 days" \
+	"DShield.org" "https://dshield.org/"
+
 # -----------------------------------------------------------------------------
 # TOR lists
 # TOR is not necessary hostile, you may need this just for sensitive services.
@@ -3737,6 +3754,21 @@ update proxz 60 "$[24*60] $[7*24*60] $[30*24*60]" ipv4 ip \
 
 
 # -----------------------------------------------------------------------------
+# Multiproxy.org
+# http://multiproxy.org/txt_all/proxy.txt
+# this seems abandoned
+#
+#parse_multiproxy() { remove_comments | cut -d ':' -f 1; }
+#
+#update multiproxy 60 0 ipv4 ip \
+#	"http://multiproxy.org/txt_all/proxy.txt" \
+#	parse_multiproxy \
+#	"anonymizers" \
+#	"Open proxies" \
+#	"MultiProxy.org" "http://multiproxy.org/"
+
+
+# -----------------------------------------------------------------------------
 # Open Proxies from proxylists.net
 # http://www.proxylists.net/proxylists.xml
 
@@ -4210,15 +4242,25 @@ update bitcoin_nodes 10 "$[24*60] $[7*24*60] $[30*24*60]" ipv4 ip \
 
 
 # -----------------------------------------------------------------------------
-# BinaryDefense
-# https://www.binarydefense.com/
+# BinaryDefense.com
 
 update bds_atif $[24*60] 0 ipv4 ip \
 	"https://www.binarydefense.com/banlist.txt" \
 	remove_comments \
 	"reputation" \
-	"[Binary Defense Systems Artillery Threat Intelligence Feed and Banlist Feed](https://www.binarydefense.com/banlist.txt)" \
+	"Artillery Threat Intelligence Feed and Banlist Feed" \
 	"Binary Defense Systems" "https://www.binarydefense.com/"
+
+
+# -----------------------------------------------------------------------------
+# TrustedSec.com
+
+update trustedsec_atif $[24*60] 0 ipv4 ip \
+	"https://www.trustedsec.com/banlist.txt" \
+	remove_comments \
+	"reputation" \
+	"Artillery Threat Intelligence Feed and Banlist Feed" \
+	"TrustedSec" "https://www.trustedsec.com/"
 
 
 # -----------------------------------------------------------------------------
@@ -5031,9 +5073,12 @@ merge firehol_anonymous "anonymizers" "An ipset that includes all the anonymizin
 # TODO
 #
 # add sets
+# - http://jeroen.steeman.org/FS-PlainText
+# - http://security-research.dyndns.org/pub/botnet/ponmocup/ponmocup-finder/ponmocup-infected-domains-latest.txt
 # - https://graphiclineweb.wordpress.com/tech-notes/ip-blacklist/
 # - http://www.ip-finder.me/ip-full-list/
 # - http://www.cidr-report.org/bogons/freespace-prefix6.txt
+# - https://github.com/mlsecproject/combine/issues/25
 #
 # - https://github.com/Blueliv/api-python-sdk/wiki/Blueliv-REST-API-Documentation
 # - https://atlas.arbor.net/summary/attacks.csv
