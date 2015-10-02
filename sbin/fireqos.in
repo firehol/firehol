@@ -843,7 +843,13 @@ parse_class_params() {
 	shift 2
 
 	eval local base_rate="\$${parent}_rate"
-	
+
+	# we need the ceil_rate of the parent class
+	# so that the 'max/ceil' parameter can be a percentage
+	# of the parent's ceil_rate.
+	eval local ceil_rate="\$${parent}_ceil"
+	[ -z "${ceil}" ] && ceil_rate="${base_rate}"
+
 	case "$force_ipv" in
 		4)
 			ipv4=1
@@ -904,7 +910,7 @@ parse_class_params() {
 					
 					if [ $valid_options = $current_options ]
 					then
-						minrate="`rate2bps ${2} $base_rate`"
+						minrate="`rate2bps ${2} ${base_rate}`"
 					fi
 					shift
 					;;
@@ -912,7 +918,7 @@ parse_class_params() {
 			rate|min|commit)
 					if [ $valid_options = $current_options ]
 					then
-						rate="`rate2bps $2 $base_rate`"
+						rate="`rate2bps $2 ${base_rate}`"
 					fi
 					shift
 					;;
@@ -920,7 +926,7 @@ parse_class_params() {
 			ceil|max)
 					if [ $valid_options = $current_options ]
 					then
-						ceil="`rate2bps $2 $base_rate`"
+						ceil="`rate2bps $2 ${ceil_rate}`"
 					fi
 					shift
 					;;
@@ -1260,7 +1266,7 @@ check_constrains() {
 check_committed_rate() {
 	if [ $parent_rate -ge ${parent_sumrate} ]
 	then
-		echo >&2 -e ": $class_tabs${COLOR_BLUE}${COLOR_BOLD}committed rate $((parent_sumrate * 8 / 1000))kbit ($((parent_sumrate * 100 / parent_rate))%), the remaining $(((parent_rate - parent_sumrate)*8/1000))kbit will be spare bandwidth.${COLOR_RESET}"
+		echo >&2 -e ": $class_tabs${COLOR_GREEN}${COLOR_BOLD}committed rate $((parent_sumrate * 8 / 1000))kbit ($((parent_sumrate * 100 / parent_rate))%), the remaining $(((parent_rate - parent_sumrate)*8/1000))kbit will be spare bandwidth.${COLOR_RESET}"
 	else
 		echo >&2 -e ": $class_tabs${COLOR_RED}${COLOR_BOLD}committed rate $((parent_sumrate * 8 / 1000))kbit, ($((parent_sumrate * 100 / parent_rate))%), overbooked by $((-(parent_rate - parent_sumrate)*8/1000))kbit. PLEASE FIX.${COLOR_RESET}"
 	fi
@@ -1564,7 +1570,7 @@ interface() {
 	[ ! -z "${interface_quantum}" ]			&& quantum="quantum ${interface_quantum}"
 	[ ! -z "${interface_r2q}" ]			&& r2q="r2q ${interface_r2q}"
 	
-	echo >&2 -e " ${COLOR_BOLD}${COLOR_BLUE}(${interface_realdev}, $((interface_rate*8/1000))kbit, MTU ${interface_mtu}, quantum ${interface_quantum})${COLOR_RESET}"
+	echo >&2 -e " ${COLOR_BOLD}${COLOR_GREEN}(${interface_realdev}, $((interface_rate*8/1000))kbit, mtu ${interface_mtu}, quantum ${interface_quantum}, minrate $(( interface_minrate * 8 / 1000 ))kbit)${COLOR_RESET}"
 	
 	# remember we used this interface
 	echo "$interface_name" >$FIREQOS_DIR/ifaces/${interface_realdev}
@@ -1819,8 +1825,17 @@ class() {
 		parent_class_prio=$((class_prio + 1))
 	fi
 
-	[ ${class_prio} -lt 0 ] && class_prio=0
-	[ ${class_prio} -gt 7 ] && class_prio=7
+	if [ ${class_prio} -lt 0 ]
+		then
+		warning "Class '${class_name}' has been assigned priority ${class_prio}, but HTB allows 0-7. Setting it to 0."
+		class_prio=0
+	fi
+
+	if [ ${class_prio} -gt 7 ]
+		then
+		warning "Class '${class_name}' has been assigned priority ${class_prio}, but HTB allows 0-7. Setting it to 7."
+		class_prio=7
+	fi
 	
 	# remember this prio, in case we need it later
 	last_class_prio="${class_prio}"
@@ -1864,14 +1879,14 @@ class() {
 	
 	# check it the user overbooked the parent
 	parent_sumrate=$(( parent_sumrate + class_rate ))
-	local info_color="${COLOR_BLUE}"
+	local info_color="${COLOR_GREEN}"
 	[ ${parent_sumrate} -gt ${parent_rate} ] && local info_color="${COLOR_RED}"
 	
 	if [ ${class_group} -eq 1 -a ! -z "${stab}" ]
 	then
-		echo >&2 -e " ${info_color}${COLOR_BOLD}(${class_classid}, $((class_rate*8/1000))kbit, prio ${class_prio}, MTU ${class_mtu}, quantum ${class_quantum})${COLOR_RESET}"
+		echo >&2 -e " ${info_color}${COLOR_BOLD}(${class_classid}, $((class_rate*8/1000))/$((class_ceil*8/1000))kbit, prio ${class_prio}, MTU ${class_mtu}, quantum ${class_quantum})${COLOR_RESET}"
 	else
-		echo >&2 -e " ${info_color}${COLOR_BOLD}(${class_classid}, $((class_rate*8/1000))kbit, prio ${class_prio})${COLOR_RESET}"
+		echo >&2 -e " ${info_color}${COLOR_BOLD}(${class_classid}, $((class_rate*8/1000))/$((class_ceil*8/1000))kbit, prio ${class_prio})${COLOR_RESET}"
 	fi
 	
 	# keep track of all classes in the interface, so that the matches can name them to get their flowid
