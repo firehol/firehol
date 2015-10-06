@@ -277,6 +277,9 @@ WEB_CHARTS_ENTRIES="500"
 # if the .git directory is present, push it also
 PUSH_TO_GIT=0
 
+MAX_CONNECT_TIME=10
+MAX_DOWNLOAD_TIME=180
+IGNORE_REPEATING_DOWNLOAD_ERRORS=10
 
 # -----------------------------------------------------------------------------
 # Command line parsing
@@ -671,7 +674,7 @@ geturl() {
 
 	test ${SILENT} -ne 1 && printf >&2 "${ipset}: downlading from '%s'... " "${url}"
 
-	http_code=$(curl --connect-timeout 10 --max-time 180 --retry 0 --fail --compressed \
+	http_code=$(curl --connect-timeout ${MAX_CONNECT_TIME} --max-time ${MAX_DOWNLOAD_TIME} --retry 0 --fail --compressed \
 		--user-agent "FireHOL-Update-Ipsets/3.0" \
 		--referer "https://github.com/ktsaou/firehol/blob/master/contrib/update-ipsets.sh" \
 		-z "${reference}" -o "${file}" -s -L -R -w "%{http_code}" \
@@ -721,12 +724,12 @@ declare -A IPSET_DOWNLOADER_NO_IF_MODIFIED_SINCE=()
 download_manager() {
 	local 	ipset="${1}" mins="${2}" url="${3}" \
 		install="${1}" \
-		tmp= now= date= check= inc=
+		tmp= now= date= check= inc= inc2= fails=
 
 	tmp=`mktemp "${RUN_DIR}/download-${ipset}-XXXXXXXXXX"` || return ${DOWNLOAD_FAILED}
 
 	# make sure it is numeric
-	[ "$[mins + 0]" -eq 0 ] && mins=0
+	[ "$[mins + 0]" -lt 1 ] && mins=1
 
 	# add some time (1/100th), to make sure the source is updated
 	inc=$[ (mins + 50) / 100 ]
@@ -737,9 +740,14 @@ download_manager() {
 	# if the added time is above 10min, make it 10 min
 	[ ${inc} -gt 10 ] && inc=10
 
-	# touch a file $mins + 2 ago
-	# we add 2 to let the server update the file
-	touch_in_the_past "$[mins + inc]" "${tmp}"
+	# if it failed more than 10 times in the past, increase the time
+	inc2=0
+	fails=${IPSET_DOWNLOAD_FAILURES[${ipset}]}
+	[ "$[fails + 0]" -eq 0 ] && fails=0
+	[ ${fails} -gt ${IGNORE_REPEATING_DOWNLOAD_ERRORS} ] && inc2=$[ (fails - IGNORE_REPEATING_DOWNLOAD_ERRORS) * mins ]
+
+	# touch a file in the past
+	touch_in_the_past "$[mins + inc + inc2]" "${tmp}"
 
 	check="${install}.source"
 	[ ${IGNORE_LASTCHECKED} -eq 0 -a -f ".${install}.lastchecked" ] && check=".${install}.lastchecked"
@@ -748,7 +756,7 @@ download_manager() {
 	if [ "${check}" -nt "${tmp}" ]
 	then
 		rm "${tmp}"
-		echo >&2 "${ipset}: should not be downloaded so soon (within ${mins} + ${inc} = $[mins + inc] mins)."
+		echo >&2 "${ipset}: should not be downloaded so soon (within ${mins} + ${inc} + ${inc2} = $[mins + inc + inc2] mins)."
 		return ${DOWNLOAD_NOT_UPDATED}
 	fi
 
@@ -758,8 +766,20 @@ download_manager() {
 
 	geturl "${tmp}" "${reference}" "${url}"
 	case $? in
-		0)	;;
+		0)
+			if [ ${fails} -gt 0 ]
+				then
+				unset IPSET_DOWNLOAD_FAILURES[${ipset}]
+				cache_save
+			fi
+			;;
+
 		99)
+			if [ ${fails} -gt 0 ]
+				then
+				unset IPSET_DOWNLOAD_FAILURES[${ipset}]
+				cache_save
+			fi
 			echo >&2 "${ipset}: file on server has not been updated yet"
 			rm "${tmp}"
 			touch_in_the_past $[mins / 2] ".${install}.lastchecked"
@@ -769,6 +789,8 @@ download_manager() {
 		*)
 			syslog "${ipset}: cannot download '${url}'."
 			rm "${tmp}"
+			IPSET_DOWNLOAD_FAILURES[${ipset}]=$(( fails + 1 ))
+			cache_save
 			return ${DOWNLOAD_FAILED}
 			;;
 	esac
@@ -841,6 +863,8 @@ declare -A IPSET_STARTED_DATE=()
 
 declare -A IPSET_CLOCK_SKEW=()
 
+declare -A IPSET_DOWNLOAD_FAILURES=()
+
 # TODO - FIXME
 #declare -A IPSET_PREFIXES=()
 #declare -A IPSET_DOWNLOADER=()
@@ -877,6 +901,7 @@ cache_save() {
 		IPSET_IPS_MAX \
 		IPSET_STARTED_DATE \
 		IPSET_CLOCK_SKEW \
+		IPSET_DOWNLOAD_FAILURES \
 		>"${BASE_DIR}/.cache"
 }
 
