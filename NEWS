@@ -1,8 +1,62 @@
+2015/10/10:
+
+Release of version 3.0.0-rc.3
+
+More wide-ranging improvements
+
+Common:
+- ipset fixes
+- require pandoc 1.12.2.1 and use its features
+- iprove contents page in documentation
+
+FireHOL updates:
+- made STOP mode exit successfully
+- add support for restore when specifying a filename on the command line
+- allow multiple "except" rules in statements that accept the keyword
+- disabled spinner in explain mode
+- add support for comma as an ipset IP separator
+- tproxy now uses markdef() to allocate a mark
+- save marks.conf only after successful firewall activation
+- drop requirement for awk (other programs still use it)
+- add log() and loglimit() helpers to allow logging from ipsets globally
+- prevented backup of all the ipsets in memory - it takes too long
+  when the system has many ipsets installed
+- rewrote the ipsets functionality so that:
+  - it optimizes netsets with iprange if present
+  - it adapts the maxelem parameter for the updated ipset so that
+    updating ipsets with big incremental updates does not fail
+  - maintains compatibility with older ipset versions
+    (side-effect: calling an ipset update without restarting the
+    firewall now only support ipsets that are used in firehol.conf)
+  - if iprange is present, processing of ipsets is a lot faster
+
+FireQOS updates:
+- add ability to stop QoS on a specific device
+- fix for ERROR columns on some tc versions
+- max/ceil % is now relative to parent's ceiling rate
+  (it was by mistake to parent's base rate)
+- warn if a class takes priority outside the valid ranges of HTB (0-7)
+- switched default color from blue to green
+
+Link-Balancer updates:
+- add wrappers for rawmark() and custommark()
+- when a table was already up to date but other depend on it, it failed #78
+- fix issue when specifying loop and timeout #77
+
+Contrib (ipsets scripts):
+- various fixes and lists added
+- support aggregate to optimize netsets
+- support syslog logging
+- add iprange program, various enhancements over original
+
+VNetBuild Added
+
+
 2015/03/14:
 
 Release of version 3.0.0-rc.2
 
-More wide-ranging improvements betore a final release
+More wide-ranging improvements before a final release
 
 Common:
 
