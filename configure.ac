@@ -101,6 +101,7 @@ AC_CONFIG_FILES([
 	doc/vnetbuild/Makefile
 	examples/Makefile
 	etc/Makefile
+	contrib/Makefile
 	packaging/Makefile
 	])
 

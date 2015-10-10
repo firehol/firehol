@@ -5,7 +5,7 @@
 Please run:
 
 ```bash
-make && sudo make install
+make -f contrib.mak && sudo make -f contrib.mak install
 ```
 
 This command is required for FireHOL to manage ipsets.

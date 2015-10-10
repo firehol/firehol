@@ -12,7 +12,7 @@ AUTOMAKE_OPTIONS = \
 AM_DISTCHECK_CONFIGURE_FLAGS = \
 	--disable-maintainer-mode
 
-SUBDIRS = sbin etc examples doc
+SUBDIRS = sbin etc examples doc contrib
 
 DIST_SUBDIRS = $(SUBDIRS) m4 packaging
 
