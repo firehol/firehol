@@ -2008,7 +2008,7 @@ update() {
 			touch -t 0001010000 "${BASE_DIR}/${install}.source" || return 1
 		else
 			[ -d .git ] && echo >"${install}.setinfo" "${ipset}|${info}|${ipv} hash:${hash}|disabled|`if [ ! -z "${url}" ]; then echo "updated every $(mins_to_text ${mins}) from [this link](${url})"; fi`"
-			echo >&2 "${ipset}: is disabled, to enable it run: touch -t 0001010000 '${BASE_DIR}/${install}.source'"
+			test ${SILENT} -ne 1 && echo >&2 "${ipset}: is disabled, to enable it run: touch -t 0001010000 '${BASE_DIR}/${install}.source'"
 			return 1
 		fi
 	fi
@@ -2669,7 +2669,7 @@ geolite2_country() {
 			then
 			touch -t 0001010000 "${BASE_DIR}/${ipset}.source" || return 1
 		else
-			echo >&2 "${ipset}: is disabled, to enable it run: touch -t 0001010000 '${BASE_DIR}/${ipset}.source'"
+			test ${SILENT} -ne 1 && echo >&2 "${ipset}: is disabled, to enable it run: touch -t 0001010000 '${BASE_DIR}/${ipset}.source'"
 			return 1
 		fi
 	fi
@@ -2812,7 +2812,7 @@ ipdeny_country() {
 			then
 			touch -t 0001010000 "${BASE_DIR}/${ipset}.source" || return 1
 		else
-			echo >&2 "${ipset}: is disabled, to enable it run: touch -t 0001010000 '${BASE_DIR}/${ipset}.source'"
+			test ${SILENT} -ne 1 && echo >&2 "${ipset}: is disabled, to enable it run: touch -t 0001010000 '${BASE_DIR}/${ipset}.source'"
 			return 1
 		fi
 	fi
@@ -2908,7 +2908,7 @@ ip2location_country() {
 			then
 			touch -t 0001010000 "${BASE_DIR}/${ipset}.source" || return 1
 		else
-			echo >&2 "${ipset}: is disabled, to enable it run: touch -t 0001010000 '${BASE_DIR}/${ipset}.source'"
+			test ${SILENT} -ne 1 && echo >&2 "${ipset}: is disabled, to enable it run: touch -t 0001010000 '${BASE_DIR}/${ipset}.source'"
 			return 1
 		fi
 	fi
@@ -3032,7 +3032,7 @@ merge() {
 			then
 			touch -t 0001010000 "${BASE_DIR}/${to}.source" || return 1
 		else
-			echo >&2 "${to}: is disabled. To enable it run: touch -t 0001010000 ${BASE_DIR}/${to}.source"
+			test ${SILENT} -ne 1 && echo >&2 "${to}: is disabled. To enable it run: touch -t 0001010000 ${BASE_DIR}/${to}.source"
 			return 1
 		fi
 	fi
@@ -4784,7 +4784,7 @@ badipscom() {
 			done
 		else
 			[ -d .git ] && echo >"${install}.setinfo" "badips.com categories ipsets|[BadIPs.com](https://www.badips.com) community based IP blacklisting. They score IPs based on the reports they reports.|ipv4 hash:ip|disabled|disabled"
-			echo >&2 "badips: is disabled, to enable it run: touch -t 0001010000 '${BASE_DIR}/badips.source'"
+			test ${SILENT} -ne 1 && echo >&2 "badips: is disabled, to enable it run: touch -t 0001010000 '${BASE_DIR}/badips.source'"
 			return 1
 		fi
 	fi
@@ -4883,7 +4883,7 @@ badipscom() {
 
 		if [ ${count} -eq 0 ]
 			then
-			echo >&2 "bi_${category}_SCORE_AGE: is disabled (SCORE=X and AGE=Y[dwmy]). To enable it run: touch -t 0001010000 '${BASE_DIR}/bi_${category}_SCORE_AGE.source'"
+			test ${SILENT} -ne 1 && echo >&2 "bi_${category}_SCORE_AGE: is disabled (SCORE=X and AGE=Y[dwmy]). To enable it run: touch -t 0001010000 '${BASE_DIR}/bi_${category}_SCORE_AGE.source'"
 		fi
 	done
 }
