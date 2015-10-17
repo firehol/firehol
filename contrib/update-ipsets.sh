@@ -83,10 +83,7 @@
 
 # -----------------------------------------------------------------------------
 
-# single line flock, from man flock
-LOCK_FILE="/var/run/update-ipsets.lock"
-[ ! "${UID}" = "0" ] && LOCK_FILE="${HOME}/.update-upsets.lock"
-[ "${UPDATE_IPSETS_LOCKER}" != "${0}" ] && exec env UPDATE_IPSETS_LOCKER="$0" flock -en "${LOCK_FILE}" "${0}" "${@}" || :
+PROGRAM_FILE="${0}"
 
 PATH="${PATH}:/sbin:/usr/sbin"
 
@@ -129,6 +126,64 @@ then
 fi
 
 # -----------------------------------------------------------------------------
+# logging
+
+error() {
+	echo >&2 -e "${COLOR_BGRED}${COLOR_WHITE}${COLOR_BOLD} ERROR ${COLOR_RESET}: ${@}"
+	logger -p daemon.info -t "update-ipsets.sh[$$]" "${@}"
+}
+warning() {
+	echo >&2 -e "${COLOR_BGYELLOW}${COLOR_BLACK}${COLOR_BOLD} WARNING ${COLOR_RESET}: ${@}"
+	logger -p daemon.info -t "update-ipsets.sh[$$]" "${@}"
+}
+info() {
+	echo >&2 "${@}"
+	logger -p daemon.info -t "update-ipsets.sh[$$]" "${@}"
+}
+verbose() {
+	[ ${VERBOSE} -eq 1 ] && echo >&2 "${@}"
+}
+silent() {
+	[ ${SILENT} -ne 1 ] && echo >&2 "${@}"
+}
+
+ipset_error() {
+	local ipset="${1}"
+	shift
+
+	echo >&2 -e "${ipset}: ${COLOR_BGRED}${COLOR_WHITE}${COLOR_BOLD} ERROR ${COLOR_RESET} ${@}"
+	logger -p daemon.info -t "update-ipsets.sh[$$]" "ERROR: ${ipset}: ${@}"
+}
+ipset_warning() {
+	local ipset="${1}"
+	shift
+
+	echo >&2 -e "${ipset}: ${COLOR_BGYELLOW}${COLOR_BLACK}${COLOR_BOLD} WARNING ${COLOR_RESET} ${@}"
+	logger -p daemon.info -t "update-ipsets.sh[$$]" "WARNING: ${ipset}: ${@}"
+}
+ipset_info() {
+	local ipset="${1}"
+	shift
+
+	echo >&2 "${ipset}: ${@}"
+	logger -p daemon.info -t "update-ipsets.sh[$$]" "INFO: ${ipset}: ${@}"
+}
+ipset_saved() {
+	local ipset="${1}"
+	shift
+
+	echo >&2 -e "${ipset}: ${COLOR_BGPURPLE}${COLOR_WHITE}${COLOR_BOLD} SAVED ${COLOR_RESET} ${@}"
+	logger -p daemon.info -t "update-ipsets.sh[$$]" "SAVED: ${ipset}: ${@}"
+}
+ipset_loaded() {
+	local ipset="${1}"
+	shift
+
+	echo >&2 -e "${ipset}: ${COLOR_BGBLUE}${COLOR_WHITE}${COLOR_BOLD} LOADED ${COLOR_RESET} ${@}"
+	logger -p daemon.info -t "update-ipsets.sh[$$]" "LOADED: ${ipset}: ${@}"
+}
+
+# -----------------------------------------------------------------------------
 # external commands management
 
 require_cmd() {
@@ -145,7 +200,7 @@ require_cmd() {
 	then
 		if [ ${block} -eq 1 ]
 		then
-			echo >&2 "ERROR: Command '${1}' not found in the system path."
+			error "Command '${1}' not found in the system path."
 			exit 1
 		fi
 		return 1
@@ -172,9 +227,12 @@ require_cmd touch
 require_cmd ipset
 require_cmd dirname
 require_cmd mktemp
+require_cmd logger
+require_cmd flock
 
 program_pwd="${PWD}"
 program_dir="`dirname ${0}`"
+
 
 # -----------------------------------------------------------------------------
 # find a working iprange command
@@ -202,7 +260,7 @@ fi
 
 if [ -z "${IPRANGE_CMD}" -a ! -x "${program_dir}/iprange" -a -f "${program_dir}/iprange.c" ]
 	then
-	echo >&2 "Attempting to compile FireHOL's iprange..."
+	warning "Attempting to compile FireHOL's iprange..."
 	gcc -O3 -o "${program_dir}/iprange" "${program_dir}/iprange.c"
 fi
 
@@ -215,8 +273,7 @@ fi
 
 if [ -z "${IPRANGE_CMD}" ]
 	then
-	echo >&2 "Cannot find a working iprange command."
-	echo >&2 "In the contrib directory of FireHOL, please run 'make install'."
+	error "Cannot find a working iprange command. It should be part of FireHOL but it is not installed."
 	exit 1
 fi
 
@@ -253,25 +310,30 @@ HISTORY_DIR="${BASE_DIR}/history"
 ERRORS_DIR="${BASE_DIR}/errors"
 
 # where to put the CSV files for the web server
+# if empty or does not exist, web files will not be generated
 WEB_DIR="/var/www/localhost/htdocs/blocklists"
 
 # how to chown web files
 WEB_OWNER="apache:apache"
 
 # where to store the web retention detection cache
+# if empty or does not exist, retention detection will be disabled
 CACHE_DIR="/var/lib/update-ipsets"
 
 # where is the web url to show info about each ipset
 # the ipset name is appended to it
 WEB_URL="http://iplists.firehol.org/?ipset="
 
-GITHUB_LOCAL_COPY_URL="https://raw.githubusercontent.com/ktsaou/blocklist-ipsets/master/"
-GITHUB_CHANGES_URL="https://github.com/ktsaou/blocklist-ipsets/commits/master/"
+# options for the web site
+# the ipset name will be appended
+GITHUB_LOCAL_COPY_URL="https://raw.githubusercontent.com/firehol/blocklist-ipsets/master/"
+GITHUB_CHANGES_URL="https://github.com/firehol/blocklist-ipsets/commits/master/"
 
 # options to be given to iprange for reducing netsets
 IPSET_REDUCE_FACTOR="20"
 IPSET_REDUCE_ENTRIES="65536"
 
+# how many entries the ipset charts should have
 WEB_CHARTS_ENTRIES="500"
 
 # if the .git directory is present, push it also
@@ -294,6 +356,81 @@ CONFIG_FILE="/etc/firehol/update-ipsets.conf"
 
 declare -a LISTS_TO_ENABLE=()
 
+usage() {
+cat <<EOFUSAGE
+FireHOL update-ipset.sh $Id$
+(C) 2015 Costa Tsaousis
+
+USAGE:
+
+${PROGRAM_FILE} [options]
+
+The above will execute an update on the configured ipsets
+
+or
+
+${PROGRAM_FILE} enable ipset1 ipset2 ipset3 ...
+
+The above will only enable the given ipsets and exit
+It does not validate that the ipsets exists.
+
+options are:
+
+	-s
+	--silent 	log less than default
+			This will not report all the possible ipsets that
+			can be enabled.
+
+	-v
+	--verbose 	log more than default
+			This will produce more log, to see what the program
+			does (more like debugging info).
+
+	-f FILE
+	--config FILE 	the configuration file to use, the default is:
+			${CONFIG_FILE}
+
+	-i
+	--recheck 	Each ipset has a hardcoded refresh frequency.
+			When we check if it has been updated on the server
+			we may find that it has not.
+			update-ipsets.sh will then attempt to re-check
+			in half the original frequency.
+			When this option is given, update-ipsets.sh will
+			ignore that it has checked it before and attempt
+			to download all ipsets that have not been updated.
+			DO NOT ENABLE THIS OPTION WHEN RUNNING VIA CRON.
+			We have to respect the server resources of the
+			IP list maintainers' servers!
+
+	-g
+	--push-git 	In the base directory (default: ${BASE_DIR})
+			you can setup git (just cd to it and run 'git init').
+			Once update-ipsets.sh finds a git initialized, it
+			will automatically commit all ipset and netset files
+			to it.
+			This option enables an automatic 'git push' at the
+			end of all commits.
+			You have to set it up so that git will not ask for 
+			credentials to do the push (normally this done by
+			using ssh in the git push URL and configuring the
+			ssh keys for automatic login - keep in mind that
+			if update-ipsets is running through cron, the user
+			that runs it has to have the ssh keys installed).
+
+	--enable-all 	Enable all the ipsets at once
+			This will also execute an update on them
+
+	-r
+	--rebuild 	Will re-process all ipsets, even the ones that have
+			not been updated.
+			This is required in cases of program updates that
+			need to trigger a full refresh of the generated
+			metadata (it only affects the web site).
+
+EOFUSAGE
+}
+
 while [ ! -z "${1}" ]
 do
 	case "${1}" in
@@ -312,15 +449,15 @@ do
 		--verbose|-v) VERBOSE=1;;
 		--config|-f) CONFIG_FILE="${2}"; shift ;;
 		--enable-all) ENABLE_ALL=1;;
-		--help|-h) echo "${0} [--verbose|-v] [--push-git|-g] [--recheck|-i] [--rebuild|-r] [--enable-all] [--config|-f FILE]"; exit 1 ;;
-		*) echo >&2 "Unknown parameter '${1}'".; exit 1 ;;
+		--help|-h) usage; exit 1 ;;
+		*) error "Unknown command line argument '${1}'".; exit 1 ;;
 	esac
 	shift
 done
 
 if [ -f "${CONFIG_FILE}" ]
 	then
-	echo >&2 "Loading configuration from ${CONFIG_FILE}"
+	info "Loading configuration from ${CONFIG_FILE}"
 	source "${CONFIG_FILE}"
 fi
 
@@ -330,9 +467,9 @@ if [ "${#LISTS_TO_ENABLE[@]}" -gt 0 ]
 	do
 		if [ -f "${BASE_DIR}/${x}.source" ]
 			then
-			echo >&2 "${x}: is already enabled"
+			warning "${x}: is already enabled"
 		else
-			echo "${x}: Enabling ${x}..."
+			info "${x}: Enabling ${x}..."
 			touch -t 0001010000 "${BASE_DIR}/${x}.source" || exit 1
 		fi
 	done
@@ -340,23 +477,42 @@ if [ "${#LISTS_TO_ENABLE[@]}" -gt 0 ]
 fi
 
 # -----------------------------------------------------------------------------
+# Make sure we are the only process doing this job
+
+LOCK_FILE="/var/run/update-ipsets.lock"
+[ ! "${UID}" = "0" ] && LOCK_FILE="${HOME}/.update-upsets.lock"
+exlcusive_lock() {
+	exec 200>"${LOCK_FILE}"
+	if [ $? -ne 0 ]; then exit; fi
+	${FLOCK_CMD} -n 200
+	if [ $? -ne 0 ]
+	then
+		echo >&2 "Already running. Try later..."
+		exit 1
+	fi
+	return 0
+}
+
+exlcusive_lock
+
+# -----------------------------------------------------------------------------
 # FIX DIRECTORIES
 
 if [ -z "${BASE_DIR}" ]
 	then
-	echo >&2 "BASE_DIR cannot be empty."
+	error "BASE_DIR cannot be empty."
 	exit 1
 fi
 
 if [ -z "${RUN_PARENT_DIR}" ]
 	then
-	echo >&2 "RUN_PARENT_DIR cannot be empty."
+	error "RUN_PARENT_DIR cannot be empty."
 	exit 1
 fi
 
 if [ ! -z "${WEB_DIR}" -a ! -d "${WEB_DIR}" ]
 	then
-	echo >&2 "WEB_DIR is invalid. Disabling it."
+	warning "WEB_DIR is invalid. Disabling it."
 	WEB_DIR=
 fi
 
@@ -365,7 +521,7 @@ do
 	[ -z "${d}" -o -d "${d}" ] && continue
 
 	mkdir -p "${d}" || exit 1
-	echo >&2 "Created directory '${d}'."
+	info "Created directory '${d}'."
 done
 cd "${BASE_DIR}" || exit 1
 
@@ -375,7 +531,7 @@ cd "${BASE_DIR}" || exit 1
 RUN_DIR=$(${MKTEMP_CMD} -d "${RUN_PARENT_DIR}/update-ipsets-XXXXXXXXXX")
 if [ $? -ne 0 ]
 	then
-	echo >&2 "ERROR: Cannot create temporary directory in ${RUN_PARENT_DIR}."
+	error "ERROR: Cannot create temporary directory in ${RUN_PARENT_DIR}."
 	exit 1
 fi
 
@@ -383,18 +539,18 @@ PROGRAM_COMPLETED=0
 cleanup() {
 	if [ ! -z "${RUN_DIR}" -a -d "${RUN_DIR}" ]
 		then
-		[ ${VERBOSE} -eq 1 ] && echo >&2 "Cleaning up temporary files in ${RUN_DIR}."
+		verbose "Cleaning up temporary files in ${RUN_DIR}."
 		rm -rf "${RUN_DIR}"
 	fi
 	trap exit EXIT
 	
 	if [ ${PROGRAM_COMPLETED} -eq 1 ]
 		then
-		[ ${VERBOSE} -eq 1 ] && echo >&2 "Completed successfully."
+		verbose "Completed successfully."
 		exit 0
 	fi
 
-	[ ${VERBOSE} -eq 1 ] && echo >&2 "Completed with errors."
+	verbose "Completed with errors."
 	exit 1
 }
 trap cleanup EXIT
@@ -406,7 +562,7 @@ trap cleanup INT
 
 if [ ! -d ".git" -a ${PUSH_TO_GIT} -ne 0 ]
 then
-	echo >&2 "Git is not initialized in ${BASE_DIR}. Ignoring git support."
+	info "Git is not initialized in ${BASE_DIR}. Ignoring git support."
 	PUSH_TO_GIT=0
 fi
 
@@ -450,11 +606,6 @@ mins_to_text() {
 	return 0
 }
 
-syslog() {
-	echo >&2 "${@}"
-	logger -p daemon.info -t "update-ipsets.sh[$$]" "${@}"
-}
-
 # Generate the README.md file and push the repo to the remote server
 declare -A UPDATED_DIRS=()
 declare -A UPDATED_SETS=()
@@ -463,7 +614,7 @@ check_git_committed() {
 	git ls-files "${1}" --error-unmatch >/dev/null 2>&1
 	if [ $? -ne 0 ]
 		then
-		echo >&2 "Adding '${1}' to git"
+		info "Adding '${1}' to git"
 		git add "${1}"
 	fi
 }
@@ -514,7 +665,7 @@ commit_to_git() {
 			to_be_pushed=("${to_be_pushed[@]}" "${UPDATED_SETS[${ipset}]}")
 		done
 
-		echo >&2 "Generating script to fix timestamps..."
+		info "Generating script to fix timestamps..."
 		(
 			echo "#!/bin/bash"
 			echo "[ ! \"\$1\" = \"YES_I_AM_SURE_DO_IT_PLEASE\" ] && echo \"READ ME NOW\" && exit 1"
@@ -526,7 +677,7 @@ commit_to_git() {
 		check_git_committed set_file_timestamps.sh
 
 		echo >&2 
-		syslog "Committing ${to_be_pushed[@]} to git repository"
+		info "Committing ${to_be_pushed[@]} to git repository"
 		local date="$(date -u)"
 		# we commit each file alone, to have a clear history per file in github
 		for d in "${to_be_pushed[@]}" set_file_timestamps.sh
@@ -537,8 +688,8 @@ commit_to_git() {
 
 		if [ ${PUSH_TO_GIT} -ne 0 ]
 		then
-			echo >&2 
-			syslog "Pushing git commits to remote server"
+			echo >&2
+			info "Pushing git commits to remote server"
 			git push
 		fi
 	fi
@@ -569,13 +720,13 @@ echo "`date`: ${0} ${*}"
 echo
 
 # find the active ipsets
-echo >&2 "Getting list of active ipsets..."
+info "Getting list of active ipsets..."
 declare -A sets=()
 for x in $(ipset_list_names)
 do
 	sets[$x]=1
 done
-test ${SILENT} -ne 1 && echo >&2 "Found these ipsets active: ${!sets[@]}"
+silent "Found these ipsets active: ${!sets[@]}"
 
 
 # -----------------------------------------------------------------------------
@@ -586,7 +737,7 @@ check_file_too_old() {
 
 	if [ -f "${file}" -a ".warn_if_last_downloaded_before_this" -nt "${file}" ]
 	then
-		syslog "${ipset}: DATA ARE TOO OLD!"
+		ipset_warning "${ipset}" "DATA ARE TOO OLD!"
 		return 1
 	fi
 	return 0
@@ -617,7 +768,7 @@ history_cleanup() {
 	do
 		if [ ! "${x}" -nt "${RUN_DIR}/history.reference" ]
 		then
-			[ ${VERBOSE} -eq 1 ] && echo >&2 "${ipset}: deleting history file '${x}'"
+			verbose "${ipset}: deleting history file '${x}'"
 			rm "${x}"
 		fi
 	done
@@ -637,7 +788,7 @@ history_get() {
 	#do
 	#	if [ "${x}" -nt "${RUN_DIR}/history.reference" ]
 	#	then
-	#		[ ${VERBOSE} -eq 1 ] && echo >&2 "${ipset}: merging history file '${x}'"
+	#		verbose "${ipset}: merging history file '${x}'"
 	#		hfiles=("${hfiles[@]}" "${x}")
 	#	fi
 	#done
@@ -687,30 +838,30 @@ geturl() {
 	case "${ret}" in
 		0)	if [ "${http_code}" = "304" -a ! "${file}" -nt "${reference}" ]
 			then
-				test ${SILENT} -ne 1 && echo >&2 "Not Modified"
+				silent "Not Modified"
 				return 99
 			fi
-			test ${SILENT} -ne 1 && echo >&2 "OK"
+			silent "OK"
 			;;
 
-		1)	test ${SILENT} -ne 1 && echo >&2 "Unsupported Protocol" ;;
-		2)	test ${SILENT} -ne 1 && echo >&2 "Failed to initialize" ;;
-		3)	test ${SILENT} -ne 1 && echo >&2 "Malformed URL" ;;
-		5)	test ${SILENT} -ne 1 && echo >&2 "Can't resolve proxy" ;;
-		6)	test ${SILENT} -ne 1 && echo >&2 "Can't resolve host" ;;
-		7)	test ${SILENT} -ne 1 && echo >&2 "Failed to connect" ;;
-		18)	test ${SILENT} -ne 1 && echo >&2 "Partial Transfer" ;;
-		22)	test ${SILENT} -ne 1 && echo >&2 "HTTP Error" ;;
-		23)	test ${SILENT} -ne 1 && echo >&2 "Cannot write local file" ;;
-		26)	test ${SILENT} -ne 1 && echo >&2 "Read Error" ;;
-		28)	test ${SILENT} -ne 1 && echo >&2 "Timeout" ;;
-		35)	test ${SILENT} -ne 1 && echo >&2 "SSL Error" ;;
-		47)	test ${SILENT} -ne 1 && echo >&2 "Too many redirects" ;;
-		52)	test ${SILENT} -ne 1 && echo >&2 "Server did not reply anything" ;;
-		55)	test ${SILENT} -ne 1 && echo >&2 "Failed sending network data" ;;
-		56)	test ${SILENT} -ne 1 && echo >&2 "Failure in receiving network data" ;;
-		61)	test ${SILENT} -ne 1 && echo >&2 "Unrecognized transfer encoding" ;;
-		*) test ${SILENT} -ne 1 && echo >&2 "Error ${ret} returned by curl" ;;
+		1)	silent "Unsupported Protocol" ;;
+		2)	silent "Failed to initialize" ;;
+		3)	silent "Malformed URL" ;;
+		5)	silent "Can't resolve proxy" ;;
+		6)	silent "Can't resolve host" ;;
+		7)	silent "Failed to connect" ;;
+		18)	silent "Partial Transfer" ;;
+		22)	silent "HTTP Error" ;;
+		23)	silent "Cannot write local file" ;;
+		26)	silent "Read Error" ;;
+		28)	silent "Timeout" ;;
+		35)	silent "SSL Error" ;;
+		47)	silent "Too many redirects" ;;
+		52)	silent "Server did not reply anything" ;;
+		55)	silent "Failed sending network data" ;;
+		56)	silent "Failure in receiving network data" ;;
+		61)	silent "Unrecognized transfer encoding" ;;
+		*)	silent "Error ${ret} returned by curl" ;;
 	esac
 
 	return ${ret}
@@ -756,7 +907,7 @@ download_manager() {
 	if [ "${check}" -nt "${tmp}" ]
 	then
 		rm "${tmp}"
-		echo >&2 "${ipset}: should not be downloaded so soon (within ${mins} + ${inc} + ${inc2} = $[mins + inc + inc2] mins)."
+		ipset_info "${ipset}" "should not be downloaded so soon (within ${mins} + ${inc} + ${inc2} = $[mins + inc + inc2] mins)."
 		return ${DOWNLOAD_NOT_UPDATED}
 	fi
 
@@ -780,16 +931,16 @@ download_manager() {
 				unset IPSET_DOWNLOAD_FAILURES[${ipset}]
 				cache_save
 			fi
-			echo >&2 "${ipset}: file on server has not been updated yet"
+			ipset_info "${ipset}" "file on server has not been updated yet"
 			rm "${tmp}"
 			touch_in_the_past $[mins / 2] ".${install}.lastchecked"
 			return ${DOWNLOAD_NOT_UPDATED}
 			;;
 
 		*)
-			syslog "${ipset}: cannot download '${url}'."
 			rm "${tmp}"
 			IPSET_DOWNLOAD_FAILURES[${ipset}]=$(( fails + 1 ))
+			ipset_error "${ipset}" "cannot download '${url}'. IPSET_DOWNLOAD_FAILURES[${ipset}] consecutive failures to download it so far."
 			cache_save
 			return ${DOWNLOAD_FAILED}
 			;;
@@ -805,7 +956,7 @@ download_manager() {
 	#then
 	#	# it is empty
 	#	rm "${tmp}"
-	#	syslog "${ipset}: empty file downloaded from url '${url}'."
+	#	ipset_error "${ipset}" "empty file downloaded from url '${url}'."
 	#	return ${DOWNLOAD_FAILED}
 	#fi
 
@@ -814,7 +965,7 @@ download_manager() {
 	if [ $? -eq 0 ]
 	then
 		# they are the same
-		test ${SILENT} -ne 1 && echo >&2 "${ipset}: downloaded file is the same with the previous one."
+		silent "${ipset}: downloaded file is the same with the previous one."
 
 		# copy the timestamp of the downloaded to our file
 		touch -r "${tmp}" "${install}.source"
@@ -823,7 +974,7 @@ download_manager() {
 	fi
 
 	# move it to its place
-	test ${SILENT} -ne 1 && echo >&2 "${ipset}: saving downloaded file to ${install}.source"
+	silent "${ipset}: saving downloaded file to ${install}.source"
 	mv "${tmp}" "${install}.source" || return ${DOWNLOAD_FAILED}
 
 	return ${DOWNLOAD_OK}
@@ -871,7 +1022,7 @@ declare -A IPSET_DOWNLOAD_FAILURES=()
 #declare -A IPSET_DOWNLOADER_OPTIONS=()
 
 cache_save() {
-	#echo >&2 "Saving cache"
+	#info "Saving cache"
 	declare -p \
 		IPSET_INFO \
 		IPSET_SOURCE \
@@ -907,14 +1058,14 @@ cache_save() {
 
 if [ -f "${BASE_DIR}/.cache" ]
 	then
-	echo >&2 "Loading cache"
+	info "Loading cache"
 	source "${BASE_DIR}/.cache"
 fi
 
 cache_remove_ipset() {
 	local ipset="${1}"
 
-	echo >&2 "${ipset}: removing from cache"
+	ipset_info "${ipset}" "removing from cache"
 
 	unset IPSET_INFO[${ipset}]
 	unset IPSET_SOURCE[${ipset}]
@@ -1102,7 +1253,7 @@ retention_print() {
 
 	printf "{\n	\"ipset\": \"${ipset}\",\n	\"started\": ${RETENTION_HISTOGRAM_STARTED}000,\n	\"updated\": ${IPSET_SOURCE_DATE[${ipset}]}000,\n	\"incomplete\": ${RETENTION_HISTOGRAM_INCOMPLETE},\n"
 
-	[ ${VERBOSE} -eq 1 ] && echo >&2 "${ipset}: calculating retention hours..."
+	verbose "${ipset}: calculating retention hours..."
 	local x= hours= ips= sum=0 pad="\n\t\t\t"
 	for x in "${!RETENTION_HISTOGRAM[@]}"
 	do
@@ -1113,7 +1264,7 @@ retention_print() {
 	done
 	printf "	\"past\": {\n		\"hours\": [ ${hours} ],\n		\"ips\": [ ${ips} ],\n		\"total\": ${sum}\n	},\n"
 
-	[ ${VERBOSE} -eq 1 ] && echo >&2 "${ipset}: calculating current hours..."
+	verbose "${ipset}: calculating current hours..."
 	local x= hours= ips= sum=0 pad="\n\t\t\t"
 	for x in "${!RETENTION_HISTOGRAM_REST[@]}"
 	do
@@ -1166,7 +1317,7 @@ retention_detect() {
 	if [ ! -f "${CACHE_DIR}/${ipset}/latest" ]
 		then
 		# we don't have an older version
-		[ ${VERBOSE} -eq 1 ] && echo >&2 "${ipset}: ${CACHE_DIR}/${ipset}/latest: first time - assuming start from empty"
+		verbose "${ipset}: ${CACHE_DIR}/${ipset}/latest: first time - assuming start from empty"
 		touch -r "${IPSET_FILE[${ipset}]}" "${CACHE_DIR}/${ipset}/latest"
 
 		RETENTION_HISTOGRAM_STARTED="${IPSET_SOURCE_DATE[${ipset}]}"
@@ -1174,7 +1325,7 @@ retention_detect() {
 	elif [ ! "${IPSET_FILE[${ipset}]}" -nt "${CACHE_DIR}/${ipset}/latest" ]
 		# the new file is older than the latest, return
 		then
-		[ ${VERBOSE} -eq 1 ] && echo >&2 "${ipset}: ${CACHE_DIR}/${ipset}/latest: source file is not newer"
+		verbose "${ipset}: ${CACHE_DIR}/${ipset}/latest: source file is not newer"
 		retention_print "${ipset}"
 		return 0
 	fi
@@ -1182,7 +1333,7 @@ retention_detect() {
 	if [ -f "${CACHE_DIR}/${ipset}/new/${ndate}" ]
 		then
 		# we already have a file for this date, return
-		[ ${VERBOSE} -eq 1 ] && echo >&2 "${ipset}: ${CACHE_DIR}/${ipset}/new/${ndate}: already exists"
+		verbose "${ipset}: ${CACHE_DIR}/${ipset}/new/${ndate}: already exists"
 		retention_print "${ipset}"
 		return 0
 	fi
@@ -1195,7 +1346,7 @@ retention_detect() {
 	if [ ! -s "${CACHE_DIR}/${ipset}/new/${ndate}" ]
 		then
 		# there are no new IPs included
-		[ ${VERBOSE} -eq 1 ] && echo >&2 "${ipset}: ${CACHE_DIR}/${ipset}/new/${ndate}: nothing new in this"
+		verbose "${ipset}: ${CACHE_DIR}/${ipset}/new/${ndate}: nothing new in this"
 		rm "${CACHE_DIR}/${ipset}/new/${ndate}"
 	else
 		ips_added=$("${IPRANGE_CMD}" -C "${CACHE_DIR}/${ipset}/new/${ndate}")
@@ -1209,7 +1360,7 @@ retention_detect() {
 	echo >>"${CACHE_DIR}/${ipset}/changesets.csv" "${ndate},${ips_added},${ips_removed}"
 
 	# ok keep it
-	[ ${VERBOSE} -eq 1 ] && echo >&2 "${ipset}: keeping it..."
+	verbose "${ipset}: keeping it..."
 	"${IPRANGE_CMD}" "${IPSET_FILE[${ipset}]}" --print-binary >"${CACHE_DIR}/${ipset}/latest"
 	touch -r "${IPSET_FILE[${ipset}]}" "${CACHE_DIR}/${ipset}/latest"
 
@@ -1220,7 +1371,7 @@ retention_detect() {
 
 	# -------------------------------------------------------------------------
 
-	[ ${VERBOSE} -eq 1 ] && echo >&2 "${ipset}: calculating retention histogram..."
+	verbose "${ipset}: calculating retention histogram..."
 
 	# find the new/* files that are affected
 	local name1= name2= entries1= entries2= ips1= ips2= combined= common= odate= hours= removed=
@@ -1250,7 +1401,7 @@ retention_detect() {
 
 			# these are the unique IPs removed
 			removed="${removed/*,/}"
-			[ ${VERBOSE} -eq 1 ] && echo >&2 "${ipset}: ${x}: ${removed} IPs removed"
+			verbose "${ipset}: ${x}: ${removed} IPs removed"
 
 			echo "${ndate},${odate},${hours},${removed}" >>"${CACHE_DIR}/${ipset}/retention.csv"
 
@@ -1260,7 +1411,7 @@ retention_detect() {
 		else
 			removed=0
 			# yes, nothing removed from this run
-			[ ${VERBOSE} -eq 1 ] && echo >&2 "${ipset}: ${x}: nothing removed"
+			verbose "${ipset}: ${x}: nothing removed"
 			rm "${x}.removed"
 		fi
 
@@ -1268,16 +1419,16 @@ retention_detect() {
 		if [ ! -s "${x}.stillthere" ]
 			then
 			# nothing left for this timestamp, remove files
-			[ ${VERBOSE} -eq 1 ] && echo >&2 "${ipset}: ${x}: nothing left in this"
+			verbose "${ipset}: ${x}: nothing left in this"
 			rm "${x}" "${x}.stillthere"
 		else
-			[ ${VERBOSE} -eq 1 ] && echo >&2 "${ipset}: ${x}: there is still something in it"
+			verbose "${ipset}: ${x}: there is still something in it"
 			touch -r "${x}" "${x}.stillthere"
 			mv "${x}.stillthere" "${x}"
 		fi
 	done
 
-	[ ${VERBOSE} -eq 1 ] && echo >&2 "${ipset}: cleaning up retention cache..."
+	verbose "${ipset}: cleaning up retention cache..."
 	# cleanup empty slots in our arrays
 	for x in "${!RETENTION_HISTOGRAM[@]}"
 	do
@@ -1289,7 +1440,7 @@ retention_detect() {
 
 	# -------------------------------------------------------------------------
 
-	[ ${VERBOSE} -eq 1 ] && echo >&2 "${ipset}: determining the age of currently listed IPs..."
+	verbose "${ipset}: determining the age of currently listed IPs..."
 
 	# empty the remaining IPs counters
 	# they will be re-calculated below
@@ -1304,7 +1455,7 @@ retention_detect() {
 	do
 		odate="${x/*\//}"
 		hours=$[ (ndate + 1800 - odate) / 3600 ]
-		[ ${VERBOSE} -eq 1 ] && echo >&2 "${ipset}: ${x}: ${hours} hours have passed"
+		verbose "${ipset}: ${x}: ${hours} hours have passed"
 
 		[ ${odate} -le ${RETENTION_HISTOGRAM_STARTED} ] && RETENTION_HISTOGRAM_INCOMPLETE=1
 
@@ -1314,13 +1465,13 @@ retention_detect() {
 	# -------------------------------------------------------------------------
 
 	# save the histogram
-	[ ${VERBOSE} -eq 1 ] && echo >&2 "${ipset}: saving retention cache..."
+	verbose "${ipset}: saving retention cache..."
 	declare -p RETENTION_HISTOGRAM_STARTED RETENTION_HISTOGRAM_INCOMPLETE RETENTION_HISTOGRAM RETENTION_HISTOGRAM_REST >"${CACHE_DIR}/${ipset}/histogram"
 
-	[ ${VERBOSE} -eq 1 ] && echo >&2 "${ipset}: printing retention..."
+	verbose "${ipset}: printing retention..."
 	retention_print "${ipset}"
 
-	[ ${VERBOSE} -eq 1 ] && echo >&2 "${ipset}: printed retention histogram"
+	verbose "${ipset}: printed retention histogram"
 	return 0
 }
 
@@ -1375,7 +1526,7 @@ update_web() {
 		# remove deleted files
 		if [ ! -f "${IPSET_FILE[$x]}" ]
 			then
-			echo >&2 "${x}: file ${IPSET_FILE[$x]} not found - removing it from cache"
+			warning "${x}: file ${IPSET_FILE[$x]} not found - removing it from cache"
 			cache_remove_ipset "${x}"
 			continue
 		fi
@@ -1466,8 +1617,8 @@ update_web() {
 	echo '</urlset>' >>"${RUN_DIR}/sitemap.xml"
 	echo >&2
 
-	#echo >&2 "ALL: ${all[@]}"
-	#echo >&2 "UPDATED: ${updated[@]}"
+	#info "ALL: ${all[@]}"
+	#info "UPDATED: ${updated[@]}"
 
 	printf >&2 "comparing ipsets... "
 	"${IPRANGE_CMD}" --compare "${all[@]}" |\
@@ -1614,7 +1765,7 @@ ipset_apply() {
 
 	if [ ${IPSETS_APPLY} -eq 0 ]
 		then
-		echo >&2 -e "${ipset}: ${COLOR_BGYELLOW}${COLOR_BLACK}${COLOR_BOLD} SAVED ${COLOR_RESET} I am not allowed to talk to the kernel."
+		ipset_saved "${ipset}" "I am not allowed to talk to the kernel."
 		return 0
 	fi
 
@@ -1624,8 +1775,8 @@ ipset_apply() {
 	if [ "${ipv}" = "ipv4" ]
 		then
 		if [ -z "${sets[$ipset]}" ]
-		then
-			echo >&2 -e "${ipset}: ${COLOR_BGYELLOW}${COLOR_BLACK}${COLOR_BOLD} SAVED ${COLOR_RESET} no need to load ipset in kernel"
+			then
+			ipset_saved "${ipset}" "no need to load ipset in kernel"
 			# ipset --create ${ipset} "${hash}hash" || return 1
 			return 0
 		fi
@@ -1645,7 +1796,7 @@ ipset_apply() {
 
 		if [ ${ret} -ne 0 ]
 			then
-			echo >&2 -e "${ipset}: ${COLOR_BGRED}${COLOR_WHITE}${COLOR_BOLD} iprange failed ${COLOR_RESET}"
+			ipset_error "${ipset}" "iprange failed"
 			rm "${RUN_DIR}/${tmpname}"
 			return 1
 		fi
@@ -1657,7 +1808,7 @@ ipset_apply() {
 		# this is needed for older versions of ipset
 		echo "COMMIT" >>"${RUN_DIR}/${tmpname}"
 
-		echo >&2 "${ipset}: loading to kernel (to temporary ipset)..."
+		ipset_info "${ipset}" "loading to kernel (to temporary ipset)..."
 
 		opts=
 		if [ ${entries} -gt 65536 ]
@@ -1668,7 +1819,7 @@ ipset_apply() {
 		ipset create "${tmpname}" ${hash}hash ${opts}
 		if [ $? -ne 0 ]
 			then
-			echo >&2 -e "${ipset}: ${COLOR_BGRED}${COLOR_WHITE}${COLOR_BOLD} failed to create temporary ipset ${tmpname} ${COLOR_RESET}"
+			ipset_error "${ipset}" "failed to create temporary ipset ${tmpname}"
 			rm "${RUN_DIR}/${tmpname}"
 			return 1
 		fi
@@ -1680,30 +1831,30 @@ ipset_apply() {
 
 		if [ ${ret} -ne 0 ]
 			then
-			echo >&2 -e "${ipset}: ${COLOR_BGRED}${COLOR_WHITE}${COLOR_BOLD} failed to restore ipset from ${tmpname} ${COLOR_RESET}"
+			ipset_error "${ipset}" "failed to restore ipset from ${tmpname}"
 			ipset --destroy "${tmpname}"
 			return 1
 		fi
 
-		echo >&2 "${ipset}: swapping temporary ipset to production..."
+		ipset_info "${ipset}" "swapping temporary ipset to production"
 		ipset --swap "${tmpname}" "${ipset}"
 		ret=$?
 		ipset --destroy "${tmpname}"
 		if [ $? -ne 0 ]
 			then
-			echo >&2 -e "${ipset}: ${COLOR_BGRED}${COLOR_WHITE}${COLOR_BOLD} failed to destroy temporary ipset ${COLOR_RESET}"
+			ipset_error "${ipset}" "failed to destroy temporary ipset"
 			return 1
 		fi
 
 		if [ $ret -ne 0 ]
 			then
-			echo >&2 -e "${ipset}: ${COLOR_BGRED}${COLOR_WHITE}${COLOR_BOLD} failed to swap temporary ipset ${tmpname} ${COLOR_RESET}"
+			ipset_error "${ipset}" "failed to swap temporary ipset ${tmpname}"
 			return 1
 		fi
 
-		echo >&2 -e "${ipset}: ${COLOR_BGGREEN}${COLOR_BLACK}${COLOR_BOLD} LOADED ${COLOR_RESET} (${entries} entries, ${ips} unique IPs)"
+		ipset_loaded "${ipset}" "${entries} entries, ${ips} unique IPs"
 	else
-		echo >&2 -e "${ipset}: ${COLOR_BGRED}${COLOR_WHITE}${COLOR_BOLD} CANNOT HANDLE THIS TYPE OF IPSET YET ${COLOR_RESET}"
+		ipset_error "${ipset}" "CANNOT HANDLE IPv6 IPSETS YET"
 		return 1
 	fi
 
@@ -1714,24 +1865,23 @@ ipset_attributes() {
 	local ipset="${1}"
 	shift
 
-	# echo >&2 "${ipset}: parsing attributes: ${*}"
+	# ipset_info "${ipset}" "parsing attributes: ${*}"
 
 	while [ ! -z "${1}" ]
 	do
 		case "${1}" in
 			inbound|outbound)	IPSET_PROTECTION[${ipset}]="${1}"; shift; continue ;;
-			
-			category)			IPSET_CATEGORY[${ipset}]="${2}" ;;
-			maintainer)			IPSET_MAINTAINER[${ipset}]="${2}" ;;
+			category)		IPSET_CATEGORY[${ipset}]="${2}" ;;
+			maintainer)		IPSET_MAINTAINER[${ipset}]="${2}" ;;
 			maintainer_url)		IPSET_MAINTAINER_URL[${ipset}]="${2}" ;;
-			license)			IPSET_LICENSE[${ipset}]="${2}" ;;
-			grade)				IPSET_GRADE[${ipset}]="${2}" ;;
-			protection)			IPSET_PROTECTION[${ipset}]="${2}" ;;
+			license)		IPSET_LICENSE[${ipset}]="${2}" ;;
+			grade)			IPSET_GRADE[${ipset}]="${2}" ;;
+			protection)		IPSET_PROTECTION[${ipset}]="${2}" ;;
 			intended_use)		IPSET_INTENDED_USE[${ipset}]="${2}" ;;
 			false_positives)	IPSET_FALSE_POSITIVES[${ipset}]="${2}" ;;
-			poisoning)			IPSET_POISONING[${ipset}]="${2}" ;;
+			poisoning)		IPSET_POISONING[${ipset}]="${2}" ;;
 			service|services)	IPSET_SERVICES[${ipset}]="${2}" ;;
-			*)	echo >&2 "${ipset}: Unknown ipset option '${1}' with value '${2}'." ;;
+			*)			ipset_warning "${ipset}" "unknown ipset option '${1}' with value '${2}'." ;;
 		esac
 
 		shift 2
@@ -1763,7 +1913,7 @@ finalize() {
 	# check
 	if [ -z "${info}" ]
 		then
-		echo >&2 "${ipset}: INTERNAL ERROR (finalize): no info supplied"
+		ipset_warning "${ipset}" "INTERNAL ERROR (finalize): no info supplied"
 		info="${category}"
 	fi
 
@@ -1795,10 +1945,10 @@ finalize() {
 	then
 		# they are the same
 		rm "${tmp}" "${tmp}.old"
-		test ${SILENT} -ne 1 && echo >&2 "${ipset}: processed set is the same with the previous one."
+		silent "${ipset}: processed set is the same with the previous one."
 
 		# keep the old set, but make it think it was from this source
-		test ${SILENT} -ne 1 && echo >&2 "${ipset}: touching ${dst} from ${src}."
+		silent "${ipset}: touching ${dst} from ${src}."
 		touch -r "${src}" "${dst}"
 
 		check_file_too_old "${ipset}" "${dst}"
@@ -1814,7 +1964,7 @@ finalize() {
 
 	if [ ${ips} -eq 0 ]
 		then
-		syslog "${ipset}: processed file has no valid entries (zero unique IPs)"
+		ipset_warning "${ipset}" "processed file has no valid entries (zero unique IPs)"
 	fi
 
 	ipset_apply ${ipset} ${ipv} ${hash} ${tmp}
@@ -1823,10 +1973,10 @@ finalize() {
 		if [ ! -z "${ERRORS_DIR}" -a -d "${ERRORS_DIR}" ]
 		then
 			mv "${tmp}" "${ERRORS_DIR}/${ipset}.${hash}set"
-			syslog "${ipset}: failed to update ipset (error file left for you as '${ERRORS_DIR}/${ipset}.${hash}set')."
+			ipset_error "${ipset}" "failed to update ipset (error file left for you as '${ERRORS_DIR}/${ipset}.${hash}set')."
 		else
 			rm "${tmp}"
-			syslog "${ipset}: failed to update ipset."
+			ipset_error "${ipset}" "failed to update ipset."
 		fi
 		check_file_too_old "${ipset}" "${dst}"
 		return 1
@@ -1952,7 +2102,7 @@ update() {
 	# check
 	if [ -z "${info}" ]
 		then
-		echo >&2 "${ipset}: INTERNAL ERROR (update): no info supplied"
+		ipset_warning "${ipset}" "INTERNAL ERROR (update): no info supplied"
 		info="${category}"
 	fi
 
@@ -1986,17 +2136,17 @@ update() {
 
 				split)	;;
 
-				*)		echo >&2 "${ipset}: unknown limit '${limit}'."
+				*)		ipset_error "${ipset}" "unknown limit '${limit}'."
 						return 1
 						;;
 			esac
 			;;
 		ipv6)
-			echo >&2 "${ipset}: IPv6 is not yet supported."
+			ipset_error "${ipset}" "IPv6 is not yet supported."
 			return 1
 			;;
 
-		*)	syslog "${ipset}: unknown IP version '${ipv}'."
+		*)	ipset_error "${ipset}" "unknown IP version '${ipv}'."
 			return 1
 			;;
 	esac
@@ -2008,7 +2158,7 @@ update() {
 			touch -t 0001010000 "${BASE_DIR}/${install}.source" || return 1
 		else
 			[ -d .git ] && echo >"${install}.setinfo" "${ipset}|${info}|${ipv} hash:${hash}|disabled|`if [ ! -z "${url}" ]; then echo "updated every $(mins_to_text ${mins}) from [this link](${url})"; fi`"
-			test ${SILENT} -ne 1 && echo >&2 "${ipset}: is disabled, to enable it run: touch -t 0001010000 '${BASE_DIR}/${install}.source'"
+			silent "${ipset}: is disabled, to enable it run: touch -t 0001010000 '${BASE_DIR}/${install}.source'"
 			return 1
 		fi
 	fi
@@ -2032,7 +2182,7 @@ update() {
 	# if the .split file exists, create 2 ipsets, one for IPs and one for subnets
 	if [ "${limit}" = "split" -o \( -z "${limit}" -a -f "${install}.split" \) ]
 	then
-		echo >&2 "${ipset}: spliting IPs and networks..."
+		ipset_info "${ipset}" "spliting IPs and networks..."
 		test -f "${install}_ip.source" && rm "${install}_ip.source"
 		test -f "${install}_net.source" && rm "${install}_net.source"
 		ln -s "${install}.source" "${install}_ip.source"
@@ -2058,13 +2208,13 @@ update() {
 	# check if the source file has been updated
 	if [ ${REPROCESS_ALL} -eq 0 -a ! "${install}.source" -nt "${install}.${hash}set" ]
 	then
-		echo >&2 "${ipset}: not updated - no reason to process it again."
+		ipset_info "${ipset}" "not updated - no reason to process it again."
 		check_file_too_old "${ipset}" "${install}.${hash}set"
 		return 0
 	fi
 
 	# convert it
-	test ${SILENT} -ne 1 && echo >&2 "${ipset}: converting with processor '${processor}'"
+	silent "${ipset}: converting with processor '${processor}'"
 	tmp=`mktemp "${RUN_DIR}/${install}.tmp-XXXXXXXXXX"` || return 1
 	${processor} <"${install}.source" |\
 		trim |\
@@ -2075,7 +2225,7 @@ update() {
 
 	if [ $? -ne 0 ]
 	then
-		syslog "${ipset}: failed to convert file (processor: ${processor}, pre_filter: ${pre_filter}, filter: ${filter}, post_filter: ${post_filter}, post_filter2: ${post_filter2})."
+		ipset_error "${ipset}" "failed to convert file (processor: ${processor}, pre_filter: ${pre_filter}, filter: ${filter}, post_filter: ${post_filter}, post_filter2: ${post_filter2})."
 		rm "${tmp}"
 		check_file_too_old "${ipset}" "${install}.${hash}set"
 		return 1
@@ -2160,19 +2310,19 @@ rename_ipset() {
 			then
 			if [ -d .git -a ! -z "$(git ls-files "${old}.${x}")" ]
 				then
-				echo >&2 "GIT Renaming ${old}.${x} to ${new}.${x}..."
+				ipset_info "${old}" "GIT Renaming ${old}.${x} to ${new}.${x}..."
 				git mv "${old}.${x}" "${new}.${x}" || exit 1
 				git commit "${old}.${x}" "${new}.${x}" -m 'renamed from ${old}.${x} to ${new}.${x}'
 			fi
 
 			if [ -f "${old}.${x}" -a ! -f "${new}.${x}" ]
 				then
-				echo >&2 "Renaming ${old}.${x} to ${new}.${x}..."
+				ipset_info "${old}" "Renaming ${old}.${x} to ${new}.${x}..."
 				mv "${old}.${x}" "${new}.${x}" || exit 1
 			fi
 
 			# keep a link for the firewall
-			echo >&2 "Linking ${new}.${x} to ${old}.${x}..."
+			ipset_info "${old}" "Linking ${new}.${x} to ${old}.${x}..."
 			ln -s "${new}.${x}" "${old}.${x}" || exit 1
 
 			# now delete it, in order to be re-created this run
@@ -2669,7 +2819,7 @@ geolite2_country() {
 			then
 			touch -t 0001010000 "${BASE_DIR}/${ipset}.source" || return 1
 		else
-			test ${SILENT} -ne 1 && echo >&2 "${ipset}: is disabled, to enable it run: touch -t 0001010000 '${BASE_DIR}/${ipset}.source'"
+			silent "${ipset}: is disabled, to enable it run: touch -t 0001010000 '${BASE_DIR}/${ipset}.source'"
 			return 1
 		fi
 	fi
@@ -2707,7 +2857,7 @@ geolite2_country() {
 	# 5. is_anonymous_proxy 		boolean: VPN providers, etc
 	# 6. is_satellite_provider 		boolean: cross-country providers
 
-	echo >&2 "${ipset}: Extracting country and continent netsets..."
+	ipset_info "${ipset}" "extracting country and continent netsets..."
 	unzip -jpx "${ipset}.source" "*/GeoLite2-Country-Blocks-IPv4.csv" |\
 		awk -F, '
 		{
@@ -2731,7 +2881,7 @@ geolite2_country() {
 	# 5. country_iso_code
 	# 6. country_name
 
-	echo >&2 "${ipset}: Grouping country and continent netsets..."
+	ipset_info "${ipset}" "grouping country and continent netsets..."
 	unzip -jpx "${ipset}.source" "*/GeoLite2-Country-Locations-en.csv" |\
 	(
 		IFS=","
@@ -2756,14 +2906,14 @@ geolite2_country() {
 				printf "%s" "${name} (${iso}), " >>"${ipset}.tmp/continent_${cid,,}.source.tmp.info"
 				printf "%s" "${name} (${iso})" >"${ipset}.tmp/country_${iso,,}.source.tmp.info"
 			else
-				echo >&2 "${ipset}: WARNING: geoname_id ${id} does not exist!"
+				ipset_warning "${ipset}" "geoname_id ${id} does not exist!"
 			fi
 		done
 	)
 	printf "%s" "Anonymous Service Providers" >"${ipset}.tmp/anonymous.source.tmp.info"
 	printf "%s" "Satellite Service Providers" >"${ipset}.tmp/satellite.source.tmp.info"
 
-	echo >&2 "${ipset}: Aggregating country and continent netsets..."
+	ipset_info "${ipset}" "aggregating country and continent netsets..."
 	local x=
 	for x in ${ipset}.tmp/*.source.tmp
 	do
@@ -2812,7 +2962,7 @@ ipdeny_country() {
 			then
 			touch -t 0001010000 "${BASE_DIR}/${ipset}.source" || return 1
 		else
-			test ${SILENT} -ne 1 && echo >&2 "${ipset}: is disabled, to enable it run: touch -t 0001010000 '${BASE_DIR}/${ipset}.source'"
+			silent "${ipset}: is disabled, to enable it run: touch -t 0001010000 '${BASE_DIR}/${ipset}.source'"
 			return 1
 		fi
 	fi
@@ -2853,14 +3003,14 @@ ipdeny_country() {
 			cat "${ipset}.tmp/${x}.zone" >>"${ipset}.tmp/id_continent_${IPDENY_COUNTRY_CONTINENTS[${x}]}.source.tmp"
 			IPDENY_CONTINENTS[${IPDENY_COUNTRY_CONTINENTS[${x}]}]="1"
 		else
-			echo >&2 "${ipset}: I don't know the continent of country ${x}."
+			ipset_warning "${ipset}" "I don't know the continent of country ${x}."
 		fi
 
 		printf "%s" "${IPDENY_COUNTRY_NAMES[${x}]} (${x^^})" >"${ipset}.tmp/id_country_${x}.source.tmp.info"
 		mv "${ipset}.tmp/${x}.zone" "${ipset}.tmp/id_country_${x}.source.tmp"
 	done
 
-	echo >&2 "${ipset}: Aggregating country and continent netsets..."
+	ipset_info "${ipset}" "aggregating country and continent netsets..."
 	for x in ${ipset}.tmp/*.source.tmp
 	do
 		cat "${x}" |\
@@ -2908,7 +3058,7 @@ ip2location_country() {
 			then
 			touch -t 0001010000 "${BASE_DIR}/${ipset}.source" || return 1
 		else
-			test ${SILENT} -ne 1 && echo >&2 "${ipset}: is disabled, to enable it run: touch -t 0001010000 '${BASE_DIR}/${ipset}.source'"
+			silent "${ipset}: is disabled, to enable it run: touch -t 0001010000 '${BASE_DIR}/${ipset}.source'"
 			return 1
 		fi
 	fi
@@ -2931,7 +3081,7 @@ ip2location_country() {
 
 	if [ ! -f "${file}" ]
 		then
-		echo >&2 "${ipset}: failed to find file ${file/*\//} in downloaded archive"
+		ipset_error "${ipset}" "failed to find file '${file/*\//}'' in downloaded archive"
 		rm -rf "${ipset}.tmp"
 		return 1
 	fi
@@ -2944,7 +3094,7 @@ ip2location_country() {
 
 	# find all the countries in the file
 
-	echo >&2 "${ipset}: Finding included countries..."
+	ipset_info "${ipset}" "finding included countries..."
 	cat "${file}" | cut -d ',' -f 3,4 | sort -u | sed 's/","/|/g' | tr '"\r' '  ' | trim >"${ipset}.tmp/countries"
 	local code= name=
 	while IFS="|" read code name
@@ -2957,7 +3107,7 @@ ip2location_country() {
 		IP2LOCATION_COUNTRY_NAMES[${code}]="${name}"
 	done <"${ipset}.tmp/countries"
 
-	echo >&2 "${ipset}: Extracting countries..."
+	ipset_info "${ipset}" "extracting countries..."
 	local x=
 	for x in ${!IP2LOCATION_COUNTRY_NAMES[@]}
 	do
@@ -2970,7 +3120,7 @@ ip2location_country() {
 			name=${IP2LOCATION_COUNTRY_NAMES[${x}]}
 		fi
 
-		echo >&2 "${ipset}: extracting country '${x}' (code='${code}', name='${name}')..."
+		ipset_info "${ipset}" "extracting country '${x}' (code='${code}', name='${name}')..."
 		cat "${file}" 			|\
 			grep ",\"${x}\"," 	|\
 			cut -d ',' -f 1,2 	|\
@@ -2986,13 +3136,13 @@ ip2location_country() {
 			cat "${ipset}.tmp/ip2location_country_${code}.source.tmp" >>"${ipset}.tmp/ip2location_continent_${IP2LOCATION_COUNTRY_CONTINENTS[${code}]}.source.tmp"
 			IP2LOCATION_CONTINENTS[${IP2LOCATION_COUNTRY_CONTINENTS[${code}]}]="1"
 		else
-			echo >&2 "${ipset}: I don't know the continent of country ${code}."
+			ipset_info "${ipset}" "I don't know the continent of country ${code}."
 		fi
 
 		printf "%s" "${IP2LOCATION_COUNTRY_NAMES[${x}]} (${code^^})" >"${ipset}.tmp/ip2location_country_${code}.source.tmp.info"
 	done
 
-	echo >&2 "${ipset}: Aggregating country and continent netsets..."
+	ipset_info "${ipset}" "aggregating country and continent netsets..."
 	for x in ${ipset}.tmp/*.source.tmp
 	do
 		mv "${x}" "${x/.source.tmp/.source}"
@@ -3032,7 +3182,7 @@ merge() {
 			then
 			touch -t 0001010000 "${BASE_DIR}/${to}.source" || return 1
 		else
-			test ${SILENT} -ne 1 && echo >&2 "${to}: is disabled. To enable it run: touch -t 0001010000 ${BASE_DIR}/${to}.source"
+			silent "${to}: is disabled. To enable it run: touch -t 0001010000 ${BASE_DIR}/${to}.source"
 			return 1
 		fi
 	fi
@@ -3058,20 +3208,20 @@ merge() {
 				found_updated=$[ found_updated + 1 ]
 			fi
 		else
-			echo >&2 "${to}: will be generated without '${x}' - enable it to be included"
+			ipset_warning "${to}" "will be generated without '${x}' - enable '${x}' it to be included the next time"
 			# touch -t 0001010000 "${BASE_DIR}/${x}.source"
 		fi
 	done
 
 	if [ -z "${files[*]}" ]
 		then
-		echo >&2 "${to}: no files available to merge."
+		ipset_error "${to}" "no files available to merge."
 		return 1
 	fi
 
 	if [ ${found_updated} -eq 0 -a -f "${to}.netset" ]
 		then
-		echo >&2 "${to}: source files have not been updated."
+		ipset_info "${to}" "source files have not been updated."
 		return 1
 	fi
 
@@ -4784,7 +4934,7 @@ badipscom() {
 			done
 		else
 			[ -d .git ] && echo >"${install}.setinfo" "badips.com categories ipsets|[BadIPs.com](https://www.badips.com) community based IP blacklisting. They score IPs based on the reports they reports.|ipv4 hash:ip|disabled|disabled"
-			test ${SILENT} -ne 1 && echo >&2 "badips: is disabled, to enable it run: touch -t 0001010000 '${BASE_DIR}/badips.source'"
+			silent "badips: is disabled, to enable it run: touch -t 0001010000 '${BASE_DIR}/badips.source'"
 			return 1
 		fi
 	fi
@@ -4803,7 +4953,7 @@ badipscom() {
 	for category in ${categories}
 	do
 		count=0
-		# echo >&2 "bi_${category}"
+		# info "bi_${category}"
 
 		for file in $(ls 2>/dev/null bi_${category}*.source)
 		do
@@ -4819,7 +4969,7 @@ badipscom() {
 				info="[BadIPs.com](https://www.badips.com/) Bad IPs in category ${category} with score above ${score} and age less than ${age}"
 				if [ ! -f "${ipset}.source" ]
 					then
-					echo >&2 "${file}: cannot parse ipset name to find score and age"
+					warning "${file}: cannot parse ipset name to find score and age"
 					continue
 				fi
 
@@ -4833,7 +4983,7 @@ badipscom() {
 				info="[BadIPs.com](https://www.badips.com/) Bad IPs in category ${category} with age less than ${age}"
 				if [ ! -f "${ipset}.source" ]
 					then
-					echo >&2 "${file}: cannot parse ipset name to find age"
+					warning "${file}: cannot parse ipset name to find age"
 					continue
 				fi
 
@@ -4847,12 +4997,12 @@ badipscom() {
 				info="[BadIPs.com](https://www.badips.com/) Bad IPs in category ${category} with score above ${score}"
 				if [ ! -f "${ipset}.source" ]
 					then
-					echo >&2 "${file}: cannot parse ipset name to find score"
+					warning "${file}: cannot parse ipset name to find score"
 					continue
 				fi
 			else
 				# none present
-				echo >&2 "${file}: Cannot find SCORE or AGE in filename. Use numbers."
+				warning "${file}: Cannot find SCORE or AGE in filename. Use numbers."
 				continue
 			fi
 
@@ -4864,7 +5014,7 @@ badipscom() {
 					*w) age=$[${age/w/} * 7] ;;
 					*m) age=$[${age/m/} * 30] ;;
 					*y) age=$[${age/y/} * 365] ;;
-					*)  age=0; echo >&2 "${ipset}: unknown age '${age}'" ;;
+					*)  age=0; ipset_warning "${ipset}" "unknown age '${age}'. Assuming 0." ;;
 				esac
 
 				[ $[age] -eq 0   ] && freq=$[7 * 24 * 60] # invalid age
@@ -4875,7 +5025,7 @@ badipscom() {
 				[ $[age] -gt 180 ] && freq=$[4 * 24 * 60] # 181-365 days
 				[ $[age] -gt 365 ] && freq=$[7 * 24 * 60] # 366-ever days
 
-				# echo >&2 "${ipset}: update frequency set to ${freq} mins"
+				# ipset_info "${ipset}" "update frequency set to ${freq} mins"
 			fi
 
 			update "${ipset}" ${freq} 0 ipv4 ip "${url}" remove_comments "attacks" "${info}" "BadIPs.com" "https://www.badips.com/"
@@ -4883,7 +5033,7 @@ badipscom() {
 
 		if [ ${count} -eq 0 ]
 			then
-			test ${SILENT} -ne 1 && echo >&2 "bi_${category}_SCORE_AGE: is disabled (SCORE=X and AGE=Y[dwmy]). To enable it run: touch -t 0001010000 '${BASE_DIR}/bi_${category}_SCORE_AGE.source'"
+			silent "bi_${category}_SCORE_AGE: is disabled (SCORE=X and AGE=Y[dwmy]). To enable it run: touch -t 0001010000 '${BASE_DIR}/bi_${category}_SCORE_AGE.source'"
 		fi
 	done
 }
