@@ -2,8 +2,6 @@
 
 SUBDIRS = . firehol fireqos vnetbuild
 
-all-local: service-links
-
 dochtmldir = $(htmldir)/html
 
 MANUAL_LINKS = \
@@ -39,6 +37,8 @@ dochtml_DATA = \
 	$(MANUAL_CSS)
 
 if MAINTAINER_MODE
+
+all-local: service-links
 
 MKSERVICELINKS = ${top_srcdir}/doc/tools/mkservicelinks
 

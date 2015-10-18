@@ -127,9 +127,13 @@ pdf_DATA = \
 
 endif
 
+if ENABLE_MAN
+
 man_MANS = \
 	$(MANUALMAN_GENERATED) \
 	$(MANUALMAN_GENERATED_INDIRECT)
+
+endif
 
 if MAINTAINER_MODE
 

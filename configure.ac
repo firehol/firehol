@@ -21,6 +21,13 @@ AC_ARG_ENABLE([doc],
               [AS_HELP_STRING([--disable-doc], [disable doc installation @<:@enabled@:>@])],
               ,
               [enable_doc="yes"])
+AM_CONDITIONAL([ENABLE_DOC], [test "${enable_doc}" = "yes"])
+
+AC_ARG_ENABLE([man],
+              [AS_HELP_STRING([--disable-man], [disable manpage installation @<:@enabled@:>@])],
+              ,
+              [enable_man="yes"])
+AM_CONDITIONAL([ENABLE_MAN], [test "${enable_man}" = "yes"])
 
 if test x"$USE_MAINTAINER_MODE" = xyes; then
 AC_MSG_NOTICE(***************** MAINTAINER MODE *****************)
@@ -37,7 +44,14 @@ AC_SUBST(PACKAGE_BUILT_DATE)
 AC_SUBST(PANDOC_VERSION)
 AC_CONFIG_FILES([doc/tools/pandoc-post], [chmod +x doc/tools/pandoc-post])
 AC_MSG_NOTICE(***************************************************)
+else
+  if test ! -f doc/service-links; then
+    if test x"$enable_doc" = xyes -o x"$enable_man" = xyes; then
+      AC_MSG_ERROR([docs not built, use '--disable-doc --disable-man' or --enable-maintainer-mode])
+    fi
+  fi
 fi
+
 
 FIREHOL_CONFIG_DIR=$(eval echo "$sysconfdir/firehol" | sed -e 's|^NONE|/usr/local|')
 AC_SUBST(FIREHOL_CONFIG_DIR)
@@ -88,8 +102,6 @@ AC_CHECK_PROG([ZCAT_CMD], [zcat], [zcat])
 AC_CHECK_PROG([ZCAT_CMD], [gzcat], [gzcat])
 AC_CHECK_PROG([ZCAT_CMD], [gunzip], [gunzip -c])
 AX_NEED_PROG([ZCAT_CMD], [gzip], [gzip -d -c])
-
-AM_CONDITIONAL([ENABLE_DOC], [test "${enable_doc}" = "yes"])
 
 AC_CONFIG_FILES([
 	Makefile
