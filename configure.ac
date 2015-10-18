@@ -29,6 +29,12 @@ AC_ARG_ENABLE([man],
               [enable_man="yes"])
 AM_CONDITIONAL([ENABLE_MAN], [test "${enable_man}" = "yes"])
 
+AC_ARG_ENABLE([iprange],
+              [AS_HELP_STRING([--disable-iprange], [disable iprange installation @<:@enabled@:>@])],
+              ,
+              [enable_iprange="yes"])
+AM_CONDITIONAL([ENABLE_IPRANGE], [test "${enable_iprange}" = "yes"])
+
 if test x"$USE_MAINTAINER_MODE" = xyes; then
 AC_MSG_NOTICE(***************** MAINTAINER MODE *****************)
 PACKAGE_BUILT_DATE=$(date '+%d %b %Y')
@@ -51,7 +57,6 @@ else
     fi
   fi
 fi
-
 
 FIREHOL_CONFIG_DIR=$(eval echo "$sysconfdir/firehol" | sed -e 's|^NONE|/usr/local|')
 AC_SUBST(FIREHOL_CONFIG_DIR)
@@ -102,6 +107,20 @@ AC_CHECK_PROG([ZCAT_CMD], [zcat], [zcat])
 AC_CHECK_PROG([ZCAT_CMD], [gzcat], [gzcat])
 AC_CHECK_PROG([ZCAT_CMD], [gunzip], [gunzip -c])
 AX_NEED_PROG([ZCAT_CMD], [gzip], [gzip -d -c])
+
+if test x"$enable_iprange" = xyes; then
+AC_PROG_CC
+AC_HEADER_STDC
+AC_CHECK_HEADERS(sys/socket.h,,AC_MSG_ERROR(sys/socket.h missing))
+AC_CHECK_HEADERS(netinet/in.h,,AC_MSG_ERROR(netinet/in.h missing))
+AC_CHECK_HEADERS(arpa/inet.h,,AC_MSG_ERROR(arpa/inet.h missing))
+AC_CHECK_HEADERS(sys/time.h,,AC_MSG_ERROR(sys/time.h missing))
+AC_CHECK_FUNC(htonl,,AC_MSG_ERROR(htonl() not found))
+else
+dnl Horrible but how else to make the compiler completely optional?
+AM_CONDITIONAL([AMDEP], false)
+AM_CONDITIONAL([am__fastdepCC], false)
+fi
 
 AC_CONFIG_FILES([
 	Makefile

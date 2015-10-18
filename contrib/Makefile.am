@@ -9,7 +9,6 @@ contrib_SCRIPTS = \
 
 contrib_DATA = \
 	contrib.mak \
-	iprange.c \
 	iprange.md
 
 EXTRA_DIST = \

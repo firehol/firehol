@@ -1437,7 +1437,11 @@ void usage(const char *me) {
 	fprintf(stderr, "\n"
 		"iprange\n"
 		"manage IP ranges\n"
+#ifdef VERSION
+		"version: " VERSION " ($Id$)\n"
+#else
 		"version: $Id$\n"
+#endif
 		"\n"
 		"Original,   Copyright (C) 2003 Gabriel L. Somlo\n"
 		"Adapted,    Copyright (C) 2004 Paul Townsend\n"
