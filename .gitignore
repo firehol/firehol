@@ -33,6 +33,10 @@ sbin/firehol
 sbin/fireqos
 sbin/link-balancer
 sbin/vnetbuild
+sbin/iprange
+sbin/*.o
+sbin/.deps
+sbin/update-ipsets
 *.xz
 *.gz
 *.bz2

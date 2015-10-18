@@ -23,6 +23,9 @@ If you are installing the package from a tar-files release, FireHOL uses
 the GNU Autotools so you can get away with:
   ./configure && make && make install
 
+You can set the compilation options for iprange like this:
+  CFLAGS=-O3 ./configure && make && make install
+
 Take a look at the file INSTALL, also.
 
 
