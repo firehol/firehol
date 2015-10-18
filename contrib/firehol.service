@@ -1,0 +1,12 @@
+[Unit]
+Description=Firehol stateful packet filtering firewall builder
+Documentation=man:firehol(1)
+
+[Service]
+Type=oneshot
+ExecStart=/usr/bin/firehol start
+ExecStop=/usr/bin/firehol stop
+RemainAfterExit=yes
+
+[Install]
+WantedBy=multi-user.target
