@@ -7,6 +7,7 @@ AC_CONFIG_AUX_DIR([autotool])
 AC_CONFIG_SRCDIR([sbin/firehol.in])
 AC_CONFIG_SRCDIR([sbin/fireqos.in])
 AC_CONFIG_SRCDIR([sbin/link-balancer.in])
+AC_CONFIG_SRCDIR([sbin/update-ipsets.in])
 AC_CONFIG_SRCDIR([sbin/vnetbuild.in])
 AM_INIT_AUTOMAKE([gnu])
 AM_MAINTAINER_MODE([disable])
@@ -107,6 +108,7 @@ AC_CHECK_PROG([ZCAT_CMD], [zcat], [zcat])
 AC_CHECK_PROG([ZCAT_CMD], [gzcat], [gzcat])
 AC_CHECK_PROG([ZCAT_CMD], [gunzip], [gunzip -c])
 AX_NEED_PROG([ZCAT_CMD], [gzip], [gzip -d -c])
+AC_CHECK_PROG([IPSET_CMD], [ipset], [ipset], [], [$PATH:/sbin:/usr/sbin])
 
 if test x"$enable_iprange" = xyes; then
 AC_PROG_CC
@@ -139,6 +141,7 @@ AC_CONFIG_FILES([
 AC_CONFIG_FILES([sbin/firehol], [chmod +x sbin/firehol])
 AC_CONFIG_FILES([sbin/fireqos], [chmod +x sbin/fireqos])
 AC_CONFIG_FILES([sbin/link-balancer], [chmod +x sbin/link-balancer])
+AC_CONFIG_FILES([sbin/update-ipsets], [chmod +x sbin/update-ipsets])
 AC_CONFIG_FILES([sbin/vnetbuild], [chmod +x sbin/vnetbuild])
 
 AC_OUTPUT

@@ -1,9 +1,6 @@
 #!/bin/bash
 #
-# Version
-# $Id$
-#
-# FireHOL - A firewall for humans...
+# update-ipsets - for FireHOL - A firewall for humans...
 #
 #   Copyright
 #
@@ -82,6 +79,28 @@
 # 4. Put it in a cron job to do the updates automatically.
 
 # -----------------------------------------------------------------------------
+
+get_version() {
+	GIT_REF='$Format:%d,commit-%h$'
+	local IFS=":(), "
+	set -- "$GIT_REF"
+	ver='$Id$'
+	for i in $@
+	do
+		case "$i" in
+			*[0-9].[0.9]*)
+				echo "$i" | sed -e 's/^v//'
+				return 0
+			;;
+			commit-[0-9a-zA-Z]*)
+				ver="$i"
+			;;
+		esac
+	done
+	echo "$ver"
+	return 0
+}
+VERSION=$(get_version)
 
 PROGRAM_FILE="${0}"
 
@@ -358,7 +377,7 @@ declare -a LISTS_TO_ENABLE=()
 
 usage() {
 cat <<EOFUSAGE
-FireHOL update-ipset.sh $Id$
+FireHOL update-ipsets $VERSION
 (C) 2015 Costa Tsaousis
 
 USAGE:

@@ -1,4 +1,3 @@
-contrib/*.sh ident export-subst
-contrib/*.c ident export-subst
+sbin/*.c ident export-subst
 sbin/*.in ident export-subst
 packaging/packver ident export-subst
