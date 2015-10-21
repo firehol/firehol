@@ -6,6 +6,7 @@ EXTRA_DIST = \
 	ax_firehol_autosave.m4 \
 	ax_need_awk.m4 \
 	ax_need_grep.m4 \
+	ax_check_prog.m4 \
 	ax_need_prog.m4 \
 	ax_need_sed.m4 \
 	ax_prog_pandoc.m4 \
