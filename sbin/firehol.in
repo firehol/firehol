@@ -12160,9 +12160,27 @@ then
 	fi
 	if [ $ENABLE_IPV6 -eq 1 -a -z "${FIREHOL_AUTOSAVE6}" ]
 	then
-		error "Cannot find where to save ip6tables file. Please set FIREHOL_AUTOSAVE6."
-		echo >&2
-		exit 1
+		if [ -d "/var/lib/ip6tables" ]
+		then
+			if [ -f /etc/conf.d/ip6tables ]
+			then
+				# Gentoo
+				IP6TABLES_SAVE=
+
+				. /etc/conf.d/ip6tables
+				FIREHOL_AUTOSAVE6="${IP6TABLES_SAVE}"
+			fi
+
+			if [ -z "${FIREHOL_AUTOSAVE6}" ]
+			then
+				# Debian
+				FIREHOL_AUTOSAVE6="/var/lib/ip6tables/autosave"
+			fi
+		else
+			error "Cannot find where to save ip6tables file. Please set FIREHOL_AUTOSAVE6."
+			echo >&2
+			exit 1
+		fi
 	fi
 	
 	if [ $ENABLE_IPV4 -eq 1 ]
