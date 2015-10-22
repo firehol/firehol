@@ -906,7 +906,7 @@ which_cmd() {
 	fi
 	shift
 	
-	eval $name="'${cmd} ${@}'"
+	eval $name="'${cmd}'"
 	return 0
 }
 
@@ -991,7 +991,7 @@ do
 	if [ "$set_in_defaults" ]
 	then
 		:
-	elif [ "@AUTOCONF_RUN@" = "Y" -a ! -z "$autoconf" ]
+	elif [ "@AUTOCONF_RUN@" = "Y" -a ! -z "$autoconf" -a -x "$autoconf" ]
 	then
 		eval $cmd_var=\"$autoconf\"
 	else
