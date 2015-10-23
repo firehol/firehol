@@ -925,6 +925,21 @@ require_cmd() {
 	eval val=\$\{${var}\}
 	if [ "${val}" ]
 	then
+		local cmd=$(echo $val | cut -f1 -d' ')
+		if [ ! -x "$cmd" ]
+		then
+			echo >&2
+			if [ $block -eq 0 ]
+			then
+				echo >&2 "WARNING: optional command does not exist or is not executable ($cmd)"
+				echo >&2 "please add or correct $var in firehol-defaults.conf"
+				val=""
+			else
+				echo >&2 "ERROR: required command does not exist or is not executable ($cmd)"
+				echo >&2 "please add or correct $var in firehol-defaults.conf"
+				exit 1
+			fi
+		fi
 		return 0
 	elif [ $block -eq 0 ]
 	then
@@ -991,7 +1006,7 @@ do
 	if [ "$set_in_defaults" ]
 	then
 		:
-	elif [ "@AUTOCONF_RUN@" = "Y" -a ! -z "$autoconf" -a -x "$autoconf" ]
+	elif [ "@AUTOCONF_RUN@" = "Y" -a ! -z "$autoconf" ]
 	then
 		eval $cmd_var=\"$autoconf\"
 	else
