@@ -1068,7 +1068,7 @@ FIREHOL_HAVE_IPRANGE=1
 IPRANGE_WARNING=0
 if [ ! -z "${IPRANGE_CMD}" ]
 then
-	"${IPRANGE_CMD}" --has-reduce 2>/dev/null || IPRANGE_CMD=
+	${IPRANGE_CMD} --has-reduce 2>/dev/null || IPRANGE_CMD=
 fi
 
 if [ -z "${IPRANGE_CMD}" ]
@@ -5156,7 +5156,7 @@ ipset_file_to_restore_filter() {
 		local opts=
 		[ "${hash}" = "hash:net" -o "${hash}" = "nethash" ] && opts="--ipset-reduce 20 --ipset-reduce-entries 65536"
 		[ "${hash}" = "hash:ip"  -o "${hash}" = "iphash"  ] && opts="-1"
-		"${IPRANGE_CMD}" ${opts} \
+		${IPRANGE_CMD} ${opts} \
 			--print-prefix "${IPSET_ADD_OPTION} ${name} " \
 			--print-suffix " ${*}"
 	else
