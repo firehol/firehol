@@ -1276,9 +1276,9 @@ failure() {
 
 firehol_exit() {
 	local restored="NO"
+	$STTY_CMD sane
 	if [ \( -f "${FIREHOL_SAVED}" -o -f "${FIREHOL_SAVED6}" \) -a "${FIREHOL_MODE}" = "START" ]
 	then
-		$STTY_CMD sane
 		echo >&2
 		progress "Restoring old firewall"
 		local status4=0
