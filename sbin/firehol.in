@@ -925,7 +925,7 @@ require_cmd() {
 	eval val=\$\{${var}\}
 	if [ "${val}" ]
 	then
-		local cmd=$(echo $val | cut -f1 -d' ')
+		local cmd="${val/ */}"
 		if [ ! -x "$cmd" ]
 		then
 			echo >&2
