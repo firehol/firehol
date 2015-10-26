@@ -905,8 +905,8 @@ which_cmd() {
 		return 1
 	fi
 	shift
-	
-	eval $name="'${cmd} ${@}'"
+
+	eval $name="'${cmd}' ${@}"
 	return 0
 }
 
@@ -10046,7 +10046,7 @@ kernel_maj_min() {
 	kmaj=$1
 	kmin=$2
 
-	set -- $(uname -r)
+	set -- $($UNAME_CMD -r)
 	eval $kmaj=\$1 $kmin=\$2
 }
 kernel_maj_min KERNELMAJ KERNELMIN
