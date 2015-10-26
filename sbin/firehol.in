@@ -884,8 +884,6 @@ fi
 # XXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXX
 # ------------------------------------------------------------------------------
 
-export PATH="${PATH}:/bin:/usr/bin:/sbin:/usr/sbin"
-
 # Load commands FireHOL will need.
 
 which_cmd() {
@@ -1010,7 +1008,7 @@ do
 	then
 		eval $cmd_var=\"$autoconf\"
 	else
-		which_all $cmd_var "$possibles"
+		PATH="/bin:/usr/bin:/sbin:/usr/sbin:$PATH" which_all $cmd_var "$possibles"
 	fi
 	if [ "$required" = "Y" ]
 	then

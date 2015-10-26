@@ -2,7 +2,7 @@
 
 $script stop
 status=$?
-if [ $status -eq 1 ]
+if [ $status -eq 0 ]
 then
   exit 0
 fi

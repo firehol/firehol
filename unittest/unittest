@@ -16,6 +16,13 @@ then
   haderror="Y"
 fi
 
+if [ ! -x ../sbin/iprange ]
+then
+  echo "Executable ../sbin/iprange program not found (was it built yet?)"
+  echo ""
+  haderror="Y"
+fi
+
 if [ "$1" = "-inns" ]
 then
   mount -t tmpfs tmpfs /etc/firehol
@@ -193,6 +200,16 @@ do
 
     # Define our configuration directory exactly as we want it
     rm -rf /etc/firehol/*
+
+    # Default special cases:
+    #  - egrep because /sbin/egrep makes use of PATH to find 'grep -E'
+    #    the unit tests set PATH to empty so we must use the explicit one
+    #  - iprange because we want to test with the local version
+    cat > /etc/firehol/firehol-defaults.conf <<-!
+		EGREP_CMD='/bin/grep -E'
+		IPRANGE_CMD='${TESTDIR}../sbin/iprange'
+	!
+
     if [ -x "$pre_sh" ]
     then
       # We can control completely with a testname.pre.sh
@@ -211,8 +228,12 @@ do
     else
       # Or just take the defaults
       case $program in
-        firehol|fireqos)
+        fireqos)
           "$script" "$conf" start > "$runlog" 2>&1 < /dev/null
+          status=$?
+        ;;
+        firehol)
+          PATH= "$script" "$conf" start > "$runlog" 2>&1 < /dev/null
           status=$?
         ;;
         link-balancer)
@@ -235,6 +256,10 @@ do
     then
       errors=$((errors + 1))
       echo "Unexpected run error - check $runlog"
+    elif grep -q 'in: line [0-9]*:' "$runlog"
+    then
+      errors=$((errors + 1))
+      echo "Unexpected runtime errors - check $runlog"
     else
       case $program in
         firehol)

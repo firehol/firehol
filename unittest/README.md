@@ -8,7 +8,7 @@ NOTE
 Run tests as:
 
 ~~~~
-sudo ./unittest -ok directory-or-conffile...
+sudo ./unittest directory-or-conffile...
 ~~~~
 
 Any number of files and directories (in which case all .conf files found
