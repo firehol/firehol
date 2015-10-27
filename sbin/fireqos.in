@@ -185,7 +185,9 @@ require_cmd() {
 		eval set -- "$@"
 		for cmd in "$@"
 		do
+set -x
 			eval "NEED_${var}"="\$NEED_${var}' ${cmd/ */}'"
+set +x
 		done
 		return 0
 	fi
@@ -3068,7 +3070,7 @@ stats_colors() {
 htb_stats() {
 	local x=
 	
-	require_cmd awk
+	require_cmd GAWK_CMD
 	
 	trap cleanup_stats EXIT
 	trap cleanup_stats SIGHUP
@@ -3456,7 +3458,7 @@ add_monitor() {
 }
 
 monitor() {
-	require_cmd tcpdump
+	require_cmd TCPDUMP_CMD
 	
 	if [ -z "$1" -o ! -f "${FIREQOS_DIR}/$1.conf" ]
 	then
