@@ -48,7 +48,7 @@ get_version() {
 	do
 		case "$i" in
 			*[0-9].[0.9]*)
-				echo "$i" | sed -e 's/^v//'
+				echo "$i" | $SED_CMD -e 's/^v//'
 				return 0
 			;;
 			commit-[0-9a-zA-Z]*)
@@ -92,7 +92,7 @@ FIREQOS_DEBUG_PORTS=0
 FIREQOS_DEBUG_CLASS=0
 FIREQOS_DEBUG_QDISC=0
 FIREQOS_DEBUG_FILTER=0
-FIREQOS_DEBUG_CMD=0
+FIREQOS_DEBUG_COMMAND=0
 
 # The default and minimum rate for all classes is 1/100
 # of the interface bandwidth
@@ -112,77 +112,218 @@ FIREQOS_MATCHES_STEP=10
 # this, when classes with device emulation are added)
 FIREQOS_INTERFACE_DEFAULT_CLASSID=8000
 
-# Enable colors
-if [ -t 2 -a $[$(tput colors 2>/dev/null)] -ge 8 ]
+# load the defaults if they exist, ignoring any mark definitions
+marksreset() { :; }
+markdef() { :; }
+if [ -f "${FIREHOL_CONFIG_DIR}/firehol-defaults.conf" ]
 then
-	COLOR_RESET="\e[0m"
-	COLOR_BLACK="\e[30m"
-	COLOR_RED="\e[31m"
-	COLOR_GREEN="\e[32m"
-	COLOR_YELLOW="\e[33m"
-	COLOR_BLUE="\e[34m"
-	COLOR_PURPLE="\e[35m"
-	COLOR_CYAN="\e[36m"
-	COLOR_WHITE="\e[37m"
-	COLOR_BGBLACK="\e[40m"
-	COLOR_BGRED="\e[41m"
-	COLOR_BGGREEN="\e[42m"
-	COLOR_BGYELLOW="\e[43m"
-	COLOR_BGBLUE="\e[44m"
-	COLOR_BGPURPLE="\e[45m"
-	COLOR_BGCYAN="\e[46m"
-	COLOR_BGWHITE="\e[47m"
-	COLOR_BOLD="\e[1m"
-	COLOR_DIM="\e[2m"
-	COLOR_UNDERLINED="\e[4m"
-	COLOR_BLINK="\e[5m"
-	COLOR_INVERTED="\e[7m"
+	source "${FIREHOL_CONFIG_DIR}/firehol-defaults.conf" || exit 1
 fi
 
-# Check for external commands
-require_cmd() {
-	local c=`which $1 2>/dev/null`
-	
-	eval "${1}_cmd=$c"
-	
-	if [ -z "$c" ]
+# Load commands FireQOS will need.
+
+which_cmd() {
+	local name="$1"
+	shift
+
+	if [ "$1" = ":" ]
 	then
-		echo >&2 "Command '$1' is not found in this system."
+		eval $name=":"
+		return 0
+	fi
+
+	unalias $1 >/dev/null 2>&1
+	local cmd=`which $1 2>/dev/null | head -n 1`
+	if [ $? -gt 0 -o ! -x "${cmd}" ]
+	then
 		return 1
+	fi
+	shift
+
+	if [ $# -eq 0 ]
+	then
+		eval $name="'${cmd}'"
+	else
+		eval $name="'${cmd} ${@}'"
 	fi
 	return 0
 }
 
-require_cmd tc || exit 1
-require_cmd ip || exit 1
-require_cmd modprobe 2> /dev/null
-if [ $? -ne 0 ]
-then
-	require_cmd insmod 2> /dev/null
-	if [ $? -ne 0 ]
-	then
-		echo >&2 "Neither modprobe nor insmod is found in this system."
-		exit 1
-	fi
-	modprobe_cmd=$insmod_cmd
-fi
-require_cmd flock || exit 1
-require_cmd grep || exit 1
-require_cmd egrep || exit 1
-require_cmd cut || exit 1
-require_cmd cat || exit 1
-require_cmd sed || exit 1
-require_cmd tr || exit 1
-require_cmd touch || exit 1
-require_cmd logger || exit 1
-require_cmd mkdir || exit 1
-require_cmd rm || exit 1
+require_cmd() {
+	local var= val= block=1
 
+	if [ "$1" = "-n" ]
+	then
+		block=0
+		shift
+	fi
+
+	var="$1"
+	shift
+
+	eval val=\$\{${var}\}
+	if [ "${val}" ]
+	then
+		local cmd="${val/ */}"
+		if [ ! -x "$cmd" ]
+		then
+			echo >&2
+			if [ $block -eq 0 ]
+			then
+				echo >&2 "WARNING: optional command does not exist or is not executable ($cmd)"
+				echo >&2 "please add or correct $var in firehol-defaults.conf"
+				val=""
+			else
+				echo >&2 "ERROR: required command does not exist or is not executable ($cmd)"
+				echo >&2 "please add or correct $var in firehol-defaults.conf"
+				exit 1
+			fi
+		fi
+		return 0
+	elif [ $block -eq 0 ]
+	then
+		eval set -- "$@"
+		for cmd in "$@"
+		do
+			eval "NEED_${var}"="\$NEED_${var}' ${cmd/ */}'"
+		done
+		return 0
+	fi
+
+	if [ $# -eq 0 ]
+	then
+		eval set -- "\$NEED_${var}"
+	fi
+
+	echo >&2
+	echo >&2 "ERROR:	FIREHOL REQUIRES ONE OF THESE COMMANDS:"
+	echo >&2
+	echo >&2 "	${@}"
+	echo >&2
+	echo >&2 "	You have requested the use of a FireHOL"
+	echo >&2 "	feature that requires certain external programs"
+	echo >&2 "	to be installed in the running system."
+	echo >&2
+	echo >&2 "	Please consult your Linux distribution manual to"
+	echo >&2 "	install the package(s) that provide these external"
+	echo >&2 "	programs and retry."
+	echo >&2
+	echo >&2 "	Note that you need an operational 'which' command"
+	echo >&2 "	for FireHOL to find all the external programs it"
+	echo >&2 "	needs. Check it yourself. Run:"
+	echo >&2
+	for x in "${@}"
+	do
+		echo >&2 "	which $x"
+	done
+
+	exit 1
+}
+
+which_all() {
+	local cmd_var="$1"
+
+	eval set -- "$2"
+	for cmd in "$@"
+	do
+		which_cmd $cmd_var $cmd && break
+	done
+}
+
+# Where required = Y, if a command is not found, FireHOL will refuse to run.
+# Where required = N, the command only required when it is actually used
+#
+# If a command is specified in /etc/firehol/firehol-defaults.conf it will
+# be used. Otherwise, if the script has been configured with ./configure
+# the detected versions will be used. If the script has not been configured
+# then the list of possible commands is autodetected.
+while IFS="|" read required cmd_var autoconf possibles
+do
+	if [ "@AUTOCONF_RUN@" = "Y" ]
+	then
+		case "$autoconf" in
+			"@"*) autoconf=""; ;;
+		esac
+	fi
+	eval set_in_defaults=\"\$$cmd_var\"
+	if [ "$set_in_defaults" ]
+	then
+		:
+	elif [ "@AUTOCONF_RUN@" = "Y" -a ! -z "$autoconf" ]
+	then
+		eval $cmd_var=\"$autoconf\"
+	else
+		PATH="/bin:/usr/bin:/sbin:/usr/sbin:$PATH" which_all $cmd_var "$possibles"
+	fi
+	if [ "$required" = "Y" ]
+	then
+		require_cmd $cmd_var $possibles
+	else
+		require_cmd -n $cmd_var $possibles
+	fi
+done <<-!
+Y|STTY_CMD|@STTY@|stty :
+N|TPUT_CMD|@TPUT@|tput
+Y|IP_CMD|@IP@|ip
+Y|MODPROBE_CMD|@MODPROBE@|'modprobe -q' insmod
+Y|FLOCK_CMD|@FLOCK@|flock
+Y|GREP_CMD|@GREP@|grep
+Y|EGREP_CMD|@EGREP@|egrep 'grep -E'
+Y|CAT_CMD|@CAT@|cat
+Y|CUT_CMD|@CUT@|cut
+Y|SED_CMD|@SED@|sed
+Y|TOUCH_CMD|@TOUCH@|touch
+Y|TR_CMD|@TR@|tr
+Y|LOGGER_CMD|@LOGGER@|logger
+Y|MKDIR_CMD|@MKDIR@|mkdir
+Y|RM_CMD|@RM@|rm
+Y|TC_CMD|@TC@|tc
+N|AWK_CMD|@AWK@|gawk awk
+N|TCPDUMP_CMD|@TCPDUMP@|tcpdump
+Y|SEQ_CMD|@SEQ@|seq
+Y|LS_CMD|@LS@|ls
+Y|DATE_CMD|@DATE@|date
+!
+
+RUNNING_ON_TERMINAL=0
+if [ "z$1" = "z-nc" ]
+then
+	shift
+elif [ ! -z "$TPUT_CMD" ]
+then
+	test -t 2 && RUNNING_ON_TERMINAL=1
+	if [ -t 2 -a $[$(TPUT_COMMAND colors 2>/dev/null)] -ge 8 ]
+	then
+		# Enable colors
+		COLOR_RESET="\e[0m"
+		COLOR_BLACK="\e[30m"
+		COLOR_RED="\e[31m"
+		COLOR_GREEN="\e[32m"
+		COLOR_YELLOW="\e[33m"
+		COLOR_BLUE="\e[34m"
+		COLOR_PURPLE="\e[35m"
+		COLOR_CYAN="\e[36m"
+		COLOR_WHITE="\e[37m"
+		COLOR_BGBLACK="\e[40m"
+		COLOR_BGRED="\e[41m"
+		COLOR_BGGREEN="\e[42m"
+		COLOR_BGYELLOW="\e[43m"
+		COLOR_BGBLUE="\e[44m"
+		COLOR_BGPURPLE="\e[45m"
+		COLOR_BGCYAN="\e[46m"
+		COLOR_BGWHITE="\e[47m"
+		COLOR_BOLD="\e[1m"
+		COLOR_DIM="\e[2m"
+		COLOR_UNDERLINED="\e[4m"
+		COLOR_BLINK="\e[5m"
+		COLOR_INVERTED="\e[7m"
+	fi
+fi
 
 # service definitions
 # taken from firehol, with:
 #
-# $cat_cmd firehol.sh | $egrep_cmd "^server_.*_ports="
+# $CAT_CMD firehol.sh | $EGREP_CMD "^server_.*_ports="
 #
 
 server_AH_ports="51/any"
@@ -308,7 +449,7 @@ declare -A MARKS_MASKS='([connmark]="0x0000003f" [usermark]="0x00001fc0" )'
 declare -A MARKS_MAX='([connmark]="63" [usermark]="127" )'
 declare -A MARKS_SHIFT='([connmark]="0" [usermark]="6" )'
 
-FIREHOL_SPOOL_DIR="/var/spool/firehol"
+FIREHOL_SPOOL_DIR="${FIREHOL_SPOOL_DIR-/var/spool/firehol}"
 if [ -f "${FIREHOL_SPOOL_DIR}/marks.conf" ]
 then
 	source "${FIREHOL_SPOOL_DIR}/marks.conf" || exit 1
@@ -442,10 +583,10 @@ service() {
 }
 
 fireqos_active_interfaces() {
-	ls $FIREQOS_DIR/ 2>/dev/null |\
-		$grep_cmd ".conf" |\
-		$tr_cmd "\n" " " |\
-		$sed_cmd -e "s/\.conf//g" -e "s/ \+/ /g"
+	$LS_CMD $FIREQOS_DIR/ 2>/dev/null |\
+		$GREP_CMD ".conf" |\
+		$TR_CMD "\n" " " |\
+		$SED_CMD -e "s/\.conf//g" -e "s/ \+/ /g"
 }
 
 FIREQOS_COMPLETED=
@@ -466,19 +607,19 @@ fireqos_exit() {
 			
 			if [ $interface_inout = input ]
 			then
-				runcmd $tc_cmd qdisc del dev $interface_dev ingress >/dev/null 2>&1
-				runcmd $tc_cmd qdisc del dev $interface_realdev root >/dev/null 2>&1
+				runcmd $TC_CMD qdisc del dev $interface_dev ingress >/dev/null 2>&1
+				runcmd $TC_CMD qdisc del dev $interface_realdev root >/dev/null 2>&1
 				
 				if [ -f "$FIREQOS_DIR/ifbs/$interface_realdev" ]
 				then
 					printf >&2 " %16.16s: " $interface_realdev
 					echo >&2 "removed IFB device"
-					runcmd $ip_cmd del dev $interface_realdev name $interface_realdev type ifb >/dev/null 2>&1
+					runcmd $IP_CMD del dev $interface_realdev name $interface_realdev type ifb >/dev/null 2>&1
 				fi
 			else
-				runcmd $tc_cmd qdisc del dev $interface_realdev root >/dev/null 2>&1
+				runcmd $TC_CMD qdisc del dev $interface_realdev root >/dev/null 2>&1
 			fi
-			$rm_cmd $FIREQOS_DIR/$interface_name.conf 2>/dev/null
+			$RM_CMD $FIREQOS_DIR/$interface_name.conf 2>/dev/null
 			
 			local a=
 			local ifs="`fireqos_active_interfaces`"
@@ -505,7 +646,7 @@ fireqos_exit() {
 	fi
 	echo >&2 "bye..."
 	
-	[ -f "${FIREQOS_LOCK_FILE}" ] && $rm_cmd -f "${FIREQOS_LOCK_FILE}" >/dev/null 2>&1
+	[ -f "${FIREQOS_LOCK_FILE}" ] && $RM_CMD -f "${FIREQOS_LOCK_FILE}" >/dev/null 2>&1
 
 	enable trap
 	enable exit
@@ -527,7 +668,7 @@ fireqos_concurrent_run_lock() {
 	fi
 	
 	# open an exclusive lock on the 200th file descriptor
-	${flock_cmd} -n 200
+	${FLOCK_CMD} -n 200
 	if [ $? -ne 0 ]
 	then
 		echo >&2 "FireQOS is already running. Exiting..."
@@ -540,7 +681,7 @@ fireqos_concurrent_run_lock() {
 syslog() {
 	local p="$1"; shift
 	
-	$logger_cmd -p ${FIREQOS_SYSLOG_FACILITY}.$p -t "FireQOS[$$]" "${@}"
+	$LOGGER_CMD -p ${FIREQOS_SYSLOG_FACILITY}.$p -t "FireQOS[$$]" "${@}"
 	return 0
 }
 
@@ -588,7 +729,7 @@ warning() {
 }
 
 runcmd() {
-	local debug=$FIREQOS_DEBUG_CMD
+	local debug=$FIREQOS_DEBUG_COMMAND
 
 	if [ $debug -eq 1 ]
 	then
@@ -618,16 +759,16 @@ tc() {
 	
 	if [ $debug -eq 1 ]
 	then
-		printf " %q" $tc_cmd "${@}"
+		printf " %q" $TC_CMD "${@}"
 		printf "\n"
 		return 0
 	fi
 	
 	if [ $noerror -eq 1 ]
 	then
-		$tc_cmd "${@}" >/dev/null 2>&1
+		$TC_CMD "${@}" >/dev/null 2>&1
 	else
-		$tc_cmd "${@}"
+		$TC_CMD "${@}"
 		local ret=$?
 		
 		if [ $ret -ne 0 ]
@@ -637,7 +778,7 @@ tc() {
 			echo >&2
 			echo >&2 "ERROR:"
 			echo >&2 "tc failed with error $ret, while executing the command:"
-			printf >&2 "%q " $tc_cmd "${@}"
+			printf >&2 "%q " $TC_CMD "${@}"
 			echo >&2
 			echo >&2
 			echo >&2 -e "$COLOR_RESET"
@@ -647,7 +788,7 @@ tc() {
 }
 
 device_mtu() {
-	$ip_cmd link show dev "${1}" | $sed_cmd "s/^.* \(mtu [0-9]\+\) .*$/\1/g" | $grep_cmd ^mtu | $cut_cmd -d ' ' -f 2
+	$IP_CMD link show dev "${1}" | $SED_CMD "s/^.* \(mtu [0-9]\+\) .*$/\1/g" | $GREP_CMD ^mtu | $CUT_CMD -d ' ' -f 2
 }
 
 rate2bps() {
@@ -779,7 +920,7 @@ rate2bps() {
 	# 		local label="Percent"
 	# 		local identifier="bps"
 	# 		local multiplier=8
-	# 		#r=$((p * multiplier * `echo $r | $sed_cmd "s/%//g"` / 100))
+	# 		#r=$((p * multiplier * `echo $r | $SED_CMD "s/%//g"` / 100))
 	# 		r=$((p * multiplier * ${r//%/} / 100))
 	# 		;;
 
@@ -796,7 +937,7 @@ rate2bps() {
 	# 		;;
 	# esac
 	
-	# #local n="`echo "$r" | $sed_cmd "s|$identifier| * $multiplier|g"`"
+	# #local n="`echo "$r" | $SED_CMD "s|$identifier| * $multiplier|g"`"
 	# #eval "local o=\$(($n / 8))"
 	# #echo "$o"
 
@@ -1110,7 +1251,7 @@ parent_push() {
 	then
 		eval "local push=\$parent_stack_${parent_stack_size}"
 		echo "PUSH $prefix: NEW(${parent_stack_size}): $push"
-		#-- set | $grep_cmd ^parent
+		#-- set | $GREP_CMD ^parent
 	fi
 	
 	if [ "$prefix" = "interface" ]
@@ -1139,12 +1280,12 @@ parent_pull() {
 	then
 		eval "local pull=\$parent_stack_${parent_stack_size}"
 		echo "PULL(${parent_stack_size}): $pull"
-		#-- set | $grep_cmd ^parent
+		#-- set | $GREP_CMD ^parent
 	fi
 	
 	if [ $parent_stack_size -gt 1 ]
 	then
-		parent_path="`echo $parent_path | $cut_cmd -d '/' -f 1-$((parent_stack_size - 1))`/"
+		parent_path="`echo $parent_path | $CUT_CMD -d '/' -f 1-$((parent_stack_size - 1))`/"
 	else
 		parent_path=
 	fi
@@ -1163,7 +1304,7 @@ class_tabs=
 set_tabs() {
 	class_tabs=
 	local x=
-	for x in `seq 1 $parent_stack_size`
+	for x in `$SEQ_CMD 1 $parent_stack_size`
 	do
 		class_tabs="$class_tabs	"
 	done
@@ -1304,11 +1445,11 @@ interface_close() {
 		# we have the output of a bidirectional interface to run
 
 		# debug info
-		# cat "${FIREQOS_SAVE}"
+		# $CAT_CMD "${FIREQOS_SAVE}"
 
 		# move the exiting file to a new place, to avoid recursion
 		mv "${FIREQOS_SAVE}" "${FIREQOS_SAVE}.run"
-		# cat "${FIREQOS_SAVE}.run"
+		# $CAT_CMD "${FIREQOS_SAVE}.run"
 
 		# close the existing, input, interface
 		interface_close
@@ -1318,7 +1459,7 @@ interface_close() {
 		FORCE_CONFIG_LINEID=
 
 		# delete the file, we don't need it any more
-		$rm_cmd "${FIREQOS_SAVE}.run"
+		$RM_CMD "${FIREQOS_SAVE}.run"
 
 		# continue running this interface_close function, to close the output interface too
 	fi
@@ -1460,7 +1601,7 @@ interface() {
 		interface_realdev=${interface_dev}-ifb
 		interface_realdev=${interface_realdev:0:15}
 		
-		runcmd $ip_cmd link add dev ${interface_realdev} name ${interface_realdev} type ifb 2>/dev/null
+		runcmd $IP_CMD link add dev ${interface_realdev} name ${interface_realdev} type ifb 2>/dev/null
 		if [ $? -ne 0 -a $? -ne 2 ]
 		then
 			error "Cannot add IFB device ${interface_realdev}."
@@ -1468,9 +1609,9 @@ interface() {
 		fi
 		
 		# remember we used this interface
-		$touch_cmd $FIREQOS_DIR/ifbs/${interface_realdev}
+		$TOUCH_CMD $FIREQOS_DIR/ifbs/${interface_realdev}
 		
-		runcmd $ip_cmd link set dev ${interface_realdev} up
+		runcmd $IP_CMD link set dev ${interface_realdev} up
 		if [ $? -ne 0 ]
 		then
 			error "Cannot bring device ${interface_realdev} UP. Do you have 'ifb' enabled in the kernel?"
@@ -1629,8 +1770,8 @@ interface() {
 	class_ipv6=$interface_ipv6
 	class_name=root
 	
-	[ -f "${FIREQOS_DIR}/${interface_name}.conf" ] && $rm_cmd "${FIREQOS_DIR}/${interface_name}.conf"
-	$cat_cmd >"${FIREQOS_DIR}/${interface_name}.conf" <<EOF
+	[ -f "${FIREQOS_DIR}/${interface_name}.conf" ] && $RM_CMD "${FIREQOS_DIR}/${interface_name}.conf"
+	$CAT_CMD >"${FIREQOS_DIR}/${interface_name}.conf" <<EOF
 interface_name="$interface_name"
 interface_rate="$interface_rate"
 interface_ceil="$interface_ceil"
@@ -1990,8 +2131,8 @@ class() {
 		# attach a qdisc, if we have to
 		if [ ! "${class_qdisc}" = "none" ]
 		then
-			local qdisc_cmd="dev ${interface_realdev} ${stab} parent ${class_classid} handle ${class_major}: ${qdisc}"
-			tc qdisc add ${qdisc_cmd}
+			local qdisc_command="dev ${interface_realdev} ${stab} parent ${class_classid} handle ${class_major}: ${qdisc}"
+			tc qdisc add ${qdisc_command}
 		fi
 		
 		# if this is the default, make sure we don't added again
@@ -2008,7 +2149,7 @@ class() {
 	[ ${parent_stack_size} -gt 1 ] && local name="${parent_name:0:2}/${class_name}"
 	
 	# save the configuration
-	$cat_cmd >>"${FIREQOS_DIR}/${interface_name}.conf" <<EOF
+	$CAT_CMD >>"${FIREQOS_DIR}/${interface_name}.conf" <<EOF
 class_${ncid}_name="${name}"
 class_${ncid}_path="${parent_path}${class_name}"
 class_${ncid}_dev="${interface_realdev}"
@@ -2024,7 +2165,7 @@ class_${ncid}_qdisc_parent="${class_classid}"
 class_${ncid}_qdisc_handle="${class_major}:"
 class_${ncid}_qdisc_stab="${stab}"
 class_${ncid}_qdisc_options="${qdisc_options}"
-class_${ncid}_qdisc_cmd="${qdisc_cmd}"
+class_${ncid}_qdisc_command="${qdisc_command}"
 class_${ncid}_group="${class_group}"
 EOF
 	
@@ -2369,8 +2510,8 @@ match() {
 		local c=
 		for c in ${interface_classes}
 		do
-			local cn="`echo $c | ${cut_cmd} -d '|' -f 1`"
-			local cf="`echo $c | ${cut_cmd} -d '|' -f 2`"
+			local cn="`echo $c | ${CUT_CMD} -d '|' -f 1`"
+			local cf="`echo $c | ${CUT_CMD} -d '|' -f 2`"
 			
 			if [ "${class}" = "${cn}" ]
 			then
@@ -2397,8 +2538,8 @@ match() {
 				local c=
 				for c in ${interface_classes}
 				do
-					local cn="`echo $c | ${cut_cmd} -d '|' -f 1`"
-					local cf="`echo $c | ${cut_cmd} -d '|' -f 2`"
+					local cn="`echo $c | ${CUT_CMD} -d '|' -f 1`"
+					local cf="`echo $c | ${CUT_CMD} -d '|' -f 2`"
 					
 					if [ "${class}" = "${cn}" ]
 					then
@@ -2516,7 +2657,7 @@ match() {
 				proto_arg="match ip${ipvx} protocol ${tproto} 0xff"
 				;;
 			
-			*)	pid=`${cat_cmd} /etc/protocols | ${egrep_cmd} -i "^${tproto}[[:space:]]" | tail -n 1 | ${sed_cmd} "s/[[:space:]]\+/ /g" | ${cut_cmd} -d ' ' -f 2`
+			*)	pid=`${CAT_CMD} /etc/protocols | ${EGREP_CMD} -i "^${tproto}[[:space:]]" | tail -n 1 | ${SED_CMD} "s/[[:space:]]\+/ /g" | ${CUT_CMD} -d ' ' -f 2`
 				if [ -z "${pid}" ]
 				then
 					error "Cannot find protocol '${tproto}' in /etc/protocols."
@@ -2587,7 +2728,7 @@ match() {
 			all)	port_arg="match ip${ipvx} ${mtport} 0 0x0000"
 				;;
 			
-			*)	mportmask=`echo ${tport} | ${tr_cmd} "/" " "`
+			*)	mportmask=`echo ${tport} | ${TR_CMD} "/" " "`
 				port_arg="match ip${ipvx} ${mtport} ${mportmask}"
 				;;
 		esac
@@ -2601,7 +2742,7 @@ match() {
 			all)	sport_arg="match ip${ipvx} sport 0 0x0000"
 				;;
 			
-			*)	mportmask=`echo ${tsport} | ${tr_cmd} "/" " "`
+			*)	mportmask=`echo ${tsport} | ${TR_CMD} "/" " "`
 				sport_arg="match ip${ipvx} sport ${mportmask}"
 				;;
 		esac
@@ -2615,7 +2756,7 @@ match() {
 			all)	dport_arg="match ip${ipvx} dport 0 0x0000"
 				;;
 			
-			*)	mportmask=`echo ${tdport} | $tr_cmd "/" " "`
+			*)	mportmask=`echo ${tdport} | $TR_CMD "/" " "`
 				dport_arg="match ip${ipvx} dport ${mportmask}"
 				;;
 		esac
@@ -2659,8 +2800,8 @@ match() {
 				;;
 			
 			*)
-				tos_value="`echo "${ttos}/" | ${cut_cmd} -d '/' -f 1`"
-				tos_mask="`echo "${ttos}/" | ${cut_cmd} -d '/' -f 2`"
+				tos_value="`echo "${ttos}/" | ${CUT_CMD} -d '/' -f 1`"
+				tos_mask="`echo "${ttos}/" | ${CUT_CMD} -d '/' -f 2`"
 				[ -z "${tos_mask}" ] && tos_mask="0xff"
 				
 				if [ -z "${tos_value}" ]
@@ -2697,8 +2838,8 @@ match() {
 		smac_arg=
 		if [ ! "${smac}" = "any" ]
 		then
-			sm1=`echo "${smac}" | cut -b 1-8`
-			sm2=`echo "${smac}" | cut -b 9-12`
+			sm1=`echo "${smac}" | $CUT_CMD -b 1-8`
+			sm2=`echo "${smac}" | $CUT_CMD -b 9-12`
 			smac_arg="u32"
 			test ! -z "${ether_type}" && smac_arg="${smac_arg} match u16 ${ether_type} 0xFFFF at -2"
 			smac_arg="${smac_arg} match u16 0x${sm2} 0xFFFF at -4 match u32 0x${sm1} 0xFFFFFFFF at -8"
@@ -2709,8 +2850,8 @@ match() {
 		dmac_arg=
 		if [ ! "${dmac}" = "any" ]
 		then
-			dm1=`echo "${dmac}" | cut -b 1-4`
-			dm2=`echo "${dmac}" | cut -b 5-12`
+			dm1=`echo "${dmac}" | $CUT_CMD -b 1-4`
+			dm2=`echo "${dmac}" | $CUT_CMD -b 5-12`
 			dmac_arg="u32"
 			test ! -z "${ether_type}" && dmac_arg="${dmac_arg} match u16 ${ether_type} 0xFFFF at -2"
 			dmac_arg="${dmac_arg} match u32 0x${dm2} 0xFFFFFFFF at -12 match u16 0x${dm1} 0xFFFF at -14"
@@ -2783,14 +2924,14 @@ clear_everything() {
 			found=0
 			if [ -f "${FIREQOS_DIR}/ifaces/${iface}-ifb" ]
 			then
-				fqifaces="${fqifaces} `${cat_cmd} ${FIREQOS_DIR}/ifaces/${iface}-ifb`"
+				fqifaces="${fqifaces} `${CAT_CMD} ${FIREQOS_DIR}/ifaces/${iface}-ifb`"
 				ifaces="${ifaces} ${iface}-ifb"
 				ifbs="${ifbs} ${iface}-ifb"
 				found=1
 			fi
 			if [ -f "${FIREQOS_DIR}/ifaces/${iface}" ]
 			then
-				fqifaces="${fqifaces} `${cat_cmd} ${FIREQOS_DIR}/ifaces/${iface}`"
+				fqifaces="${fqifaces} `${CAT_CMD} ${FIREQOS_DIR}/ifaces/${iface}`"
 				ifaces="${ifaces} ${iface}"
 				found=1
 			fi
@@ -2800,8 +2941,8 @@ clear_everything() {
 		done
 	else
 		fqifaces="`fireqos_active_interfaces`"
-		ifaces="`ls ${FIREQOS_DIR}/ifaces/ 2>/dev/null`"
-		ifbs="`ls ${FIREQOS_DIR}/ifbs/ 2>/dev/null`"
+		ifaces="`$LS_CMD ${FIREQOS_DIR}/ifaces/ 2>/dev/null`"
+		ifbs="`$LS_CMD ${FIREQOS_DIR}/ifbs/ 2>/dev/null`"
 	fi
 
 	echo >&2 
@@ -2817,9 +2958,9 @@ clear_everything() {
 		echo >&2 "cleared traffic control"
 		
 		# remove existing qdisc from all devices
-		runcmd ${tc_cmd} qdisc del dev ${iface} ingress >/dev/null 2>&1
-		runcmd ${tc_cmd} qdisc del dev ${iface} root >/dev/null 2>&1
-		$rm_cmd "${FIREQOS_DIR}/ifaces/${iface}"
+		runcmd ${TC_CMD} qdisc del dev ${iface} ingress >/dev/null 2>&1
+		runcmd ${TC_CMD} qdisc del dev ${iface} root >/dev/null 2>&1
+		$RM_CMD "${FIREQOS_DIR}/ifaces/${iface}"
 	done
 	
 	# remove IFB devices
@@ -2830,8 +2971,8 @@ clear_everything() {
 		printf >&2 " %16.16s: " ${iface}
 		echo >&2 "removed IFB device"
 		
-		runcmd ${ip_cmd} link del dev ${iface} name ${iface} type ifb >/dev/null 2>&1
-		${rm_cmd} "${FIREQOS_DIR}/ifbs/${iface}"
+		runcmd ${IP_CMD} link del dev ${iface} name ${iface} type ifb >/dev/null 2>&1
+		${RM_CMD} "${FIREQOS_DIR}/ifbs/${iface}"
 	done
 	
 	# remove FireQOS run status
@@ -2840,7 +2981,7 @@ clear_everything() {
 		printf >&2 " %16.16s: " ${iface}
 		echo >&2 "cleared status info"
 		
-		$rm_cmd ${FIREQOS_DIR}/${iface}.conf
+		$RM_CMD ${FIREQOS_DIR}/${iface}.conf
 	done
 	
 	echo >&2 
@@ -2855,7 +2996,7 @@ clear_all_qos_on_all_interfaces() {
 	echo >&2 
 	
 	local dev=
-	for dev in `${cat_cmd} /proc/net/dev | ${grep_cmd} ':' |  ${cut_cmd} -d ':' -f 1 | ${sed_cmd} "s/ //g" | ${grep_cmd} -v "^lo$"`
+	for dev in `${CAT_CMD} /proc/net/dev | ${GREP_CMD} ':' |  ${CUT_CMD} -d ':' -f 1 | ${SED_CMD} "s/ //g" | ${GREP_CMD} -v "^lo$"`
 	do
 		printf >&2 " %16.16s: " ${dev}
 		echo >&2 "cleared traffic control"
@@ -2874,7 +3015,7 @@ clear_all_qos_on_all_interfaces() {
 		cd ${FIREQOS_DIR}
 		if [ $? -eq 0 ]
 		then
-			${rm_cmd} interfaces *.conf 2>/dev/null
+			${RM_CMD} interfaces *.conf 2>/dev/null
 		fi
 		echo >&2 " - cleared FireQOS status"
 	fi
@@ -2907,9 +3048,9 @@ show_interfaces() {
 FIREQOS_STATS_ID="stats.$$.${RANDOM}"
 cleanup_stats() {
 	local x=
-	for x in `ls ${FIREQOS_DIR}/${FIREQOS_STATS_ID}.* 2>/dev/null`
+	for x in `$LS_CMD ${FIREQOS_DIR}/${FIREQOS_STATS_ID}.* 2>/dev/null`
 	do
-		${rm_cmd} ${x}
+		${RM_CMD} ${x}
 	done
 }
 
@@ -2927,12 +3068,12 @@ stats_colors() {
 htb_stats() {
 	local x=
 	
-	require_cmd awk || exit 1
+	require_cmd awk
 	
 	trap cleanup_stats EXIT
 	trap cleanup_stats SIGHUP
 
-	if [ `date +%N` = "%N" ]
+	if [ `$DATE_CMD +%N` = "%N" ]
 	then
 		warning "System has low-res time, stats may be inaccurate"
 		FIREQOS_LOWRES_TIMER=1
@@ -3004,7 +3145,7 @@ htb_stats() {
 	esac
 	shift
 	
-	cat >${FIREQOS_DIR}/${FIREQOS_STATS_ID}.stats.awk <<EOF || exit 1
+	$CAT_CMD >${FIREQOS_DIR}/${FIREQOS_STATS_ID}.stats.awk <<EOF || exit 1
 {
 	if( \$2 == "htb" ) {
 		value = \$13;
@@ -3033,8 +3174,8 @@ htb_stats() {
 	}
 }
 EOF
-	awk_script="`cat ${FIREQOS_DIR}/${FIREQOS_STATS_ID}.stats.awk`"
-	$rm_cmd ${FIREQOS_DIR}/${FIREQOS_STATS_ID}.stats.awk
+	awk_script="`$CAT_CMD ${FIREQOS_DIR}/${FIREQOS_STATS_ID}.stats.awk`"
+	$RM_CMD ${FIREQOS_DIR}/${FIREQOS_STATS_ID}.stats.awk
 	
 	# attempt to shrink the list horizontally
 	# find how many digits we need
@@ -3048,7 +3189,7 @@ EOF
 	[ ${resolution} -gt 1 ] && round=$((resolution / 2))
 	
 	getdata() {
-		eval "`${tc_cmd} -s class show dev ${1} | ${tr_cmd} "\n,()" "|   " | ${sed_cmd} \
+		eval "`${TC_CMD} -s class show dev ${1} | ${TR_CMD} "\n,()" "|   " | ${SED_CMD} \
 			-e "s/[^|]|class /||class /g"		\
 			-e "s/ \+/ /g"				\
 			-e "s/ *| */|/g"			\
@@ -3065,13 +3206,13 @@ EOF
 			-e "s/ root / /g"			\
 			-e "s/ parent [0-9]*_[0-9]* / /g"	\
 			-e "s/ leaf [0-9]*_[0-9]* / /g"	|\
-			${awk_cmd} "${awk_script}"`"
+			${AWK_CMD} "${awk_script}"`"
 	}
 	
 	getms() {
-		d=`date +'%s.%N'`
-		s=`echo ${d} | ${cut_cmd} -d '.' -f 1`
-		n=`echo ${d} | ${cut_cmd} -d '.' -f 2 | ${cut_cmd} -b 1-3`
+		d=`$DATE_CMD +'%s.%N'`
+		s=`echo ${d} | ${CUT_CMD} -d '.' -f 1`
+		n=`echo ${d} | ${CUT_CMD} -d '.' -f 2 | ${CUT_CMD} -b 1-3`
 		if [ ${FIREQOS_LOWRES_TIMER} -eq 1 ]
 		then
 			n=000
@@ -3248,21 +3389,21 @@ FIREQOS_MONITOR_ADDED=0
 remove_monitor() {
 	if [ "$FIREQOS_MONITOR_ADDED" -eq 1 ]
 	then
-		runcmd $tc_cmd filter del dev $class_monitor_dev parent $class_monitor_qdisc_handle protocol all prio 1 u32 match u32 0 0 action mirred egress mirror dev fireqos_monitor
-		runcmd $ip_cmd link set dev fireqos_monitor down
-		runcmd $ip_cmd link del dev fireqos_monitor name fireqos_monitor type dummy
+		runcmd $TC_CMD filter del dev $class_monitor_dev parent $class_monitor_qdisc_handle protocol all prio 1 u32 match u32 0 0 action mirred egress mirror dev fireqos_monitor
+		runcmd $IP_CMD link set dev fireqos_monitor down
+		runcmd $IP_CMD link del dev fireqos_monitor name fireqos_monitor type dummy
 		
 		case "$class_monitor_qdisc" in
 			none)	
-					runcmd $tc_cmd qdisc del dev $class_monitor_dev parent $class_monitor_qdisc_parent handle $class_monitor_qdisc_handle htb
+					runcmd $TC_CMD qdisc del dev $class_monitor_dev parent $class_monitor_qdisc_parent handle $class_monitor_qdisc_handle htb
 					;;
 			
 			htb)
 					;;
 			
 			*)
-					runcmd $tc_cmd qdisc del dev $class_monitor_dev parent $class_monitor_qdisc_parent handle $class_monitor_qdisc_handle htb
-					runcmd $tc_cmd qdisc add $class_monitor_qdisc_cmd
+					runcmd $TC_CMD qdisc del dev $class_monitor_dev parent $class_monitor_qdisc_parent handle $class_monitor_qdisc_handle htb
+					runcmd $TC_CMD qdisc add $class_monitor_qdisc_command
 					;;
 		esac
 		
@@ -3272,7 +3413,7 @@ remove_monitor() {
 	
 	echo >&2 "bye..."
 	
-	[ -f "${FIREQOS_LOCK_FILE}" ] && $rm_cmd -f "${FIREQOS_LOCK_FILE}" >/dev/null 2>&1
+	[ -f "${FIREQOS_LOCK_FILE}" ] && $RM_CMD -f "${FIREQOS_LOCK_FILE}" >/dev/null 2>&1
 }
 
 add_monitor() {	
@@ -3289,27 +3430,27 @@ add_monitor() {
 	trap remove_monitor EXIT
 	trap remove_monitor SIGHUP
 	
-	runcmd $modprobe_cmd dummy numdummies=0 >/dev/null 2>&1
-	runcmd $ip_cmd link del dev fireqos_monitor name fireqos_monitor type dummy >/dev/null 2>&1
-	runcmd $ip_cmd link add dev fireqos_monitor name fireqos_monitor type dummy || exit 1
-	runcmd $ip_cmd link set dev fireqos_monitor up || exit 1
+	runcmd $MODPROBE_CMD dummy numdummies=0 >/dev/null 2>&1
+	runcmd $IP_CMD link del dev fireqos_monitor name fireqos_monitor type dummy >/dev/null 2>&1
+	runcmd $IP_CMD link add dev fireqos_monitor name fireqos_monitor type dummy || exit 1
+	runcmd $IP_CMD link set dev fireqos_monitor up || exit 1
 	
 	case "$class_monitor_qdisc" in
 		none)	
-				runcmd $tc_cmd qdisc add dev $class_monitor_dev parent $class_monitor_qdisc_parent handle $class_monitor_qdisc_handle htb || exit 1
+				runcmd $TC_CMD qdisc add dev $class_monitor_dev parent $class_monitor_qdisc_parent handle $class_monitor_qdisc_handle htb || exit 1
  				;;
 		
 		htb)
 				;;
 		
 		*)
-				runcmd $tc_cmd qdisc del $class_monitor_qdisc_cmd || exit 1
-				runcmd $tc_cmd qdisc add dev $class_monitor_dev parent $class_monitor_qdisc_parent handle $class_monitor_qdisc_handle htb || exit 1
+				runcmd $TC_CMD qdisc del $class_monitor_qdisc_command || exit 1
+				runcmd $TC_CMD qdisc add dev $class_monitor_dev parent $class_monitor_qdisc_parent handle $class_monitor_qdisc_handle htb || exit 1
 				;;
 	esac
 	FIREQOS_MONITOR_ADDED=1
 	
-	runcmd $tc_cmd filter add dev $class_monitor_dev parent $class_monitor_qdisc_handle protocol all prio 1 u32 match u32 0 0 action mirred egress mirror dev fireqos_monitor || exit 1
+	runcmd $TC_CMD filter add dev $class_monitor_dev parent $class_monitor_qdisc_handle protocol all prio 1 u32 match u32 0 0 action mirred egress mirror dev fireqos_monitor || exit 1
 	
 	echo "FireQOS: monitor added to device '$class_monitor_dev', class '$class_monitor_classid', qdisc '$class_monitor_qdisc_handle'."
 }
@@ -3332,10 +3473,10 @@ monitor() {
 	local foundflow=
 	for x in $interface_classes_monitor
 	do
-		local name=`echo "$x|" | $cut_cmd -d '|' -f 1`
-		local name2=`echo "$x|" | $cut_cmd -d '|' -f 2`
-		local flow=`echo "$x|" | $cut_cmd -d '|' -f 3`
-		local monitor=`echo "$x|" | $cut_cmd -d '|' -f 4`
+		local name=`echo "$x|" | $CUT_CMD -d '|' -f 1`
+		local name2=`echo "$x|" | $CUT_CMD -d '|' -f 2`
+		local flow=`echo "$x|" | $CUT_CMD -d '|' -f 3`
+		local monitor=`echo "$x|" | $CUT_CMD -d '|' -f 4`
 		
 		if [ "$name" = "$2" -o "$flow" = "$2" -o "$name2" = "$2" -o "$monitor" = "$2" ]
 		then
@@ -3343,7 +3484,7 @@ monitor() {
 			local foundname2="$name2"
 			local foundflow="$flow"
 			local foundmonitor="$monitor"
-			local foundncid="`echo $foundflow | $tr_cmd ":" "_"`"
+			local foundncid="`echo $foundflow | $TR_CMD ":" "_"`"
 			break
 		fi
 	done
@@ -3356,7 +3497,7 @@ monitor() {
 		echo "Use one of the following names, class ids or qdisc handles:"
 		
 		local x=
-		for x in `echo "$interface_classes_monitor" | $tr_cmd ' ' '\n' | $grep_cmd -v "^$"`
+		for x in `echo "$interface_classes_monitor" | $TR_CMD ' ' '\n' | $GREP_CMD -v "^$"`
 		do
 			echo "$x" | (
 				local name=
@@ -3378,7 +3519,7 @@ monitor() {
 	shift 2
 	
 	# make all class variables available as class_monitor_*
-	eval "`set | grep "^class_${foundncid}_" | sed "s/^class_${foundncid}_/class_monitor_/g"`"
+	eval "`set | $GREP_CMD "^class_${foundncid}_" | $SED_CMD "s/^class_${foundncid}_/class_monitor_/g"`"
 	
 	if [ $class_monitor_group -eq 1 ]
 	then
@@ -3415,18 +3556,18 @@ monitor() {
 		read
 	fi
 	
-	FIREQOS_DEBUG_CMD=1
+	FIREQOS_DEBUG_COMMAND=1
 	echo "Monitoring qdisc '$class_monitor_qdisc_handle' for class '$class_monitor_path' ($class_monitor_classid)..."
 	add_monitor || exit 1
 	
 	echo
-	runcmd $tcpdump_cmd -i fireqos_monitor "${@}"
+	runcmd $TCPDUMP_CMD -i fireqos_monitor "${@}"
 	echo
 	
 	# add_monitor() adds a trap that will remove the monitor on exit
 }
 
-$cat_cmd >&2 <<EOF
+$CAT_CMD >&2 <<EOF
 FireQOS $VERSION
 (C) 2013-2014 Costa Tsaousis, GPL
 
@@ -3584,26 +3725,26 @@ fi
 
 if [ ! -d "${FIREQOS_DIR}" ]
 then
-	$mkdir_cmd -p "${FIREQOS_DIR}" || exit 1
+	$MKDIR_CMD -p "${FIREQOS_DIR}" || exit 1
 fi
 if [ ! -d "${FIREQOS_DIR}/ifbs" ]
 then
-	$mkdir_cmd -p "${FIREQOS_DIR}/ifbs" || exit 1
+	$MKDIR_CMD -p "${FIREQOS_DIR}/ifbs" || exit 1
 fi
 if [ ! -d "${FIREQOS_DIR}/ifaces" ]
 then
-	$mkdir_cmd -p "${FIREQOS_DIR}/ifaces" || exit 1
+	$MKDIR_CMD -p "${FIREQOS_DIR}/ifaces" || exit 1
 fi
 
 FIREQOS_DEFAULT_QDISC="fq_codel"
 FIREQOS_DEFAULT_QDISC_OPTIONS="default"
 
 # check if this system has fq_codel
-runcmd $modprobe_cmd sch_$FIREQOS_DEFAULT_QDISC >/dev/null 2>&1
+runcmd $MODPROBE_CMD sch_$FIREQOS_DEFAULT_QDISC >/dev/null 2>&1
 [ $? -ne 0 ] && FIREQOS_DEFAULT_QDISC="codel"
 
 # check if this system has codel
-runcmd $modprobe_cmd sch_$FIREQOS_DEFAULT_QDISC >/dev/null 2>&1
+runcmd $MODPROBE_CMD sch_$FIREQOS_DEFAULT_QDISC >/dev/null 2>&1
 [ $? -ne 0 ] && FIREQOS_DEFAULT_QDISC="sfq"
 
 # make sure we are not running in parallel
@@ -3616,7 +3757,7 @@ trap fireqos_exit SIGHUP
 trap fireqos_exit INT
 
 # load the IFB kernel module
-runcmd $modprobe_cmd ifb numifbs=0 >/dev/null 2>&1
+runcmd $MODPROBE_CMD ifb numifbs=0 >/dev/null 2>&1
 
 # Run the configuration
 enable -n trap					# Disable the trap buildin shell command.

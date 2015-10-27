@@ -83,6 +83,12 @@ else
   find "$@" -type f -name '*.conf' | sort > $MYTMP/all-tests
 fi
 
+kcov=`which kcov 2> /dev/null`
+if [ "$kcov" ]
+then
+  kcov="$kcov --bash-method=PS4 coverage"
+fi
+
 newext() {
   echo "$2" | sed -e "s;\.conf$;.$1;"
 }
@@ -229,11 +235,11 @@ do
       # Or just take the defaults
       case $program in
         fireqos)
-          "$script" "$conf" start > "$runlog" 2>&1 < /dev/null
+          PATH= $kcov "$script" "$conf" start > "$runlog" 2>&1 < /dev/null
           status=$?
         ;;
         firehol)
-          PATH= "$script" "$conf" start > "$runlog" 2>&1 < /dev/null
+          PATH= $kcov "$script" "$conf" start > "$runlog" 2>&1 < /dev/null
           status=$?
         ;;
         link-balancer)
@@ -277,8 +283,9 @@ do
         ;;
         fireqos)
           sudo tc qdisc show dev veth0 > "$outqdisc"
-          sudo tc class show dev veth0 > "$outclass"
+          sudo tc class show dev veth0 > "$outclass".raw
           sudo tc filter show dev veth0 > "$outfilter"
+          tools/clean-class "$outclass".raw > "$outclass"
           if ! cmp "$audqdisc" "$outqdisc"
           then
             errors=$((errors + 1))
@@ -300,6 +307,7 @@ do
 
   if [ "${SUDO_USER}" ]
   then
+    test -d "coverage" && chown -R "${SUDO_USER}" "coverage"
     test -f "$runlog" && chown -R "${SUDO_USER}" "$runlog"
     test -f "$out4" && chown -R "${SUDO_USER}" "$out4"
     test -f "$out6" && chown -R "${SUDO_USER}" "$out6"

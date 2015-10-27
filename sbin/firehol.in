@@ -1028,11 +1028,11 @@ Y|PAGER_CMD|@PAGER@|less more pager cat
 Y|RENICE_CMD|@RENICE@|renice :
 Y|STTY_CMD|@STTY@|stty :
 N|ZCAT_CMD|@ZCAT@|zcat gzcat "gzip -dc"
-N|MODPROBE_CMD|@INSMOD@|'modprobe -q' insmod
+N|MODPROBE_CMD|@MODPROBE@|'modprobe -q' insmod
 N|IP_CMD|@IP@|ip
 N|SS_CMD|@SS@|ss
 N|DATE_CMD|@DATE@|date
-N|HOSTNAME_CMD|@HOSTNAME@|hostname
+N|HOSTNAME_CMD|@HOSTNAMECMD@|hostname
 N|TPUT_CMD|@TPUT@|tput
 Y|WC_CMD|@WC@|wc
 !
@@ -1041,9 +1041,10 @@ RUNNING_ON_TERMINAL=0
 if [ "z$1" = "z-nc" ]
 then
 	shift
-else
+elif [ ! -z "$TPUT_CMD" ]
+then
 	test -t 2 && RUNNING_ON_TERMINAL=1
-	if [ -t 2 -a $[$(tput colors 2>/dev/null)] -ge 8 ]
+	if [ -t 2 -a $[$($TPUT_CMD colors 2>/dev/null)] -ge 8 ]
 	then
 		# Enable colors
 		COLOR_RESET="\e[0m"
