@@ -62,7 +62,10 @@ fi
 FIREHOL_CONFIG_DIR=$(eval echo "$sysconfdir/firehol" | sed -e 's|^NONE|/usr/local|')
 AC_SUBST(FIREHOL_CONFIG_DIR)
 
-AX_NEED_AWK()
+AX_CHECK_PROG([GAWK], [gawk], [])
+AX_CHECK_PROG([GAWK], [mawk], [])
+AX_CHECK_PROG([GAWK], [nawk], [])
+AX_NEED_PROG([GAWK], [awk], [])
 AX_NEED_PROG([CAT], [cat], [])
 AX_NEED_PROG([TAIL], [tail], [])
 AX_NEED_PROG([CHMOD], [chmod], [])

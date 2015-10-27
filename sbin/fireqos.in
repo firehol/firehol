@@ -278,7 +278,7 @@ Y|LOGGER_CMD|@LOGGER@|logger
 Y|MKDIR_CMD|@MKDIR@|mkdir
 Y|RM_CMD|@RM@|rm
 Y|TC_CMD|@TC@|tc
-N|AWK_CMD|@AWK@|gawk awk
+N|GAWK_CMD|@GAWK@|gawk awk
 N|TCPDUMP_CMD|@TCPDUMP@|tcpdump
 Y|SEQ_CMD|@SEQ@|seq
 Y|LS_CMD|@LS@|ls
@@ -3206,7 +3206,7 @@ EOF
 			-e "s/ root / /g"			\
 			-e "s/ parent [0-9]*_[0-9]* / /g"	\
 			-e "s/ leaf [0-9]*_[0-9]* / /g"	|\
-			${AWK_CMD} "${awk_script}"`"
+			${GAWK_CMD} "${awk_script}"`"
 	}
 	
 	getms() {
