@@ -99,6 +99,17 @@ then
   cat /tmp/staged-sbin-firehol.problem-lines.$$
 fi
 
+grep "^[YN]|" /tmp/staged-sbin-firehol.in$$ > /tmp/staged-sbin-firehol.cmd$$
+for cmd in $(tr " " "\n" < /tmp/staged-sbin-firehol.in$$ |
+             sed -n -e 's/.*\(\<[A-Z_]*_CMD\).*/\1/p' | sort | uniq)
+do
+  if ! grep -q "^[YN]|$cmd|" /tmp/staged-sbin-firehol.cmd$$
+  then
+    status=1
+    echo "Missing definition of $cmd in firehol.in detection table."
+  fi
+done
+
 
 rm -f /tmp/staged-*.$$
 
