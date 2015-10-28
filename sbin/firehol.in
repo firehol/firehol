@@ -46,8 +46,8 @@ get_version() {
 	for i in ${@}
 	do
 		case "$i" in
-			*[0-9].[0.9]*)
-				echo "$i" | sed -e 's/^v//'
+			*[0-9].[0-9]*)
+				echo "$i" | $SED_CMD -e 's/^v//'
 				return 0
 			;;
 			commit-[0-9a-zA-Z]*)
@@ -58,7 +58,6 @@ get_version() {
 	echo "$ver"
 	return 0
 }
-VERSION=$(get_version)
 
 emit_version() {
 	${CAT_CMD} <<EOF
@@ -1036,6 +1035,8 @@ N|HOSTNAME_CMD|@HOSTNAMECMD@|hostname
 N|TPUT_CMD|@TPUT@|tput
 Y|WC_CMD|@WC@|wc
 !
+
+VERSION=$(get_version)
 
 RUNNING_ON_TERMINAL=0
 if [ "z$1" = "z-nc" ]

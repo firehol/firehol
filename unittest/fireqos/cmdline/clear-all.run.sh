@@ -1,6 +1,6 @@
 #!/bin/sh
 
-$script clear_all_qos
+$kcov $script clear_all_qos
 status=$?
 if [ $status -eq 0 ]
 then

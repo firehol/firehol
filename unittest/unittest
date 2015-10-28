@@ -86,7 +86,7 @@ fi
 kcov=`which kcov 2> /dev/null`
 if [ "$kcov" ]
 then
-  kcov="$kcov --bash-method=PS4 coverage"
+  export kcov="$kcov coverage"
 fi
 
 newext() {
@@ -229,7 +229,7 @@ do
     if [ -x "$run_sh" ]
     then
       # We can control completely with a testname.pre.sh
-      "$run_sh" "$conf" > "$runlog" 2>&1 < /dev/null
+      PATH= "$run_sh" "$conf" > "$runlog" 2>&1 < /dev/null
       status=$?
     else
       # Or just take the defaults

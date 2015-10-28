@@ -47,7 +47,7 @@ get_version() {
 	for i in $@
 	do
 		case "$i" in
-			*[0-9].[0.9]*)
+			*[0-9].[0-9]*)
 				echo "$i" | $SED_CMD -e 's/^v//'
 				return 0
 			;;
@@ -59,7 +59,6 @@ get_version() {
 	echo "$ver"
 	return 0
 }
-VERSION=$(get_version)
 
 # Make sure we don't get localized results
 export LC_ALL=C
@@ -287,6 +286,8 @@ Y|LS_CMD|@LS@|ls
 Y|DATE_CMD|@DATE@|date
 !
 
+VERSION=$(get_version)
+
 RUNNING_ON_TERMINAL=0
 if [ "z$1" = "z-nc" ]
 then
@@ -294,7 +295,7 @@ then
 elif [ ! -z "$TPUT_CMD" ]
 then
 	test -t 2 && RUNNING_ON_TERMINAL=1
-	if [ -t 2 -a $[$(TPUT_COMMAND colors 2>/dev/null)] -ge 8 ]
+	if [ -t 2 -a $[$(TPUT_CMD colors 2>/dev/null)] -ge 8 ]
 	then
 		# Enable colors
 		COLOR_RESET="\e[0m"

@@ -1,6 +1,6 @@
 #!/bin/sh
 
-$script panic
+$kcov $script panic
 status=$?
 if [ $status -eq 1 ]
 then

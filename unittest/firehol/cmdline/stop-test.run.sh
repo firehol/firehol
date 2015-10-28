@@ -1,6 +1,6 @@
 #!/bin/sh
 
-$script stop
+$kcov $script stop
 status=$?
 if [ $status -eq 0 ]
 then
