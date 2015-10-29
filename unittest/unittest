@@ -78,7 +78,7 @@ export TESTDIR
 
 if [ $# -eq 1 -a "$1" = "all" ]
 then
-  find firehol fireqos link-balancer -type f -name '*.conf' | sort > $MYTMP/all-tests
+  find firehol fireqos link-balancer vnetbuild -type f -name '*.conf' | sort > $MYTMP/all-tests
 else
   find "$@" -type f -name '*.conf' | sort > $MYTMP/all-tests
 fi
@@ -180,6 +180,11 @@ do
   export audclass=$(newext class.aud $conf)
   export audfilter=$(newext filter.aud $conf)
 
+  export outrules=$(newext rules.out $conf)
+  export outtable=$(newext table.out $conf)
+  export audrules=$(newext rules.aud $conf)
+  export audtable=$(newext table.aud $conf)
+
   case $conf in
     firehol*)
       clear_iptables
@@ -190,6 +195,9 @@ do
     ;;
     link-balancer*)
       program=link-balancer
+    ;;
+    vnetbuild*)
+      program=vnetbuild
     ;;
     *)
       program=
@@ -234,17 +242,13 @@ do
     else
       # Or just take the defaults
       case $program in
-        fireqos)
-          PATH= $kcov "$script" "$conf" start > "$runlog" 2>&1 < /dev/null
-          status=$?
-        ;;
-        firehol)
+        firehol|fireqos|vnetbuild)
           PATH= $kcov "$script" "$conf" start > "$runlog" 2>&1 < /dev/null
           status=$?
         ;;
         link-balancer)
           cp "$conf" /etc/firehol/link-balancer.conf
-          "$script" > "$runlog" 2>&1 < /dev/null
+          $kcov "$script" > "$runlog" 2>&1 < /dev/null
           status=$?
         ;;
       esac
@@ -282,9 +286,9 @@ do
           fi
         ;;
         fireqos)
-          sudo tc qdisc show dev veth0 > "$outqdisc"
-          sudo tc class show dev veth0 > "$outclass".raw
-          sudo tc filter show dev veth0 > "$outfilter"
+          tc qdisc show dev veth0 > "$outqdisc"
+          tc class show dev veth0 > "$outclass".raw
+          tc filter show dev veth0 > "$outfilter"
           tools/clean-class "$outclass".raw > "$outclass"
           if ! cmp "$audqdisc" "$outqdisc"
           then
@@ -298,8 +302,19 @@ do
           fi
         ;;
         link-balancer)
-          # TODO - dump running config
-          :
+          ip rule list > "$outrules"
+          for n in $(ip rule list | sed -ne 's/.*lookup //p' | sort -n)
+          do
+            echo "===== TABLE $n ====="
+            ip route list table $n
+          done > "$outtable"
+          if ! cmp "$audrules" "$outrules"
+          then
+            errors=$((errors + 1))
+          elif ! cmp "$audtable" "$outtable"
+          then
+            errors=$((errors + 1))
+          fi
         ;;
       esac
     fi

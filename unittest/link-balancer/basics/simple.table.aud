@@ -1,0 +1,22 @@
+===== TABLE default =====
+===== TABLE local =====
+broadcast 10.0.0.0 dev veth0  proto kernel  scope link  src 10.0.0.1 
+local 10.0.0.1 dev veth0  proto kernel  scope host  src 10.0.0.1 
+broadcast 10.0.0.255 dev veth0  proto kernel  scope link  src 10.0.0.1 
+broadcast 10.0.1.0 dev veth1  proto kernel  scope link  src 10.0.1.1 
+local 10.0.1.1 dev veth1  proto kernel  scope host  src 10.0.1.1 
+broadcast 10.0.1.255 dev veth1  proto kernel  scope link  src 10.0.1.1 
+===== TABLE main =====
+default 
+	nexthop via 10.0.0.254  dev veth0 weight 250
+	nexthop via 10.0.1.254  dev veth1 weight 150
+10.0.0.0/24 dev veth0  proto kernel  scope link  src 10.0.0.1 
+10.0.1.0/24 dev veth1  proto kernel  scope link  src 10.0.1.1 
+===== TABLE 2 =====
+default via 10.0.0.254 dev veth0 
+10.0.0.0/24 dev veth0  proto kernel  scope link  src 10.0.0.1 
+10.0.1.0/24 dev veth1  proto kernel  scope link  src 10.0.1.1 
+===== TABLE 3 =====
+default via 10.0.1.254 dev veth1 
+10.0.0.0/24 dev veth0  proto kernel  scope link  src 10.0.0.1 
+10.0.1.0/24 dev veth1  proto kernel  scope link  src 10.0.1.1 
