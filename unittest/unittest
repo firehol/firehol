@@ -1,6 +1,7 @@
 #!/bin/bash
 
 haderror=""
+umount=0
 
 if [ "`id -r -u`" != "0" ]
 then
@@ -25,6 +26,9 @@ fi
 
 if [ "$1" = "-inns" ]
 then
+  # See http://unix.stackexchange.com/questions/31050/problem-with-mount-namespaces-under-fedora
+  mount -o bind /etc/firehol /etc/firehol
+  mount --make-private /etc/firehol
   mount -t tmpfs tmpfs /etc/firehol
   if [ -f /etc/firehol/firehol.conf \
     -o -f /etc/firehol/firehol-defaults.conf \
@@ -36,6 +40,7 @@ then
     exit 1
   else
     echo "Running in separate namespace"
+    umount=1
     ip link add veth0 type veth peer name veth1
     shift
   fi
@@ -64,6 +69,10 @@ fi
 ETCSAVE=/etc/firehol.save$$
 
 myexit() {
+  if [ $umount -eq 1 ]
+  then
+    umount /etc/firehol
+  fi
   rm -f /var/run/firehol.lck
   rm -rf $MYTMP
   exit 0
