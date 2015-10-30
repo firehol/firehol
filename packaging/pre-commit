@@ -46,11 +46,28 @@ then
 	exit 1
 fi
 
+git show :packaging/pre-commit > /tmp/staged-packaging-pre-commit$$
+if ! cmp /tmp/staged-packaging-pre-commit$$ .git/hooks/pre-commit >/dev/null 2>&1
+then
+  status=1
+  rm -f /tmp/staged-packaging-pre-commit$$
+  echo "pre-commit differs between packaging and installed versions"
+  echo ""
+  echo "Bring them in line:"
+  echo "  cp packaging/pre-commit .git/hooks/pre-commit"
+  echo ""
+  echo "Or, if you updated the .git version:"
+  echo "  cp .git/hooks/pre-commit packaging/pre-commit"
+  echo "  git add packaging/pre-commit"
+  exit 1
+fi
+
 # Files we will check in their entirety
 git show :ChangeLog > /tmp/staged-ChangeLog.$$
 git show :NEWS > /tmp/staged-NEWS.$$
 git show :sbin/firehol.in > /tmp/staged-sbin-firehol.in$$
 git show :sbin/fireqos.in > /tmp/staged-sbin-fireqos.in$$
+git show :sbin/link-balancer.in > /tmp/staged-sbin-link-balancer.in$$
 git show :configure.ac > /tmp/staged-configure.ac$$
 
 status=0
@@ -116,9 +133,24 @@ then
   cat /tmp/staged-sbin-fireqos.problem-lines.$$
 fi
 
+sed -n -e 's/\("\$[^"}]*_CMD}\).*/\1/' \
+       -e T \
+       -e '/-z *"\$/b' \
+       -e '/\[ *"\$/b' \
+       -e '/= *"\$/b' \
+       -e '/eval *"\$/b' \
+       -e '{=}' \
+       /tmp/staged-sbin-link-balancer.in$$ > /tmp/staged-sbin-link-balancer.problem-lines.$$
+if [ -s /tmp/staged-sbin-link-balancer.problem-lines.$$ ]
+then
+  status=1
+  echo 'Detected use(s) of "${SOMETHING_CMD}" in link-balancer.in. Check lines:'
+  cat /tmp/staged-sbin-link-balancer.problem-lines.$$
+fi
+
 grep "^[YN]|" /tmp/staged-sbin-firehol.in$$ > /tmp/staged-sbin-firehol.cmd$$
 for cmd in $(tr " " "\n" < /tmp/staged-sbin-firehol.in$$ |
-             sed -n -e 's/.*\(\<[A-Z_]*\)_CMD.*/\1/p' | sort | uniq)
+             sed -n -e 's/.*\(\<[A-Z0-9_]*\)_CMD.*/\1/p' | sort | uniq)
 do
   if ! grep -q "^[YN]|${cmd}_CMD|" /tmp/staged-sbin-firehol.cmd$$
   then
@@ -137,7 +169,7 @@ done
 
 grep "^[YN]|" /tmp/staged-sbin-fireqos.in$$ > /tmp/staged-sbin-fireqos.cmd$$
 for cmd in $(tr " " "\n" < /tmp/staged-sbin-fireqos.in$$ |
-             sed -n -e 's/.*\(\<[A-Z_]*\)_CMD.*/\1/p' | sort | uniq)
+             sed -n -e 's/.*\(\<[A-Z0-9_]*\)_CMD.*/\1/p' | sort | uniq)
 do
   if ! grep -q "^[YN]|${cmd}_CMD|" /tmp/staged-sbin-fireqos.cmd$$
   then
@@ -148,6 +180,22 @@ do
   then
     status=1
     echo "Missing detection of $cmd for fireqos.in in configure.ac"
+  fi
+done
+
+grep "^[YN]|" /tmp/staged-sbin-link-balancer.in$$ > /tmp/staged-sbin-link-balancer.cmd$$
+for cmd in $(tr " " "\n" < /tmp/staged-sbin-link-balancer.in$$ |
+             sed -n -e 's/.*\(\<[A-Z0-9_]*\)_CMD.*/\1/p' | sort | uniq)
+do
+  if ! grep -q "^[YN]|${cmd}_CMD|" /tmp/staged-sbin-link-balancer.cmd$$
+  then
+    status=1
+    echo "Missing definition of $cmd in link-balancer.in detection table."
+  fi
+  if ! grep -q "_${cmd}(\|\[$cmd\]" /tmp/staged-configure.ac$$
+  then
+    status=1
+    echo "Missing detection of $cmd for link-balancer.in in configure.ac"
   fi
 done
 

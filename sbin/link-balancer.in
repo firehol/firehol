@@ -49,7 +49,7 @@ get_version() {
 	for i in $@
 	do
 		case "$i" in
-			*[0-9].[0.9]*)
+			*[0-9].[0-9]*)
 				echo "$i" | sed -e 's/^v//'
 				return 0
 			;;
@@ -61,34 +61,6 @@ get_version() {
 	echo "$ver"
 	return 0
 }
-VERSION=$(get_version)
-
-# Enable colors
-if [ -t 2 -a $[$(tput colors 2>/dev/null)] -ge 8 ]
-then
-	COLOR_RESET="\e[0m"
-	COLOR_BLACK="\e[30m"
-	COLOR_RED="\e[31m"
-	COLOR_GREEN="\e[32m"
-	COLOR_YELLOW="\e[33m"
-	COLOR_BLUE="\e[34m"
-	COLOR_PURPLE="\e[35m"
-	COLOR_CYAN="\e[36m"
-	COLOR_WHITE="\e[37m"
-	COLOR_BGBLACK="\e[40m"
-	COLOR_BGRED="\e[41m"
-	COLOR_BGGREEN="\e[42m"
-	COLOR_BGYELLOW="\e[43m"
-	COLOR_BGBLUE="\e[44m"
-	COLOR_BGPURPLE="\e[45m"
-	COLOR_BGCYAN="\e[46m"
-	COLOR_BGWHITE="\e[47m"
-	COLOR_BOLD="\e[1m"
-	COLOR_DIM="\e[2m"
-	COLOR_UNDERLINED="\e[4m"
-	COLOR_BLINK="\e[5m"
-	COLOR_INVERTED="\e[7m"
-fi
 
 # Make sure only root can run us.
 if [ ! "${UID}" = 0 ]
@@ -99,43 +71,6 @@ then
 	echo >&2
 	exit 1
 fi
-
-# Check for external commands
-require_cmd() {
-	local c=`which $1 2>/dev/null`
-	
-	eval "${1}_cmd=$c"
-	
-	if [ -z "$c" ]
-	then
-		echo >&2 "Command '$1' is not found in this system."
-		return 1
-	fi
-	return 0
-}
-
-require_cmd ip || exit 1
-require_cmd diff || exit 1
-require_cmd flock || exit 1
-require_cmd grep || exit 1
-require_cmd egrep || exit 1
-require_cmd cut || exit 1
-require_cmd cat || exit 1
-require_cmd sed || exit 1
-require_cmd tr || exit 1
-require_cmd touch || exit 1
-require_cmd logger || exit 1
-require_cmd mkdir || exit 1
-require_cmd chown || exit 1
-require_cmd chmod || exit 1
-require_cmd rm || exit 1
-require_cmd ping || exit 1
-require_cmd ping6 || exit 1
-require_cmd traceroute || exit 1
-require_cmd sort || exit 1
-require_cmd awk || exit 1
-require_cmd mktemp || exit 1
-
 
 declare -a LB_ORIGINAL_ARGS=("${@}")
 LB_DEFAULT_WORKING_DIRECTORY="${PWD}"
@@ -148,51 +83,10 @@ export LC_ALL=C
 # Make sure our generated files cannot be accessed by anyone else.
 umask 077
 
-# if called with the parameter 'boot', create a new screen that
-# will run forever.
-if [ "$1" = "boot" ]
-then
-	shift
-	screen -S 'link-balancer' -d -m "$0" loop "${@}"
-	exit 0
-fi
-
-# if called with the parameter 'loop', run forever.
-if [ "$1" = "loop" ]
-then
-	shift
-	secs="${1}"
-	secs=$[ secs + 1 - 1 ]
-	test "${secs}" = "0" && secs=300
-	shift
-
-	while [ 1 ]
-	do
-		$0 "${@}"
-		echo "Waiting for $secs secs..."
-		sleep $secs
-	done
-	exit 0
-fi
-
 # link-balancer temporary directory.
 # every instance of link-balancer creates a random directory
 # within this one.
 LB_RUN_DIR="/var/run/link-balancer"
-if [ ! -d "${LB_RUN_DIR}" ]
-then
-	$mkdir_cmd -p "${LB_RUN_DIR}" 	|| exit 1
-	$chown_cmd root:root "${LB_RUN_DIR}"	|| exit 1
-	$chmod_cmd 700 "${LB_RUN_DIR}"	|| exit 1
-fi
-
-# get an exclusive lock or wait for it to be available
-LOCKFILE="${LB_RUN_DIR}/link-balancer.lock"
-[ "${FLOCKER}" != "${LOCKFILE}" ] && exec env FLOCKER="${LOCKFILE}" $flock_cmd -e "${LOCKFILE}" "$0" "$@" || :
-
-
-# -----------------------------------------------------------------------------
-# PREPARATIONS
 
 # If this is set to 1, no checks will be made if the gateways are available.
 # All gateways will be assumed active, if their interfaces are found
@@ -228,13 +122,279 @@ LB_CONFIG_DIR="/etc/firehol"
 # Link-balancer main configuration file.
 LB_CONFIG="${LB_CONFIG_DIR}/link-balancer.conf"
 
-# temporary variable
 # takes either 4 or 6 to switch the functions in ipv4 or ipv6
-LB_IPV=
 LB_DEFAULT_IPV=4
 
+if [ -f "${LB_CONFIG_DIR}/firehol-defaults.conf" ]
+then
+	source "${LB_CONFIG_DIR}/firehol-defaults.conf" || exit 1
+fi
+
+# temporary variable (default LB_DEFAULT_IPV=4)
+LB_IPV=
+
+# Load commands link-balancer will need.
+
+which_cmd() {
+	local name="$1"
+	shift
+
+	if [ "$1" = ":" ]
+	then
+		eval $name=":"
+		return 0
+	fi
+
+	unalias $1 >/dev/null 2>&1
+	local cmd=
+	IFS= read cmd <<-EOF
+	$(which $1 2> /dev/null)
+	EOF
+
+	if [ $? -gt 0 -o ! -x "${cmd}" ]
+	then
+		return 1
+	fi
+	shift
+
+	if [ $# -eq 0 ]
+	then
+		eval $name="'${cmd}'"
+	else
+		eval $name="'${cmd} ${@}'"
+	fi
+	return 0
+}
+
+require_cmd() {
+	local var= val= block=1
+
+	if [ "$1" = "-n" ]
+	then
+		block=0
+		shift
+	fi
+
+	var="$1"
+	shift
+
+	eval val=\$\{${var}\}
+	if [ "${val}" ]
+	then
+		local cmd="${val/ */}"
+		if [ ! -x "$cmd" ]
+		then
+			echo >&2
+			if [ $block -eq 0 ]
+			then
+				echo >&2 "WARNING: optional command does not exist or is not executable ($cmd)"
+				echo >&2 "please add or correct $var in firehol-defaults.conf"
+				val=""
+			else
+				echo >&2 "ERROR: required command does not exist or is not executable ($cmd)"
+				echo >&2 "please add or correct $var in firehol-defaults.conf"
+				exit 1
+			fi
+		fi
+
+		# link-balancer calls itself; export our findings so
+		# we do not repeat all of the lookups
+		eval export "$var"
+		return 0
+	elif [ $block -eq 0 ]
+	then
+		eval set -- "$@"
+		for cmd in "$@"
+		do
+			eval "NEED_${var}"="\$NEED_${var}' ${cmd/ */}'"
+		done
+		return 0
+	fi
+
+	if [ $# -eq 0 ]
+	then
+		eval set -- "\$NEED_${var}"
+	fi
+
+	echo >&2
+	echo >&2 "ERROR:	LINK-BALANCER REQUIRES ONE OF THESE COMMANDS:"
+	echo >&2
+	echo >&2 "	${@}"
+	echo >&2
+	echo >&2 "	You have requested the use of a link-balancer"
+	echo >&2 "	feature that requires certain external programs"
+	echo >&2 "	to be installed in the running system."
+	echo >&2
+	echo >&2 "	Please consult your Linux distribution manual to"
+	echo >&2 "	install the package(s) that provide these external"
+	echo >&2 "	programs and retry."
+	echo >&2
+	echo >&2 "	Note that you need an operational 'which' command"
+	echo >&2 "	for link-balancer to find all the external programs it"
+	echo >&2 "	needs. Check it yourself. Run:"
+	echo >&2
+	for x in "${@}"
+	do
+		echo >&2 "	which $x"
+	done
+
+	exit 1
+}
+
+which_all() {
+	local cmd_var="$1"
+
+	eval set -- "$2"
+	for cmd in "$@"
+	do
+		which_cmd $cmd_var $cmd && break
+	done
+}
+
+# Where required = Y, if a command is not found, FireHOL will refuse to run.
+# Where required = N, the command only required when it is actually used
+#
+# If a command is specified in /etc/firehol/firehol-defaults.conf it will
+# be used. Otherwise, if the script has been configured with ./configure
+# the detected versions will be used. If the script has not been configured
+# then the list of possible commands is autodetected.
+while IFS="|" read required cmd_var autoconf possibles
+do
+	if [ "@AUTOCONF_RUN@" = "Y" ]
+	then
+		case "$autoconf" in
+			"@"*) autoconf=""; ;;
+		esac
+	fi
+	eval set_in_defaults=\"\$$cmd_var\"
+	if [ "$set_in_defaults" ]
+	then
+		:
+	elif [ "@AUTOCONF_RUN@" = "Y" -a ! -z "$autoconf" ]
+	then
+		eval $cmd_var=\"$autoconf\"
+	else
+		PATH="/bin:/usr/bin:/sbin:/usr/sbin:$PATH" which_all $cmd_var "$possibles"
+	fi
+	if [ "$required" = "Y" ]
+	then
+		require_cmd $cmd_var $possibles
+	else
+		require_cmd -n $cmd_var $possibles
+	fi
+done <<-!
+Y|IP_CMD|@IP@|ip
+Y|DIFF_CMD|@DIFF@|diff
+Y|FLOCK_CMD|@FLOCK@|flock
+Y|GREP_CMD|@GREP@|grep
+Y|EGREP_CMD|@EGREP@|egrep 'grep -E'
+Y|CUT_CMD|@CUT@|cut
+Y|CAT_CMD|@CAT@|cat
+Y|SED_CMD|@SED@|sed
+Y|TR_CMD|@TR@|tr
+Y|LN_CMD|@LN@|ln
+Y|LS_CMD|@LS@|ls
+Y|SLEEP_CMD|@SLEEP@|sleep
+Y|TOUCH_CMD|@TOUCH@|touch
+Y|LOGGER_CMD|@LOGGER@|logger
+Y|MKDIR_CMD|@MKDIR@|mkdir
+Y|CHOWN_CMD|@CHOWN@|chown
+Y|CHMOD_CMD|@CHMOD@|chmod
+Y|RM_CMD|@RM@|rm
+Y|PING_CMD|@PING@|ping
+Y|PING6_CMD|@PING6@|ping6
+Y|TRACEROUTE_CMD|@TRACEROUTE@|traceroute
+Y|SORT_CMD|@SORT@|sort
+Y|GAWK_CMD|@GAWK@|gawk awk
+Y|MKTEMP_CMD|@MKTEMP@|mktemp
+Y|ENV_CMD|@ENV@|env
+N|WHOIS_CMD|@WHOIS@|whois
+N|JQ_CMD|@JQ@|jq
+N|HEAD_CMD|@HEAD@|head
+N|TPUT_CMD|@TPUT@|tput
+N|WGET_CMD|@WGET@|wget
+N|SCREEN_CMD|@SCREEN@|screen
+Y|AGGREGATE_CMD|@AGGREGATE@|aggregate aggregate-flim cat
+!
+
+VERSION=$(get_version)
+
+RUNNING_ON_TERMINAL=0
+if [ "z$1" = "z-nc" ]
+then
+	shift
+elif [ ! -z "$TPUT_CMD" ]
+then
+	test -t 2 && RUNNING_ON_TERMINAL=1
+	if [ -t 2 -a $[$(TPUT_CMD colors 2>/dev/null)] -ge 8 ]
+	then
+		# Enable colors
+		COLOR_RESET="\e[0m"
+		COLOR_BLACK="\e[30m"
+		COLOR_RED="\e[31m"
+		COLOR_GREEN="\e[32m"
+		COLOR_YELLOW="\e[33m"
+		COLOR_BLUE="\e[34m"
+		COLOR_PURPLE="\e[35m"
+		COLOR_CYAN="\e[36m"
+		COLOR_WHITE="\e[37m"
+		COLOR_BGBLACK="\e[40m"
+		COLOR_BGRED="\e[41m"
+		COLOR_BGGREEN="\e[42m"
+		COLOR_BGYELLOW="\e[43m"
+		COLOR_BGBLUE="\e[44m"
+		COLOR_BGPURPLE="\e[45m"
+		COLOR_BGCYAN="\e[46m"
+		COLOR_BGWHITE="\e[47m"
+		COLOR_BOLD="\e[1m"
+		COLOR_DIM="\e[2m"
+		COLOR_UNDERLINED="\e[4m"
+		COLOR_BLINK="\e[5m"
+		COLOR_INVERTED="\e[7m"
+	fi
+fi
+
+# if called with the parameter 'boot', create a new screen that
+# will run forever.
+if [ "$1" = "boot" ]
+then
+	shift
+	require_cmd SCREEN_CMD
+	$SCREEN_CMD -S 'link-balancer' -d -m "$0" loop "${@}"
+	exit 0
+fi
+
+# if called with the parameter 'loop', run forever.
+if [ "$1" = "loop" ]
+then
+	shift
+	secs="${1}"
+	secs=$[ secs + 1 - 1 ]
+	test "${secs}" = "0" && secs=300
+	shift
+
+	while [ 1 ]
+	do
+		$0 "${@}"
+		echo "Waiting for $secs secs..."
+		$SLEEP_CMD $secs
+	done
+	exit 0
+fi
+
+if [ ! -d "${LB_RUN_DIR}" ]
+then
+	$MKDIR_CMD -p "${LB_RUN_DIR}" 	|| exit 1
+	$CHOWN_CMD root:root "${LB_RUN_DIR}"	|| exit 1
+	$CHMOD_CMD 700 "${LB_RUN_DIR}"	|| exit 1
+fi
+
+# get an exclusive lock or wait for it to be available
+LOCKFILE="${LB_RUN_DIR}/link-balancer.lock"
+[ "${FLOCKER}" != "${LOCKFILE}" ] && exec $ENV_CMD FLOCKER="${LOCKFILE}" $FLOCK_CMD -e "${LOCKFILE}" "$0" "$@" || :
+
 cd "${LB_RUN_DIR}" || exit 1
-LB_DIR="`$mktemp_cmd -d "${LB_RUN_DIR}/temp-XXXXXXXXXX"`" || exit 1
+LB_DIR="`$MKTEMP_CMD -d "${LB_RUN_DIR}/temp-XXXXXXXXXX"`" || exit 1
 
 
 # -----------------------------------------------------------------------------
@@ -245,7 +405,7 @@ declare -A MARKS_MASKS='([connmark]="0x0000003f" [usermark]="0x00001fc0" )'
 declare -A MARKS_MAX='([connmark]="63" [usermark]="127" )'
 declare -A MARKS_SHIFT='([connmark]="0" [usermark]="6" )'
 
-FIREHOL_SPOOL_DIR="/var/spool/firehol"
+FIREHOL_SPOOL_DIR="${FIREHOL_SPOOL_DIR-/var/spool/firehol}"
 if [ -f "${FIREHOL_SPOOL_DIR}/marks.conf" ]
 then
 	source "${FIREHOL_SPOOL_DIR}/marks.conf" || exit 1
@@ -326,7 +486,7 @@ lb_exit() {
 		echo >&2
 		echo >&2 "---------------------------------------------------------------------"
 		echo >&2 "Temporary folder contents:"
-		ls -l "${LB_DIR}/" >&2
+		$LS_CMD -l "${LB_DIR}/" >&2
 
 		for x in "${LB_DIR}"/*
 		do
@@ -335,13 +495,13 @@ lb_exit() {
 			echo >&2 "---------------------------------------------------------------------"
 			echo >&2 "${x}"
 			echo >&2 
-			$cat_cmd >&2 "${x}"
+			$CAT_CMD >&2 "${x}"
 		done
 	fi
 
 	if [ ! -z "${LB_DIR}" -a -d "${LB_DIR}" ]
 	then
-		rm -rf "${LB_DIR}"
+		$RM_CMD -rf "${LB_DIR}"
 	fi
 
 	enable trap
@@ -361,7 +521,7 @@ trap lb_exit INT
 syslog() {
 	if [ ${DRY_RUN} -eq 0 ]
 	then
-		$logger_cmd -p daemon.info -t "LinkBalancer" "${*}"
+		$LOGGER_CMD -p daemon.info -t "LinkBalancer" "${*}"
 	fi
 }
 
@@ -410,7 +570,7 @@ run() {
 	printf >&2 "${COLOR_BOLD}"
 	DEBUGCMDNNL "#" "${FUNCNAME}" "${#FUNCNAME[*]}" "${@}" " ... "
 
-	local tmp="`$mktemp_cmd "${LB_DIR}/run-$$-${RANDOM}-XXXXXXXXXX"`"
+	local tmp="`$MKTEMP_CMD "${LB_DIR}/run-$$-${RANDOM}-XXXXXXXXXX"`"
 	"${@}" >"$tmp" 2>"$tmp.err"
 	local ret=$?
 
@@ -420,9 +580,9 @@ run() {
 	else
 		printf >&2 "${COLOR_RESET}${COLOR_BGRED}${COLOR_WHITE}${COLOR_BOLD}${COLOR_BLINK} FAILED ${COLOR_RESET}\n"
 	fi
-	$cat_cmd >&2 "$tmp.err"
-	$cat_cmd "$tmp"
-	$rm_cmd "$tmp" "$tmp.err"
+	$CAT_CMD >&2 "$tmp.err"
+	$CAT_CMD "$tmp"
+	$RM_CMD "$tmp" "$tmp.err"
 	return $ret
 }
 
@@ -449,7 +609,7 @@ action() {
 }
 
 trim_spaces() {
-	$sed_cmd -e "s/[\t\\ ]\+/ /g" -e "s/ \+$//g" -e "s/^ \+//g"
+	$SED_CMD -e "s/[\t\\ ]\+/ /g" -e "s/ \+$//g" -e "s/^ \+//g"
 }
 
 loadfile() {
@@ -457,7 +617,7 @@ loadfile() {
 
 	cd "${LB_CONFIG_DIR}"
 	test ! -f "${file}" && syslog "WARNING: file '${file}' does not exist."
-	$cat_cmd "${file}" | sed -e "s/#.*$//g" | trim_spaces | $tr_cmd '\n' ' '
+	$CAT_CMD "${file}" | sed -e "s/#.*$//g" | trim_spaces | $TR_CMD '\n' ' '
 	local ret=$?
 	cd "${LB_RUN_DIR}"
 
@@ -521,12 +681,12 @@ get_interface_ips() {
 	test "${LB_IPV}" = "6" && local inet="inet6"
 
 
-	run $ip_cmd -${ipv} addr show dev "$1" |\
+	run $IP_CMD -${ipv} addr show dev "$1" |\
 		trim_spaces |\
-		$grep_cmd "${inet} " |\
-		$cut_cmd -d ' ' -f 2 |\
-		$cut_cmd -d '/' -f 1 |\
-		$tr_cmd '\n' ' '
+		$GREP_CMD "${inet} " |\
+		$CUT_CMD -d ' ' -f 2 |\
+		$CUT_CMD -d '/' -f 1 |\
+		$TR_CMD '\n' ' '
 }
 
 get_interface_routes() {
@@ -541,12 +701,12 @@ get_interface_routes() {
 	local i=
 	for i in ${@}
 	do
-		run $ip_cmd -${ipv} route show dev "${dev}" scope link src "${i}" |\
+		run $IP_CMD -${ipv} route show dev "${dev}" scope link src "${i}" |\
 			trim_spaces |\
-			$cut_cmd -d ' ' -f 1 |\
-			$sed_cmd "s|/${hostnet}||g" |\
-			$grep_cmd -v "/" |\
-			$tr_cmd '\n' ' '
+			$CUT_CMD -d ' ' -f 1 |\
+			$SED_CMD "s|/${hostnet}||g" |\
+			$GREP_CMD -v "/" |\
+			$TR_CMD '\n' ' '
 	done
 }
 
@@ -559,8 +719,8 @@ check_ping() {
 	local src="$2"
 	local dst="$3"
 	
-	local cmd="$ping_cmd"
-	test "${LB_IPV}" = "6" && local cmd="$ping6_cmd"
+	local cmd="$PING_CMD"
+	test "${LB_IPV}" = "6" && local cmd="$PING6_CMD"
 	
 	run $cmd -I ${src} -c ${CHECK_PING_COUNT} -w ${CHECK_PING_WAIT} ${dst} >/dev/null
 	return $?
@@ -575,10 +735,10 @@ check_traceroute() {
 	local src="$2"
 	local dst="$3"
 	
-	local cmd="$traceroute_cmd -4"
-	test "${LB_IPV}" = "6" && local cmd="$traceroute_cmd -6"
+	local cmd="$TRACEROUTE_CMD -4"
+	test "${LB_IPV}" = "6" && local cmd="$TRACEROUTE_CMD -6"
 	
-	local found="`run $cmd -i "${dev}" -r -s ${src} -w ${CHECK_TRACEROUTE_WAIT} -Tn -p ${CHECK_TRACEROUTE_PORT} ${dst} | grep ${dst}`"
+	local found="`run $cmd -i "${dev}" -r -s ${src} -w ${CHECK_TRACEROUTE_WAIT} -Tn -p ${CHECK_TRACEROUTE_PORT} ${dst} | $GREP_CMD ${dst}`"
 	test ! -z "${found}" && return 0
 	return 1
 }
@@ -668,7 +828,7 @@ gateway() {
 	# if we don't have source IPs, find them from the interface
 	if [ -z "${src}" -o "${src}" = "auto" ]
 	then
-		local src="`get_interface_ips "${dev}" | $sort_cmd -u`"
+		local src="`get_interface_ips "${dev}" | $SORT_CMD -u`"
 	fi
 
 	# if we don't have source IPs, cannot proceed
@@ -699,7 +859,7 @@ gateway() {
 	test -z "${dst}" -o "${dst}" = "auto" -o "${dst}" = "detect" -o "${dst}" = "gateway" && local dst="${gw}"
 	test $FORCE_ALWAYSON -eq 1 && local check="alwayson"
 
-	cat <<EOF_GW
+	$CAT_CMD <<EOF_GW
 
     --- GATEWAY CONFIGURATION ----
     Gateway   : ${name}
@@ -778,14 +938,14 @@ get_existing_routing_table() {
 
 	if [ "${LB_IPV}" = "6" ]
 	then
-		run $ip_cmd -6 -o route show table "${table}" |\
+		run $IP_CMD -6 -o route show table "${table}" |\
 			trim_spaces |\
-			$sort_cmd
+			$SORT_CMD
 	else
-		run $ip_cmd -4 -o route show table "${table}" |\
-			$grep_cmd -v " via 127.0.0.1 dev lo" |\
+		run $IP_CMD -4 -o route show table "${table}" |\
+			$GREP_CMD -v " via 127.0.0.1 dev lo" |\
 			trim_spaces |\
-			$sort_cmd
+			$SORT_CMD
 	fi
 }
 
@@ -854,7 +1014,7 @@ table() {
 	fi
 
 	# give a summary to the user
-	cat <<EOF_TABLE
+	$CAT_CMD <<EOF_TABLE
 
     --- TABLE CONFIGURATION ---
     Table       : ${table}
@@ -873,8 +1033,8 @@ EOF_TABLE
 		# tables will get the final routes.
 		# We will also check if the user requested a circular
 		# dependency, and stop processing in this case.
-		ln -s "${LB_DIR}/table.${origin}.routes.${LB_IPV}" "${LB_DIR}/table.${table}.origin_routes.${LB_IPV}"
-		test $copy_default -eq 1 && ln -s "${LB_DIR}/table.${origin}.default.${LB_IPV}" "${LB_DIR}/table.${table}.origin_default.${LB_IPV}"
+		$LN_CMD -s "${LB_DIR}/table.${origin}.routes.${LB_IPV}" "${LB_DIR}/table.${table}.origin_routes.${LB_IPV}"
+		test $copy_default -eq 1 && $LN_CMD -s "${LB_DIR}/table.${origin}.default.${LB_IPV}" "${LB_DIR}/table.${table}.origin_default.${LB_IPV}"
 	fi
 
 	work_table="${table}"
@@ -895,7 +1055,7 @@ EOF_TABLE
 	fi
 
 	# instruct the finalizer to run IPvX tables
-	$touch_cmd "${LB_DIR}/tables.${LB_IPV}"
+	$TOUCH_CMD "${LB_DIR}/tables.${LB_IPV}"
 }
 
 fallback() {
@@ -1003,12 +1163,12 @@ lb_diff_route() {
 
 	case "${cmd}" in
 		add)
-			action $ip_cmd -${LB_IPV} route add table ${table} "${@}" || action $ip_cmd -${LB_IPV} route append table ${table} "${@}"
+			action $IP_CMD -${LB_IPV} route add table ${table} "${@}" || action $IP_CMD -${LB_IPV} route append table ${table} "${@}"
 			return $?
 			;;
 
 		delete)
-			action $ip_cmd -${LB_IPV} route del table ${table} "${@}"
+			action $IP_CMD -${LB_IPV} route del table ${table} "${@}"
 			return $?
 			;;
 
@@ -1056,25 +1216,25 @@ update_table() {
 	# 2. if 'table.${table}.default' or 'table.${table}.origin_default' exist, we set the default gateway
 	# 3. if none of the above is present, we do nothing
 
-	local routing_filter_cmd="$cat_cmd"
+	local routing_filter_cmd="$CAT_CMD"
 	if [ -f "${LB_DIR}/table.${table}.origin_routes.${LB_IPV}" -a \( -f "${LB_DIR}/table.${table}.default.${LB_IPV}" -o -f "${LB_DIR}/table.${table}.fallback.${LB_IPV}" -o -f "${LB_DIR}/table.${table}.origin_default.${LB_IPV}" \) ]
 	then
 		# we do both routes copy and set default gateway
-		routing_filter_cmd="$cat_cmd"
+		routing_filter_cmd="$CAT_CMD"
 
 	elif [ -f "${LB_DIR}/table.${table}.default.${LB_IPV}" -o -f "${LB_DIR}/table.${table}.origin_default.${LB_IPV}" ]
 	then
 		# we should only process default gateway
-		routing_filter_cmd="$grep_cmd ^default"
+		routing_filter_cmd="$GREP_CMD ^default"
 
 	elif [ -f "${LB_DIR}/table.${table}.origin_routes.${LB_IPV}" ]
 	then
 		# we should only copy the routing table without the default gateway
-		routing_filter_cmd="$grep_cmd -v ^default"
+		routing_filter_cmd="$GREP_CMD -v ^default"
 
 	else
 		# process both routes and default gateway
-		routing_filter_cmd="$cat_cmd"
+		routing_filter_cmd="$CAT_CMD"
 
 		# commented due to issue 78
 		# nothing to be done - just return
@@ -1091,17 +1251,17 @@ update_table() {
 	# if we don't have origin, assume the existing is the origin
 	if [ ! -f "${LB_DIR}/table.${table}.origin_routes.${LB_IPV}" ]
 	then
-		$cat_cmd "${LB_DIR}/table.${table}.existing_routing_table.${LB_IPV}" |\
-			$grep_cmd -v ^default >"${LB_DIR}/table.${table}.origin_routes.${LB_IPV}"
+		$CAT_CMD "${LB_DIR}/table.${table}.existing_routing_table.${LB_IPV}" |\
+			$GREP_CMD -v ^default >"${LB_DIR}/table.${table}.origin_routes.${LB_IPV}"
 	fi
 
 	if [ ! -f "${LB_DIR}/table.${table}.origin_default.${LB_IPV}" ]
 	then
-		$cat_cmd "${LB_DIR}/table.${table}.existing_routing_table.${LB_IPV}" |\
-			$grep_cmd -v ^default >"${LB_DIR}/table.${table}.origin_default.${LB_IPV}"
+		$CAT_CMD "${LB_DIR}/table.${table}.existing_routing_table.${LB_IPV}" |\
+			$GREP_CMD -v ^default >"${LB_DIR}/table.${table}.origin_default.${LB_IPV}"
 	fi
 
-	$cat_cmd "${LB_DIR}/table.${table}.existing_routing_table.${LB_IPV}" |\
+	$CAT_CMD "${LB_DIR}/table.${table}.existing_routing_table.${LB_IPV}" |\
 		${routing_filter_cmd} >"${LB_DIR}/table.${table}.existing_routes.${LB_IPV}"
 
 
@@ -1126,47 +1286,47 @@ update_table() {
 	fi
 
 	(
-		$cat_cmd "${LB_DIR}/table.${table}.origin_routes.${LB_IPV}"
+		$CAT_CMD "${LB_DIR}/table.${table}.origin_routes.${LB_IPV}"
 
 		if [ ${gateways} -eq 0 ]
 		then
 			# we don't have a gateway alive
 			# copy the origin default gateway, if we have to
-			$cat_cmd "${LB_DIR}/table.${table}.origin_default.${LB_IPV}"
+			$CAT_CMD "${LB_DIR}/table.${table}.origin_default.${LB_IPV}"
 
 		elif [ ${gateways} -eq 1 ]
 		then
 			# we only have one gateway alive
 
 			printf "default "
-			$cat_cmd "${LB_DIR}/table.${table}.${context}.${LB_IPV}" |\
-				$sed_cmd -e "s/nexthop //g" -e "s/ weight [0-9]\+//g"
+			$CAT_CMD "${LB_DIR}/table.${table}.${context}.${LB_IPV}" |\
+				$SED_CMD -e "s/nexthop //g" -e "s/ weight [0-9]\+//g"
 
 		else
 			# we have many (2+) gateways alive
 
 			printf "default "
-			$cat_cmd "${LB_DIR}/table.${table}.${context}.${LB_IPV}" | $tr_cmd '\n' ' '
+			$CAT_CMD "${LB_DIR}/table.${table}.${context}.${LB_IPV}" | $TR_CMD '\n' ' '
 
 		fi
 	) | trim_spaces |\
-		$sort_cmd >"${LB_DIR}/table.${table}.new_routing_table.${LB_IPV}"
+		$SORT_CMD >"${LB_DIR}/table.${table}.new_routing_table.${LB_IPV}"
 
 	# keep the new routes of our dependands
-	$cat_cmd "${LB_DIR}/table.${table}.new_routing_table.${LB_IPV}" |\
-		$grep_cmd -v ^default >"${LB_DIR}/table.${table}.routes.${LB_IPV}"
+	$CAT_CMD "${LB_DIR}/table.${table}.new_routing_table.${LB_IPV}" |\
+		$GREP_CMD -v ^default >"${LB_DIR}/table.${table}.routes.${LB_IPV}"
 
-	$cat_cmd "${LB_DIR}/table.${table}.new_routing_table.${LB_IPV}" |\
-		$grep_cmd ^default >"${LB_DIR}/table.${table}.default.${LB_IPV}"
+	$CAT_CMD "${LB_DIR}/table.${table}.new_routing_table.${LB_IPV}" |\
+		$GREP_CMD ^default >"${LB_DIR}/table.${table}.default.${LB_IPV}"
 
 	# generate the new routing table for diff
-	$cat_cmd "${LB_DIR}/table.${table}.new_routing_table.${LB_IPV}" |\
+	$CAT_CMD "${LB_DIR}/table.${table}.new_routing_table.${LB_IPV}" |\
 		${routing_filter_cmd} >"${LB_DIR}/table.${table}.new_routes.${LB_IPV}"
 
 	# ---------------------------------------------------------------------
 	# diff magic...
 	# generate a script to process the diffs of the two files
-	$diff_cmd >"${LB_DIR}/table.${table}.script.${LB_IPV}"			\
+	$DIFF_CMD >"${LB_DIR}/table.${table}.script.${LB_IPV}"			\
 		--old-line-format="lb_diff_route delete ${table} %L" 		\
 		--new-line-format="lb_diff_route add ${table} %L" 		\
 		--unchanged-line-format="lb_diff_route same ${table} %L" 	\
@@ -1179,7 +1339,7 @@ update_table() {
 		LB_ALTERED[table.${table}]=1
 
 		local def=0
-		test ! -z "`grep " default " "${LB_DIR}/table.${table}.script.${LB_IPV}"`" && def=1
+		test ! -z "`$GREP_CMD " default " "${LB_DIR}/table.${table}.script.${LB_IPV}"`" && def=1
 		
 		echo >&2 
 		echo >&2 -e "    ${COLOR_YELLOW}${COLOR_BOLD}Updated routing table ${table}!${COLOR_RESET}"
@@ -1234,11 +1394,11 @@ finalize_tables() {
 
 					get_existing_routing_table "${x}" >"${LB_DIR}/table.${x}.existing_routing_table.${LB_IPV}" || exit 1
 
-					$cat_cmd "${LB_DIR}/table.${x}.existing_routing_table" |\
-						$grep_cmd -v ^default >"${LB_DIR}/table.${x}.routes.${LB_IPV}"
+					$CAT_CMD "${LB_DIR}/table.${x}.existing_routing_table" |\
+						$GREP_CMD -v ^default >"${LB_DIR}/table.${x}.routes.${LB_IPV}"
 
-					$cat_cmd "${LB_DIR}/table.${x}.existing_routing_table" |\
-						$grep_cmd ^default >"${LB_DIR}/table.${x}.default.${LB_IPV}"
+					$CAT_CMD "${LB_DIR}/table.${x}.existing_routing_table" |\
+						$GREP_CMD ^default >"${LB_DIR}/table.${x}.default.${LB_IPV}"
 				fi
 
 				unset all[$x]
@@ -1305,7 +1465,7 @@ policy() {
 	else
 		LB_DO_RULES_IPV4=1
 	fi
-	$touch_cmd "${LB_DIR}/rules.${LB_RULES_DEFAULT_IPV}"
+	$TOUCH_CMD "${LB_DIR}/rules.${LB_RULES_DEFAULT_IPV}"
 }
 
 LB_RULE_BASE4=1000
@@ -1335,13 +1495,13 @@ rules() {
 			ipv4)
 				LB_IPV=4
 				LB_DO_RULES_IPV4=1
-				$touch_cmd "${LB_DIR}/rules.${LB_IPV}"
+				$TOUCH_CMD "${LB_DIR}/rules.${LB_IPV}"
 				;;
 
 			ipv6)
 				LB_IPV=6
 				LB_DO_RULES_IPV6=1
-				$touch_cmd "${LB_DIR}/rules.${LB_IPV}"
+				$TOUCH_CMD "${LB_DIR}/rules.${LB_IPV}"
 				;;
 
 			at|lookup|table)
@@ -1459,7 +1619,7 @@ rules() {
 		local base=${LB_RULE_BASE4}
 		LB_DO_RULES_IPV4=1
 	fi
-	$touch_cmd "${LB_DIR}/rules.${LB_IPV}"
+	$TOUCH_CMD "${LB_DIR}/rules.${LB_IPV}"
 
 	# give some space between rules
 	base=$[ ( (base + LB_RULE_STEP) / LB_RULE_STEP ) * LB_RULE_STEP ]
@@ -1558,12 +1718,12 @@ lb_diff_rule() {
 
 	case "${cmd}" in
 		add)
-			action $ip_cmd -${LB_IPV} rule add "${@}"
+			action $IP_CMD -${LB_IPV} rule add "${@}"
 			return $?
 			;;
 
 		delete)
-			action $ip_cmd -${LB_IPV} rule del "${@}"
+			action $IP_CMD -${LB_IPV} rule del "${@}"
 			return $?
 			;;
 
@@ -1575,7 +1735,7 @@ lb_diff_rule() {
 }
 
 normalize_rules() {
-	$sed_cmd -e "s| fwmark 0x\([0-9a-fA-F]\)\([ /]\)| fwmark 0x0\1\2|g" \
+	$SED_CMD -e "s| fwmark 0x\([0-9a-fA-F]\)\([ /]\)| fwmark 0x0\1\2|g" \
 		-e "s| tos 0x\([0-9a-fA-F]\) | tos 0x0\1|g" \
 		-e "s| tos 0x02 | tos mincost |g" \
 		-e "s| tos 0x04 | tos reliability |g" \
@@ -1605,22 +1765,22 @@ finalize_rules() {
 	unset tables[main]
 
 	# get all the rules for all the tables except 'main'
-	run $ip_cmd -${LB_IPV} rule show |\
+	run $IP_CMD -${LB_IPV} rule show |\
 		trim_spaces |\
-		$egrep_cmd -v "^(0|32766|32767)" |\
-		$sed_cmd "s/\(^[0-9]\+\): /priority \1 /g" |\
+		$EGREP_CMD -v "^(0|32766|32767)" |\
+		$SED_CMD "s/\(^[0-9]\+\): /priority \1 /g" |\
 		normalize_rules |\
-		$sort_cmd >"${LB_DIR}/rules.existing.${LB_IPV}"
+		$SORT_CMD >"${LB_DIR}/rules.existing.${LB_IPV}"
 
 	# fix the generated rules, from the rules()
-	$cat_cmd "${LB_DIR}/rules.${LB_IPV}" |\
+	$CAT_CMD "${LB_DIR}/rules.${LB_IPV}" |\
 		trim_spaces |\
 		normalize_rules |\
-		$sort_cmd -u >"${LB_DIR}/rules.new.${LB_IPV}"
+		$SORT_CMD -u >"${LB_DIR}/rules.new.${LB_IPV}"
 
 	# diff magic...
 	# generate a script to process the diffs of the two files
-	$diff_cmd >"${LB_DIR}/rules.script.${LB_IPV}"				\
+	$DIFF_CMD >"${LB_DIR}/rules.script.${LB_IPV}"				\
 		--old-line-format="lb_diff_rule delete ${table} %L" 		\
 		--new-line-format="lb_diff_rule add ${table} %L" 		\
 		--unchanged-line-format="lb_diff_rule same ${table} %L" 	\
@@ -1656,10 +1816,10 @@ updated_rules() {
 # 2. it queries whois for this IP to find its AS.
 # 3. it queries RIPE to get all the IP address space for this AS.
 asips() {
-	test -z "${whois_cmd}" && require_cmd whois
-	test -z "${jq_cmd}" && require_cmd jq
-	test -z "${head_cmd}" && require_cmd head
-	test -z "${wget}" && require_cmd wget
+	require_cmd WHOIS_CMD
+	require_cmd JQ_CMD
+	require_cmd HEAD_CMD
+	require_cmd WGET_CMD
 
 	local ip="${1}"
 
@@ -1670,14 +1830,9 @@ asips() {
 		return 1
 	fi
 
-	# aggregate-flim is a command that aggregates IPv4 IPs
-	local aggregate="`which aggregate 2>/dev/null`"
-	test -z "${aggregate}" && local aggregate="`which aggregate-flim 2>/dev/null`"
-	test -z "${aggregate}" && local aggregate="cat"
-
 	echo >&2 
 	echo >&2 "Querying whois for IP ${ip}..."
-	local as="`whois "${1}" | $grep_cmd "origin:" | trim_spaces | $cut_cmd -d ' ' -f 2 | $grep_cmd ^AS | $head_cmd -n 1`"
+	local as="`$WHOIS_CMD "${1}" | $GREP_CMD "origin:" | trim_spaces | $CUT_CMD -d ' ' -f 2 | $GREP_CMD ^AS | $HEAD_CMD -n 1`"
 	if [ -z "${as}" ]
 	then
 		echo >&2 "Cannot find the Autonomous System of IP '${ip}'."
@@ -1687,18 +1842,18 @@ asips() {
 
 	echo >&2
 	echo >&2 "Querying RIPE for ${as}..."
-	$wget_cmd -O - "https://stat.ripe.net/data/as-routing-consistency/data.json?resource=${as}" |\
-		$jq_cmd .data.prefixes[].prefix |\
-		$sed_cmd -e 's| ||g' -e 's|"||g' |\
-		$egrep_cmd "^[0-9]+\.[0-9]+\.[0-9]+\.[0-9]+/[0-9]+" |\
-		"${aggregate}"
+	$WGET_CMD -O - "https://stat.ripe.net/data/as-routing-consistency/data.json?resource=${as}" |\
+		$JQ_CMD .data.prefixes[].prefix |\
+		$SED_CMD -e 's| ||g' -e 's|"||g' |\
+		$EGREP_CMD "^[0-9]+\.[0-9]+\.[0-9]+\.[0-9]+/[0-9]+" |\
+		$AGGREGATE_CMD
 }
 
 # -----------------------------------------------------------------------------
 # help
 
 emit_version() {
-	cat <<EOF
+	$CAT_CMD <<EOF
 
 FireHOL LinkBalancer $VERSION
 (C) Copyright 2015 Costa Tsaousis <costa@tsaousis.gr>
@@ -1717,7 +1872,7 @@ EOF
 
 help() {
 
-$cat_cmd <<EOFHELP
+$CAT_CMD <<EOFHELP
 Modes:
 
    ${PROGRAM_FILE} boot [seconds]
@@ -1759,7 +1914,7 @@ Modes:
 
 EOFHELP
 
-$cat_cmd >"${LB_CONFIG}.example" <<EOFCONFIG
+$CAT_CMD >"${LB_CONFIG}.example" <<EOFCONFIG
 # Link Balancer Configuration file
 
 # default is IPv4.
