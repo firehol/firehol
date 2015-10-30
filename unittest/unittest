@@ -1,14 +1,24 @@
 #!/bin/bash
 
-haderror=""
-umount=0
+PATH=/usr/bin:/bin:/usr/sbin:/sbin:/usr/local/bin:/usr/local/sbin
 
-if [ "`id -r -u`" != "0" ]
+haderror=""
+
+# We need to be able to create a new user namespace so we can be root
+# in it.
+
+# https://github.com/bazelbuild/bazel/issues/433
+userns_disabled=$(/sbin/sysctl kernel.unprivileged_userns_clone | grep " 0$")
+
+if [ "$userns_disabled" -a "$(id -r -u)" != "0" ]
 then
-  echo "Must be root"
+  echo "Must have userns enabled"
   echo ""
+  echo "To fix it, try:"
+  echo "  sudo sysctl kernel.unprivileged_userns_clone=1"
   haderror="Y"
 fi
+
 
 if [ ! -x tools/clean-iptables ]
 then
@@ -26,10 +36,12 @@ fi
 
 if [ "$1" = "-inns" ]
 then
-  # See http://unix.stackexchange.com/questions/31050/problem-with-mount-namespaces-under-fedora
-  mount -o bind /etc/firehol /etc/firehol
-  mount --make-private /etc/firehol
+  # First set up our namespace so we can write where we need to
   mount -t tmpfs tmpfs /etc/firehol
+  mount -t tmpfs tmpfs /var/run/firehol
+  mount -t tmpfs tmpfs /var/spool/firehol
+
+  # Check the files are gone
   if [ -f /etc/firehol/firehol.conf \
     -o -f /etc/firehol/firehol-defaults.conf \
     -o -f /etc/firehol/fireqos.conf \
@@ -38,24 +50,98 @@ then
   then
     echo "Namespace switch failed! Aborting!"
     exit 1
-  else
-    echo "Running in separate namespace"
-    umount=1
-    ip link add veth0 type veth peer name veth1
-    shift
   fi
+
+  # /proc/net/ip_tables_names is read-only for the real root in kernels
+  # up to and possibly beyond 4.1, so we may not be able to access it.
+  # This file just contains the well known list of tables, depending
+  # on which modules are loaded.
+  # It is relied on by firehol but also by iptables-save and iptables-restore
+  # We recreate the whole of proc using bind mounts, except these two files
+  # which we make with our known values. We then bind our proc over the
+  # original and everything just works...
+  # The amazing thing being that because we are in separate user and
+  # mount namespaces, none of this interferes with the running system
+  # and it all runs as a regular user.
+  # http://lists.linuxfoundation.org/pipermail/containers/2014-June/034682.html
+  # https://lists.linuxcontainers.org/pipermail/lxc-users/2014-November/008099.html
+  if [ ! -r /proc/net/ip_tables_names ]
+  then
+    mkdir /var/run/firehol/proc
+    mkdir /var/run/firehol/proc/net
+    ls /proc | while read name
+    do
+      case $name in
+         $$)
+           mkdir /var/run/firehol/proc/$name
+           mount -o rbind /proc/$name /var/run/firehol/proc/$name
+         ;;
+
+         [0-9]*)
+           :
+         ;;
+
+         net)
+           :
+         ;;
+
+         *)
+           if [ -d /proc/$name ]
+           then
+             mkdir /var/run/firehol/proc/$name
+             mount -o rbind /proc/$name /var/run/firehol/proc/$name
+           else
+             touch /var/run/firehol/proc/$name
+             mount -o rbind /proc/$name /var/run/firehol/proc/$name
+           fi
+         ;;
+      esac
+    done
+
+    ls /proc/net | while read name
+    do
+      if [ "$name" = "ip_tables_names" -o "$name" = "ip6_tables_names" ]
+      then
+        echo "filter" > /var/run/firehol/proc/net/$name
+        echo "nat" >> /var/run/firehol/proc/net/$name
+        echo "mangle" >> /var/run/firehol/proc/net/$name
+        echo "raw" >> /var/run/firehol/proc/net/$name
+        chmod 444 /var/run/firehol/proc/net/$name
+      elif [ -d /proc/net/$name ]
+      then
+        mkdir /var/run/firehol/proc/net/$name
+        mount -o rbind /proc/net/$name /var/run/firehol/proc/net/$name
+      else
+        touch /var/run/firehol/proc/net/$name
+        mount -o rbind /proc/net/$name /var/run/firehol/proc/net/$name
+      fi
+    done
+
+    mount -o rbind  /var/run/firehol/proc /proc
+  fi
+
+  # Check it all worked
+  cat /proc/net/ip_tables_names > /dev/null || exit 1
+  mkdir /var/run/firehol/haveperms || exit 1
+  echo "Running in separate namespace"
+  ip link add veth0 type veth peer name veth1
+  shift
+elif [ "$(id -r -u)" = "0" ]
+then
+  echo "Do not run as root. The unittest system uses user namespaces instead."
+  haderror="Y"
 elif [ ! "$haderror" ]
 then
   echo "Unsharing namespaces"
-  unshare -m -n -- $0 -inns "$@"
+  unshare -m -n -U -r -- $0 -inns "$@"
   exit
 fi
 
 if [ "$haderror" -o $# -lt 1 ]
 then
-  echo "Usage: sudo [--strace] ./unittest all|test-dir|test-dir/test.conf [...]"
+  echo "Usage: ./unittest [--strace] all|test-dir|test-dir/test.conf [...]"
   echo ""
-  echo "Example use of strance: see all non-absolute path executions:"
+  echo "Example use of strace: see all non-absolute path executions:"
   echo "  grep 'execve[^,]*, \[\"[^/]' strace.*.txt | less"
   exit 1
 fi
@@ -72,10 +158,6 @@ fi
 ETCSAVE=/etc/firehol.save$$
 
 myexit() {
-  if [ $umount -eq 1 ]
-  then
-    umount /etc/firehol
-  fi
   rm -f /var/run/firehol.lck
   rm -rf $MYTMP
   exit 0
@@ -243,10 +325,14 @@ do
     #  - egrep because /sbin/egrep makes use of PATH to find 'grep -E'
     #    the unit tests set PATH to empty so we must use the explicit one
     #  - iprange because we want to test with the local version
+    #  - LB_RUN_DIR + FIREQOS_LOCK_FILE + FIREQOS_DIR - keep within our mounts
     #  - PATH reset to ensure it is off (some programs reset it)
     cat > /etc/firehol/firehol-defaults.conf <<-!
 		EGREP_CMD='/bin/grep -E'
 		IPRANGE_CMD='${TESTDIR}../sbin/iprange'
+		LB_RUN_DIR=/var/run/firehol/link-balancer
+		FIREQOS_DIR=/var/run/firehol/fireqos
+		FIREQOS_LOCK_FILE=/var/run/firehol/fireqos.lock
 		export PATH=
 	!
 
@@ -344,17 +430,6 @@ do
         ;;
       esac
     fi
-  fi
-
-  if [ "${SUDO_USER}" ]
-  then
-    test -d "coverage" && chown -R "${SUDO_USER}" "coverage"
-    test -f "strace.1.txt" && chown -R "${SUDO_USER}" "strace.*.txt"
-    test -f "$runlog" && chown -R "${SUDO_USER}" "$runlog"
-    test -f "$out4" && chown -R "${SUDO_USER}" "$out4"
-    test -f "$out6" && chown -R "${SUDO_USER}" "$out6"
-    test -f "$aud4" && chown -R "${SUDO_USER}" "$aud4"
-    test -f "$aud6" && chown -R "${SUDO_USER}" "$aud6"
   fi
 done < $MYTMP/all-tests
 

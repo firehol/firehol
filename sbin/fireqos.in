@@ -71,6 +71,7 @@ PROGRAM_FILE="$0"
 # enabled extended pattern matching in bash
 shopt -s extglob
 
+FIREHOL_CONFIG_DIR=/etc/firehol
 FIREQOS_SYSLOG_FACILITY="daemon"
 FIREQOS_CONFIG=/etc/firehol/fireqos.conf
 FIREQOS_LOCK_FILE=/var/run/fireqos.lock
