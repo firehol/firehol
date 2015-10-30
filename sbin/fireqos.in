@@ -184,9 +184,7 @@ require_cmd() {
 		eval set -- "$@"
 		for cmd in "$@"
 		do
-set -x
 			eval "NEED_${var}"="\$NEED_${var}' ${cmd/ */}'"
-set +x
 		done
 		return 0
 	fi
@@ -197,11 +195,11 @@ set +x
 	fi
 
 	echo >&2
-	echo >&2 "ERROR:	FIREHOL REQUIRES ONE OF THESE COMMANDS:"
+	echo >&2 "ERROR:	FIREQOS REQUIRES ONE OF THESE COMMANDS:"
 	echo >&2
 	echo >&2 "	${@}"
 	echo >&2
-	echo >&2 "	You have requested the use of a FireHOL"
+	echo >&2 "	You have requested the use of a FireQOS"
 	echo >&2 "	feature that requires certain external programs"
 	echo >&2 "	to be installed in the running system."
 	echo >&2
@@ -210,7 +208,7 @@ set +x
 	echo >&2 "	programs and retry."
 	echo >&2
 	echo >&2 "	Note that you need an operational 'which' command"
-	echo >&2 "	for FireHOL to find all the external programs it"
+	echo >&2 "	for FireQOS to find all the external programs it"
 	echo >&2 "	needs. Check it yourself. Run:"
 	echo >&2
 	for x in "${@}"
@@ -267,6 +265,7 @@ Y|STTY_CMD|@STTY@|stty :
 N|TPUT_CMD|@TPUT@|tput
 Y|IP_CMD|@IP@|ip
 Y|MODPROBE_CMD|@MODPROBE@|'modprobe -q' insmod
+Y|RMMOD_CMD|@RMMOD@|rmmod
 Y|FLOCK_CMD|@FLOCK@|flock
 Y|GREP_CMD|@GREP@|grep
 Y|EGREP_CMD|@EGREP@|egrep 'grep -E'
@@ -275,8 +274,10 @@ Y|CUT_CMD|@CUT@|cut
 Y|SED_CMD|@SED@|sed
 Y|TOUCH_CMD|@TOUCH@|touch
 Y|TR_CMD|@TR@|tr
+Y|MV_CMD|@MV@|mv
 Y|LOGGER_CMD|@LOGGER@|logger
 Y|MKDIR_CMD|@MKDIR@|mkdir
+Y|SLEEP_CMD|@SLEEP@|sleep
 Y|RM_CMD|@RM@|rm
 Y|TC_CMD|@TC@|tc
 N|GAWK_CMD|@GAWK@|gawk awk
@@ -1451,7 +1452,7 @@ interface_close() {
 		# $CAT_CMD "${FIREQOS_SAVE}"
 
 		# move the exiting file to a new place, to avoid recursion
-		mv "${FIREQOS_SAVE}" "${FIREQOS_SAVE}.run"
+		$MV_CMD "${FIREQOS_SAVE}" "${FIREQOS_SAVE}.run"
 		# $CAT_CMD "${FIREQOS_SAVE}.run"
 
 		# close the existing, input, interface
@@ -3010,7 +3011,7 @@ clear_all_qos_on_all_interfaces() {
 	done
 	
 	echo >&2
-	rmmod ifb 2>/dev/null
+	$RMMOD_CMD ifb 2>/dev/null
 	echo >&2 " - removed all IFB devices"
 	
 	if [ -d ${FIREQOS_DIR} ]
@@ -3244,9 +3245,9 @@ EOF
 		# echo "Sleeping for ${secs}.${ms} (started ${startedms}, ended ${endedms}, diffms ${diffms})"
 		if [ ${FIREQOS_LOWRES_TIMER} -eq 1 ]
 		then
-			sleep "${secs}"
+			$SLEEP_CMD "${secs}"
 		else
-			sleep "${secs}.${ms}"
+			$SLEEP_CMD "${secs}.${ms}"
 		fi
 	}
 	
