@@ -53,7 +53,10 @@ fi
 
 if [ "$haderror" -o $# -lt 1 ]
 then
-  echo "Usage: sudo ./unittest all|test-dir|test-dir/test.conf [...]"
+  echo "Usage: sudo [--strace] ./unittest all|test-dir|test-dir/test.conf [...]"
+  echo ""
+  echo "Example use of strance: see all non-absolute path executions:"
+  echo "  grep 'execve[^,]*, \[\"[^/]' strace.*.txt | less"
   exit 1
 fi
 
@@ -85,17 +88,24 @@ trap myexit 0
 TESTDIR=`pwd`/
 export TESTDIR
 
+kcov=`which kcov 2> /dev/null`
+if [ "$kcov" ]
+then
+  export kcov="$kcov coverage"
+fi
+
+strace=0
+if [ "$1" = "--strace" ]
+then
+  shift
+  strace=1
+fi
+
 if [ $# -eq 1 -a "$1" = "all" ]
 then
   find firehol fireqos link-balancer vnetbuild -type f -name '*.conf' | sort > $MYTMP/all-tests
 else
   find "$@" -type f -name '*.conf' | sort > $MYTMP/all-tests
-fi
-
-kcov=`which kcov 2> /dev/null`
-if [ "$kcov" ]
-then
-  export kcov="$kcov coverage"
 fi
 
 newext() {
@@ -221,6 +231,11 @@ do
     export script
     total=$((total + 1))
 
+    if [ $strace -eq 1 ]
+    then
+      export kcov="strace -f -o `pwd`/strace.${total}.txt"
+    fi
+
     # Define our configuration directory exactly as we want it
     rm -rf /etc/firehol/*
 
@@ -228,9 +243,11 @@ do
     #  - egrep because /sbin/egrep makes use of PATH to find 'grep -E'
     #    the unit tests set PATH to empty so we must use the explicit one
     #  - iprange because we want to test with the local version
+    #  - PATH reset to ensure it is off (some programs reset it)
     cat > /etc/firehol/firehol-defaults.conf <<-!
 		EGREP_CMD='/bin/grep -E'
 		IPRANGE_CMD='${TESTDIR}../sbin/iprange'
+		export PATH=
 	!
 
     if [ -x "$pre_sh" ]
@@ -332,6 +349,7 @@ do
   if [ "${SUDO_USER}" ]
   then
     test -d "coverage" && chown -R "${SUDO_USER}" "coverage"
+    test -f "strace.1.txt" && chown -R "${SUDO_USER}" "strace.*.txt"
     test -f "$runlog" && chown -R "${SUDO_USER}" "$runlog"
     test -f "$out4" && chown -R "${SUDO_USER}" "$out4"
     test -f "$out6" && chown -R "${SUDO_USER}" "$out6"
