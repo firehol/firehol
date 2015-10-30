@@ -191,15 +191,36 @@ ipset_saved() {
 	local ipset="${1}"
 	shift
 
-	echo >&2 -e "${ipset}: ${COLOR_BGPURPLE}${COLOR_WHITE}${COLOR_BOLD} SAVED ${COLOR_RESET} ${@}"
+	echo >&2 -e "${ipset}: ${COLOR_BGGREEN}${COLOR_RED}${COLOR_BOLD} SAVED ${COLOR_RESET} ${@}"
 	logger -p daemon.info -t "update-ipsets.sh[$$]" "SAVED: ${ipset}: ${@}"
 }
 ipset_loaded() {
 	local ipset="${1}"
 	shift
 
-	echo >&2 -e "${ipset}: ${COLOR_BGBLUE}${COLOR_WHITE}${COLOR_BOLD} LOADED ${COLOR_RESET} ${@}"
+	echo >&2 -e "${ipset}: ${COLOR_BGGREEN}${COLOR_BLACK}${COLOR_BOLD} LOADED ${COLOR_RESET} ${@}"
 	logger -p daemon.info -t "update-ipsets.sh[$$]" "LOADED: ${ipset}: ${@}"
+}
+ipset_same() {
+	local ipset="${1}"
+	shift
+
+	echo >&2 -e "${ipset}: ${COLOR_BGWHITE}${COLOR_BLACK}${COLOR_BOLD} SAME ${COLOR_RESET} ${@}"
+	logger -p daemon.info -t "update-ipsets.sh[$$]" "DOWNLOADED SAME: ${ipset}: ${@}"
+}
+ipset_notupdated() {
+	local ipset="${1}"
+	shift
+
+	echo >&2 -e "${ipset}: ${COLOR_BGWHITE}${COLOR_BLACK}${COLOR_BOLD} NOT UPDATED ${COLOR_RESET} ${@}"
+	logger -p daemon.info -t "update-ipsets.sh[$$]" "NOT UPDATED: ${ipset}: ${@}"
+}
+ipset_notyet() {
+	local ipset="${1}"
+	shift
+
+	echo >&2 -e "${ipset}: ${COLOR_BGWHITE}${COLOR_BLACK}${COLOR_BOLD} LATER ${COLOR_RESET} ${@}"
+	logger -p daemon.info -t "update-ipsets.sh[$$]" "LATER: ${ipset}: ${@}"
 }
 
 # -----------------------------------------------------------------------------
@@ -358,8 +379,15 @@ WEB_CHARTS_ENTRIES="500"
 # if the .git directory is present, push it also
 PUSH_TO_GIT=0
 
+# the maximum time in seconds, to connect to the remote web server
 MAX_CONNECT_TIME=10
+
+# the maximum time in seconds any download may take
 MAX_DOWNLOAD_TIME=180
+
+# ignore a few download failures
+# if the download fails more than these consecutive times, the ipset will be
+# penalized X times its failures (ie. MINUTES * ( FAILURES - the following number) )
 IGNORE_REPEATING_DOWNLOAD_ERRORS=10
 
 # -----------------------------------------------------------------------------
@@ -893,8 +921,7 @@ DOWNLOAD_NOT_UPDATED=2
 declare -A IPSET_DOWNLOADER_NO_IF_MODIFIED_SINCE=()
 download_manager() {
 	local 	ipset="${1}" mins="${2}" url="${3}" \
-		install="${1}" \
-		tmp= now= date= check= inc= inc2= fails=
+			tmp= now= date= check= inc= inc2= fails=
 
 	tmp=`mktemp "${RUN_DIR}/download-${ipset}-XXXXXXXXXX"` || return ${DOWNLOAD_FAILED}
 
@@ -919,19 +946,19 @@ download_manager() {
 	# touch a file in the past
 	touch_in_the_past "$[mins + inc + inc2]" "${tmp}"
 
-	check="${install}.source"
-	[ ${IGNORE_LASTCHECKED} -eq 0 -a -f ".${install}.lastchecked" ] && check=".${install}.lastchecked"
+	check="${ipset}.source"
+	[ ${IGNORE_LASTCHECKED} -eq 0 -a -f ".${ipset}.lastchecked" ] && check=".${ipset}.lastchecked"
 
 	# check if we have to download again
 	if [ "${check}" -nt "${tmp}" ]
 	then
 		rm "${tmp}"
-		ipset_info "${ipset}" "should not be downloaded so soon (within ${mins} + ${inc} + ${inc2} = $[mins + inc + inc2] mins)."
+		ipset_notyet "${ipset}" "should not be downloaded so soon (within ${mins} + ${inc} + ${inc2} = $[mins + inc + inc2] mins)."
 		return ${DOWNLOAD_NOT_UPDATED}
 	fi
 
 	# download it
-	local reference="${install}.source"
+	local reference="${ipset}.source"
 	[ ! -z "${IPSET_DOWNLOADER_NO_IF_MODIFIED_SINCE[${ipset}]}" ] && reference=""
 
 	geturl "${tmp}" "${reference}" "${url}"
@@ -950,16 +977,16 @@ download_manager() {
 				unset IPSET_DOWNLOAD_FAILURES[${ipset}]
 				cache_save
 			fi
-			ipset_info "${ipset}" "file on server has not been updated yet"
+			ipset_notupdated "${ipset}" "file on server has not been updated yet"
 			rm "${tmp}"
-			touch_in_the_past $[mins / 2] ".${install}.lastchecked"
+			touch_in_the_past $[mins / 2] ".${ipset}.lastchecked"
 			return ${DOWNLOAD_NOT_UPDATED}
 			;;
 
 		*)
 			rm "${tmp}"
 			IPSET_DOWNLOAD_FAILURES[${ipset}]=$(( fails + 1 ))
-			ipset_error "${ipset}" "cannot download '${url}'. IPSET_DOWNLOAD_FAILURES[${ipset}] consecutive failures to download it so far."
+			ipset_error "${ipset}" "cannot download '${url}'. ${IPSET_DOWNLOAD_FAILURES[${ipset}]} consecutive failures to download it so far."
 			cache_save
 			return ${DOWNLOAD_FAILED}
 			;;
@@ -968,7 +995,7 @@ download_manager() {
 	[ ! -z "${IPSET_DOWNLOADER_NO_IF_MODIFIED_SINCE[${ipset}]}" ] && touch "${tmp}"
 	
 	# we downloaded something - remove the lastchecked file
-	[ -f ".${install}.lastchecked" ] && rm ".${install}.lastchecked"
+	[ -f ".${ipset}.lastchecked" ] && rm ".${ipset}.lastchecked"
 
 	# check if the downloaded file is empty
 	#if [ ! -s "${tmp}" ]
@@ -980,21 +1007,21 @@ download_manager() {
 	#fi
 
 	# check if the downloaded file is the same with the last one
-	diff -q "${install}.source" "${tmp}" >/dev/null 2>&1
+	diff -q "${ipset}.source" "${tmp}" >/dev/null 2>&1
 	if [ $? -eq 0 ]
 	then
 		# they are the same
-		silent "${ipset}: downloaded file is the same with the previous one."
+		ipset_same "${ipset}" "downloaded file is the same with the previous one."
 
 		# copy the timestamp of the downloaded to our file
-		touch -r "${tmp}" "${install}.source"
+		touch -r "${tmp}" "${ipset}.source"
 		rm "${tmp}"
 		return ${DOWNLOAD_NOT_UPDATED}
 	fi
 
 	# move it to its place
-	silent "${ipset}: saving downloaded file to ${install}.source"
-	mv "${tmp}" "${install}.source" || return ${DOWNLOAD_FAILED}
+	silent "${ipset}: saving downloaded file to ${ipset}.source"
+	mv "${tmp}" "${ipset}.source" || return ${DOWNLOAD_FAILED}
 
 	return ${DOWNLOAD_OK}
 }
@@ -1964,7 +1991,7 @@ finalize() {
 	then
 		# they are the same
 		rm "${tmp}" "${tmp}.old"
-		silent "${ipset}: processed set is the same with the previous one."
+		ipset_same "${ipset}" "processed set is the same with the previous one."
 
 		# keep the old set, but make it think it was from this source
 		silent "${ipset}: touching ${dst} from ${src}."
@@ -1991,8 +2018,8 @@ finalize() {
 	then
 		if [ ! -z "${ERRORS_DIR}" -a -d "${ERRORS_DIR}" ]
 		then
-			mv "${tmp}" "${ERRORS_DIR}/${ipset}.${hash}set"
-			ipset_error "${ipset}" "failed to update ipset (error file left for you as '${ERRORS_DIR}/${ipset}.${hash}set')."
+			mv "${tmp}" "${ERRORS_DIR}/${dst}"
+			ipset_error "${ipset}" "failed to update ipset (error file left for you as '${ERRORS_DIR}/${dst}')."
 		else
 			rm "${tmp}"
 			ipset_error "${ipset}" "failed to update ipset."
@@ -2115,8 +2142,9 @@ update() {
 			maintainer="${10}" maintainer_url="${11}"
 	shift 11
 
-	local	install="${ipset}" tmp= error=0 now= date= \
-			pre_filter="cat" post_filter="cat" post_filter2="cat" filter="cat"
+	local	tmp= error=0 now= date= \
+			pre_filter="cat" post_filter="cat" post_filter2="cat" filter="cat" \
+			src="${ipset}.source" dst=
 
 	# check
 	if [ -z "${info}" ]
@@ -2170,28 +2198,35 @@ update() {
 			;;
 	esac
 
-	if [ ! -f "${install}.source" ]
+	# the destination file
+	# it must be a relative file (no path)
+	dst="${ipset}.${hash}set"
+
+	# check it is enabled
+	# it is enabled if the source file exists
+	if [ ! -f "${src}" ]
 	then
 		if [ ${ENABLE_ALL} -eq 1 ]
 			then
-			touch -t 0001010000 "${BASE_DIR}/${install}.source" || return 1
+			touch -t 0001010000 "${BASE_DIR}/${src}" || return 1
 		else
-			[ -d .git ] && echo >"${install}.setinfo" "${ipset}|${info}|${ipv} hash:${hash}|disabled|`if [ ! -z "${url}" ]; then echo "updated every $(mins_to_text ${mins}) from [this link](${url})"; fi`"
-			silent "${ipset}: is disabled, to enable it run: touch -t 0001010000 '${BASE_DIR}/${install}.source'"
+			[ -d .git ] && echo >"${ipset}.setinfo" "${ipset}|${info}|${ipv} hash:${hash}|disabled|`if [ ! -z "${url}" ]; then echo "updated every $(mins_to_text ${mins}) from [this link](${url})"; fi`"
+			silent "${ipset}: is disabled, to enable it run: touch -t 0001010000 '${BASE_DIR}/${src}'"
 			return 1
 		fi
 	fi
 
+	# do we have something to download?
 	if [ ! -z "${url}" ]
 	then
 		# download it
 		download_manager "${ipset}" "${mins}" "${url}"
-		if [ $? -eq ${DOWNLOAD_FAILED} -o \( $? -eq ${DOWNLOAD_NOT_UPDATED} -a -f "${install}.${hash}net" \) ]
+		if [ $? -eq ${DOWNLOAD_FAILED} -o \( $? -eq ${DOWNLOAD_NOT_UPDATED} -a -f "${ipset}.${hash}net" \) ]
 			then
-			if [ ! -s "${install}.source" ]; then return 1
-			elif [ -f "${install}.${hash}set" -a ${REPROCESS_ALL} -eq 0 ]
+			if [ ! -s "${src}" ]; then return 1
+			elif [ -f "${dst}" -a ${REPROCESS_ALL} -eq 0 ]
 			then
-				check_file_too_old "${ipset}" "${install}.${hash}set"
+				check_file_too_old "${ipset}" "${dst}"
 				return 1
 			fi
 		fi
@@ -2199,13 +2234,13 @@ update() {
 
 	# support for older systems where hash:net cannot get hash:ip entries
 	# if the .split file exists, create 2 ipsets, one for IPs and one for subnets
-	if [ "${limit}" = "split" -o \( -z "${limit}" -a -f "${install}.split" \) ]
+	if [ "${limit}" = "split" -o \( -z "${limit}" -a -f "${ipset}.split" \) ]
 	then
 		ipset_info "${ipset}" "spliting IPs and networks..."
-		test -f "${install}_ip.source" && rm "${install}_ip.source"
-		test -f "${install}_net.source" && rm "${install}_net.source"
-		ln -s "${install}.source" "${install}_ip.source"
-		ln -s "${install}.source" "${install}_net.source"
+		test -f "${ipset}_ip.source" && rm "${ipset}_ip.source"
+		test -f "${ipset}_net.source" && rm "${ipset}_net.source"
+		ln -s "${src}" "${ipset}_ip.source"
+		ln -s "${src}" "${ipset}_net.source"
 		
 		update "${ipset}_ip" "${mins}" "${history_mins}" "${ipv}" ip  \
 			"" \
@@ -2225,17 +2260,17 @@ update() {
 	fi
 
 	# check if the source file has been updated
-	if [ ${REPROCESS_ALL} -eq 0 -a ! "${install}.source" -nt "${install}.${hash}set" ]
+	if [ ${REPROCESS_ALL} -eq 0 -a ! "${src}" -nt "${dst}" ]
 	then
 		ipset_info "${ipset}" "not updated - no reason to process it again."
-		check_file_too_old "${ipset}" "${install}.${hash}set"
+		check_file_too_old "${ipset}" "${dst}"
 		return 0
 	fi
 
 	# convert it
 	silent "${ipset}: converting with processor '${processor}'"
-	tmp=`mktemp "${RUN_DIR}/${install}.tmp-XXXXXXXXXX"` || return 1
-	${processor} <"${install}.source" |\
+	tmp=`mktemp "${RUN_DIR}/${ipset}.tmp-XXXXXXXXXX"` || return 1
+	${processor} <"${src}" |\
 		trim |\
 		${pre_filter} |\
 		${filter} |\
@@ -2246,7 +2281,7 @@ update() {
 	then
 		ipset_error "${ipset}" "failed to convert file (processor: ${processor}, pre_filter: ${pre_filter}, filter: ${filter}, post_filter: ${post_filter}, post_filter2: ${post_filter2})."
 		rm "${tmp}"
-		check_file_too_old "${ipset}" "${install}.${hash}set"
+		check_file_too_old "${ipset}" "${dst}"
 		return 1
 	fi
 
@@ -2286,12 +2321,12 @@ update() {
 
 			history_get "${ipset}" "${hmins}" >"${tmp}${htag}"
 
-			cp "${tmp}${htag}" "${BASE_DIR}/${install}${htag}.source"
-			touch -r "${BASE_DIR}/${install}.source" "${BASE_DIR}/${install}${htag}.source"
+			cp "${tmp}${htag}" "${BASE_DIR}/${ipset}${htag}.source"
+			touch -r "${BASE_DIR}/${src}" "${BASE_DIR}/${ipset}${htag}.source"
 		fi
 
-		finalize "${ipset}${htag}" "${tmp}${htag}" "${install}${htag}.setinfo" \
-			"${install}${htag}.source" "${install}${htag}.${hash}set" \
+		finalize "${ipset}${htag}" "${tmp}${htag}" "${ipset}${htag}.setinfo" \
+			"${ipset}${htag}.source" "${ipset}${htag}.${hash}set" \
 			"${mins}" "${hmins}" "${ipv}" "${limit}" "${hash}" \
 			"${url}" \
 			"${category}" \
@@ -3184,6 +3219,48 @@ ip2location_country() {
 
 	# remove the temporary dir
 	rm -rf "${ipset}.tmp"
+
+	return 0
+}
+
+
+# -----------------------------------------------------------------------------
+# Common source files for many ipsets
+
+# make sure ipsets with common source files are linked to each other
+# so that the source file will be downloaded only once from the maintainer
+ipsets_with_common_source_file() {
+	local real= x=
+
+	# find the real file (the newest one, if many exist)
+	for x in "${@}"
+	do
+		if [ -f "${x}.source" -a ! -h "${x}.source" ]
+			then
+			if [ -z "${real}" ]
+				then
+				real="${x}"
+			elif [ "${x}.source" -nt "${real}.source" ]
+				then
+				real="${x}"
+			fi
+		fi
+	done
+
+	# nothing is present
+	[ -z "${real}" ] && return 1
+
+	# link the others to the chosen real one
+	for x in "${@}"
+	do
+		[ "${x}" = "${real}" ] && continue
+
+		if [ -f "${x}.source" -o -h "${x}.source" ]
+			then
+			rm "${x}.source"
+			ln -s "${real}.source" "${x}.source"
+		fi
+	done
 
 	return 0
 }
@@ -4476,6 +4553,104 @@ update pushing_inertia_blocklist $[24*60] 0 ipv4 both \
 	false_positives "none" \
 	poisoning "not_possible"
 
+
+# -----------------------------------------------------------------------------
+# http://nullsecure.org/
+
+update nullsecure $[8*60] 0 ipv4 ip \
+	"http://nullsecure.org/threatfeed/master.txt" \
+	extract_ipv4_from_any_file \
+	"reputation" \
+	"[nullsecure.org](http://nullsecure.org/) This is a free threat feed provided for use in any acceptable manner. This feed was aggregated using the [Tango Honeypot Intelligence Splunk App](https://github.com/aplura/Tango) by Brian Warehime, a Senior Security Analyst at Defense Point Security." \
+	"nullsecure.org" "http://nullsecure.org/"
+
+
+# -----------------------------------------------------------------------------
+# http://www.chaosreigns.com/
+
+parse_chaosreigns_once() {
+	local wanted="${1}"
+
+	if [ ! -f "${RUN_DIR}/${wanted}.source" ]
+		then
+		# parse the source and split it to all files in RUN_DIR
+		awk	>&2 "
+			/^[[:space:]]*[[:digit:]\./]+[[:space:]]+100[[:space:]]+[[:digit:]]+\$/          { print \$1 >\"${RUN_DIR}/chaosreigns_iprep100.source\"; next; }
+			/^[[:space:]]*[[:digit:]\./]+[[:space:]]+0[[:space:]]+[[:digit:]]+\$/            { print \$1 >\"${RUN_DIR}/chaosreigns_iprep0.source\"; next; }
+			/^[[:space:]]*[[:digit:]\./]+[[:space:]]+[[:digit:]]+[[:space:]]+[[:digit:]]+\$/ { print \$1 >\"${RUN_DIR}/chaosreigns_iprep50.source\"; next; }
+			// { print \$1 >\"${RUN_DIR}/chaosreigns_iprep_invalid.source\"; next; }
+			"
+	else
+		# ignore the source being fed to us
+		cat >/dev/null
+	fi
+	
+	# give the parsed output
+	cat "${RUN_DIR}/${wanted}.source"
+
+	# make sure all the variations have the same source
+	ipsets_with_common_source_file "chaosreigns_iprep100" "chaosreigns_iprep50" "chaosreigns_iprep0"
+}
+
+parse_chaosreigns_iprep100() { parse_chaosreigns_once chaosreigns_iprep100; }
+parse_chaosreigns_iprep50()  { parse_chaosreigns_once chaosreigns_iprep50;  }
+parse_chaosreigns_iprep0()   { parse_chaosreigns_once chaosreigns_iprep0;   }
+
+update chaosreigns_iprep100 $[24*60] 0 ipv4 ip \
+	"http://www.chaosreigns.com/iprep/iprep.txt" \
+	parse_chaosreigns_iprep100 \
+	"spam" \
+	"[ChaosReigns.com](http://www.chaosreigns.com/iprep) The iprep100 list includes all IPs that sent 100% ham emails. This is an automated, free, public email IP reputation system. The primary goal is a whitelist. Other data is provided as a consequence." \
+	"ChaosReigns.com" "http://www.chaosreigns.com/iprep"
+
+update chaosreigns_iprep50 $[24*60] 0 ipv4 ip \
+	"http://www.chaosreigns.com/iprep/iprep.txt" \
+	parse_chaosreigns_iprep50 \
+	"spam" \
+	"[ChaosReigns.com](http://www.chaosreigns.com/iprep) The iprep50 list includes all IPs that sent both ham and spam emails. This is an automated, free, public email IP reputation system. The primary goal is a whitelist. Other data is provided as a consequence." \
+	"ChaosReigns.com" "http://www.chaosreigns.com/iprep"
+
+update chaosreigns_iprep0 $[24*60] 0 ipv4 ip \
+	"http://www.chaosreigns.com/iprep/iprep.txt" \
+	parse_chaosreigns_iprep0 \
+	"spam" \
+	"[ChaosReigns.com](http://www.chaosreigns.com/iprep) The iprep0 list includes all IPs that sent only spam emails. This is an automated, free, public email IP reputation system. The primary goal is a whitelist. Other data is provided as a consequence." \
+	"ChaosReigns.com" "http://www.chaosreigns.com/iprep"
+
+
+# -----------------------------------------------------------------------------
+# https://graphiclineweb.wordpress.com/tech-notes/ip-blacklist/
+
+parse_graphiclineweb() { grep -oP ">${IP4_MATCH}(/${MK4_MATCH})?<" | grep -oP "${IP4_MATCH}(/${MK4_MATCH})?"; }
+
+update graphiclineweb $[24*60] 0 ipv4 both \
+	"https://graphiclineweb.wordpress.com/tech-notes/ip-blacklist/" \
+	parse_graphiclineweb \
+	"abuse" \
+	"[GraphiclineWeb](https://graphiclineweb.wordpress.com/tech-notes/ip-blacklist/) The IP’s, Hosts and Domains listed in this table are banned universally from accessing websites controlled by the maintainer. Some form of bad activity has been seen from the addresses listed. Bad activity includes: unwanted spiders, rule breakers, comment spammers, trackback spammers, spambots, hacker bots, registration bots and other scripting attackers, harvesters, nuisance spiders, spy bots and organisations spying on websites for commercial reasons." \
+	"GraphiclineWeb" "https://graphiclineweb.wordpress.com/tech-notes/ip-blacklist/"
+
+
+# -----------------------------------------------------------------------------
+# http://www.ip-finder.me/ip-full-list/
+
+parse_ipblacklistcloud() { grep -oP ">${IP4_MATCH}<" | grep -oP "${IP4_MATCH}"; }
+
+update ipblacklistcloud_top $[24*60] 0 ipv4 ip \
+	"http://www.ip-finder.me/ip-full-list/" \
+	parse_ipblacklistcloud \
+	"abuse" \
+	"[IP Blacklist Cloud](http://www.ip-finder.me/) These are the top IP addresses that have been blacklisted by many websites. IP Blacklist Cloud plugin protects your WordPress based website from spam comments, gives details about login attacks which you don't even know are happening without this plugin!" \
+	"IP Blacklist Cloud" "http://www.ip-finder.me/"
+
+update ipblacklistcloud_recent $[60] "$[24*60] $[7*24*60] $[30*24*60]" ipv4 ip \
+	"http://www.ip-finder.me/download/" \
+	parse_ipblacklistcloud \
+	"abuse" \
+	"[IP Blacklist Cloud](http://www.ip-finder.me/) These are the most recent IP addresses that have been blacklisted by websites. IP Blacklist Cloud plugin protects your WordPress based website from spam comments, gives details about login attacks which you don't even know are happening without this plugin!" \
+	"IP Blacklist Cloud" "http://www.ip-finder.me/"
+
+
 # -----------------------------------------------------------------------------
 # iBlocklist
 # https://www.iblocklist.com/lists.php
@@ -4952,7 +5127,7 @@ badipscom() {
 				touch -t 0001010000 "${BASE_DIR}/${x}.source" || return 1
 			done
 		else
-			[ -d .git ] && echo >"${install}.setinfo" "badips.com categories ipsets|[BadIPs.com](https://www.badips.com) community based IP blacklisting. They score IPs based on the reports they reports.|ipv4 hash:ip|disabled|disabled"
+			[ -d .git ] && echo >"badips.setinfo" "badips.com categories ipsets|[BadIPs.com](https://www.badips.com) community based IP blacklisting. They score IPs based on the reports they reports.|ipv4 hash:ip|disabled|disabled"
 			silent "badips: is disabled, to enable it run: touch -t 0001010000 '${BASE_DIR}/badips.source'"
 			return 1
 		fi
@@ -5267,10 +5442,10 @@ merge firehol_anonymous "anonymizers" "An ipset that includes all the anonymizin
 # TODO
 #
 # add sets
-# - http://jeroen.steeman.org/FS-PlainText
-# - http://security-research.dyndns.org/pub/botnet/ponmocup/ponmocup-finder/ponmocup-infected-domains-latest.txt
-# - https://graphiclineweb.wordpress.com/tech-notes/ip-blacklist/
-# - http://www.ip-finder.me/ip-full-list/
+# - http://security-research.dyndns.org/pub/botnet/ponmocup/ponmocup-finder/ponmocup-infected-domains-latest.txt - sent email to toms.security.stuff@gmail.com
+# - http://jeroen.steeman.org/FS-PlainText - sent email to jeroen@steeman.org
+
+# - http://www.uceprotect.net/en/index.php?m=6&s=10
 # - http://www.cidr-report.org/bogons/freespace-prefix6.txt
 # - https://github.com/mlsecproject/combine/issues/25
 #
