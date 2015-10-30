@@ -326,7 +326,7 @@ then
 elif [ ! -z "$TPUT_CMD" ]
 then
 	test -t 2 && RUNNING_ON_TERMINAL=1
-	if [ -t 2 -a $[$(TPUT_CMD colors 2>/dev/null)] -ge 8 ]
+	if [ -t 2 -a $[$($TPUT_CMD colors 2>/dev/null)] -ge 8 ]
 	then
 		# Enable colors
 		COLOR_RESET="\e[0m"

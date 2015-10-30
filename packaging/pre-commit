@@ -96,109 +96,78 @@ then
   status=1
 fi
 
-# Find commands that have been enclosed in quotes and remove anything after
-#  if nothing matched the substitution, proceed to the next line
-#  if the command is used in a -z check, proceed to the next line
-#  if the command is in posix size check [ "$var" ], proceed to the next line
-#  if the command is being assigned to a variable, proceed to the next line
-#  if the command is being used in an eval, proceed to the next line
-# Anything left, print the line number
-sed -n -e 's/\("\$[^"}]*_CMD}\).*/\1/' \
-       -e T \
-       -e '/-z *"\$/b' \
-       -e '/\[ *"\$/b' \
-       -e '/= *"\$/b' \
-       -e '/eval *"\$/b' \
-       -e '{=}' \
-       /tmp/staged-sbin-firehol.in$$ > /tmp/staged-sbin-firehol.problem-lines.$$
-if [ -s /tmp/staged-sbin-firehol.problem-lines.$$ ]
-then
-  status=1
-  echo 'Detected use(s) of "${SOMETHING_CMD}" in firehol.in. Check lines:'
-  cat /tmp/staged-sbin-firehol.problem-lines.$$
-fi
+check_commands() {
+  local status=0
+  # Find commands that have been enclosed in quotes and remove anything after
+  #  if nothing matched the substitution, proceed to the next line
+  #  if the command is used in a -z check, proceed to the next line
+  #  if the command is in posix size check [ "$var" ], proceed to the next line
+  #  if the command is being assigned to a variable, proceed to the next line
+  #  if the command is being used in an eval, proceed to the next line
+  # Anything left, print the line number
+  sed -n -e 's/\("\$[^"}]*_CMD}\).*/\1/' \
+         -e T \
+         -e '/-z *"\$/b' \
+         -e '/\[ *"\$/b' \
+         -e '/= *"\$/b' \
+         -e '/eval *"\$/b' \
+         -e '{=}' \
+         /tmp/staged-sbin-${1}$$ > /tmp/staged-problem-lines.$$
+  if [ -s /tmp/staged-problem-lines.$$ ]
+  then
+    status=1
+    echo "Detected use(s) of '${SOMETHING_CMD}' in ${1}. Check lines:"
+    cat /tmp/staged-problem-lines.$$
+  fi
 
-sed -n -e 's/\("\$[^"}]*_CMD}\).*/\1/' \
-       -e T \
-       -e '/-z *"\$/b' \
-       -e '/\[ *"\$/b' \
-       -e '/= *"\$/b' \
-       -e '/eval *"\$/b' \
-       -e '{=}' \
-       /tmp/staged-sbin-fireqos.in$$ > /tmp/staged-sbin-fireqos.problem-lines.$$
-if [ -s /tmp/staged-sbin-fireqos.problem-lines.$$ ]
-then
-  status=1
-  echo 'Detected use(s) of "${SOMETHING_CMD}" in fireqos.in. Check lines:'
-  cat /tmp/staged-sbin-fireqos.problem-lines.$$
-fi
+  # Ignore lines from the command table and require_cmd entries
+  # ensure at least 2 characters before and after each word, reset cond jump
+  # extract the command and immediate surroundings, got to next line if no match
+  # remove brackets
+  # proceed to next line if command starts with a dollar
+  # proceed to next line if command ends with equals (assignment)
+  # print line number
+  sed -n -e '/^[YN]|/b' -e '/require_cmd/b' \
+         -e 's/^/  /' -e 's/$/  /' -e T \
+         -e 's/.*\(..\<[A-Z0-9_]*_CMD..\).*/\1/' -e T \
+         -e 's/[{}]//' \
+         -e '/$[A-Z]/b' \
+         -e '/[A-Z0-9]=/b' \
+         -e '=' \
+         /tmp/staged-sbin-${1}$$ > /tmp/staged-problem-lines.$$
+  if [ -s /tmp/staged-problem-lines.$$ ]
+  then
+    status=1
+    echo "Detected use(s) of 'SOMETHING_CMD' (missing \$) in ${1}. Check lines:"
+    cat /tmp/staged-problem-lines.$$
+  fi
 
-sed -n -e 's/\("\$[^"}]*_CMD}\).*/\1/' \
-       -e T \
-       -e '/-z *"\$/b' \
-       -e '/\[ *"\$/b' \
-       -e '/= *"\$/b' \
-       -e '/eval *"\$/b' \
-       -e '{=}' \
-       /tmp/staged-sbin-link-balancer.in$$ > /tmp/staged-sbin-link-balancer.problem-lines.$$
-if [ -s /tmp/staged-sbin-link-balancer.problem-lines.$$ ]
-then
-  status=1
-  echo 'Detected use(s) of "${SOMETHING_CMD}" in link-balancer.in. Check lines:'
-  cat /tmp/staged-sbin-link-balancer.problem-lines.$$
-fi
-
-grep "^[YN]|" /tmp/staged-sbin-firehol.in$$ > /tmp/staged-sbin-firehol.cmd$$
-for cmd in $(tr " " "\n" < /tmp/staged-sbin-firehol.in$$ |
+  grep "^[YN]|" /tmp/staged-sbin-${1}$$ > /tmp/staged-cmd.$$
+  for cmd in $(tr " " "\n" < /tmp/staged-sbin-${1}$$ |
              sed -n -e 's/.*\(\<[A-Z0-9_]*\)_CMD.*/\1/p' | sort | uniq)
-do
-  if ! grep -q "^[YN]|${cmd}_CMD|" /tmp/staged-sbin-firehol.cmd$$
-  then
-    status=1
-    echo "Missing definition of $cmd in firehol.in detection table."
-  fi
-  # Hostname is a special case - configure will expand it to running host,
-  # overwriting the value we wanted to use.
-  if [ "$cmd" = "HOSTNAME" ]; then cmd="HOSTNAMECMD"; fi
-  if ! grep -q "_${cmd}(\|\[$cmd\]" /tmp/staged-configure.ac$$
-  then
-    status=1
-    echo "Missing detection of $cmd for firehol.in in configure.ac"
-  fi
-done
+  do
+    if ! grep -q "^[YN]|${cmd}_CMD|" /tmp/staged-cmd.$$
+    then
+      status=1
+      echo "Missing definition of $cmd in $1 detection table."
+    fi
 
-grep "^[YN]|" /tmp/staged-sbin-fireqos.in$$ > /tmp/staged-sbin-fireqos.cmd$$
-for cmd in $(tr " " "\n" < /tmp/staged-sbin-fireqos.in$$ |
-             sed -n -e 's/.*\(\<[A-Z0-9_]*\)_CMD.*/\1/p' | sort | uniq)
-do
-  if ! grep -q "^[YN]|${cmd}_CMD|" /tmp/staged-sbin-fireqos.cmd$$
-  then
-    status=1
-    echo "Missing definition of $cmd in fireqos.in detection table."
-  fi
-  if ! grep -q "_${cmd}(\|\[$cmd\]" /tmp/staged-configure.ac$$
-  then
-    status=1
-    echo "Missing detection of $cmd for fireqos.in in configure.ac"
-  fi
-done
+    # Hostname is a special case - configure will expand it to running host,
+    # overwriting the value we wanted to use.
+    if [ "$cmd" = "HOSTNAME" ]; then cmd="HOSTNAMECMD"; fi
+    if ! grep -q "_${cmd}(\|\[$cmd\]" /tmp/staged-configure.ac$$
+    then
+      status=1
+      echo "Missing detection of $cmd for $1 in configure.ac"
+    fi
+  done
 
-grep "^[YN]|" /tmp/staged-sbin-link-balancer.in$$ > /tmp/staged-sbin-link-balancer.cmd$$
-for cmd in $(tr " " "\n" < /tmp/staged-sbin-link-balancer.in$$ |
-             sed -n -e 's/.*\(\<[A-Z0-9_]*\)_CMD.*/\1/p' | sort | uniq)
-do
-  if ! grep -q "^[YN]|${cmd}_CMD|" /tmp/staged-sbin-link-balancer.cmd$$
-  then
-    status=1
-    echo "Missing definition of $cmd in link-balancer.in detection table."
-  fi
-  if ! grep -q "_${cmd}(\|\[$cmd\]" /tmp/staged-configure.ac$$
-  then
-    status=1
-    echo "Missing detection of $cmd for link-balancer.in in configure.ac"
-  fi
-done
+  return $status
+}
 
+check_commands firehol.in || status=1
+check_commands fireqos.in || status=1
+check_commands link-balancer.in || status=1
 
 rm -f /tmp/staged-*.$$
 
