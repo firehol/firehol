@@ -319,17 +319,20 @@ do
     fi
 
     # Define our configuration directory exactly as we want it
+    # note: we are running in a namespace with /etc/firehol as a tmpfs
     rm -rf /etc/firehol/*
 
     # Default special cases:
     #  - egrep because /sbin/egrep makes use of PATH to find 'grep -E'
     #    the unit tests set PATH to empty so we must use the explicit one
     #  - iprange because we want to test with the local version
+    #  - logger so we get e.g. panics in our logs, not on the system console
     #  - LB_RUN_DIR + FIREQOS_LOCK_FILE + FIREQOS_DIR - keep within our mounts
     #  - PATH reset to ensure it is off (some programs reset it)
     cat > /etc/firehol/firehol-defaults.conf <<-!
 		EGREP_CMD='/bin/grep -E'
 		IPRANGE_CMD='${TESTDIR}../sbin/iprange'
+		LOGGER_CMD='/bin/echo logger:'
 		LB_RUN_DIR=/var/run/firehol/link-balancer
 		FIREQOS_DIR=/var/run/firehol/fireqos
 		FIREQOS_LOCK_FILE=/var/run/firehol/fireqos.lock
