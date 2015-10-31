@@ -1284,10 +1284,12 @@ void ipset_print(ipset *ips, int print) {
 			split_range(0, 0, ips->netaddrs[i].addr, ips->netaddrs[i].broadcast);
 
 		else if(likely(print == PRINT_SINGLE_IPS)) {
-			in_addr_t x, broadcast = ips->netaddrs[i].broadcast;
-			for(x = ips->netaddrs[i].addr; x <= broadcast ; x++) {
+			in_addr_t x = ips->netaddrs[i].addr, broadcast = ips->netaddrs[i].broadcast;
+			for( ; likely(1) ; ) {
 				print_addr_range(x, x);
 				total++;
+
+				if(unlikely(x++ == broadcast)) break;
 			}
 		}
 		else {
