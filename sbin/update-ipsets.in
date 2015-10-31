@@ -398,7 +398,7 @@ IGNORE_REPEATING_DOWNLOAD_ERRORS=10
 # IMPORTANT: Giving 100 requests/second to your name server will create queue
 #            that will start filling up as time passes, possibly hitting a quota
 #            on the name server.
-DNS_QUERIES_PER_SECOND=300
+DNS_QUERIES_PER_SECOND=100
 
 # -----------------------------------------------------------------------------
 # Command line parsing
@@ -4752,6 +4752,67 @@ update cta_cryptowall $[24*60] 0 ipv4 ip \
 	"Cyber Threat Alliance" "http://www.cyberthreatalliance.org/cryptowall-dashboard.html"
 
 # -----------------------------------------------------------------------------
+# https://cleantalk.org/
+
+parse_cleantalk() { grep -oP ">[[:space:]]*${IP4_MATCH}[[:space:]]*<" | grep -oP "${IP4_MATCH}"; }
+
+update cleantalk_new $[15] "$[24*60] $[7*24*60] $[30*24*60]" ipv4 ip \
+	"https://cleantalk.org/blacklists/submited_today" \
+	parse_cleantalk \
+	"abuse" \
+	"[CleanTalk](https://cleantalk.org/) Recent HTTP Spammers" \
+	"CleanTalk" "https://cleantalk.org/"
+
+update cleantalk_updated $[15] "$[24*60] $[7*24*60] $[30*24*60]" ipv4 ip \
+	"https://cleantalk.org/blacklists/updated_today" \
+	parse_cleantalk \
+	"abuse" \
+	"[CleanTalk](https://cleantalk.org/) Recurring HTTP Spammers" \
+	"CleanTalk" "https://cleantalk.org/"
+
+update cleantalk_top20 $[24*60] 0 ipv4 ip \
+	"https://cleantalk.org/blacklists/top20" \
+	parse_cleantalk \
+	"abuse" \
+	"[CleanTalk](https://cleantalk.org/) Top 20 HTTP Spammers" \
+	"CleanTalk" "https://cleantalk.org/"
+
+# merge NEW and UPDATED
+if [ -f cleantalk_new.ipset -a -f cleantalk_updated.ipset -a -f cleantalk.source -a \
+	\( cleantalk_new.ipset -nt cleantalk.source -o cleantalk_updated.ipset -nt cleantalk.source \) ]
+	then
+
+	# merge them
+	${IPRANGE_CMD} -1 cleantalk_new.ipset cleantalk_updated.ipset >cleantalk.source
+	if [ cleantalk_new.ipset -nt cleantalk_updated.ipset ]
+		then
+		touch -r cleantalk_new.ipset cleantalk.source
+	else
+		touch -r cleantalk_updated.ipset cleantalk.source
+	fi
+
+	update cleantalk 1 "$[24*60] $[7*24*60] $[30*24*60]" ipv4 ip "" cat \
+		"abuse" \
+		"[CleanTalk](https://cleantalk.org/) HTTP Spammers (includes both cleantalk_new and cleantalk_updated ipsets)." \
+		"CleanTalk" "https://cleantalk.org/"
+fi
+
+# THESE MERGES NEED MORE WORK TO SUPPORT SETTING MAINTAINER, MAINTAINER_URL, ETC
+#
+#merge cleantalk_1d "abuse" "[CleanTalk](https://cleantalk.org/) All last 24 hours HTTP spammers" \
+#	cleantalk_new_1d \
+#	cleantalk_updated_1d
+#
+#merge cleantalk_7d "abuse" "[CleanTalk](https://cleantalk.org/) All last week's HTTP spammers" \
+#	cleantalk_new_7d \
+#	cleantalk_updated_7d
+#
+#merge cleantalk_30d "abuse" "[CleanTalk](https://cleantalk.org/) All last month's HTTP spammers" \
+#	cleantalk_new_30d \
+#	cleantalk_updated_30d
+
+
+# -----------------------------------------------------------------------------
 # http://hosts-file.net/
 
 update hphosts_ats $[24*60] 0 ipv4 ip \
@@ -5656,6 +5717,8 @@ merge firehol_level4 "attacks" \
 merge firehol_abusers_1d "abuse" \
 	"An ipset made from blocklists that track abusers in the last 24 hours." \
 	botscout_1d \
+	cleantalk_new_1d \
+	cleantalk_updated_1d \
 	php_commenters_1d \
 	php_dictionary_1d \
 	php_harvesters_1d \
@@ -5664,6 +5727,8 @@ merge firehol_abusers_1d "abuse" \
 
 merge firehol_abusers_30d "abuse" \
 	"An ipset made from blocklists that track abusers in the last 30 days." \
+	cleantalk_new_30d \
+	cleantalk_updated_30d \
 	php_commenters_30d \
 	php_dictionary_30d \
 	php_harvesters_30d \
