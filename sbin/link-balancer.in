@@ -125,6 +125,8 @@ LB_CONFIG="${LB_CONFIG_DIR}/link-balancer.conf"
 # takes either 4 or 6 to switch the functions in ipv4 or ipv6
 LB_DEFAULT_IPV=4
 
+marksreset() { :; }
+markdef() { :; }
 if [ -f "${LB_CONFIG_DIR}/firehol-defaults.conf" ]
 then
 	source "${LB_CONFIG_DIR}/firehol-defaults.conf" || exit 1
@@ -1306,11 +1308,12 @@ update_table() {
 			# we have many (2+) gateways alive
 
 			printf "default "
-			$CAT_CMD "${LB_DIR}/table.${table}.${context}.${LB_IPV}" | $TR_CMD '\n' ' '
+			$CAT_CMD "${LB_DIR}/table.${table}.${context}.${LB_IPV}" |\
+				$TR_CMD '\n' ' '
 
 		fi
 	) | trim_spaces |\
-		$SORT_CMD >"${LB_DIR}/table.${table}.new_routing_table.${LB_IPV}"
+		$SORT_CMD -u >"${LB_DIR}/table.${table}.new_routing_table.${LB_IPV}"
 
 	# keep the new routes of our dependands
 	$CAT_CMD "${LB_DIR}/table.${table}.new_routing_table.${LB_IPV}" |\
@@ -1326,6 +1329,12 @@ update_table() {
 	# ---------------------------------------------------------------------
 	# diff magic...
 	# generate a script to process the diffs of the two files
+
+	#echo "EXISTING"
+	#cat "${LB_DIR}/table.${table}.existing_routes.${LB_IPV}"
+	#echo "NEW filter: ${routing_filter_cmd}"
+	#cat "${LB_DIR}/table.${table}.new_routes.${LB_IPV}"
+
 	$DIFF_CMD >"${LB_DIR}/table.${table}.script.${LB_IPV}"			\
 		--old-line-format="lb_diff_route delete ${table} %L" 		\
 		--new-line-format="lb_diff_route add ${table} %L" 		\
