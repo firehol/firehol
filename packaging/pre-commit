@@ -65,9 +65,6 @@ fi
 # Files we will check in their entirety
 git show :ChangeLog > /tmp/staged-ChangeLog.$$
 git show :NEWS > /tmp/staged-NEWS.$$
-git show :sbin/firehol.in > /tmp/staged-sbin-firehol.in$$
-git show :sbin/fireqos.in > /tmp/staged-sbin-fireqos.in$$
-git show :sbin/link-balancer.in > /tmp/staged-sbin-link-balancer.in$$
 git show :configure.ac > /tmp/staged-configure.ac$$
 
 status=0
@@ -98,6 +95,14 @@ fi
 
 check_commands() {
   local status=0
+
+  if [ -z "$(git diff --cached $against -- sbin/$1)" ]
+  then
+    # No change so do not check, to reduce overhead
+    return 0
+  fi
+
+  git show :sbin/$1 > /tmp/staged-sbin-${1}$$
   # Find commands that have been enclosed in quotes and remove anything after
   #  if nothing matched the substitution, proceed to the next line
   #  if the command is used in a -z check, proceed to the next line
@@ -116,7 +121,7 @@ check_commands() {
   if [ -s /tmp/staged-problem-lines.$$ ]
   then
     status=1
-    echo "Detected use(s) of '${SOMETHING_CMD}' in ${1}. Check lines:"
+    echo "Detected use(s) of \"\${SOMETHING_CMD}\" in ${1}. Check lines:"
     cat /tmp/staged-problem-lines.$$
   fi
 
@@ -168,6 +173,7 @@ check_commands() {
 check_commands firehol.in || status=1
 check_commands fireqos.in || status=1
 check_commands link-balancer.in || status=1
+check_commands update-ipsets.in || status=1
 
 rm -f /tmp/staged-*.$$
 

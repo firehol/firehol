@@ -1026,7 +1026,7 @@ N|IP6TABLES_RESTORE_CMD|@IP6TABLES_RESTORE@|ip6tables-restore
 Y|PAGER_CMD|@PAGER@|less more pager cat
 Y|RENICE_CMD|@RENICE@|renice :
 Y|STTY_CMD|@STTY@|stty :
-N|ZCAT_CMD|@ZCAT@|zcat gzcat "gzip -dc"
+N|ZCAT_CMD|@ZCAT@|gzcat "gzip -dc"
 N|MODPROBE_CMD|@MODPROBE@|'modprobe -q' insmod
 N|IP_CMD|@IP@|ip
 N|SS_CMD|@SS@|ss

@@ -27,8 +27,10 @@ then
   haderror="Y"
 fi
 
-if [ ! -x ../sbin/iprange ]
+if [ -x ../sbin/iprange ]
 then
+  iprange_path="$(cd ../sbin; pwd)/iprange"
+else
   echo "Executable ../sbin/iprange program not found (was it built yet?)"
   echo ""
   haderror="Y"
@@ -122,7 +124,7 @@ then
 
   # Check it all worked
   cat /proc/net/ip_tables_names > /dev/null || exit 1
-  mkdir /var/run/firehol/haveperms || exit 1
+  mkdir /var/run/firehol/webdir || exit 1
   echo "Running in separate namespace"
   ip link add veth0 type veth peer name veth1
   shift
@@ -300,6 +302,9 @@ do
     vnetbuild*)
       program=vnetbuild
     ;;
+    update-ipsets*)
+      program=update-ipsets
+    ;;
     *)
       program=
     ;;
@@ -327,15 +332,19 @@ do
     #    the unit tests set PATH to empty so we must use the explicit one
     #  - iprange because we want to test with the local version
     #  - logger so we get e.g. panics in our logs, not on the system console
-    #  - LB_RUN_DIR + FIREQOS_LOCK_FILE + FIREQOS_DIR - keep within our mounts
+    #  - LB_RUN_DIR + FIREQOS_LOCK_FILE + FIREQOS_DIR + RUN_PARENT_DIR
+    #     keep within our mounts
     #  - PATH reset to ensure it is off (some programs reset it)
     cat > /etc/firehol/firehol-defaults.conf <<-!
 		EGREP_CMD='/bin/grep -E'
-		IPRANGE_CMD='${TESTDIR}../sbin/iprange'
+		IPRANGE_CMD='$iprange_path'
 		LOGGER_CMD='/bin/echo logger:'
 		LB_RUN_DIR=/var/run/firehol/link-balancer
 		FIREQOS_DIR=/var/run/firehol/fireqos
 		FIREQOS_LOCK_FILE=/var/run/firehol/fireqos.lock
+		UPDATE_IPSETS_LOCK_FILE=/var/run/firehol/update-ipsets.lock
+		RUN_PARENT_DIR=/var/run/firehol
+		WEB_DIR=/var/run/firehol/webdir
 		export PATH=
 	!
 
@@ -361,8 +370,8 @@ do
           PATH= $kcov "$script" "$conf" start > "$runlog" 2>&1 < /dev/null
           status=$?
         ;;
-        link-balancer)
-          cp "$conf" /etc/firehol/link-balancer.conf
+        link-balancer|update-ipsets)
+          cp "$conf" /etc/firehol/${program}.conf
           $kcov "$script" > "$runlog" 2>&1 < /dev/null
           status=$?
         ;;
@@ -381,7 +390,7 @@ do
     then
       errors=$((errors + 1))
       echo "Unexpected run error - check $runlog"
-    elif grep -q 'in: line [0-9]*:' "$runlog"
+    elif grep -q '\.in: line [0-9]*:' "$runlog"
     then
       errors=$((errors + 1))
       echo "Unexpected runtime errors - check $runlog"
