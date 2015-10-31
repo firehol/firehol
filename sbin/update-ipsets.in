@@ -117,6 +117,8 @@ then
 fi
 renice 10 $$ >/dev/null 2>/dev/null
 
+RUNNING_ON_TERMINAL=0
+test -t 2 && RUNNING_ON_TERMINAL=1
 if [ -t 2 -a $[$(tput colors 2>/dev/null)] -ge 8 ]
 then
 	# Enable colors
@@ -389,6 +391,14 @@ MAX_DOWNLOAD_TIME=180
 # if the download fails more than these consecutive times, the ipset will be
 # penalized X times its failures (ie. MINUTES * ( FAILURES - the following number) )
 IGNORE_REPEATING_DOWNLOAD_ERRORS=10
+
+# how many DNS queries to execute per second
+# when resolving hostnames to IPs
+# IMPORTANT: Increasing this too much and you are going to need A LOT of bandwidth!
+# IMPORTANT: Giving 100 requests/second to your name server will create queue
+#            that will start filling up as time passes, possibly hitting a quota
+#            on the name server.
+DNS_QUERIES_PER_SECOND=300
 
 # -----------------------------------------------------------------------------
 # Command line parsing
@@ -870,17 +880,19 @@ geturl() {
 	# to our file
 	touch -r "${reference}" "${file}"
 
-	test ${SILENT} -ne 1 && printf >&2 "${ipset}: downlading from '%s'... " "${url}"
+	[ ${SILENT} -ne 1 ] && printf >&2 "${ipset}: downlading from '%s'... " "${url}"
 
-	http_code=$(curl --connect-timeout ${MAX_CONNECT_TIME} --max-time ${MAX_DOWNLOAD_TIME} --retry 0 --fail --compressed \
-		--user-agent "FireHOL-Update-Ipsets/3.0" \
-		--referer "https://github.com/ktsaou/firehol/blob/master/contrib/update-ipsets.sh" \
-		-z "${reference}" -o "${file}" -s -L -R -w "%{http_code}" \
-		"${url}")
+	http_code=$( \
+		curl --connect-timeout ${MAX_CONNECT_TIME} --max-time ${MAX_DOWNLOAD_TIME} \
+			--retry 0 --fail --compressed --user-agent "FireHOL-Update-Ipsets/3.0" \
+			--time-cond "${reference}" --output "${file}" --remote-time \
+			--location --referer "http://iplists.firehol.org/" \
+			--silent --write-out '%{http_code}' "${url}" \
+		)
 
 	ret=$?
 
-	test ${SILENT} -ne 1 && printf >&2 "HTTP/${http_code} "
+	[ ${SILENT} -ne 1 ] && printf >&2 "HTTP/${http_code} "
 
 	case "${ret}" in
 		0)	if [ "${http_code}" = "304" -a ! "${file}" -nt "${reference}" ]
@@ -953,7 +965,12 @@ download_manager() {
 	if [ "${check}" -nt "${tmp}" ]
 	then
 		rm "${tmp}"
-		ipset_notyet "${ipset}" "should not be downloaded so soon (within ${mins} + ${inc} + ${inc2} = $[mins + inc + inc2] mins)."
+		if [ ${VERBOSE} -eq 1 ]
+			then
+			ipset_notyet "${ipset}" "should not be downloaded so soon (within ${mins} + ${inc} + ${inc2} = $[mins + inc + inc2] mins)."
+		else
+			ipset_notyet "${ipset}" "should not be downloaded so soon."
+		fi
 		return ${DOWNLOAD_NOT_UPDATED}
 	fi
 
@@ -986,7 +1003,7 @@ download_manager() {
 		*)
 			rm "${tmp}"
 			IPSET_DOWNLOAD_FAILURES[${ipset}]=$(( fails + 1 ))
-			ipset_error "${ipset}" "cannot download '${url}'. ${IPSET_DOWNLOAD_FAILURES[${ipset}]} consecutive failures to download it so far."
+			ipset_error "${ipset}" "cannot download '${url}'. (${IPSET_DOWNLOAD_FAILURES[${ipset}]} consecutive failures to download it so far)."
 			cache_save
 			return ${DOWNLOAD_FAILED}
 			;;
@@ -1666,7 +1683,7 @@ update_web() {
 	#info "ALL: ${all[@]}"
 	#info "UPDATED: ${updated[@]}"
 
-	printf >&2 "comparing ipsets... "
+	printf >&2 "comparing all ipsets (all x all)... "
 	"${IPRANGE_CMD}" --compare "${all[@]}" |\
 		sort |\
 		while IFS="," read name1 name2 entries1 entries2 ips1 ips2 combined common
@@ -2847,18 +2864,89 @@ extract_ipv4_from_any_file() {
 		grep -oP "${IP4_MATCH}"
 }
 
+
+hostname_resolver() {
+	echo >&2 "Please wait... resolving hostnames... it may take some time..."
+
+	local id n status t1 reason host dollar msg1 msg2 msg3 msg4 msg5
+	local h a inet reply
+	local x in out fa oin=0 label
+
+	[ -f "${RUN_DIR}/dns.outcnt" ] && rm "${RUN_DIR}/dns.outcnt"
+	[ -f "${RUN_DIR}/dns.errors" ] && rm "${RUN_DIR}/dns.errors"
+	[ -f "${RUN_DIR}/dns.failed" ] && rm "${RUN_DIR}/dns.failed"
+
+	grep "^[a-z0-9]" >"${RUN_DIR}/dns.input"
+	touch "${RUN_DIR}/dns.outcnt" "${RUN_DIR}/dns.errors" "${RUN_DIR}/dns.failed"
+
+	for x in {1..20}
+	do
+		in=$(  wc -l "${RUN_DIR}/dns.input"  | cut -d ' ' -f 1 )
+		out=$( wc -l "${RUN_DIR}/dns.outcnt" | cut -d ' ' -f 1 )
+		fa=$(  wc -l "${RUN_DIR}/dns.failed" | cut -d ' ' -f 1 )
+
+		label="pending"
+		[ $x -ne 1 ] && label="timed out - will retry"
+		[ $in -eq $oin -o $x -eq 20 ] && label="timed out - giving up"
+
+		printf >&2 " > %d hostnames : %d resolved, %d ${label}, %d unresolvable...\n" \
+			$(( in + out + fa )) ${out} ${in} ${fa}
+
+		# check if it becomes better
+		[ $in -eq $oin -o $x -eq 20 ] && break
+		oin=$in
+
+		local pv_opts="--quiet"
+		[ ${RUNNING_ON_TERMINAL} -eq 1 -a ${SILENT} -ne 1 ] && \
+			pv_opts="--size ${in} --timer --eta --rate --bytes"
+
+		cat "${RUN_DIR}/dns.input" |\
+			pv --line-mode --rate-limit ${DNS_QUERIES_PER_SECOND} ${pv_opts} |\
+			adnshost --asynch --fmt-asynch --pipe |\
+			while read id n status t1 reason host dollar msg1 msg2 msg3 msg4 msg5
+			do
+				case "${status}" in
+					ok)	while [ ${n} -gt 0 ]
+						do
+							read h a inet reply
+							echo "${reply}"
+							n=$[n - 1]
+						done
+						# we need this only for proper counting
+						# of successful DNS resolutions
+						echo "${host}" >>"${RUN_DIR}/dns.outcnt"
+						;;
+
+					tempfail)
+						echo "${host}" >>"${RUN_DIR}/dns.errors"
+						;;
+
+					*)
+						echo "${host}" >>"${RUN_DIR}/dns.failed"
+						;;
+				esac
+
+				# skip any lines given with error
+				while [ ${n} -gt 0 ]; do read h a inet reply; n=$[n - 1]; done
+			done
+
+		mv "${RUN_DIR}/dns.errors" "${RUN_DIR}/dns.input"
+
+		# if no more errors are there, stop
+		[ ! -s "${RUN_DIR}/dns.input" ] && break;
+	done |\
+	${IPRANGE_CMD} -1
+}
+
 # convert hphosts file to IPs, by resolving all IPs
 hphosts2ips() {
-	tr "\t\r" "  " |\
-		trim |\
+	remove_comments |\
 		cut -d ' ' -f 2- |\
 		tr " " "\n" |\
-		sort -u |\
 		grep -v "^$" |\
 		grep -v "^localhost$" |\
-		adnshost --pipe 2>/dev/null |\
-		grep " A INET " |\
-		cut -d ' ' -f 4
+		sort -u |\
+		hostname_resolver
 }
 
 geolite2_country() {
@@ -4662,6 +4750,86 @@ update cta_cryptowall $[24*60] 0 ipv4 ip \
 	"malware" \
 	"[Cyber Threat Alliance](http://www.cyberthreatalliance.org/cryptowall-dashboard.html)  CryptoWall is one of the most lucrative and broad-reaching ransomware campaigns affecting Internet users today. Sharing intelligence and analysis resources, the CTA profiled the latest version of CryptoWall, which impacted hundreds of thousands of users, resulting in over US \$325 million in damages worldwide." \
 	"Cyber Threat Alliance" "http://www.cyberthreatalliance.org/cryptowall-dashboard.html"
+
+# -----------------------------------------------------------------------------
+# http://hosts-file.net/
+
+update hphosts_ats $[24*60] 0 ipv4 ip \
+	"http://hosts-file.net/ad_servers.txt" \
+	hphosts2ips \
+	"organizations" \
+	"[hpHosts](http://hosts-file.net/?s=Download) ad/tracking servers listed in the hpHosts database. The maintainer's file contains hostnames, which have been DNS resolved to IP addresses." \
+	"hpHosts" "http://hosts-file.net/"
+
+update hphosts_emd $[24*60] 0 ipv4 ip \
+	"http://hosts-file.net/emd.txt" \
+	hphosts2ips \
+	"malware" \
+	"[hpHosts](http://hosts-file.net/?s=Download) malware sites listed in the hpHosts database. The maintainer's file contains hostnames, which have been DNS resolved to IP addresses." \
+	"hpHosts" "http://hosts-file.net/"
+
+update hphosts_exp $[24*60] 0 ipv4 ip \
+	"http://hosts-file.net/exp.txt" \
+	hphosts2ips \
+	"malware" \
+	"[hpHosts](http://hosts-file.net/?s=Download) exploit sites listed in the hpHosts database. The maintainer's file contains hostnames, which have been DNS resolved to IP addresses." \
+	"hpHosts" "http://hosts-file.net/"
+
+update hphosts_fsa $[24*60] 0 ipv4 ip \
+	"http://hosts-file.net/fsa.txt" \
+	hphosts2ips \
+	"reputation" \
+	"[hpHosts](http://hosts-file.net/?s=Download) fraud sites listed in the hpHosts database. The maintainer's file contains hostnames, which have been DNS resolved to IP addresses." \
+	"hpHosts" "http://hosts-file.net/"
+
+update hphosts_grm $[24*60] 0 ipv4 ip \
+	"http://hosts-file.net/grm.txt" \
+	hphosts2ips \
+	"spam" \
+	"[hpHosts](http://hosts-file.net/?s=Download) sites involved in spam (that do not otherwise meet any other classification criteria) listed in the hpHosts database. The maintainer's file contains hostnames, which have been DNS resolved to IP addresses." \
+	"hpHosts" "http://hosts-file.net/"
+
+update hphosts_hfs $[24*60] 0 ipv4 ip \
+	"http://hosts-file.net/hfs.txt" \
+	hphosts2ips \
+	"abuse" \
+	"[hpHosts](http://hosts-file.net/?s=Download) sites spamming the hpHosts forums (and not meeting any other classification criteria) listed in the hpHosts database. The maintainer's file contains hostnames, which have been DNS resolved to IP addresses." \
+	"hpHosts" "http://hosts-file.net/"
+
+update hphosts_hjk $[24*60] 0 ipv4 ip \
+	"http://hosts-file.net/hjk.txt" \
+	hphosts2ips \
+	"malware" \
+	"[hpHosts](http://hosts-file.net/?s=Download) hijack sites listed in the hpHosts database. The maintainer's file contains hostnames, which have been DNS resolved to IP addresses." \
+	"hpHosts" "http://hosts-file.net/"
+
+update hphosts_mmt $[24*60] 0 ipv4 ip \
+	"http://hosts-file.net/mmt.txt" \
+	hphosts2ips \
+	"reputation" \
+	"[hpHosts](http://hosts-file.net/?s=Download) sites involved in misleading marketing (e.g. fake Flash update adverts) listed in the hpHosts database. The maintainer's file contains hostnames, which have been DNS resolved to IP addresses." \
+	"hpHosts" "http://hosts-file.net/"
+
+update hphosts_pha $[24*60] 0 ipv4 ip \
+	"http://hosts-file.net/pha.txt" \
+	hphosts2ips \
+	"reputation" \
+	"[hpHosts](http://hosts-file.net/?s=Download) illegal pharmacy sites listed in the hpHosts database. The maintainer's file contains hostnames, which have been DNS resolved to IP addresses." \
+	"hpHosts" "http://hosts-file.net/"
+
+update hphosts_psh $[24*60] 0 ipv4 ip \
+	"http://hosts-file.net/psh.txt" \
+	hphosts2ips \
+	"reputation" \
+	"[hpHosts](http://hosts-file.net/?s=Download) phishing sites listed in the hpHosts database. The maintainer's file contains hostnames, which have been DNS resolved to IP addresses." \
+	"hpHosts" "http://hosts-file.net/"
+
+update hphosts_wrz $[24*60] 0 ipv4 ip \
+	"http://hosts-file.net/wrz.txt" \
+	hphosts2ips \
+	"reputation" \
+	"[hpHosts](http://hosts-file.net/?s=Download) warez/piracy sites listed in the hpHosts database. The maintainer's file contains hostnames, which have been DNS resolved to IP addresses." \
+	"hpHosts" "http://hosts-file.net/"
 
 
 # -----------------------------------------------------------------------------
