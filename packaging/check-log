@@ -43,7 +43,7 @@ Description: firewall for humans
 !
   dpkg-gencontrol -O -pfirehol -lChangeLog > /dev/null 2> debian/tmp/l
   status=$?
-  if [ $status -eq 0 -a `cat debian/tmp/l | wc -c` -gt 0 ]
+  if [ $status -eq 0 -a `grep -v "FcntlLock not available" debian/tmp/l | wc -c` -gt 0 ]
   then
     status=1
   fi
