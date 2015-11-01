@@ -3050,7 +3050,7 @@ hostname_resolver() {
 		[ ${RUNNING_ON_TERMINAL} -eq 1 -a ${SILENT} -ne 1 ] && \
 			pv_opts="--size ${in} --timer --eta --rate --bytes"
 
-		cat "${RUN_DIR}/dns.input" |\
+		$CAT_CMD "${RUN_DIR}/dns.input" |\
 			$PV_CMD --line-mode --rate-limit ${DNS_QUERIES_PER_SECOND} ${pv_opts} |\
 			$ADNSHOST_CMD --asynch --fmt-asynch --pipe |\
 			while read id n status t1 reason host dollar msg1 msg2 msg3 msg4 msg5
@@ -4906,7 +4906,7 @@ update cta_cryptowall $[24*60] 0 ipv4 ip \
 # -----------------------------------------------------------------------------
 # https://cleantalk.org/
 
-parse_cleantalk() { grep -oP ">[[:space:]]*${IP4_MATCH}[[:space:]]*<" | grep -oP "${IP4_MATCH}"; }
+parse_cleantalk() { $GREP_CMD -oP ">[[:space:]]*${IP4_MATCH}[[:space:]]*<" | $GREP_CMD -oP "${IP4_MATCH}"; }
 
 update cleantalk_new $[15] "$[24*60] $[7*24*60] $[30*24*60]" ipv4 ip \
 	"https://cleantalk.org/blacklists/submited_today" \
@@ -4938,12 +4938,12 @@ if [ -f cleantalk_new.ipset -a -f cleantalk_updated.ipset -a -f cleantalk.source
 	${IPRANGE_CMD} -1 cleantalk_new.ipset cleantalk_updated.ipset >cleantalk.source
 	if [ cleantalk_new.ipset -nt cleantalk_updated.ipset ]
 		then
-		touch -r cleantalk_new.ipset cleantalk.source
+		$TOUCH_CMD -r cleantalk_new.ipset cleantalk.source
 	else
-		touch -r cleantalk_updated.ipset cleantalk.source
+		$TOUCH_CMD -r cleantalk_updated.ipset cleantalk.source
 	fi
 
-	update cleantalk 1 "$[24*60] $[7*24*60] $[30*24*60]" ipv4 ip "" cat \
+	update cleantalk 1 "$[24*60] $[7*24*60] $[30*24*60]" ipv4 ip "" $CAT_CMD \
 		"abuse" \
 		"[CleanTalk](https://cleantalk.org/) HTTP Spammers (includes both cleantalk_new and cleantalk_updated ipsets)." \
 		"CleanTalk" "https://cleantalk.org/"
