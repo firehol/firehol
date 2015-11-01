@@ -382,10 +382,10 @@ WEB_CHARTS_ENTRIES="500"
 PUSH_TO_GIT=0
 
 # the maximum time in seconds, to connect to the remote web server
-MAX_CONNECT_TIME=10
+MAX_CONNECT_TIME=20
 
 # the maximum time in seconds any download may take
-MAX_DOWNLOAD_TIME=180
+MAX_DOWNLOAD_TIME=240
 
 # ignore a few download failures
 # if the download fails more than these consecutive times, the ipset will be
@@ -1003,7 +1003,7 @@ download_manager() {
 		*)
 			rm "${tmp}"
 			IPSET_DOWNLOAD_FAILURES[${ipset}]=$(( fails + 1 ))
-			ipset_error "${ipset}" "cannot download '${url}'. (${IPSET_DOWNLOAD_FAILURES[${ipset}]} consecutive failures to download it so far)."
+			ipset_error "${ipset}" "cannot download '${url}'. (${IPSET_DOWNLOAD_FAILURES[${ipset}]} consecutive failures to download it so far: timings were ${mins} + ${inc} + ${inc2} = $[mins + inc + inc2] mins)."
 			cache_save
 			return ${DOWNLOAD_FAILED}
 			;;
