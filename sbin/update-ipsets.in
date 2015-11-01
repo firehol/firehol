@@ -3357,8 +3357,10 @@ ipsets_with_common_source_file() {
 # MERGE two or more ipsets
 
 merge() {
-	local to="${1}" category="${2}" info="${3}" included=()
-	shift 3
+	local 	to="${1}" ipv="${2}" filter="${3}" category="${4}" info="${5}" \
+			maintainer="${6}" maintainer_url="${7}" \
+			included=()
+	shift 7
 
 	if [ ! -f "${to}.source" ]
 		then
@@ -3393,7 +3395,6 @@ merge() {
 			fi
 		else
 			ipset_warning "${to}" "will be generated without '${x}' - enable '${x}' it to be included the next time"
-			# touch -t 0001010000 "${BASE_DIR}/${x}.source"
 		fi
 	done
 
@@ -3409,9 +3410,15 @@ merge() {
 		return 1
 	fi
 
-	"${IPRANGE_CMD}" "${files[@]}" >"${RUN_DIR}/${to}.tmp"
-	touch --date=@${max_date} "${to}.tmp" "${to}.source"
-	finalize "${to}" "${RUN_DIR}/${to}.tmp" "${to}.setinfo" "${to}.source" "${to}.netset" "1" "0" "ipv4" "" "net" "" "${category}" "${info} (includes: ${included[*]})" "FireHOL" "${WEB_URL}${to}"
+	cat "${files[@]}" >"${to}.source.tmp" || return 1
+	touch --date=@${max_date} "${to}.source.tmp" || return 1
+	mv "${to}.source.tmp" "${to}.source" || return 1
+
+	update "${to}" 1 0 "${ipv}" "${filter}" "" \
+		"cat" \
+		"${category}" \
+		"${info} (includes: ${included[*]})" \
+		"${maintainer}" "${maintainer_url}"
 }
 
 echo >&2
@@ -4751,6 +4758,7 @@ update cta_cryptowall $[24*60] 0 ipv4 ip \
 	"[Cyber Threat Alliance](http://www.cyberthreatalliance.org/cryptowall-dashboard.html)  CryptoWall is one of the most lucrative and broad-reaching ransomware campaigns affecting Internet users today. Sharing intelligence and analysis resources, the CTA profiled the latest version of CryptoWall, which impacted hundreds of thousands of users, resulting in over US \$325 million in damages worldwide." \
 	"Cyber Threat Alliance" "http://www.cyberthreatalliance.org/cryptowall-dashboard.html"
 
+
 # -----------------------------------------------------------------------------
 # https://cleantalk.org/
 
@@ -4777,39 +4785,33 @@ update cleantalk_top20 $[24*60] 0 ipv4 ip \
 	"[CleanTalk](https://cleantalk.org/) Top 20 HTTP Spammers" \
 	"CleanTalk" "https://cleantalk.org/"
 
-# merge NEW and UPDATED
-if [ -f cleantalk_new.ipset -a -f cleantalk_updated.ipset -a -f cleantalk.source -a \
-	\( cleantalk_new.ipset -nt cleantalk.source -o cleantalk_updated.ipset -nt cleantalk.source \) ]
-	then
+merge cleantalk ipv4 ip \
+	"abuse" \
+	"[CleanTalk](https://cleantalk.org/) Today's HTTP Spammers" \
+	"CleanTalk" "https://cleantalk.org/" \
+	cleantalk_new \
+	cleantalk_updated
 
-	# merge them
-	${IPRANGE_CMD} -1 cleantalk_new.ipset cleantalk_updated.ipset >cleantalk.source
-	if [ cleantalk_new.ipset -nt cleantalk_updated.ipset ]
-		then
-		touch -r cleantalk_new.ipset cleantalk.source
-	else
-		touch -r cleantalk_updated.ipset cleantalk.source
-	fi
+merge cleantalk_1d ipv4 ip \
+	"abuse" \
+	"[CleanTalk](https://cleantalk.org/) Today's HTTP Spammers" \
+	"CleanTalk" "https://cleantalk.org/" \
+	cleantalk_new_1d \
+	cleantalk_updated_1d
 
-	update cleantalk 1 "$[24*60] $[7*24*60] $[30*24*60]" ipv4 ip "" cat \
-		"abuse" \
-		"[CleanTalk](https://cleantalk.org/) HTTP Spammers (includes both cleantalk_new and cleantalk_updated ipsets)." \
-		"CleanTalk" "https://cleantalk.org/"
-fi
+merge cleantalk_7d ipv4 ip \
+	"abuse" \
+	"[CleanTalk](https://cleantalk.org/) Today's HTTP Spammers" \
+	"CleanTalk" "https://cleantalk.org/" \
+	cleantalk_new_7d \
+	cleantalk_updated_7d
 
-# THESE MERGES NEED MORE WORK TO SUPPORT SETTING MAINTAINER, MAINTAINER_URL, ETC
-#
-#merge cleantalk_1d "abuse" "[CleanTalk](https://cleantalk.org/) All last 24 hours HTTP spammers" \
-#	cleantalk_new_1d \
-#	cleantalk_updated_1d
-#
-#merge cleantalk_7d "abuse" "[CleanTalk](https://cleantalk.org/) All last week's HTTP spammers" \
-#	cleantalk_new_7d \
-#	cleantalk_updated_7d
-#
-#merge cleantalk_30d "abuse" "[CleanTalk](https://cleantalk.org/) All last month's HTTP spammers" \
-#	cleantalk_new_30d \
-#	cleantalk_updated_30d
+merge cleantalk_30d ipv4 ip \
+	"abuse" \
+	"[CleanTalk](https://cleantalk.org/) Today's HTTP Spammers" \
+	"CleanTalk" "https://cleantalk.org/" \
+	cleantalk_new_30d \
+	cleantalk_updated_30d
 
 
 # -----------------------------------------------------------------------------
@@ -5658,8 +5660,10 @@ update dronebl_unknown 1 0 ipv4 both "" \
 # -----------------------------------------------------------------------------
 # FireHOL lists
 
-merge firehol_level1 "attacks" \
+merge firehol_level1 ipv4 both \
+	"attacks" \
 	"A firewall blacklist composed from IP lists, providing maximum protection with minimum false positives. Suitable for basic protection on all internet facing servers, routers and firewalls." \
+	"FireHOL" "http://iplists.firehol.org/" \
 	bambenek_c2 \
 	cta_cryptowall \
 	dshield \
@@ -5671,16 +5675,20 @@ merge firehol_level1 "attacks" \
 	sslbl \
 	zeus_badips \
 
-merge firehol_level2 "attacks" \
+merge firehol_level2 ipv4 both \
+	"attacks" \
 	"An ipset made from blocklists that track attacks, during about the last 48 hours." \
+	"FireHOL" "http://iplists.firehol.org/" \
 	blocklist_de \
 	dshield_1d \
 	greensnow \
 	openbl_1d \
 	virbl \
 
-merge firehol_level3 "attacks" \
+merge firehol_level3 ipv4 both \
+	"attacks" \
 	"An ipset made from blocklists that track attacks, spyware, viruses. It includes IPs than have been reported or detected in the last 30 days." \
+	"FireHOL" "http://iplists.firehol.org/" \
 	bruteforceblocker \
 	ciarmy \
 	dragon_http \
@@ -5699,8 +5707,10 @@ merge firehol_level3 "attacks" \
 	zeus \
 	vxvault \
 
-merge firehol_level4 "attacks" \
+merge firehol_level4 ipv4 both \
+	"attacks" \
 	"An ipset made from blocklists that track attacks, but may include a large number of false positives." \
+	"FireHOL" "http://iplists.firehol.org/" \
 	cleanmx_viruses \
 	blocklist_net_ua \
 	botscout_30d \
@@ -5714,8 +5724,10 @@ merge firehol_level4 "attacks" \
 	iw_wormlist \
 	malwaredomainlist \
 
-merge firehol_abusers_1d "abuse" \
+merge firehol_abusers_1d ipv4 both \
+	"abuse" \
 	"An ipset made from blocklists that track abusers in the last 24 hours." \
+	"FireHOL" "http://iplists.firehol.org/" \
 	botscout_1d \
 	cleantalk_new_1d \
 	cleantalk_updated_1d \
@@ -5725,8 +5737,10 @@ merge firehol_abusers_1d "abuse" \
 	php_spammers_1d \
 	stopforumspam_1d \
 
-merge firehol_abusers_30d "abuse" \
+merge firehol_abusers_30d ipv4 both \
+	"abuse" \
 	"An ipset made from blocklists that track abusers in the last 30 days." \
+	"FireHOL" "http://iplists.firehol.org/" \
 	cleantalk_new_30d \
 	cleantalk_updated_30d \
 	php_commenters_30d \
@@ -5736,8 +5750,10 @@ merge firehol_abusers_30d "abuse" \
 	stopforumspam \
 	sblam \
 
-merge firehol_webserver "attacks" \
+merge firehol_webserver ipv4 both \
+	"attacks" \
 	"A web server IP blacklist made from blocklists that track IPs that should never be your web users. (This list includes IPs that are servers hosting malware, bots, etc or users having a long criminal history. This list is to be used on top of firehol_level1, firehol_level2, firehol_level3 and possibly firehol_proxies or firehol_anonymous)." \
+	"FireHOL" "http://iplists.firehol.org/" \
 	hphosts_emd \
 	hphosts_exp \
 	hphosts_fsa \
@@ -5749,8 +5765,10 @@ merge firehol_webserver "attacks" \
 	pushing_inertia_blocklist \
 	stopforumspam_toxic \
 
-merge firehol_proxies "anonymizers" \
+merge firehol_proxies ipv4 both \
+	"anonymizers" \
 	"An ipset made from all sources that track open proxies. It includes IPs reported or detected in the last 30 days." \
+	"FireHOL" "http://iplists.firehol.org/" \
 	iblocklist_proxies \
 	maxmind_proxy_fraud \
 	proxylists_30d \
@@ -5762,8 +5780,10 @@ merge firehol_proxies "anonymizers" \
 	sslproxies_30d \
 	xroxy_30d \
 
-merge firehol_anonymous \
-	"anonymizers" "An ipset that includes all the anonymizing IPs of the world." \
+merge firehol_anonymous ipv4 both \
+	"anonymizers" \
+	"An ipset that includes all the anonymizing IPs of the world." \
+	"FireHOL" "http://iplists.firehol.org/" \
 	anonymous \
 	bm_tor \
 	dm_tor \
