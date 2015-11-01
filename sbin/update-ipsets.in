@@ -983,7 +983,7 @@ download_manager() {
 		0)
 			if [ ${fails} -gt 0 ]
 				then
-				unset IPSET_DOWNLOAD_FAILURES[${ipset}]
+				IPSET_DOWNLOAD_FAILURES[${ipset}]=0
 				cache_save
 			fi
 			;;
@@ -991,7 +991,7 @@ download_manager() {
 		99)
 			if [ ${fails} -gt 0 ]
 				then
-				unset IPSET_DOWNLOAD_FAILURES[${ipset}]
+				IPSET_DOWNLOAD_FAILURES[${ipset}]=0
 				cache_save
 			fi
 			ipset_notupdated "${ipset}" "file on server has not been updated yet"
@@ -1172,28 +1172,26 @@ ipset_services_to_json_array() {
 	done
 }
 
+ipset_normalize_for_json() {
+	local ipset="${1}"
+
+	[ -z "${IPSET_ENTRIES_MIN[${ipset}]}"       ] && IPSET_ENTRIES_MIN[${ipset}]="${IPSET_ENTRIES[${ipset}]}"
+	[ -z "${IPSET_ENTRIES_MAX[${ipset}]}"       ] && IPSET_ENTRIES_MAX[${ipset}]="${IPSET_ENTRIES[${ipset}]}"
+	[ -z "${IPSET_IPS_MIN[${ipset}]}"           ] && IPSET_IPS_MIN[${ipset}]="${IPSET_IPS[${ipset}]}"
+	[ -z "${IPSET_IPS_MAX[${ipset}]}"           ] && IPSET_IPS_MAX[${ipset}]="${IPSET_IPS[${ipset}]}"
+	[ -z "${IPSET_STARTED_DATE[${ipset}]}"      ] && IPSET_STARTED_DATE[${ipset}]="${IPSET_SOURCE_DATE[${ipset}]}"
+
+	[ -z "${IPSET_CLOCK_SKEW[${ipset}]}"        ] && IPSET_CLOCK_SKEW[${ipset}]=0
+	[ -z "${IPSET_DOWNLOAD_FAILURES[${ipset}]}" ] && IPSET_DOWNLOAD_FAILURES[${ipset}]=0
+}
+
 ipset_json() {
 	local ipset="${1}" geolite2= ipdeny= ip2location= comparison= info=
 
-	if [ -f "${RUN_DIR}/${ipset}_geolite2_country.json" ]
-		then
-		geolite2="${ipset}_geolite2_country.json"
-	fi
-
-	if [ -f "${RUN_DIR}/${ipset}_ipdeny_country.json" ]
-		then
-		ipdeny="${ipset}_ipdeny_country.json"
-	fi
-
-	if [ -f "${RUN_DIR}/${ipset}_ip2location_country.json" ]
-		then
-		ip2location="${ipset}_ip2location_country.json"
-	fi
-
-	if [ -f "${RUN_DIR}/${ipset}_comparison.json" ]
-		then
-		comparison="${ipset}_comparison.json"
-	fi
+	[ -f "${RUN_DIR}/${ipset}_geolite2_country.json"    ] && geolite2="${ipset}_geolite2_country.json"
+	[ -f "${RUN_DIR}/${ipset}_ipdeny_country.json"      ] && ipdeny="${ipset}_ipdeny_country.json"
+	[ -f "${RUN_DIR}/${ipset}_ip2location_country.json" ] && ip2location="${ipset}_ip2location_country.json"
+	[ -f "${RUN_DIR}/${ipset}_comparison.json"          ] && comparison="${ipset}_comparison.json"
 
 	info="${IPSET_INFO[${ipset}]}"
 	info="$(echo "${info}" | sed "s/)/)\n/g" | sed "s|\[\(.*\)\](\(.*\))|<a href=\"\2\">\1</a>|g" | tr "\n\t" "  ")"
@@ -1207,33 +1205,7 @@ ipset_json() {
 		commit_history="${GITHUB_CHANGES_URL}${IPSET_FILE[${ipset}]}"
 	fi
 
-	if [ -z "${IPSET_ENTRIES_MIN[${ipset}]}" ]
-		then
-		IPSET_ENTRIES_MIN[${ipset}]="${IPSET_ENTRIES[${ipset}]}"
-	fi
-	if [ -z "${IPSET_ENTRIES_MAX[${ipset}]}" ]
-		then
-		IPSET_ENTRIES_MAX[${ipset}]="${IPSET_ENTRIES[${ipset}]}"
-	fi
-
-	if [ -z "${IPSET_IPS_MIN[${ipset}]}" ]
-		then
-		IPSET_IPS_MIN[${ipset}]="${IPSET_IPS[${ipset}]}"
-	fi
-	if [ -z "${IPSET_IPS_MAX[${ipset}]}" ]
-		then
-		IPSET_IPS_MAX[${ipset}]="${IPSET_IPS[${ipset}]}"
-	fi
-
-	if [ -z "${IPSET_STARTED_DATE[${ipset}]}" ]
-		then
-		IPSET_STARTED_DATE[${ipset}]="${IPSET_SOURCE_DATE[${ipset}]}"
-	fi
-
-	if [ -z "${IPSET_CLOCK_SKEW[${ipset}]}" ]
-		then
-		IPSET_CLOCK_SKEW[${ipset}]=0
-	fi
+	ipset_normalize_for_json "${ipset}"
 
 	cat <<EOFJSON
 {
@@ -1271,7 +1243,8 @@ ipset_json() {
 	"intended_use": "${IPSET_INTENDED_USE[${ipset}]}",
 	"false_positives": "${IPSET_FALSE_POSITIVES[${ipset}]}",
 	"poisoning": "${IPSET_POISONING[${ipset}]}",
-	"services": [ $(ipset_services_to_json_array ${IPSET_SERVICES[${ipset}]}) ]
+	"services": [ $(ipset_services_to_json_array ${IPSET_SERVICES[${ipset}]}) ],
+	"errors": ${IPSET_DOWNLOAD_FAILURES[${ipset}]}
 }
 EOFJSON
 }
@@ -1279,19 +1252,18 @@ EOFJSON
 ipset_json_index() {
 	local ipset="${1}"
 
-	if [ -z "${IPSET_CLOCK_SKEW[${ipset}]}" ]
-		then
-		IPSET_CLOCK_SKEW[${ipset}]=0
-	fi
+	ipset_normalize_for_json "${ipset}"
 
 cat <<EOFALL
 	{
 		"ipset": "${ipset}",
 		"category": "${IPSET_CATEGORY[${ipset}]}",
 		"maintainer": "${IPSET_MAINTAINER[${ipset}]}",
+		"started": ${IPSET_STARTED_DATE[${ipset}]}000,
 		"updated": ${IPSET_SOURCE_DATE[${ipset}]}000,
 		"clock_skew": $[ IPSET_CLOCK_SKEW[${ipset}] * 1000 ],
-		"ips": ${IPSET_IPS[${ipset}]}
+		"ips": ${IPSET_IPS[${ipset}]},
+		"errors": ${IPSET_DOWNLOAD_FAILURES[${ipset}]}
 EOFALL
 printf "	}"
 }
