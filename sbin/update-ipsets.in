@@ -1635,6 +1635,10 @@ update_web() {
 		if [ ${to_all} -eq 1 ]
 			then
 			all=("${all[@]}" "${IPSET_FILE[$x]}" "as" "${x}")
+			
+			# if we need a full rebuild, pretend all are updated
+			[ ${FORCE_WEB_REBUILD} -eq 1 ] && UPDATED_SETS[${x}]="${IPSET_FILE[${x}]}"
+
 			[ ! -z "${UPDATED_SETS[${x}]}" ] && updated=("${updated[@]}" "${IPSET_FILE[$x]}" "as" "${x}")
 
 			if [ ! -f "${RUN_DIR}/all-ipsets.json" ]
@@ -1757,7 +1761,7 @@ update_web() {
 	printf >&2 "generating javascript info... "
 	for x in "${!IPSET_FILE[@]}"
 	do
-		[ -z "${UPDATED_SETS[${x}]}" -a ! ${FORCE_WEB_REBUILD} -eq 1 ] && continue
+		[ -z "${UPDATED_SETS[${x}]}" ] && continue
 
 		ipset_json "${x}" >"${RUN_DIR}/${x}.json"
 	done
@@ -1766,7 +1770,7 @@ update_web() {
 	printf >&2 "generating retention histogram... "
 	for x in "${!IPSET_FILE[@]}"
 	do
-		[ -z "${UPDATED_SETS[${x}]}" -a ! ${FORCE_WEB_REBUILD} -eq 1 ] && continue
+		[ -z "${UPDATED_SETS[${x}]}" ] && continue
 		
 		[[ "${IPSET_FILE[$x]}" =~ ^geolite2.* ]] && continue
 		[[ "${IPSET_FILE[$x]}" =~ ^ipdeny.* ]] && continue
