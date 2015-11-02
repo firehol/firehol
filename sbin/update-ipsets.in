@@ -168,61 +168,107 @@ silent() {
 	[ ${SILENT} -ne 1 ] && echo >&2 "${@}"
 }
 
+ipset_ipset_ident=35
+print_ipset_spacer="$(printf "%${ipset_ipset_ident}s| " "")"
+print_ipset_last=
+print_ipset() {
+	local ipset="${1}"
+
+	if [ "${ipset}" = "${print_ipset_last}" ]
+		then
+		printf >&2 "%${ipset_ipset_ident}s| " ""
+	else
+		[ ${SILENT} -ne 1 ] && echo >&2 "${print_ipset_spacer}"
+		printf >&2 "${COLOR_GREEN}%${ipset_ipset_ident}s${COLOR_RESET}| " "${ipset}"
+		print_ipset_last="${ipset}"
+	fi
+}
+
 ipset_error() {
 	local ipset="${1}"
 	shift
 
-	echo >&2 -e "${ipset}: ${COLOR_BGRED}${COLOR_WHITE}${COLOR_BOLD} ERROR ${COLOR_RESET} ${@}"
+	print_ipset "${ipset}"
+	echo >&2 -e "${COLOR_BGRED}${COLOR_WHITE}${COLOR_BOLD} ERROR ${COLOR_RESET} ${@}"
 	logger -p daemon.info -t "update-ipsets.sh[$$]" "ERROR: ${ipset}: ${@}"
 }
 ipset_warning() {
 	local ipset="${1}"
 	shift
 
-	echo >&2 -e "${ipset}: ${COLOR_BGYELLOW}${COLOR_BLACK}${COLOR_BOLD} WARNING ${COLOR_RESET} ${@}"
+	print_ipset "${ipset}"
+	echo >&2 -e "${COLOR_BGYELLOW}${COLOR_BLACK}${COLOR_BOLD} WARNING ${COLOR_RESET} ${@}"
 	logger -p daemon.info -t "update-ipsets.sh[$$]" "WARNING: ${ipset}: ${@}"
 }
 ipset_info() {
 	local ipset="${1}"
 	shift
 
-	echo >&2 "${ipset}: ${@}"
+	print_ipset "${ipset}"
+	echo >&2 "${@}"
 	logger -p daemon.info -t "update-ipsets.sh[$$]" "INFO: ${ipset}: ${@}"
 }
 ipset_saved() {
 	local ipset="${1}"
 	shift
 
-	echo >&2 -e "${ipset}: ${COLOR_BGGREEN}${COLOR_RED}${COLOR_BOLD} SAVED ${COLOR_RESET} ${@}"
+	print_ipset "${ipset}"
+	echo >&2 -e "${COLOR_BGGREEN}${COLOR_RED}${COLOR_BOLD} SAVED ${COLOR_RESET} ${@}"
 	logger -p daemon.info -t "update-ipsets.sh[$$]" "SAVED: ${ipset}: ${@}"
 }
 ipset_loaded() {
 	local ipset="${1}"
 	shift
 
-	echo >&2 -e "${ipset}: ${COLOR_BGGREEN}${COLOR_BLACK}${COLOR_BOLD} LOADED ${COLOR_RESET} ${@}"
+	print_ipset "${ipset}"
+	echo >&2 -e "${COLOR_BGGREEN}${COLOR_BLACK}${COLOR_BOLD} LOADED ${COLOR_RESET} ${@}"
 	logger -p daemon.info -t "update-ipsets.sh[$$]" "LOADED: ${ipset}: ${@}"
 }
 ipset_same() {
 	local ipset="${1}"
 	shift
 
-	echo >&2 -e "${ipset}: ${COLOR_BGWHITE}${COLOR_BLACK}${COLOR_BOLD} SAME ${COLOR_RESET} ${@}"
+	print_ipset "${ipset}"
+	echo >&2 -e "${COLOR_BGWHITE}${COLOR_BLACK}${COLOR_BOLD} SAME ${COLOR_RESET} ${@}"
 	logger -p daemon.info -t "update-ipsets.sh[$$]" "DOWNLOADED SAME: ${ipset}: ${@}"
 }
 ipset_notupdated() {
 	local ipset="${1}"
 	shift
 
-	echo >&2 -e "${ipset}: ${COLOR_BGWHITE}${COLOR_BLACK}${COLOR_BOLD} NOT UPDATED ${COLOR_RESET} ${@}"
+	print_ipset "${ipset}"
+	echo >&2 -e "${COLOR_BGWHITE}${COLOR_BLACK}${COLOR_BOLD} NOT UPDATED ${COLOR_RESET} ${@}"
 	logger -p daemon.info -t "update-ipsets.sh[$$]" "NOT UPDATED: ${ipset}: ${@}"
 }
 ipset_notyet() {
 	local ipset="${1}"
 	shift
 
-	echo >&2 -e "${ipset}: ${COLOR_BGWHITE}${COLOR_BLACK}${COLOR_BOLD} LATER ${COLOR_RESET} ${@}"
+	print_ipset "${ipset}"
+	echo >&2 -e "${COLOR_BGWHITE}${COLOR_BLACK}${COLOR_BOLD} LATER ${COLOR_RESET} ${@}"
 	logger -p daemon.info -t "update-ipsets.sh[$$]" "LATER: ${ipset}: ${@}"
+}
+ipset_disabled() {
+	local ipset="${1}"
+	shift
+
+	if [ ${SILENT} -eq 0 ]
+		then
+		print_ipset "${ipset}"
+		echo >&2 -e "${COLOR_BGWHITE}${COLOR_BLACK}${COLOR_BOLD} DISABLED ${COLOR_RESET} ${@}"
+		print_ipset "${ipset}"
+		echo >&2    "To enable run: update-ipsets enable ${ipset}"
+	fi
+}
+ipset_silent() {
+	local ipset="${1}"
+	shift
+
+	if [ ${SILENT} -eq 0 ]
+		then
+		print_ipset "${ipset}"
+		echo >&2 "${@}"
+	fi
 }
 
 # -----------------------------------------------------------------------------
@@ -880,7 +926,16 @@ geturl() {
 	# to our file
 	touch -r "${reference}" "${file}"
 
-	[ ${SILENT} -ne 1 ] && printf >&2 "${ipset}: downlading from '%s'... " "${url}"
+	if [ ${SILENT} -ne 1 ] 
+		then
+		if [ ${#url} -gt 55 ]
+			then
+			printf >&2 "${print_ipset_spacer}curl '%-50.50s ... ' ...\n" "${url}"
+		else
+			printf >&2 "${print_ipset_spacer}curl '%s' ...\n" "${url}"
+		fi
+		printf >&2 "${print_ipset_spacer}"
+	fi
 
 	http_code=$( \
 		curl --connect-timeout ${MAX_CONNECT_TIME} --max-time ${MAX_DOWNLOAD_TIME} \
@@ -933,12 +988,12 @@ DOWNLOAD_NOT_UPDATED=2
 declare -A IPSET_DOWNLOADER_NO_IF_MODIFIED_SINCE=()
 download_manager() {
 	local 	ipset="${1}" mins="${2}" url="${3}" \
-			tmp= now= date= check= inc= inc2= fails=
-
-	tmp=`mktemp "${RUN_DIR}/download-${ipset}-XXXXXXXXXX"` || return ${DOWNLOAD_FAILED}
+			st= \
+			tmp= now="$(date +%s)" base= omins= detail= date= check= inc= inc2= fails= dt=
 
 	# make sure it is numeric
 	[ "$[mins + 0]" -lt 1 ] && mins=1
+	omins=${mins}
 
 	# add some time (1/100th), to make sure the source is updated
 	inc=$[ (mins + 50) / 100 ]
@@ -946,64 +1001,78 @@ download_manager() {
 	# if the download period is less than 30min, do not add anything
 	[ ${mins} -le 30 ] && inc=0
 
-	# if the added time is above 10min, make it 10 min
+	# if the added time is above 10min, make it 10min
 	[ ${inc} -gt 10 ] && inc=10
 
-	# if it failed more than 10 times in the past, increase the time
-	inc2=0
+	mins=$[mins + inc]
+
+	# make sure we have a proper time for last-checked
+	st=0
+	[ -f "${ipset}.source"                      ] && st="$(date -r "${ipset}.source" +%s)"
+	[ -z "${IPSET_CHECKED_DATE[${ipset}]}"      ] && IPSET_CHECKED_DATE[${ipset}]=${st}
+	[ -z "${IPSET_CHECKED_DATE[${ipset}]}"      ] && IPSET_CHECKED_DATE[${ipset}]=0
+	[ -z "${IPSET_DOWNLOAD_FAILURES[${ipset}]}" ] && IPSET_DOWNLOAD_FAILURES[${ipset}]=0
+
+	# nunber of consecutive failures so far
 	fails=${IPSET_DOWNLOAD_FAILURES[${ipset}]}
-	[ "$[fails + 0]" -eq 0 ] && fails=0
-	[ ${fails} -gt ${IGNORE_REPEATING_DOWNLOAD_ERRORS} ] && inc2=$[ (fails - IGNORE_REPEATING_DOWNLOAD_ERRORS) * mins ]
+	base=${IPSET_CHECKED_DATE[${ipset}]}
+	dt=$[ now - base ]
+	detail="$[dt/60]/${mins} mins passed, will allow in $[mins - (dt/60)] mins"
 
-	# touch a file in the past
-	touch_in_the_past "$[mins + inc + inc2]" "${tmp}"
+	if [ ${fails} -gt ${IGNORE_REPEATING_DOWNLOAD_ERRORS} ]
+		then
+		mins=$[ mins * (fails - IGNORE_REPEATING_DOWNLOAD_ERRORS) ]
+		dt=$[ now - base ]
+		detail="$[dt/60]/${mins} mins passed, will allow in $[mins - (dt/60)] mins"
+		ipset_silent "${ipset}" "${fails} fails so far, time increased from ${omins} to ${mins} mins"
+	elif [ ${fails} -gt 0 ]
+		then
+		mins=$[ (mins + 1) / 2 ]
+		dt=$[ now - base ]
+		detail="$[dt/60]/${mins} mins passed, will allow in $[mins - (dt/60)] mins"
+		ipset_silent "${ipset}" "${fails} fails so far, time decreased from ${omins} to ${mins} mins"
+	fi
+	
+	# echo >&2 "${ipset}: source:${st} processed:${IPSET_PROCESSED_DATE[${ipset}]} checked:${IPSET_CHECKED_DATE[${ipset}]}, fails:${IPSET_DOWNLOAD_FAILURES[${ipset}]}, mins:${omins}, dt:$[dt / 60]"
 
-	check="${ipset}.source"
-	[ ${IGNORE_LASTCHECKED} -eq 0 -a -f ".${ipset}.lastchecked" ] && check=".${ipset}.lastchecked"
-
-	# check if we have to download again
-	if [ "${check}" -nt "${tmp}" ]
-	then
-		rm "${tmp}"
-		if [ ${VERBOSE} -eq 1 ]
-			then
-			ipset_notyet "${ipset}" "should not be downloaded so soon (within ${mins} + ${inc} + ${inc2} = $[mins + inc + inc2] mins)."
-		else
-			ipset_notyet "${ipset}" "should not be downloaded so soon."
-		fi
+	# if it is too soon, do nothing
+	if [ ${dt} -lt $[ mins * 60 ] ]
+		then
+		ipset_notyet "${ipset}" "${detail}"
 		return ${DOWNLOAD_NOT_UPDATED}
 	fi
+
+	# return ${DOWNLOAD_NOT_UPDATED}
+
+	IPSET_CHECKED_DATE[${ipset}]="${now}"
+	ipset_info "${ipset}" "$[dt/60]/${mins} mins passed, downloading..."
 
 	# download it
 	local reference="${ipset}.source"
 	[ ! -z "${IPSET_DOWNLOADER_NO_IF_MODIFIED_SINCE[${ipset}]}" ] && reference=""
 
+	tmp=`mktemp "${RUN_DIR}/download-${ipset}-XXXXXXXXXX"` || return ${DOWNLOAD_FAILED}
 	geturl "${tmp}" "${reference}" "${url}"
 	case $? in
 		0)
-			if [ ${fails} -gt 0 ]
-				then
-				IPSET_DOWNLOAD_FAILURES[${ipset}]=0
-				cache_save
-			fi
+			ipset_silent "${ipset}" "downloaded successfully"
+			IPSET_CHECKED_DATE[${ipset}]="$(date -r "${tmp}" +%s)"
+			IPSET_DOWNLOAD_FAILURES[${ipset}]=0
+			cache_save
 			;;
 
 		99)
-			if [ ${fails} -gt 0 ]
-				then
-				IPSET_DOWNLOAD_FAILURES[${ipset}]=0
-				cache_save
-			fi
+			IPSET_DOWNLOAD_FAILURES[${ipset}]=0
+			cache_save
 			ipset_notupdated "${ipset}" "file on server has not been updated yet"
 			rm "${tmp}"
-			touch_in_the_past $[mins / 2] ".${ipset}.lastchecked"
 			return ${DOWNLOAD_NOT_UPDATED}
 			;;
 
 		*)
 			rm "${tmp}"
 			IPSET_DOWNLOAD_FAILURES[${ipset}]=$(( fails + 1 ))
-			ipset_error "${ipset}" "cannot download '${url}'. (${IPSET_DOWNLOAD_FAILURES[${ipset}]} consecutive failures to download it so far: timings were ${mins} + ${inc} + ${inc2} = $[mins + inc + inc2] mins)."
+			ipset_error "${ipset}" "failed - ${IPSET_DOWNLOAD_FAILURES[${ipset}]} consecutive failures so far."
 			cache_save
 			return ${DOWNLOAD_FAILED}
 			;;
@@ -1011,9 +1080,6 @@ download_manager() {
 
 	[ ! -z "${IPSET_DOWNLOADER_NO_IF_MODIFIED_SINCE[${ipset}]}" ] && touch "${tmp}"
 	
-	# we downloaded something - remove the lastchecked file
-	[ -f ".${ipset}.lastchecked" ] && rm ".${ipset}.lastchecked"
-
 	# check if the downloaded file is empty
 	#if [ ! -s "${tmp}" ]
 	#then
@@ -1028,7 +1094,7 @@ download_manager() {
 	if [ $? -eq 0 ]
 	then
 		# they are the same
-		ipset_same "${ipset}" "downloaded file is the same with the previous one."
+		ipset_same "${ipset}" "downloaded file is the same to the old one."
 
 		# copy the timestamp of the downloaded to our file
 		touch -r "${tmp}" "${ipset}.source"
@@ -1037,7 +1103,7 @@ download_manager() {
 	fi
 
 	# move it to its place
-	silent "${ipset}: saving downloaded file to ${ipset}.source"
+	ipset_silent "${ipset}" "saving downloaded file"
 	mv "${tmp}" "${ipset}.source" || return ${DOWNLOAD_FAILED}
 
 	return ${DOWNLOAD_OK}
@@ -1058,6 +1124,7 @@ declare -A IPSET_ENTRIES=()
 declare -A IPSET_IPS=()
 declare -A IPSET_SOURCE_DATE=()
 declare -A IPSET_PROCESSED_DATE=()
+declare -A IPSET_CHECKED_DATE=()
 declare -A IPSET_CATEGORY=()
 declare -A IPSET_MAINTAINER=()
 declare -A IPSET_MAINTAINER_URL=()
@@ -1078,6 +1145,7 @@ declare -A IPSET_STARTED_DATE=()
 declare -A IPSET_CLOCK_SKEW=()
 
 declare -A IPSET_DOWNLOAD_FAILURES=()
+declare -A IPSET_VERSION=()
 
 # TODO - FIXME
 #declare -A IPSET_PREFIXES=()
@@ -1086,6 +1154,7 @@ declare -A IPSET_DOWNLOAD_FAILURES=()
 
 cache_save() {
 	#info "Saving cache"
+	
 	declare -p \
 		IPSET_INFO \
 		IPSET_SOURCE \
@@ -1098,6 +1167,7 @@ cache_save() {
 		IPSET_ENTRIES \
 		IPSET_IPS \
 		IPSET_SOURCE_DATE \
+		IPSET_CHECKED_DATE \
 		IPSET_PROCESSED_DATE \
 		IPSET_CATEGORY \
 		IPSET_MAINTAINER \
@@ -1116,7 +1186,11 @@ cache_save() {
 		IPSET_STARTED_DATE \
 		IPSET_CLOCK_SKEW \
 		IPSET_DOWNLOAD_FAILURES \
-		>"${BASE_DIR}/.cache"
+		IPSET_VERSION \
+		>"${BASE_DIR}/.cache.new.$$"
+	
+	[ -f "${BASE_DIR}/.cache" ] && cp "${BASE_DIR}/.cache" "${BASE_DIR}/.cache.old"
+	mv "${BASE_DIR}/.cache.new.$$" "${BASE_DIR}/.cache"
 }
 
 if [ -f "${BASE_DIR}/.cache" ]
@@ -1128,7 +1202,7 @@ fi
 cache_remove_ipset() {
 	local ipset="${1}"
 
-	ipset_info "${ipset}" "removing from cache"
+	info "${ipset}" "removing from cache"
 
 	unset IPSET_INFO[${ipset}]
 	unset IPSET_SOURCE[${ipset}]
@@ -1141,6 +1215,7 @@ cache_remove_ipset() {
 	unset IPSET_ENTRIES[${ipset}]
 	unset IPSET_IPS[${ipset}]
 	unset IPSET_SOURCE_DATE[${ipset}]
+	unset IPSET_CHECKED_DATE[${ipset}]
 	unset IPSET_PROCESSED_DATE[${ipset}]
 	unset IPSET_CATEGORY[${ipset}]
 	unset IPSET_MAINTAINER[${ipset}]
@@ -1158,6 +1233,8 @@ cache_remove_ipset() {
 	unset IPSET_IPS_MAX[${ipset}]
 	unset IPSET_STARTED_DATE[${ipset}]
 	unset IPSET_CLOCK_SKEW[${ipset}]
+	unset IPSET_DOWNLOAD_FAILURES[${ipset}]
+	unset IPSET_VERSION[${ipset}]
 
 	cache_save
 }
@@ -1183,6 +1260,8 @@ ipset_normalize_for_json() {
 
 	[ -z "${IPSET_CLOCK_SKEW[${ipset}]}"        ] && IPSET_CLOCK_SKEW[${ipset}]=0
 	[ -z "${IPSET_DOWNLOAD_FAILURES[${ipset}]}" ] && IPSET_DOWNLOAD_FAILURES[${ipset}]=0
+
+	[ -z "${IPSET_VERSION[${ipset}]}"           ] && IPSET_VERSION[${ipset}]=0
 }
 
 ipset_json() {
@@ -1244,7 +1323,8 @@ ipset_json() {
 	"false_positives": "${IPSET_FALSE_POSITIVES[${ipset}]}",
 	"poisoning": "${IPSET_POISONING[${ipset}]}",
 	"services": [ $(ipset_services_to_json_array ${IPSET_SERVICES[${ipset}]}) ],
-	"errors": ${IPSET_DOWNLOAD_FAILURES[${ipset}]}
+	"errors": ${IPSET_DOWNLOAD_FAILURES[${ipset}]},
+	"version": ${IPSET_VERSION[${ipset}]}
 }
 EOFJSON
 }
@@ -1336,7 +1416,7 @@ retention_detect() {
 
 	ndate=$(date -r "${IPSET_FILE[${ipset}]}" +%s)
 
-	printf >&2 " ${ipset}:"
+	printf >&2 "\n\t${ipset}:"
 
 	# create the cache directory for this ipset
 	if [ ! -d "${CACHE_DIR}/${ipset}" ]
@@ -1566,17 +1646,19 @@ update_web() {
 			continue
 		fi
 
+		## check if it has been updated in a previous run
+		## and has not been copied to our cache
+		#if [ -z "${UPDATED_SETS[${x}]}" -a -f "${CACHE_DIR}/${x}/latest" -a "${IPSET_FILE[$x]}" -nt "${CACHE_DIR}/${x}/latest" ]
+		#	then
+		#	silent "${x}: found unupdated cache $(date -r "${IPSET_FILE[$x]}" +%s) vs $(date -r "${CACHE_DIR}/${x}/latest" +%s)"
+		#	# UPDATED_SETS[${x}]="${IPSET_FILE[$x]}"
+		#fi
+
 		if [ ! -z "${CACHE_DIR}" ]
 			then
 			if [ ! -d "${CACHE_DIR}/${x}" ]
 				then
 				mkdir -p "${CACHE_DIR}/${x}"
-			fi
-
-			# copy the history from the old location to CACHE_DIR
-			if [ -f "${WEB_DIR}/${x}_history.csv" -a ! -f "${CACHE_DIR}/${x}/history.csv" ]
-				then
-				cp "${WEB_DIR}/${x}_history.csv" "${CACHE_DIR}/${x}/history.csv"
 			fi
 
 			# update the history CSV files
@@ -1987,7 +2069,7 @@ finalize() {
 		ipset_same "${ipset}" "processed set is the same with the previous one."
 
 		# keep the old set, but make it think it was from this source
-		silent "${ipset}: touching ${dst} from ${src}."
+		ipset_silent "${ipset}" "touching ${dst} from ${src}."
 		touch -r "${src}" "${dst}"
 
 		check_file_too_old "${ipset}" "${dst}"
@@ -2012,7 +2094,7 @@ finalize() {
 		if [ ! -z "${ERRORS_DIR}" -a -d "${ERRORS_DIR}" ]
 		then
 			mv "${tmp}" "${ERRORS_DIR}/${dst}"
-			ipset_error "${ipset}" "failed to update ipset (error file left for you as '${ERRORS_DIR}/${dst}')."
+			ipset_error "${ipset}" "failed to update ipset (error file left as '${ERRORS_DIR}/${dst}')."
 		else
 			rm "${tmp}"
 			ipset_error "${ipset}" "failed to update ipset."
@@ -2054,10 +2136,18 @@ finalize() {
 
 	[ -z "${IPSET_STARTED_DATE[${ipset}]}" ] && IPSET_STARTED_DATE[${ipset}]="${IPSET_SOURCE_DATE[${ipset}]}"
 
+	local version=${IPSET_VERSION[${ipset}]}
+	[ -z "${version}" ] && version=0
+	version=$[ version + 1 ]
+	IPSET_VERSION[${ipset}]=${version}
+
+	ipset_silent "${ipset}" "version ${version}, ${quantity}"
+
 	local now="$(date +%s)"
 	if [ "${now}" -lt "${IPSET_SOURCE_DATE[${ipset}]}" ]
 		then
 		IPSET_CLOCK_SKEW[${ipset}]=$[ IPSET_SOURCE_DATE[${ipset}] - now ]
+		ipset_warning "${ipset}" "updated time is future (${IPSET_CLOCK_SKEW[${ipset}]} seconds)"
 	else
 		IPSET_CLOCK_SKEW[${ipset}]=0
 	fi
@@ -2080,6 +2170,7 @@ finalize() {
 # Source File Date: `date -r "${src}" -u`
 #
 # Category        : ${category}
+# Version         : ${version}
 #
 # This File Date  : `date -u`
 # Update Frequency: `mins_to_text ${mins}`
@@ -2135,7 +2226,7 @@ update() {
 			maintainer="${10}" maintainer_url="${11}"
 	shift 11
 
-	local	tmp= error=0 now= date= \
+	local	tmp= error=0 now= date= ret= \
 			pre_filter="cat" post_filter="cat" post_filter2="cat" filter="cat" \
 			src="${ipset}.source" dst=
 
@@ -2201,10 +2292,11 @@ update() {
 	then
 		if [ ${ENABLE_ALL} -eq 1 ]
 			then
+			ipset_silent "${ipset}" "Enabling due to ENABLE_ALL option."
 			touch -t 0001010000 "${BASE_DIR}/${src}" || return 1
 		else
 			[ -d .git ] && echo >"${ipset}.setinfo" "${ipset}|${info}|${ipv} hash:${hash}|disabled|`if [ ! -z "${url}" ]; then echo "updated every $(mins_to_text ${mins}) from [this link](${url})"; fi`"
-			silent "${ipset}: is disabled, to enable it run: touch -t 0001010000 '${BASE_DIR}/${src}'"
+			ipset_disabled "${ipset}"
 			return 1
 		fi
 	fi
@@ -2214,14 +2306,38 @@ update() {
 	then
 		# download it
 		download_manager "${ipset}" "${mins}" "${url}"
-		if [ $? -eq ${DOWNLOAD_FAILED} -o \( $? -eq ${DOWNLOAD_NOT_UPDATED} -a -f "${ipset}.${hash}net" \) ]
+		ret=$?
+		if [ $ret -eq ${DOWNLOAD_FAILED} ]
 			then
-			if [ ! -s "${src}" ]; then return 1
-			elif [ -f "${dst}" -a ${REPROCESS_ALL} -eq 0 ]
+			ipset_silent "${ipset}" "download manager reports failure"
+			check_file_too_old "${ipset}" "${dst}"
+			return 1
+
+		elif [ $ret -eq ${DOWNLOAD_NOT_UPDATED} -a ! -f "${dst}" ]
 			then
-				check_file_too_old "${ipset}" "${dst}"
-				return 1
-			fi
+			ipset_silent "${ipset}" "download is the same, but we need to re-process it"
+
+		elif [ $ret -eq ${DOWNLOAD_NOT_UPDATED} -a ${REPROCESS_ALL} -eq 0 ]
+			then
+			ipset_silent "${ipset}" "download manager reports not updated source"
+			check_file_too_old "${ipset}" "${dst}"
+			return 1
+		fi
+	fi
+
+	if [ -f "${dst}" ]
+		then
+		# check if the source file has been updated
+		if [ ${REPROCESS_ALL} -eq 0 -a ! "${src}" -nt "${dst}" ]
+		then
+			ipset_notupdated "${ipset}" "source file has not been updated"
+			check_file_too_old "${ipset}" "${dst}"
+			return 0
+		fi
+
+		if [ "${src}" -nt "${dst}" ]
+			then
+			ipset_silent "${ipset}" "source file has been updated"
 		fi
 	fi
 
@@ -2229,7 +2345,7 @@ update() {
 	# if the .split file exists, create 2 ipsets, one for IPs and one for subnets
 	if [ "${limit}" = "split" -o \( -z "${limit}" -a -f "${ipset}.split" \) ]
 	then
-		ipset_info "${ipset}" "spliting IPs and networks..."
+		ipset_info "${ipset}" "spliting IPs and subnets..."
 		test -f "${ipset}_ip.source" && rm "${ipset}_ip.source"
 		test -f "${ipset}_net.source" && rm "${ipset}_net.source"
 		ln -s "${src}" "${ipset}_ip.source"
@@ -2252,16 +2368,8 @@ update() {
 		return $?
 	fi
 
-	# check if the source file has been updated
-	if [ ${REPROCESS_ALL} -eq 0 -a ! "${src}" -nt "${dst}" ]
-	then
-		ipset_info "${ipset}" "not updated - no reason to process it again."
-		check_file_too_old "${ipset}" "${dst}"
-		return 0
-	fi
-
 	# convert it
-	silent "${ipset}: converting with processor '${processor}'"
+	ipset_silent "${ipset}" "converting with '${processor}'"
 	tmp=`mktemp "${RUN_DIR}/${ipset}.tmp-XXXXXXXXXX"` || return 1
 	${processor} <"${src}" |\
 		trim |\
@@ -2312,6 +2420,7 @@ update() {
 				htag="_$[hmins/60]h"
 			fi
 
+			ipset_silent "${ipset}${htag}" "merging history files (${hmins} mins)"
 			history_get "${ipset}" "${hmins}" >"${tmp}${htag}"
 
 			cp "${tmp}${htag}" "${BASE_DIR}/${ipset}${htag}.source"
@@ -2396,8 +2505,6 @@ rename_ipset() {
 		mv "${HISTORY_DIR}/${old}" "${HISTORY_DIR}/${new}"
 	fi
 
-	[ -f ".${old}.lastchecked" -a ! -f ".${new}.lastchecked" ] && mv ".${old}.lastchecked" ".${new}.lastchecked"
-
 	if [ ! -z "${CACHE_DIR}" -a -d "${CACHE_DIR}" -a -d "${CACHE_DIR}/${old}" -a ! -d "${CACHE_DIR}/${new}" ]
 		then
 		mv -f "${CACHE_DIR}/${old}" "${CACHE_DIR}/${new}" || exit 1
@@ -2420,35 +2527,38 @@ rename_ipset() {
 	fi
 
 	# rename the cache
-	[ -z "${IPSET_INFO[${new}]}" ] && IPSET_INFO[${new}]="${IPSET_INFO[${old}]}"; unset IPSET_INFO[${old}];
-	[ -z "${IPSET_SOURCE[${new}]}" ] && IPSET_SOURCE[${new}]="${IPSET_SOURCE[${old}]}"; unset IPSET_SOURCE[${old}];
-	[ -z "${IPSET_URL[${new}]}" ] && IPSET_URL[${new}]="${IPSET_URL[${old}]}"; unset IPSET_URL[${old}];
-	[ -z "${IPSET_FILE[${new}]}" ] && IPSET_FILE[${new}]="${IPSET_FILE[${old}]}"; unset IPSET_FILE[${old}];
-	[ -z "${IPSET_IPV[${new}]}" ] && IPSET_IPV[${new}]="${IPSET_IPV[${old}]}"; unset IPSET_IPV[${old}];
-	[ -z "${IPSET_HASH[${new}]}" ] && IPSET_HASH[${new}]="${IPSET_HASH[${old}]}"; unset IPSET_HASH[${old}];
-	[ -z "${IPSET_MINS[${new}]}" ] && IPSET_MINS[${new}]="${IPSET_MINS[${old}]}"; unset IPSET_MINS[${old}];
-	[ -z "${IPSET_HISTORY_MINS[${new}]}" ] && IPSET_HISTORY_MINS[${new}]="${IPSET_HISTORY_MINS[${old}]}"; unset IPSET_HISTORY_MINS[${old}];
-	[ -z "${IPSET_ENTRIES[${new}]}" ] && IPSET_ENTRIES[${new}]="${IPSET_ENTRIES[${old}]}"; unset IPSET_ENTRIES[${old}];
-	[ -z "${IPSET_IPS[${new}]}" ] && IPSET_IPS[${new}]="${IPSET_IPS[${old}]}"; unset IPSET_IPS[${old}];
-	[ -z "${IPSET_SOURCE_DATE[${new}]}" ] && IPSET_SOURCE_DATE[${new}]="${IPSET_SOURCE_DATE[${old}]}"; unset IPSET_SOURCE_DATE[${old}];
-	[ -z "${IPSET_PROCESSED_DATE[${new}]}" ] && IPSET_PROCESSED_DATE[${new}]="${IPSET_PROCESSED_DATE[${old}]}"; unset IPSET_PROCESSED_DATE[${old}];
-	[ -z "${IPSET_CATEGORY[${new}]}" ] && IPSET_CATEGORY[${new}]="${IPSET_CATEGORY[${old}]}"; unset IPSET_CATEGORY[${old}];
-	[ -z "${IPSET_MAINTAINER[${new}]}" ] && IPSET_MAINTAINER[${new}]="${IPSET_MAINTAINER[${old}]}"; unset IPSET_MAINTAINER[${old}];
-	[ -z "${IPSET_MAINTAINER_URL[${new}]}" ] && IPSET_MAINTAINER_URL[${new}]="${IPSET_MAINTAINER_URL[${old}]}"; unset IPSET_MAINTAINER_URL[${old}];
-	[ -z "${IPSET_LICENSE[${new}]}" ] && IPSET_LICENSE[${new}]="${IPSET_LICENSE[${old}]}"; unset IPSET_LICENSE[${old}];
-	[ -z "${IPSET_GRADE[${new}]}" ] && IPSET_GRADE[${new}]="${IPSET_GRADE[${old}]}"; unset IPSET_GRADE[${old}];
-	[ -z "${IPSET_PROTECTION[${new}]}" ] && IPSET_PROTECTION[${new}]="${IPSET_PROTECTION[${old}]}"; unset IPSET_PROTECTION[${old}];
-	[ -z "${IPSET_INTENDED_USE[${new}]}" ] && IPSET_INTENDED_USE[${new}]="${IPSET_INTENDED_USE[${old}]}"; unset IPSET_INTENDED_USE[${old}];
-	[ -z "${IPSET_FALSE_POSITIVES[${new}]}" ] && IPSET_FALSE_POSITIVES[${new}]="${IPSET_FALSE_POSITIVES[${old}]}"; unset IPSET_FALSE_POSITIVES[${old}];
-	[ -z "${IPSET_POISONING[${new}]}" ] && IPSET_POISONING[${new}]="${IPSET_POISONING[${old}]}"; unset IPSET_POISONING[${old}];
-	[ -z "${IPSET_SERVICES[${new}]}" ] && IPSET_SERVICES[${new}]="${IPSET_SERVICES[${old}]}"; unset IPSET_SERVICES[${old}];
-	[ -z "${IPSET_ENTRIES_MIN[${new}]}" ] && IPSET_ENTRIES_MIN[${new}]="${IPSET_ENTRIES_MIN[${old}]}"; unset IPSET_ENTRIES_MIN[${old}];
-	[ -z "${IPSET_ENTRIES_MAX[${new}]}" ] && IPSET_ENTRIES_MAX[${new}]="${IPSET_ENTRIES_MAX[${old}]}"; unset IPSET_ENTRIES_MAX[${old}];
-	[ -z "${IPSET_IPS_MIN[${new}]}" ] && IPSET_IPS_MIN[${new}]="${IPSET_IPS_MIN[${old}]}"; unset IPSET_IPS_MIN[${old}];
-	[ -z "${IPSET_IPS_MAX[${new}]}" ] && IPSET_IPS_MAX[${new}]="${IPSET_IPS_MAX[${old}]}"; unset IPSET_IPS_MAX[${old}];
-	[ -z "${IPSET_STARTED_DATE[${new}]}" ] && IPSET_STARTED_DATE[${new}]="${IPSET_STARTED_DATE[${old}]}"; unset IPSET_STARTED_DATE[${old}];
-	[ -z "${IPSET_CLOCK_SKEW[${new}]}" ] && IPSET_CLOCK_SKEW[${new}]="${IPSET_CLOCK_SKEW[${old}]}"; unset IPSET_CLOCK_SKEW[${old}];
-	cache_save
+	[ -z "${IPSET_INFO[${new}]}" ] && IPSET_INFO[${new}]="${IPSET_INFO[${old}]}"
+	[ -z "${IPSET_SOURCE[${new}]}" ] && IPSET_SOURCE[${new}]="${IPSET_SOURCE[${old}]}"
+	[ -z "${IPSET_URL[${new}]}" ] && IPSET_URL[${new}]="${IPSET_URL[${old}]}"
+	[ -z "${IPSET_FILE[${new}]}" ] && IPSET_FILE[${new}]="${IPSET_FILE[${old}]}"
+	[ -z "${IPSET_IPV[${new}]}" ] && IPSET_IPV[${new}]="${IPSET_IPV[${old}]}"
+	[ -z "${IPSET_HASH[${new}]}" ] && IPSET_HASH[${new}]="${IPSET_HASH[${old}]}"
+	[ -z "${IPSET_MINS[${new}]}" ] && IPSET_MINS[${new}]="${IPSET_MINS[${old}]}"
+	[ -z "${IPSET_HISTORY_MINS[${new}]}" ] && IPSET_HISTORY_MINS[${new}]="${IPSET_HISTORY_MINS[${old}]}"
+	[ -z "${IPSET_ENTRIES[${new}]}" ] && IPSET_ENTRIES[${new}]="${IPSET_ENTRIES[${old}]}"
+	[ -z "${IPSET_IPS[${new}]}" ] && IPSET_IPS[${new}]="${IPSET_IPS[${old}]}"
+	[ -z "${IPSET_SOURCE_DATE[${new}]}" ] && IPSET_SOURCE_DATE[${new}]="${IPSET_SOURCE_DATE[${old}]}"
+	[ -z "${IPSET_CHECKED_DATE[${new}]}" ] && IPSET_CHECKED_DATE[${new}]="${IPSET_CHECKED_DATE[${old}]}"
+	[ -z "${IPSET_PROCESSED_DATE[${new}]}" ] && IPSET_PROCESSED_DATE[${new}]="${IPSET_PROCESSED_DATE[${old}]}"
+	[ -z "${IPSET_CATEGORY[${new}]}" ] && IPSET_CATEGORY[${new}]="${IPSET_CATEGORY[${old}]}"
+	[ -z "${IPSET_MAINTAINER[${new}]}" ] && IPSET_MAINTAINER[${new}]="${IPSET_MAINTAINER[${old}]}"
+	[ -z "${IPSET_MAINTAINER_URL[${new}]}" ] && IPSET_MAINTAINER_URL[${new}]="${IPSET_MAINTAINER_URL[${old}]}"
+	[ -z "${IPSET_LICENSE[${new}]}" ] && IPSET_LICENSE[${new}]="${IPSET_LICENSE[${old}]}"
+	[ -z "${IPSET_GRADE[${new}]}" ] && IPSET_GRADE[${new}]="${IPSET_GRADE[${old}]}"
+	[ -z "${IPSET_PROTECTION[${new}]}" ] && IPSET_PROTECTION[${new}]="${IPSET_PROTECTION[${old}]}"
+	[ -z "${IPSET_INTENDED_USE[${new}]}" ] && IPSET_INTENDED_USE[${new}]="${IPSET_INTENDED_USE[${old}]}"
+	[ -z "${IPSET_FALSE_POSITIVES[${new}]}" ] && IPSET_FALSE_POSITIVES[${new}]="${IPSET_FALSE_POSITIVES[${old}]}"
+	[ -z "${IPSET_POISONING[${new}]}" ] && IPSET_POISONING[${new}]="${IPSET_POISONING[${old}]}"
+	[ -z "${IPSET_SERVICES[${new}]}" ] && IPSET_SERVICES[${new}]="${IPSET_SERVICES[${old}]}"
+	[ -z "${IPSET_ENTRIES_MIN[${new}]}" ] && IPSET_ENTRIES_MIN[${new}]="${IPSET_ENTRIES_MIN[${old}]}"
+	[ -z "${IPSET_ENTRIES_MAX[${new}]}" ] && IPSET_ENTRIES_MAX[${new}]="${IPSET_ENTRIES_MAX[${old}]}"
+	[ -z "${IPSET_IPS_MIN[${new}]}" ] && IPSET_IPS_MIN[${new}]="${IPSET_IPS_MIN[${old}]}"
+	[ -z "${IPSET_IPS_MAX[${new}]}" ] && IPSET_IPS_MAX[${new}]="${IPSET_IPS_MAX[${old}]}"
+	[ -z "${IPSET_STARTED_DATE[${new}]}" ] && IPSET_STARTED_DATE[${new}]="${IPSET_STARTED_DATE[${old}]}"
+	[ -z "${IPSET_CLOCK_SKEW[${new}]}" ] && IPSET_CLOCK_SKEW[${new}]="${IPSET_CLOCK_SKEW[${old}]}"
+	[ -z "${IPSET_DOWNLOAD_FAILURES[${new}]}" ] && IPSET_DOWNLOAD_FAILURES[${new}]="${IPSET_DOWNLOAD_FAILURES[${old}]}"
+	[ -z "${IPSET_VERSION[${new}]}" ] && IPSET_VERSION[${new}]="${IPSET_VERSION[${old}]}"
+	cache_remove_ipset "${old}" # this also saves the cache
 
 	return 0
 }
@@ -2929,7 +3039,8 @@ geolite2_country() {
 	local ipset="geolite2_country" limit="" hash="net" ipv="ipv4" \
 		mins=$[24 * 60 * 7] history_mins=0 \
 		url="http://geolite.maxmind.com/download/geoip/database/GeoLite2-Country-CSV.zip" \
-		info="[MaxMind GeoLite2](http://dev.maxmind.com/geoip/geoip2/geolite2/)"
+		info="[MaxMind GeoLite2](http://dev.maxmind.com/geoip/geoip2/geolite2/)" \
+		ret=
 
 	if [ ! -f "${ipset}.source" ]
 	then
@@ -2937,14 +3048,15 @@ geolite2_country() {
 			then
 			touch -t 0001010000 "${BASE_DIR}/${ipset}.source" || return 1
 		else
-			silent "${ipset}: is disabled, to enable it run: touch -t 0001010000 '${BASE_DIR}/${ipset}.source'"
+			ipset_disabled "${ipset}"
 			return 1
 		fi
 	fi
 
 	# download it
 	download_manager "${ipset}" "${mins}" "${url}"
-	if [ $? -eq ${DOWNLOAD_FAILED} -o $? -eq ${DOWNLOAD_NOT_UPDATED} ]
+	ret=$?
+	if [ $ret -eq ${DOWNLOAD_FAILED} -o $ret -eq ${DOWNLOAD_NOT_UPDATED} ]
 		then
 		[ ! -s "${ipset}.source" ] && return 1
 		[ -d ${ipset} -a ${REPROCESS_ALL} -eq 0 ] && return 1
@@ -3072,7 +3184,8 @@ ipdeny_country() {
 	local ipset="ipdeny_country" limit="" hash="net" ipv="ipv4" \
 		mins=$[24 * 60 * 1] history_mins=0 \
 		url="http://www.ipdeny.com/ipblocks/data/countries/all-zones.tar.gz" \
-		info="[IPDeny.com](http://www.ipdeny.com/)"
+		info="[IPDeny.com](http://www.ipdeny.com/)" \
+		ret=
 
 	if [ ! -f "${ipset}.source" ]
 	then
@@ -3080,14 +3193,15 @@ ipdeny_country() {
 			then
 			touch -t 0001010000 "${BASE_DIR}/${ipset}.source" || return 1
 		else
-			silent "${ipset}: is disabled, to enable it run: touch -t 0001010000 '${BASE_DIR}/${ipset}.source'"
+			ipset_disabled "${ipset}"
 			return 1
 		fi
 	fi
 
 	# download it
 	download_manager "${ipset}" "${mins}" "${url}"
-	if [ $? -eq ${DOWNLOAD_FAILED} -o $? -eq ${DOWNLOAD_NOT_UPDATED} ]
+	ret=$?
+	if [ $ret -eq ${DOWNLOAD_FAILED} -o $ret -eq ${DOWNLOAD_NOT_UPDATED} ]
 		then
 		[ ! -s "${ipset}.source" ] && return 1
 		[ -d ${ipset} -a ${REPROCESS_ALL} -eq 0 ] && return 1
@@ -3168,7 +3282,8 @@ ip2location_country() {
 	local ipset="ip2location_country" limit="" hash="net" ipv="ipv4" \
 		mins=$[24 * 60 * 1] history_mins=0 \
 		url="http://download.ip2location.com/lite/IP2LOCATION-LITE-DB1.CSV.ZIP" \
-		info="[IP2Location.com](http://lite.ip2location.com/database-ip-country)"
+		info="[IP2Location.com](http://lite.ip2location.com/database-ip-country)" \
+		ret=
 
 	if [ ! -f "${ipset}.source" ]
 	then
@@ -3176,14 +3291,15 @@ ip2location_country() {
 			then
 			touch -t 0001010000 "${BASE_DIR}/${ipset}.source" || return 1
 		else
-			silent "${ipset}: is disabled, to enable it run: touch -t 0001010000 '${BASE_DIR}/${ipset}.source'"
+			ipset_disabled "${ipset}"
 			return 1
 		fi
 	fi
 
 	# download it
 	download_manager "${ipset}" "${mins}" "${url}"
-	if [ $? -eq ${DOWNLOAD_FAILED} -o $? -eq ${DOWNLOAD_NOT_UPDATED} ]
+	ret=$?
+	if [ $ret -eq ${DOWNLOAD_FAILED} -o $ret -eq ${DOWNLOAD_NOT_UPDATED} ]
 		then
 		[ ! -s "${ipset}.source" ] && return 1
 		[ -d ${ipset} -a ${REPROCESS_ALL} -eq 0 ] && return 1
@@ -3344,30 +3460,36 @@ merge() {
 			then
 			touch -t 0001010000 "${BASE_DIR}/${to}.source" || return 1
 		else
-			silent "${to}: is disabled. To enable it run: touch -t 0001010000 ${BASE_DIR}/${to}.source"
+			ipset_disabled "${to}"
 			return 1
 		fi
 	fi
 
+	ipset_silent "${to}" "examining source ipsets:"
 	local -a files=()
-	local found_updated=0 max_date=0
+	local found_updated=0 max_date=0 date=
 	for x in "${@}"
 	do
 		if [ ! -z "${IPSET_FILE[${x}]}" -a -f "${IPSET_FILE[${x}]}" ]
 			then
 
-			# check if it is newer
-			if [ "$[ IPSET_SOURCE_DATE[${x}] - IPSET_CLOCK_SKEW[${x}] ]" -gt "${max_date}" ]
-				then
-				max_date="$[ IPSET_SOURCE_DATE[${x}] - IPSET_CLOCK_SKEW[${x}] ]"
-			fi
-
 			files=("${files[@]}" "${IPSET_FILE[${x}]}")
 			included=("${included[@]}" "${x}")
 
-			if [ ! -z "${UPDATED_SETS[${x}]}" -o "$[ IPSET_SOURCE_DATE[${x}] - IPSET_CLOCK_SKEW[${x}] ]" -gt "$[ IPSET_SOURCE_DATE[${to}] - IPSET_CLOCK_SKEW[${to}] ]" ]
+			if [ "${IPSET_FILE[${x}]}" -nt "${to}.source" ]
 				then
 				found_updated=$[ found_updated + 1 ]
+
+				# check if it is newer
+				date=$(date -r "${IPSET_FILE[${x}]}" +%s)
+				if [ ${date} -gt ${max_date} ]
+					then
+					max_date=${date}
+				fi
+
+				ipset_silent "${to}" " + ${x}"
+			else
+				ipset_silent "${to}" " - ${x}"
 			fi
 		else
 			ipset_warning "${to}" "will be generated without '${x}' - enable '${x}' it to be included the next time"
@@ -3380,12 +3502,13 @@ merge() {
 		return 1
 	fi
 
-	if [ ${found_updated} -eq 0 -a -f "${to}.netset" ]
+	if [ ${found_updated} -eq 0 ]
 		then
-		ipset_info "${to}" "source files have not been updated."
+		ipset_notupdated "${to}" "source files have not been updated."
 		return 1
 	fi
 
+	ipset_silent "${to}" "merging files..."
 	cat "${files[@]}" >"${to}.source.tmp" || return 1
 	touch --date=@${max_date} "${to}.source.tmp" || return 1
 	mv "${to}.source.tmp" "${to}.source" || return 1
@@ -4792,7 +4915,6 @@ merge cleantalk_30d ipv4 ip \
 
 # -----------------------------------------------------------------------------
 # http://hosts-file.net/
-
 update hphosts_ats $[24*60] 0 ipv4 ip \
 	"http://hosts-file.net/ad_servers.txt" \
 	hphosts2ips \
@@ -4869,7 +4991,6 @@ update hphosts_wrz $[24*60] 0 ipv4 ip \
 	"reputation" \
 	"[hpHosts](http://hosts-file.net/?s=Download) warez/piracy sites listed in the hpHosts database. The maintainer's file contains hostnames, which have been DNS resolved to IP addresses." \
 	"hpHosts" "http://hosts-file.net/"
-
 
 # -----------------------------------------------------------------------------
 # iBlocklist
@@ -5337,6 +5458,8 @@ update iblocklist_isp_sprint $[24*60] 0 ipv4 both \
 # BadIPs.com
 
 badipscom() {
+	local ret=
+
 	if [ ! -f "badips.source" ]
 		then
 		if [ ${ENABLE_ALL} -eq 1 ]
@@ -5348,12 +5471,13 @@ badipscom() {
 			done
 		else
 			[ -d .git ] && echo >"badips.setinfo" "badips.com categories ipsets|[BadIPs.com](https://www.badips.com) community based IP blacklisting. They score IPs based on the reports they reports.|ipv4 hash:ip|disabled|disabled"
-			silent "badips: is disabled, to enable it run: touch -t 0001010000 '${BASE_DIR}/badips.source'"
+			ipset_disabled badips
 			return 1
 		fi
 	fi
 
 	download_manager "badips" $[24*60] "https://www.badips.com/get/categories"
+	ret=$?
 	[ ! -s "badips.source" ] && return 0
 
 	local categories="any $(cat badips.source |\
@@ -5447,7 +5571,7 @@ badipscom() {
 
 		if [ ${count} -eq 0 ]
 			then
-			silent "bi_${category}_SCORE_AGE: is disabled (SCORE=X and AGE=Y[dwmy]). To enable it run: touch -t 0001010000 '${BASE_DIR}/bi_${category}_SCORE_AGE.source'"
+			ipset_disabled "bi_${category}_SCORE_AGE" "SCORE=X and AGE=Y[dwmy]"
 		fi
 	done
 }
