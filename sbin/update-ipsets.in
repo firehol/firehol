@@ -88,8 +88,8 @@ get_version() {
 	for i in $@
 	do
 		case "$i" in
-			*[0-9].[0.9]*)
-				echo "$i" | sed -e 's/^v//'
+			*[0-9].[0-9]*)
+				echo "$i" | $SED_CMD -e 's/^v//'
 				return 0
 			;;
 			commit-[0-9a-zA-Z]*)
@@ -100,7 +100,6 @@ get_version() {
 	echo "$ver"
 	return 0
 }
-VERSION=$(get_version)
 
 PROGRAM_FILE="${0}"
 
@@ -109,279 +108,11 @@ PATH="${PATH}:/sbin:/usr/sbin"
 LC_ALL=C
 umask 077
 
-IPSETS_APPLY=1
-if [ ! "${UID}" = "0" ]
-then
-	echo >&2 "I run as a normal user. I'll not be able to load ipsets to the kernel."
-	IPSETS_APPLY=0
-fi
-renice 10 $$ >/dev/null 2>/dev/null
-
-RUNNING_ON_TERMINAL=0
-test -t 2 && RUNNING_ON_TERMINAL=1
-if [ -t 2 -a $[$(tput colors 2>/dev/null)] -ge 8 ]
-then
-	# Enable colors
-	COLOR_RESET="\e[0m"
-	COLOR_BLACK="\e[30m"
-	COLOR_RED="\e[31m"
-	COLOR_GREEN="\e[32m"
-	COLOR_YELLOW="\e[33m"
-	COLOR_BLUE="\e[34m"
-	COLOR_PURPLE="\e[35m"
-	COLOR_CYAN="\e[36m"
-	COLOR_WHITE="\e[37m"
-	COLOR_BGBLACK="\e[40m"
-	COLOR_BGRED="\e[41m"
-	COLOR_BGGREEN="\e[42m"
-	COLOR_BGYELLOW="\e[43m"
-	COLOR_BGBLUE="\e[44m"
-	COLOR_BGPURPLE="\e[45m"
-	COLOR_BGCYAN="\e[46m"
-	COLOR_BGWHITE="\e[47m"
-	COLOR_BOLD="\e[1m"
-	COLOR_DIM="\e[2m"
-	COLOR_UNDERLINED="\e[4m"
-	COLOR_BLINK="\e[5m"
-	COLOR_INVERTED="\e[7m"
-fi
-
-# -----------------------------------------------------------------------------
-# logging
-
-error() {
-	echo >&2 -e "${COLOR_BGRED}${COLOR_WHITE}${COLOR_BOLD} ERROR ${COLOR_RESET}: ${@}"
-	logger -p daemon.info -t "update-ipsets.sh[$$]" "${@}"
-}
-warning() {
-	echo >&2 -e "${COLOR_BGYELLOW}${COLOR_BLACK}${COLOR_BOLD} WARNING ${COLOR_RESET}: ${@}"
-	logger -p daemon.info -t "update-ipsets.sh[$$]" "${@}"
-}
-info() {
-	echo >&2 "${@}"
-	logger -p daemon.info -t "update-ipsets.sh[$$]" "${@}"
-}
-verbose() {
-	[ ${VERBOSE} -eq 1 ] && echo >&2 "${@}"
-}
-silent() {
-	[ ${SILENT} -ne 1 ] && echo >&2 "${@}"
-}
-
-ipset_ipset_ident=35
-print_ipset_spacer="$(printf "%${ipset_ipset_ident}s| " "")"
-print_ipset_last=
-print_ipset() {
-	local ipset="${1}"
-
-	if [ "${ipset}" = "${print_ipset_last}" ]
-		then
-		printf >&2 "%${ipset_ipset_ident}s| " ""
-	else
-		[ ${SILENT} -ne 1 ] && echo >&2 "${print_ipset_spacer}"
-		printf >&2 "${COLOR_GREEN}%${ipset_ipset_ident}s${COLOR_RESET}| " "${ipset}"
-		print_ipset_last="${ipset}"
-	fi
-}
-
-ipset_error() {
-	local ipset="${1}"
-	shift
-
-	print_ipset "${ipset}"
-	echo >&2 -e "${COLOR_BGRED}${COLOR_WHITE}${COLOR_BOLD} ERROR ${COLOR_RESET} ${@}"
-	logger -p daemon.info -t "update-ipsets.sh[$$]" "ERROR: ${ipset}: ${@}"
-}
-ipset_warning() {
-	local ipset="${1}"
-	shift
-
-	print_ipset "${ipset}"
-	echo >&2 -e "${COLOR_BGYELLOW}${COLOR_BLACK}${COLOR_BOLD} WARNING ${COLOR_RESET} ${@}"
-	logger -p daemon.info -t "update-ipsets.sh[$$]" "WARNING: ${ipset}: ${@}"
-}
-ipset_info() {
-	local ipset="${1}"
-	shift
-
-	print_ipset "${ipset}"
-	echo >&2 "${@}"
-	logger -p daemon.info -t "update-ipsets.sh[$$]" "INFO: ${ipset}: ${@}"
-}
-ipset_saved() {
-	local ipset="${1}"
-	shift
-
-	print_ipset "${ipset}"
-	echo >&2 -e "${COLOR_BGGREEN}${COLOR_RED}${COLOR_BOLD} SAVED ${COLOR_RESET} ${@}"
-	logger -p daemon.info -t "update-ipsets.sh[$$]" "SAVED: ${ipset}: ${@}"
-}
-ipset_loaded() {
-	local ipset="${1}"
-	shift
-
-	print_ipset "${ipset}"
-	echo >&2 -e "${COLOR_BGGREEN}${COLOR_BLACK}${COLOR_BOLD} LOADED ${COLOR_RESET} ${@}"
-	logger -p daemon.info -t "update-ipsets.sh[$$]" "LOADED: ${ipset}: ${@}"
-}
-ipset_same() {
-	local ipset="${1}"
-	shift
-
-	print_ipset "${ipset}"
-	echo >&2 -e "${COLOR_BGWHITE}${COLOR_BLACK}${COLOR_BOLD} SAME ${COLOR_RESET} ${@}"
-	logger -p daemon.info -t "update-ipsets.sh[$$]" "DOWNLOADED SAME: ${ipset}: ${@}"
-}
-ipset_notupdated() {
-	local ipset="${1}"
-	shift
-
-	print_ipset "${ipset}"
-	echo >&2 -e "${COLOR_BGWHITE}${COLOR_BLACK}${COLOR_BOLD} NOT UPDATED ${COLOR_RESET} ${@}"
-	logger -p daemon.info -t "update-ipsets.sh[$$]" "NOT UPDATED: ${ipset}: ${@}"
-}
-ipset_notyet() {
-	local ipset="${1}"
-	shift
-
-	print_ipset "${ipset}"
-	echo >&2 -e "${COLOR_BGWHITE}${COLOR_BLACK}${COLOR_BOLD} LATER ${COLOR_RESET} ${@}"
-	logger -p daemon.info -t "update-ipsets.sh[$$]" "LATER: ${ipset}: ${@}"
-}
-ipset_disabled() {
-	local ipset="${1}"
-	shift
-
-	if [ ${SILENT} -eq 0 ]
-		then
-		print_ipset "${ipset}"
-		echo >&2 -e "${COLOR_BGWHITE}${COLOR_BLACK}${COLOR_BOLD} DISABLED ${COLOR_RESET} ${@}"
-		print_ipset "${ipset}"
-		echo >&2    "To enable run: update-ipsets enable ${ipset}"
-	fi
-}
-ipset_silent() {
-	local ipset="${1}"
-	shift
-
-	if [ ${SILENT} -eq 0 ]
-		then
-		print_ipset "${ipset}"
-		echo >&2 "${@}"
-	fi
-}
-
-# -----------------------------------------------------------------------------
-# external commands management
-
-require_cmd() {
-	local cmd= block=1
-	if [ "a${1}" = "a-n" ]
-	then
-		block=0
-		shift
-	fi
-
-	unalias ${1} >/dev/null 2>&1
-	cmd=`which ${1} 2>/dev/null | head -n 1`
-	if [ $? -gt 0 -o ! -x "${cmd}" ]
-	then
-		if [ ${block} -eq 1 ]
-		then
-			error "Command '${1}' not found in the system path."
-			exit 1
-		fi
-		return 1
-	fi
-
-	eval "${1^^}_CMD=${cmd}"
-	return 0
-}
-
-require_cmd curl
-require_cmd unzip
-require_cmd funzip
-require_cmd gzip
-require_cmd sed
-require_cmd grep
-require_cmd sort
-require_cmd uniq
-require_cmd tail
-require_cmd mkdir
-require_cmd egrep
-require_cmd mkdir
-require_cmd awk
-require_cmd touch
-require_cmd ipset
-require_cmd dirname
-require_cmd mktemp
-require_cmd logger
-require_cmd flock
-
-program_pwd="${PWD}"
-program_dir="`dirname ${0}`"
-
-
-# -----------------------------------------------------------------------------
-# find a working iprange command
-
-IPRANGE_CMD="$(which iprange 2>&1)"
-if [ ! -z "${IPRANGE_CMD}" -a -x "${IPRANGE_CMD}" ]
-	then
-	"${IPRANGE_CMD}" --has-reduce >/dev/null 2>&1
-	[ $? -ne 0 ] && IPRANGE_CMD=
-fi
-
-if [ -z "${IPRANGE_CMD}" -a -x "/etc/firehol/iprange" ]
-	then
-	IPRANGE_CMD="/etc/firehol/iprange"
-	"${IPRANGE_CMD}" --has-reduce >/dev/null 2>&1
-	[ $? -ne 0 ] && IPRANGE_CMD=
-fi
-
-if [ -z "${IPRANGE_CMD}" -a -x "/etc/firehol/ipsets/iprange" ]
-	then
-	IPRANGE_CMD="/etc/firehol/ipsets/iprange"
-	"${IPRANGE_CMD}" --has-reduce >/dev/null 2>&1
-	[ $? -ne 0 ] && IPRANGE_CMD=
-fi
-
-if [ -z "${IPRANGE_CMD}" -a ! -x "${program_dir}/iprange" -a -f "${program_dir}/iprange.c" ]
-	then
-	warning "Attempting to compile FireHOL's iprange..."
-	gcc -O3 -o "${program_dir}/iprange" "${program_dir}/iprange.c"
-fi
-
-if [ -z "${IPRANGE_CMD}" -a -x "${program_dir}/iprange" ]
-	then
-	IPRANGE_CMD="${program_dir}/iprange"
-	"${IPRANGE_CMD}" --has-reduce >/dev/null 2>&1
-	[ $? -ne 0 ] && IPRANGE_CMD=
-fi
-
-if [ -z "${IPRANGE_CMD}" ]
-	then
-	error "Cannot find a working iprange command. It should be part of FireHOL but it is not installed."
-	exit 1
-fi
-
-# iprange filter to convert ipv4 range to cidr
-ipv4_range_to_cidr() {
-	"${IPRANGE_CMD}"
-}
-
-# iprange filter to aggregate ipv4 addresses
-aggregate4() {
-	"${IPRANGE_CMD}"
-}
-
-# iprange filter to process ipsets (IPv4 IPs, not subnets)
-ipset_uniq4() {
-	"${IPRANGE_CMD}" -1
-}
-
 # -----------------------------------------------------------------------------
 # CONFIGURATION
+
+CONFIG_DIR="/etc/firehol"
+CONFIG_FILE="/etc/firehol/update-ipsets.conf"
 
 # where to store the files
 BASE_DIR="/etc/firehol/ipsets"
@@ -389,6 +120,10 @@ BASE_DIR="/etc/firehol/ipsets"
 # where to keep the run files
 # a subdirectory will be created as RUN_DIR
 RUN_PARENT_DIR="/var/run"
+
+# to ensure only one runs
+UPDATE_IPSETS_LOCK_FILE="${RUN_PARENT_DIR}/update-ipsets.lock"
+[ ! "${UID}" = "0" ] && UPDATE_IPSETS_LOCK_FILE="${HOME}/.update-upsets.lock"
 
 # where to keep the history files
 HISTORY_DIR="${BASE_DIR}/history"
@@ -446,7 +181,452 @@ IGNORE_REPEATING_DOWNLOAD_ERRORS=10
 #            on the name server.
 DNS_QUERIES_PER_SECOND=100
 
+
+IPSETS_APPLY=1
+
+if [ -f "${CONFIG_DIR}/firehol-defaults.conf" ]
+then
+	source "${CONFIG_DIR}/firehol-defaults.conf" || exit 1
+fi
+
+# Load commands link-balancer will need.
+
+which_cmd() {
+	local name="$1"
+	shift
+
+	if [ "$1" = ":" ]
+	then
+		eval $name=":"
+		return 0
+	fi
+
+	unalias $1 >/dev/null 2>&1
+	local cmd=
+	IFS= read cmd <<-EOF
+	$(which $1 2> /dev/null)
+	EOF
+
+	if [ $? -gt 0 -o ! -x "${cmd}" ]
+	then
+		return 1
+	fi
+	shift
+
+	if [ $# -eq 0 ]
+	then
+		eval $name="'${cmd}'"
+	else
+		eval $name="'${cmd} ${@}'"
+	fi
+	return 0
+}
+
+require_cmd() {
+	local var= val= block=1
+
+	if [ "$1" = "-n" ]
+	then
+		block=0
+		shift
+	fi
+
+	var="$1"
+	shift
+
+	eval val=\$\{${var}\}
+	if [ "${val}" ]
+	then
+		local cmd="${val/ */}"
+		if [ ! -x "$cmd" ]
+		then
+			echo >&2
+			if [ $block -eq 0 ]
+			then
+				echo >&2 "WARNING: optional command does not exist or is not executable ($cmd)"
+				echo >&2 "please add or correct $var in firehol-defaults.conf"
+				val=""
+			else
+				echo >&2 "ERROR: required command does not exist or is not executable ($cmd)"
+				echo >&2 "please add or correct $var in firehol-defaults.conf"
+				exit 1
+			fi
+		fi
+
+		# link-balancer calls itself; export our findings so
+		# we do not repeat all of the lookups
+		eval export "$var"
+		return 0
+	elif [ $block -eq 0 ]
+	then
+		eval set -- "$@"
+		for cmd in "$@"
+		do
+			eval "NEED_${var}"="\$NEED_${var}' ${cmd/ */}'"
+		done
+		return 0
+	fi
+
+	if [ $# -eq 0 ]
+	then
+		eval set -- "\$NEED_${var}"
+	fi
+
+	echo >&2
+	echo >&2 "ERROR:	UPDATE-IPSETS REQUIRES ONE OF THESE COMMANDS:"
+	echo >&2
+	echo >&2 "	${@}"
+	echo >&2
+	echo >&2 "	You have requested the use of a update-ipsets"
+	echo >&2 "	feature that requires certain external programs"
+	echo >&2 "	to be installed in the running system."
+	echo >&2
+	echo >&2 "	Please consult your Linux distribution manual to"
+	echo >&2 "	install the package(s) that provide these external"
+	echo >&2 "	programs and retry."
+	echo >&2
+	echo >&2 "	Note that you need an operational 'which' command"
+	echo >&2 "	for update-ipsets to find all the external programs it"
+	echo >&2 "	needs. Check it yourself. Run:"
+	echo >&2
+	for x in "${@}"
+	do
+		echo >&2 "	which $x"
+	done
+
+	exit 1
+}
+
+which_all() {
+	local cmd_var="$1"
+
+	eval set -- "$2"
+	for cmd in "$@"
+	do
+		which_cmd $cmd_var $cmd && break
+	done
+}
+
+# Where required = Y, if a command is not found, FireHOL will refuse to run.
+# Where required = N, the command only required when it is actually used
+#
+# If a command is specified in /etc/firehol/firehol-defaults.conf it will
+# be used. Otherwise, if the script has been configured with ./configure
+# the detected versions will be used. If the script has not been configured
+# then the list of possible commands is autodetected.
+while IFS="|" read required cmd_var autoconf possibles
+do
+	if [ "@AUTOCONF_RUN@" = "Y" ]
+	then
+		case "$autoconf" in
+			"@"*) autoconf=""; ;;
+		esac
+	fi
+	eval set_in_defaults=\"\$$cmd_var\"
+	if [ "$set_in_defaults" ]
+	then
+		:
+	elif [ "@AUTOCONF_RUN@" = "Y" -a ! -z "$autoconf" ]
+	then
+		eval $cmd_var=\"$autoconf\"
+	else
+		PATH="/bin:/usr/bin:/sbin:/usr/sbin:$PATH" which_all $cmd_var "$possibles"
+	fi
+	if [ "$required" = "Y" ]
+	then
+		require_cmd $cmd_var $possibles
+	else
+		require_cmd -n $cmd_var $possibles
+	fi
+done <<-!
+Y|IP_CMD|@IP@|ip
+Y|DIRNAME_CMD|@DIRNAME@|dirname
+Y|RENICE_CMD|@RENICE@|dirname
+Y|IPRANGE_CMD|@IPRANGE@|iprange
+Y|IPSET_CMD|@IPSET@|ipset
+Y|UNZIP_CMD|@UNZIP@|unzip
+Y|FUNZIP_CMD|@FUNZIP@|funzip
+Y|ZCAT_CMD|@ZCAT@|gzcat "gzip -dc"
+Y|DATE_CMD|@DATE@|date
+Y|HOST_CMD|@HOST@|host
+N|ADNSHOST_CMD|@ADNSHOST@|adnshost
+N|PV_CMD|@PV@|pv
+Y|DIFF_CMD|@DIFF@|diff
+Y|FLOCK_CMD|@FLOCK@|flock
+Y|GREP_CMD|@GREP@|grep
+Y|EGREP_CMD|@EGREP@|egrep 'grep -E'
+Y|CUT_CMD|@CUT@|cut
+Y|CAT_CMD|@CAT@|cat
+Y|SED_CMD|@SED@|sed
+Y|TR_CMD|@TR@|tr
+Y|LN_CMD|@LN@|ln
+Y|LS_CMD|@LS@|ls
+Y|SLEEP_CMD|@SLEEP@|sleep
+Y|TOUCH_CMD|@TOUCH@|touch
+Y|LOGGER_CMD|@LOGGER@|logger
+Y|MKDIR_CMD|@MKDIR@|mkdir
+Y|CHOWN_CMD|@CHOWN@|chown
+Y|CHMOD_CMD|@CHMOD@|chmod
+Y|RM_CMD|@RM@|rm
+Y|PING_CMD|@PING@|ping
+Y|PING6_CMD|@PING6@|ping6
+Y|TRACEROUTE_CMD|@TRACEROUTE@|traceroute
+Y|SORT_CMD|@SORT@|sort
+Y|GAWK_CMD|@GAWK@|gawk awk
+Y|MKTEMP_CMD|@MKTEMP@|mktemp
+Y|ENV_CMD|@ENV@|env
+N|GIT_CMD|@GIT@|git
+N|WHOIS_CMD|@WHOIS@|whois
+N|JQ_CMD|@JQ@|jq
+N|HEAD_CMD|@HEAD@|head
+N|TPUT_CMD|@TPUT@|tput
+Y|FOLD_CMD|@FOLD@|fold
+Y|CURL_CMD|@CURL@|curl
+Y|FIND_CMD|@FIND@|find
+N|WGET_CMD|@WGET@|wget
+Y|WC_CMD|@WC@|wc
+Y|MV_CMD|@MV@|mv
+Y|CP_CMD|@CP@|cp
+N|SCREEN_CMD|@SCREEN@|screen
+Y|AGGREGATE_CMD|@AGGREGATE@|aggregate aggregate-flim cat
+!
+
+VERSION=$(get_version)
+
+RUNNING_ON_TERMINAL=0
+if [ "z$1" = "z-nc" ]
+then
+	shift
+elif [ ! -z "$TPUT_CMD" ]
+then
+	test -t 2 && RUNNING_ON_TERMINAL=1
+	if [ -t 2 -a $[$($TPUT_CMD colors 2>/dev/null)] -ge 8 ]
+	then
+		# Enable colors
+		COLOR_RESET="\e[0m"
+		COLOR_BLACK="\e[30m"
+		COLOR_RED="\e[31m"
+		COLOR_GREEN="\e[32m"
+		COLOR_YELLOW="\e[33m"
+		COLOR_BLUE="\e[34m"
+		COLOR_PURPLE="\e[35m"
+		COLOR_CYAN="\e[36m"
+		COLOR_WHITE="\e[37m"
+		COLOR_BGBLACK="\e[40m"
+		COLOR_BGRED="\e[41m"
+		COLOR_BGGREEN="\e[42m"
+		COLOR_BGYELLOW="\e[43m"
+		COLOR_BGBLUE="\e[44m"
+		COLOR_BGPURPLE="\e[45m"
+		COLOR_BGCYAN="\e[46m"
+		COLOR_BGWHITE="\e[47m"
+		COLOR_BOLD="\e[1m"
+		COLOR_DIM="\e[2m"
+		COLOR_UNDERLINED="\e[4m"
+		COLOR_BLINK="\e[5m"
+		COLOR_INVERTED="\e[7m"
+	fi
+fi
+
+if [ ! "${UID}" = "0" ]
+then
+	if [ $IPSETS_APPLY -eq 1 ]
+	then
+		echo >&2 "I run as a normal user. I'll not be able to load ipsets to the kernel."
+		IPSETS_APPLY=0
+	fi
+fi
+
+$RENICE_CMD 10 $$ >/dev/null 2>/dev/null
+
 # -----------------------------------------------------------------------------
+# logging
+
+error() {
+	echo >&2 -e "${COLOR_BGRED}${COLOR_WHITE}${COLOR_BOLD} ERROR ${COLOR_RESET}: ${@}"
+	$LOGGER_CMD -p daemon.info -t "update-ipsets.sh[$$]" "${@}"
+}
+warning() {
+	echo >&2 -e "${COLOR_BGYELLOW}${COLOR_BLACK}${COLOR_BOLD} WARNING ${COLOR_RESET}: ${@}"
+	$LOGGER_CMD -p daemon.info -t "update-ipsets.sh[$$]" "${@}"
+}
+info() {
+	echo >&2 "${@}"
+	$LOGGER_CMD -p daemon.info -t "update-ipsets.sh[$$]" "${@}"
+}
+verbose() {
+	[ ${VERBOSE} -eq 1 ] && echo >&2 "${@}"
+}
+silent() {
+	[ ${SILENT} -ne 1 ] && echo >&2 "${@}"
+}
+
+ipset_ipset_ident=35
+print_ipset_spacer="$(printf "%${ipset_ipset_ident}s| " "")"
+print_ipset_last=
+print_ipset() {
+	local ipset="${1}"
+
+	if [ "${ipset}" = "${print_ipset_last}" ]
+		then
+		printf >&2 "%${ipset_ipset_ident}s| " ""
+	else
+		[ ${SILENT} -ne 1 ] && echo >&2 "${print_ipset_spacer}"
+		printf >&2 "${COLOR_GREEN}%${ipset_ipset_ident}s${COLOR_RESET}| " "${ipset}"
+		print_ipset_last="${ipset}"
+	fi
+}
+
+ipset_error() {
+	local ipset="${1}"
+	shift
+
+	print_ipset "${ipset}"
+	echo >&2 -e "${COLOR_BGRED}${COLOR_WHITE}${COLOR_BOLD} ERROR ${COLOR_RESET} ${@}"
+	$LOGGER_CMD -p daemon.info -t "update-ipsets.sh[$$]" "ERROR: ${ipset}: ${@}"
+}
+ipset_warning() {
+	local ipset="${1}"
+	shift
+
+	print_ipset "${ipset}"
+	echo >&2 -e "${COLOR_BGYELLOW}${COLOR_BLACK}${COLOR_BOLD} WARNING ${COLOR_RESET} ${@}"
+	$LOGGER_CMD -p daemon.info -t "update-ipsets.sh[$$]" "WARNING: ${ipset}: ${@}"
+}
+ipset_info() {
+	local ipset="${1}"
+	shift
+
+	print_ipset "${ipset}"
+	echo >&2 "${@}"
+	$LOGGER_CMD -p daemon.info -t "update-ipsets.sh[$$]" "INFO: ${ipset}: ${@}"
+}
+ipset_saved() {
+	local ipset="${1}"
+	shift
+
+	print_ipset "${ipset}"
+	echo >&2 -e "${COLOR_BGGREEN}${COLOR_RED}${COLOR_BOLD} SAVED ${COLOR_RESET} ${@}"
+	$LOGGER_CMD -p daemon.info -t "update-ipsets.sh[$$]" "SAVED: ${ipset}: ${@}"
+}
+ipset_loaded() {
+	local ipset="${1}"
+	shift
+
+	print_ipset "${ipset}"
+	echo >&2 -e "${COLOR_BGGREEN}${COLOR_BLACK}${COLOR_BOLD} LOADED ${COLOR_RESET} ${@}"
+	$LOGGER_CMD -p daemon.info -t "update-ipsets.sh[$$]" "LOADED: ${ipset}: ${@}"
+}
+ipset_same() {
+	local ipset="${1}"
+	shift
+
+	print_ipset "${ipset}"
+	echo >&2 -e "${COLOR_BGWHITE}${COLOR_BLACK}${COLOR_BOLD} SAME ${COLOR_RESET} ${@}"
+	$LOGGER_CMD -p daemon.info -t "update-ipsets.sh[$$]" "DOWNLOADED SAME: ${ipset}: ${@}"
+}
+ipset_notupdated() {
+	local ipset="${1}"
+	shift
+
+	print_ipset "${ipset}"
+	echo >&2 -e "${COLOR_BGWHITE}${COLOR_BLACK}${COLOR_BOLD} NOT UPDATED ${COLOR_RESET} ${@}"
+	$LOGGER_CMD -p daemon.info -t "update-ipsets.sh[$$]" "NOT UPDATED: ${ipset}: ${@}"
+}
+ipset_notyet() {
+	local ipset="${1}"
+	shift
+
+	print_ipset "${ipset}"
+	echo >&2 -e "${COLOR_BGWHITE}${COLOR_BLACK}${COLOR_BOLD} LATER ${COLOR_RESET} ${@}"
+	$LOGGER_CMD -p daemon.info -t "update-ipsets.sh[$$]" "LATER: ${ipset}: ${@}"
+}
+ipset_disabled() {
+	local ipset="${1}"
+	shift
+
+	if [ ${SILENT} -eq 0 ]
+		then
+		print_ipset "${ipset}"
+		echo >&2 -e "${COLOR_BGWHITE}${COLOR_BLACK}${COLOR_BOLD} DISABLED ${COLOR_RESET} ${@}"
+		print_ipset "${ipset}"
+		echo >&2    "To enable run: update-ipsets enable ${ipset}"
+	fi
+}
+ipset_silent() {
+	local ipset="${1}"
+	shift
+
+	if [ ${SILENT} -eq 0 ]
+		then
+		print_ipset "${ipset}"
+		echo >&2 "${@}"
+	fi
+}
+
+# -----------------------------------------------------------------------------
+# external commands management
+
+require_cmd() {
+	local cmd= block=1
+	if [ "a${1}" = "a-n" ]
+	then
+		block=0
+		shift
+	fi
+
+	unalias ${1} >/dev/null 2>&1
+	cmd=`which ${1} 2>/dev/null | head -n 1`
+	if [ $? -gt 0 -o ! -x "${cmd}" ]
+	then
+		if [ ${block} -eq 1 ]
+		then
+			error "Command '${1}' not found in the system path."
+			exit 1
+		fi
+		return 1
+	fi
+
+	eval "${1^^}_CMD=${cmd}"
+	return 0
+>>>>>>> master
+}
+
+program_pwd="${PWD}"
+program_dir="`$DIRNAME_CMD ${0}`"
+
+
+# -----------------------------------------------------------------------------
+# find a working iprange command
+
+if [ ! -z "${IPRANGE_CMD}" ]
+then
+	${IPRANGE_CMD} --has-reduce 2>/dev/null || IPRANGE_CMD=
+fi
+
+if [ -z "${IPRANGE_CMD}" ]
+then
+	error "Cannot find a working iprange command. It should be part of FireHOL but it is not installed."
+	exit 1
+fi
+
+# iprange filter to convert ipv4 range to cidr
+ipv4_range_to_cidr() {
+	${IPRANGE_CMD}
+}
+
+# iprange filter to aggregate ipv4 addresses
+aggregate4() {
+	${IPRANGE_CMD}
+}
+
+# iprange filter to process ipsets (IPv4 IPs, not subnets)
+ipset_uniq4() {
+	${IPRANGE_CMD} -1
+}
+
+# -----------------------------------------------------------------------------
+
 # Command line parsing
 
 ENABLE_ALL=0
@@ -455,12 +635,11 @@ FORCE_WEB_REBUILD=0
 REPROCESS_ALL=0
 SILENT=0
 VERBOSE=0
-CONFIG_FILE="/etc/firehol/update-ipsets.conf"
 
 declare -a LISTS_TO_ENABLE=()
 
 usage() {
-cat <<EOFUSAGE
+$CAT_CMD <<EOFUSAGE
 FireHOL update-ipsets $VERSION
 (C) 2015 Costa Tsaousis
 
@@ -573,7 +752,7 @@ if [ "${#LISTS_TO_ENABLE[@]}" -gt 0 ]
 			warning "${x}: is already enabled"
 		else
 			info "${x}: Enabling ${x}..."
-			touch -t 0001010000 "${BASE_DIR}/${x}.source" || exit 1
+			$TOUCH_CMD -t 0001010000 "${BASE_DIR}/${x}.source" || exit 1
 		fi
 	done
 	exit 0
@@ -582,10 +761,8 @@ fi
 # -----------------------------------------------------------------------------
 # Make sure we are the only process doing this job
 
-LOCK_FILE="/var/run/update-ipsets.lock"
-[ ! "${UID}" = "0" ] && LOCK_FILE="${HOME}/.update-upsets.lock"
 exlcusive_lock() {
-	exec 200>"${LOCK_FILE}"
+	exec 200>"${UPDATE_IPSETS_LOCK_FILE}"
 	if [ $? -ne 0 ]; then exit; fi
 	${FLOCK_CMD} -n 200
 	if [ $? -ne 0 ]
@@ -623,7 +800,7 @@ for d in "${BASE_DIR}" "${RUN_PARENT_DIR}" "${HISTORY_DIR}" "${ERRORS_DIR}"
 do
 	[ -z "${d}" -o -d "${d}" ] && continue
 
-	mkdir -p "${d}" || exit 1
+	$MKDIR_CMD -p "${d}" || exit 1
 	info "Created directory '${d}'."
 done
 cd "${BASE_DIR}" || exit 1
@@ -643,7 +820,7 @@ cleanup() {
 	if [ ! -z "${RUN_DIR}" -a -d "${RUN_DIR}" ]
 		then
 		verbose "Cleaning up temporary files in ${RUN_DIR}."
-		rm -rf "${RUN_DIR}"
+		$RM_CMD -rf "${RUN_DIR}"
 	fi
 	trap exit EXIT
 	
@@ -667,6 +844,8 @@ if [ ! -d ".git" -a ${PUSH_TO_GIT} -ne 0 ]
 then
 	info "Git is not initialized in ${BASE_DIR}. Ignoring git support."
 	PUSH_TO_GIT=0
+else
+	require_cmd GIT_CMD
 fi
 
 
@@ -714,11 +893,11 @@ declare -A UPDATED_DIRS=()
 declare -A UPDATED_SETS=()
 
 check_git_committed() {
-	git ls-files "${1}" --error-unmatch >/dev/null 2>&1
+	$GIT_CMD ls-files "${1}" --error-unmatch >/dev/null 2>&1
 	if [ $? -ne 0 ]
 		then
 		info "Adding '${1}' to git"
-		git add "${1}"
+		$GIT_CMD add "${1}"
 	fi
 }
 
@@ -741,17 +920,17 @@ commit_to_git() {
 		local d=
 		for d in "${!UPDATED_DIRS[@]}"
 		do
-			[ ! -f ${d}/README-EDIT.md ] && touch ${d}/README-EDIT.md
+			[ ! -f ${d}/README-EDIT.md ] && $TOUCH_CMD ${d}/README-EDIT.md
 			(
-				cat ${d}/README-EDIT.md
+				$CAT_CMD ${d}/README-EDIT.md
 				echo
-				echo "The following list was automatically generated on `date -u`."
+				echo "The following list was automatically generated on `$DATE_CMD -u`."
 				echo
 				echo "The update frequency is the maximum allowed by internal configuration. A list will never be downloaded sooner than the update frequency stated. A list may also not be downloaded, after this frequency expired, if it has not been modified on the server (as reported by HTTP \`IF_MODIFIED_SINCE\` method)."
 				echo
 				echo "name|info|type|entries|update|"
 				echo ":--:|:--:|:--:|:-----:|:----:|"
-				cat ${d}/*.setinfo
+				$CAT_CMD ${d}/*.setinfo
 			) >${d}/README.md
 
 			UPDATED_SETS[${d}/README.md]="${d}/README.md"
@@ -774,26 +953,26 @@ commit_to_git() {
 			echo "[ ! \"\$1\" = \"YES_I_AM_SURE_DO_IT_PLEASE\" ] && echo \"READ ME NOW\" && exit 1"
 			for d in $(params_sort "${!IPSET_FILE[@]}")
 			do
-				echo "[ -f '${IPSET_FILE[${d}]}' ] && touch --date=@${IPSET_SOURCE_DATE[${d}]} '${IPSET_FILE[${d}]}'"
+				echo "[ -f '${IPSET_FILE[${d}]}' ] && $TOUCH_CMD --date=@${IPSET_SOURCE_DATE[${d}]} '${IPSET_FILE[${d}]}'"
 			done
-		) | sed "s|'${BASE}/|'|g" >set_file_timestamps.sh
+		) | $SED_CMD "s|'${BASE}/|'|g" >set_file_timestamps.sh
 		check_git_committed set_file_timestamps.sh
 
 		echo >&2 
 		info "Committing ${to_be_pushed[@]} to git repository"
-		local date="$(date -u)"
+		local date="$($DATE_CMD -u)"
 		# we commit each file alone, to have a clear history per file in github
 		for d in "${to_be_pushed[@]}" set_file_timestamps.sh
 		do
 			echo "${d}..."
-			git commit "${d}" -m "${date} update"
+			$GIT_CMD commit "${d}" -m "${date} update"
 		done
 
 		if [ ${PUSH_TO_GIT} -ne 0 ]
 		then
 			echo >&2
 			info "Pushing git commits to remote server"
-			git push
+			$GIT_CMD push
 		fi
 	fi
 }
@@ -802,9 +981,9 @@ commit_to_git() {
 touch_in_the_past() {
 	local mins_ago="${1}" file="${2}"
 
-	local now=$(date +%s)
-	local date=$(date -d @$[now - (mins_ago * 60)] +"%y%m%d%H%M.%S")
-	touch -t "${date}" "${file}"
+	local now=$($DATE_CMD +%s)
+	local date=$($DATE_CMD -d @$[now - (mins_ago * 60)] +"%y%m%d%H%M.%S")
+	$TOUCH_CMD -t "${date}" "${file}"
 }
 touch_in_the_past $[7 * 24 * 60] ".warn_if_last_downloaded_before_this"
 
@@ -812,14 +991,14 @@ touch_in_the_past $[7 * 24 * 60] ".warn_if_last_downloaded_before_this"
 ipset_list_names() {
 	if [ ${IPSETS_APPLY} -eq 1 ]
 		then
-		( ipset --list -t || ipset --list ) | grep "^Name: " | cut -d ' ' -f 2
+		( $IPSET_CMD --list -t || $IPSET_CMD --list ) | $GREP_CMD "^Name: " | $CUT_CMD -d ' ' -f 2
 		return $?
 	fi
 	return 0
 }
 
 echo
-echo "`date`: ${0} ${*}" 
+echo "`$DATE_CMD`: ${0} ${*}" 
 echo
 
 # find the active ipsets
@@ -849,16 +1028,16 @@ check_file_too_old() {
 history_keep() {
 	local ipset="${1}" file="${2}" slot=
 
-	slot="`date -r "${file}" +%s`.set"
+	slot="`$DATE_CMD -r "${file}" +%s`.set"
 
 	if [ ! -d "${HISTORY_DIR}/${ipset}" ]
 	then
-		mkdir "${HISTORY_DIR}/${ipset}" || return 2
-		chmod 700 "${HISTORY_DIR}/${ipset}"
+		$MKDIR_CMD "${HISTORY_DIR}/${ipset}" || return 2
+		$CHMOD_CMD 700 "${HISTORY_DIR}/${ipset}"
 	fi
 
 	# copy the new file to the history
-	cp -p "${file}" "${HISTORY_DIR}/${ipset}/${slot}"
+	$CP_CMD -p "${file}" "${HISTORY_DIR}/${ipset}/${slot}"
 }
 
 history_cleanup() {
@@ -872,7 +1051,7 @@ history_cleanup() {
 		if [ ! "${x}" -nt "${RUN_DIR}/history.reference" ]
 		then
 			verbose "${ipset}: deleting history file '${x}'"
-			rm "${x}"
+			$RM_CMD "${x}"
 		fi
 	done
 }
@@ -896,9 +1075,9 @@ history_get() {
 	#	fi
 	#done
 
-	"${IPRANGE_CMD}" --union-all $(find "${HISTORY_DIR}/${ipset}"/*.set -newer "${RUN_DIR}/history.reference")
+	${IPRANGE_CMD} --union-all $($FIND_CMD "${HISTORY_DIR}/${ipset}"/*.set -newer "${RUN_DIR}/history.reference")
 
-	rm "${RUN_DIR}/history.reference"
+	$RM_CMD "${RUN_DIR}/history.reference"
 
 	return 0
 }
@@ -919,12 +1098,12 @@ geturl() {
 	if [ -z "${reference}" ]
 		then
 		reference="${RUN_DIR}/geturl-reference"
-		touch -t 0001010000 "${reference}"
+		$TOUCH_CMD -t 0001010000 "${reference}"
 	fi
 
 	# copy the timestamp of the reference
 	# to our file
-	touch -r "${reference}" "${file}"
+	$TOUCH_CMD -r "${reference}" "${file}"
 
 	if [ ${SILENT} -ne 1 ] 
 		then
@@ -938,7 +1117,7 @@ geturl() {
 	fi
 
 	http_code=$( \
-		curl --connect-timeout ${MAX_CONNECT_TIME} --max-time ${MAX_DOWNLOAD_TIME} \
+		$CURL_CMD --connect-timeout ${MAX_CONNECT_TIME} --max-time ${MAX_DOWNLOAD_TIME} \
 			--retry 0 --fail --compressed --user-agent "FireHOL-Update-Ipsets/3.0" \
 			--time-cond "${reference}" --output "${file}" --remote-time \
 			--location --referer "http://iplists.firehol.org/" \
@@ -989,7 +1168,7 @@ declare -A IPSET_DOWNLOADER_NO_IF_MODIFIED_SINCE=()
 download_manager() {
 	local 	ipset="${1}" mins="${2}" url="${3}" \
 			st= \
-			tmp= now="$(date +%s)" base= omins= detail= date= check= inc= inc2= fails= dt=
+			tmp= now="$($DATE_CMD +%s)" base= omins= detail= date= check= inc= inc2= fails= dt=
 
 	# make sure it is numeric
 	[ "$[mins + 0]" -lt 1 ] && mins=1
@@ -1008,7 +1187,7 @@ download_manager() {
 
 	# make sure we have a proper time for last-checked
 	st=0
-	[ -f "${ipset}.source"                      ] && st="$(date -r "${ipset}.source" +%s)"
+	[ -f "${ipset}.source"                      ] && st="$($DATE_CMD -r "${ipset}.source" +%s)"
 	[ -z "${IPSET_CHECKED_DATE[${ipset}]}"      ] && IPSET_CHECKED_DATE[${ipset}]=${st}
 	[ -z "${IPSET_CHECKED_DATE[${ipset}]}"      ] && IPSET_CHECKED_DATE[${ipset}]=0
 	[ -z "${IPSET_DOWNLOAD_FAILURES[${ipset}]}" ] && IPSET_DOWNLOAD_FAILURES[${ipset}]=0
@@ -1051,12 +1230,12 @@ download_manager() {
 	local reference="${ipset}.source"
 	[ ! -z "${IPSET_DOWNLOADER_NO_IF_MODIFIED_SINCE[${ipset}]}" ] && reference=""
 
-	tmp=`mktemp "${RUN_DIR}/download-${ipset}-XXXXXXXXXX"` || return ${DOWNLOAD_FAILED}
+	tmp=`$MKTEMP_CMD "${RUN_DIR}/download-${ipset}-XXXXXXXXXX"` || return ${DOWNLOAD_FAILED}
 	geturl "${tmp}" "${reference}" "${url}"
 	case $? in
 		0)
 			ipset_silent "${ipset}" "downloaded successfully"
-			IPSET_CHECKED_DATE[${ipset}]="$(date -r "${tmp}" +%s)"
+			IPSET_CHECKED_DATE[${ipset}]="$($DATE_CMD -r "${tmp}" +%s)"
 			IPSET_DOWNLOAD_FAILURES[${ipset}]=0
 			cache_save
 			;;
@@ -1065,12 +1244,12 @@ download_manager() {
 			IPSET_DOWNLOAD_FAILURES[${ipset}]=0
 			cache_save
 			ipset_notupdated "${ipset}" "file on server has not been updated yet"
-			rm "${tmp}"
+			$RM_CMD "${tmp}"
 			return ${DOWNLOAD_NOT_UPDATED}
 			;;
 
 		*)
-			rm "${tmp}"
+			$RM_CMD "${tmp}"
 			IPSET_DOWNLOAD_FAILURES[${ipset}]=$(( fails + 1 ))
 			ipset_error "${ipset}" "failed - ${IPSET_DOWNLOAD_FAILURES[${ipset}]} consecutive failures so far."
 			cache_save
@@ -1078,13 +1257,13 @@ download_manager() {
 			;;
 	esac
 
-	[ ! -z "${IPSET_DOWNLOADER_NO_IF_MODIFIED_SINCE[${ipset}]}" ] && touch "${tmp}"
+	[ ! -z "${IPSET_DOWNLOADER_NO_IF_MODIFIED_SINCE[${ipset}]}" ] && $TOUCH_CMD "${tmp}"
 	
 	# check if the downloaded file is empty
 	#if [ ! -s "${tmp}" ]
 	#then
 	#	# it is empty
-	#	rm "${tmp}"
+	#	$RM_CMD "${tmp}"
 	#	ipset_error "${ipset}" "empty file downloaded from url '${url}'."
 	#	return ${DOWNLOAD_FAILED}
 	#fi
@@ -1097,14 +1276,14 @@ download_manager() {
 		ipset_same "${ipset}" "downloaded file is the same to the old one."
 
 		# copy the timestamp of the downloaded to our file
-		touch -r "${tmp}" "${ipset}.source"
-		rm "${tmp}"
+		$TOUCH_CMD -r "${tmp}" "${ipset}.source"
+		$RM_CMD "${tmp}"
 		return ${DOWNLOAD_NOT_UPDATED}
 	fi
 
 	# move it to its place
 	ipset_silent "${ipset}" "saving downloaded file"
-	mv "${tmp}" "${ipset}.source" || return ${DOWNLOAD_FAILED}
+	$MV_CMD "${tmp}" "${ipset}.source" || return ${DOWNLOAD_FAILED}
 
 	return ${DOWNLOAD_OK}
 }
@@ -1189,8 +1368,8 @@ cache_save() {
 		IPSET_VERSION \
 		>"${BASE_DIR}/.cache.new.$$"
 	
-	[ -f "${BASE_DIR}/.cache" ] && cp "${BASE_DIR}/.cache" "${BASE_DIR}/.cache.old"
-	mv "${BASE_DIR}/.cache.new.$$" "${BASE_DIR}/.cache"
+	[ -f "${BASE_DIR}/.cache" ] && $CP_CMD "${BASE_DIR}/.cache" "${BASE_DIR}/.cache.old"
+	$MV_CMD "${BASE_DIR}/.cache.new.$$" "${BASE_DIR}/.cache"
 }
 
 if [ -f "${BASE_DIR}/.cache" ]
@@ -1273,7 +1452,7 @@ ipset_json() {
 	[ -f "${RUN_DIR}/${ipset}_comparison.json"          ] && comparison="${ipset}_comparison.json"
 
 	info="${IPSET_INFO[${ipset}]}"
-	info="$(echo "${info}" | sed "s/)/)\n/g" | sed "s|\[\(.*\)\](\(.*\))|<a href=\"\2\">\1</a>|g" | tr "\n\t" "  ")"
+	info="$(echo "${info}" | $SED_CMD "s/)/)\n/g" | $SED_CMD "s|\[\(.*\)\](\(.*\))|<a href=\"\2\">\1</a>|g" | $TR_CMD "\n\t" "  ")"
 	info="${info//\"/\\\"}"
 
 	local file_local=
@@ -1286,7 +1465,7 @@ ipset_json() {
 
 	ipset_normalize_for_json "${ipset}"
 
-	cat <<EOFJSON
+	$CAT_CMD <<EOFJSON
 {
 	"name": "${ipset}",
 	"entries": ${IPSET_ENTRIES[${ipset}]},
@@ -1334,7 +1513,7 @@ ipset_json_index() {
 
 	ipset_normalize_for_json "${ipset}"
 
-cat <<EOFALL
+$CAT_CMD <<EOFALL
 	{
 		"ipset": "${ipset}",
 		"category": "${IPSET_CATEGORY[${ipset}]}",
@@ -1414,26 +1593,26 @@ retention_detect() {
 		fi
 	fi
 
-	ndate=$(date -r "${IPSET_FILE[${ipset}]}" +%s)
+	ndate=$($DATE_CMD -r "${IPSET_FILE[${ipset}]}" +%s)
 
 	printf >&2 "\n\t${ipset}:"
 
 	# create the cache directory for this ipset
 	if [ ! -d "${CACHE_DIR}/${ipset}" ]
 		then
-		mkdir -p "${CACHE_DIR}/${ipset}" || return 2
+		$MKDIR_CMD -p "${CACHE_DIR}/${ipset}" || return 2
 	fi
 
 	if [ ! -d "${CACHE_DIR}/${ipset}/new" ]
 		then
-		mkdir -p "${CACHE_DIR}/${ipset}/new" || return 2
+		$MKDIR_CMD -p "${CACHE_DIR}/${ipset}/new" || return 2
 	fi
 
 	if [ ! -f "${CACHE_DIR}/${ipset}/latest" ]
 		then
 		# we don't have an older version
 		verbose "${ipset}: ${CACHE_DIR}/${ipset}/latest: first time - assuming start from empty"
-		touch -r "${IPSET_FILE[${ipset}]}" "${CACHE_DIR}/${ipset}/latest"
+		$TOUCH_CMD -r "${IPSET_FILE[${ipset}]}" "${CACHE_DIR}/${ipset}/latest"
 
 		RETENTION_HISTOGRAM_STARTED="${IPSET_SOURCE_DATE[${ipset}]}"
 
@@ -1454,21 +1633,21 @@ retention_detect() {
 	fi
 
 	# find the new ips in this set
-	"${IPRANGE_CMD}" "${IPSET_FILE[${ipset}]}" --exclude-next "${CACHE_DIR}/${ipset}/latest" --print-binary >"${CACHE_DIR}/${ipset}/new/${ndate}"
-	touch -r "${IPSET_FILE[${ipset}]}" "${CACHE_DIR}/${ipset}/new/${ndate}"
+	${IPRANGE_CMD} "${IPSET_FILE[${ipset}]}" --exclude-next "${CACHE_DIR}/${ipset}/latest" --print-binary >"${CACHE_DIR}/${ipset}/new/${ndate}"
+	$TOUCH_CMD -r "${IPSET_FILE[${ipset}]}" "${CACHE_DIR}/${ipset}/new/${ndate}"
 
 	local ips_added=0
 	if [ ! -s "${CACHE_DIR}/${ipset}/new/${ndate}" ]
 		then
 		# there are no new IPs included
 		verbose "${ipset}: ${CACHE_DIR}/${ipset}/new/${ndate}: nothing new in this"
-		rm "${CACHE_DIR}/${ipset}/new/${ndate}"
+		$RM_CMD "${CACHE_DIR}/${ipset}/new/${ndate}"
 	else
-		ips_added=$("${IPRANGE_CMD}" -C "${CACHE_DIR}/${ipset}/new/${ndate}")
+		ips_added=$(${IPRANGE_CMD} -C "${CACHE_DIR}/${ipset}/new/${ndate}")
 		ips_added=${ips_added/*,/}
 	fi
 
-	local ips_removed=$("${IPRANGE_CMD}" "${CACHE_DIR}/${ipset}/latest" --exclude-next "${IPSET_FILE[${ipset}]}" | "${IPRANGE_CMD}" -C)
+	local ips_removed=$(${IPRANGE_CMD} "${CACHE_DIR}/${ipset}/latest" --exclude-next "${IPSET_FILE[${ipset}]}" | ${IPRANGE_CMD} -C)
 	ips_removed=${ips_removed/*,/}
 
 	[ ! -f "${CACHE_DIR}/${ipset}/changesets.csv" ] && echo >"${CACHE_DIR}/${ipset}/changesets.csv" "DateTime,IPsAdded,IPsRemoved"
@@ -1476,8 +1655,8 @@ retention_detect() {
 
 	# ok keep it
 	verbose "${ipset}: keeping it..."
-	"${IPRANGE_CMD}" "${IPSET_FILE[${ipset}]}" --print-binary >"${CACHE_DIR}/${ipset}/latest"
-	touch -r "${IPSET_FILE[${ipset}]}" "${CACHE_DIR}/${ipset}/latest"
+	${IPRANGE_CMD} "${IPSET_FILE[${ipset}]}" --print-binary >"${CACHE_DIR}/${ipset}/latest"
+	$TOUCH_CMD -r "${IPSET_FILE[${ipset}]}" "${CACHE_DIR}/${ipset}/latest"
 
 	if [ ! -f "${CACHE_DIR}/${ipset}/retention.csv" ]
 		then
@@ -1490,14 +1669,14 @@ retention_detect() {
 
 	# find the new/* files that are affected
 	local name1= name2= entries1= entries2= ips1= ips2= combined= common= odate= hours= removed=
-	"${IPRANGE_CMD}" "${CACHE_DIR}/${ipset}/latest" --compare-next "${CACHE_DIR}/${ipset}/new"/* |\
+	${IPRANGE_CMD} "${CACHE_DIR}/${ipset}/latest" --compare-next "${CACHE_DIR}/${ipset}/new"/* |\
 		while IFS="," read name1 name2 entries1 entries2 ips1 ips2 combined common
 		do
 			[ $[ combined - ips1 ] -ne 0 -o $[ ips2 - common ] -ne 0 ] && echo "${name2}"
-		done | sort -u >"${RUN_DIR}/retention_affacted_updates"
+		done | $SORT_CMD -u >"${RUN_DIR}/retention_affacted_updates"
 
 	local x=
-	for x in $(cat "${RUN_DIR}/retention_affacted_updates")
+	for x in $($CAT_CMD "${RUN_DIR}/retention_affacted_updates")
 	do
 		printf >&2 "."
 
@@ -1506,13 +1685,13 @@ retention_detect() {
 		hours=$[ (ndate + 1800 - odate) / 3600 ]
 
 		# are all the IPs of this file still the latest?
-		"${IPRANGE_CMD}" --common "${x}" "${CACHE_DIR}/${ipset}/latest" --print-binary >"${x}.stillthere"
-		"${IPRANGE_CMD}" "${x}" --exclude-next "${x}.stillthere" --print-binary >"${x}.removed"
+		${IPRANGE_CMD} --common "${x}" "${CACHE_DIR}/${ipset}/latest" --print-binary >"${x}.stillthere"
+		${IPRANGE_CMD} "${x}" --exclude-next "${x}.stillthere" --print-binary >"${x}.removed"
 		if [ -s "${x}.removed" ]
 			then
 			# no, something removed, find it
-			removed=$("${IPRANGE_CMD}" -C "${x}.removed")
-			rm "${x}.removed"
+			removed=$(${IPRANGE_CMD} -C "${x}.removed")
+			$RM_CMD "${x}.removed"
 
 			# these are the unique IPs removed
 			removed="${removed/*,/}"
@@ -1527,7 +1706,7 @@ retention_detect() {
 			removed=0
 			# yes, nothing removed from this run
 			verbose "${ipset}: ${x}: nothing removed"
-			rm "${x}.removed"
+			$RM_CMD "${x}.removed"
 		fi
 
 		# check if there is something still left
@@ -1535,11 +1714,11 @@ retention_detect() {
 			then
 			# nothing left for this timestamp, remove files
 			verbose "${ipset}: ${x}: nothing left in this"
-			rm "${x}" "${x}.stillthere"
+			$RM_CMD "${x}" "${x}.stillthere"
 		else
 			verbose "${ipset}: ${x}: there is still something in it"
-			touch -r "${x}" "${x}.stillthere"
-			mv "${x}.stillthere" "${x}"
+			$TOUCH_CMD -r "${x}" "${x}.stillthere"
+			$MV_CMD "${x}.stillthere" "${x}"
 		fi
 	done
 
@@ -1563,7 +1742,7 @@ retention_detect() {
 	RETENTION_HISTOGRAM_INCOMPLETE=0
 
 	# find the IPs in all new/*
-	"${IPRANGE_CMD}" --count-unique-all "${CACHE_DIR}/${ipset}/new"/* >"${RUN_DIR}/retention_rest" 2>/dev/null
+	${IPRANGE_CMD} --count-unique-all "${CACHE_DIR}/${ipset}/new"/* >"${RUN_DIR}/retention_rest" 2>/dev/null
 
 	local entries= ips=
 	while IFS="," read x entries ips
@@ -1595,13 +1774,13 @@ params_sort() {
 	for x in "${@}"
 	do
 		echo "${x}"
-	done | sort
+	done | $SORT_CMD
 }
 
 sitemap_init() {
 	local sitemap_date="${1}"
 
-cat >${RUN_DIR}/sitemap.xml <<EOFSITEMAPA
+$CAT_CMD >${RUN_DIR}/sitemap.xml <<EOFSITEMAPA
 <?xml version="1.0" encoding="UTF-8"?>
 <urlset xmlns="http://www.sitemaps.org/schemas/sitemap/0.9">
 	<url>
@@ -1615,7 +1794,7 @@ EOFSITEMAPA
 sitemap_ipset() {
 	local ipset="${1}" sitemap_date="${2}"
 
-cat >>"${RUN_DIR}/sitemap.xml" <<EOFSITEMAP1
+$CAT_CMD >>"${RUN_DIR}/sitemap.xml" <<EOFSITEMAP1
 	<url>
 		<loc>${WEB_URL}${ipset}</loc>
 		<lastmod>${sitemap_date}</lastmod>
@@ -1625,7 +1804,7 @@ EOFSITEMAP1
 }
 
 update_web() {
-	local sitemap_date="$(date -I)"
+	local sitemap_date="$($DATE_CMD -I)"
 
 	[ -z "${WEB_DIR}" -o ! -d "${WEB_DIR}" ] && return 1
 	[ "${#UPDATED_SETS[@]}" -eq 0 -a ! ${FORCE_WEB_REBUILD} -eq 1 ] && return 1
@@ -1650,7 +1829,7 @@ update_web() {
 		## and has not been copied to our cache
 		#if [ -z "${UPDATED_SETS[${x}]}" -a -f "${CACHE_DIR}/${x}/latest" -a "${IPSET_FILE[$x]}" -nt "${CACHE_DIR}/${x}/latest" ]
 		#	then
-		#	silent "${x}: found unupdated cache $(date -r "${IPSET_FILE[$x]}" +%s) vs $(date -r "${CACHE_DIR}/${x}/latest" +%s)"
+		#	silent "${x}: found unupdated cache $($DATE_CMD -r "${IPSET_FILE[$x]}" +%s) vs $($DATE_CMD -r "${CACHE_DIR}/${x}/latest" +%s)"
 		#	# UPDATED_SETS[${x}]="${IPSET_FILE[$x]}"
 		#fi
 
@@ -1658,7 +1837,7 @@ update_web() {
 			then
 			if [ ! -d "${CACHE_DIR}/${x}" ]
 				then
-				mkdir -p "${CACHE_DIR}/${x}"
+				$MKDIR_CMD -p "${CACHE_DIR}/${x}"
 			fi
 
 			# update the history CSV files
@@ -1667,14 +1846,14 @@ update_web() {
 				if [ ! -f "${CACHE_DIR}/${x}/history.csv" ]
 					then
 					echo "DateTime,Entries,UniqueIPs" >"${CACHE_DIR}/${x}/history.csv"
-					# touch "${CACHE_DIR}/${x}/history.csv"
-					chmod 0644 "${CACHE_DIR}/${x}/history.csv"
+					# $TOUCH_CMD "${CACHE_DIR}/${x}/history.csv"
+					$CHMOD_CMD 0644 "${CACHE_DIR}/${x}/history.csv"
 				fi
 				printf " ${x}"
-				echo >>"${CACHE_DIR}/${x}/history.csv" "$(date -r "${IPSET_SOURCE[${x}]}" +%s),${IPSET_ENTRIES[${x}]},${IPSET_IPS[${x}]}"
+				echo >>"${CACHE_DIR}/${x}/history.csv" "$($DATE_CMD -r "${IPSET_SOURCE[${x}]}" +%s),${IPSET_ENTRIES[${x}]},${IPSET_IPS[${x}]}"
 				
 				echo >"${RUN_DIR}/${x}_history.csv" "DateTime,Entries,UniqueIPs"
-				tail -n ${WEB_CHARTS_ENTRIES} "${CACHE_DIR}/${x}/history.csv" | grep -v "^DateTime" >>"${RUN_DIR}/${x}_history.csv"
+				tail -n ${WEB_CHARTS_ENTRIES} "${CACHE_DIR}/${x}/history.csv" | $GREP_CMD -v "^DateTime" >>"${RUN_DIR}/${x}_history.csv"
 			fi
 		fi
 
@@ -1742,7 +1921,7 @@ update_web() {
 	#info "UPDATED: ${updated[@]}"
 
 	printf >&2 "comparing all ipsets (all x all)... "
-	"${IPRANGE_CMD}" --compare "${all[@]}" |\
+	${IPRANGE_CMD} --compare "${all[@]}" |\
 		sort |\
 		while IFS="," read name1 name2 entries1 entries2 ips1 ips2 combined common
 		do
@@ -1766,14 +1945,14 @@ update_web() {
 			fi
 		done
 	echo >&2
-	for x in $(find "${RUN_DIR}" -name \*_comparison.json)
+	for x in $($FIND_CMD "${RUN_DIR}" -name \*_comparison.json)
 	do
 		printf "\n]\n" >>${x}
 	done
 
 	printf >&2 "comparing geolite2 country... "
-	"${IPRANGE_CMD}" "${updated[@]}" --compare-next "${geolite2_country[@]}" |\
-		sort |\
+	${IPRANGE_CMD} "${updated[@]}" --compare-next "${geolite2_country[@]}" |\
+		$SORT_CMD |\
 		while IFS="," read name1 name2 entries1 entries2 ips1 ips2 combined common
 		do
 			if [ ${common} -gt 0 ]
@@ -1789,14 +1968,14 @@ update_web() {
 			fi
 		done
 	echo >&2
-	for x in $(find "${RUN_DIR}" -name \*_geolite2_country.json)
+	for x in $($FIND_CMD "${RUN_DIR}" -name \*_geolite2_country.json)
 	do
 		printf "\n]\n" >>${x}
 	done
 
 	printf >&2 "comparing ipdeny country... "
-	"${IPRANGE_CMD}" "${updated[@]}" --compare-next "${ipdeny_country[@]}" |\
-		sort |\
+	${IPRANGE_CMD} "${updated[@]}" --compare-next "${ipdeny_country[@]}" |\
+		$SORT_CMD |\
 		while IFS="," read name1 name2 entries1 entries2 ips1 ips2 combined common
 		do
 			if [ ${common} -gt 0 ]
@@ -1812,14 +1991,14 @@ update_web() {
 			fi
 		done
 	echo >&2
-	for x in $(find "${RUN_DIR}" -name \*_ipdeny_country.json)
+	for x in $($FIND_CMD "${RUN_DIR}" -name \*_ipdeny_country.json)
 	do
 		printf "\n]\n" >>${x}
 	done
 
 	printf >&2 "comparing ip2location country... "
-	"${IPRANGE_CMD}" "${updated[@]}" --compare-next "${ip2location_country[@]}" |\
-		sort |\
+	${IPRANGE_CMD} "${updated[@]}" --compare-next "${ip2location_country[@]}" |\
+		$SORT_CMD |\
 		while IFS="," read name1 name2 entries1 entries2 ips1 ips2 combined common
 		do
 			if [ ${common} -gt 0 ]
@@ -1835,7 +2014,7 @@ update_web() {
 			fi
 		done
 	echo >&2
-	for x in $(find "${RUN_DIR}" -name \*_ip2location_country.json)
+	for x in $($FIND_CMD "${RUN_DIR}" -name \*_ip2location_country.json)
 	do
 		printf "\n]\n" >>${x}
 	done
@@ -1858,24 +2037,24 @@ update_web() {
 		[[ "${IPSET_FILE[$x]}" =~ ^ipdeny.* ]] && continue
 		[[ "${IPSET_FILE[$x]}" =~ ^ip2location.* ]] && continue
 
-		retention_detect "${x}" >"${RUN_DIR}/${x}_retention.json" || rm "${RUN_DIR}/${x}_retention.json"
+		retention_detect "${x}" >"${RUN_DIR}/${x}_retention.json" || $RM_CMD "${RUN_DIR}/${x}_retention.json"
 
 		# this has to be done after retention_detect()
 		echo >"${RUN_DIR}"/${x}_changesets.csv "DateTime,AddedIPs,RemovedIPs"
-		tail -n $[ WEB_CHARTS_ENTRIES + 1] "${CACHE_DIR}/${x}/changesets.csv" | grep -v "^DateTime" | tail -n +2 >>"${RUN_DIR}/${x}_changesets.csv"
+		tail -n $[ WEB_CHARTS_ENTRIES + 1] "${CACHE_DIR}/${x}/changesets.csv" | $GREP_CMD -v "^DateTime" | tail -n +2 >>"${RUN_DIR}/${x}_changesets.csv"
 	done
 	echo >&2
 
-	mv -f "${RUN_DIR}"/*.{json,csv,xml} "${WEB_DIR}/"
-	chown ${WEB_OWNER} "${WEB_DIR}"/*
-	chmod 0644 "${WEB_DIR}"/*.{json,csv,xml}
+	$MV_CMD -f "${RUN_DIR}"/*.{json,csv,xml} "${WEB_DIR}/"
+	$CHOWN_CMD ${WEB_OWNER} "${WEB_DIR}"/*
+	$CHMOD_CMD 0644 "${WEB_DIR}"/*.{json,csv,xml}
 
 	if [ ${PUSH_TO_GIT} -eq 1 ]
 		then
 		cd "${WEB_DIR}" || return 1
-		git add *.json *.csv *.xml
-		git commit -a -m "$(date -u) update"
-		git push origin gh-pages
+		$GIT_CMD add *.json *.csv *.xml
+		$GIT_CMD commit -a -m "$($DATE_CMD -u) update"
+		$GIT_CMD push origin gh-pages
 		cd "${BASE_DIR}" || exit 1
 	fi
 }
@@ -1898,32 +2077,32 @@ ipset_apply() {
 		if [ -z "${sets[$ipset]}" ]
 			then
 			ipset_saved "${ipset}" "no need to load ipset in kernel"
-			# ipset --create ${ipset} "${hash}hash" || return 1
+			# $IPSET_CMD --create ${ipset} "${hash}hash" || return 1
 			return 0
 		fi
 
 		if [ "${hash}" = "net" ]
 			then
-			"${IPRANGE_CMD}" "${file}" \
+			${IPRANGE_CMD} "${file}" \
 				--ipset-reduce ${IPSET_REDUCE_FACTOR} \
 				--ipset-reduce-entries ${IPSET_REDUCE_ENTRIES} \
 				--print-prefix "-A ${tmpname} " >"${RUN_DIR}/${tmpname}"
 			ret=$?
 		elif [ "${hash}" = "ip" ]
 			then
-			"${IPRANGE_CMD}" -1 "${file}" --print-prefix "-A ${tmpname} " >"${RUN_DIR}/${tmpname}"
+			${IPRANGE_CMD} -1 "${file}" --print-prefix "-A ${tmpname} " >"${RUN_DIR}/${tmpname}"
 			ret=$?
 		fi
 
 		if [ ${ret} -ne 0 ]
 			then
 			ipset_error "${ipset}" "iprange failed"
-			rm "${RUN_DIR}/${tmpname}"
+			$RM_CMD "${RUN_DIR}/${tmpname}"
 			return 1
 		fi
 
-		entries=$(wc -l <"${RUN_DIR}/${tmpname}")
-		ips=$(iprange -C "${file}")
+		entries=$($WC_CMD -l <"${RUN_DIR}/${tmpname}")
+		ips=$($IPRANGE_CMD -C "${file}")
 		ips=${ips/*,/}
 
 		# this is needed for older versions of ipset
@@ -1937,30 +2116,30 @@ ipset_apply() {
 			opts="maxelem ${entries}"
 		fi
 
-		ipset create "${tmpname}" ${hash}hash ${opts}
+		$IPSET_CMD create "${tmpname}" ${hash}hash ${opts}
 		if [ $? -ne 0 ]
 			then
 			ipset_error "${ipset}" "failed to create temporary ipset ${tmpname}"
-			rm "${RUN_DIR}/${tmpname}"
+			$RM_CMD "${RUN_DIR}/${tmpname}"
 			return 1
 		fi
 
-		ipset --flush "${tmpname}"
-		ipset --restore <"${RUN_DIR}/${tmpname}"
+		$IPSET_CMD --flush "${tmpname}"
+		$IPSET_CMD --restore <"${RUN_DIR}/${tmpname}"
 		ret=$?
-		rm "${RUN_DIR}/${tmpname}"
+		$RM_CMD "${RUN_DIR}/${tmpname}"
 
 		if [ ${ret} -ne 0 ]
 			then
 			ipset_error "${ipset}" "failed to restore ipset from ${tmpname}"
-			ipset --destroy "${tmpname}"
+			$IPSET_CMD --destroy "${tmpname}"
 			return 1
 		fi
 
 		ipset_info "${ipset}" "swapping temporary ipset to production"
-		ipset --swap "${tmpname}" "${ipset}"
+		$IPSET_CMD --swap "${tmpname}" "${ipset}"
 		ret=$?
-		ipset --destroy "${tmpname}"
+		$IPSET_CMD --destroy "${tmpname}"
 		if [ $? -ne 0 ]
 			then
 			ipset_error "${ipset}" "failed to destroy temporary ipset"
@@ -2041,20 +2220,20 @@ finalize() {
 	# make sure the new file is optimized
 	if [ "${hash}" == "ip" ]
 		then
-		"${IPRANGE_CMD}" -1 "${tmp}" >"${tmp}.final"
+		${IPRANGE_CMD} -1 "${tmp}" >"${tmp}.final"
 	else
-		"${IPRANGE_CMD}" "${tmp}" >"${tmp}.final"
+		${IPRANGE_CMD} "${tmp}" >"${tmp}.final"
 	fi
-	mv "${tmp}.final" "${tmp}"
+	$MV_CMD "${tmp}.final" "${tmp}"
 
 	# make sure the old file is optimized
 	if [ -f "${dst}" ]
 		then
 		if [ "${hash}" == "ip" ]
 			then
-			"${IPRANGE_CMD}" -1 "${dst}" >"${tmp}.old"
+			${IPRANGE_CMD} -1 "${dst}" >"${tmp}.old"
 		else
-			"${IPRANGE_CMD}" "${dst}" >"${tmp}.old"
+			${IPRANGE_CMD} "${dst}" >"${tmp}.old"
 		fi
 	else
 		echo "# EMPTY SET" >"${tmp}.old"
@@ -2065,21 +2244,21 @@ finalize() {
 	if [ $? -eq 0 -a ${REPROCESS_ALL} -eq 0 ]
 	then
 		# they are the same
-		rm "${tmp}" "${tmp}.old"
+		$RM_CMD "${tmp}" "${tmp}.old"
 		ipset_same "${ipset}" "processed set is the same with the previous one."
 
 		# keep the old set, but make it think it was from this source
 		ipset_silent "${ipset}" "touching ${dst} from ${src}."
-		touch -r "${src}" "${dst}"
+		$TOUCH_CMD -r "${src}" "${dst}"
 
 		check_file_too_old "${ipset}" "${dst}"
 		return 0
 	fi
-	rm "${tmp}.old"
+	$RM_CMD "${tmp}.old"
 
 	# calculate how many entries/IPs are in it
 	local ipset_opts=
-	local entries=$("${IPRANGE_CMD}" -C "${tmp}")
+	local entries=$(${IPRANGE_CMD} -C "${tmp}")
 	local ips=${entries/*,/}
 	local entries=${entries/,*/}
 
@@ -2093,10 +2272,10 @@ finalize() {
 	then
 		if [ ! -z "${ERRORS_DIR}" -a -d "${ERRORS_DIR}" ]
 		then
-			mv "${tmp}" "${ERRORS_DIR}/${dst}"
+			$MV_CMD "${tmp}" "${ERRORS_DIR}/${dst}"
 			ipset_error "${ipset}" "failed to update ipset (error file left as '${ERRORS_DIR}/${dst}')."
 		else
-			rm "${tmp}"
+			$RM_CMD "${tmp}"
 			ipset_error "${ipset}" "failed to update ipset."
 		fi
 		check_file_too_old "${ipset}" "${dst}"
@@ -2116,8 +2295,8 @@ finalize() {
 	IPSET_IPS[${ipset}]="${ips}"
 	IPSET_URL[${ipset}]="${url}"
 	IPSET_SOURCE[${ipset}]="${src}"
-	IPSET_SOURCE_DATE[${ipset}]=$(date -r "${src}" +%s)
-	IPSET_PROCESSED_DATE[${ipset}]=$(date +%s)
+	IPSET_SOURCE_DATE[${ipset}]=$($DATE_CMD -r "${src}" +%s)
+	IPSET_PROCESSED_DATE[${ipset}]=$($DATE_CMD +%s)
 	IPSET_CATEGORY[${ipset}]="${category}"
 	IPSET_MAINTAINER[${ipset}]="${maintainer}"
 	IPSET_MAINTAINER_URL[${ipset}]="${maintainer_url}"
@@ -2143,7 +2322,7 @@ finalize() {
 
 	ipset_silent "${ipset}" "version ${version}, ${quantity}"
 
-	local now="$(date +%s)"
+	local now="$($DATE_CMD +%s)"
 	if [ "${now}" -lt "${IPSET_SOURCE_DATE[${ipset}]}" ]
 		then
 		IPSET_CLOCK_SKEW[${ipset}]=$[ IPSET_SOURCE_DATE[${ipset}] - now ]
@@ -2156,23 +2335,23 @@ finalize() {
 
 	# generate the final file
 	# we do this on another tmp file
-	cat >"${tmp}.wh" <<EOFHEADER
+	$CAT_CMD >"${tmp}.wh" <<EOFHEADER
 #
 # ${ipset}
 #
 # ${ipv} hash:${hash} ipset
 #
-`echo "${info}" | sed "s|](|] (|g" | fold -w 60 -s | sed "s/^/# /g"`
+`echo "${info}" | $SED_CMD "s|](|] (|g" | $FOLD_CMD -w 60 -s | $SED_CMD "s/^/# /g"`
 #
 # Maintainer      : ${maintainer}
 # Maintainer URL  : ${maintainer_url}
 # List source URL : ${url}
-# Source File Date: `date -r "${src}" -u`
+# Source File Date: `$DATE_CMD -r "${src}" -u`
 #
 # Category        : ${category}
 # Version         : ${version}
 #
-# This File Date  : `date -u`
+# This File Date  : `$DATE_CMD -u`
 # Update Frequency: `mins_to_text ${mins}`
 # Aggregation     : `mins_to_text ${history_mins}`
 # Entries         : ${quantity}
@@ -2195,13 +2374,13 @@ EOFHEADER
 # False Positives : ${IPSET_FALSE_POSITIVES[${ipset}]}
 # Poisoning       : ${IPSET_POISONING[${ipset}]}
 
-	cat "${tmp}" >>"${tmp}.wh"
-	rm "${tmp}"
-	touch -r "${src}" "${tmp}.wh"
-	mv "${tmp}.wh" "${dst}" || return 1
+	$CAT_CMD "${tmp}" >>"${tmp}.wh"
+	$RM_CMD "${tmp}"
+	$TOUCH_CMD -r "${src}" "${tmp}.wh"
+	$MV_CMD "${tmp}.wh" "${dst}" || return 1
 
 	UPDATED_SETS[${ipset}]="${dst}"
-	local dir="`dirname "${dst}"`"
+	local dir="`$DIRNAME_CMD "${dst}"`"
 	UPDATED_DIRS[${dir}]="${dir}"
 
 	if [ -d .git ]
@@ -2220,14 +2399,14 @@ EOFHEADER
 update() {
 	local 	ipset="${1}" mins="${2}" history_mins="${3}" ipv="${4}" limit="${5}" \
 			url="${6}" \
-			processor="${7-cat}" \
+			processor="${7-$CAT_CMD}" \
 			category="${8}" \
 			info="${9}" \
 			maintainer="${10}" maintainer_url="${11}"
 	shift 11
 
 	local	tmp= error=0 now= date= ret= \
-			pre_filter="cat" post_filter="cat" post_filter2="cat" filter="cat" \
+			pre_filter="$CAT_CMD" post_filter="$CAT_CMD" post_filter2="$CAT_CMD" filter="$CAT_CMD" \
 			src="${ipset}.source" dst=
 
 	# check
@@ -2244,7 +2423,7 @@ update() {
 				ip|ips)		# output is single ipv4 IPs without /
 						hash="ip"
 						limit="ip"
-						pre_filter="cat"
+						pre_filter="$CAT_CMD"
 						filter="filter_ip4"	# without this, ipset_uniq4 may output huge number of IPs
 						post_filter="ipset_uniq4"
 						;;
@@ -2262,7 +2441,7 @@ update() {
 						limit=""
 						pre_filter="filter_all4"
 						filter="aggregate4"
-						post_filter="cat"
+						post_filter="$CAT_CMD"
 						;;
 
 				split)	;;
@@ -2293,7 +2472,7 @@ update() {
 		if [ ${ENABLE_ALL} -eq 1 ]
 			then
 			ipset_silent "${ipset}" "Enabling due to ENABLE_ALL option."
-			touch -t 0001010000 "${BASE_DIR}/${src}" || return 1
+			$TOUCH_CMD -t 0001010000 "${BASE_DIR}/${src}" || return 1
 		else
 			[ -d .git ] && echo >"${ipset}.setinfo" "${ipset}|${info}|${ipv} hash:${hash}|disabled|`if [ ! -z "${url}" ]; then echo "updated every $(mins_to_text ${mins}) from [this link](${url})"; fi`"
 			ipset_disabled "${ipset}"
@@ -2346,10 +2525,10 @@ update() {
 	if [ "${limit}" = "split" -o \( -z "${limit}" -a -f "${ipset}.split" \) ]
 	then
 		ipset_info "${ipset}" "spliting IPs and subnets..."
-		test -f "${ipset}_ip.source" && rm "${ipset}_ip.source"
-		test -f "${ipset}_net.source" && rm "${ipset}_net.source"
-		ln -s "${src}" "${ipset}_ip.source"
-		ln -s "${src}" "${ipset}_net.source"
+		test -f "${ipset}_ip.source" && $RM_CMD "${ipset}_ip.source"
+		test -f "${ipset}_net.source" && $RM_CMD "${ipset}_net.source"
+		$LN_CMD -s "${src}" "${ipset}_ip.source"
+		$LN_CMD -s "${src}" "${ipset}_net.source"
 		
 		update "${ipset}_ip" "${mins}" "${history_mins}" "${ipv}" ip  \
 			"" \
@@ -2370,7 +2549,7 @@ update() {
 
 	# convert it
 	ipset_silent "${ipset}" "converting with '${processor}'"
-	tmp=`mktemp "${RUN_DIR}/${ipset}.tmp-XXXXXXXXXX"` || return 1
+	tmp=`$MKTEMP_CMD "${RUN_DIR}/${ipset}.tmp-XXXXXXXXXX"` || return 1
 	${processor} <"${src}" |\
 		trim |\
 		${pre_filter} |\
@@ -2381,7 +2560,7 @@ update() {
 	if [ $? -ne 0 ]
 	then
 		ipset_error "${ipset}" "failed to convert file (processor: ${processor}, pre_filter: ${pre_filter}, filter: ${filter}, post_filter: ${post_filter}, post_filter2: ${post_filter2})."
-		rm "${tmp}"
+		$RM_CMD "${tmp}"
 		check_file_too_old "${ipset}" "${dst}"
 		return 1
 	fi
@@ -2423,8 +2602,8 @@ update() {
 			ipset_silent "${ipset}${htag}" "merging history files (${hmins} mins)"
 			history_get "${ipset}" "${hmins}" >"${tmp}${htag}"
 
-			cp "${tmp}${htag}" "${BASE_DIR}/${ipset}${htag}.source"
-			touch -r "${BASE_DIR}/${src}" "${BASE_DIR}/${ipset}${htag}.source"
+			$CP_CMD "${tmp}${htag}" "${BASE_DIR}/${ipset}${htag}.source"
+			$TOUCH_CMD -r "${BASE_DIR}/${src}" "${BASE_DIR}/${ipset}${htag}.source"
 		fi
 
 		finalize "${ipset}${htag}" "${tmp}${htag}" "${ipset}${htag}.setinfo" \
@@ -2464,25 +2643,25 @@ rename_ipset() {
 	do
 		if [ -f "${old}.${x}" -a ! -f "${new}.${x}" ]
 			then
-			if [ -d .git -a ! -z "$(git ls-files "${old}.${x}")" ]
+			if [ -d .git -a ! -z "$($GIT_CMD ls-files "${old}.${x}")" ]
 				then
 				ipset_info "${old}" "GIT Renaming ${old}.${x} to ${new}.${x}..."
-				git mv "${old}.${x}" "${new}.${x}" || exit 1
-				git commit "${old}.${x}" "${new}.${x}" -m 'renamed from ${old}.${x} to ${new}.${x}'
+				$GIT_CMD mv "${old}.${x}" "${new}.${x}" || exit 1
+				$GIT_CMD commit "${old}.${x}" "${new}.${x}" -m 'renamed from ${old}.${x} to ${new}.${x}'
 			fi
 
 			if [ -f "${old}.${x}" -a ! -f "${new}.${x}" ]
 				then
 				ipset_info "${old}" "Renaming ${old}.${x} to ${new}.${x}..."
-				mv "${old}.${x}" "${new}.${x}" || exit 1
+				$MV_CMD "${old}.${x}" "${new}.${x}" || exit 1
 			fi
 
 			# keep a link for the firewall
 			ipset_info "${old}" "Linking ${new}.${x} to ${old}.${x}..."
-			ln -s "${new}.${x}" "${old}.${x}" || exit 1
+			$LN_CMD -s "${new}.${x}" "${old}.${x}" || exit 1
 
 			# now delete it, in order to be re-created this run
-			rm "${new}.${x}"
+			$RM_CMD "${new}.${x}"
 
 			# FIXME:
 			# the ipset in memory is wrong and will not be updated.
@@ -2495,19 +2674,19 @@ rename_ipset() {
 	do
 		if [ -f "${old}.${x}" -a ! -f "${new}.${x}" ]
 			then
-			mv "${old}.${x}" "${new}.${x}" || exit 1
+			$MV_CMD "${old}.${x}" "${new}.${x}" || exit 1
 		fi
 	done
 
 	if [ -d "${HISTORY_DIR}/${old}" -a ! -d "${HISTORY_DIR}/${new}" ]
 		then
 		echo "Renaming ${HISTORY_DIR}/${old} ${HISTORY_DIR}/${new}"
-		mv "${HISTORY_DIR}/${old}" "${HISTORY_DIR}/${new}"
+		$MV_CMD "${HISTORY_DIR}/${old}" "${HISTORY_DIR}/${new}"
 	fi
 
 	if [ ! -z "${CACHE_DIR}" -a -d "${CACHE_DIR}" -a -d "${CACHE_DIR}/${old}" -a ! -d "${CACHE_DIR}/${new}" ]
 		then
-		mv -f "${CACHE_DIR}/${old}" "${CACHE_DIR}/${new}" || exit 1
+		$MV_CMD -f "${CACHE_DIR}/${old}" "${CACHE_DIR}/${new}" || exit 1
 	fi
 
 	if [ -d "${WEB_DIR}" ]
@@ -2518,8 +2697,8 @@ rename_ipset() {
 		do
 			if [ -f "${old}${x}" -a ! -f "${new}${x}" ]
 				then
-				git mv -f "${old}${x}" "${new}${x}"
-				git commit "${old}${x}" "${new}${x}" -m "renamed from ${old}${x} to ${new}${x}"
+				$GIT_CMD mv -f "${old}${x}" "${new}${x}"
+				$GIT_CMD commit "${old}${x}" "${new}${x}" -m "renamed from ${old}${x} to ${new}${x}"
 			fi
 		done
 
@@ -2664,22 +2843,22 @@ MK4_MATCH="(3[12]|[12][0-9]|[1-9])"
 
 # strict checking of IPv4 IPs - all subnets excluded
 # we remove /32 before matching
-filter_ip4()  { remove_slash32 | egrep "^${IP4_MATCH}$"; return 0; }
+filter_ip4()  { remove_slash32 | $EGREP_CMD "^${IP4_MATCH}$"; return 0; }
 
 # strict checking of IPv4 CIDRs, except /32
 # this is to support older ipsets that do not accept /32 in hash:net ipsets
-filter_net4() { remove_slash32 | egrep "^${IP4_MATCH}/${MK4_MATCH}$"; return 0; }
+filter_net4() { remove_slash32 | $EGREP_CMD "^${IP4_MATCH}/${MK4_MATCH}$"; return 0; }
 
 # strict checking of IPv4 IPs or CIDRs
 # hosts may or may not have /32
-filter_all4() { egrep "^${IP4_MATCH}(/${MK4_MATCH})?$"; return 0; }
+filter_all4() { $EGREP_CMD "^${IP4_MATCH}(/${MK4_MATCH})?$"; return 0; }
 
-filter_ip6()  { remove_slash128 | egrep "^([0-9a-fA-F:]+)$"; return 0; }
-filter_net6() { remove_slash128 | egrep "^([0-9a-fA-F:]+/[0-9]+)$"; return 0; }
-filter_all6() { egrep "^([0-9a-fA-F:]+(/[0-9]+)?)$"; return 0; }
+filter_ip6()  { remove_slash128 | $EGREP_CMD "^([0-9a-fA-F:]+)$"; return 0; }
+filter_net6() { remove_slash128 | $EGREP_CMD "^([0-9a-fA-F:]+/[0-9]+)$"; return 0; }
+filter_all6() { $EGREP_CMD "^([0-9a-fA-F:]+(/[0-9]+)?)$"; return 0; }
 
-remove_slash32() { sed "s|/32$||g"; }
-remove_slash128() { sed "s|/128$||g"; }
+remove_slash32() { $SED_CMD "s|/32$||g"; }
+remove_slash128() { $SED_CMD "s|/128$||g"; }
 
 append_slash32() {
 	# this command appends '/32' to all the lines
@@ -2694,7 +2873,7 @@ append_slash128() {
 }
 
 filter_invalid4() {
-	egrep -v "^(0\.0\.0\.0|.*/0)$"
+	$EGREP_CMD -v "^(0\.0\.0\.0|.*/0)$"
 	return 0
 }
 
@@ -2740,7 +2919,7 @@ parse_rss_rosinstrument() {
 					echo "${hostname}"
 				else
 					# it is a hostname - resolve it
-					local host=`host "${hostname}" | grep " has address " | cut -d ' ' -f 4`
+					local host=`$HOST_CMD "${hostname}" | $GREP_CMD " has address " | $CUT_CMD -d ' ' -f 4`
 					if [ $? -eq 0 -a ! -z "${host}" ]
 					then
 						# echo "${host} # from ${XML_CONTENT}"
@@ -2796,7 +2975,7 @@ parse_dshield_api() {
 			ip) echo "${XML_CONTENT}"
 		esac
 	done |\
-		sed -e "s|0\([1-9][1-9]\)|\1|g" -e "s|00\([1-9]\)|\1|g" -e "s|000|0|g"
+		$SED_CMD -e "s|0\([1-9][1-9]\)|\1|g" -e "s|00\([1-9]\)|\1|g" -e "s|000|0|g"
 }
 
 
@@ -2807,7 +2986,7 @@ parse_dshield_api() {
 
 # convert netmask to CIDR format
 subnet_to_bitmask() {
-	sed	-e "s|/255\.255\.255\.255|/32|g" -e "s|/255\.255\.255\.254|/31|g" -e "s|/255\.255\.255\.252|/30|g" \
+	$SED_CMD	-e "s|/255\.255\.255\.255|/32|g" -e "s|/255\.255\.255\.254|/31|g" -e "s|/255\.255\.255\.252|/30|g" \
 		-e "s|/255\.255\.255\.248|/29|g" -e "s|/255\.255\.255\.240|/28|g" -e "s|/255\.255\.255\.224|/27|g" \
 		-e "s|/255\.255\.255\.192|/26|g" -e "s|/255\.255\.255\.128|/25|g" -e "s|/255\.255\.255\.0|/24|g" \
 		-e "s|/255\.255\.254\.0|/23|g"   -e "s|/255\.255\.252\.0|/22|g"   -e "s|/255\.255\.248\.0|/21|g" \
@@ -2822,8 +3001,8 @@ subnet_to_bitmask() {
 
 # trim leading, trailing, double spacing, empty lines
 trim() {
-	sed -e "s/[\t ]\+/ /g" -e "s/^ \+//g" -e "s/ \+$//g" |\
-		grep -v "^$"
+	$SED_CMD -e "s/[\t ]\+/ /g" -e "s/^ \+//g" -e "s/ \+$//g" |\
+		$GREP_CMD -v "^$"
 }
 
 # remove comments starting with ';' and trim()
@@ -2835,9 +3014,9 @@ remove_comments_semi_colon() {
 	# 4. leading spaces
 	# 5. trailing spaces
 	# 6. empty lines
-	tr "\r" "\n" |\
-		sed -e "s/;.*$//g" -e "s/[\t ]\+/ /g" -e "s/^ \+//g" -e "s/ \+$//g" |\
-		grep -v "^$"
+	$TR_CMD "\r" "\n" |\
+		$SED_CMD -e "s/;.*$//g" -e "s/[\t ]\+/ /g" -e "s/^ \+//g" -e "s/ \+$//g" |\
+		$GREP_CMD -v "^$"
 }
 
 # remove comments starting with '#' and trim()
@@ -2849,31 +3028,31 @@ remove_comments() {
 	# 4. leading spaces
 	# 5. trailing spaces
 	# 6. empty lines
-	tr "\r" "\n" |\
-		sed -e "s/#.*$//g" -e "s/[\t ]\+/ /g" -e "s/^ \+//g" -e "s/ \+$//g" |\
-		grep -v "^$"
+	$TR_CMD "\r" "\n" |\
+		$SED_CMD -e "s/#.*$//g" -e "s/[\t ]\+/ /g" -e "s/^ \+//g" -e "s/ \+$//g" |\
+		$GREP_CMD -v "^$"
 }
 
 # ungzip and remove comments
 gz_remove_comments() {
-	gzip -dc | remove_comments
+	$ZCAT_CMD | remove_comments
 }
 
 # convert snort rules to a list of IPs
 snort_alert_rules_to_ipv4() {
 	remove_comments |\
-		grep ^alert |\
-		sed -e "s|^alert .* \[\([0-9/,\.]\+\)\] any -> \$HOME_NET any .*$|\1|g" -e "s|,|\n|g" |\
-		grep -v ^alert
+		$GREP_CMD ^alert |\
+		$SED_CMD -e "s|^alert .* \[\([0-9/,\.]\+\)\] any -> \$HOME_NET any .*$|\1|g" -e "s|,|\n|g" |\
+		$GREP_CMD -v ^alert
 }
 
 # extract IPs from PIX access list deny rules
 pix_deny_rules_to_ipv4() {
 	remove_comments |\
-		grep ^access-list |\
-		sed -e "s|^access-list .* deny ip \([0-9\.]\+\) \([0-9\.]\+\) any$|\1/\2|g" \
+		$GREP_CMD ^access-list |\
+		$SED_CMD -e "s|^access-list .* deny ip \([0-9\.]\+\) \([0-9\.]\+\) any$|\1/\2|g" \
 		    -e "s|^access-list .* deny ip host \([0-9\.]\+\) any$|\1|g" |\
-		grep -v ^access-list |\
+		$GREP_CMD -v ^access-list |\
 		subnet_to_bitmask
 }
 
@@ -2881,8 +3060,8 @@ pix_deny_rules_to_ipv4() {
 dshield_parser() {
 	local net= mask=
 	remove_comments |\
-		grep "^[1-9]" |\
-		cut -d ' ' -f 1,3 |\
+		$GREP_CMD "^[1-9]" |\
+		$CUT_CMD -d ' ' -f 1,3 |\
 		while read net mask
 		do
 			echo "${net}/${mask}"
@@ -2891,63 +3070,63 @@ dshield_parser() {
 
 # unzip the first file in the zip and convert comma to new lines
 unzip_and_split_csv() {
-	funzip | tr ",\r" "\n\n"
+	$FUNZIP_CMD | $TR_CMD ",\r" "\n\n"
 }
 
 # unzip the first file in the zip
 unzip_and_extract() {
-	funzip
+	$FUNZIP_CMD
 }
 
 # extract IPs from the P2P blocklist
 p2p_gz() {
-	gzip -dc |\
-		cut -d ':' -f 2 |\
-		egrep "^${IP4_MATCH}-${IP4_MATCH}$" |\
+	$ZCAT_CMD |\
+		$CUT_CMD -d ':' -f 2 |\
+		$EGREP_CMD "^${IP4_MATCH}-${IP4_MATCH}$" |\
 		ipv4_range_to_cidr
 }
 
 # extract only the lines starting with Proxy from the P2P blocklist
 p2p_gz_proxy() {
-	gzip -dc |\
-		grep "^Proxy" |\
-		cut -d ':' -f 2 |\
-		egrep "^${IP4_MATCH}-${IP4_MATCH}$" |\
+	$ZCAT_CMD |\
+		$GREP_CMD "^Proxy" |\
+		$CUT_CMD -d ':' -f 2 |\
+		$EGREP_CMD "^${IP4_MATCH}-${IP4_MATCH}$" |\
 		ipv4_range_to_cidr
 }
 
 # get the first column from the csv
 csv_comma_first_column() {
-	grep "^[0-9]" |\
-		cut -d ',' -f 1
+	$GREP_CMD "^[0-9]" |\
+		$CUT_CMD -d ',' -f 1
 }
 
 # get the second word from the compressed file
 gz_second_word() {
-	gzip -dc |\
-		tr '\r' '\n' |\
-		cut -d ' ' -f 2
+	$ZCAT_CMD |\
+		$TR_CMD '\r' '\n' |\
+		$CUT_CMD -d ' ' -f 2
 }
 
 # extract IPs for the proxyrss file
 gz_proxyrss() {
-	gzip -dc |\
+	$ZCAT_CMD |\
 		remove_comments |\
-		cut -d ':' -f 1
+		$CUT_CMD -d ':' -f 1
 }
 
 # extract IPs from the maxmind proxy fraud page
 parse_maxmind_proxy_fraud() {
-	grep "href=\"proxy" |\
-		cut -d '>' -f 2 |\
-		cut -d '<' -f 1
+	$GREP_CMD "href=\"proxy" |\
+		$CUT_CMD -d '>' -f 2 |\
+		$CUT_CMD -d '<' -f 1
 }
 
 extract_ipv4_from_any_file() {
-	grep -oP "(^|[[:punct:]]|[[:space:]]|[[:cntrl:]])${IP4_MATCH}([[:punct:]]|[[:space:]]|[[:cntrl:]]|$)" |\
-		egrep -v "${IP4_MATCH}\." |\
-		egrep -v "\.${IP4_MATCH}" |\
-		grep -oP "${IP4_MATCH}"
+	$GREP_CMD -oP "(^|[[:punct:]]|[[:space:]]|[[:cntrl:]])${IP4_MATCH}([[:punct:]]|[[:space:]]|[[:cntrl:]]|$)" |\
+		$EGREP_CMD -v "${IP4_MATCH}\." |\
+		$EGREP_CMD -v "\.${IP4_MATCH}" |\
+		$GREP_CMD -oP "${IP4_MATCH}"
 }
 
 
@@ -2962,14 +3141,14 @@ hostname_resolver() {
 	[ -f "${RUN_DIR}/dns.errors" ] && rm "${RUN_DIR}/dns.errors"
 	[ -f "${RUN_DIR}/dns.failed" ] && rm "${RUN_DIR}/dns.failed"
 
-	grep "^[a-z0-9]" >"${RUN_DIR}/dns.input"
-	touch "${RUN_DIR}/dns.outcnt" "${RUN_DIR}/dns.errors" "${RUN_DIR}/dns.failed"
+	$GREP_CMD "^[a-z0-9]" >"${RUN_DIR}/dns.input"
+	$TOUCH_CMD "${RUN_DIR}/dns.outcnt" "${RUN_DIR}/dns.errors" "${RUN_DIR}/dns.failed"
 
 	for x in {1..20}
 	do
-		in=$(  wc -l "${RUN_DIR}/dns.input"  | cut -d ' ' -f 1 )
-		out=$( wc -l "${RUN_DIR}/dns.outcnt" | cut -d ' ' -f 1 )
-		fa=$(  wc -l "${RUN_DIR}/dns.failed" | cut -d ' ' -f 1 )
+		in=$(  $WC_CMD -l "${RUN_DIR}/dns.input"  | $CUT_CMD -d ' ' -f 1 )
+		out=$( $WC_CMD -l "${RUN_DIR}/dns.outcnt" | $CUT_CMD -d ' ' -f 1 )
+		fa=$(  $WC_CMD -l "${RUN_DIR}/dns.failed" | $CUT_CMD -d ' ' -f 1 )
 
 		label="pending"
 		[ $x -ne 1 ] && label="timed out - will retry"
@@ -2986,9 +3165,9 @@ hostname_resolver() {
 		[ ${RUNNING_ON_TERMINAL} -eq 1 -a ${SILENT} -ne 1 ] && \
 			pv_opts="--size ${in} --timer --eta --rate --bytes"
 
-		cat "${RUN_DIR}/dns.input" |\
-			pv --line-mode --rate-limit ${DNS_QUERIES_PER_SECOND} ${pv_opts} |\
-			adnshost --asynch --fmt-asynch --pipe |\
+		$CAT_CMD "${RUN_DIR}/dns.input" |\
+			$PV_CMD --line-mode --rate-limit ${DNS_QUERIES_PER_SECOND} ${pv_opts} |\
+			$ADNSHOST_CMD --asynch --fmt-asynch --pipe |\
 			while read id n status t1 reason host dollar msg1 msg2 msg3 msg4 msg5
 			do
 				case "${status}" in
@@ -3016,7 +3195,7 @@ hostname_resolver() {
 				while [ ${n} -gt 0 ]; do read h a inet reply; n=$[n - 1]; done
 			done
 
-		mv "${RUN_DIR}/dns.errors" "${RUN_DIR}/dns.input"
+		$MV_CMD "${RUN_DIR}/dns.errors" "${RUN_DIR}/dns.input"
 
 		# if no more errors are there, stop
 		[ ! -s "${RUN_DIR}/dns.input" ] && break;
@@ -3026,12 +3205,14 @@ hostname_resolver() {
 
 # convert hphosts file to IPs, by resolving all IPs
 hphosts2ips() {
+	require_cmd PV_CMD
+	require_cmd ADNSHOST_CMD
 	remove_comments |\
-		cut -d ' ' -f 2- |\
-		tr " " "\n" |\
-		grep -v "^$" |\
-		grep -v "^localhost$" |\
-		sort -u |\
+		$CUT_CMD -d ' ' -f 2- |\
+		$TR_CMD " " "\n" |\
+		$GREP_CMD -v "^$" |\
+		$GREP_CMD -v "^localhost$" |\
+		$SORT_CMD -u |\
 		hostname_resolver
 }
 
@@ -3046,7 +3227,7 @@ geolite2_country() {
 	then
 		if [ ${ENABLE_ALL} -eq 1 ]
 			then
-			touch -t 0001010000 "${BASE_DIR}/${ipset}.source" || return 1
+			$TOUCH_CMD -t 0001010000 "${BASE_DIR}/${ipset}.source" || return 1
 		else
 			ipset_disabled "${ipset}"
 			return 1
@@ -3063,18 +3244,18 @@ geolite2_country() {
 	fi
 
 	# create a temp dir
-	[ -d ${ipset}.tmp ] && rm -rf ${ipset}.tmp
-	mkdir ${ipset}.tmp || return 1
+	[ -d ${ipset}.tmp ] && $RM_CMD -rf ${ipset}.tmp
+	$MKDIR_CMD ${ipset}.tmp || return 1
 
 	# create the final dir
 	if [ ! -d ${ipset} ]
 	then
-		mkdir ${ipset} || return 1
+		$MKDIR_CMD ${ipset} || return 1
 	fi
 
 	if [ -d "${BASE}/.git" ]
 		then
-		git checkout ${ipset}/README-EDIT.md
+		$GIT_CMD checkout ${ipset}/README-EDIT.md
 	fi
 
 	# extract it
@@ -3088,7 +3269,7 @@ geolite2_country() {
 	# 6. is_satellite_provider 		boolean: cross-country providers
 
 	ipset_info "${ipset}" "extracting country and continent netsets..."
-	unzip -jpx "${ipset}.source" "*/GeoLite2-Country-Blocks-IPv4.csv" |\
+	$UNZIP_CMD -jpx "${ipset}.source" "*/GeoLite2-Country-Blocks-IPv4.csv" |\
 		awk -F, '
 		{
 			if( $2 )        { print $1 >"geolite2_country.tmp/country."$2".source.tmp" }
@@ -3099,9 +3280,9 @@ geolite2_country() {
 		}'
 
 	# remove the files created of the header line
-	[ -f "${ipset}.tmp/country.geoname_id.source.tmp"                     ] && rm "${ipset}.tmp/country.geoname_id.source.tmp"
-	[ -f "${ipset}.tmp/country.registered_country_geoname_id.source.tmp"  ] && rm "${ipset}.tmp/country.registered_country_geoname_id.source.tmp"
-	[ -f "${ipset}.tmp/country.represented_country_geoname_id.source.tmp" ] && rm "${ipset}.tmp/country.represented_country_geoname_id.source.tmp"
+	[ -f "${ipset}.tmp/country.geoname_id.source.tmp"                     ] && $RM_CMD "${ipset}.tmp/country.geoname_id.source.tmp"
+	[ -f "${ipset}.tmp/country.registered_country_geoname_id.source.tmp"  ] && $RM_CMD "${ipset}.tmp/country.registered_country_geoname_id.source.tmp"
+	[ -f "${ipset}.tmp/country.represented_country_geoname_id.source.tmp" ] && $RM_CMD "${ipset}.tmp/country.represented_country_geoname_id.source.tmp"
 
 	# The localization db has the following columns:
 	# 1. geoname_id
@@ -3112,7 +3293,7 @@ geolite2_country() {
 	# 6. country_name
 
 	ipset_info "${ipset}" "grouping country and continent netsets..."
-	unzip -jpx "${ipset}.source" "*/GeoLite2-Country-Locations-en.csv" |\
+	$UNZIP_CMD -jpx "${ipset}.source" "*/GeoLite2-Country-Locations-en.csv" |\
 	(
 		IFS=","
 		while read id locale cid cname iso name
@@ -3128,9 +3309,9 @@ geolite2_country() {
 
 			if [ -f "${ipset}.tmp/country.${id}.source.tmp" ]
 			then
-				[ ! -z "${cid}" ] && cat "${ipset}.tmp/country.${id}.source.tmp" >>"${ipset}.tmp/continent_${cid,,}.source.tmp"
-				[ ! -z "${iso}" ] && cat "${ipset}.tmp/country.${id}.source.tmp" >>"${ipset}.tmp/country_${iso,,}.source.tmp"
-				rm "${ipset}.tmp/country.${id}.source.tmp"
+				[ ! -z "${cid}" ] && $CAT_CMD "${ipset}.tmp/country.${id}.source.tmp" >>"${ipset}.tmp/continent_${cid,,}.source.tmp"
+				[ ! -z "${iso}" ] && $CAT_CMD "${ipset}.tmp/country.${id}.source.tmp" >>"${ipset}.tmp/country_${iso,,}.source.tmp"
+				$RM_CMD "${ipset}.tmp/country.${id}.source.tmp"
 
 				[ ! -f "${ipset}.tmp/continent_${cid,,}.source.tmp.info" ] && printf "%s" "${cname} (${cid}), with countries: " >"${ipset}.tmp/continent_${cid,,}.source.tmp.info"
 				printf "%s" "${name} (${iso}), " >>"${ipset}.tmp/continent_${cid,,}.source.tmp.info"
@@ -3147,18 +3328,18 @@ geolite2_country() {
 	local x=
 	for x in ${ipset}.tmp/*.source.tmp
 	do
-		cat "${x}" |\
+		$CAT_CMD "${x}" |\
 			filter_all4 |\
 			aggregate4 |\
 			filter_invalid4 >"${x/.source.tmp/.source}"
 
-		touch -r "${ipset}.source" "${x/.source.tmp/.source}"
-		rm "${x}"
+		$TOUCH_CMD -r "${ipset}.source" "${x/.source.tmp/.source}"
+		$RM_CMD "${x}"
 
 		local i=${x/.source.tmp/}
 		i=${i/${ipset}.tmp\//}
 
-		local info2="`cat "${x}.info"` -- ${info}"
+		local info2="`$CAT_CMD "${x}.info"` -- ${info}"
 
 		finalize "${i}" "${x/.source.tmp/.source}" "${ipset}/${i}.setinfo" "${ipset}.source" "${ipset}/${i}.netset" "${mins}" "${history_mins}" "${ipv}" "${limit}" "${hash}" "${url}" "geolocation" "${info2}" "MaxMind.com" "http://www.maxmind.com/" \
 			service "geolocation"
@@ -3171,7 +3352,7 @@ geolite2_country() {
 	fi
 
 	# remove the temporary dir
-	rm -rf "${ipset}.tmp"
+	$RM_CMD -rf "${ipset}.tmp"
 
 	return 0
 }
@@ -3191,7 +3372,7 @@ ipdeny_country() {
 	then
 		if [ ${ENABLE_ALL} -eq 1 ]
 			then
-			touch -t 0001010000 "${BASE_DIR}/${ipset}.source" || return 1
+			$TOUCH_CMD -t 0001010000 "${BASE_DIR}/${ipset}.source" || return 1
 		else
 			ipset_disabled "${ipset}"
 			return 1
@@ -3208,13 +3389,13 @@ ipdeny_country() {
 	fi
 
 	# create a temp dir
-	[ -d ${ipset}.tmp ] && rm -rf ${ipset}.tmp
-	mkdir ${ipset}.tmp || return 1
+	[ -d ${ipset}.tmp ] && $RM_CMD -rf ${ipset}.tmp
+	$MKDIR_CMD ${ipset}.tmp || return 1
 
 	# create the final dir
 	if [ ! -d ${ipset} ]
 	then
-		mkdir ${ipset} || return 1
+		$MKDIR_CMD ${ipset} || return 1
 	fi
 
 	# extract it - in a subshell to do it in the tmp dir
@@ -3222,7 +3403,7 @@ ipdeny_country() {
 
 	# move them inside the tmp, and fix continents
 	local x=
-	for x in $(find "${ipset}.tmp/" -type f -a -name \*.zone)
+	for x in $($FIND_CMD "${ipset}.tmp/" -type f -a -name \*.zone)
 	do
 		x=${x/*\//}
 		x=${x/.zone/}
@@ -3232,31 +3413,31 @@ ipdeny_country() {
 			then
 			[ ! -f "${ipset}.tmp/id_continent_${IPDENY_COUNTRY_CONTINENTS[${x}]}.source.tmp.info" ] && printf "%s" "Continent ${IPDENY_COUNTRY_CONTINENTS[${x}]}, with countries: " >"${ipset}.tmp/id_continent_${IPDENY_COUNTRY_CONTINENTS[${x}]}.source.tmp.info"
 			printf "%s" "${IPDENY_COUNTRY_NAMES[${x}]} (${x^^}), " >>"${ipset}.tmp/id_continent_${IPDENY_COUNTRY_CONTINENTS[${x}]}.source.tmp.info"
-			cat "${ipset}.tmp/${x}.zone" >>"${ipset}.tmp/id_continent_${IPDENY_COUNTRY_CONTINENTS[${x}]}.source.tmp"
+			$CAT_CMD "${ipset}.tmp/${x}.zone" >>"${ipset}.tmp/id_continent_${IPDENY_COUNTRY_CONTINENTS[${x}]}.source.tmp"
 			IPDENY_CONTINENTS[${IPDENY_COUNTRY_CONTINENTS[${x}]}]="1"
 		else
 			ipset_warning "${ipset}" "I don't know the continent of country ${x}."
 		fi
 
 		printf "%s" "${IPDENY_COUNTRY_NAMES[${x}]} (${x^^})" >"${ipset}.tmp/id_country_${x}.source.tmp.info"
-		mv "${ipset}.tmp/${x}.zone" "${ipset}.tmp/id_country_${x}.source.tmp"
+		$MV_CMD "${ipset}.tmp/${x}.zone" "${ipset}.tmp/id_country_${x}.source.tmp"
 	done
 
 	ipset_info "${ipset}" "aggregating country and continent netsets..."
 	for x in ${ipset}.tmp/*.source.tmp
 	do
-		cat "${x}" |\
+		$CAT_CMD "${x}" |\
 			filter_all4 |\
 			aggregate4 |\
 			filter_invalid4 >"${x/.source.tmp/.source}"
 
-		touch -r "${ipset}.source" "${x/.source.tmp/.source}"
-		rm "${x}"
+		$TOUCH_CMD -r "${ipset}.source" "${x/.source.tmp/.source}"
+		$RM_CMD "${x}"
 
 		local i=${x/.source.tmp/}
 		i=${i/${ipset}.tmp\//}
 
-		local info2="`cat "${x}.info"` -- ${info}"
+		local info2="`$CAT_CMD "${x}.info"` -- ${info}"
 
 		finalize "${i}" "${x/.source.tmp/.source}" "${ipset}/${i}.setinfo" "${ipset}.source" "${ipset}/${i}.netset" "${mins}" "${history_mins}" "${ipv}" "${limit}" "${hash}" "${url}" "geolocation" "${info2}" "IPDeny.com" "http://www.ipdeny.com/" \
 			service "geolocation"
@@ -3269,7 +3450,7 @@ ipdeny_country() {
 	fi
 
 	# remove the temporary dir
-	rm -rf "${ipset}.tmp"
+	$RM_CMD -rf "${ipset}.tmp"
 
 	return 0
 }
@@ -3289,7 +3470,7 @@ ip2location_country() {
 	then
 		if [ ${ENABLE_ALL} -eq 1 ]
 			then
-			touch -t 0001010000 "${BASE_DIR}/${ipset}.source" || return 1
+			$TOUCH_CMD -t 0001010000 "${BASE_DIR}/${ipset}.source" || return 1
 		else
 			ipset_disabled "${ipset}"
 			return 1
@@ -3306,30 +3487,30 @@ ip2location_country() {
 	fi
 
 	# create a temp dir
-	[ -d ${ipset}.tmp ] && rm -rf ${ipset}.tmp
-	mkdir ${ipset}.tmp || return 1
+	[ -d ${ipset}.tmp ] && $RM_CMD -rf ${ipset}.tmp
+	$MKDIR_CMD ${ipset}.tmp || return 1
 
 	# extract it - in a subshell to do it in the tmp dir
-	( cd "${BASE_DIR}/${ipset}.tmp" && unzip -x "${BASE_DIR}/${ipset}.source" )
+	( cd "${BASE_DIR}/${ipset}.tmp" && $UNZIP_CMD -x "${BASE_DIR}/${ipset}.source" )
 	local file="${ipset}.tmp/IP2LOCATION-LITE-DB1.CSV"
 
 	if [ ! -f "${file}" ]
 		then
 		ipset_error "${ipset}" "failed to find file '${file/*\//}'' in downloaded archive"
-		rm -rf "${ipset}.tmp"
+		$RM_CMD -rf "${ipset}.tmp"
 		return 1
 	fi
 
 	# create the final dir
 	if [ ! -d ${ipset} ]
 	then
-		mkdir ${ipset} || return 1
+		$MKDIR_CMD ${ipset} || return 1
 	fi
 
 	# find all the countries in the file
 
 	ipset_info "${ipset}" "finding included countries..."
-	cat "${file}" | cut -d ',' -f 3,4 | sort -u | sed 's/","/|/g' | tr '"\r' '  ' | trim >"${ipset}.tmp/countries"
+	$CAT_CMD "${file}" | $CUT_CMD -d ',' -f 3,4 | $SORT_CMD -u | $SED_CMD 's/","/|/g' | $TR_CMD '"\r' '  ' | trim >"${ipset}.tmp/countries"
 	local code= name=
 	while IFS="|" read code name
 	do
@@ -3355,19 +3536,19 @@ ip2location_country() {
 		fi
 
 		ipset_info "${ipset}" "extracting country '${x}' (code='${code}', name='${name}')..."
-		cat "${file}" 			|\
-			grep ",\"${x}\"," 	|\
-			cut -d ',' -f 1,2 	|\
-			sed 's/","/ - /g' 	|\
-			tr '"' ' ' 			|\
-			"${IPRANGE_CMD}" 	|\
+		$CAT_CMD "${file}" 			|\
+			$GREP_CMD ",\"${x}\"," 	|\
+			$CUT_CMD -d ',' -f 1,2 	|\
+			$SED_CMD 's/","/ - /g' 	|\
+			$TR_CMD '"' ' ' 			|\
+			${IPRANGE_CMD} 	|\
 			filter_invalid4 >"${ipset}.tmp/ip2location_country_${code}.source.tmp"
 
 		if [ ! -z "${IP2LOCATION_COUNTRY_CONTINENTS[${code}]}" ]
 			then
 			[ ! -f "${ipset}.tmp/id_continent_${IP2LOCATION_COUNTRY_CONTINENTS[${code}]}.source.tmp.info" ] && printf "%s" "Continent ${IP2LOCATION_COUNTRY_CONTINENTS[${code}]}, with countries: " >"${ipset}.tmp/id_continent_${IP2LOCATION_COUNTRY_CONTINENTS[${code}]}.source.tmp.info"
 			printf "%s" "${IP2LOCATION_COUNTRY_NAMES[${x}]} (${code^^}), " >>"${ipset}.tmp/ip2location_continent_${IP2LOCATION_COUNTRY_CONTINENTS[${code}]}.source.tmp.info"
-			cat "${ipset}.tmp/ip2location_country_${code}.source.tmp" >>"${ipset}.tmp/ip2location_continent_${IP2LOCATION_COUNTRY_CONTINENTS[${code}]}.source.tmp"
+			$CAT_CMD "${ipset}.tmp/ip2location_country_${code}.source.tmp" >>"${ipset}.tmp/ip2location_continent_${IP2LOCATION_COUNTRY_CONTINENTS[${code}]}.source.tmp"
 			IP2LOCATION_CONTINENTS[${IP2LOCATION_COUNTRY_CONTINENTS[${code}]}]="1"
 		else
 			ipset_info "${ipset}" "I don't know the continent of country ${code}."
@@ -3379,13 +3560,13 @@ ip2location_country() {
 	ipset_info "${ipset}" "aggregating country and continent netsets..."
 	for x in ${ipset}.tmp/*.source.tmp
 	do
-		mv "${x}" "${x/.source.tmp/.source}"
-		touch -r "${ipset}.source" "${x/.source.tmp/.source}"
+		$MV_CMD "${x}" "${x/.source.tmp/.source}"
+		$TOUCH_CMD -r "${ipset}.source" "${x/.source.tmp/.source}"
 
 		local i=${x/.source.tmp/}
 		i=${i/${ipset}.tmp\//}
 
-		local info2="`cat "${x}.info"` -- ${info}"
+		local info2="`$CAT_CMD "${x}.info"` -- ${info}"
 
 		finalize "${i}" "${x/.source.tmp/.source}" "${ipset}/${i}.setinfo" "${ipset}.source" "${ipset}/${i}.netset" "${mins}" "${history_mins}" "${ipv}" "${limit}" "${hash}" "${url}" "geolocation" "${info2}" "IP2Location.com" "http://lite.ip2location.com/database-ip-country" \
 			service "geolocation"		
@@ -3398,7 +3579,7 @@ ip2location_country() {
 	fi
 
 	# remove the temporary dir
-	rm -rf "${ipset}.tmp"
+	$RM_CMD -rf "${ipset}.tmp"
 
 	return 0
 }
@@ -3437,8 +3618,8 @@ ipsets_with_common_source_file() {
 
 		if [ -f "${x}.source" -o -h "${x}.source" ]
 			then
-			rm "${x}.source"
-			ln -s "${real}.source" "${x}.source"
+			$RM_CMD "${x}.source"
+			$LN_CMD -s "${real}.source" "${x}.source"
 		fi
 	done
 
@@ -3458,7 +3639,7 @@ merge() {
 		then
 		if [ ${ENABLE_ALL} -eq 1 ]
 			then
-			touch -t 0001010000 "${BASE_DIR}/${to}.source" || return 1
+			$TOUCH_CMD -t 0001010000 "${BASE_DIR}/${to}.source" || return 1
 		else
 			ipset_disabled "${to}"
 			return 1
@@ -3481,7 +3662,7 @@ merge() {
 				found_updated=$[ found_updated + 1 ]
 
 				# check if it is newer
-				date=$(date -r "${IPSET_FILE[${x}]}" +%s)
+				date=$($DATE_CMD -r "${IPSET_FILE[${x}]}" +%s)
 				if [ ${date} -gt ${max_date} ]
 					then
 					max_date=${date}
@@ -3509,9 +3690,9 @@ merge() {
 	fi
 
 	ipset_silent "${to}" "merging files..."
-	cat "${files[@]}" >"${to}.source.tmp" || return 1
-	touch --date=@${max_date} "${to}.source.tmp" || return 1
-	mv "${to}.source.tmp" "${to}.source" || return 1
+	$CAT_CMD "${files[@]}" >"${to}.source.tmp" || return 1
+	$TOUCH_CMD --date=@${max_date} "${to}.source.tmp" || return 1
+	$MV_CMD "${to}.source.tmp" "${to}.source" || return 1
 
 	update "${to}" 1 0 "${ipv}" "${filter}" "" \
 		"cat" \
@@ -3696,7 +3877,7 @@ update bm_tor 30 0 ipv4 ip \
 	"[torstatus.blutmagie.de](https://torstatus.blutmagie.de) list of all TOR network servers" \
 	"torstatus.blutmagie.de" "https://torstatus.blutmagie.de/"
 
-torproject_exits() { grep "^ExitAddress " | cut -d ' ' -f 2; }
+torproject_exits() { $GREP_CMD "^ExitAddress " | $CUT_CMD -d ' ' -f 2; }
 update tor_exits 5 "$[24*60] $[7*24*60] $[30*24*60]" ipv4 ip \
 	"https://check.torproject.org/exit-addresses" \
 	torproject_exits \
@@ -3724,7 +3905,7 @@ update darklist_de $[24 * 60] 0 ipv4 both \
 
 update cruzit_web_attacks $[12 * 60] 0 ipv4 ip \
 	"http://www.cruzit.com/xwbl2txt.php" \
-	cat \
+	$CAT_CMD \
 	"attacks" \
 	"[CruzIt.com](http://www.cruzit.com/wbl.php) IPs of compromised machines scanning for vulnerabilities and DDOS attacks" \
 	"CruzIt.com" "http://www.cruzit.com/wbl.php"
@@ -3736,7 +3917,7 @@ update cruzit_web_attacks $[12 * 60] 0 ipv4 ip \
 IPSET_DOWNLOADER_NO_IF_MODIFIED_SINCE[yoyo_adservers]=1
 update yoyo_adservers $[12 * 60] 0 ipv4 ip \
 	"http://pgl.yoyo.org/adservers/iplist.php?ipformat=plain&showintro=0&mimetype=plaintext" \
-	cat \
+	$CAT_CMD \
 	"organizations" \
 	"[Yoyo.org](http://pgl.yoyo.org/adservers/) IPs of ad servers" \
 	"Yoyo.org" "http://pgl.yoyo.org/adservers/"
@@ -4000,7 +4181,7 @@ update malc0de $[24*60] 0 ipv4 ip \
 # ASPROX
 # http://atrack.h3x.eu/
 
-parse_asprox() { sed -e "s|<div class=code>|\n|g" -e "s|</div>|\n|g" | trim | egrep "^${IP4_MATCH}$"; }
+parse_asprox() { $SED_CMD -e "s|<div class=code>|\n|g" -e "s|</div>|\n|g" | trim | $EGREP_CMD "^${IP4_MATCH}$"; }
 
 # updated daily and populated with the last 30 days of malicious IP addresses.
 update asprox_c2 $[24*60] 0 ipv4 ip \
@@ -4223,7 +4404,7 @@ update proxz 60 "$[24*60] $[7*24*60] $[30*24*60]" ipv4 ip \
 # http://multiproxy.org/txt_all/proxy.txt
 # this seems abandoned
 #
-#parse_multiproxy() { remove_comments | cut -d ':' -f 1; }
+#parse_multiproxy() { remove_comments | $CUT_CMD -d ':' -f 1; }
 #
 #update multiproxy 60 0 ipv4 ip \
 #	"http://multiproxy.org/txt_all/proxy.txt" \
@@ -4249,7 +4430,7 @@ update proxylists 60 "$[24*60] $[7*24*60] $[30*24*60]" ipv4 ip \
 # Open Proxies from proxyspy.net
 # http://spys.ru/en/
 
-parse_proxyspy() { remove_comments | cut -d ':' -f 1; }
+parse_proxyspy() { remove_comments | $CUT_CMD -d ':' -f 1; }
 
 update proxyspy 60 "$[24*60] $[7*24*60] $[30*24*60]" ipv4 ip \
 	"http://txt.proxyspy.net/proxy.txt" \
@@ -4377,7 +4558,7 @@ update cleanmx_viruses 30 0 ipv4 ip \
 # ImproWare
 # http://antispam.imp.ch/
 
-antispam_ips() { remove_comments | cut -d ' ' -f 2; }
+antispam_ips() { remove_comments | $CUT_CMD -d ' ' -f 2; }
 
 update iw_spamlist 60 0 ipv4 ip \
 	"http://antispam.imp.ch/spamlist" \
@@ -4431,7 +4612,7 @@ update bruteforceblocker $[3*60] 0 ipv4 ip \
 # PacketMail
 # https://www.packetmail.net/iprep.txt
 
-parse_packetmail() { remove_comments | cut -d ';' -f 1; }
+parse_packetmail() { remove_comments | $CUT_CMD -d ';' -f 1; }
 
 update packetmail $[4*60] 0 ipv4 ip \
 	"https://www.packetmail.net/iprep.txt" \
@@ -4445,7 +4626,7 @@ update packetmail $[4*60] 0 ipv4 ip \
 # Charles Haley
 # http://charles.the-haleys.org/ssh_dico_attack_hdeny_format.php/hostsdeny.txt
 
-haley_ssh() { cut -d ':' -f 2; }
+haley_ssh() { $CUT_CMD -d ':' -f 2; }
 
 update haley_ssh $[4*60] 0 ipv4 ip \
 	"http://charles.the-haleys.org/ssh_dico_attack_hdeny_format.php/hostsdeny.txt" \
@@ -4555,7 +4736,7 @@ update lashback_ubl $[24*60] 0 ipv4 ip \
 # HTTP report
 # http://www.dragonresearchgroup.org/
 
-dragon_column3() { remove_comments | cut -d '|' -f 3 | trim; }
+dragon_column3() { remove_comments | $CUT_CMD -d '|' -f 3 | trim; }
 
 DO_NOT_REDISTRIBUTE[dragon_http]="1"
 update dragon_http 60 0 ipv4 both \
@@ -4617,7 +4798,7 @@ update nt_malware_dns 60 0 ipv4 ip \
 # Bambenek Consulting
 # http://osint.bambenekconsulting.com/feeds/
 
-bambenek_filter() { remove_comments | cut -d ',' -f 1; }
+bambenek_filter() { remove_comments | $CUT_CMD -d ',' -f 1; }
 
 update bambenek_c2 30 0 ipv4 ip \
 	"http://osint.bambenekconsulting.com/feeds/c2-ipmasterlist.txt" \
@@ -4732,7 +4913,7 @@ update trustedsec_atif $[24*60] 0 ipv4 ip \
 # Pushing Inertia
 # https://github.com/pushinginertia/ip-blacklist
 
-parse_pushing_inertia() { grep "^deny from " | cut -d ' ' -f 3-; }
+parse_pushing_inertia() { $GREP_CMD "^deny from " | $CUT_CMD -d ' ' -f 3-; }
 
 update pushing_inertia_blocklist $[24*60] 0 ipv4 both \
 	"https://raw.githubusercontent.com/pushinginertia/ip-blacklist/master/ip_blacklist.conf" \
@@ -4776,11 +4957,11 @@ parse_chaosreigns_once() {
 			"
 	else
 		# ignore the source being fed to us
-		cat >/dev/null
+		$CAT_CMD >/dev/null
 	fi
 	
 	# give the parsed output
-	cat "${RUN_DIR}/${wanted}.source"
+	$CAT_CMD "${RUN_DIR}/${wanted}.source"
 
 	# make sure all the variations have the same source
 	ipsets_with_common_source_file "chaosreigns_iprep100" "chaosreigns_iprep50" "chaosreigns_iprep0"
@@ -4815,7 +4996,7 @@ update chaosreigns_iprep0 $[24*60] 0 ipv4 ip \
 # -----------------------------------------------------------------------------
 # https://graphiclineweb.wordpress.com/tech-notes/ip-blacklist/
 
-parse_graphiclineweb() { grep -oP ">${IP4_MATCH}(/${MK4_MATCH})?<" | grep -oP "${IP4_MATCH}(/${MK4_MATCH})?"; }
+parse_graphiclineweb() { $GREP_CMD -oP ">${IP4_MATCH}(/${MK4_MATCH})?<" | $GREP_CMD -oP "${IP4_MATCH}(/${MK4_MATCH})?"; }
 
 update graphiclineweb $[24*60] 0 ipv4 both \
 	"https://graphiclineweb.wordpress.com/tech-notes/ip-blacklist/" \
@@ -4828,7 +5009,7 @@ update graphiclineweb $[24*60] 0 ipv4 both \
 # -----------------------------------------------------------------------------
 # http://www.ip-finder.me/ip-full-list/
 
-parse_ipblacklistcloud() { grep -oP ">${IP4_MATCH}<" | grep -oP "${IP4_MATCH}"; }
+parse_ipblacklistcloud() { $GREP_CMD -oP ">${IP4_MATCH}<" | $GREP_CMD -oP "${IP4_MATCH}"; }
 
 update ipblacklistcloud_top $[24*60] 0 ipv4 ip \
 	"http://www.ip-finder.me/ip-full-list/" \
@@ -4848,7 +5029,7 @@ update ipblacklistcloud_recent $[60] "$[24*60] $[7*24*60] $[30*24*60]" ipv4 ip \
 # -----------------------------------------------------------------------------
 # http://www.cyberthreatalliance.org/cryptowall-dashboard.html
 
-parse_cta_cryptowall() { cut -d ',' -f 3; }
+parse_cta_cryptowall() { $CUT_CMD -d ',' -f 3; }
 
 update cta_cryptowall $[24*60] 0 ipv4 ip \
 	"https://public.tableau.com/views/CTAOnlineViz/DashboardData.csv?:embed=y&:showVizHome=no&:showTabs=y&:display_count=y&:display_static_image=y&:bootstrapWhenNotified=true" \
@@ -4861,7 +5042,7 @@ update cta_cryptowall $[24*60] 0 ipv4 ip \
 # -----------------------------------------------------------------------------
 # https://cleantalk.org/
 
-parse_cleantalk() { grep -oP ">[[:space:]]*${IP4_MATCH}[[:space:]]*<" | grep -oP "${IP4_MATCH}"; }
+parse_cleantalk() { $GREP_CMD -oP ">[[:space:]]*${IP4_MATCH}[[:space:]]*<" | $GREP_CMD -oP "${IP4_MATCH}"; }
 
 update cleantalk_new $[15] "$[24*60] $[7*24*60] $[30*24*60]" ipv4 ip \
 	"https://cleantalk.org/blacklists/submited_today" \
@@ -5467,7 +5648,7 @@ badipscom() {
 			local x=
 			for x in badips bi_bruteforce_2_30d bi_ftp_2_30d bi_http_2_30d bi_mail_2_30d bi_proxy_2_30d bi_sql_2_30d bi_ssh_2_30d bi_voip_2_30d
 			do
-				touch -t 0001010000 "${BASE_DIR}/${x}.source" || return 1
+				$TOUCH_CMD -t 0001010000 "${BASE_DIR}/${x}.source" || return 1
 			done
 		else
 			[ -d .git ] && echo >"badips.setinfo" "badips.com categories ipsets|[BadIPs.com](https://www.badips.com) community based IP blacklisting. They score IPs based on the reports they reports.|ipv4 hash:ip|disabled|disabled"
@@ -5480,12 +5661,12 @@ badipscom() {
 	ret=$?
 	[ ! -s "badips.source" ] && return 0
 
-	local categories="any $(cat badips.source |\
-		tr "[]{}," "\n\n\n\n\n" |\
-		egrep '^"(Name|Parent)":"[a-zA-Z0-9_-]+"$' |\
-		cut -d ':' -f 2 |\
-		cut -d '"' -f 2 |\
-		sort -u)"
+	local categories="any $($CAT_CMD badips.source |\
+		$TR_CMD "[]{}," "\n\n\n\n\n" |\
+		$EGREP_CMD '^"(Name|Parent)":"[a-zA-Z0-9_-]+"$' |\
+		$CUT_CMD -d ':' -f 2 |\
+		$CUT_CMD -d '"' -f 2 |\
+		$SORT_CMD -u)"
 
 	local category= file= score= age= i= ipset= url= info= count=0
 	for category in ${categories}
@@ -5499,7 +5680,7 @@ badipscom() {
 			if [[ "${file}" =~ ^bi_${category}_[0-9\.]+_[0-9]+[dwmy].source$ ]]
 				then
 				# score and age present
-				i="$(echo "${file}" | sed "s|^bi_${category}_\([0-9\.]\+\)_\([0-9]\+[dwmy]\)\.source|\1;\2|g")"
+				i="$(echo "${file}" | $SED_CMD "s|^bi_${category}_\([0-9\.]\+\)_\([0-9]\+[dwmy]\)\.source|\1;\2|g")"
 				score=${i/;*/}
 				age="${i/*;/}"
 				ipset="bi_${category}_${score}_${age}"
@@ -5514,7 +5695,7 @@ badipscom() {
 			elif [[ "${file}" =~ ^bi_${category}_[0-9]+[dwmy].source$ ]]
 				then
 				# age present
-				age="$(echo "${file}" | sed "s|^bi_${category}_\([0-9]\+[dwmy]\)\.source|\1|g")"
+				age="$(echo "${file}" | $SED_CMD "s|^bi_${category}_\([0-9]\+[dwmy]\)\.source|\1|g")"
 				score=0
 				ipset="bi_${category}_${age}"
 				url="https://www.badips.com/get/list/${category}/${score}?age=${age}"
@@ -5528,7 +5709,7 @@ badipscom() {
 			elif [[ "${file}" =~ ^bi_${category}_[0-9\.]+.source$ ]]
 				then
 				# score present
-				score="$(echo "${file}" | sed "s|^bi_${category}_\([0-9\.]\+\)\.source|\1|g")"
+				score="$(echo "${file}" | $SED_CMD "s|^bi_${category}_\([0-9\.]\+\)\.source|\1|g")"
 				age=
 				ipset="bi_${category}_${score}"
 				url="https://www.badips.com/get/list/${category}/${score}"
@@ -5587,27 +5768,27 @@ badipscom
 
 DO_NOT_REDISTRIBUTE[sorbs_dul]="1"
 update sorbs_dul 1 0 ipv4 both "" \
-	cat \
+	$CAT_CMD \
 	"spam" "[Sorbs.net](https://www.sorbs.net/) Dynamic IP Addresses." \
 	"Sorbs.net" "https://www.sorbs.net/"
 
 #DO_NOT_REDISTRIBUTE[sorbs_socks]="1"
 #update sorbs_socks 1 0 ipv4 both "" \
-#	cat \
+#	$CAT_CMD \
 #	"anonymizers" \
 #	"[Sorbs.net](https://www.sorbs.net/) List of open SOCKS proxy servers." \
 #	"Sorbs.net" "https://www.sorbs.net/"
 
 #DO_NOT_REDISTRIBUTE[sorbs_http]="1"
 #update sorbs_http 1 0 ipv4 both "" \
-#	cat \
+#	$CAT_CMD \
 #	"anonymizers" \
 #	"[Sorbs.net](https://www.sorbs.net/) List of open HTTP proxies." \
 #	"Sorbs.net" "https://www.sorbs.net/"
 
 #DO_NOT_REDISTRIBUTE[sorbs_misc]="1"
 #update sorbs_misc 1 0 ipv4 both "" \
-#	cat \
+#	$CAT_CMD \
 #	"anonymizers" \
 #	"[Sorbs.net](https://www.sorbs.net/) List of open proxy servers (not listed in HTTP or SOCKS)." \
 #	"Sorbs.net" "https://www.sorbs.net/"
@@ -5615,21 +5796,21 @@ update sorbs_dul 1 0 ipv4 both "" \
 # all the above are here:
 DO_NOT_REDISTRIBUTE[sorbs_anonymizers]="1"
 update sorbs_anonymizers 1 0 ipv4 both "" \
-	cat \
+	$CAT_CMD \
 	"spam" \
 	"[Sorbs.net](https://www.sorbs.net/) List of open HTTP and SOCKS proxies." \
 	"Sorbs.net" "https://www.sorbs.net/"
 
 DO_NOT_REDISTRIBUTE[sorbs_zombie]="1"
 update sorbs_zombie 1 0 ipv4 both "" \
-	cat \
+	$CAT_CMD \
 	"spam" \
 	"[Sorbs.net](https://www.sorbs.net/) List of networks hijacked from their original owners, some of which have already used for spamming." \
 	"Sorbs.net" "https://www.sorbs.net/"
 
 DO_NOT_REDISTRIBUTE[sorbs_smtp]="1"
 update sorbs_smtp 1 0 ipv4 both "" \
-	cat "spam" "[Sorbs.net](https://www.sorbs.net/) List of SMTP Open Relays." \
+	$CAT_CMD "spam" "[Sorbs.net](https://www.sorbs.net/) List of SMTP Open Relays." \
 	"Sorbs.net" "https://www.sorbs.net/"
 
 # this is HUGE !!!
@@ -5649,42 +5830,42 @@ update sorbs_smtp 1 0 ipv4 both "" \
 
 DO_NOT_REDISTRIBUTE[sorbs_new_spam]="1"
 update sorbs_new_spam 1 0 ipv4 both "" \
-	cat \
+	$CAT_CMD \
 	"spam" \
 	"[Sorbs.net](https://www.sorbs.net/) List of hosts that have been noted as sending spam/UCE/UBE within the last 48 hours" \
 	"Sorbs.net" "https://www.sorbs.net/"
 
 DO_NOT_REDISTRIBUTE[sorbs_recent_spam]="1"
 update sorbs_recent_spam 1 0 ipv4 both "" \
-	cat \
+	$CAT_CMD \
 	"spam" \
 	"[Sorbs.net](https://www.sorbs.net/) List of hosts that have been noted as sending spam/UCE/UBE within the last 28 days (includes sorbs_new_spam)" \
 	"Sorbs.net" "https://www.sorbs.net/"
 
 DO_NOT_REDISTRIBUTE[sorbs_web]="1"
 update sorbs_web 1 0 ipv4 both "" \
-	cat \
+	$CAT_CMD \
 	"spam" \
 	"[Sorbs.net](https://www.sorbs.net/) List of IPs which have spammer abusable vulnerabilities (e.g. FormMail scripts)" \
 	"Sorbs.net" "https://www.sorbs.net/"
 
 DO_NOT_REDISTRIBUTE[sorbs_escalations]="1"
 update sorbs_escalations 1 0 ipv4 both "" \
-	cat \
+	$CAT_CMD \
 	"spam" \
 	"[Sorbs.net](https://www.sorbs.net/) Netblocks of spam supporting service providers, including those who provide websites, DNS or drop boxes for a spammer. Spam supporters are added on a 'third strike and you are out' basis, where the third spam will cause the supporter to be added to the list." \
 	"Sorbs.net" "https://www.sorbs.net/"
 
 DO_NOT_REDISTRIBUTE[sorbs_noserver]="1"
 update sorbs_noserver 1 0 ipv4 both "" \
-	cat \
+	$CAT_CMD \
 	"spam" \
 	"[Sorbs.net](https://www.sorbs.net/) IP addresses and Netblocks of where system administrators and ISPs owning the network have indicated that servers should not be present." \
 	"Sorbs.net" "https://www.sorbs.net/"
 
 DO_NOT_REDISTRIBUTE[sorbs_block]="1"
 update sorbs_block 1 0 ipv4 both "" \
-	cat \
+	$CAT_CMD \
 	"spam" \
 	"[Sorbs.net](https://www.sorbs.net/) List of hosts demanding that they never be tested by SORBS." \
 	"Sorbs.net" "https://www.sorbs.net/"
@@ -5695,63 +5876,63 @@ update sorbs_block 1 0 ipv4 both "" \
 
 DO_NOT_REDISTRIBUTE[dronebl_anonymizers]="1"
 update dronebl_anonymizers 1 0 ipv4 both "" \
-	cat \
+	$CAT_CMD \
 	"anonymizers" \
 	"[DroneBL.org](https://dronebl.org) List of open proxies. It includes IPs which DroneBL categorizes as SOCKS proxies (8), HTTP proxies (9), web page proxies (11), WinGate proxies (14), proxy chains (10)." \
 	"DroneBL.org" "https://dronebl.org"
 
 DO_NOT_REDISTRIBUTE[dronebl_irc_drones]="1"
 update dronebl_irc_drones 1 0 ipv4 both "" \
-	cat \
+	$CAT_CMD \
 	"abuse" \
 	"[DroneBL.org](https://dronebl.org) List of IRC spam drones (litmus/sdbot/fyle). It includes IPs for which DroneBL responds with 3." \
 	"DroneBL.org" "https://dronebl.org"
 
 DO_NOT_REDISTRIBUTE[dronebl_worms_bots]="1"
 update dronebl_worms_bots 1 0 ipv4 both "" \
-	cat \
+	$CAT_CMD \
 	"malware" \
 	"[DroneBL.org](https://dronebl.org) IPs of unknown worms or spambots. It includes IPs for which DroneBL responds with 6" \
 	"DroneBL.org" "https://dronebl.org"
 
 DO_NOT_REDISTRIBUTE[dronebl_ddos_drones]="1"
 update dronebl_ddos_drones 1 0 ipv4 both "" \
-	cat \
+	$CAT_CMD \
 	"attacks" \
 	"[DroneBL.org](https://dronebl.org) IPs of DDoS drones. It includes IPs for which DroneBL responds with 7." \
 	"DroneBL.org" "https://dronebl.org"
 
 DO_NOT_REDISTRIBUTE[dronebl_compromised]="1"
 update dronebl_compromised 1 0 ipv4 both "" \
-	cat \
+	$CAT_CMD \
 	"attacks" \
 	"[DroneBL.org](https://dronebl.org) IPs of compromised routers / gateways. It includes IPs for which DroneBL responds with 15 (BOPM detected)." \
 	"DroneBL.org" "https://dronebl.org"
 
 DO_NOT_REDISTRIBUTE[dronebl_autorooting_worms]="1"
 update dronebl_autorooting_worms 1 0 ipv4 both "" \
-	cat \
+	$CAT_CMD \
 	"attacks" \
 	"[DroneBL.org](https://dronebl.org) IPs of autorooting worms. It includes IPs for which DroneBL responds with 16. These are usually SSH bruteforce attacks." \
 	"DroneBL.org" "https://dronebl.org"
 
 DO_NOT_REDISTRIBUTE[dronebl_auto_botnets]="1"
 update dronebl_auto_botnets 1 0 ipv4 both "" \
-	cat \
+	$CAT_CMD \
 	"reputation" \
 	"[DroneBL.org](https://dronebl.org) IPs of automatically detected botnets. It includes IPs for which DroneBL responds with 17." \
 	"DroneBL.org" "https://dronebl.org"
 
 DO_NOT_REDISTRIBUTE[dronebl_dns_mx_on_irc]="1"
 update dronebl_dns_mx_on_irc 1 0 ipv4 both "" \
-	cat \
+	$CAT_CMD \
 	"reputation" \
 	"[DroneBL.org](https://dronebl.org) List of IPs of DNS / MX hostname detected on IRC. It includes IPs for which DroneBL responds with 18." \
 	"DroneBL.org" "https://dronebl.org"
 
 DO_NOT_REDISTRIBUTE[dronebl_unknown]="1"
 update dronebl_unknown 1 0 ipv4 both "" \
-	cat \
+	$CAT_CMD \
 	"reputation" \
 	"[DroneBL.org](https://dronebl.org) List of IPs of uncategorized threats. It includes IPs for which DroneBL responds with 255." \
 	"DroneBL.org" "https://dronebl.org"
