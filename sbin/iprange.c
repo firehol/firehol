@@ -1799,6 +1799,10 @@ int main(int argc, char **argv) {
 			|| !strcmp(argv[i], "--complement")) {
 			mode = MODE_EXCLUDE_NEXT;
 			read_second = 1;
+			if(!root) {
+				fprintf(stderr, "%s: An ipset is needed before --complement-next-next\n", PROG);
+				exit(1);
+			}
 		}
 		else if(!strcmp(argv[i], "--compare")) {
 			mode = MODE_COMPARE;
@@ -1809,6 +1813,10 @@ int main(int argc, char **argv) {
 		else if(!strcmp(argv[i], "--compare-next")) {
 			mode = MODE_COMPARE_NEXT;
 			read_second = 1;
+			if(!root) {
+				fprintf(stderr, "%s: An ipset is needed before --compare-next\n", PROG);
+				exit(1);
+			}
 		}
 		else if(!strcmp(argv[i], "--count-unique")
 			|| !strcmp(argv[i], "-C")) {
