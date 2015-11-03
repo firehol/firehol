@@ -108,88 +108,9 @@ PATH="${PATH}:/sbin:/usr/sbin"
 LC_ALL=C
 umask 077
 
+
 # -----------------------------------------------------------------------------
-# CONFIGURATION
-
-CONFIG_DIR="/etc/firehol"
-CONFIG_FILE="/etc/firehol/update-ipsets.conf"
-
-# where to store the files
-BASE_DIR="/etc/firehol/ipsets"
-
-# where to keep the run files
-# a subdirectory will be created as RUN_DIR
-RUN_PARENT_DIR="/var/run"
-
-# to ensure only one runs
-UPDATE_IPSETS_LOCK_FILE="${RUN_PARENT_DIR}/update-ipsets.lock"
-[ ! "${UID}" = "0" ] && UPDATE_IPSETS_LOCK_FILE="${HOME}/.update-upsets.lock"
-
-# where to keep the history files
-HISTORY_DIR="${BASE_DIR}/history"
-
-# where to keep the files we cannot process
-# when empty, error files will be deleted
-ERRORS_DIR="${BASE_DIR}/errors"
-
-# where to put the CSV files for the web server
-# if empty or does not exist, web files will not be generated
-WEB_DIR="/var/www/localhost/htdocs/blocklists"
-
-# how to chown web files
-WEB_OWNER="apache:apache"
-
-# where to store the web retention detection cache
-# if empty or does not exist, retention detection will be disabled
-CACHE_DIR="/var/lib/update-ipsets"
-
-# where is the web url to show info about each ipset
-# the ipset name is appended to it
-WEB_URL="http://iplists.firehol.org/?ipset="
-
-# options for the web site
-# the ipset name will be appended
-GITHUB_LOCAL_COPY_URL="https://raw.githubusercontent.com/firehol/blocklist-ipsets/master/"
-GITHUB_CHANGES_URL="https://github.com/firehol/blocklist-ipsets/commits/master/"
-
-# options to be given to iprange for reducing netsets
-IPSET_REDUCE_FACTOR="20"
-IPSET_REDUCE_ENTRIES="65536"
-
-# how many entries the ipset charts should have
-WEB_CHARTS_ENTRIES="500"
-
-# if the .git directory is present, push it also
-PUSH_TO_GIT=0
-
-# the maximum time in seconds, to connect to the remote web server
-MAX_CONNECT_TIME=20
-
-# the maximum time in seconds any download may take
-MAX_DOWNLOAD_TIME=240
-
-# ignore a few download failures
-# if the download fails more than these consecutive times, the ipset will be
-# penalized X times its failures (ie. MINUTES * ( FAILURES - the following number) )
-IGNORE_REPEATING_DOWNLOAD_ERRORS=10
-
-# how many DNS queries to execute per second
-# when resolving hostnames to IPs
-# IMPORTANT: Increasing this too much and you are going to need A LOT of bandwidth!
-# IMPORTANT: Giving 100 requests/second to your name server will create queue
-#            that will start filling up as time passes, possibly hitting a quota
-#            on the name server.
-DNS_QUERIES_PER_SECOND=100
-
-
-IPSETS_APPLY=1
-
-if [ -f "${CONFIG_DIR}/firehol-defaults.conf" ]
-then
-	source "${CONFIG_DIR}/firehol-defaults.conf" || exit 1
-fi
-
-# Load commands link-balancer will need.
+# Load commands update-ipsets will need.
 
 which_cmd() {
 	local name="$1"
@@ -392,6 +313,11 @@ Y|AGGREGATE_CMD|@AGGREGATE@|aggregate aggregate-flim cat
 !
 
 VERSION=$(get_version)
+PROGRAM_PWD="${PWD}"
+PROGRAM_DIR="`$DIRNAME_CMD ${0}`"
+
+# -----------------------------------------------------------------------------
+# terminal
 
 RUNNING_ON_TERMINAL=0
 if [ "z$1" = "z-nc" ]
@@ -425,15 +351,6 @@ then
 		COLOR_UNDERLINED="\e[4m"
 		COLOR_BLINK="\e[5m"
 		COLOR_INVERTED="\e[7m"
-	fi
-fi
-
-if [ ! "${UID}" = "0" ]
-then
-	if [ $IPSETS_APPLY -eq 1 ]
-	then
-		echo >&2 "I run as a normal user. I'll not be able to load ipsets to the kernel."
-		IPSETS_APPLY=0
 	fi
 fi
 
@@ -563,38 +480,16 @@ ipset_silent() {
 		echo >&2 "${@}"
 	fi
 }
+ipset_verbose() {
+	local ipset="${1}"
+	shift
 
-# -----------------------------------------------------------------------------
-# external commands management
-
-require_cmd() {
-	local cmd= block=1
-	if [ "a${1}" = "a-n" ]
-	then
-		block=0
-		shift
-	fi
-
-	unalias ${1} >/dev/null 2>&1
-	cmd=`which ${1} 2>/dev/null | head -n 1`
-	if [ $? -gt 0 -o ! -x "${cmd}" ]
-	then
-		if [ ${block} -eq 1 ]
+	if [ ${VERBOSE} -eq 1 ]
 		then
-			error "Command '${1}' not found in the system path."
-			exit 1
-		fi
-		return 1
+		print_ipset "${ipset}"
+		echo >&2 "${@}"
 	fi
-
-	eval "${1^^}_CMD=${cmd}"
-	return 0
->>>>>>> master
 }
-
-program_pwd="${PWD}"
-program_dir="`$DIRNAME_CMD ${0}`"
-
 
 # -----------------------------------------------------------------------------
 # find a working iprange command
@@ -610,25 +505,78 @@ then
 	exit 1
 fi
 
-# iprange filter to convert ipv4 range to cidr
-ipv4_range_to_cidr() {
-	${IPRANGE_CMD}
-}
+# -----------------------------------------------------------------------------
+# CONFIGURATION
 
-# iprange filter to aggregate ipv4 addresses
-aggregate4() {
-	${IPRANGE_CMD}
-}
+# where to store the files
+BASE_DIR="/etc/firehol/ipsets"
 
-# iprange filter to process ipsets (IPv4 IPs, not subnets)
-ipset_uniq4() {
-	${IPRANGE_CMD} -1
-}
+# where to keep the run files
+# a subdirectory will be created as RUN_DIR
+RUN_PARENT_DIR="/var/run"
+
+# where to keep the history files
+HISTORY_DIR="${BASE_DIR}/history"
+
+# where to keep the files we cannot process
+# when empty, error files will be deleted
+ERRORS_DIR="${BASE_DIR}/errors"
+
+# where to put the CSV files for the web server
+# if empty or does not exist, web files will not be generated
+WEB_DIR="/var/www/localhost/htdocs/blocklists"
+
+# how to chown web files
+WEB_OWNER="apache:apache"
+
+# where to store the web retention detection cache
+# if empty or does not exist, retention detection will be disabled
+LIB_DIR="/var/lib/update-ipsets"
+
+# where is the web url to show info about each ipset
+# the ipset name is appended to it
+WEB_URL="http://iplists.firehol.org/?ipset="
+
+# options for the web site
+# the ipset name will be appended
+GITHUB_LOCAL_COPY_URL="https://raw.githubusercontent.com/firehol/blocklist-ipsets/master/"
+GITHUB_CHANGES_URL="https://github.com/firehol/blocklist-ipsets/commits/master/"
+
+# options to be given to iprange for reducing netsets
+IPSET_REDUCE_FACTOR="20"
+IPSET_REDUCE_ENTRIES="65536"
+
+# how many entries the ipset charts should have
+WEB_CHARTS_ENTRIES="500"
+
+# if the .git directory is present, push it also
+PUSH_TO_GIT=0
+
+# the maximum time in seconds, to connect to the remote web server
+MAX_CONNECT_TIME=20
+
+# the maximum time in seconds any download may take
+MAX_DOWNLOAD_TIME=300
+
+# ignore a few download failures
+# if the download fails more than these consecutive times, the ipset will be
+# penalized X times its failures (ie. MINUTES * ( FAILURES - the following number) )
+IGNORE_REPEATING_DOWNLOAD_ERRORS=10
+
+# how many DNS queries to execute per second
+# when resolving hostnames to IPs
+# IMPORTANT: Increasing this too much and you are going to need A LOT of bandwidth!
+# IMPORTANT: Giving 100 requests/second to your name server will create queue
+#            that will start filling up as time passes, possibly hitting a quota
+#            on the name server.
+DNS_QUERIES_PER_SECOND=100
+
 
 # -----------------------------------------------------------------------------
-
 # Command line parsing
 
+CONFIG_FILE="/etc/firehol/update-ipsets.conf"
+IPSETS_APPLY=1
 ENABLE_ALL=0
 IGNORE_LASTCHECKED=0
 FORCE_WEB_REBUILD=0
@@ -757,6 +705,25 @@ if [ "${#LISTS_TO_ENABLE[@]}" -gt 0 ]
 	done
 	exit 0
 fi
+
+
+# -----------------------------------------------------------------------------
+# user checks
+
+# to ensure only one runs
+UPDATE_IPSETS_LOCK_FILE="${RUN_PARENT_DIR}/update-ipsets.lock"
+[ ! "${UID}" = "0" ] && UPDATE_IPSETS_LOCK_FILE="${HOME}/.update-upsets.lock"
+
+# disable ipsets kernel update if running as a normal user
+if [ ! "${UID}" = "0" ]
+then
+	if [ $IPSETS_APPLY -eq 1 ]
+	then
+		echo >&2 "I run as a normal user. I'll not be able to load ipsets to the kernel."
+		IPSETS_APPLY=0
+	fi
+fi
+
 
 # -----------------------------------------------------------------------------
 # Make sure we are the only process doing this job
@@ -1001,15 +968,17 @@ echo
 echo "`$DATE_CMD`: ${0} ${*}" 
 echo
 
-# find the active ipsets
-info "Getting list of active ipsets..."
-declare -A sets=()
-for x in $(ipset_list_names)
-do
-	sets[$x]=1
-done
-silent "Found these ipsets active: ${!sets[@]}"
-
+if [ ${IPSETS_APPLY} -eq 1 ]
+	then
+	# find the active ipsets
+	info "Getting list of active ipsets..."
+	declare -A sets=()
+	for x in $(ipset_list_names)
+	do
+		sets[$x]=1
+	done
+	silent "Found these ipsets active: ${!sets[@]}"
+fi
 
 # -----------------------------------------------------------------------------
 
@@ -1092,8 +1061,11 @@ history_get() {
 
 # Fetch a url - the output file has the last modified timestamp of the server.
 # On the next run, the file is downloaded only if it has changed on the server.
+geturl_httpcode=
+geturl_message=
+geturl_curlcode=
 geturl() {
-	local file="${1}" reference="${2}" url="${3}" ret= http_code=
+	local file="${1}" reference="${2}" url="${3}" ret= http_code= curl_opts= msg=
 
 	if [ -z "${reference}" ]
 		then
@@ -1105,57 +1077,51 @@ geturl() {
 	# to our file
 	$TOUCH_CMD -r "${reference}" "${file}"
 
-	if [ ${SILENT} -ne 1 ] 
-		then
-		if [ ${#url} -gt 55 ]
-			then
-			printf >&2 "${print_ipset_spacer}curl '%-50.50s ... ' ...\n" "${url}"
-		else
-			printf >&2 "${print_ipset_spacer}curl '%s' ...\n" "${url}"
-		fi
-		printf >&2 "${print_ipset_spacer}"
-	fi
+	curl_opts="--silent"
+	[ ${VERBOSE} -eq 1 ] && curl_opts=
 
 	http_code=$( \
 		$CURL_CMD --connect-timeout ${MAX_CONNECT_TIME} --max-time ${MAX_DOWNLOAD_TIME} \
 			--retry 0 --fail --compressed --user-agent "FireHOL-Update-Ipsets/3.0" \
 			--time-cond "${reference}" --output "${file}" --remote-time \
 			--location --referer "http://iplists.firehol.org/" \
-			--silent --write-out '%{http_code}' "${url}" \
+			${curl_opts} --write-out '%{http_code}' "${url}" \
 		)
-
 	ret=$?
-
-	[ ${SILENT} -ne 1 ] && printf >&2 "HTTP/${http_code} "
 
 	case "${ret}" in
 		0)	if [ "${http_code}" = "304" -a ! "${file}" -nt "${reference}" ]
 			then
-				silent "Not Modified"
-				return 99
+				msg="Not Modified"
+				ret=99
+			else
+				msg="OK"
 			fi
-			silent "OK"
 			;;
 
-		1)	silent "Unsupported Protocol" ;;
-		2)	silent "Failed to initialize" ;;
-		3)	silent "Malformed URL" ;;
-		5)	silent "Can't resolve proxy" ;;
-		6)	silent "Can't resolve host" ;;
-		7)	silent "Failed to connect" ;;
-		18)	silent "Partial Transfer" ;;
-		22)	silent "HTTP Error" ;;
-		23)	silent "Cannot write local file" ;;
-		26)	silent "Read Error" ;;
-		28)	silent "Timeout" ;;
-		35)	silent "SSL Error" ;;
-		47)	silent "Too many redirects" ;;
-		52)	silent "Server did not reply anything" ;;
-		55)	silent "Failed sending network data" ;;
-		56)	silent "Failure in receiving network data" ;;
-		61)	silent "Unrecognized transfer encoding" ;;
-		*)	silent "Error ${ret} returned by curl" ;;
+		1)	msg="Unsupported Protocol" ;;
+		2)	msg="Failed to initialize" ;;
+		3)	msg="Malformed URL" ;;
+		5)	msg="Can't resolve proxy" ;;
+		6)	msg="Can't resolve host" ;;
+		7)	msg="Failed to connect" ;;
+		18)	msg="Partial Transfer" ;;
+		22)	msg="HTTP Error" ;;
+		23)	msg="Cannot write local file" ;;
+		26)	msg="Read Error" ;;
+		28)	msg="Timeout" ;;
+		35)	msg="SSL Error" ;;
+		47)	msg="Too many redirects" ;;
+		52)	msg="Server did not reply anything" ;;
+		55)	msg="Failed sending network data" ;;
+		56)	msg="Failure in receiving network data" ;;
+		61)	msg="Unrecognized transfer encoding" ;;
+		*)	msg="Error ${ret} returned by curl" ;;
 	esac
+
+	geturl_httpcode="${http_code}"
+	geturl_message="${msg}"
+	geturl_curlcode="${ret}"
 
 	return ${ret}
 }
@@ -1167,8 +1133,8 @@ DOWNLOAD_NOT_UPDATED=2
 declare -A IPSET_DOWNLOADER_NO_IF_MODIFIED_SINCE=()
 download_manager() {
 	local 	ipset="${1}" mins="${2}" url="${3}" \
-			st= \
-			tmp= now="$($DATE_CMD +%s)" base= omins= detail= date= check= inc= inc2= fails= dt=
+			st= ret= \
+			tmp= now="$($DATE_CMD +%s)" base= omins= detail= inc= fails= dt=
 
 	# make sure it is numeric
 	[ "$[mins + 0]" -lt 1 ] && mins=1
@@ -1195,20 +1161,26 @@ download_manager() {
 	# nunber of consecutive failures so far
 	fails=${IPSET_DOWNLOAD_FAILURES[${ipset}]}
 	base=${IPSET_CHECKED_DATE[${ipset}]}
+	if [ ${IGNORE_LASTCHECKED} -eq 1 ] 
+		then
+		base=${st}
+		fails=0
+	fi
+
 	dt=$[ now - base ]
-	detail="$[dt/60]/${mins} mins passed, will allow in $[mins - (dt/60)] mins"
+	detail="$[dt/60]/${mins} mins passed, will fetch in $[mins - (dt/60)] mins"
 
 	if [ ${fails} -gt ${IGNORE_REPEATING_DOWNLOAD_ERRORS} ]
 		then
 		mins=$[ mins * (fails - IGNORE_REPEATING_DOWNLOAD_ERRORS) ]
 		dt=$[ now - base ]
-		detail="$[dt/60]/${mins} mins passed, will allow in $[mins - (dt/60)] mins"
+		detail="$[dt/60]/${mins} mins passed, will fetch in $[mins - (dt/60)] mins"
 		ipset_silent "${ipset}" "${fails} fails so far, time increased from ${omins} to ${mins} mins"
 	elif [ ${fails} -gt 0 ]
 		then
 		mins=$[ (mins + 1) / 2 ]
 		dt=$[ now - base ]
-		detail="$[dt/60]/${mins} mins passed, will allow in $[mins - (dt/60)] mins"
+		detail="$[dt/60]/${mins} mins passed, will fetch in $[mins - (dt/60)] mins"
 		ipset_silent "${ipset}" "${fails} fails so far, time decreased from ${omins} to ${mins} mins"
 	fi
 	
@@ -1230,9 +1202,19 @@ download_manager() {
 	local reference="${ipset}.source"
 	[ ! -z "${IPSET_DOWNLOADER_NO_IF_MODIFIED_SINCE[${ipset}]}" ] && reference=""
 
+	if [ ${#url} -gt 55 ]
+		then
+		ipset_silent "${ipset}" "fetch: '$(printf '%-50.50s ... ' "${url}")'"
+	else
+		ipset_silent "${ipset}" "fetch: '${url}'"
+	fi
+
 	tmp=`$MKTEMP_CMD "${RUN_DIR}/download-${ipset}-XXXXXXXXXX"` || return ${DOWNLOAD_FAILED}
 	geturl "${tmp}" "${reference}" "${url}"
-	case $? in
+	ret=$?
+	ipset_info "${ipset}" "HTTP/${geturl_httpcode} ${geturl_message}"
+
+	case $ret in
 		0)
 			ipset_silent "${ipset}" "downloaded successfully"
 			IPSET_CHECKED_DATE[${ipset}]="$($DATE_CMD -r "${tmp}" +%s)"
@@ -1381,7 +1363,7 @@ fi
 cache_remove_ipset() {
 	local ipset="${1}"
 
-	info "${ipset}" "removing from cache"
+	ipset_verbose "${ipset}" "removing from cache"
 
 	unset IPSET_INFO[${ipset}]
 	unset IPSET_SOURCE[${ipset}]
@@ -1436,6 +1418,8 @@ ipset_normalize_for_json() {
 	[ -z "${IPSET_IPS_MIN[${ipset}]}"           ] && IPSET_IPS_MIN[${ipset}]="${IPSET_IPS[${ipset}]}"
 	[ -z "${IPSET_IPS_MAX[${ipset}]}"           ] && IPSET_IPS_MAX[${ipset}]="${IPSET_IPS[${ipset}]}"
 	[ -z "${IPSET_STARTED_DATE[${ipset}]}"      ] && IPSET_STARTED_DATE[${ipset}]="${IPSET_SOURCE_DATE[${ipset}]}"
+	[ -z "${IPSET_PROCESSED_DATE[${ipset}]}"    ] && IPSET_PROCESSED_DATE[${ipset}]="${IPSET_SOURCE_DATE[${ipset}]}"
+	[ -z "${IPSET_CHECKED_DATE[${ipset}]}"      ] && IPSET_CHECKED_DATE[${ipset}]="${IPSET_PROCESSED_DATE[${ipset}]}"
 
 	[ -z "${IPSET_CLOCK_SKEW[${ipset}]}"        ] && IPSET_CLOCK_SKEW[${ipset}]=0
 	[ -z "${IPSET_DOWNLOAD_FAILURES[${ipset}]}" ] && IPSET_DOWNLOAD_FAILURES[${ipset}]=0
@@ -1481,6 +1465,7 @@ ipset_json() {
 	"started": ${IPSET_STARTED_DATE[${ipset}]}000,
 	"updated": ${IPSET_SOURCE_DATE[${ipset}]}000,
 	"processed": ${IPSET_PROCESSED_DATE[${ipset}]}000,
+	"checked": ${IPSET_CHECKED_DATE[${ipset}]}000,
 	"clock_skew": $[ IPSET_CLOCK_SKEW[${ipset}] * 1000 ],
 	"category": "${IPSET_CATEGORY[${ipset}]}",
 	"maintainer": "${IPSET_MAINTAINER[${ipset}]}",
@@ -1509,9 +1494,12 @@ EOFJSON
 }
 
 ipset_json_index() {
-	local ipset="${1}"
+	local ipset="${1}" checked=
 
 	ipset_normalize_for_json "${ipset}"
+
+	checked=${IPSET_CHECKED_DATE[${ipset}]}
+	[ ${IPSET_CHECKED_DATE[${ipset}]} -lt ${IPSET_PROCESSED_DATE[${ipset}]} ] && checked=${IPSET_PROCESSED_DATE[${ipset}]}
 
 $CAT_CMD <<EOFALL
 	{
@@ -1520,6 +1508,7 @@ $CAT_CMD <<EOFALL
 		"maintainer": "${IPSET_MAINTAINER[${ipset}]}",
 		"started": ${IPSET_STARTED_DATE[${ipset}]}000,
 		"updated": ${IPSET_SOURCE_DATE[${ipset}]}000,
+		"checked": ${checked}000,
 		"clock_skew": $[ IPSET_CLOCK_SKEW[${ipset}] * 1000 ],
 		"ips": ${IPSET_IPS[${ipset}]},
 		"errors": ${IPSET_DOWNLOAD_FAILURES[${ipset}]}
@@ -1574,16 +1563,16 @@ retention_detect() {
 	local ipset="${1}"
 
 	# can we do it?
-	[ -z "${IPSET_FILE[${ipset}]}" -o -z "${CACHE_DIR}" -o ! -d "${CACHE_DIR}" ] && return 1
+	[ -z "${IPSET_FILE[${ipset}]}" -o -z "${LIB_DIR}" -o ! -d "${LIB_DIR}" ] && return 1
 
 	# load the ipset retention histogram
 	RETENTION_HISTOGRAM=()
 	RETENTION_HISTOGRAM_REST=()
 	RETENTION_HISTOGRAM_STARTED=
 	RETENTION_HISTOGRAM_INCOMPLETE=1
-	if [ -f "${CACHE_DIR}/${ipset}/histogram" ]
+	if [ -f "${LIB_DIR}/${ipset}/histogram" ]
 		then
-		source "${CACHE_DIR}/${ipset}/histogram"
+		source "${LIB_DIR}/${ipset}/histogram"
 
 		if [ -z "${IPSET_STARTED_DATE[${ipset}]}" -o "${IPSET_STARTED_DATE[${ipset}]}" -gt "${RETENTION_HISTOGRAM_STARTED}" ]
 			then
@@ -1598,69 +1587,69 @@ retention_detect() {
 	printf >&2 "\n\t${ipset}:"
 
 	# create the cache directory for this ipset
-	if [ ! -d "${CACHE_DIR}/${ipset}" ]
+	if [ ! -d "${LIB_DIR}/${ipset}" ]
 		then
-		$MKDIR_CMD -p "${CACHE_DIR}/${ipset}" || return 2
+		$MKDIR_CMD -p "${LIB_DIR}/${ipset}" || return 2
 	fi
 
-	if [ ! -d "${CACHE_DIR}/${ipset}/new" ]
+	if [ ! -d "${LIB_DIR}/${ipset}/new" ]
 		then
-		$MKDIR_CMD -p "${CACHE_DIR}/${ipset}/new" || return 2
+		$MKDIR_CMD -p "${LIB_DIR}/${ipset}/new" || return 2
 	fi
 
-	if [ ! -f "${CACHE_DIR}/${ipset}/latest" ]
+	if [ ! -f "${LIB_DIR}/${ipset}/latest" ]
 		then
 		# we don't have an older version
-		verbose "${ipset}: ${CACHE_DIR}/${ipset}/latest: first time - assuming start from empty"
-		$TOUCH_CMD -r "${IPSET_FILE[${ipset}]}" "${CACHE_DIR}/${ipset}/latest"
+		verbose "${ipset}: ${LIB_DIR}/${ipset}/latest: first time - assuming start from empty"
+		$TOUCH_CMD -r "${IPSET_FILE[${ipset}]}" "${LIB_DIR}/${ipset}/latest"
 
 		RETENTION_HISTOGRAM_STARTED="${IPSET_SOURCE_DATE[${ipset}]}"
 
-	elif [ ! "${IPSET_FILE[${ipset}]}" -nt "${CACHE_DIR}/${ipset}/latest" ]
+	elif [ ! "${IPSET_FILE[${ipset}]}" -nt "${LIB_DIR}/${ipset}/latest" ]
 		# the new file is older than the latest, return
 		then
-		verbose "${ipset}: ${CACHE_DIR}/${ipset}/latest: source file is not newer"
+		verbose "${ipset}: ${LIB_DIR}/${ipset}/latest: source file is not newer"
 		retention_print "${ipset}"
 		return 0
 	fi
 
-	if [ -f "${CACHE_DIR}/${ipset}/new/${ndate}" ]
+	if [ -f "${LIB_DIR}/${ipset}/new/${ndate}" ]
 		then
 		# we already have a file for this date, return
-		verbose "${ipset}: ${CACHE_DIR}/${ipset}/new/${ndate}: already exists"
+		verbose "${ipset}: ${LIB_DIR}/${ipset}/new/${ndate}: already exists"
 		retention_print "${ipset}"
 		return 0
 	fi
 
 	# find the new ips in this set
-	${IPRANGE_CMD} "${IPSET_FILE[${ipset}]}" --exclude-next "${CACHE_DIR}/${ipset}/latest" --print-binary >"${CACHE_DIR}/${ipset}/new/${ndate}"
-	$TOUCH_CMD -r "${IPSET_FILE[${ipset}]}" "${CACHE_DIR}/${ipset}/new/${ndate}"
+	${IPRANGE_CMD} "${IPSET_FILE[${ipset}]}" --exclude-next "${LIB_DIR}/${ipset}/latest" --print-binary >"${LIB_DIR}/${ipset}/new/${ndate}"
+	$TOUCH_CMD -r "${IPSET_FILE[${ipset}]}" "${LIB_DIR}/${ipset}/new/${ndate}"
 
 	local ips_added=0
-	if [ ! -s "${CACHE_DIR}/${ipset}/new/${ndate}" ]
+	if [ ! -s "${LIB_DIR}/${ipset}/new/${ndate}" ]
 		then
 		# there are no new IPs included
-		verbose "${ipset}: ${CACHE_DIR}/${ipset}/new/${ndate}: nothing new in this"
-		$RM_CMD "${CACHE_DIR}/${ipset}/new/${ndate}"
+		verbose "${ipset}: ${LIB_DIR}/${ipset}/new/${ndate}: nothing new in this"
+		$RM_CMD "${LIB_DIR}/${ipset}/new/${ndate}"
 	else
-		ips_added=$(${IPRANGE_CMD} -C "${CACHE_DIR}/${ipset}/new/${ndate}")
+		ips_added=$(${IPRANGE_CMD} -C "${LIB_DIR}/${ipset}/new/${ndate}")
 		ips_added=${ips_added/*,/}
 	fi
 
-	local ips_removed=$(${IPRANGE_CMD} "${CACHE_DIR}/${ipset}/latest" --exclude-next "${IPSET_FILE[${ipset}]}" | ${IPRANGE_CMD} -C)
+	local ips_removed=$(${IPRANGE_CMD} "${LIB_DIR}/${ipset}/latest" --exclude-next "${IPSET_FILE[${ipset}]}" | ${IPRANGE_CMD} -C)
 	ips_removed=${ips_removed/*,/}
 
-	[ ! -f "${CACHE_DIR}/${ipset}/changesets.csv" ] && echo >"${CACHE_DIR}/${ipset}/changesets.csv" "DateTime,IPsAdded,IPsRemoved"
-	echo >>"${CACHE_DIR}/${ipset}/changesets.csv" "${ndate},${ips_added},${ips_removed}"
+	[ ! -f "${LIB_DIR}/${ipset}/changesets.csv" ] && echo >"${LIB_DIR}/${ipset}/changesets.csv" "DateTime,IPsAdded,IPsRemoved"
+	echo >>"${LIB_DIR}/${ipset}/changesets.csv" "${ndate},${ips_added},${ips_removed}"
 
 	# ok keep it
 	verbose "${ipset}: keeping it..."
-	${IPRANGE_CMD} "${IPSET_FILE[${ipset}]}" --print-binary >"${CACHE_DIR}/${ipset}/latest"
-	$TOUCH_CMD -r "${IPSET_FILE[${ipset}]}" "${CACHE_DIR}/${ipset}/latest"
+	${IPRANGE_CMD} "${IPSET_FILE[${ipset}]}" --print-binary >"${LIB_DIR}/${ipset}/latest"
+	$TOUCH_CMD -r "${IPSET_FILE[${ipset}]}" "${LIB_DIR}/${ipset}/latest"
 
-	if [ ! -f "${CACHE_DIR}/${ipset}/retention.csv" ]
+	if [ ! -f "${LIB_DIR}/${ipset}/retention.csv" ]
 		then
-		echo "date_removed,date_added,hours,ips" >"${CACHE_DIR}/${ipset}/retention.csv"
+		echo "date_removed,date_added,hours,ips" >"${LIB_DIR}/${ipset}/retention.csv"
 	fi
 
 	# -------------------------------------------------------------------------
@@ -1669,7 +1658,7 @@ retention_detect() {
 
 	# find the new/* files that are affected
 	local name1= name2= entries1= entries2= ips1= ips2= combined= common= odate= hours= removed=
-	${IPRANGE_CMD} "${CACHE_DIR}/${ipset}/latest" --compare-next "${CACHE_DIR}/${ipset}/new"/* |\
+	${IPRANGE_CMD} "${LIB_DIR}/${ipset}/latest" --compare-next "${LIB_DIR}/${ipset}/new"/* |\
 		while IFS="," read name1 name2 entries1 entries2 ips1 ips2 combined common
 		do
 			[ $[ combined - ips1 ] -ne 0 -o $[ ips2 - common ] -ne 0 ] && echo "${name2}"
@@ -1685,7 +1674,7 @@ retention_detect() {
 		hours=$[ (ndate + 1800 - odate) / 3600 ]
 
 		# are all the IPs of this file still the latest?
-		${IPRANGE_CMD} --common "${x}" "${CACHE_DIR}/${ipset}/latest" --print-binary >"${x}.stillthere"
+		${IPRANGE_CMD} --common "${x}" "${LIB_DIR}/${ipset}/latest" --print-binary >"${x}.stillthere"
 		${IPRANGE_CMD} "${x}" --exclude-next "${x}.stillthere" --print-binary >"${x}.removed"
 		if [ -s "${x}.removed" ]
 			then
@@ -1697,7 +1686,7 @@ retention_detect() {
 			removed="${removed/*,/}"
 			verbose "${ipset}: ${x}: ${removed} IPs removed"
 
-			echo "${ndate},${odate},${hours},${removed}" >>"${CACHE_DIR}/${ipset}/retention.csv"
+			echo "${ndate},${odate},${hours},${removed}" >>"${LIB_DIR}/${ipset}/retention.csv"
 
 			# update the histogram
 			# only if the date added is after the date we started
@@ -1742,7 +1731,7 @@ retention_detect() {
 	RETENTION_HISTOGRAM_INCOMPLETE=0
 
 	# find the IPs in all new/*
-	${IPRANGE_CMD} --count-unique-all "${CACHE_DIR}/${ipset}/new"/* >"${RUN_DIR}/retention_rest" 2>/dev/null
+	${IPRANGE_CMD} --count-unique-all "${LIB_DIR}/${ipset}/new"/* >"${RUN_DIR}/retention_rest" 2>/dev/null
 
 	local entries= ips=
 	while IFS="," read x entries ips
@@ -1760,7 +1749,7 @@ retention_detect() {
 
 	# save the histogram
 	verbose "${ipset}: saving retention cache..."
-	declare -p RETENTION_HISTOGRAM_STARTED RETENTION_HISTOGRAM_INCOMPLETE RETENTION_HISTOGRAM RETENTION_HISTOGRAM_REST >"${CACHE_DIR}/${ipset}/histogram"
+	declare -p RETENTION_HISTOGRAM_STARTED RETENTION_HISTOGRAM_INCOMPLETE RETENTION_HISTOGRAM RETENTION_HISTOGRAM_REST >"${LIB_DIR}/${ipset}/histogram"
 
 	verbose "${ipset}: printing retention..."
 	retention_print "${ipset}"
@@ -1827,33 +1816,33 @@ update_web() {
 
 		## check if it has been updated in a previous run
 		## and has not been copied to our cache
-		#if [ -z "${UPDATED_SETS[${x}]}" -a -f "${CACHE_DIR}/${x}/latest" -a "${IPSET_FILE[$x]}" -nt "${CACHE_DIR}/${x}/latest" ]
+		#if [ -z "${UPDATED_SETS[${x}]}" -a -f "${LIB_DIR}/${x}/latest" -a "${IPSET_FILE[$x]}" -nt "${LIB_DIR}/${x}/latest" ]
 		#	then
-		#	silent "${x}: found unupdated cache $($DATE_CMD -r "${IPSET_FILE[$x]}" +%s) vs $($DATE_CMD -r "${CACHE_DIR}/${x}/latest" +%s)"
+		#	silent "${x}: found unupdated cache $($DATE_CMD -r "${IPSET_FILE[$x]}" +%s) vs $($DATE_CMD -r "${LIB_DIR}/${x}/latest" +%s)"
 		#	# UPDATED_SETS[${x}]="${IPSET_FILE[$x]}"
 		#fi
 
-		if [ ! -z "${CACHE_DIR}" ]
+		if [ ! -z "${LIB_DIR}" ]
 			then
-			if [ ! -d "${CACHE_DIR}/${x}" ]
+			if [ ! -d "${LIB_DIR}/${x}" ]
 				then
-				$MKDIR_CMD -p "${CACHE_DIR}/${x}"
+				$MKDIR_CMD -p "${LIB_DIR}/${x}"
 			fi
 
 			# update the history CSV files
-			if [ ! -z "${UPDATED_SETS[${x}]}" -o ! -f "${CACHE_DIR}/${x}/history.csv" ]
+			if [ ! -z "${UPDATED_SETS[${x}]}" -o ! -f "${LIB_DIR}/${x}/history.csv" ]
 				then
-				if [ ! -f "${CACHE_DIR}/${x}/history.csv" ]
+				if [ ! -f "${LIB_DIR}/${x}/history.csv" ]
 					then
-					echo "DateTime,Entries,UniqueIPs" >"${CACHE_DIR}/${x}/history.csv"
-					# $TOUCH_CMD "${CACHE_DIR}/${x}/history.csv"
-					$CHMOD_CMD 0644 "${CACHE_DIR}/${x}/history.csv"
+					echo "DateTime,Entries,UniqueIPs" >"${LIB_DIR}/${x}/history.csv"
+					# $TOUCH_CMD "${LIB_DIR}/${x}/history.csv"
+					$CHMOD_CMD 0644 "${LIB_DIR}/${x}/history.csv"
 				fi
 				printf " ${x}"
-				echo >>"${CACHE_DIR}/${x}/history.csv" "$($DATE_CMD -r "${IPSET_SOURCE[${x}]}" +%s),${IPSET_ENTRIES[${x}]},${IPSET_IPS[${x}]}"
+				echo >>"${LIB_DIR}/${x}/history.csv" "$($DATE_CMD -r "${IPSET_SOURCE[${x}]}" +%s),${IPSET_ENTRIES[${x}]},${IPSET_IPS[${x}]}"
 				
 				echo >"${RUN_DIR}/${x}_history.csv" "DateTime,Entries,UniqueIPs"
-				tail -n ${WEB_CHARTS_ENTRIES} "${CACHE_DIR}/${x}/history.csv" | $GREP_CMD -v "^DateTime" >>"${RUN_DIR}/${x}_history.csv"
+				tail -n ${WEB_CHARTS_ENTRIES} "${LIB_DIR}/${x}/history.csv" | $GREP_CMD -v "^DateTime" >>"${RUN_DIR}/${x}_history.csv"
 			fi
 		fi
 
@@ -1950,74 +1939,83 @@ update_web() {
 		printf "\n]\n" >>${x}
 	done
 
-	printf >&2 "comparing geolite2 country... "
-	${IPRANGE_CMD} "${updated[@]}" --compare-next "${geolite2_country[@]}" |\
-		$SORT_CMD |\
-		while IFS="," read name1 name2 entries1 entries2 ips1 ips2 combined common
-		do
-			if [ ${common} -gt 0 ]
-				then
-				if [ ! -f "${RUN_DIR}/${name1}_geolite2_country.json" ]
+	if [ "${#updated[*]}" -ne 0 -a "${#geolite2_country[*]}" -ne 0 ]
+		then
+		printf >&2 "comparing geolite2 country... "
+		${IPRANGE_CMD} "${updated[@]}" --compare-next "${geolite2_country[@]}" |\
+			$SORT_CMD |\
+			while IFS="," read name1 name2 entries1 entries2 ips1 ips2 combined common
+			do
+				if [ ${common} -gt 0 ]
 					then
-					printf "[\n" >"${RUN_DIR}/${name1}_geolite2_country.json"
-				else
-					printf ",\n" >>"${RUN_DIR}/${name1}_geolite2_country.json"
+					if [ ! -f "${RUN_DIR}/${name1}_geolite2_country.json" ]
+						then
+						printf "[\n" >"${RUN_DIR}/${name1}_geolite2_country.json"
+					else
+						printf ",\n" >>"${RUN_DIR}/${name1}_geolite2_country.json"
+					fi
+
+					printf "	{\n		\"code\": \"${name2}\",\n		\"value\": ${common}\n	}" >>"${RUN_DIR}/${name1}_geolite2_country.json"
 				fi
-
-				printf "	{\n		\"code\": \"${name2}\",\n		\"value\": ${common}\n	}" >>"${RUN_DIR}/${name1}_geolite2_country.json"
-			fi
-		done
-	echo >&2
-	for x in $($FIND_CMD "${RUN_DIR}" -name \*_geolite2_country.json)
-	do
-		printf "\n]\n" >>${x}
-	done
-
-	printf >&2 "comparing ipdeny country... "
-	${IPRANGE_CMD} "${updated[@]}" --compare-next "${ipdeny_country[@]}" |\
-		$SORT_CMD |\
-		while IFS="," read name1 name2 entries1 entries2 ips1 ips2 combined common
+			done
+		echo >&2
+		for x in $($FIND_CMD "${RUN_DIR}" -name \*_geolite2_country.json)
 		do
-			if [ ${common} -gt 0 ]
-				then
-				if [ ! -f "${RUN_DIR}/${name1}_ipdeny_country.json" ]
-					then
-					printf "[\n" >"${RUN_DIR}/${name1}_ipdeny_country.json"
-				else
-					printf ",\n" >>"${RUN_DIR}/${name1}_ipdeny_country.json"
-				fi
-
-				printf "	{\n		\"code\": \"${name2}\",\n		\"value\": ${common}\n	}" >>"${RUN_DIR}/${name1}_ipdeny_country.json"
-			fi
+			printf "\n]\n" >>${x}
 		done
-	echo >&2
-	for x in $($FIND_CMD "${RUN_DIR}" -name \*_ipdeny_country.json)
-	do
-		printf "\n]\n" >>${x}
-	done
+	fi
 
-	printf >&2 "comparing ip2location country... "
-	${IPRANGE_CMD} "${updated[@]}" --compare-next "${ip2location_country[@]}" |\
-		$SORT_CMD |\
-		while IFS="," read name1 name2 entries1 entries2 ips1 ips2 combined common
+	if [ "${#updated[*]}" -ne 0 -a "${#ipdeny_country[*]}" -ne 0 ]
+		then
+		printf >&2 "comparing ipdeny country... "
+		${IPRANGE_CMD} "${updated[@]}" --compare-next "${ipdeny_country[@]}" |\
+			$SORT_CMD |\
+			while IFS="," read name1 name2 entries1 entries2 ips1 ips2 combined common
+			do
+				if [ ${common} -gt 0 ]
+					then
+					if [ ! -f "${RUN_DIR}/${name1}_ipdeny_country.json" ]
+						then
+						printf "[\n" >"${RUN_DIR}/${name1}_ipdeny_country.json"
+					else
+						printf ",\n" >>"${RUN_DIR}/${name1}_ipdeny_country.json"
+					fi
+
+					printf "	{\n		\"code\": \"${name2}\",\n		\"value\": ${common}\n	}" >>"${RUN_DIR}/${name1}_ipdeny_country.json"
+				fi
+			done
+		echo >&2
+		for x in $($FIND_CMD "${RUN_DIR}" -name \*_ipdeny_country.json)
 		do
-			if [ ${common} -gt 0 ]
-				then
-				if [ ! -f "${RUN_DIR}/${name1}_ip2location_country.json" ]
-					then
-					printf "[\n" >"${RUN_DIR}/${name1}_ip2location_country.json"
-				else
-					printf ",\n" >>"${RUN_DIR}/${name1}_ip2location_country.json"
-				fi
-
-				printf "	{\n		\"code\": \"${name2}\",\n		\"value\": ${common}\n	}" >>"${RUN_DIR}/${name1}_ip2location_country.json"
-			fi
+			printf "\n]\n" >>${x}
 		done
-	echo >&2
-	for x in $($FIND_CMD "${RUN_DIR}" -name \*_ip2location_country.json)
-	do
-		printf "\n]\n" >>${x}
-	done
+	fi
+
+	if [ "${#updated[*]}" -ne 0 -a "${#ip2location_country[*]}" -ne 0 ]
+		then
+		printf >&2 "comparing ip2location country... "
+		${IPRANGE_CMD} "${updated[@]}" --compare-next "${ip2location_country[@]}" |\
+			$SORT_CMD |\
+			while IFS="," read name1 name2 entries1 entries2 ips1 ips2 combined common
+			do
+				if [ ${common} -gt 0 ]
+					then
+					if [ ! -f "${RUN_DIR}/${name1}_ip2location_country.json" ]
+						then
+						printf "[\n" >"${RUN_DIR}/${name1}_ip2location_country.json"
+					else
+						printf ",\n" >>"${RUN_DIR}/${name1}_ip2location_country.json"
+					fi
+
+					printf "	{\n		\"code\": \"${name2}\",\n		\"value\": ${common}\n	}" >>"${RUN_DIR}/${name1}_ip2location_country.json"
+				fi
+			done
+		echo >&2
+		for x in $($FIND_CMD "${RUN_DIR}" -name \*_ip2location_country.json)
+		do
+			printf "\n]\n" >>${x}
+		done
+	fi
 
 	printf >&2 "generating javascript info... "
 	for x in "${!IPSET_FILE[@]}"
@@ -2041,7 +2039,7 @@ update_web() {
 
 		# this has to be done after retention_detect()
 		echo >"${RUN_DIR}"/${x}_changesets.csv "DateTime,AddedIPs,RemovedIPs"
-		tail -n $[ WEB_CHARTS_ENTRIES + 1] "${CACHE_DIR}/${x}/changesets.csv" | $GREP_CMD -v "^DateTime" | tail -n +2 >>"${RUN_DIR}/${x}_changesets.csv"
+		tail -n $[ WEB_CHARTS_ENTRIES + 1] "${LIB_DIR}/${x}/changesets.csv" | $GREP_CMD -v "^DateTime" | tail -n +2 >>"${RUN_DIR}/${x}_changesets.csv"
 	done
 	echo >&2
 
@@ -2424,15 +2422,15 @@ update() {
 						hash="ip"
 						limit="ip"
 						pre_filter="$CAT_CMD"
-						filter="filter_ip4"	# without this, ipset_uniq4 may output huge number of IPs
-						post_filter="ipset_uniq4"
+						filter="filter_ip4"	# without this, '${IPRANGE_CMD} -1' may output huge number of IPs
+						post_filter="${IPRANGE_CMD} -1"
 						;;
 
 				net|nets)	# output is full CIDRs without any single IPs (/32)
 						hash="net"
 						limit="net"
 						pre_filter="filter_all4"
-						filter="aggregate4"
+						filter="${IPRANGE_CMD}"
 						post_filter="filter_net4"
 						;;
 
@@ -2440,7 +2438,7 @@ update() {
 						hash="net"
 						limit=""
 						pre_filter="filter_all4"
-						filter="aggregate4"
+						filter="${IPRANGE_CMD}"
 						post_filter="$CAT_CMD"
 						;;
 
@@ -2469,6 +2467,8 @@ update() {
 	# it is enabled if the source file exists
 	if [ ! -f "${src}" ]
 	then
+		[ ! -z "${IPSET_CHECKED_DATE[${ipset}]}" ] && cache_remove_ipset "${ipset}"
+
 		if [ ${ENABLE_ALL} -eq 1 ]
 			then
 			ipset_silent "${ipset}" "Enabling due to ENABLE_ALL option."
@@ -2684,9 +2684,9 @@ rename_ipset() {
 		$MV_CMD "${HISTORY_DIR}/${old}" "${HISTORY_DIR}/${new}"
 	fi
 
-	if [ ! -z "${CACHE_DIR}" -a -d "${CACHE_DIR}" -a -d "${CACHE_DIR}/${old}" -a ! -d "${CACHE_DIR}/${new}" ]
+	if [ ! -z "${LIB_DIR}" -a -d "${LIB_DIR}" -a -d "${LIB_DIR}/${old}" -a ! -d "${LIB_DIR}/${new}" ]
 		then
-		$MV_CMD -f "${CACHE_DIR}/${old}" "${CACHE_DIR}/${new}" || exit 1
+		$MV_CMD -f "${LIB_DIR}/${old}" "${LIB_DIR}/${new}" || exit 1
 	fi
 
 	if [ -d "${WEB_DIR}" ]
@@ -3083,7 +3083,7 @@ p2p_gz() {
 	$ZCAT_CMD |\
 		$CUT_CMD -d ':' -f 2 |\
 		$EGREP_CMD "^${IP4_MATCH}-${IP4_MATCH}$" |\
-		ipv4_range_to_cidr
+		${IPRANGE_CMD}
 }
 
 # extract only the lines starting with Proxy from the P2P blocklist
@@ -3092,7 +3092,7 @@ p2p_gz_proxy() {
 		$GREP_CMD "^Proxy" |\
 		$CUT_CMD -d ':' -f 2 |\
 		$EGREP_CMD "^${IP4_MATCH}-${IP4_MATCH}$" |\
-		ipv4_range_to_cidr
+		${IPRANGE_CMD}
 }
 
 # get the first column from the csv
@@ -3307,6 +3307,7 @@ geolite2_country() {
 			name="${name//[/(}"
 			name="${name//]/)}"
 
+			ipset_verbose "${ipset}" "extracting country '${id}' (code='${iso}', name='${name}')..."
 			if [ -f "${ipset}.tmp/country.${id}.source.tmp" ]
 			then
 				[ ! -z "${cid}" ] && $CAT_CMD "${ipset}.tmp/country.${id}.source.tmp" >>"${ipset}.tmp/continent_${cid,,}.source.tmp"
@@ -3330,7 +3331,7 @@ geolite2_country() {
 	do
 		$CAT_CMD "${x}" |\
 			filter_all4 |\
-			aggregate4 |\
+			${IPRANGE_CMD} |\
 			filter_invalid4 >"${x/.source.tmp/.source}"
 
 		$TOUCH_CMD -r "${ipset}.source" "${x/.source.tmp/.source}"
@@ -3409,6 +3410,8 @@ ipdeny_country() {
 		x=${x/.zone/}
 		IPDENY_COUNTRIES[${x}]="1"
 
+		ipset_verbose "${ipset}" "extracting country '${x}' (code='${x^^}', name='${IPDENY_COUNTRY_NAMES[${x}]}')..."
+
 		if [ ! -z "${IPDENY_COUNTRY_CONTINENTS[${x}]}" ]
 			then
 			[ ! -f "${ipset}.tmp/id_continent_${IPDENY_COUNTRY_CONTINENTS[${x}]}.source.tmp.info" ] && printf "%s" "Continent ${IPDENY_COUNTRY_CONTINENTS[${x}]}, with countries: " >"${ipset}.tmp/id_continent_${IPDENY_COUNTRY_CONTINENTS[${x}]}.source.tmp.info"
@@ -3428,7 +3431,7 @@ ipdeny_country() {
 	do
 		$CAT_CMD "${x}" |\
 			filter_all4 |\
-			aggregate4 |\
+			${IPRANGE_CMD} |\
 			filter_invalid4 >"${x/.source.tmp/.source}"
 
 		$TOUCH_CMD -r "${ipset}.source" "${x/.source.tmp/.source}"
@@ -3535,7 +3538,7 @@ ip2location_country() {
 			name=${IP2LOCATION_COUNTRY_NAMES[${x}]}
 		fi
 
-		ipset_info "${ipset}" "extracting country '${x}' (code='${code}', name='${name}')..."
+		ipset_verbose "${ipset}" "extracting country '${x}' (code='${code}', name='${name}')..."
 		$CAT_CMD "${file}" 			|\
 			$GREP_CMD ",\"${x}\"," 	|\
 			$CUT_CMD -d ',' -f 1,2 	|\
