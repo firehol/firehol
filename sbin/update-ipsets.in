@@ -260,18 +260,13 @@ do
 		require_cmd -n $cmd_var $possibles
 	fi
 done <<-!
-Y|IP_CMD|@IP@|ip
-Y|DIRNAME_CMD|@DIRNAME@|dirname
-Y|RENICE_CMD|@RENICE@|dirname
 Y|IPRANGE_CMD|@IPRANGE@|iprange
-Y|IPSET_CMD|@IPSET@|ipset
-Y|UNZIP_CMD|@UNZIP@|unzip
-Y|FUNZIP_CMD|@FUNZIP@|funzip
+Y|DIRNAME_CMD|@DIRNAME@|dirname
+Y|TAIL_CMD|@TAIL@|tail
+Y|RENICE_CMD|@RENICE@|dirname
 Y|ZCAT_CMD|@ZCAT@|gzcat "gzip -dc"
 Y|DATE_CMD|@DATE@|date
 Y|HOST_CMD|@HOST@|host
-N|ADNSHOST_CMD|@ADNSHOST@|adnshost
-N|PV_CMD|@PV@|pv
 Y|DIFF_CMD|@DIFF@|diff
 Y|FLOCK_CMD|@FLOCK@|flock
 Y|GREP_CMD|@GREP@|grep
@@ -282,34 +277,29 @@ Y|SED_CMD|@SED@|sed
 Y|TR_CMD|@TR@|tr
 Y|LN_CMD|@LN@|ln
 Y|LS_CMD|@LS@|ls
-Y|SLEEP_CMD|@SLEEP@|sleep
 Y|TOUCH_CMD|@TOUCH@|touch
 Y|LOGGER_CMD|@LOGGER@|logger
 Y|MKDIR_CMD|@MKDIR@|mkdir
 Y|CHOWN_CMD|@CHOWN@|chown
 Y|CHMOD_CMD|@CHMOD@|chmod
 Y|RM_CMD|@RM@|rm
-Y|PING_CMD|@PING@|ping
-Y|PING6_CMD|@PING6@|ping6
-Y|TRACEROUTE_CMD|@TRACEROUTE@|traceroute
 Y|SORT_CMD|@SORT@|sort
 Y|GAWK_CMD|@GAWK@|gawk awk
 Y|MKTEMP_CMD|@MKTEMP@|mktemp
 Y|ENV_CMD|@ENV@|env
-N|GIT_CMD|@GIT@|git
-N|WHOIS_CMD|@WHOIS@|whois
-N|JQ_CMD|@JQ@|jq
-N|HEAD_CMD|@HEAD@|head
 N|TPUT_CMD|@TPUT@|tput
 Y|FOLD_CMD|@FOLD@|fold
 Y|CURL_CMD|@CURL@|curl
 Y|FIND_CMD|@FIND@|find
-N|WGET_CMD|@WGET@|wget
 Y|WC_CMD|@WC@|wc
 Y|MV_CMD|@MV@|mv
 Y|CP_CMD|@CP@|cp
-N|SCREEN_CMD|@SCREEN@|screen
-Y|AGGREGATE_CMD|@AGGREGATE@|aggregate aggregate-flim cat
+Y|IPSET_CMD|@IPSET@|ipset
+N|UNZIP_CMD|@UNZIP@|unzip
+N|FUNZIP_CMD|@FUNZIP@|funzip
+N|ADNSHOST_CMD|@ADNSHOST@|adnshost
+N|PV_CMD|@PV@|pv
+N|GIT_CMD|@GIT@|git
 !
 
 VERSION=$(get_version)
@@ -553,7 +543,7 @@ WEB_CHARTS_ENTRIES="500"
 PUSH_TO_GIT=0
 
 # the maximum time in seconds, to connect to the remote web server
-MAX_CONNECT_TIME=20
+MAX_CONNECT_TIME=10
 
 # the maximum time in seconds any download may take
 MAX_DOWNLOAD_TIME=300
@@ -812,7 +802,7 @@ then
 	info "Git is not initialized in ${BASE_DIR}. Ignoring git support."
 	PUSH_TO_GIT=0
 else
-	require_cmd GIT_CMD
+	require_cmd -n GIT_CMD || PUSH_TO_GIT=0
 fi
 
 
@@ -1019,7 +1009,7 @@ history_cleanup() {
 	do
 		if [ ! "${x}" -nt "${RUN_DIR}/history.reference" ]
 		then
-			verbose "${ipset}: deleting history file '${x}'"
+			ipset_verbose "${ipset}" "deleting history file '${x}'"
 			$RM_CMD "${x}"
 		fi
 	done
@@ -1039,7 +1029,7 @@ history_get() {
 	#do
 	#	if [ "${x}" -nt "${RUN_DIR}/history.reference" ]
 	#	then
-	#		verbose "${ipset}: merging history file '${x}'"
+	#		ipset_verbose "${ipset}" "merging history file '${x}'"
 	#		hfiles=("${hfiles[@]}" "${x}")
 	#	fi
 	#done
@@ -1351,7 +1341,7 @@ cache_save() {
 		>"${BASE_DIR}/.cache.new.$$"
 	
 	[ -f "${BASE_DIR}/.cache" ] && $CP_CMD "${BASE_DIR}/.cache" "${BASE_DIR}/.cache.old"
-	$MV_CMD "${BASE_DIR}/.cache.new.$$" "${BASE_DIR}/.cache"
+	$MV_CMD "${BASE_DIR}/.cache.new.$$" "${BASE_DIR}/.cache" || exit 1
 }
 
 if [ -f "${BASE_DIR}/.cache" ]
@@ -1413,6 +1403,8 @@ ipset_services_to_json_array() {
 ipset_normalize_for_json() {
 	local ipset="${1}"
 
+	ipset_verbose "${ipset}" "normalizing data..."
+
 	[ -z "${IPSET_ENTRIES_MIN[${ipset}]}"       ] && IPSET_ENTRIES_MIN[${ipset}]="${IPSET_ENTRIES[${ipset}]}"
 	[ -z "${IPSET_ENTRIES_MAX[${ipset}]}"       ] && IPSET_ENTRIES_MAX[${ipset}]="${IPSET_ENTRIES[${ipset}]}"
 	[ -z "${IPSET_IPS_MIN[${ipset}]}"           ] && IPSET_IPS_MIN[${ipset}]="${IPSET_IPS[${ipset}]}"
@@ -1448,6 +1440,8 @@ ipset_json() {
 	fi
 
 	ipset_normalize_for_json "${ipset}"
+
+	ipset_verbose "${ipset}" "generating JSON info..."
 
 	$CAT_CMD <<EOFJSON
 {
@@ -1501,6 +1495,8 @@ ipset_json_index() {
 	checked=${IPSET_CHECKED_DATE[${ipset}]}
 	[ ${IPSET_CHECKED_DATE[${ipset}]} -lt ${IPSET_PROCESSED_DATE[${ipset}]} ] && checked=${IPSET_PROCESSED_DATE[${ipset}]}
 
+	ipset_verbose "${ipset}" "generating JSON index..."
+
 $CAT_CMD <<EOFALL
 	{
 		"ipset": "${ipset}",
@@ -1536,7 +1532,7 @@ retention_print() {
 
 	printf "{\n	\"ipset\": \"${ipset}\",\n	\"started\": ${RETENTION_HISTOGRAM_STARTED}000,\n	\"updated\": ${IPSET_SOURCE_DATE[${ipset}]}000,\n	\"incomplete\": ${RETENTION_HISTOGRAM_INCOMPLETE},\n"
 
-	verbose "${ipset}: calculating retention hours..."
+	ipset_verbose "${ipset}" "calculating retention hours..."
 	local x= hours= ips= sum=0 pad="\n\t\t\t"
 	for x in "${!RETENTION_HISTOGRAM[@]}"
 	do
@@ -1547,7 +1543,7 @@ retention_print() {
 	done
 	printf "	\"past\": {\n		\"hours\": [ ${hours} ],\n		\"ips\": [ ${ips} ],\n		\"total\": ${sum}\n	},\n"
 
-	verbose "${ipset}: calculating current hours..."
+	ipset_verbose "${ipset}" "calculating current hours..."
 	local x= hours= ips= sum=0 pad="\n\t\t\t"
 	for x in "${!RETENTION_HISTOGRAM_REST[@]}"
 	do
@@ -1570,21 +1566,15 @@ retention_detect() {
 	RETENTION_HISTOGRAM_REST=()
 	RETENTION_HISTOGRAM_STARTED=
 	RETENTION_HISTOGRAM_INCOMPLETE=1
+	
 	if [ -f "${LIB_DIR}/${ipset}/histogram" ]
 		then
+		ipset_verbose "${ipset}" "loading old data"
 		source "${LIB_DIR}/${ipset}/histogram"
-
-		if [ -z "${IPSET_STARTED_DATE[${ipset}]}" -o "${IPSET_STARTED_DATE[${ipset}]}" -gt "${RETENTION_HISTOGRAM_STARTED}" ]
-			then
-			# this is a bit stupid here
-			# but anyway is a way to get the real date we started monitoring this ipset
-			IPSET_STARTED_DATE[${ipset}]="${RETENTION_HISTOGRAM_STARTED}"
-		fi
 	fi
 
 	ndate=$($DATE_CMD -r "${IPSET_FILE[${ipset}]}" +%s)
-
-	printf >&2 "\n\t${ipset}:"
+	ipset_silent "${ipset}" "generating histogram for ${ndate} update..."
 
 	# create the cache directory for this ipset
 	if [ ! -d "${LIB_DIR}/${ipset}" ]
@@ -1600,15 +1590,15 @@ retention_detect() {
 	if [ ! -f "${LIB_DIR}/${ipset}/latest" ]
 		then
 		# we don't have an older version
-		verbose "${ipset}: ${LIB_DIR}/${ipset}/latest: first time - assuming start from empty"
-		$TOUCH_CMD -r "${IPSET_FILE[${ipset}]}" "${LIB_DIR}/${ipset}/latest"
+		ipset_verbose "${ipset}" "this is a new ipset - initializing"
 
+		$TOUCH_CMD -r "${IPSET_FILE[${ipset}]}" "${LIB_DIR}/${ipset}/latest"
 		RETENTION_HISTOGRAM_STARTED="${IPSET_SOURCE_DATE[${ipset}]}"
 
 	elif [ ! "${IPSET_FILE[${ipset}]}" -nt "${LIB_DIR}/${ipset}/latest" ]
 		# the new file is older than the latest, return
 		then
-		verbose "${ipset}: ${LIB_DIR}/${ipset}/latest: source file is not newer"
+		ipset_verbose "${ipset}" "new ipset file is not newer than latest"
 		retention_print "${ipset}"
 		return 0
 	fi
@@ -1616,45 +1606,51 @@ retention_detect() {
 	if [ -f "${LIB_DIR}/${ipset}/new/${ndate}" ]
 		then
 		# we already have a file for this date, return
-		verbose "${ipset}: ${LIB_DIR}/${ipset}/new/${ndate}: already exists"
+		ipset_warning "${ipset}" "we already have a file for date ${ndate}"
 		retention_print "${ipset}"
 		return 0
 	fi
 
 	# find the new ips in this set
-	${IPRANGE_CMD} "${IPSET_FILE[${ipset}]}" --exclude-next "${LIB_DIR}/${ipset}/latest" --print-binary >"${LIB_DIR}/${ipset}/new/${ndate}"
+	ipset_silent "${ipset}" "finding the new IPs in this update..."
+	${IPRANGE_CMD} "${IPSET_FILE[${ipset}]}" --exclude-next "${LIB_DIR}/${ipset}/latest" --print-binary >"${LIB_DIR}/${ipset}/new/${ndate}" || ipset_error "${ipset}" "cannot find the new IPs in this update."
 	$TOUCH_CMD -r "${IPSET_FILE[${ipset}]}" "${LIB_DIR}/${ipset}/new/${ndate}"
 
 	local ips_added=0
 	if [ ! -s "${LIB_DIR}/${ipset}/new/${ndate}" ]
 		then
 		# there are no new IPs included
-		verbose "${ipset}: ${LIB_DIR}/${ipset}/new/${ndate}: nothing new in this"
+		ipset_verbose "${ipset}" "nothing new in this update (${ndate})"
 		$RM_CMD "${LIB_DIR}/${ipset}/new/${ndate}"
 	else
 		ips_added=$(${IPRANGE_CMD} -C "${LIB_DIR}/${ipset}/new/${ndate}")
 		ips_added=${ips_added/*,/}
+		ipset_silent "${ipset}" "added ${ips_added} new IPs"
 	fi
 
+	ipset_silent "${ipset}" "finding the removed IPs in this update..."
 	local ips_removed=$(${IPRANGE_CMD} "${LIB_DIR}/${ipset}/latest" --exclude-next "${IPSET_FILE[${ipset}]}" | ${IPRANGE_CMD} -C)
 	ips_removed=${ips_removed/*,/}
+	ipset_silent "${ipset}" "removed ${ips_removed} IPs"
 
+	ipset_verbose "${ipset}" "saving in changesets (${ndate})"
 	[ ! -f "${LIB_DIR}/${ipset}/changesets.csv" ] && echo >"${LIB_DIR}/${ipset}/changesets.csv" "DateTime,IPsAdded,IPsRemoved"
 	echo >>"${LIB_DIR}/${ipset}/changesets.csv" "${ndate},${ips_added},${ips_removed}"
 
 	# ok keep it
-	verbose "${ipset}: keeping it..."
-	${IPRANGE_CMD} "${IPSET_FILE[${ipset}]}" --print-binary >"${LIB_DIR}/${ipset}/latest"
+	ipset_silent "${ipset}" "keeping this update as the latest..."
+	${IPRANGE_CMD} "${IPSET_FILE[${ipset}]}" --print-binary >"${LIB_DIR}/${ipset}/latest" || ipset_error "${ipset}" "failed to keep the ${ndate} update as the latest"
 	$TOUCH_CMD -r "${IPSET_FILE[${ipset}]}" "${LIB_DIR}/${ipset}/latest"
 
 	if [ ! -f "${LIB_DIR}/${ipset}/retention.csv" ]
 		then
+		ipset_verbose "${ipset}" "generating the retention file"
 		echo "date_removed,date_added,hours,ips" >"${LIB_DIR}/${ipset}/retention.csv"
 	fi
 
 	# -------------------------------------------------------------------------
 
-	verbose "${ipset}: calculating retention histogram..."
+	ipset_silent "${ipset}" "comparing this update against all past"
 
 	# find the new/* files that are affected
 	local name1= name2= entries1= entries2= ips1= ips2= combined= common= odate= hours= removed=
@@ -1662,20 +1658,20 @@ retention_detect() {
 		while IFS="," read name1 name2 entries1 entries2 ips1 ips2 combined common
 		do
 			[ $[ combined - ips1 ] -ne 0 -o $[ ips2 - common ] -ne 0 ] && echo "${name2}"
-		done | $SORT_CMD -u >"${RUN_DIR}/retention_affacted_updates"
+		done | $SORT_CMD -u >"${RUN_DIR}/retention_affected_updates"
+
+	[ $? -ne 0 ] && ipset_error "${ipset}" "cannot find its affected updates"
 
 	local x=
-	for x in $($CAT_CMD "${RUN_DIR}/retention_affacted_updates")
+	for x in $($CAT_CMD "${RUN_DIR}/retention_affected_updates")
 	do
-		printf >&2 "."
-
 		# find how many hours have passed
 		odate="${x/*\//}"
 		hours=$[ (ndate + 1800 - odate) / 3600 ]
 
 		# are all the IPs of this file still the latest?
-		${IPRANGE_CMD} --common "${x}" "${LIB_DIR}/${ipset}/latest" --print-binary >"${x}.stillthere"
-		${IPRANGE_CMD} "${x}" --exclude-next "${x}.stillthere" --print-binary >"${x}.removed"
+		${IPRANGE_CMD} --common "${x}" "${LIB_DIR}/${ipset}/latest" --print-binary >"${x}.stillthere" || ipset_error "${ipset}" "cannot find IPs still present in ${x}"
+		${IPRANGE_CMD} "${x}" --exclude-next "${x}.stillthere" --print-binary >"${x}.removed" || ipset_error "${ipset}" "cannot find IPs removed from ${x}"
 		if [ -s "${x}.removed" ]
 			then
 			# no, something removed, find it
@@ -1684,7 +1680,7 @@ retention_detect() {
 
 			# these are the unique IPs removed
 			removed="${removed/*,/}"
-			verbose "${ipset}: ${x}: ${removed} IPs removed"
+			ipset_verbose "${ipset}" "${x}: ${removed} IPs removed"
 
 			echo "${ndate},${odate},${hours},${removed}" >>"${LIB_DIR}/${ipset}/retention.csv"
 
@@ -1694,7 +1690,7 @@ retention_detect() {
 		else
 			removed=0
 			# yes, nothing removed from this run
-			verbose "${ipset}: ${x}: nothing removed"
+			ipset_verbose "${ipset}" "${x}: nothing removed"
 			$RM_CMD "${x}.removed"
 		fi
 
@@ -1702,16 +1698,16 @@ retention_detect() {
 		if [ ! -s "${x}.stillthere" ]
 			then
 			# nothing left for this timestamp, remove files
-			verbose "${ipset}: ${x}: nothing left in this"
+			ipset_verbose "${ipset}" "${x}: nothing left in this"
 			$RM_CMD "${x}" "${x}.stillthere"
 		else
-			verbose "${ipset}: ${x}: there is still something in it"
+			ipset_verbose "${ipset}" "${x}: there is still something in it"
 			$TOUCH_CMD -r "${x}" "${x}.stillthere"
-			$MV_CMD "${x}.stillthere" "${x}"
+			$MV_CMD "${x}.stillthere" "${x}" || ipset_error "${ipset}" "cannot replace ${x} with updated data"
 		fi
 	done
 
-	verbose "${ipset}: cleaning up retention cache..."
+	ipset_verbose "${ipset}" "cleaning up retention cache..."
 	# cleanup empty slots in our arrays
 	for x in "${!RETENTION_HISTOGRAM[@]}"
 	do
@@ -1723,7 +1719,7 @@ retention_detect() {
 
 	# -------------------------------------------------------------------------
 
-	verbose "${ipset}: determining the age of currently listed IPs..."
+	ipset_verbose "${ipset}" "determining the age of currently listed IPs..."
 
 	# empty the remaining IPs counters
 	# they will be re-calculated below
@@ -1738,7 +1734,7 @@ retention_detect() {
 	do
 		odate="${x/*\//}"
 		hours=$[ (ndate + 1800 - odate) / 3600 ]
-		verbose "${ipset}: ${x}: ${hours} hours have passed"
+		ipset_verbose "${ipset}" "${x}: ${hours} hours have passed"
 
 		[ ${odate} -le ${RETENTION_HISTOGRAM_STARTED} ] && RETENTION_HISTOGRAM_INCOMPLETE=1
 
@@ -1748,13 +1744,13 @@ retention_detect() {
 	# -------------------------------------------------------------------------
 
 	# save the histogram
-	verbose "${ipset}: saving retention cache..."
+	ipset_verbose "${ipset}" "saving retention cache..."
 	declare -p RETENTION_HISTOGRAM_STARTED RETENTION_HISTOGRAM_INCOMPLETE RETENTION_HISTOGRAM RETENTION_HISTOGRAM_REST >"${LIB_DIR}/${ipset}/histogram"
 
-	verbose "${ipset}: printing retention..."
+	ipset_verbose "${ipset}" "printing retention..."
 	retention_print "${ipset}"
 
-	verbose "${ipset}: printed retention histogram"
+	ipset_verbose "${ipset}" "printed retention histogram"
 	return 0
 }
 
@@ -1798,18 +1794,19 @@ update_web() {
 	[ -z "${WEB_DIR}" -o ! -d "${WEB_DIR}" ] && return 1
 	[ "${#UPDATED_SETS[@]}" -eq 0 -a ! ${FORCE_WEB_REBUILD} -eq 1 ] && return 1
 
-	local x= all=() updated=() geolite2_country=() ipdeny_country=() ip2location_country=() i= to_all=
+	local x= all=() updated=() geolite2_country=() ipdeny_country=() ip2location_country=() i= to_all= all_count=0
 
 	sitemap_init "${sitemap_date}"
 
-	echo >&2
-	printf >&2 "updating history... "
+	echo >&2 "-------------------------------------------------------------------------------"
+	echo >&2 "Updating History..."
+
 	for x in $(params_sort "${!IPSET_FILE[@]}")
 	do
 		# remove deleted files
 		if [ ! -f "${IPSET_FILE[$x]}" ]
 			then
-			warning "${x}: file ${IPSET_FILE[$x]} not found - removing it from cache"
+			ipset_warning "${x}" "file ${IPSET_FILE[$x]} not found - removing it from cache"
 			cache_remove_ipset "${x}"
 			continue
 		fi
@@ -1826,6 +1823,7 @@ update_web() {
 			then
 			if [ ! -d "${LIB_DIR}/${x}" ]
 				then
+				ipset_silent "${x}" "creating lib directory for tracking it"
 				$MKDIR_CMD -p "${LIB_DIR}/${x}"
 			fi
 
@@ -1834,15 +1832,18 @@ update_web() {
 				then
 				if [ ! -f "${LIB_DIR}/${x}/history.csv" ]
 					then
+					ipset_verbose "${x}" "creating history file header"
 					echo "DateTime,Entries,UniqueIPs" >"${LIB_DIR}/${x}/history.csv"
 					# $TOUCH_CMD "${LIB_DIR}/${x}/history.csv"
 					$CHMOD_CMD 0644 "${LIB_DIR}/${x}/history.csv"
 				fi
-				printf " ${x}"
+				
+				ipset_silent "${x}" "updating history entries=${IPSET_ENTRIES[${x}]} IPs=${IPSET_IPS[${x}]}"
 				echo >>"${LIB_DIR}/${x}/history.csv" "$($DATE_CMD -r "${IPSET_SOURCE[${x}]}" +%s),${IPSET_ENTRIES[${x}]},${IPSET_IPS[${x}]}"
 				
+				ipset_verbose "${x}" "preparing web history file (last ${WEB_CHARTS_ENTRIES} entries)"
 				echo >"${RUN_DIR}/${x}_history.csv" "DateTime,Entries,UniqueIPs"
-				tail -n ${WEB_CHARTS_ENTRIES} "${LIB_DIR}/${x}/history.csv" | $GREP_CMD -v "^DateTime" >>"${RUN_DIR}/${x}_history.csv"
+				$TAIL_CMD -n ${WEB_CHARTS_ENTRIES} "${LIB_DIR}/${x}/history.csv" | $GREP_CMD -v "^DateTime" >>"${RUN_DIR}/${x}_history.csv"
 			fi
 		fi
 
@@ -1851,6 +1852,7 @@ update_web() {
 		# prepare the parameters for iprange to compare the sets
 		if [[ "${IPSET_FILE[$x]}" =~ ^geolite2.* ]]
 			then
+			ipset_verbose "${x}" "is a GeoLite2 file"
 			to_all=0
 			case "${x}" in
 				country_*)		i=${x/country_/} ;;
@@ -1863,6 +1865,7 @@ update_web() {
 		
 		elif [[ "${IPSET_FILE[$x]}" =~ ^ipdeny_country.* ]]
 			then
+			ipset_verbose "${x}" "is an IPDeny file"
 			to_all=0
 			case "${x}" in
 				id_country_*)	i=${x/id_country_/} ;;
@@ -1873,6 +1876,7 @@ update_web() {
 		
 		elif [[ "${IPSET_FILE[$x]}" =~ ^ip2location_country.* ]]
 			then
+			ipset_verbose "${x}" "is an IP2Location file"
 			to_all=0
 			case "${x}" in
 				ip2location_country_*)		i=${x/ip2location_country_/} ;;
@@ -1884,13 +1888,20 @@ update_web() {
 
 		if [ ${to_all} -eq 1 ]
 			then
+			ipset_verbose "${x}" "ipset will be compared with all others"
 			all=("${all[@]}" "${IPSET_FILE[$x]}" "as" "${x}")
+			all_count=$[ all_count + 1 ]
 			
 			# if we need a full rebuild, pretend all are updated
 			[ ${FORCE_WEB_REBUILD} -eq 1 ] && UPDATED_SETS[${x}]="${IPSET_FILE[${x}]}"
 
-			[ ! -z "${UPDATED_SETS[${x}]}" ] && updated=("${updated[@]}" "${IPSET_FILE[$x]}" "as" "${x}")
+			if [ ! -z "${UPDATED_SETS[${x}]}" ]
+				then
+				ipset_verbose "${x}" "ipset has been updated in this run"
+				updated=("${updated[@]}" "${IPSET_FILE[$x]}" "as" "${x}")
+			fi
 
+			ipset_verbose "${x}" "adding ipset to web all-ipsets.json"
 			if [ ! -f "${RUN_DIR}/all-ipsets.json" ]
 				then
 				printf >"${RUN_DIR}/all-ipsets.json" "[\n"
@@ -1898,7 +1909,6 @@ update_web() {
 				printf >>"${RUN_DIR}/all-ipsets.json" ",\n"
 			fi
 			ipset_json_index "${x}" >>"${RUN_DIR}/all-ipsets.json"
-
 			sitemap_ipset "${x}" "${sitemap_date}"
 		fi
 	done
@@ -1909,7 +1919,10 @@ update_web() {
 	#info "ALL: ${all[@]}"
 	#info "UPDATED: ${updated[@]}"
 
-	printf >&2 "comparing all ipsets (all x all)... "
+	echo >&2 "-------------------------------------------------------------------------------"
+	echo >&2 "Comparing all ipsets (${all_count} x ${all_count} = $[all_count * all_count / 2] unique comparisons)..."
+
+	local before=$(date +%s)
 	${IPRANGE_CMD} --compare "${all[@]}" |\
 		sort |\
 		while IFS="," read name1 name2 entries1 entries2 ips1 ips2 combined common
@@ -1933,15 +1946,20 @@ update_web() {
 				printf >>"${RUN_DIR}/${name2}_comparison.json" "	{\n		\"name\": \"${name1}\",\n		\"category\": \"${IPSET_CATEGORY[${name1}]}\",\n		\"ips\": ${ips1},\n		\"common\": ${common}\n	}"
 			fi
 		done
-	echo >&2
 	for x in $($FIND_CMD "${RUN_DIR}" -name \*_comparison.json)
 	do
 		printf "\n]\n" >>${x}
 	done
+	local after=$(date +%s)
+
+	echo >&2 "Comparison of $[all_count * all_count / 2] ipsets took $[after - before] seconds: (i.e. $[all_count * all_count / 2 / (after - before)] ipset comparisons/s)"
+	echo >&2
 
 	if [ "${#updated[*]}" -ne 0 -a "${#geolite2_country[*]}" -ne 0 ]
 		then
-		printf >&2 "comparing geolite2 country... "
+		echo >&2 "-------------------------------------------------------------------------------"
+		echo >&2 "Comparing updated ipsets with GeoLite2 country..."
+
 		${IPRANGE_CMD} "${updated[@]}" --compare-next "${geolite2_country[@]}" |\
 			$SORT_CMD |\
 			while IFS="," read name1 name2 entries1 entries2 ips1 ips2 combined common
@@ -1967,7 +1985,9 @@ update_web() {
 
 	if [ "${#updated[*]}" -ne 0 -a "${#ipdeny_country[*]}" -ne 0 ]
 		then
-		printf >&2 "comparing ipdeny country... "
+		echo >&2 "-------------------------------------------------------------------------------"
+		echo >&2 "Comparing updated ipsets with IPDeny country..."
+
 		${IPRANGE_CMD} "${updated[@]}" --compare-next "${ipdeny_country[@]}" |\
 			$SORT_CMD |\
 			while IFS="," read name1 name2 entries1 entries2 ips1 ips2 combined common
@@ -1993,7 +2013,9 @@ update_web() {
 
 	if [ "${#updated[*]}" -ne 0 -a "${#ip2location_country[*]}" -ne 0 ]
 		then
-		printf >&2 "comparing ip2location country... "
+		echo >&2 "-------------------------------------------------------------------------------"
+		echo >&2 "Comparing updated ipsets with IP2Location country..."
+
 		${IPRANGE_CMD} "${updated[@]}" --compare-next "${ip2location_country[@]}" |\
 			$SORT_CMD |\
 			while IFS="," read name1 name2 entries1 entries2 ips1 ips2 combined common
@@ -2017,20 +2039,20 @@ update_web() {
 		done
 	fi
 
-	printf >&2 "generating javascript info... "
-	for x in "${!IPSET_FILE[@]}"
-	do
-		[ -z "${UPDATED_SETS[${x}]}" ] && continue
+	echo >&2 "-------------------------------------------------------------------------------"
+	echo >&2 "Generating updated ipsets JSON files..."
 
+	for x in "${!UPDATED_SETS[@]}"
+	do
 		ipset_json "${x}" >"${RUN_DIR}/${x}.json"
 	done
 	echo >&2
 
-	printf >&2 "generating retention histogram... "
-	for x in "${!IPSET_FILE[@]}"
+	echo >&2 "-------------------------------------------------------------------------------"
+	echo >&2 "Generating retention histograms for updated ipsets..."
+
+	for x in "${!UPDATED_SETS[@]}"
 	do
-		[ -z "${UPDATED_SETS[${x}]}" ] && continue
-		
 		[[ "${IPSET_FILE[$x]}" =~ ^geolite2.* ]] && continue
 		[[ "${IPSET_FILE[$x]}" =~ ^ipdeny.* ]] && continue
 		[[ "${IPSET_FILE[$x]}" =~ ^ip2location.* ]] && continue
@@ -2039,9 +2061,12 @@ update_web() {
 
 		# this has to be done after retention_detect()
 		echo >"${RUN_DIR}"/${x}_changesets.csv "DateTime,AddedIPs,RemovedIPs"
-		tail -n $[ WEB_CHARTS_ENTRIES + 1] "${LIB_DIR}/${x}/changesets.csv" | $GREP_CMD -v "^DateTime" | tail -n +2 >>"${RUN_DIR}/${x}_changesets.csv"
+		$TAIL_CMD -n $[ WEB_CHARTS_ENTRIES + 1] "${LIB_DIR}/${x}/changesets.csv" | $GREP_CMD -v "^DateTime" | $TAIL_CMD -n +2 >>"${RUN_DIR}/${x}_changesets.csv"
 	done
 	echo >&2
+
+	echo >&2 "-------------------------------------------------------------------------------"
+	echo >&2 "Saving generated web files..."
 
 	$MV_CMD -f "${RUN_DIR}"/*.{json,csv,xml} "${WEB_DIR}/"
 	$CHOWN_CMD ${WEB_OWNER} "${WEB_DIR}"/*
@@ -2049,11 +2074,16 @@ update_web() {
 
 	if [ ${PUSH_TO_GIT} -eq 1 ]
 		then
+		echo >&2 "-------------------------------------------------------------------------------"
+		echo >&2 "Pushing generated web files to git..."
+
 		cd "${WEB_DIR}" || return 1
 		$GIT_CMD add *.json *.csv *.xml
 		$GIT_CMD commit -a -m "$($DATE_CMD -u) update"
 		$GIT_CMD push origin gh-pages
 		cd "${BASE_DIR}" || exit 1
+		
+		echo >&2
 	fi
 }
 
@@ -3070,11 +3100,15 @@ dshield_parser() {
 
 # unzip the first file in the zip and convert comma to new lines
 unzip_and_split_csv() {
+	require_cmd -n FUNZIP_CMD || return 1
+
 	$FUNZIP_CMD | $TR_CMD ",\r" "\n\n"
 }
 
 # unzip the first file in the zip
 unzip_and_extract() {
+	require_cmd -n FUNZIP_CMD || return 1
+
 	$FUNZIP_CMD
 }
 
@@ -3131,6 +3165,9 @@ extract_ipv4_from_any_file() {
 
 
 hostname_resolver() {
+	require_cmd -n PV_CMD || return 1
+	require_cmd -n ADNSHOST_CMD || return 1
+
 	echo >&2 "Please wait... resolving hostnames... it may take some time..."
 
 	local id n status t1 reason host dollar msg1 msg2 msg3 msg4 msg5
@@ -3141,15 +3178,20 @@ hostname_resolver() {
 	[ -f "${RUN_DIR}/dns.errors" ] && rm "${RUN_DIR}/dns.errors"
 	[ -f "${RUN_DIR}/dns.failed" ] && rm "${RUN_DIR}/dns.failed"
 
+	# get all the input lines starting with a letter or number
+	# (we remove everything else because adnshost stops on errors)
 	$GREP_CMD "^[a-z0-9]" >"${RUN_DIR}/dns.input"
 	$TOUCH_CMD "${RUN_DIR}/dns.outcnt" "${RUN_DIR}/dns.errors" "${RUN_DIR}/dns.failed"
 
+	# we will do up to 20 loops (19 to be precise - the last one is not completed)
 	for x in {1..20}
 	do
+		# count the work we have to do and the work we have done so far
 		in=$(  $WC_CMD -l "${RUN_DIR}/dns.input"  | $CUT_CMD -d ' ' -f 1 )
 		out=$( $WC_CMD -l "${RUN_DIR}/dns.outcnt" | $CUT_CMD -d ' ' -f 1 )
 		fa=$(  $WC_CMD -l "${RUN_DIR}/dns.failed" | $CUT_CMD -d ' ' -f 1 )
 
+		# print something for the user to see about our progress
 		label="pending"
 		[ $x -ne 1 ] && label="timed out - will retry"
 		[ $in -eq $oin -o $x -eq 20 ] && label="timed out - giving up"
@@ -3157,19 +3199,30 @@ hostname_resolver() {
 		printf >&2 " > %d hostnames : %d resolved, %d ${label}, %d unresolvable...\n" \
 			$(( in + out + fa )) ${out} ${in} ${fa}
 
-		# check if it becomes better
+		# check if it becomes better between loops
+		# if it does not, we do not have to do 20 loops
 		[ $in -eq $oin -o $x -eq 20 ] && break
 		oin=$in
 
+		# if we run on a terminal, tell pv to show some progress
 		local pv_opts="--quiet"
 		[ ${RUNNING_ON_TERMINAL} -eq 1 -a ${SILENT} -ne 1 ] && \
 			pv_opts="--size ${in} --timer --eta --rate --bytes"
 
+		# ok, here is the real job
 		$CAT_CMD "${RUN_DIR}/dns.input" |\
 			$PV_CMD --line-mode --rate-limit ${DNS_QUERIES_PER_SECOND} ${pv_opts} |\
 			$ADNSHOST_CMD --asynch --fmt-asynch --pipe |\
 			while read id n status t1 reason host dollar msg1 msg2 msg3 msg4 msg5
 			do
+				# id = the id of the job (sequence number)
+				# n = the number of lines after this that contain results
+				# status = the type of result
+				# t1 = ?
+				# reason = the reason of error
+				# host = the hostname we requested to be resolved
+				# dollar = $
+				# msg1 ... msg5 = ?
 				case "${status}" in
 					ok)	while [ ${n} -gt 0 ]
 						do
@@ -3195,9 +3248,11 @@ hostname_resolver() {
 				while [ ${n} -gt 0 ]; do read h a inet reply; n=$[n - 1]; done
 			done
 
+		# prepare for the next loop
+		# we move the errors to input
 		$MV_CMD "${RUN_DIR}/dns.errors" "${RUN_DIR}/dns.input"
 
-		# if no more errors are there, stop
+		# if no more input exists, stop
 		[ ! -s "${RUN_DIR}/dns.input" ] && break;
 	done |\
 	${IPRANGE_CMD} -1
@@ -3205,8 +3260,6 @@ hostname_resolver() {
 
 # convert hphosts file to IPs, by resolving all IPs
 hphosts2ips() {
-	require_cmd PV_CMD
-	require_cmd ADNSHOST_CMD
 	remove_comments |\
 		$CUT_CMD -d ' ' -f 2- |\
 		$TR_CMD " " "\n" |\
@@ -3217,6 +3270,8 @@ hphosts2ips() {
 }
 
 geolite2_country() {
+	require_cmd -n UNZIP_CMD || return 1
+
 	local ipset="geolite2_country" limit="" hash="net" ipv="ipv4" \
 		mins=$[24 * 60 * 7] history_mins=0 \
 		url="http://geolite.maxmind.com/download/geoip/database/GeoLite2-Country-CSV.zip" \
@@ -3463,6 +3518,8 @@ declare -A IP2LOCATION_COUNTRY_CONTINENTS='([um]="na" [fk]="sa" [ax]="eu" [as]="
 declare -A IP2LOCATION_COUNTRIES=()
 declare -A IP2LOCATION_CONTINENTS=()
 ip2location_country() {
+	require_cmd -n UNZIP_CMD || return 1
+
 	local ipset="ip2location_country" limit="" hash="net" ipv="ipv4" \
 		mins=$[24 * 60 * 1] history_mins=0 \
 		url="http://download.ip2location.com/lite/IP2LOCATION-LITE-DB1.CSV.ZIP" \
