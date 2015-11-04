@@ -446,7 +446,7 @@ ipset_notyet() {
 
 	print_ipset "${ipset}"
 	echo >&2 -e "${COLOR_BGWHITE}${COLOR_BLACK}${COLOR_BOLD} LATER ${COLOR_RESET} ${@}"
-	$LOGGER_CMD -p daemon.info -t "update-ipsets.sh[$$]" "LATER: ${ipset}: ${@}"
+	# $LOGGER_CMD -p daemon.info -t "update-ipsets.sh[$$]" "LATER: ${ipset}: ${@}"
 }
 ipset_disabled() {
 	local ipset="${1}"
@@ -853,7 +853,7 @@ check_git_committed() {
 	$GIT_CMD ls-files "${1}" --error-unmatch >/dev/null 2>&1
 	if [ $? -ne 0 ]
 		then
-		info "Adding '${1}' to git"
+		verbose "Adding '${1}' to git"
 		$GIT_CMD add "${1}"
 	fi
 }
@@ -1620,7 +1620,7 @@ retention_detect() {
 	if [ ! -s "${LIB_DIR}/${ipset}/new/${ndate}" ]
 		then
 		# there are no new IPs included
-		ipset_verbose "${ipset}" "nothing new in this update (${ndate})"
+		ipset_silent "${ipset}" "no new IPs in this update"
 		$RM_CMD "${LIB_DIR}/${ipset}/new/${ndate}"
 	else
 		ips_added=$(${IPRANGE_CMD} -C "${LIB_DIR}/${ipset}/new/${ndate}")
@@ -1920,7 +1920,7 @@ update_web() {
 	#info "UPDATED: ${updated[@]}"
 
 	echo >&2 "-------------------------------------------------------------------------------"
-	echo >&2 "Comparing all ipsets (${all_count} x ${all_count} = $[all_count * all_count / 2] unique comparisons)..."
+	echo >&2 "Comparing all ipsets (${all_count} x ${all_count} = $[all_count * (all_count - 1) / 2] unique comparisons)..."
 
 	local before=$(date +%s)
 	${IPRANGE_CMD} --compare "${all[@]}" |\
@@ -1952,7 +1952,7 @@ update_web() {
 	done
 	local after=$(date +%s)
 
-	echo >&2 "Comparison of $[all_count * all_count / 2] ipsets took $[after - before] seconds: (i.e. $[all_count * all_count / 2 / (after - before)] ipset comparisons/s)"
+	echo >&2 "Comparison of $[all_count * (all_count - 1) / 2] ipsets took $[after - before] seconds: (i.e. $[all_count * (all_count - 1) / 2 / (after - before)] ipset comparisons/s)"
 	echo >&2
 
 	if [ "${#updated[*]}" -ne 0 -a "${#geolite2_country[*]}" -ne 0 ]
@@ -4678,8 +4678,42 @@ update packetmail $[4*60] 0 ipv4 ip \
 	"https://www.packetmail.net/iprep.txt" \
 	 parse_packetmail \
 	"reputation" \
-	"[PacketMail.net](https://www.packetmail.net/iprep.txt) IP addresses have been detected performing TCP SYN to 206.82.85.196/30 to a non-listening service or daemon. No assertion is made, nor implied, that any of the below listed IP addresses are accurate, malicious, hostile, or engaged in nefarious acts. Use this list at your own risk." \
-	"PacketMail.net" "https://www.packetmail.net/iprep.txt"
+	"[PacketMail.net](https://www.packetmail.net/) IP addresses that have been detected performing TCP SYN to 206.82.85.196/30 to a non-listening service or daemon. No assertion is made, nor implied, that any of the below listed IP addresses are accurate, malicious, hostile, or engaged in nefarious acts. Use this list at your own risk." \
+	"PacketMail.net" "https://www.packetmail.net/"
+
+update packetmail_ramnode $[4*60] 0 ipv4 ip \
+	"https://www.packetmail.net/iprep_ramnode.txt" \
+	 parse_packetmail \
+	"reputation" \
+	"[PacketMail.net](https://www.packetmail.net/) IP addresses that have been detected performing TCP SYN to 81.4.103.251 to a non-listening service or daemon. No assertion is made, nor implied, that any of the below listed IP addresses are accurate, malicious, hostile, or engaged in nefarious acts. Use this list at your own risk." \
+	"PacketMail.net" "https://www.packetmail.net/"
+
+update packetmail_carisirt $[4*60] 0 ipv4 ip \
+	"https://www.packetmail.net/iprep_CARISIRT.txt" \
+	 parse_packetmail \
+	"reputation" \
+	"[PacketMail.net](https://www.packetmail.net/) IP addresses that have been detected performing TCP SYN to 66.240.206.5 to a non-listening service or daemon. No assertion is made, nor implied, that any of the below listed IP addresses are accurate, malicious, hostile, or engaged in nefarious acts. Use this list at your own risk." \
+	"PacketMail.net" "https://www.packetmail.net/"
+
+update packetmail_mail $[4*60] 0 ipv4 ip \
+	"https://www.packetmail.net/iprep_mail.txt" \
+	 parse_packetmail \
+	"reputation" \
+	"[PacketMail.net](https://www.packetmail.net/) IP addresses that have been detected performing behavior not in compliance with the requirements this system enforces for email acceptance. No assertion is made, nor implied, that any of the below listed IP addresses are accurate, malicious, hostile, or engaged in nefarious acts. Use this list at your own risk." \
+	"PacketMail.net" "https://www.packetmail.net/"
+
+parse_packetmail_emerging_ips() {
+	$SED_CMD -e "s/#.*$//g" |\
+		$GREP_CMD -v "^$" |\
+		$CUT_CMD -d "	" -f 6
+}
+
+update packetmail_emerging_ips $[4*60] 0 ipv4 ip \
+	"https://www.packetmail.net/iprep_emerging_ips.txt" \
+	 parse_packetmail_emerging_ips \
+	"reputation" \
+	"[PacketMail.net](https://www.packetmail.net/) IP addresses that have been detected as potentially of interest based on the number of unique users of the packetmail IP Reputation system. No assertion is made, nor implied, that any of the below listed IP addresses are accurate, malicious, hostile, or engaged in nefarious acts. Use this list at your own risk." \
+	"PacketMail.net" "https://www.packetmail.net/"
 
 
 # -----------------------------------------------------------------------------
