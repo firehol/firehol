@@ -802,7 +802,7 @@ then
 	info "Git is not initialized in ${BASE_DIR}. Ignoring git support."
 	PUSH_TO_GIT=0
 else
-	require_cmd -n GIT_CMD || PUSH_TO_GIT=0
+	[ -z "${GIT_CMD}" ] && PUSH_TO_GIT=0
 fi
 
 
@@ -3100,14 +3100,14 @@ dshield_parser() {
 
 # unzip the first file in the zip and convert comma to new lines
 unzip_and_split_csv() {
-	require_cmd -n FUNZIP_CMD || return 1
+	[ -z "${FUNZIP_CMD}" ] && return 1
 
 	$FUNZIP_CMD | $TR_CMD ",\r" "\n\n"
 }
 
 # unzip the first file in the zip
 unzip_and_extract() {
-	require_cmd -n FUNZIP_CMD || return 1
+	[ -z "${FUNZIP_CMD}" ] && return 1
 
 	$FUNZIP_CMD
 }
@@ -3165,8 +3165,8 @@ extract_ipv4_from_any_file() {
 
 
 hostname_resolver() {
-	require_cmd -n PV_CMD || return 1
-	require_cmd -n ADNSHOST_CMD || return 1
+	[ -z "${PV_CMD}"       ] && return 1
+	[ -z "${ADNSHOST_CMD}" ] && return 1
 
 	echo >&2 "Please wait... resolving hostnames... it may take some time..."
 
@@ -3270,7 +3270,7 @@ hphosts2ips() {
 }
 
 geolite2_country() {
-	require_cmd -n UNZIP_CMD || return 1
+	[ -z "${UNZIP_CMD}" ] && return 1
 
 	local ipset="geolite2_country" limit="" hash="net" ipv="ipv4" \
 		mins=$[24 * 60 * 7] history_mins=0 \
@@ -3518,7 +3518,7 @@ declare -A IP2LOCATION_COUNTRY_CONTINENTS='([um]="na" [fk]="sa" [ax]="eu" [as]="
 declare -A IP2LOCATION_COUNTRIES=()
 declare -A IP2LOCATION_CONTINENTS=()
 ip2location_country() {
-	require_cmd -n UNZIP_CMD || return 1
+	[ -z "${UNZIP_CMD}" ] && return 1
 
 	local ipset="ip2location_country" limit="" hash="net" ipv="ipv4" \
 		mins=$[24 * 60 * 1] history_mins=0 \
