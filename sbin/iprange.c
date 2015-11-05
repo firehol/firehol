@@ -62,6 +62,10 @@
  *   - added support for finding the common IPs in multiple files
  *   - added timings
  *   - added verbose output
+ * 2015-11-05 Costa Tsaousis (costa@tsaousis.gr)
+ *   - better error handling when parsing input files
+ *   - optimized printing using internal ip2str() implementation
+ *   - added DNS resolution of hostnames
  *   
  */
 
@@ -73,6 +77,12 @@
 #include <netinet/in.h>
 #include <arpa/inet.h>
 #include <sys/time.h>
+#include <sys/types.h>
+#include <netdb.h>
+
+// the maximum line element to read in input files
+// normally the elements are IP, IP/MASK, HOSTNAME
+#define MAX_INPUT_ELEMENT 255
 
 #ifdef __GNUC__
 // gcc branch optimization
@@ -163,6 +173,48 @@ int prefix_counters[33] = { 0 };
 int prefix_enabled[33] = { 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1 };
 int split_range_disable_printing = 0;
 
+
+#ifdef SYSTEM_IP2STR
+//#warning "Using system functions for ip2str()"
+// the default system ip2str()
+
+static inline char *ip2str(in_addr_t IP) {
+	struct in_addr in;
+	in.s_addr = htonl(IP);
+	return inet_ntoa(in);
+}
+
+#else // ! SYSTEM_IP2STR
+//#warning "Using iprange internal functions for ip2str()"
+
+// very fast implementation of IP address printing
+// this is 30% faster than the system default (inet_ntoa() based)
+// http://stackoverflow.com/questions/1680365/integer-to-ip-address-c
+
+static inline char *ip2str(in_addr_t IP) {
+	static char buf[10];
+
+	int i, k = 0;
+	char c0, c1;
+	
+	for(i = 0; i < 4; i++) {
+		c0 = ((((IP & (0xff << ((3 - i) * 8))) >> ((3 - i) * 8))) / 100) + 0x30;
+		if(c0 != '0') *(buf + k++) = c0;
+
+		c1 = (((((IP & (0xff << ((3 - i) * 8))) >> ((3 - i) * 8))) % 100) / 10) + 0x30;
+		if(!(c1 == '0' && c0 == '0')) *(buf + k++) = c1;
+
+		*(buf + k) = (((((IP & (0xff << ((3 - i) * 8)))) >> ((3 - i) * 8))) % 10) + 0x30;
+		k++;
+
+		if(i < 3) *(buf + k++) = '.';
+	}
+	*(buf + k) = 0;
+
+	return buf;
+}
+#endif // ! SYSTEM_IP2STR
+
 static inline void print_addr(in_addr_t addr, int prefix)
 {
 
@@ -171,14 +223,10 @@ static inline void print_addr(in_addr_t addr, int prefix)
 
 	if(unlikely(split_range_disable_printing)) return;
 
-	struct in_addr in;
-
-	in.s_addr = htonl(addr);
-
 	if (prefix < 32)
-		printf("%s%s/%d%s\n", print_prefix_nets, inet_ntoa(in), prefix, print_suffix_nets);
+		printf("%s%s/%d%s\n", print_prefix_nets, ip2str(addr), prefix, print_suffix_nets);
 	else
-		printf("%s%s%s\n", print_prefix_ips, inet_ntoa(in), print_suffix_ips);
+		printf("%s%s%s\n", print_prefix_ips, ip2str(addr), print_suffix_ips);
 
 }				/* print_addr() */
 
@@ -191,14 +239,14 @@ static inline void print_addr(in_addr_t addr, int prefix)
  *       The maximum possible recursion depth is 32.
  */
 
-static inline void split_range(in_addr_t addr, int prefix, in_addr_t lo, in_addr_t hi)
+static inline int split_range(in_addr_t addr, int prefix, in_addr_t lo, in_addr_t hi)
 {
 
 	in_addr_t bc, lower_half, upper_half;
 
 	if (unlikely((prefix < 0) || (prefix > 32))) {
-		fprintf(stderr, "%s: Invalid mask size %d!\n", PROG, prefix);
-		return;
+		fprintf(stderr, "%s: Invalid netmask %d!\n", PROG, prefix);
+		return 0;
 	}
 
 	bc = broadcast(addr, prefix);
@@ -206,12 +254,12 @@ static inline void split_range(in_addr_t addr, int prefix, in_addr_t lo, in_addr
 	if (unlikely((lo < addr) || (hi > bc))) {
 		fprintf(stderr, "%s: Out of range limits: %x, %x for "
 			"network %x/%d, broadcast: %x!\n", PROG, lo, hi, addr, prefix, bc);
-		return;
+		return 0;
 	}
 
 	if ((lo == addr) && (hi == bc) && prefix_enabled[prefix]) {
 		print_addr(addr, prefix);
-		return;
+		return 1;
 	}
 
 	prefix++;
@@ -219,25 +267,26 @@ static inline void split_range(in_addr_t addr, int prefix, in_addr_t lo, in_addr
 	upper_half = set_bit(addr, prefix, 1);
 
 	if (hi < upper_half) {
-		split_range(lower_half, prefix, lo, hi);
+		return split_range(lower_half, prefix, lo, hi);
 	} else if (lo >= upper_half) {
-		split_range(upper_half, prefix, lo, hi);
-	} else {
-		split_range(lower_half, prefix, lo, broadcast(lower_half, prefix));
-		split_range(upper_half, prefix, upper_half, hi);
+		return split_range(upper_half, prefix, lo, hi);
 	}
+
+	int    i = split_range(lower_half, prefix, lo, broadcast(lower_half, prefix));
+	return i + split_range(upper_half, prefix, upper_half, hi);
 
 }				/* split_range() */
 
 /*-----------------------------------------------------------*/
 /* Convert an A.B.C.D address into a 32-bit host-order value */
 /*-----------------------------------------------------------*/
-static inline in_addr_t a_to_hl(char *ipstr) {
+static inline in_addr_t a_to_hl(char *ipstr, int *err) {
 	struct in_addr in;
 
 	if (unlikely(!inet_aton(ipstr, &in))) {
-		fprintf(stderr, "%s: Invalid address %s. Reason: %s\n", PROG, ipstr, strerror(errno));
+		fprintf(stderr, "%s: Invalid address %s.\n", PROG, ipstr);
 		in.s_addr = 0;
+		if(err) (*err)++;
 		return (ntohl(in.s_addr));
 	}
 
@@ -249,7 +298,7 @@ static inline in_addr_t a_to_hl(char *ipstr) {
 /* convert a network address char string into a host-order network */
 /* address and an integer prefix value                             */
 /*-----------------------------------------------------------------*/
-static inline network_addr_t str_to_netaddr(char *ipstr) {
+static inline network_addr_t str_to_netaddr(char *ipstr, int *err) {
 
 	long int prefix = default_prefix;
 	char *prefixstr;
@@ -262,7 +311,7 @@ static inline network_addr_t str_to_netaddr(char *ipstr) {
 		prefix = strtol(prefixstr, (char **)NULL, 10);
 		if (unlikely(errno || (*prefixstr == '\0') || (prefix < 0) || (prefix > 32))) {
 			// try the netmask format
-			in_addr_t mask = ~a_to_hl(prefixstr);
+			in_addr_t mask = ~a_to_hl(prefixstr, err);
 			//fprintf(stderr, "mask is %u (0x%08x)\n", mask, mask);
 			prefix = 32;
 			while((likely(mask & 0x00000001))) {
@@ -271,7 +320,8 @@ static inline network_addr_t str_to_netaddr(char *ipstr) {
 			}
 
 			if(unlikely(mask)) {
-				fprintf(stderr, "%s: Invalid netmask %s (calculated prefix = %ld, remaining = 0x%08x)\n", PROG, prefixstr, prefix, mask << (32 - prefix));
+				if(err) (*err)++;
+				fprintf(stderr, "%s: Invalid netmask %s\n", PROG, prefixstr);
 				netaddr.addr = 0;
 				netaddr.broadcast = 0;
 				return (netaddr);
@@ -280,9 +330,9 @@ static inline network_addr_t str_to_netaddr(char *ipstr) {
 	}
 
 	if(likely(cidr_use_network))
-		netaddr.addr = network(a_to_hl(ipstr), prefix);
+		netaddr.addr = network(a_to_hl(ipstr, err), prefix);
 	else
-		netaddr.addr = a_to_hl(ipstr);
+		netaddr.addr = a_to_hl(ipstr, err);
 
 	netaddr.broadcast = broadcast(netaddr.addr, prefix);
 
@@ -307,9 +357,11 @@ int compar_netaddr(const void *p1, const void *p2)
 		return (-1);
 	if (na1->broadcast < na2->broadcast)
 		return (1);
+
 	return (0);
 
 }				/* compar_netaddr() */
+
 
 /*------------------------------------------------------*/
 /* Print out an address range in a.b.c.d-A.B.C.D format */
@@ -317,18 +369,14 @@ int compar_netaddr(const void *p1, const void *p2)
 static inline void print_addr_range(in_addr_t lo, in_addr_t hi)
 {
 
-	struct in_addr in;
+	if (unlikely(lo != hi)) {
+		printf("%s%s-", print_prefix_nets, ip2str(lo));
+		printf("%s%s\n", ip2str(hi), print_suffix_nets);
+		return;
+	}
 
-	if (likely(lo != hi)) {
-		in.s_addr = htonl(lo);
-		printf("%s%s-", print_prefix_nets, inet_ntoa(in));
-		in.s_addr = htonl(hi);
-		printf("%s%s\n", inet_ntoa(in), print_suffix_nets);
-	}
-	else {
-		in.s_addr = htonl(hi);
-		printf("%s%s%s\n", print_prefix_ips, inet_ntoa(in), print_suffix_ips);
-	}
+	printf("%s%s%s\n", print_prefix_ips, ip2str(hi), print_suffix_ips);
+
 }				/* print_addr_range() */
 
 
@@ -484,16 +532,10 @@ static inline void ipset_added_entry(ipset *ips) {
 			in_addr_t last_from = ips->netaddrs[ips->entries - 1].addr;
 			in_addr_t last_to = ips->netaddrs[ips->entries - 1].broadcast;
 
-			struct in_addr nf, nt, lf, lt;
-			nf.s_addr = htonl(new_from);
-			nt.s_addr = htonl(new_to);
-			lf.s_addr = htonl(last_from);
-			lt.s_addr = htonl(last_to);
-
-			fprintf(stderr, "%s: NON-OPTIMIZED %s at line %lu, entry %lu, last was %s (%u) - ", PROG, ips->filename, ips->lines, ips->entries, inet_ntoa(lf), last_from);
-			fprintf(stderr, "%s (%u), new is ", inet_ntoa(lt), last_to);
-			fprintf(stderr, "%s (%u) - ", inet_ntoa(nf), new_from);
-			fprintf(stderr, "%s (%u)\n", inet_ntoa(nt), new_to);
+			fprintf(stderr, "%s: NON-OPTIMIZED %s at line %lu, entry %lu, last was %s (%u) - ", PROG, ips->filename, ips->lines, ips->entries, ip2str(last_from), last_from);
+			fprintf(stderr, "%s (%u), new is ", ip2str(last_to), last_to);
+			fprintf(stderr, "%s (%u) - ", ip2str(new_from), new_from);
+			fprintf(stderr, "%s (%u)\n", ip2str(new_to), new_to);
 		}
 	}
 
@@ -507,11 +549,13 @@ static inline void ipset_added_entry(ipset *ips) {
  *
  */
 
-static inline void ipset_add_ipstr(ipset *ips, char *ipstr) {
+static inline int ipset_add_ipstr(ipset *ips, char *ipstr) {
 	ipset_expand(ips, 1);
 
-	ips->netaddrs[ips->entries] = str_to_netaddr(ipstr);
-	ipset_added_entry(ips);
+	int err = 0;
+	ips->netaddrs[ips->entries] = str_to_netaddr(ipstr, &err);
+	if(!err) ipset_added_entry(ips);
+	return !err;
 
 }
 
@@ -829,27 +873,30 @@ static inline ipset *ipset_exclude(ipset *ips1, ipset *ips2) {
  * 		 0 = skip line - nothing useful here
  * 		 1 = parsed 1 ip address
  * 		 2 = parsed 2 ip addresses
+ *       3 = parsed 1 hostname
  *
  */
 
-static inline int parse_line(char *line, int lineid, char *ipstr, char *ipstr2, int len) {
+#define LINE_IS_INVALID -1
+#define LINE_IS_EMPTY 0
+#define LINE_HAS_1_IP 1
+#define LINE_HAS_2_IPS 2
+#define LINE_HAS_1_HOSTNAME 3
+
+static inline int parse_hostname(char *line, int lineid, char *ipstr, char *ipstr2, int len) {
 	char *s = line;
 	
 	// skip all spaces
 	while(unlikely(*s == ' ' || *s == '\t')) s++;
 
-	// skip a line of comment
-	if(unlikely(*s == '#' || *s == ';')) return 0;
-
-	// if we reached the end of line
-	if(unlikely(*s == '\r' || *s == '\n' || *s == '\0')) return 0;
-
-	// get the ip address
 	int i = 0;
-	while(likely(i < len && ((*s >= '0' && *s <= '9') || *s == '.' || *s == '/')))
-		ipstr[i++] = *s++;
-
-	if(unlikely(!i)) return -1;
+	while(likely(i < len && (
+		   (*s >= '0' && *s <= '9')
+		|| (*s >= 'a' && *s <= 'z')
+		|| (*s >= 'A' && *s <= 'Z')
+		|| *s == '-'
+		|| *s == '.'
+		))) ipstr[i++] = *s++;
 
 	// terminate ipstr
 	ipstr[i] = '\0';
@@ -858,14 +905,51 @@ static inline int parse_line(char *line, int lineid, char *ipstr, char *ipstr2, 
 	while(unlikely(*s == ' ' || *s == '\t')) s++;
 
 	// the rest is comment
-	if(unlikely(*s == '#' || *s == ';')) return 1;
+	if(unlikely(*s == '#' || *s == ';')) return LINE_HAS_1_HOSTNAME;
 
 	// if we reached the end of line
-	if(likely(*s == '\r' || *s == '\n' || *s == '\0')) return 1;
+	if(likely(*s == '\r' || *s == '\n' || *s == '\0')) return LINE_HAS_1_HOSTNAME;
+
+	fprintf(stderr, "%s: Ignoring text after hostname '%s' on line %d: '%s'\n", PROG, ipstr, lineid, s);
+
+	return LINE_HAS_1_HOSTNAME;
+}
+
+static inline int parse_line(char *line, int lineid, char *ipstr, char *ipstr2, int len) {
+	char *s = line;
+	
+	// skip all spaces
+	while(unlikely(*s == ' ' || *s == '\t')) s++;
+
+	// skip a line of comment
+	if(unlikely(*s == '#' || *s == ';')) return LINE_IS_EMPTY;
+
+	// if we reached the end of line
+	if(unlikely(*s == '\r' || *s == '\n' || *s == '\0')) return LINE_IS_EMPTY;
+
+	// get the ip address
+	int i = 0;
+	while(likely(i < len && ((*s >= '0' && *s <= '9') || *s == '.' || *s == '/')))
+		ipstr[i++] = *s++;
+
+	if(unlikely(!i)) return parse_hostname(line, lineid, ipstr, ipstr2, len);
+
+	// terminate ipstr
+	ipstr[i] = '\0';
+
+	// skip all spaces
+	while(unlikely(*s == ' ' || *s == '\t')) s++;
+
+	// the rest is comment
+	if(unlikely(*s == '#' || *s == ';')) return LINE_HAS_1_IP;
+
+	// if we reached the end of line
+	if(likely(*s == '\r' || *s == '\n' || *s == '\0')) return LINE_HAS_1_IP;
 
 	if(unlikely(*s != '-')) {
-		fprintf(stderr, "%s: Ignoring text on line %d, expected a - after %s, but found '%s'\n", PROG, lineid, ipstr, s);
-		return 1;
+		//fprintf(stderr, "%s: Ignoring text on line %d, expected a - after %s, but found '%s'\n", PROG, lineid, ipstr, s);
+		//return LINE_HAS_1_IP;
+		return parse_hostname(line, lineid, ipstr, ipstr2, len);
 	}
 
 	// skip the -
@@ -877,13 +961,13 @@ static inline int parse_line(char *line, int lineid, char *ipstr, char *ipstr2, 
 	// the rest is comment
 	if(unlikely(*s == '#' || *s == ';')) {
 		fprintf(stderr, "%s: Ignoring text on line %d, expected an ip address after -, but found '%s'\n", PROG, lineid, s);
-		return 1;
+		return LINE_HAS_1_IP;
 	}
 
 	// if we reached the end of line
 	if(unlikely(*s == '\r' || *s == '\n' || *s == '\0')) {
 		fprintf(stderr, "%s: Incomplete range on line %d, expected an ip address after -, but line ended\n", PROG, lineid);
-		return 1;
+		return LINE_HAS_1_IP;
 	}
 
 	// get the ip 2nd address
@@ -892,8 +976,9 @@ static inline int parse_line(char *line, int lineid, char *ipstr, char *ipstr2, 
 		ipstr2[i++] = *s++;
 
 	if(unlikely(!i)) {
-		fprintf(stderr, "%s: Incomplete range on line %d, expected an ip address after -, but line ended\n", PROG, lineid);
-		return 1;
+		//fprintf(stderr, "%s: Incomplete range on line %d, expected an ip address after -, but line ended\n", PROG, lineid);
+		//return LINE_HAS_1_IP;
+		return parse_hostname(line, lineid, ipstr, ipstr2, len);
 	}
 
 	// terminate ipstr
@@ -903,16 +988,15 @@ static inline int parse_line(char *line, int lineid, char *ipstr, char *ipstr2, 
 	while(unlikely(*s == ' ' || *s == '\t')) s++;
 
 	// the rest is comment
-	if(unlikely(*s == '#' || *s == ';')) return 2;
+	if(unlikely(*s == '#' || *s == ';')) return LINE_HAS_2_IPS;
 
 	// if we reached the end of line
-	if(likely(*s == '\r' || *s == '\n' || *s == '\0')) return 2;
+	if(likely(*s == '\r' || *s == '\n' || *s == '\0')) return LINE_HAS_2_IPS;
 
-	fprintf(stderr, "%s: Ignoring text on line %d, after the second ip address: '%s'\n", PROG, lineid, s);
-	return 2;
+	//fprintf(stderr, "%s: Ignoring text on line %d, after the second ip address: '%s'\n", PROG, lineid, s);
+	//return LINE_HAS_2_IPS;
+	return parse_hostname(line, lineid, ipstr, ipstr2, len);
 }
-
-
 
 /* ----------------------------------------------------------------------------
  * binary files v1.0
@@ -947,7 +1031,7 @@ int ipset_load_binary_v10(FILE *fp, ipset *ips, int first_line_missing) {
 		return 1;
 	}
 	if(atol(&s[12]) != sizeof(network_addr_t)) {
-		fprintf(stderr, "%s: %s: invalid record size %lu (expected %lu)\n", PROG, ips->filename, atol(&s[12]), sizeof(network_addr_t));
+		fprintf(stderr, "%s: %s: invalid record size %lu (expected %lu)\n", PROG, ips->filename, atol(&s[12]), (unsigned long)sizeof(network_addr_t));
 		return 1;
 	}
 
@@ -1028,7 +1112,7 @@ void ipset_save_binary_v10(ipset *ips) {
 	fprintf(stdout, BINARY_HEADER_V10);
 	if(ips->flags & IPSET_FLAG_OPTIMIZED) fprintf(stdout, "optimized\n");
 	else fprintf(stdout, "non-optimized\n");
-	fprintf(stdout, "record size %lu\n", sizeof(network_addr_t));
+	fprintf(stdout, "record size %lu\n", (unsigned long)sizeof(network_addr_t));
 	fprintf(stdout, "records %lu\n", ips->entries);
 	fprintf(stdout, "bytes %lu\n", (sizeof(network_addr_t) * ips->entries) + sizeof(uint32_t));
 	fprintf(stdout, "lines %lu\n", ips->lines);
@@ -1067,7 +1151,7 @@ ipset *ipset_load(const char *filename) {
 	ips->flags |= IPSET_FLAG_OPTIMIZED;
 
 	int lineid = 0;
-	char line[MAX_LINE + 1], ipstr[101], ipstr2[101];
+	char line[MAX_LINE + 1], ipstr[MAX_INPUT_ELEMENT + 1], ipstr2[MAX_INPUT_ELEMENT + 1];
 	if(!fgets(line, MAX_LINE, fp)) return ips;
 
 	if(unlikely(!strcmp(line, BINARY_HEADER_V10))) {
@@ -1086,32 +1170,71 @@ ipset *ipset_load(const char *filename) {
 	do {
 		lineid++;
 
-		switch(parse_line(line, lineid, ipstr, ipstr2, 100)) {
-			case -1:
+		switch(parse_line(line, lineid, ipstr, ipstr2, MAX_INPUT_ELEMENT)) {
+			case LINE_IS_INVALID:
 				// cannot read line
 				fprintf(stderr, "%s: Cannot understand line No %d from %s: %s\n", PROG, lineid, ips->filename, line);
 				break;
 
-			case 0:
+			case LINE_IS_EMPTY:
 				// nothing on this line
 				break;
 
-			case 1:
+			case LINE_HAS_1_IP:
 				// 1 IP on this line
-				ipset_add_ipstr(ips, ipstr);
+				if(unlikely(!ipset_add_ipstr(ips, ipstr)))
+					fprintf(stderr, "%s: Cannot understand line No %d from %s: %s\n", PROG, lineid, ips->filename, line);
 				break;
 
-			case 2:
+			case LINE_HAS_2_IPS:
 				// 2 IPs in range on this line
 				{
+					int err = 0;
 					in_addr_t lo, hi;
 					network_addr_t netaddr1, netaddr2;
-					netaddr1 = str_to_netaddr(ipstr);
-					netaddr2 = str_to_netaddr(ipstr2);
+					netaddr1 = str_to_netaddr(ipstr, &err);
+					if(likely(!err)) netaddr2 = str_to_netaddr(ipstr2, &err);
+					if(unlikely(err)) {
+						fprintf(stderr, "%s: Cannot understand line No %d from %s: %s\n", PROG, lineid, ips->filename, line);
+						continue;
+					}
 
 					lo = (netaddr1.addr < netaddr2.addr)?netaddr1.addr:netaddr2.addr;
 					hi = (netaddr1.broadcast > netaddr2.broadcast)?netaddr1.broadcast:netaddr2.broadcast;
 					ipset_add(ips, lo, hi);
+				}
+				break;
+
+			case LINE_HAS_1_HOSTNAME:
+				{
+					if(unlikely(debug))
+						fprintf(stderr, "%s: DNS resolution for hostname '%s' from line %d of file %s.\n", PROG, ipstr, lineid, ips->filename);
+
+					int r;
+					struct addrinfo *result, *rp, hints;
+					hints.ai_family = AF_INET;
+					hints.ai_socktype = SOCK_DGRAM;
+					hints.ai_flags = 0;
+					hints.ai_protocol = 0;
+
+					r = getaddrinfo(ipstr, "80", &hints, &result);
+					if(r != 0) {
+						fprintf(stderr, "%s: Cannot find the IP of hostname '%s' from line %d of file %s. Reason: %s\n", PROG, ipstr, lineid, ips->filename, gai_strerror(r));
+						continue;
+					}
+
+					for (rp = result; rp != NULL; rp = rp->ai_next) {
+						char host[MAX_INPUT_ELEMENT + 1];
+						r = getnameinfo(result->ai_addr, result->ai_addrlen, host, sizeof(host), NULL, 0, NI_NUMERICHOST);
+						if (r != 0) {
+							fprintf(stderr, "%s: Cannot convert to string the IP of hostname '%s' from line %d of file %s. Reason: %s\n", PROG, ipstr, lineid, ips->filename, gai_strerror(r));
+							continue;
+						}
+
+						if(unlikely(!ipset_add_ipstr(ips, host)))
+							fprintf(stderr, "%s: Cannot understand line No %d from %s: %s\n", PROG, lineid, ips->filename, line);
+					}
+					freeaddrinfo(result);
 				}
 				break;
 
@@ -1279,23 +1402,29 @@ void ipset_print(ipset *ips, int print) {
 
 	if(unlikely(debug)) fprintf(stderr, "%s: Printing %s\n", PROG, ips->filename);
 
-	for(i = 0; i < n ;i++) {
-		if(likely(print == PRINT_CIDR))
-			split_range(0, 0, ips->netaddrs[i].addr, ips->netaddrs[i].broadcast);
-
-		else if(likely(print == PRINT_SINGLE_IPS)) {
-			in_addr_t x = ips->netaddrs[i].addr, broadcast = ips->netaddrs[i].broadcast;
-			for( ; likely(1) ; ) {
-				print_addr_range(x, x);
-				total++;
-
-				if(unlikely(x++ == broadcast)) break;
+	switch(print) {
+		case PRINT_CIDR:
+			for(i = 0; i < n ;i++) {
+				total += split_range(0, 0, ips->netaddrs[i].addr, ips->netaddrs[i].broadcast);
 			}
-		}
-		else {
-			print_addr_range(ips->netaddrs[i].addr, ips->netaddrs[i].broadcast);
-			total++;
-		}
+			break;
+
+		case PRINT_SINGLE_IPS:
+			for(i = 0; i < n ;i++) {
+				in_addr_t x, start = ips->netaddrs[i].addr, end = ips->netaddrs[i].broadcast;
+				for( x = start ; x >= start && x <= end ; x++ ) {
+					print_addr_range(x, x);
+					total++;
+				}
+			}
+			break;
+
+		default:
+			for(i = 0; i < n ;i++) {
+				print_addr_range(ips->netaddrs[i].addr, ips->netaddrs[i].broadcast);
+				total++;
+			}
+			break;
 	}
 
 	// print prefix break down
@@ -1303,7 +1432,10 @@ void ipset_print(ipset *ips, int print) {
 		int prefixes = 0;
 
 		if (print == PRINT_CIDR) {
-			fprintf(stderr, "\nBreak down by prefix:\n");
+			
+			fprintf(stderr, "\n%lu printed CIDRs, break down by prefix:\n", total);
+			
+			total = 0;
 			for(i = 0; i <= 32 ;i++) {
 				if(prefix_counters[i]) {
 					fprintf(stderr, "	- prefix /%d counts %d entries\n", i, prefix_counters[i]);
