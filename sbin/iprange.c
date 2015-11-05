@@ -1121,6 +1121,41 @@ void ipset_save_binary_v10(ipset *ips) {
 	fwrite(ips->netaddrs, sizeof(network_addr_t), ips->entries, stdout);
 }
 
+
+/* ----------------------------------------------------------------------------
+ * hostname resolution
+ */
+
+int resolve_hostname(ipset *ips, char *hostname)
+{
+	int r;
+	struct addrinfo *result, *rp, hints;
+	hints.ai_family = AF_INET;
+	hints.ai_socktype = SOCK_DGRAM;
+	hints.ai_flags = 0;
+	hints.ai_protocol = 0;
+
+	r = getaddrinfo(hostname, "80", &hints, &result);
+	if(r != 0) {
+		fprintf(stderr, "%s: Cannot resolve hostname '%s' found in file %s. Reason: %s\n", PROG, hostname, ips->filename, gai_strerror(r));
+		return 1;
+	}
+
+	for (rp = result; rp != NULL; rp = rp->ai_next) {
+		char host[MAX_INPUT_ELEMENT + 1];
+		r = getnameinfo(result->ai_addr, result->ai_addrlen, host, sizeof(host), NULL, 0, NI_NUMERICHOST);
+		if (r != 0) {
+			fprintf(stderr, "%s: Cannot find the IP of hostname '%s' found in file %s. Reason: %s\n", PROG, hostname, ips->filename, gai_strerror(r));
+			return 1;
+		}
+
+		if(unlikely(!ipset_add_ipstr(ips, host)))
+			fprintf(stderr, "%s: Cannot add the IP '%s' of hostname '%s' found in file %s. Reason: %s\n", PROG, host, hostname, ips->filename, gai_strerror(r));
+	}
+	freeaddrinfo(result);
+	return 0;
+}
+
 /* ----------------------------------------------------------------------------
  * ipset_load()
  *
@@ -1206,36 +1241,10 @@ ipset *ipset_load(const char *filename) {
 				break;
 
 			case LINE_HAS_1_HOSTNAME:
-				{
-					if(unlikely(debug))
-						fprintf(stderr, "%s: DNS resolution for hostname '%s' from line %d of file %s.\n", PROG, ipstr, lineid, ips->filename);
+				if(unlikely(debug))
+					fprintf(stderr, "%s: requesting DNS resolution for hostname '%s' from line %d of file %s.\n", PROG, ipstr, lineid, ips->filename);
 
-					int r;
-					struct addrinfo *result, *rp, hints;
-					hints.ai_family = AF_INET;
-					hints.ai_socktype = SOCK_DGRAM;
-					hints.ai_flags = 0;
-					hints.ai_protocol = 0;
-
-					r = getaddrinfo(ipstr, "80", &hints, &result);
-					if(r != 0) {
-						fprintf(stderr, "%s: Cannot find the IP of hostname '%s' from line %d of file %s. Reason: %s\n", PROG, ipstr, lineid, ips->filename, gai_strerror(r));
-						continue;
-					}
-
-					for (rp = result; rp != NULL; rp = rp->ai_next) {
-						char host[MAX_INPUT_ELEMENT + 1];
-						r = getnameinfo(result->ai_addr, result->ai_addrlen, host, sizeof(host), NULL, 0, NI_NUMERICHOST);
-						if (r != 0) {
-							fprintf(stderr, "%s: Cannot convert to string the IP of hostname '%s' from line %d of file %s. Reason: %s\n", PROG, ipstr, lineid, ips->filename, gai_strerror(r));
-							continue;
-						}
-
-						if(unlikely(!ipset_add_ipstr(ips, host)))
-							fprintf(stderr, "%s: Cannot understand line No %d from %s: %s\n", PROG, lineid, ips->filename, line);
-					}
-					freeaddrinfo(result);
-				}
+				resolve_hostname(ips, ipstr);
 				break;
 
 			default:
