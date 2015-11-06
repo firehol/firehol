@@ -69,6 +69,8 @@
  *   
  */
 
+#define _GNU_SOURCE
+ 
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
@@ -1126,7 +1128,137 @@ void ipset_save_binary_v10(ipset *ips) {
  * hostname resolution
  */
 
-int resolve_hostname(ipset *ips, char *hostname)
+#ifdef ASYNC_RESOLVER
+
+struct dnsreq {
+	struct gaicb req; // has to be the first member
+
+	char host[MAX_INPUT_ELEMENT + 1];
+
+	struct dnsreq *prev;
+	struct dnsreq *next;
+} *dnsreqs = NULL;
+
+int dns_max = 50;
+int dns_cur = 0;
+
+int dns_process_results(ipset *ips)
+{
+	if(!dns_cur) return 0;
+
+	struct dnsreq *d;
+	int ret;
+
+	for(d = dnsreqs; d ; d = d->next) {
+		ret = gai_error(&d->req);
+		if(ret) continue;
+
+		if(unlikely(debug))
+			fprintf(stderr, "%s: Request for '%s' completed.\n", PROG, d->req.ar_name);
+
+		struct addrinfo *rp;
+		for (rp = d->req.ar_result; rp != NULL; rp = rp->ai_next) {
+			char host[MAX_INPUT_ELEMENT + 1];
+
+			int r = getnameinfo(rp->ai_addr, rp->ai_addrlen, host, MAX_INPUT_ELEMENT, NULL, 0, NI_NUMERICHOST);
+			if(r != 0) {
+				fprintf(stderr, "%s: Cannot find the IP of hostname '%s' found in file %s. Reason: %s\n", PROG, d->req.ar_name, ips->filename, gai_strerror(r));
+				continue;
+			}
+
+			if(unlikely(!ipset_add_ipstr(ips, host)))
+				fprintf(stderr, "%s: Cannot add the IP '%s' of hostname '%s' found in file %s. Reason: %s\n", PROG, host, d->req.ar_name, ips->filename, gai_strerror(r));
+		}
+
+		if(d->next) d->next->prev = d->prev;
+		if(d->prev) d->prev->next = d->next;
+		if(dnsreqs == d) {
+			if(d->prev) dnsreqs = d->prev;
+			else dnsreqs = d->next;
+		}
+		free(d);
+		d = dnsreqs;
+		dns_cur--;
+		return 1;
+	}
+
+	return 0;
+}
+
+int dns_wait_request(ipset *ips)
+{
+	if(dns_process_results(ips)) return 0;
+
+	if(!dns_cur) return 0;
+
+	struct gaicb const *wait_reqs[dns_cur];
+	struct dnsreq *d;
+
+	int nreqs = 0;
+	for(d = dnsreqs, nreqs = 0; d ; d = d->next) {
+		wait_reqs[nreqs++] = &d->req;
+	}
+
+	int ret = gai_suspend(wait_reqs, nreqs, NULL);
+	if(ret) {
+		free(d);
+		fprintf(stderr, "%s: Cannot wait for DNS resolutions. Reason: %s\n", PROG, gai_strerror(ret));
+		return 1;
+	}
+
+	if(dns_process_results(ips)) return 0;
+	return 1;
+}
+
+void dns_wait_all(ipset *ips)
+{
+	if(dns_cur)
+		dns_wait_request(ips);
+}
+
+int dns_add_request(ipset *ips, char *host)
+{
+	while(dns_cur >= dns_max) {
+		if(unlikely(debug))
+			fprintf(stderr, "%s: %d DNS requests queued. Waiting for some of them to complete.\n", PROG, dns_cur);
+
+		dns_wait_request(ips);
+	}
+
+	struct dnsreq *d = calloc(1, sizeof(struct dnsreq));
+	if(!d) {
+		fprintf(stderr, "%s: out of memory.\n", PROG);
+		return 1;
+	}
+
+	strncpy(d->host, host, MAX_INPUT_ELEMENT);
+	d->host[MAX_INPUT_ELEMENT] = '\0';
+
+	d->req.ar_name = d->host;
+
+	struct gaicb *reqs[1];
+	reqs[0] = &d->req;
+
+	int ret = getaddrinfo_a(GAI_NOWAIT, reqs, 1, NULL);
+	if(ret) {
+		free(d);
+		fprintf(stderr, "%s: Cannot request DNS resolutions for hostname '%s'. Reason: %s\n", PROG, host, gai_strerror(ret));
+		return 1;
+	}
+	else if(unlikely(debug))
+			fprintf(stderr, "%s: Queued DNS request No %d, for '%s'.\n", PROG, dns_cur + 1, host);
+
+	d->next = dnsreqs;
+	if(d->next) d->next->prev = d;
+	dnsreqs = d;
+	dns_cur++;
+
+	return 0;
+}
+
+#else // ! ASYNC_RESOLVER
+
+int dns_add_request(ipset *ips, char *hostname)
 {
 	int r;
 	struct addrinfo *result, *rp, hints;
@@ -1143,7 +1275,7 @@ int resolve_hostname(ipset *ips, char *hostname)
 
 	for (rp = result; rp != NULL; rp = rp->ai_next) {
 		char host[MAX_INPUT_ELEMENT + 1];
-		r = getnameinfo(result->ai_addr, result->ai_addrlen, host, sizeof(host), NULL, 0, NI_NUMERICHOST);
+		r = getnameinfo(rp->ai_addr, rp->ai_addrlen, host, sizeof(host), NULL, 0, NI_NUMERICHOST);
 		if (r != 0) {
 			fprintf(stderr, "%s: Cannot find the IP of hostname '%s' found in file %s. Reason: %s\n", PROG, hostname, ips->filename, gai_strerror(r));
 			return 1;
@@ -1155,6 +1287,13 @@ int resolve_hostname(ipset *ips, char *hostname)
 	freeaddrinfo(result);
 	return 0;
 }
+
+void dns_wait_all(ipset *ips)
+{
+	;
+}
+
+#endif // ! ASYNC_RESOLVER
 
 /* ----------------------------------------------------------------------------
  * ipset_load()
@@ -1244,7 +1383,8 @@ ipset *ipset_load(const char *filename) {
 				if(unlikely(debug))
 					fprintf(stderr, "%s: requesting DNS resolution for hostname '%s' from line %d of file %s.\n", PROG, ipstr, lineid, ips->filename);
 
-				resolve_hostname(ips, ipstr);
+				// resolve_hostname(ips, ipstr);
+				dns_add_request(ips, ipstr);
 				break;
 
 			default:
@@ -1255,6 +1395,8 @@ ipset *ipset_load(const char *filename) {
 	} while(likely(ips && fgets(line, MAX_LINE, fp)));
 
 	if(likely(fp != stdin)) fclose(fp);
+
+	dns_wait_all(ips);
 
 	if(unlikely(!ips)) return NULL;
 
