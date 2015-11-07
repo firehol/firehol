@@ -1828,6 +1828,7 @@ history_statistics() {
 			xtotal=0 count=0
 
 	# calculate the average update time of the list
+	# and the min/max entries and IPs
 	while IFS="," read xdate xentries xips
 	do
 		# skip the header
@@ -5906,7 +5907,13 @@ badipscom() {
 				# ipset_info "${ipset}" "update frequency set to ${freq} mins"
 			fi
 
-			update "${ipset}" ${freq} 0 ipv4 ip "${url}" remove_comments "attacks" "${info}" "BadIPs.com" "https://www.badips.com/"
+			update "${ipset}" ${freq} 0 ipv4 ip \
+				"${url}" \
+				remove_comments \
+				"attacks" \
+				"${info}" \
+				"BadIPs.com" "https://www.badips.com/" \
+				can_be_empty
 		done
 
 		if [ ${count} -eq 0 ]
