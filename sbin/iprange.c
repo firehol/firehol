@@ -1165,7 +1165,7 @@ DNSREP *dns_replies = NULL;
 int dns_threads = 0;
 int dns_threads_max = 5;
 int dns_silent = 0;
-int dns_progress = 1;
+int dns_progress = 0;
 unsigned long dns_requests_pending = 0;
 unsigned long dns_requests_made = 0;
 unsigned long dns_requests_finished = 0;
@@ -2068,9 +2068,8 @@ void usage(const char *me) {
 		"		do not print DNS resolution errors\n"
 		"		the default is to print all DNS related errors\n"
 		"\n"
-		"	--dns-no-progress\n"
-		"		do not print DNS resolution progress bar\n"
-		"		the default is to print the progress bar\n"
+		"	--dns-progress\n"
+		"		print DNS resolution progress bar\n"
 		"\n"
 		"\n"
 		"	--------------------------------------------------------------\n"
@@ -2323,8 +2322,8 @@ int main(int argc, char **argv) {
 		else if(!strcmp(argv[i], "--dns-silent")) {
 			dns_silent = 1;
 		}
-		else if(!strcmp(argv[i], "--dns-no-progress")) {
-			dns_progress = 0;
+		else if(!strcmp(argv[i], "--dns-progress")) {
+			dns_progress = 1;
 		}
 		else if(!strcmp(argv[i], "--has-compare")
 			|| !strcmp(argv[i], "--has-reduce")) {
