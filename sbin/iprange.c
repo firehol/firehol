@@ -14,7 +14,7 @@
  *      comment by Costa Tsaousis:
  *      An excellent work by Gabriel Somlo for loading and merging CIDRs.
  *      I have built all the features this tool provides on top of the
- *      (still) almost untouched original source.
+ *      original work of Gabriel.
  *
  *  License
  *
@@ -34,10 +34,7 @@
  *      See the file COPYING for details.
  *
  * To compile:
- *  on Linux:
- *   gcc -o iprange iprange.c -O2 -Wall
- *  on Solaris 8, Studio 8 CC:
- *   cc -xO5 -xarch=v8plusa -xdepend iprange.c -o iprange -lnsl -lresolv
+ *   gcc -o iprange iprange.c -O2 -Wall -lpthread
  *
  * CHANGELOG:
  *  2003 Gabriel L. Somlo, the original author of iprange.c core
@@ -66,11 +63,11 @@
  *   - better error handling when parsing input files
  *   - optimized printing using internal ip2str() implementation
  *   - added DNS resolution of hostnames
+ * 2015-11-05 Costa Tsaousis (costa@tsaousis.gr)
+ *   - added threaded DNS resolution of hostnames
  *   
  */
 
-#define _GNU_SOURCE
- 
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
@@ -81,6 +78,8 @@
 #include <sys/time.h>
 #include <sys/types.h>
 #include <netdb.h>
+#include <pthread.h>
+#include <unistd.h>
 
 // the maximum line element to read in input files
 // normally the elements are IP, IP/MASK, HOSTNAME
@@ -198,7 +197,7 @@ static inline char *ip2str(in_addr_t IP) {
 
 	int i, k = 0;
 	char c0, c1;
-	
+
 	for(i = 0; i < 4; i++) {
 		c0 = ((((IP & (0xff << ((3 - i) * 8))) >> ((3 - i) * 8))) / 100) + 0x30;
 		if(c0 != '0') *(buf + k++) = c0;
@@ -243,6 +242,16 @@ static inline void print_addr(in_addr_t addr, int prefix)
 
 static inline int split_range(in_addr_t addr, int prefix, in_addr_t lo, in_addr_t hi)
 {
+
+	if(unlikely(lo > hi)) {
+		// it should never happen
+		// give a log for the user to see
+		fprintf(stderr, "%s: WARNING: invalid range reversed start=%s", PROG, ip2str(lo));
+		fprintf(stderr, " end=%s\n", ip2str(hi));
+		in_addr_t t = hi;
+		hi = lo;
+		lo = t;
+	}
 
 	in_addr_t bc, lower_half, upper_half;
 
@@ -370,6 +379,16 @@ int compar_netaddr(const void *p1, const void *p2)
 /*------------------------------------------------------*/
 static inline void print_addr_range(in_addr_t lo, in_addr_t hi)
 {
+
+	if(unlikely(lo > hi)) {
+		// it should never happen
+		// give a log for the user to see
+		fprintf(stderr, "%s: WARNING: invalid range reversed start=%s", PROG, ip2str(lo));
+		fprintf(stderr, " end=%s\n", ip2str(hi));
+		in_addr_t t = hi;
+		hi = lo;
+		lo = t;
+	}
 
 	if (unlikely(lo != hi)) {
 		printf("%s%s-", print_prefix_nets, ip2str(lo));
@@ -886,6 +905,8 @@ static inline ipset *ipset_exclude(ipset *ips1, ipset *ips2) {
 #define LINE_HAS_1_HOSTNAME 3
 
 static inline int parse_hostname(char *line, int lineid, char *ipstr, char *ipstr2, int len) {
+	if(ipstr2) { ; }
+
 	char *s = line;
 	
 	// skip all spaces
@@ -1128,172 +1149,253 @@ void ipset_save_binary_v10(ipset *ips) {
  * hostname resolution
  */
 
-#ifdef ASYNC_RESOLVER
-
-struct dnsreq {
-	struct gaicb req; // has to be the first member
-
-	char host[MAX_INPUT_ELEMENT + 1];
-
-	struct dnsreq *prev;
+typedef struct dnsreq {
+	char *hostname;
 	struct dnsreq *next;
-} *dnsreqs = NULL;
+} DNSREQ;
 
-int dns_max = 50;
-int dns_cur = 0;
+typedef struct dnsrep {
+	in_addr_t ip;
+	struct dnsrep *next;
+} DNSREP;
 
-int dns_process_results(ipset *ips)
+DNSREQ *dns_requests = NULL;
+DNSREP *dns_replies = NULL;
+int dns_threads = 0;
+int dns_threads_max = 5;
+unsigned long dns_requests_pending = 0;
+unsigned long dns_requests_made = 0;
+unsigned long dns_requests_finished = 0;
+unsigned long dns_replies_found = 0;
+unsigned long dns_replies_failed = 0;
+
+pthread_mutex_t dns_mut = PTHREAD_MUTEX_INITIALIZER;
+pthread_cond_t dns_cond = PTHREAD_COND_INITIALIZER;
+pthread_rwlock_t dns_requests_rwlock = PTHREAD_RWLOCK_INITIALIZER;
+pthread_rwlock_t dns_replies_rwlock = PTHREAD_RWLOCK_INITIALIZER;
+
+void dns_lock_requests(void)   { pthread_rwlock_wrlock(&dns_requests_rwlock); }
+void dns_unlock_requests(void) { pthread_rwlock_unlock(&dns_requests_rwlock); }
+void dns_lock_replies(void)    { pthread_rwlock_wrlock(&dns_replies_rwlock); }
+void dns_unlock_replies(void)  { pthread_rwlock_unlock(&dns_replies_rwlock); }
+
+void *dns_thread_resolve(void *ptr);
+
+// to be called by the main thread
+// to add a new DNS resolution request
+void dns_request_add(DNSREQ *d)
 {
-	if(!dns_cur) return 0;
+	dns_lock_requests();
+	d->next = dns_requests;
+	dns_requests = d;
+	dns_requests_pending++;
+	dns_requests_made++;
+	dns_unlock_requests();
 
-	struct dnsreq *d;
-	int ret;
+	if(dns_requests && (dns_requests->next || dns_threads == 0) && dns_threads < dns_threads_max) {
+		//if(unlikely(debug))
+		//	fprintf(stderr, "%s: Creating new DNS thread\n", PROG);
 
-	for(d = dnsreqs; d ; d = d->next) {
-		ret = gai_error(&d->req);
-		if(ret) continue;
+		// start a new thread
+		pthread_t thread;
+		
+		if(pthread_create(&thread, NULL, dns_thread_resolve, NULL)) {
+			fprintf(stderr, "%s: Cannot create DNS thread.\n", PROG);
+			return;
+		}
+		else if(pthread_detach(thread)) {
+			fprintf(stderr, "%s: Cannot detach DNS thread.\n", PROG);
+			return;
+		}
 
-		if(unlikely(debug))
-			fprintf(stderr, "%s: Request for '%s' completed.\n", PROG, d->req.ar_name);
+		dns_threads++;
+	}
 
-		struct addrinfo *rp;
-		for (rp = d->req.ar_result; rp != NULL; rp = rp->ai_next) {
-			char host[MAX_INPUT_ELEMENT + 1];
+	pthread_mutex_lock(&dns_mut);
+	pthread_cond_signal(&dns_cond);
+	pthread_mutex_unlock(&dns_mut);
+}
 
-			int r = getnameinfo(rp->ai_addr, rp->ai_addrlen, host, MAX_INPUT_ELEMENT, NULL, 0, NI_NUMERICHOST);
-			if(r != 0) {
-				fprintf(stderr, "%s: Cannot find the IP of hostname '%s' found in file %s. Reason: %s\n", PROG, d->req.ar_name, ips->filename, gai_strerror(r));
+// to be called by a worker thread
+// to let the main thread it has completed a DNS resolution
+void dns_request_done(DNSREQ *d, int added)
+{
+	dns_lock_requests();
+	dns_requests_pending--;
+	dns_requests_finished++;
+
+	if(!added) dns_replies_failed++;
+	else dns_replies_found += added;
+
+	dns_unlock_requests();
+
+	free(d->hostname);
+	free(d);
+}
+
+// to be called by a worker thread
+// to get a resolution request from the requests queue
+DNSREQ *dns_request_get(void)
+{
+	DNSREQ *ret = NULL;
+
+	//if(unlikely(debug))
+	//	fprintf(stderr, "%s: THREAD waiting for DNS REQUEST\n", PROG);
+
+	while(!ret) {
+		if(dns_requests) {
+			dns_lock_requests();
+			if(dns_requests) {
+				ret = dns_requests;
+				dns_requests = dns_requests->next;
+				ret->next = NULL;
+			}
+			dns_unlock_requests();
+			if(ret) return ret;
+		}
+
+		pthread_mutex_lock(&dns_mut);
+		while(!dns_requests)
+			pthread_cond_wait(&dns_cond, &dns_mut);
+		pthread_mutex_unlock(&dns_mut);
+	}
+
+	return ret;
+}
+
+void *dns_thread_resolve(void *ptr)
+{
+	if(ptr) { ; }
+
+	//if(unlikely(debug))
+	//	fprintf(stderr, "%s: THREAD created\n", PROG);
+
+	DNSREQ *d;
+	while((d = dns_request_get())) {
+		int added = 0;
+
+		//if(unlikely(debug))
+		//	fprintf(stderr, "%s: THREAD resolving DNS REQUEST for '%s'\n", PROG, d->hostname);
+
+		int r;
+		struct addrinfo *result, *rp, hints;
+		
+		hints.ai_family = AF_INET;
+		hints.ai_socktype = SOCK_DGRAM;
+		hints.ai_flags = 0;
+		hints.ai_protocol = 0;
+
+		r = getaddrinfo(d->hostname, "80", &hints, &result);
+		if(r != 0) {
+			fprintf(stderr, "%s: DNS: '%s' failed: %s\n", PROG, d->hostname, gai_strerror(r));
+			dns_request_done(d, added);
+			continue;
+		}
+
+		for (rp = result; rp != NULL; rp = rp->ai_next) {
+			char host[MAX_INPUT_ELEMENT + 1] = "";
+			r = getnameinfo(rp->ai_addr, rp->ai_addrlen, host, sizeof(host), NULL, 0, NI_NUMERICHOST);
+			if (r != 0) {
+				fprintf(stderr, "%s: DNS: '%s' failed: %s\n", PROG, d->hostname, gai_strerror(r));
 				continue;
 			}
 
-			if(unlikely(!ipset_add_ipstr(ips, host)))
-				fprintf(stderr, "%s: Cannot add the IP '%s' of hostname '%s' found in file %s. Reason: %s\n", PROG, host, d->req.ar_name, ips->filename, gai_strerror(r));
+			int err = 0;
+			network_addr_t net = str_to_netaddr(host, &err);
+			if(err) {
+				fprintf(stderr, "%s: DNS: '%s' cannot parse the IP '%s': %s\n", PROG, d->hostname, host, gai_strerror(r));
+				continue;
+			}
+
+			DNSREP *p = malloc(sizeof(DNSREP));
+			if(!p) {
+				fprintf(stderr, "%s: DNS: out of memory while resolving host '%s'\n", PROG, d->hostname);
+				continue;
+			}
+
+			if(unlikely(debug))
+				fprintf(stderr, "%s: DNS: '%s' = %s\n", PROG, d->hostname, ip2str(net.addr));
+
+			p->ip = net.addr;
+			dns_lock_replies();
+			p->next = dns_replies;
+			dns_replies = p;
+			added++;
+			dns_unlock_replies();
 		}
 
-		if(d->next) d->next->prev = d->prev;
-		if(d->prev) d->prev->next = d->next;
-		if(dnsreqs == d) {
-			if(d->prev) dnsreqs = d->prev;
-			else dnsreqs = d->next;
-		}
-		free(d);
-		d = dnsreqs;
-		dns_cur--;
-		return 1;
+		freeaddrinfo(result);
+		dns_request_done(d, added);
 	}
 
-	return 0;
+	return NULL;
 }
 
-int dns_wait_request(ipset *ips)
+void dns_process_replies(ipset *ips)
 {
-	if(dns_process_results(ips)) return 0;
+	if(!dns_replies) return;
 
-	if(!dns_cur) return 0;
+	dns_lock_replies();
+	while(dns_replies) {
+		//if(unlikely(debug))
+		//	fprintf(stderr, "%s: Got DNS REPLY '%s'\n", PROG, ip2str(dns_replies->ip));
 
-	struct gaicb const *wait_reqs[dns_cur];
-	struct dnsreq *d;
+		ipset_add(ips, dns_replies->ip, dns_replies->ip);
 
-	int nreqs = 0;
-	for(d = dnsreqs, nreqs = 0; d ; d = d->next) {
-		wait_reqs[nreqs++] = &d->req;
+		DNSREP *p = dns_replies->next;
+		free(dns_replies);
+		dns_replies = p;
 	}
-
-	int ret = gai_suspend(wait_reqs, nreqs, NULL);
-	if(ret) {
-		free(d);
-		fprintf(stderr, "%s: Cannot wait for DNS resolutions. Reason: %s\n", PROG, gai_strerror(ret));
-		return 1;
-	}
-
-	if(dns_process_results(ips)) return 0;
-	return 1;
+	dns_unlock_replies();
 }
 
-void dns_wait_all(ipset *ips)
+void dns_request(ipset *ips, char *hostname)
 {
-	if(dns_cur)
-		dns_wait_request(ips);
+	dns_process_replies(ips);
+
+	//if(unlikely(debug))
+	//	fprintf(stderr, "%s: Adding DNS REQUEST for '%s'\n", PROG, hostname);
+
+	DNSREQ *d = malloc(sizeof(DNSREQ));
+	if(!d) goto cleanup;
+
+	d->hostname = strdup(hostname);
+	if(!d->hostname) goto cleanup;
+
+	dns_request_add(d);
+
+	return;
+
+cleanup:
+	fprintf(stderr, "%s: out of memory, while trying to resolv '%s'\n", PROG, hostname);
+	if(d) free(d);
 }
 
-int dns_add_request(ipset *ips, char *host)
+void dns_done(ipset *ips)
 {
-	while(dns_cur >= dns_max) {
+	if(ips) { ; }
+
+	unsigned long dots = 50, shown = 0, should_show = 0;
+
+	while(dns_requests_pending) {
 		if(unlikely(debug))
-			fprintf(stderr, "%s: %d DNS requests queued. Waiting for some of them to complete.\n", PROG, dns_cur);
-
-		dns_wait_request(ips);
-	}
-
-	struct dnsreq *d = calloc(1, sizeof(struct dnsreq));
-	if(!d) {
-		fprintf(stderr, "%s: out of memory.\n", PROG);
-		return 1;
-	}
-
-	strncpy(d->host, host, MAX_INPUT_ELEMENT);
-	d->host[MAX_INPUT_ELEMENT] = '\0';
-
-	d->req.ar_name = d->host;
-
-	struct gaicb *reqs[1];
-	reqs[0] = &d->req;
-
-	int ret = getaddrinfo_a(GAI_NOWAIT, reqs, 1, NULL);
-	if(ret) {
-		free(d);
-		fprintf(stderr, "%s: Cannot request DNS resolutions for hostname '%s'. Reason: %s\n", PROG, host, gai_strerror(ret));
-		return 1;
-	}
-	else if(unlikely(debug))
-			fprintf(stderr, "%s: Queued DNS request No %d, for '%s'.\n", PROG, dns_cur + 1, host);
-
-	d->next = dnsreqs;
-	if(d->next) d->next->prev = d;
-	dnsreqs = d;
-	dns_cur++;
-
-	return 0;
-}
-
-#else // ! ASYNC_RESOLVER
-
-int dns_add_request(ipset *ips, char *hostname)
-{
-	int r;
-	struct addrinfo *result, *rp, hints;
-	hints.ai_family = AF_INET;
-	hints.ai_socktype = SOCK_DGRAM;
-	hints.ai_flags = 0;
-	hints.ai_protocol = 0;
-
-	r = getaddrinfo(hostname, "80", &hints, &result);
-	if(r != 0) {
-		fprintf(stderr, "%s: Cannot resolve hostname '%s' found in file %s. Reason: %s\n", PROG, hostname, ips->filename, gai_strerror(r));
-		return 1;
-	}
-
-	for (rp = result; rp != NULL; rp = rp->ai_next) {
-		char host[MAX_INPUT_ELEMENT + 1];
-		r = getnameinfo(rp->ai_addr, rp->ai_addrlen, host, sizeof(host), NULL, 0, NI_NUMERICHOST);
-		if (r != 0) {
-			fprintf(stderr, "%s: Cannot find the IP of hostname '%s' found in file %s. Reason: %s\n", PROG, hostname, ips->filename, gai_strerror(r));
-			return 1;
+			fprintf(stderr, "%s: DNS: waiting %lu DNS resolutions to finish...\n", PROG, dns_requests_pending);
+		else {
+			should_show = dots * dns_requests_finished / dns_requests_made;
+			for(; shown < should_show; shown++) {
+				if(!(shown % 10)) fprintf(stderr, "%lu%%", shown * 100 / dots);
+				else fprintf(stderr, ".");
+			}
 		}
 
-		if(unlikely(!ipset_add_ipstr(ips, host)))
-			fprintf(stderr, "%s: Cannot add the IP '%s' of hostname '%s' found in file %s. Reason: %s\n", PROG, host, hostname, ips->filename, gai_strerror(r));
+		dns_process_replies(ips);
+
+		if(dns_requests_pending) sleep(1);
 	}
-	freeaddrinfo(result);
-	return 0;
-}
 
-void dns_wait_all(ipset *ips)
-{
-	;
+	if(unlikely(debug))
+		fprintf(stderr, "%s: DNS: made %lu DNS requests, failed %lu, IPs got %lu, threads used %d of %d\n", PROG, dns_requests_made, dns_replies_failed, dns_replies_found, dns_threads, dns_threads_max);
 }
-
-#endif // ! ASYNC_RESOLVER
 
 /* ----------------------------------------------------------------------------
  * ipset_load()
@@ -1381,10 +1483,10 @@ ipset *ipset_load(const char *filename) {
 
 			case LINE_HAS_1_HOSTNAME:
 				if(unlikely(debug))
-					fprintf(stderr, "%s: requesting DNS resolution for hostname '%s' from line %d of file %s.\n", PROG, ipstr, lineid, ips->filename);
+					fprintf(stderr, "%s: DNS resolution for hostname '%s' from line %d of file %s.\n", PROG, ipstr, lineid, ips->filename);
 
 				// resolve_hostname(ips, ipstr);
-				dns_add_request(ips, ipstr);
+				dns_request(ips, ipstr);
 				break;
 
 			default:
@@ -1396,7 +1498,7 @@ ipset *ipset_load(const char *filename) {
 
 	if(likely(fp != stdin)) fclose(fp);
 
-	dns_wait_all(ips);
+	dns_done(ips);
 
 	if(unlikely(!ips)) return NULL;
 
@@ -1547,22 +1649,36 @@ void ipset_print(ipset *ips, int print) {
 	int i, n = ips->entries;
 	unsigned long int total = 0;
 
-	// reset the prefix counters
-	for(i = 0; i <= 32; i++)
-		prefix_counters[i] = 0;
-
-	if(unlikely(debug)) fprintf(stderr, "%s: Printing %s\n", PROG, ips->filename);
+	if(unlikely(debug)) fprintf(stderr, "%s: Printing %s having %lu entries, %lu unique IPs\n", PROG, ips->filename, ips->entries, ips->unique_ips);
 
 	switch(print) {
 		case PRINT_CIDR:
+			// reset the prefix counters
+			for(i = 0; i <= 32; i++)
+				prefix_counters[i] = 0;
+
+			n = ips->entries;
 			for(i = 0; i < n ;i++) {
 				total += split_range(0, 0, ips->netaddrs[i].addr, ips->netaddrs[i].broadcast);
 			}
 			break;
 
 		case PRINT_SINGLE_IPS:
+			n = ips->entries;
 			for(i = 0; i < n ;i++) {
 				in_addr_t x, start = ips->netaddrs[i].addr, end = ips->netaddrs[i].broadcast;
+				if(unlikely(start > end)) {
+					fprintf(stderr, "%s: WARNING: invalid range reversed start=%s", PROG, ip2str(start));
+					fprintf(stderr, " end=%s\n", ip2str(end));
+					x = end;
+					end = start;
+					start = x;
+				}
+				if(unlikely(end - start > (256 * 256 * 256))) {
+					fprintf(stderr, "%s: too big range eliminated start=%s", PROG, ip2str(start));
+					fprintf(stderr, " end=%s gives %lu IPs\n", ip2str(end), (unsigned long)(end - start));
+					continue;
+				}
 				for( x = start ; x >= start && x <= end ; x++ ) {
 					print_addr_range(x, x);
 					total++;
@@ -1571,6 +1687,7 @@ void ipset_print(ipset *ips, int print) {
 			break;
 
 		default:
+			n = ips->entries;
 			for(i = 0; i < n ;i++) {
 				print_addr_range(ips->netaddrs[i].addr, ips->netaddrs[i].broadcast);
 				total++;
@@ -1583,9 +1700,9 @@ void ipset_print(ipset *ips, int print) {
 		int prefixes = 0;
 
 		if (print == PRINT_CIDR) {
-			
+
 			fprintf(stderr, "\n%lu printed CIDRs, break down by prefix:\n", total);
-			
+
 			total = 0;
 			for(i = 0; i <= 32 ;i++) {
 				if(prefix_counters[i]) {
@@ -1761,9 +1878,10 @@ void usage(const char *me) {
 		"	--complement\n"
 		"	--complement-next\n"
 		"		> COMPLEMENT mode\n"
-		"		1. union all files before this parameter (A set)\n"
+		"		here is how it works:\n"
+		"		1. union all files before this parameter (ipset A)\n"
 		"		2. remove all IPs found in the files after this\n"
-		"		   parameter, from the set A\n"
+		"		   parameter, from ipset A\n"
 		"		the resulting set is sorted\n"
 		"\n"
 		"	--ipset-reduce PERCENT\n"
@@ -1865,6 +1983,7 @@ void usage(const char *me) {
 		"		prefix 32 is always enabled\n"
 		"		warning: misuse of this parameter can create a large\n"
 		"		         number of entries in the generated set\n"
+		"\n"
 		"	--print-ranges\n"
 		"	-j\n"
 		"		print IP ranges (A.A.A.A-B.B.B.B)\n"
@@ -1880,6 +1999,9 @@ void usage(const char *me) {
 		"\n"
 		"	--print-binary\n"
 		"		print binary data\n"
+		"		this is the fastest way to print a large ipset\n"
+		"		the result can be read by iprange on the same\n"
+		"		architecture (no conversion of endianess)\n"
 		"\n"
 		"	--print-prefix STRING\n"
 		"		print STRING before each IP, range or CIDR\n"
@@ -1921,6 +2043,15 @@ void usage(const char *me) {
 		"\n"
 		"\n"
 		"	--------------------------------------------------------------\n"
+		"	OPTIONS THAT AFFECT DNS RESOLUTION\n"
+		"\n"
+		"	--dns-threads NUMBER\n"
+		"		the number of parallel DNS queries to execute\n"
+		"		when the input files contain hostnames\n"
+		"		the default is %d\n"
+		"\n"
+		"\n"
+		"	--------------------------------------------------------------\n"
 		"	OTHER OPTIONS\n"
 		"\n"
 		"	--has-compare\n"
@@ -1948,7 +2079,7 @@ void usage(const char *me) {
 		"\n"
 		"		if no filename is given, stdin is assumed\n"
 		"\n"
-		"		files may contain:\n"
+		"		files may contain any or all of the following:\n"
 		"		- comments starting with # or ;\n"
 		"		- one IP per line (without mask)\n"
 		"		- a CIDR per line (A.A.A.A/B)\n"
@@ -1959,12 +2090,16 @@ void usage(const char *me) {
 		"		  (this is affected by --dont-fix-network)\n"
 		"		- CIDRs can be given in either prefix or netmask\n"
 		"		  format in all cases (including ranges)\n"
+		"		- one hostname per line, to be resolved with DNS\n"
+		"		  (if the IP resolves to multiple IPs, all of them\n"
+		"		  will be added to the ipset)\n"
+		"		  hostnames cannot be given as ranges\n"
 		"		- spaces and empty lines are ignored\n"
 		"\n"
 		"		any number of files can be given\n"
 		"\n"
-		, me);
-	exit(1);	
+		, me, dns_threads_max);
+	exit(1);
 }
 
 #define MODE_COMBINE 1
@@ -2158,6 +2293,10 @@ int main(int argc, char **argv) {
 		}
 		else if(!strcmp(argv[i], "--dont-fix-network")) {
 			cidr_use_network = 0;
+		}
+		else if(i+1 < argc && !strcmp(argv[i], "--dns-threads")) {
+			int dns_threads_max = atoi(argv[++i]);
+			if(dns_threads_max < 1) dns_threads_max = 1;
 		}
 		else if(!strcmp(argv[i], "--has-compare")
 			|| !strcmp(argv[i], "--has-reduce")) {
