@@ -1311,6 +1311,8 @@ declare -A IPSET_CLOCK_SKEW=()
 declare -A IPSET_DOWNLOAD_FAILURES=()
 declare -A IPSET_VERSION=()
 declare -A IPSET_AVERAGE_UPDATE_TIME=()
+declare -A IPSET_MIN_UPDATE_TIME=()
+declare -A IPSET_MAX_UPDATE_TIME=()
 
 # TODO - FIXME
 #declare -A IPSET_PREFIXES=()
@@ -1353,6 +1355,8 @@ cache_save() {
 		IPSET_DOWNLOAD_FAILURES \
 		IPSET_VERSION \
 		IPSET_AVERAGE_UPDATE_TIME \
+		IPSET_MIN_UPDATE_TIME \
+		IPSET_MAX_UPDATE_TIME \
 		>"${BASE_DIR}/.cache.new.$$"
 	
 	[ -f "${BASE_DIR}/.cache" ] && $CP_CMD "${BASE_DIR}/.cache" "${BASE_DIR}/.cache.old"
@@ -1402,6 +1406,8 @@ cache_remove_ipset() {
 	unset IPSET_DOWNLOAD_FAILURES[${ipset}]
 	unset IPSET_VERSION[${ipset}]
 	unset IPSET_AVERAGE_UPDATE_TIME[${ipset}]
+	unset IPSET_MIN_UPDATE_TIME[${ipset}]
+	unset IPSET_MAX_UPDATE_TIME[${ipset}]
 
 	cache_save
 }
@@ -1434,6 +1440,8 @@ ipset_normalize_for_json() {
 
 	[ -z "${IPSET_VERSION[${ipset}]}"             ] && IPSET_VERSION[${ipset}]=0
 	[ -z "${IPSET_AVERAGE_UPDATE_TIME[${ipset}]}" ] && IPSET_AVERAGE_UPDATE_TIME[${ipset}]=${IPSET_MINS[${ipset}]}
+	[ -z "${IPSET_MIN_UPDATE_TIME[${ipset}]}"     ] && IPSET_MIN_UPDATE_TIME[${ipset}]=${IPSET_AVERAGE_UPDATE_TIME[${ipset}]}
+	[ -z "${IPSET_MAX_UPDATE_TIME[${ipset}]}"     ] && IPSET_MAX_UPDATE_TIME[${ipset}]=${IPSET_AVERAGE_UPDATE_TIME[${ipset}]}
 }
 
 ipset_json() {
@@ -1500,7 +1508,9 @@ ipset_json() {
 	"services": [ $(ipset_services_to_json_array ${IPSET_SERVICES[${ipset}]}) ],
 	"errors": ${IPSET_DOWNLOAD_FAILURES[${ipset}]},
 	"version": ${IPSET_VERSION[${ipset}]},
-	"average_update": ${IPSET_AVERAGE_UPDATE_TIME[${ipset}]}
+	"average_update": ${IPSET_AVERAGE_UPDATE_TIME[${ipset}]},
+	"min_update": ${IPSET_MIN_UPDATE_TIME[${ipset}]},
+	"max_update": ${IPSET_MAX_UPDATE_TIME[${ipset}]}
 }
 EOFJSON
 }
@@ -1880,7 +1890,7 @@ update_web() {
 				$TAIL_CMD -n ${WEB_CHARTS_ENTRIES} "${LIB_DIR}/${x}/history.csv" | $GREP_CMD -v "^DateTime" | $SORT_CMD -n >>"${RUN_DIR}/${x}_history.csv"
 
 				# calculate the average update time of the list
-				local xdate xentries xips xlast=0 xdt xtotal=0 xcount=0 xavg= xmin=$[ IPSET_MINS[${x}] ]
+				local xdate xentries xips xlast=0 xdt xtotal=0 xcount=0 xavg="" xmin=$[ IPSET_MINS[${x}] ] xlow="" xhi=""
 				while IFS="," read xdate xentries xips
 				do
 					[ "${xdate}" = "DateTime" ] && continue
@@ -1890,6 +1900,12 @@ update_web() {
 					xdt=$[ xdate - xlast ]
 					[ ${xdt} -le 0 ] && continue
 
+					[ -z "${xlow}" ] && xlow=${xdt}
+					[ -z "${xhi}"  ] && xhi=${xdt}
+
+					[ ${xdt} -lt ${xlow} ] && xlow=${xdt}
+					[ ${xdt} -gt ${xhi}  ] && xhi=${xdt}
+
 					[ $[ (xdt + 60) / 60 ] -lt ${xmin} ] && ipset_verbose "${x}" "${xdate} updated in $[ (xdt + 60) / 60] mins, less than configured ${xmin} mins"
 
 					xtotal=$[ xtotal + xdt ]
@@ -1897,8 +1913,12 @@ update_web() {
 					xlast=${xdate}
 				done <"${RUN_DIR}/${x}_history.csv"
 				xavg=$[(xtotal / xcount + 60) / 60]
-				ipset_silent "${x}" "average update every ${xavg} mins - config: ${IPSET_MINS[${x}]}"
+				xlow=$[(xlow + 60) / 60]
+				xhi=$[(xhi + 60) / 60]
+				ipset_silent "${x}" "last ${xcount} updates: avg: ${xavg} mins (${xlow} - ${xhi}) - config: ${xmin} mins"
 				IPSET_AVERAGE_UPDATE_TIME[${x}]=${xavg}
+				IPSET_MIN_UPDATE_TIME[${x}]=$[xlow]
+				IPSET_MAX_UPDATE_TIME[${x}]=$[xhi]
 
 				# if the list is downloaded, try to figure out
 				# if we download it too frequently or too late
@@ -1984,7 +2004,7 @@ update_web() {
 	echo '</urlset>' >>"${RUN_DIR}/sitemap.xml"
 	echo >&2
 
-	# to save the calculated IPSET_AVERAGE_UPDATE_TIME
+	# to save the calculated IPSET_*_UPDATE_TIME
 	cache_save
 
 	#info "ALL: ${all[@]}"
@@ -2854,6 +2874,8 @@ rename_ipset() {
 	[ -z "${IPSET_DOWNLOAD_FAILURES[${new}]}" ] && IPSET_DOWNLOAD_FAILURES[${new}]="${IPSET_DOWNLOAD_FAILURES[${old}]}"
 	[ -z "${IPSET_VERSION[${new}]}" ] && IPSET_VERSION[${new}]="${IPSET_VERSION[${old}]}"
 	[ -z "${IPSET_AVERAGE_UPDATE_TIME[${new}]}" ] && IPSET_AVERAGE_UPDATE_TIME[${new}]="${IPSET_AVERAGE_UPDATE_TIME[${old}]}"
+	[ -z "${IPSET_MIN_UPDATE_TIME[${new}]}" ] && IPSET_MIN_UPDATE_TIME[${new}]="${IPSET_MIN_UPDATE_TIME[${old}]}"
+	[ -z "${IPSET_MAX_UPDATE_TIME[${new}]}" ] && IPSET_MAX_UPDATE_TIME[${new}]="${IPSET_MAX_UPDATE_TIME[${old}]}"
 	cache_remove_ipset "${old}" # this also saves the cache
 
 	return 0
