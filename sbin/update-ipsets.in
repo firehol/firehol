@@ -559,13 +559,12 @@ MAX_DOWNLOAD_TIME=300
 # penalized X times its failures (ie. MINUTES * ( FAILURES - the following number) )
 IGNORE_REPEATING_DOWNLOAD_ERRORS=10
 
-# how many DNS queries to execute per second
-# when resolving hostnames to IPs
+# how many DNS queries to execute in parallel when resolving hostnames to IPs
 # IMPORTANT: Increasing this too much and you are going to need A LOT of bandwidth!
-# IMPORTANT: Giving 100 requests/second to your name server will create queue
+# IMPORTANT: Giving a lot parallel requests to your name server will create a queue
 #            that will start filling up as time passes, possibly hitting a quota
 #            on the name server.
-PARALLEL_DNS_QUERIES=100
+PARALLEL_DNS_QUERIES=50
 
 
 # -----------------------------------------------------------------------------
@@ -1311,6 +1310,7 @@ declare -A IPSET_CLOCK_SKEW=()
 
 declare -A IPSET_DOWNLOAD_FAILURES=()
 declare -A IPSET_VERSION=()
+declare -A IPSET_AVERAGE_UPDATE_TIME=()
 
 # TODO - FIXME
 #declare -A IPSET_PREFIXES=()
@@ -1352,6 +1352,7 @@ cache_save() {
 		IPSET_CLOCK_SKEW \
 		IPSET_DOWNLOAD_FAILURES \
 		IPSET_VERSION \
+		IPSET_AVERAGE_UPDATE_TIME \
 		>"${BASE_DIR}/.cache.new.$$"
 	
 	[ -f "${BASE_DIR}/.cache" ] && $CP_CMD "${BASE_DIR}/.cache" "${BASE_DIR}/.cache.old"
@@ -1400,6 +1401,7 @@ cache_remove_ipset() {
 	unset IPSET_CLOCK_SKEW[${ipset}]
 	unset IPSET_DOWNLOAD_FAILURES[${ipset}]
 	unset IPSET_VERSION[${ipset}]
+	unset IPSET_AVERAGE_UPDATE_TIME[${ipset}]
 
 	cache_save
 }
@@ -1419,18 +1421,19 @@ ipset_normalize_for_json() {
 
 	ipset_verbose "${ipset}" "normalizing data..."
 
-	[ -z "${IPSET_ENTRIES_MIN[${ipset}]}"       ] && IPSET_ENTRIES_MIN[${ipset}]="${IPSET_ENTRIES[${ipset}]}"
-	[ -z "${IPSET_ENTRIES_MAX[${ipset}]}"       ] && IPSET_ENTRIES_MAX[${ipset}]="${IPSET_ENTRIES[${ipset}]}"
-	[ -z "${IPSET_IPS_MIN[${ipset}]}"           ] && IPSET_IPS_MIN[${ipset}]="${IPSET_IPS[${ipset}]}"
-	[ -z "${IPSET_IPS_MAX[${ipset}]}"           ] && IPSET_IPS_MAX[${ipset}]="${IPSET_IPS[${ipset}]}"
-	[ -z "${IPSET_STARTED_DATE[${ipset}]}"      ] && IPSET_STARTED_DATE[${ipset}]="${IPSET_SOURCE_DATE[${ipset}]}"
-	[ -z "${IPSET_PROCESSED_DATE[${ipset}]}"    ] && IPSET_PROCESSED_DATE[${ipset}]="${IPSET_SOURCE_DATE[${ipset}]}"
-	[ -z "${IPSET_CHECKED_DATE[${ipset}]}"      ] && IPSET_CHECKED_DATE[${ipset}]="${IPSET_PROCESSED_DATE[${ipset}]}"
+	[ -z "${IPSET_ENTRIES_MIN[${ipset}]}"         ] && IPSET_ENTRIES_MIN[${ipset}]="${IPSET_ENTRIES[${ipset}]}"
+	[ -z "${IPSET_ENTRIES_MAX[${ipset}]}"         ] && IPSET_ENTRIES_MAX[${ipset}]="${IPSET_ENTRIES[${ipset}]}"
+	[ -z "${IPSET_IPS_MIN[${ipset}]}"             ] && IPSET_IPS_MIN[${ipset}]="${IPSET_IPS[${ipset}]}"
+	[ -z "${IPSET_IPS_MAX[${ipset}]}"             ] && IPSET_IPS_MAX[${ipset}]="${IPSET_IPS[${ipset}]}"
+	[ -z "${IPSET_STARTED_DATE[${ipset}]}"        ] && IPSET_STARTED_DATE[${ipset}]="${IPSET_SOURCE_DATE[${ipset}]}"
+	[ -z "${IPSET_PROCESSED_DATE[${ipset}]}"      ] && IPSET_PROCESSED_DATE[${ipset}]="${IPSET_SOURCE_DATE[${ipset}]}"
+	[ -z "${IPSET_CHECKED_DATE[${ipset}]}"        ] && IPSET_CHECKED_DATE[${ipset}]="${IPSET_PROCESSED_DATE[${ipset}]}"
 
-	[ -z "${IPSET_CLOCK_SKEW[${ipset}]}"        ] && IPSET_CLOCK_SKEW[${ipset}]=0
-	[ -z "${IPSET_DOWNLOAD_FAILURES[${ipset}]}" ] && IPSET_DOWNLOAD_FAILURES[${ipset}]=0
+	[ -z "${IPSET_CLOCK_SKEW[${ipset}]}"          ] && IPSET_CLOCK_SKEW[${ipset}]=0
+	[ -z "${IPSET_DOWNLOAD_FAILURES[${ipset}]}"   ] && IPSET_DOWNLOAD_FAILURES[${ipset}]=0
 
-	[ -z "${IPSET_VERSION[${ipset}]}"           ] && IPSET_VERSION[${ipset}]=0
+	[ -z "${IPSET_VERSION[${ipset}]}"             ] && IPSET_VERSION[${ipset}]=0
+	[ -z "${IPSET_AVERAGE_UPDATE_TIME[${ipset}]}" ] && IPSET_AVERAGE_UPDATE_TIME[${ipset}]=${IPSET_MINS[${ipset}]}
 }
 
 ipset_json() {
@@ -1496,7 +1499,8 @@ ipset_json() {
 	"poisoning": "${IPSET_POISONING[${ipset}]}",
 	"services": [ $(ipset_services_to_json_array ${IPSET_SERVICES[${ipset}]}) ],
 	"errors": ${IPSET_DOWNLOAD_FAILURES[${ipset}]},
-	"version": ${IPSET_VERSION[${ipset}]}
+	"version": ${IPSET_VERSION[${ipset}]},
+	"average_update": ${IPSET_AVERAGE_UPDATE_TIME[${ipset}]}
 }
 EOFJSON
 }
@@ -1806,11 +1810,12 @@ EOFSITEMAP1
 
 update_web() {
 	print_ipset_reset
+	echo >&2
 
 	if [ -z "${WEB_DIR}" -o ! -d "${WEB_DIR}" ]
 		then
-		echo >&2 "Web site update is disabled."
-		echo >&2 "To enable it set WEB_DIR in config file '${CONFIG_FILE}'."
+		#echo >&2 "Web site update is disabled."
+		#echo >&2 "To enable it set WEB_DIR in config file '${CONFIG_FILE}'."
 		return 1
 	fi
 
@@ -1872,7 +1877,41 @@ update_web() {
 				
 				ipset_verbose "${x}" "preparing web history file (last ${WEB_CHARTS_ENTRIES} entries)"
 				echo >"${RUN_DIR}/${x}_history.csv" "DateTime,Entries,UniqueIPs"
-				$TAIL_CMD -n ${WEB_CHARTS_ENTRIES} "${LIB_DIR}/${x}/history.csv" | $GREP_CMD -v "^DateTime" >>"${RUN_DIR}/${x}_history.csv"
+				$TAIL_CMD -n ${WEB_CHARTS_ENTRIES} "${LIB_DIR}/${x}/history.csv" | $GREP_CMD -v "^DateTime" | $SORT_CMD -n >>"${RUN_DIR}/${x}_history.csv"
+
+				# calculate the average update time of the list
+				local xdate xentries xips xlast=0 xdt xtotal=0 xcount=0 xavg= xmin=$[ IPSET_MINS[${x}] ]
+				while IFS="," read xdate xentries xips
+				do
+					[ "${xdate}" = "DateTime" ] && continue
+					[ ${xlast} -eq 0 ] && xlast=${xdate} && continue
+					[ ${xlast} -eq ${xdate} ] && continue
+
+					xdt=$[ xdate - xlast ]
+					[ ${xdt} -le 0 ] && continue
+
+					[ $[ (xdt + 60) / 60 ] -lt ${xmin} ] && ipset_verbose "${x}" "${xdate} updated in $[ (xdt + 60) / 60] mins, less than configured ${xmin} mins"
+
+					xtotal=$[ xtotal + xdt ]
+					xcount=$[ xcount + 1 ]
+					xlast=${xdate}
+				done <"${RUN_DIR}/${x}_history.csv"
+				xavg=$[(xtotal / xcount + 60) / 60]
+				ipset_silent "${x}" "average update every ${xavg} mins - config: ${IPSET_MINS[${x}]}"
+				IPSET_AVERAGE_UPDATE_TIME[${x}]=${xavg}
+
+				# if the list is downloaded, try to figure out
+				# if we download it too frequently or too late
+				if [ ! -z "${IPSET_URL[${x}]}" ]
+					then
+					if [ $[xavg] -lt $[ xmin * 5 / 4 ] ]
+						then
+						ipset_warning "${x}" "may need to lower update freq from ${xmin} to $[ xavg * 2 / 3 ] mins"
+					elif [ $[xavg] -gt $[ xmin * 3 ] ]
+						then
+						ipset_warning "${x}" "may need to increase update freq from ${xmin} to $[ xmin * 3 / 2 ] mins"
+					fi
+				fi
 			fi
 		fi
 
@@ -1944,6 +1983,9 @@ update_web() {
 	printf >>"${RUN_DIR}/all-ipsets.json" "\n]\n"
 	echo '</urlset>' >>"${RUN_DIR}/sitemap.xml"
 	echo >&2
+
+	# to save the calculated IPSET_AVERAGE_UPDATE_TIME
+	cache_save
 
 	#info "ALL: ${all[@]}"
 	#info "UPDATED: ${updated[@]}"
@@ -2811,6 +2853,7 @@ rename_ipset() {
 	[ -z "${IPSET_CLOCK_SKEW[${new}]}" ] && IPSET_CLOCK_SKEW[${new}]="${IPSET_CLOCK_SKEW[${old}]}"
 	[ -z "${IPSET_DOWNLOAD_FAILURES[${new}]}" ] && IPSET_DOWNLOAD_FAILURES[${new}]="${IPSET_DOWNLOAD_FAILURES[${old}]}"
 	[ -z "${IPSET_VERSION[${new}]}" ] && IPSET_VERSION[${new}]="${IPSET_VERSION[${old}]}"
+	[ -z "${IPSET_AVERAGE_UPDATE_TIME[${new}]}" ] && IPSET_AVERAGE_UPDATE_TIME[${new}]="${IPSET_AVERAGE_UPDATE_TIME[${old}]}"
 	cache_remove_ipset "${old}" # this also saves the cache
 
 	return 0
@@ -3189,13 +3232,13 @@ extract_ipv4_from_any_file() {
 }
 
 hostname_resolver() {
-	local opts="--dns-silent"
+	local opts="--dns-silent --dns-progress"
 	if [ ${VERBOSE} -eq 1 ]
 		then
-		opts="--dns-no-progress"
+		opts=
 	elif [ ${SILENT}  -eq 1 ]
 		then
-		opts="--dns-silent --dns-no-progress"
+		opts="--dns-silent"
 	else
 		printf >&2 "${print_ipset_spacer}"
 	fi
@@ -3706,48 +3749,6 @@ merge() {
 echo >&2
 
 # -----------------------------------------------------------------------------
-# CONFIGURATION
-
-# TEMPLATE:
-#
-# > update NAME TIME_TO_UPDATE ipv4|ipv6 ip|net URL CONVERTER
-#
-# NAME           the name of the ipset
-# TIME_TO_UPDATE minutes to refresh/re-download the URL
-# ipv4 or ipv6   the IP version of the ipset
-# ip or net      use hash:ip or hash:net ipset
-# URL            the URL to download
-# CONVERTER      a command to convert the downloaded file to IP addresses
-
-# - It creates the ipset if it does not exist
-# - FireHOL will be called to update the ipset
-# - both downloaded and converted files are saved in
-#   ${BASE_DIR} (/etc/firehol/ipsets)
-
-# RUNNING THIS SCRIPT WILL JUST INSTALL THE IPSETS.
-# IT WILL NOT BLOCK OR BLACKLIST ANYTHING.
-# YOU HAVE TO UPDATE YOUR firehol.conf TO BLACKLIST ANY OF THESE.
-# Check: https://github.com/ktsaou/firehol/wiki/FireHOL-support-for-ipset
-
-# EXAMPLE FOR firehol.conf:
-#
-# ipv4 ipset create  openbl hash:ip
-#      ipset addfile openbl ipsets/openbl.ipset
-#
-# ipv4 ipset create  dm_tor hash:ip
-#      ipset addfile dm_tor ipsets/dm_tor.ipset
-#
-# ipv4 ipset create et_block hash:net
-#      ipset addfile et_block ipsets/et_block.netset
-#
-# ipv4 blacklist full \
-#         ipset:openbl \
-#         ipset:dm_tor \
-#         ipset:et_block
-#
-
-
-# -----------------------------------------------------------------------------
 # MaxMind
 
 geolite2_country
@@ -3837,7 +3838,7 @@ update openbl_all $[4*60] 0 ipv4 ip \
 # https://www.dshield.org/xml.html
 
 # Top 20 attackers (networks) by www.dshield.org
-update dshield 15 "$[24*60] $[7*24*60] $[30*24*60]" ipv4 both \
+update dshield 10 "$[24*60] $[7*24*60] $[30*24*60]" ipv4 both \
 	"http://feeds.dshield.org/block.txt" \
 	dshield_parser \
 	"attacks" \
@@ -4001,77 +4002,77 @@ update spamhaus_edrop $[12*60] 0 ipv4 both \
 # All IP addresses that have attacked one of their servers in the
 # last 48 hours. Updated every 30 minutes.
 # They also have lists of service specific attacks (ssh, apache, sip, etc).
-update blocklist_de 30 0 ipv4 ip \
+update blocklist_de 15 0 ipv4 ip \
 	"http://lists.blocklist.de/lists/all.txt" \
 	remove_comments \
 	"attacks" \
 	"[Blocklist.de](https://www.blocklist.de/) IPs that have been detected by fail2ban in the last 48 hours" \
 	"Blocklist.de" "https://www.blocklist.de/"
 
-update blocklist_de_ssh 30 0 ipv4 ip \
+update blocklist_de_ssh 15 0 ipv4 ip \
 	"http://lists.blocklist.de/lists/ssh.txt" \
 	remove_comments \
 	"attacks" \
 	"[Blocklist.de](https://www.blocklist.de/) All IP addresses which have been reported within the last 48 hours as having run attacks on the service SSH." \
 	"Blocklist.de" "https://www.blocklist.de/"
 
-update blocklist_de_mail 30 0 ipv4 ip \
+update blocklist_de_mail 15 0 ipv4 ip \
 	"http://lists.blocklist.de/lists/mail.txt" \
 	remove_comments \
 	"attacks" \
 	"[Blocklist.de](https://www.blocklist.de/) All IP addresses which have been reported within the last 48 hours as having run attacks on the service Mail, Postfix." \
 	"Blocklist.de" "https://www.blocklist.de/"
 
-update blocklist_de_apache 30 0 ipv4 ip \
+update blocklist_de_apache 15 0 ipv4 ip \
 	"http://lists.blocklist.de/lists/apache.txt" \
 	remove_comments \
 	"attacks" \
 	"[Blocklist.de](https://www.blocklist.de/) All IP addresses which have been reported within the last 48 hours as having run attacks on the service Apache, Apache-DDOS, RFI-Attacks." \
 	"Blocklist.de" "https://www.blocklist.de/"
 
-update blocklist_de_imap 30 0 ipv4 ip \
+update blocklist_de_imap 15 0 ipv4 ip \
 	"http://lists.blocklist.de/lists/imap.txt" \
 	remove_comments \
 	"attacks" \
 	"[Blocklist.de](https://www.blocklist.de/) All IP addresses which have been reported within the last 48 hours for attacks on the Service imap, sasl, pop3, etc." \
 	"Blocklist.de" "https://www.blocklist.de/"
 
-update blocklist_de_ftp 30 0 ipv4 ip \
+update blocklist_de_ftp 15 0 ipv4 ip \
 	"http://lists.blocklist.de/lists/ftp.txt" \
 	remove_comments \
 	"attacks" \
 	"[Blocklist.de](https://www.blocklist.de/) All IP addresses which have been reported within the last 48 hours for attacks on the Service FTP." \
 	"Blocklist.de" "https://www.blocklist.de/"
 
-update blocklist_de_sip 30 0 ipv4 ip \
+update blocklist_de_sip 15 0 ipv4 ip \
 	"http://lists.blocklist.de/lists/sip.txt" \
 	remove_comments \
 	"attacks" \
 	"[Blocklist.de](https://www.blocklist.de/) All IP addresses that tried to login in a SIP, VOIP or Asterisk Server and are included in the IPs list from infiltrated.net" \
 	"Blocklist.de" "https://www.blocklist.de/"
 
-update blocklist_de_bots 30 0 ipv4 ip \
+update blocklist_de_bots 15 0 ipv4 ip \
 	"http://lists.blocklist.de/lists/bots.txt" \
 	remove_comments \
 	"attacks" \
 	"[Blocklist.de](https://www.blocklist.de/) All IP addresses which have been reported within the last 48 hours as having run attacks on the RFI-Attacks, REG-Bots, IRC-Bots or BadBots (BadBots = he has posted a Spam-Comment on a open Forum or Wiki)." \
 	"Blocklist.de" "https://www.blocklist.de/"
 
-update blocklist_de_strongips 30 0 ipv4 ip \
+update blocklist_de_strongips 15 0 ipv4 ip \
 	"http://lists.blocklist.de/lists/strongips.txt" \
 	remove_comments \
 	"attacks" \
 	"[Blocklist.de](https://www.blocklist.de/) All IPs which are older then 2 month and have more then 5.000 attacks." \
 	"Blocklist.de" "https://www.blocklist.de/"
 
-#update blocklist_de_ircbot 30 0 ipv4 ip \
+#update blocklist_de_ircbot 15 0 ipv4 ip \
 #	"http://lists.blocklist.de/lists/ircbot.txt" \
 #	remove_comments \
 #	"attacks" \
 #	"[Blocklist.de](https://www.blocklist.de/) (no information supplied)" \
 #	"Blocklist.de" "https://www.blocklist.de/"
 
-update blocklist_de_bruteforce 30 0 ipv4 ip \
+update blocklist_de_bruteforce 15 0 ipv4 ip \
 	"http://lists.blocklist.de/lists/bruteforcelogin.txt" \
 	remove_comments \
 	"attacks" \
@@ -5054,7 +5055,7 @@ update ipblacklistcloud_top $[24*60] 0 ipv4 ip \
 	"[IP Blacklist Cloud](http://www.ip-finder.me/) These are the top IP addresses that have been blacklisted by many websites. IP Blacklist Cloud plugin protects your WordPress based website from spam comments, gives details about login attacks which you don't even know are happening without this plugin!" \
 	"IP Blacklist Cloud" "http://www.ip-finder.me/"
 
-update ipblacklistcloud_recent $[60] "$[24*60] $[7*24*60] $[30*24*60]" ipv4 ip \
+update ipblacklistcloud_recent $[4 * 60] "$[24*60] $[7*24*60] $[30*24*60]" ipv4 ip \
 	"http://www.ip-finder.me/download/" \
 	parse_ipblacklistcloud \
 	"abuse" \
