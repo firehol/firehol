@@ -266,7 +266,6 @@ Y|TAIL_CMD|@TAIL@|tail
 Y|RENICE_CMD|@RENICE@|dirname
 Y|ZCAT_CMD|@ZCAT@|gzcat "gzip -dc"
 Y|DATE_CMD|@DATE@|date
-Y|HOST_CMD|@HOST@|host
 Y|DIFF_CMD|@DIFF@|diff
 Y|FLOCK_CMD|@FLOCK@|flock
 Y|GREP_CMD|@GREP@|grep
@@ -366,18 +365,23 @@ silent() {
 	[ ${SILENT} -ne 1 ] && echo >&2 "${@}"
 }
 
-ipset_ipset_ident=35
-print_ipset_spacer="$(printf "%${ipset_ipset_ident}s| " "")"
+print_ipset_indent=35
+print_ipset_spacer="$(printf "%${print_ipset_indent}s| " "")"
 print_ipset_last=
-print_ipset() {
+
+print_ipset_reset() {
+	print_ipset_last=
+}
+
+print_ipset_header() {
 	local ipset="${1}"
 
 	if [ "${ipset}" = "${print_ipset_last}" ]
 		then
-		printf >&2 "%${ipset_ipset_ident}s| " ""
+		printf >&2 "%${print_ipset_indent}s| " ""
 	else
 		[ ${SILENT} -ne 1 ] && echo >&2 "${print_ipset_spacer}"
-		printf >&2 "${COLOR_GREEN}%${ipset_ipset_ident}s${COLOR_RESET}| " "${ipset}"
+		printf >&2 "${COLOR_GREEN}%${print_ipset_indent}s${COLOR_RESET}| " "${ipset}"
 		print_ipset_last="${ipset}"
 	fi
 }
@@ -386,7 +390,7 @@ ipset_error() {
 	local ipset="${1}"
 	shift
 
-	print_ipset "${ipset}"
+	print_ipset_header "${ipset}"
 	echo >&2 -e "${COLOR_BGRED}${COLOR_WHITE}${COLOR_BOLD} ERROR ${COLOR_RESET} ${@}"
 	$LOGGER_CMD -p daemon.info -t "update-ipsets.sh[$$]" "ERROR: ${ipset}: ${@}"
 }
@@ -394,7 +398,7 @@ ipset_warning() {
 	local ipset="${1}"
 	shift
 
-	print_ipset "${ipset}"
+	print_ipset_header "${ipset}"
 	echo >&2 -e "${COLOR_BGYELLOW}${COLOR_BLACK}${COLOR_BOLD} WARNING ${COLOR_RESET} ${@}"
 	$LOGGER_CMD -p daemon.info -t "update-ipsets.sh[$$]" "WARNING: ${ipset}: ${@}"
 }
@@ -402,7 +406,7 @@ ipset_info() {
 	local ipset="${1}"
 	shift
 
-	print_ipset "${ipset}"
+	print_ipset_header "${ipset}"
 	echo >&2 "${@}"
 	$LOGGER_CMD -p daemon.info -t "update-ipsets.sh[$$]" "INFO: ${ipset}: ${@}"
 }
@@ -410,7 +414,7 @@ ipset_saved() {
 	local ipset="${1}"
 	shift
 
-	print_ipset "${ipset}"
+	print_ipset_header "${ipset}"
 	echo >&2 -e "${COLOR_BGGREEN}${COLOR_RED}${COLOR_BOLD} SAVED ${COLOR_RESET} ${@}"
 	$LOGGER_CMD -p daemon.info -t "update-ipsets.sh[$$]" "SAVED: ${ipset}: ${@}"
 }
@@ -418,7 +422,7 @@ ipset_loaded() {
 	local ipset="${1}"
 	shift
 
-	print_ipset "${ipset}"
+	print_ipset_header "${ipset}"
 	echo >&2 -e "${COLOR_BGGREEN}${COLOR_BLACK}${COLOR_BOLD} LOADED ${COLOR_RESET} ${@}"
 	$LOGGER_CMD -p daemon.info -t "update-ipsets.sh[$$]" "LOADED: ${ipset}: ${@}"
 }
@@ -426,7 +430,7 @@ ipset_same() {
 	local ipset="${1}"
 	shift
 
-	print_ipset "${ipset}"
+	print_ipset_header "${ipset}"
 	echo >&2 -e "${COLOR_BGWHITE}${COLOR_BLACK}${COLOR_BOLD} SAME ${COLOR_RESET} ${@}"
 	$LOGGER_CMD -p daemon.info -t "update-ipsets.sh[$$]" "DOWNLOADED SAME: ${ipset}: ${@}"
 }
@@ -434,7 +438,7 @@ ipset_notupdated() {
 	local ipset="${1}"
 	shift
 
-	print_ipset "${ipset}"
+	print_ipset_header "${ipset}"
 	echo >&2 -e "${COLOR_BGWHITE}${COLOR_BLACK}${COLOR_BOLD} NOT UPDATED ${COLOR_RESET} ${@}"
 	$LOGGER_CMD -p daemon.info -t "update-ipsets.sh[$$]" "NOT UPDATED: ${ipset}: ${@}"
 }
@@ -442,7 +446,7 @@ ipset_notyet() {
 	local ipset="${1}"
 	shift
 
-	print_ipset "${ipset}"
+	print_ipset_header "${ipset}"
 	echo >&2 -e "${COLOR_BGWHITE}${COLOR_BLACK}${COLOR_BOLD} LATER ${COLOR_RESET} ${@}"
 	# $LOGGER_CMD -p daemon.info -t "update-ipsets.sh[$$]" "LATER: ${ipset}: ${@}"
 }
@@ -452,9 +456,9 @@ ipset_disabled() {
 
 	if [ ${SILENT} -eq 0 ]
 		then
-		print_ipset "${ipset}"
+		print_ipset_header "${ipset}"
 		echo >&2 -e "${COLOR_BGWHITE}${COLOR_BLACK}${COLOR_BOLD} DISABLED ${COLOR_RESET} ${@}"
-		print_ipset "${ipset}"
+		print_ipset_header "${ipset}"
 		echo >&2    "To enable run: update-ipsets enable ${ipset}"
 	fi
 }
@@ -464,7 +468,7 @@ ipset_silent() {
 
 	if [ ${SILENT} -eq 0 ]
 		then
-		print_ipset "${ipset}"
+		print_ipset_header "${ipset}"
 		echo >&2 "${@}"
 	fi
 }
@@ -474,7 +478,7 @@ ipset_verbose() {
 
 	if [ ${VERBOSE} -eq 1 ]
 		then
-		print_ipset "${ipset}"
+		print_ipset_header "${ipset}"
 		echo >&2 "${@}"
 	fi
 }
@@ -994,7 +998,9 @@ history_keep() {
 	fi
 
 	# copy the new file to the history
-	$CP_CMD -p "${file}" "${HISTORY_DIR}/${ipset}/${slot}"
+	# we use the binary format of iprange for fast operations later
+	$IPRANGE_CMD "${file}" --print-binary >"${HISTORY_DIR}/${ipset}/${slot}"
+	$TOUCH_CMD -r "${file}" "${HISTORY_DIR}/${ipset}/${slot}"
 }
 
 history_cleanup() {
@@ -1020,20 +1026,8 @@ history_get() {
 	# touch a reference file
 	touch_in_the_past ${mins} "${RUN_DIR}/history.reference" || return 3
 
-	# replace the original file with a concatenation of
-	# all the files newer than the reference file
-	#local -a hfiles=()
-	#for x in ${HISTORY_DIR}/${ipset}/*.set
-	#do
-	#	if [ "${x}" -nt "${RUN_DIR}/history.reference" ]
-	#	then
-	#		ipset_verbose "${ipset}" "merging history file '${x}'"
-	#		hfiles=("${hfiles[@]}" "${x}")
-	#	fi
-	#done
-
+	# get all the history files, that are newer than our reference
 	${IPRANGE_CMD} --union-all $($FIND_CMD "${HISTORY_DIR}/${ipset}"/*.set -newer "${RUN_DIR}/history.reference")
-
 	$RM_CMD "${RUN_DIR}/history.reference"
 
 	return 0
@@ -1789,6 +1783,8 @@ EOFSITEMAP1
 }
 
 update_web() {
+	print_ipset_reset
+
 	local sitemap_date="$($DATE_CMD -I)"
 
 	[ -z "${WEB_DIR}" -o ! -d "${WEB_DIR}" ] && return 1
@@ -1919,6 +1915,8 @@ update_web() {
 	#info "ALL: ${all[@]}"
 	#info "UPDATED: ${updated[@]}"
 
+	print_ipset_reset
+
 	echo >&2 "-------------------------------------------------------------------------------"
 	echo >&2 "Comparing all ipsets (${all_count} x ${all_count} = $[all_count * (all_count - 1) / 2 - 1] unique comparisons)..."
 
@@ -1958,6 +1956,8 @@ update_web() {
 
 	if [ "${#updated[*]}" -ne 0 -a "${#geolite2_country[*]}" -ne 0 ]
 		then
+		print_ipset_reset
+
 		echo >&2 "-------------------------------------------------------------------------------"
 		echo >&2 "Comparing updated ipsets with GeoLite2 country..."
 
@@ -2014,6 +2014,8 @@ update_web() {
 
 	if [ "${#updated[*]}" -ne 0 -a "${#ip2location_country[*]}" -ne 0 ]
 		then
+		print_ipset_reset
+
 		echo >&2 "-------------------------------------------------------------------------------"
 		echo >&2 "Comparing updated ipsets with IP2Location country..."
 
@@ -2043,7 +2045,9 @@ update_web() {
 	echo >&2 "-------------------------------------------------------------------------------"
 	echo >&2 "Generating updated ipsets JSON files..."
 
-	for x in "${!UPDATED_SETS[@]}"
+	print_ipset_reset
+
+	for x in $(params_sort "${!UPDATED_SETS[@]}")
 	do
 		ipset_json "${x}" >"${RUN_DIR}/${x}.json"
 	done
@@ -2052,7 +2056,9 @@ update_web() {
 	echo >&2 "-------------------------------------------------------------------------------"
 	echo >&2 "Generating retention histograms for updated ipsets..."
 
-	for x in "${!UPDATED_SETS[@]}"
+	print_ipset_reset
+
+	for x in $(params_sort "${!UPDATED_SETS[@]}")
 	do
 		[[ "${IPSET_FILE[$x]}" =~ ^geolite2.* ]] && continue
 		[[ "${IPSET_FILE[$x]}" =~ ^ipdeny.* ]] && continue
@@ -2069,12 +2075,16 @@ update_web() {
 	echo >&2 "-------------------------------------------------------------------------------"
 	echo >&2 "Saving generated web files..."
 
+	print_ipset_reset
+
 	$MV_CMD -f "${RUN_DIR}"/*.{json,csv,xml} "${WEB_DIR}/"
 	$CHOWN_CMD ${WEB_OWNER} "${WEB_DIR}"/*
 	$CHMOD_CMD 0644 "${WEB_DIR}"/*.{json,csv,xml}
 
 	if [ ${PUSH_TO_GIT} -eq 1 ]
 		then
+		print_ipset_reset
+
 		echo >&2 "-------------------------------------------------------------------------------"
 		echo >&2 "Pushing generated web files to git..."
 
@@ -2939,29 +2949,10 @@ parse_rss_rosinstrument() {
 	do
 		if [ "${XML_ENTITY}" = "title" ]
 		then
-			if [[ "${XML_CONTENT}" =~ ^.*:[0-9]+$ ]]
-			then
-				local hostname="${XML_CONTENT/:*/}"
-
-				if [[ "${hostname}" =~ ^[0-9]+\.[0-9]+\.[0-9]+\.[0-9]+$ ]]
-				then
-					# it is an IP already
-					# echo "${hostname} # from ${XML_CONTENT}"
-					echo "${hostname}"
-				else
-					# it is a hostname - resolve it
-					local host=`$HOST_CMD "${hostname}" | $GREP_CMD " has address " | $CUT_CMD -d ' ' -f 4`
-					if [ $? -eq 0 -a ! -z "${host}" ]
-					then
-						# echo "${host} # from ${XML_CONTENT}"
-						echo "${host}"
-					#else
-					#	echo "# Cannot resolve ${hostname} taken from ${XML_CONTENT}"
-					fi
-				fi
-			fi
+			[[ "${XML_CONTENT}" =~ ^.*:[0-9]+$ ]] && echo "${XML_CONTENT/:*/}"
 		fi
-	done
+	done |\
+	hostname_resolver
 }
 
 parse_rss_proxy() {
