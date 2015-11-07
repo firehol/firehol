@@ -7,4 +7,7 @@ if ENABLE_IPRANGE
 sbin_PROGRAMS = iprange
 iprange_SOURCES = iprange.c
 
+iprange_CFLAGS = $(PTHREAD_CFLAGS)
+iprange_LDADD = $(PTHREAD_LIBS)
+
 endif

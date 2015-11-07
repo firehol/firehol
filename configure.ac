@@ -161,6 +161,7 @@ AC_SUBST(IPRANGE)
 
 AC_PROG_CC
 AC_HEADER_STDC
+AX_PTHREAD
 AC_CHECK_HEADERS(sys/socket.h,,AC_MSG_ERROR(sys/socket.h missing))
 AC_CHECK_HEADERS(netinet/in.h,,AC_MSG_ERROR(netinet/in.h missing))
 AC_CHECK_HEADERS(arpa/inet.h,,AC_MSG_ERROR(arpa/inet.h missing))
