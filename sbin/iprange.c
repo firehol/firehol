@@ -917,6 +917,7 @@ static inline int parse_hostname(char *line, int lineid, char *ipstr, char *ipst
 		   (*s >= '0' && *s <= '9')
 		|| (*s >= 'a' && *s <= 'z')
 		|| (*s >= 'A' && *s <= 'Z')
+		|| *s == '_'
 		|| *s == '-'
 		|| *s == '.'
 		))) ipstr[i++] = *s++;
@@ -1163,6 +1164,8 @@ DNSREQ *dns_requests = NULL;
 DNSREP *dns_replies = NULL;
 int dns_threads = 0;
 int dns_threads_max = 5;
+int dns_silent = 0;
+int dns_progress = 1;
 unsigned long dns_requests_pending = 0;
 unsigned long dns_requests_made = 0;
 unsigned long dns_requests_finished = 0;
@@ -1287,7 +1290,8 @@ void *dns_thread_resolve(void *ptr)
 
 		r = getaddrinfo(d->hostname, "80", &hints, &result);
 		if(r != 0) {
-			fprintf(stderr, "%s: DNS: '%s' failed: %s\n", PROG, d->hostname, gai_strerror(r));
+			if(!dns_silent)
+				fprintf(stderr, "%s: DNS: '%s' failed: %s\n", PROG, d->hostname, gai_strerror(r));
 			dns_request_done(d, added);
 			continue;
 		}
@@ -1296,7 +1300,8 @@ void *dns_thread_resolve(void *ptr)
 			char host[MAX_INPUT_ELEMENT + 1] = "";
 			r = getnameinfo(rp->ai_addr, rp->ai_addrlen, host, sizeof(host), NULL, 0, NI_NUMERICHOST);
 			if (r != 0) {
-				fprintf(stderr, "%s: DNS: '%s' failed: %s\n", PROG, d->hostname, gai_strerror(r));
+				if(!dns_silent)
+					fprintf(stderr, "%s: DNS: '%s' failed: %s\n", PROG, d->hostname, gai_strerror(r));
 				continue;
 			}
 
@@ -1380,7 +1385,7 @@ void dns_done(ipset *ips)
 	while(dns_requests_pending) {
 		if(unlikely(debug))
 			fprintf(stderr, "%s: DNS: waiting %lu DNS resolutions to finish...\n", PROG, dns_requests_pending);
-		else {
+		else if(dns_progress) {
 			should_show = dots * dns_requests_finished / dns_requests_made;
 			for(; shown < should_show; shown++) {
 				if(!(shown % 10)) fprintf(stderr, "%lu%%", shown * 100 / dots);
@@ -1395,6 +1400,13 @@ void dns_done(ipset *ips)
 
 	if(unlikely(debug))
 		fprintf(stderr, "%s: DNS: made %lu DNS requests, failed %lu, IPs got %lu, threads used %d of %d\n", PROG, dns_requests_made, dns_replies_failed, dns_replies_found, dns_threads, dns_threads_max);
+	else if(dns_progress) {
+		for(; shown <= dots; shown++) {
+			if(!(shown % 10)) fprintf(stderr, "%lu%%", shown * 100 / dots);
+			else fprintf(stderr, ".");
+		}
+		fprintf(stderr, "\n");
+	}
 }
 
 /* ----------------------------------------------------------------------------
@@ -2050,6 +2062,14 @@ void usage(const char *me) {
 		"		when the input files contain hostnames\n"
 		"		the default is %d\n"
 		"\n"
+		"	--dns-silent\n"
+		"		do not print DNS resolution errors\n"
+		"		the default is to print all DNS related errors\n"
+		"\n"
+		"	--dns-no-progress\n"
+		"		do not print DNS resolution progress bar\n"
+		"		the default is to print the progress bar\n"
+		"\n"
 		"\n"
 		"	--------------------------------------------------------------\n"
 		"	OTHER OPTIONS\n"
@@ -2295,8 +2315,14 @@ int main(int argc, char **argv) {
 			cidr_use_network = 0;
 		}
 		else if(i+1 < argc && !strcmp(argv[i], "--dns-threads")) {
-			int dns_threads_max = atoi(argv[++i]);
+			dns_threads_max = atoi(argv[++i]);
 			if(dns_threads_max < 1) dns_threads_max = 1;
+		}
+		else if(!strcmp(argv[i], "--dns-silent")) {
+			dns_silent = 1;
+		}
+		else if(!strcmp(argv[i], "--dns-no-progress")) {
+			dns_progress = 0;
 		}
 		else if(!strcmp(argv[i], "--has-compare")
 			|| !strcmp(argv[i], "--has-reduce")) {
