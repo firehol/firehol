@@ -440,7 +440,7 @@ ipset_notupdated() {
 
 	print_ipset_header "${ipset}"
 	echo >&2 -e "${COLOR_BGWHITE}${COLOR_BLACK}${COLOR_BOLD} NOT UPDATED ${COLOR_RESET} ${@}"
-	$LOGGER_CMD -p daemon.info -t "update-ipsets.sh[$$]" "NOT UPDATED: ${ipset}: ${@}"
+	# $LOGGER_CMD -p daemon.info -t "update-ipsets.sh[$$]" "NOT UPDATED: ${ipset}: ${@}"
 }
 ipset_notyet() {
 	local ipset="${1}"
@@ -891,7 +891,9 @@ check_git_committed() {
 # git config --unset branch.${BRANCH_TO_DELETE_LOCALY_ONLY}.merge
 # git gc --aggressive --prune=all --force
 
-declare -A DO_NOT_REDISTRIBUTE=()
+declare -A IPSET_TMP_DO_NOT_REDISTRIBUTE=()
+declare -A IPSET_TMP_ACCEPT_EMPTY=()
+declare -A IPSET_TMP_NO_IF_MODIFIED_SINCE=()
 commit_to_git() {
 	if [ -d .git -a ! -z "${!UPDATED_SETS[*]}" ]
 	then
@@ -921,7 +923,7 @@ commit_to_git() {
 		local ipset=
 		for ipset in "${!UPDATED_SETS[@]}"
 		do
-			[ ! -z "${DO_NOT_REDISTRIBUTE[${ipset}]}" ] && continue
+			[ ! -z "${IPSET_TMP_DO_NOT_REDISTRIBUTE[${ipset}]}" ] && continue
 			[ ! -f "${UPDATED_SETS[${ipset}]}" ] && continue
 
 			to_be_pushed=("${to_be_pushed[@]}" "${UPDATED_SETS[${ipset}]}")
@@ -1133,7 +1135,6 @@ geturl() {
 DOWNLOAD_OK=0
 DOWNLOAD_FAILED=1
 DOWNLOAD_NOT_UPDATED=2
-declare -A IPSET_DOWNLOADER_NO_IF_MODIFIED_SINCE=()
 download_manager() {
 	local 	ipset="${1}" mins="${2}" url="${3}" \
 			st= ret= \
@@ -1203,7 +1204,7 @@ download_manager() {
 
 	# download it
 	local reference="${ipset}.source"
-	[ ! -z "${IPSET_DOWNLOADER_NO_IF_MODIFIED_SINCE[${ipset}]}" ] && reference=""
+	[ ! -z "${IPSET_TMP_NO_IF_MODIFIED_SINCE[${ipset}]}" ] && reference=""
 
 	if [ ${#url} -gt 55 ]
 		then
@@ -1216,6 +1217,13 @@ download_manager() {
 	geturl "${tmp}" "${reference}" "${url}"
 	ret=$?
 	ipset_info "${ipset}" "HTTP/${geturl_httpcode} ${geturl_message}"
+
+	# if the downloaded file is empty, but we don't accept empty files
+	if [ $ret -eq 0 -a ! -s "${tmp}" -a -z "${IPSET_TMP_ACCEPT_EMPTY[${ipset}]}" ]
+		then
+		ret=9999
+		ipset_silent "${ipset}" "downloaded file is empty"
+	fi
 
 	case $ret in
 		0)
@@ -1242,17 +1250,8 @@ download_manager() {
 			;;
 	esac
 
-	[ ! -z "${IPSET_DOWNLOADER_NO_IF_MODIFIED_SINCE[${ipset}]}" ] && $TOUCH_CMD "${tmp}"
+	[ ! -z "${IPSET_TMP_NO_IF_MODIFIED_SINCE[${ipset}]}" ] && $TOUCH_CMD "${tmp}"
 	
-	# check if the downloaded file is empty
-	#if [ ! -s "${tmp}" ]
-	#then
-	#	# it is empty
-	#	$RM_CMD "${tmp}"
-	#	ipset_error "${ipset}" "empty file downloaded from url '${url}'."
-	#	return ${DOWNLOAD_FAILED}
-	#fi
-
 	# check if the downloaded file is the same with the last one
 	diff -q "${ipset}.source" "${tmp}" >/dev/null 2>&1
 	if [ $? -eq 0 ]
@@ -1458,7 +1457,7 @@ ipset_json() {
 
 	local file_local=
 	local commit_history=
-	if [ -z "${DO_NOT_REDISTRIBUTE[${ipset}]}" ]
+	if [ -z "${IPSET_TMP_DO_NOT_REDISTRIBUTE[${ipset}]}" ]
 		then
 		file_local="${GITHUB_LOCAL_COPY_URL}${IPSET_FILE[${ipset}]}"
 		commit_history="${GITHUB_CHANGES_URL}${IPSET_FILE[${ipset}]}"
@@ -1818,6 +1817,110 @@ $CAT_CMD >>"${RUN_DIR}/sitemap.xml" <<EOFSITEMAP1
 EOFSITEMAP1
 }
 
+history_statistics() {
+	# the file should be in this format:
+	# DateTime,Entries,IPs
+
+	local 	ipset="${1}" file="${2}" \
+			xdate xentries xips \
+			xlast xdt \
+			xavg xlo xhi xelo xehi xilo xihi \
+			xtotal=0 count=0
+
+	# calculate the average update time of the list
+	while IFS="," read xdate xentries xips
+	do
+		# skip the header
+		[ "${xdate}" = "DateTime" ] && continue
+
+		# skip invalids
+		[  $[xdate] -le 0 ] && continue
+
+		# the first valid entry
+		# set xlast and the lo/hi entries and IPs
+		if [ ${count} -eq 0 ]
+			then
+			xlast=${xdate}
+			xelo=${xentries}
+			xehi=${xentries}
+			xilo=${xips}
+			xihi=${xips}
+			count=$[count + 1]
+			continue
+		fi
+
+		# skip entries that are not in the valid order
+		# in this case, the new date is older than the last
+		[ $[xdate] -le $[xlast] ] && continue
+
+		# calculate the time diff
+		xdt=$[ xdate - xlast ]
+		[ ${xdt} -le 0 ] && continue
+
+		# the second line
+		# set the lo/hi dt
+		if [ ${count} -eq 1 ]
+			then
+			xlo=${xdt}
+			xhi=${xdt}
+		fi
+
+		# for all the rest of the lines
+		xtotal=$[ xtotal + xdt ]
+		xlast=${xdate}
+
+		count=$[ count + 1 ]
+
+		# dt
+		[ ${xdt} -lt ${xlo} ] && xlo=${xdt}
+		[ ${xdt} -gt ${xhi} ] && xhi=${xdt}
+
+		# entries
+		[ ${xentries} -lt ${xelo} ] && xelo=${xentries}
+		[ ${xentries} -gt ${xehi} ] && xehi=${xentries}
+
+		# IPs
+		[ ${xips} -lt ${xilo} ] && xilo=${xips}
+		[ ${xips} -gt ${xihi} ] && xihi=${xips}
+
+	done <"${file}"
+
+	local update_mins=$[ IPSET_MINS[${ipset}] ]
+
+	# the average update time, in minutes
+	xavg=$[(xtotal / (count - 1) + 60) / 60]
+
+	# the lo/hi update time, in minutes
+	xlo=$[(xlo + 60) / 60]
+	xhi=$[(xhi + 60) / 60]
+
+	IPSET_AVERAGE_UPDATE_TIME[${ipset}]=$[xavg]
+	IPSET_MIN_UPDATE_TIME[${ipset}]=$[xlo]
+	IPSET_MAX_UPDATE_TIME[${ipset}]=$[xhi]
+	ipset_silent "${ipset}" "last ${count} updates: avg: ${xavg} mins (${xlo} - ${xhi}) - config: ${update_mins} mins"
+
+	IPSET_ENTRIES_MIN[${ipset}]=$[xelo]
+	IPSET_ENTRIES_MAX[${ipset}]=$[xehi]
+	IPSET_IPS_MIN[${ipset}]=$[xilo]
+	IPSET_IPS_MAX[${ipset}]=$[xihi]
+	ipset_silent "${ipset}" "entries: ${xelo} to ${xehi}, IPs: ${xilo} to ${xihi}"
+
+	# if the list is downloaded, try to figure out
+	# if we download it too frequently or too late
+	if [ ! -z "${IPSET_URL[${ipset}]}" ]
+		then
+		if [ $[xavg] -lt $[ update_mins * 5 / 4 ] ]
+			then
+			ipset_warning "${ipset}" "may need to lower update freq from ${update_mins} to $[ xavg * 2 / 3 ] mins"
+		elif [ $[xavg] -gt $[ update_mins * 3 ] ]
+			then
+			ipset_warning "${ipset}" "may need to increase update freq from ${update_mins} to $[ update_mins * 3 / 2 ] mins"
+		fi
+	fi
+
+	return 0
+}
+
 update_web() {
 	print_ipset_reset
 	echo >&2
@@ -1889,49 +1992,7 @@ update_web() {
 				echo >"${RUN_DIR}/${x}_history.csv" "DateTime,Entries,UniqueIPs"
 				$TAIL_CMD -n ${WEB_CHARTS_ENTRIES} "${LIB_DIR}/${x}/history.csv" | $GREP_CMD -v "^DateTime" | $SORT_CMD -n >>"${RUN_DIR}/${x}_history.csv"
 
-				# calculate the average update time of the list
-				local xdate xentries xips xlast=0 xdt xtotal=0 xcount=0 xavg="" xmin=$[ IPSET_MINS[${x}] ] xlow="" xhi=""
-				while IFS="," read xdate xentries xips
-				do
-					[ "${xdate}" = "DateTime" ] && continue
-					[ ${xlast} -eq 0 ] && xlast=${xdate} && continue
-					[ ${xlast} -eq ${xdate} ] && continue
-
-					xdt=$[ xdate - xlast ]
-					[ ${xdt} -le 0 ] && continue
-
-					[ -z "${xlow}" ] && xlow=${xdt}
-					[ -z "${xhi}"  ] && xhi=${xdt}
-
-					[ ${xdt} -lt ${xlow} ] && xlow=${xdt}
-					[ ${xdt} -gt ${xhi}  ] && xhi=${xdt}
-
-					[ $[ (xdt + 60) / 60 ] -lt ${xmin} ] && ipset_verbose "${x}" "${xdate} updated in $[ (xdt + 60) / 60] mins, less than configured ${xmin} mins"
-
-					xtotal=$[ xtotal + xdt ]
-					xcount=$[ xcount + 1 ]
-					xlast=${xdate}
-				done <"${RUN_DIR}/${x}_history.csv"
-				xavg=$[(xtotal / xcount + 60) / 60]
-				xlow=$[(xlow + 60) / 60]
-				xhi=$[(xhi + 60) / 60]
-				ipset_silent "${x}" "last ${xcount} updates: avg: ${xavg} mins (${xlow} - ${xhi}) - config: ${xmin} mins"
-				IPSET_AVERAGE_UPDATE_TIME[${x}]=${xavg}
-				IPSET_MIN_UPDATE_TIME[${x}]=$[xlow]
-				IPSET_MAX_UPDATE_TIME[${x}]=$[xhi]
-
-				# if the list is downloaded, try to figure out
-				# if we download it too frequently or too late
-				if [ ! -z "${IPSET_URL[${x}]}" ]
-					then
-					if [ $[xavg] -lt $[ xmin * 5 / 4 ] ]
-						then
-						ipset_warning "${x}" "may need to lower update freq from ${xmin} to $[ xavg * 2 / 3 ] mins"
-					elif [ $[xavg] -gt $[ xmin * 3 ] ]
-						then
-						ipset_warning "${x}" "may need to increase update freq from ${xmin} to $[ xmin * 3 / 2 ] mins"
-					fi
-				fi
+				history_statistics "${x}" "${RUN_DIR}/${x}_history.csv"
 			fi
 		fi
 
@@ -2299,23 +2360,30 @@ ipset_attributes() {
 	local ipset="${1}"
 	shift
 
-	# ipset_info "${ipset}" "parsing attributes: ${*}"
+	ipset_verbose "${ipset}" "parsing attributes: ${*}"
 
 	while [ ! -z "${1}" ]
 	do
 		case "${1}" in
-			inbound|outbound)	IPSET_PROTECTION[${ipset}]="${1}"; shift; continue ;;
-			category)		IPSET_CATEGORY[${ipset}]="${2}" ;;
-			maintainer)		IPSET_MAINTAINER[${ipset}]="${2}" ;;
-			maintainer_url)		IPSET_MAINTAINER_URL[${ipset}]="${2}" ;;
-			license)		IPSET_LICENSE[${ipset}]="${2}" ;;
-			grade)			IPSET_GRADE[${ipset}]="${2}" ;;
-			protection)		IPSET_PROTECTION[${ipset}]="${2}" ;;
-			intended_use)		IPSET_INTENDED_USE[${ipset}]="${2}" ;;
-			false_positives)	IPSET_FALSE_POSITIVES[${ipset}]="${2}" ;;
-			poisoning)		IPSET_POISONING[${ipset}]="${2}" ;;
-			service|services)	IPSET_SERVICES[${ipset}]="${2}" ;;
-			*)			ipset_warning "${ipset}" "unknown ipset option '${1}' with value '${2}'." ;;
+			redistribute)			unset IPSET_TMP_DO_NOT_REDISTRIBUTE[${ipset}]; shift; continue ;;
+			dont_redistribute)		IPSET_TMP_DO_NOT_REDISTRIBUTE[${ipset}]="1"; shift; continue ;;
+			can_be_empty|empty)		IPSET_TMP_ACCEPT_EMPTY[${ipset}]="1"; shift; continue ;;
+			never_empty|no_empty)	unset IPSET_TMP_ACCEPT_EMPTY[${ipset}]; shift; continue ;;
+			no_if_modified_since)	IPSET_TMP_NO_IF_MODIFIED_SINCE[${ipset}]="1"; shift; continue ;;
+
+			inbound|outbound)		IPSET_PROTECTION[${ipset}]="${1}"; shift; continue ;;
+
+			category)				IPSET_CATEGORY[${ipset}]="${2}" ;;
+			maintainer)				IPSET_MAINTAINER[${ipset}]="${2}" ;;
+			maintainer_url)			IPSET_MAINTAINER_URL[${ipset}]="${2}" ;;
+			license)				IPSET_LICENSE[${ipset}]="${2}" ;;
+			grade)					IPSET_GRADE[${ipset}]="${2}" ;;
+			protection)				IPSET_PROTECTION[${ipset}]="${2}" ;;
+			intended_use)			IPSET_INTENDED_USE[${ipset}]="${2}" ;;
+			false_positives)		IPSET_FALSE_POSITIVES[${ipset}]="${2}" ;;
+			poisoning)				IPSET_POISONING[${ipset}]="${2}" ;;
+			service|services)		IPSET_SERVICES[${ipset}]="${2}" ;;
+			*)						ipset_warning "${ipset}" "unknown ipset option '${1}' with value '${2}'." ;;
 		esac
 
 		shift 2
@@ -2343,6 +2411,8 @@ finalize() {
 			url="${11}" category="${12}" info="${13}" \
 			maintainer="${14}" maintainer_url="${15}"
 	shift 15
+
+	ipset_attributes "${ipset}" "${@}"
 
 	# check
 	if [ -z "${info}" ]
@@ -2396,9 +2466,17 @@ finalize() {
 	local ips=${entries/*,/}
 	local entries=${entries/,*/}
 
-	if [ ${ips} -eq 0 ]
+	if [ $[ ips ] -eq 0 ]
 		then
-		ipset_warning "${ipset}" "processed file has no valid entries (zero unique IPs)"
+		if [ -z "${IPSET_TMP_ACCEPT_EMPTY[${ipset}]}" ]
+			then
+			$RM_CMD "${tmp}"
+			ipset_error "${ipset}" "processed file has no valid entries (zero unique IPs)"
+			check_file_too_old "${ipset}" "${dst}"
+			return 1
+		else
+			ipset_warning "${ipset}" "processed file has no valid entries (zero unique IPs)"
+		fi
 	fi
 
 	ipset_apply ${ipset} ${ipv} ${hash} ${tmp}
@@ -2465,8 +2543,6 @@ finalize() {
 		IPSET_CLOCK_SKEW[${ipset}]=0
 	fi
 
-	ipset_attributes "${ipset}" "${@}"
-
 	# generate the final file
 	# we do this on another tmp file
 	$CAT_CMD >"${tmp}.wh" <<EOFHEADER
@@ -2520,7 +2596,7 @@ EOFHEADER
 	if [ -d .git ]
 	then
 		echo >"${setinfo}" "[${ipset}](${WEB_URL}${ipset})|${info}|${ipv} hash:${hash}|${quantity}|`if [ ! -z "${url}" ]; then echo "updated every $(mins_to_text ${mins}) from [this link](${url})"; fi`"
-		[ -z "${DO_NOT_REDISTRIBUTE[${ipset}]}" ] && check_git_committed "${dst}"
+		[ -z "${IPSET_TMP_DO_NOT_REDISTRIBUTE[${ipset}]}" ] && check_git_committed "${dst}"
 	fi
 
 	cache_save
@@ -2538,6 +2614,8 @@ update() {
 			info="${9}" \
 			maintainer="${10}" maintainer_url="${11}"
 	shift 11
+
+	ipset_attributes "${ipset}" "${@}"
 
 	local	tmp= error=0 now= date= ret= \
 			pre_filter="$CAT_CMD" post_filter="$CAT_CMD" post_filter2="$CAT_CMD" filter="$CAT_CMD" \
@@ -2671,14 +2749,16 @@ update() {
 			"${processor}" \
 			"${category}" \
 			"${info}" \
-			"${maintainer}" "${maintainer_url}"
+			"${maintainer}" "${maintainer_url}" \
+			"${@}"
 		
 		update "${ipset}_net" "${mins}" "${history_mins}" "${ipv}" net \
 			"" \
 			"${processor}" \
 			"${category}" \
 			"${info}" \
-			"${maintainer}" "${maintainer_url}"
+			"${maintainer}" "${maintainer_url}" \
+			"${@}"
 		
 		return $?
 	fi
@@ -2701,6 +2781,15 @@ update() {
 		return 1
 	fi
 
+	# if the downloaded file is empty, but we don't accept empty files
+	if [ ! -s "${tmp}" -a -z "${IPSET_TMP_ACCEPT_EMPTY[${ipset}]}" ]
+		then
+		ipset_error "${ipset}" "converted file is empty (processor: ${processor}, pre_filter: ${pre_filter}, filter: ${filter}, post_filter: ${post_filter}, post_filter2: ${post_filter2})."
+		$RM_CMD "${tmp}"
+		check_file_too_old "${ipset}" "${dst}"
+		return 1
+	fi
+
 	local h= hmax=-1
 	[ "${history_mins}" = "0" ] && history_mins=
 	
@@ -2709,6 +2798,7 @@ update() {
 		history_keep "${ipset}" "${tmp}"
 	fi
 
+	ret=0
 	for h in 0 ${history_mins/,/ }
 	do
 		local hmins=${h/\/*/}
@@ -2750,6 +2840,8 @@ update() {
 			"${info}" \
 			"${maintainer}" "${maintainer_url}" \
 			"${@}"
+
+		[ $? -ne 0 ] && ret=$[ ret + 1 ]
  	done
 
 	if [ ! -z "${history_mins}" ]
@@ -2757,7 +2849,7 @@ update() {
 		history_cleanup "${ipset}" "${hmax}"
 	fi
 
-	return $?
+	return $ret
 }
 
 
@@ -3939,13 +4031,13 @@ update cruzit_web_attacks $[12 * 60] 0 ipv4 ip \
 # -----------------------------------------------------------------------------
 # pgl.yoyo.org
 
-IPSET_DOWNLOADER_NO_IF_MODIFIED_SINCE[yoyo_adservers]=1
 update yoyo_adservers $[12 * 60] 0 ipv4 ip \
 	"http://pgl.yoyo.org/adservers/iplist.php?ipformat=plain&showintro=0&mimetype=plaintext" \
 	$CAT_CMD \
 	"organizations" \
 	"[Yoyo.org](http://pgl.yoyo.org/adservers/) IPs of ad servers" \
-	"Yoyo.org" "http://pgl.yoyo.org/adservers/"
+	"Yoyo.org" "http://pgl.yoyo.org/adservers/" \
+	no_if_modified_since
 
 
 # -----------------------------------------------------------------------------
@@ -4113,7 +4205,8 @@ update zeus_badips 30 0 ipv4 ip \
 	remove_comments \
 	"malware" \
 	"[Abuse.ch Zeus tracker](https://zeustracker.abuse.ch) badips includes IPv4 addresses that are used by the ZeuS trojan. It is the recommened blocklist if you want to block only ZeuS IPs. It excludes IP addresses that ZeuS Tracker believes to be hijacked (level 2) or belong to a free web hosting provider (level 3). Hence the false postive rate should be much lower compared to the standard ZeuS IP blocklist." \
-	"Abuse.ch" "https://zeustracker.abuse.ch/"
+	"Abuse.ch" "https://zeustracker.abuse.ch/" \
+	can_be_empty
 
 # This blocklist contains the same data as the ZeuS IP blocklist (BadIPs)
 # but with the slight difference that it doesn't exclude hijacked websites
@@ -4123,7 +4216,8 @@ update zeus 30 0 ipv4 ip \
 	remove_comments \
 	"malware" \
 	"[Abuse.ch Zeus tracker](https://zeustracker.abuse.ch) standard, contains the same data as the ZeuS IP blocklist (zeus_badips) but with the slight difference that it doesn't exclude hijacked websites (level 2) and free web hosting providers (level 3). This means that this blocklist contains all IPv4 addresses associated with ZeuS C&Cs which are currently being tracked by ZeuS Tracker. Hence this blocklist will likely cause some false positives." \
-	"Abuse.ch" "https://zeustracker.abuse.ch/"
+	"Abuse.ch" "https://zeustracker.abuse.ch/" \
+	can_be_empty
 
 
 # -----------------------------------------------------------------------------
@@ -4137,7 +4231,8 @@ update palevo 30 0 ipv4 ip \
 	remove_comments \
 	"malware" \
 	"[Abuse.ch Palevo tracker](https://palevotracker.abuse.ch) worm includes IPs which are being used as botnet C&C for the Palevo crimeware" \
-	"Abuse.ch" "https://palevotracker.abuse.ch/"
+	"Abuse.ch" "https://palevotracker.abuse.ch/" \
+	can_be_empty
 
 
 # -----------------------------------------------------------------------------
@@ -4153,7 +4248,8 @@ update feodo 30 0 ipv4 ip \
 	remove_comments \
 	"malware" \
 	"[Abuse.ch Feodo tracker](https://feodotracker.abuse.ch) trojan includes IPs which are being used by Feodo (also known as Cridex or Bugat) which commits ebanking fraud" \
-	"Abuse.ch" "https://feodotracker.abuse.ch/"
+	"Abuse.ch" "https://feodotracker.abuse.ch/" \
+	can_be_empty
 
 
 # -----------------------------------------------------------------------------
@@ -4167,7 +4263,8 @@ update sslbl 30 0 ipv4 ip \
 	csv_comma_first_column \
 	"malware" \
 	"[Abuse.ch SSL Blacklist](https://sslbl.abuse.ch/) bad SSL traffic related to malware or botnet activities" \
-	"Abuse.ch" "https://sslbl.abuse.ch/"
+	"Abuse.ch" "https://sslbl.abuse.ch/" \
+	can_be_empty
 
 # The aggressive version of the SSL IP Blacklist contains all IPs that SSLBL ever detected being associated with a malicious SSL certificate. Since IP addresses can be reused (e.g. when the customer changes), this blacklist may cause false positives. Hence I highly recommend you to use the standard version instead of the aggressive one.
 update sslbl_aggressive 30 0 ipv4 ip \
@@ -4175,7 +4272,8 @@ update sslbl_aggressive 30 0 ipv4 ip \
 	csv_comma_first_column \
 	"malware" \
 	"[Abuse.ch SSL Blacklist](https://sslbl.abuse.ch/) The aggressive version of the SSL IP Blacklist contains all IPs that SSLBL ever detected being associated with a malicious SSL certificate. Since IP addresses can be reused (e.g. when the customer changes), this blacklist may cause false positives. Hence I highly recommend you to use the standard version instead of the aggressive one." \
-	"Abuse.ch" "https://sslbl.abuse.ch/"
+	"Abuse.ch" "https://sslbl.abuse.ch/" \
+	can_be_empty
 
 
 # -----------------------------------------------------------------------------
@@ -4214,7 +4312,8 @@ update asprox_c2 $[24*60] 0 ipv4 ip \
 	parse_asprox \
 	"malware" \
 	"[h3x.eu](http://atrack.h3x.eu/) ASPROX Tracker - Asprox C&C Sites" \
-	"h3x.eu" "http://atrack.h3x.eu/"
+	"h3x.eu" "http://atrack.h3x.eu/" \
+	can_be_empty
 
 
 # -----------------------------------------------------------------------------
@@ -4322,34 +4421,34 @@ update myip $[24*60] 0 ipv4 ip \
 # private and reserved addresses defined by RFC 1918, RFC 5735, and RFC 6598
 # and netblocks that have not been allocated to a regional internet registry
 # (RIR) by the Internet Assigned Numbers Authority.
-DO_NOT_REDISTRIBUTE[bogons]="1"
 update bogons $[24*60] 0 ipv4 both \
 	"http://www.team-cymru.org/Services/Bogons/bogon-bn-agg.txt" \
 	remove_comments \
 	"unroutable" \
 	"[Team-Cymru.org](http://www.team-cymru.org) private and reserved addresses defined by RFC 1918, RFC 5735, and RFC 6598 and netblocks that have not been allocated to a regional internet registry" \
-	"Team Cymru" "http://www.team-cymru.org/"
+	"Team Cymru" "http://www.team-cymru.org/" \
+	dont_redistribute
 
 
 # http://www.team-cymru.org/bogon-reference.html
 # Fullbogons are a larger set which also includes IP space that has been
 # allocated to an RIR, but not assigned by that RIR to an actual ISP or other
 # end-user.
-DO_NOT_REDISTRIBUTE[fullbogons]="1"
 update fullbogons $[24*60] 0 ipv4 both \
 	"http://www.team-cymru.org/Services/Bogons/fullbogons-ipv4.txt" \
 	remove_comments \
 	"unroutable" \
 	"[Team-Cymru.org](http://www.team-cymru.org) IP space that has been allocated to an RIR, but not assigned by that RIR to an actual ISP or other end-user" \
-	"Team Cymru" "http://www.team-cymru.org/"
+	"Team Cymru" "http://www.team-cymru.org/" \
+	dont_redistribute
 
-#DO_NOT_REDISTRIBUTE[fullbogons6]="1"
 #update fullbogons6 $[24*60-10] ipv6 both \
 #	"http://www.team-cymru.org/Services/Bogons/fullbogons-ipv6.txt" \
 #	remove_comments \
 #	"unroutable" \
 #	"Team-Cymru.org provided" \
-#	"Team Cymru" "http://www.team-cymru.org/"
+#	"Team Cymru" "http://www.team-cymru.org/" \
+#	dont_redistribute
 
 # -----------------------------------------------------------------------------
 # CIDR Report.org
@@ -4797,29 +4896,29 @@ update lashback_ubl $[24*60] 0 ipv4 ip \
 
 dragon_column3() { remove_comments | $CUT_CMD -d '|' -f 3 | trim; }
 
-DO_NOT_REDISTRIBUTE[dragon_http]="1"
 update dragon_http 60 0 ipv4 both \
 	"http://www.dragonresearchgroup.org/insight/http-report.txt" \
 	dragon_column3 \
 	"attacks" \
 	"[Dragon Research Group](http://www.dragonresearchgroup.org/) IPs that have been seen sending HTTP requests to Dragon Research Pods in the last 7 days. This report lists hosts that are highly suspicious and are likely conducting malicious HTTP attacks. LEGITIMATE SEARCH ENGINE BOTS MAY BE IN THIS LIST. This report is informational.  It is not a blacklist, but some operators may choose to use it to help protect their networks and hosts in the forms of automated reporting and mitigation services." \
-	"Dragon Research Group (DRG)" "http://www.dragonresearchgroup.org/"
+	"Dragon Research Group (DRG)" "http://www.dragonresearchgroup.org/" \
+	dont_redistribute
 
-DO_NOT_REDISTRIBUTE[dragon_sshpauth]="1"
 update dragon_sshpauth 60 0 ipv4 both \
 	"https://www.dragonresearchgroup.org/insight/sshpwauth.txt" \
 	dragon_column3 \
 	"attacks" \
 	"[Dragon Research Group](http://www.dragonresearchgroup.org/) IP address that has been seen attempting to remotely login to a host using SSH password authentication, in the last 7 days. This report lists hosts that are highly suspicious and are likely conducting malicious SSH password authentication attacks." \
-	"Dragon Research Group (DRG)" "http://www.dragonresearchgroup.org/"
+	"Dragon Research Group (DRG)" "http://www.dragonresearchgroup.org/" \
+	dont_redistribute
 
-DO_NOT_REDISTRIBUTE[dragon_vncprobe]="1"
 update dragon_vncprobe 60 0 ipv4 both \
 	"https://www.dragonresearchgroup.org/insight/vncprobe.txt" \
 	dragon_column3 \
 	"attacks" \
 	"[Dragon Research Group](http://www.dragonresearchgroup.org/) IP address that has been seen attempting to remotely connect to a host running the VNC application service, in the last 7 days. This report lists hosts that are highly suspicious and are likely conducting malicious VNC probes or VNC brute force attacks." \
-	"Dragon Research Group (DRG)" "http://www.dragonresearchgroup.org/"
+	"Dragon Research Group (DRG)" "http://www.dragonresearchgroup.org/" \
+	dont_redistribute
 
 
 # -----------------------------------------------------------------------------
@@ -4873,7 +4972,8 @@ do
 		bambenek_filter \
 		"malware" \
 		"[Bambenek Consulting](http://osint.bambenekconsulting.com/feeds/) feed of current IPs of ${list} C&Cs with 90 minute lookback" \
-		"Bambenek Consulting" "http://osint.bambenekconsulting.com/feeds/"
+		"Bambenek Consulting" "http://osint.bambenekconsulting.com/feeds/" \
+		can_be_empty
 done
 
 
@@ -5237,175 +5337,175 @@ update hphosts_wrz $[24*60] 0 ipv4 ip \
 # https://www.iblocklist.com/lists.php
 
 # we only keep the proxies IPs (tor IPs are not parsed)
-DO_NOT_REDISTRIBUTE[iblocklist_proxies]="1"
 update iblocklist_proxies $[12*60] 0 ipv4 ip \
 	"http://list.iblocklist.com/?list=xoebmbyexwuiogmbyprb&fileformat=p2p&archiveformat=gz" \
 	p2p_gz_proxy \
 	"anonymizers" \
 	"Open Proxies IPs list (without TOR)" \
-	"iBlocklist.com" "https://www.iblocklist.com/"
+	"iBlocklist.com" "https://www.iblocklist.com/" \
+	dont_redistribute
 
-DO_NOT_REDISTRIBUTE[iblocklist_spyware]="1"
 update iblocklist_spyware $[12*60] 0 ipv4 both \
 	"http://list.iblocklist.com/?list=llvtlsjyoyiczbkjsxpf&fileformat=p2p&archiveformat=gz" \
 	p2p_gz \
 	"reputation" \
 	"Known malicious SPYWARE and ADWARE IP Address ranges. It is compiled from various sources, including other available spyware blacklists, HOSTS files, from research found at many of the top anti-spyware forums, logs of spyware victims, etc." \
-	"iBlocklist.com" "https://www.iblocklist.com/"
+	"iBlocklist.com" "https://www.iblocklist.com/" \
+	dont_redistribute
 
-DO_NOT_REDISTRIBUTE[iblocklist_badpeers]="1"
 update iblocklist_badpeers $[12*60] 0 ipv4 ip \
 	"http://list.iblocklist.com/?list=cwworuawihqvocglcoss&fileformat=p2p&archiveformat=gz" \
 	p2p_gz \
 	"reputation" \
 	"IPs that have been reported for bad deeds in p2p." \
-	"iBlocklist.com" "https://www.iblocklist.com/"
+	"iBlocklist.com" "https://www.iblocklist.com/" \
+	dont_redistribute
 
-DO_NOT_REDISTRIBUTE[iblocklist_hijacked]="1"
 update iblocklist_hijacked $[12*60] 0 ipv4 both \
 	"http://list.iblocklist.com/?list=usrcshglbiilevmyfhse&fileformat=p2p&archiveformat=gz" \
 	p2p_gz \
 	"reputation" \
 	"Hijacked IP-Blocks. Contains hijacked IP-Blocks and known IP-Blocks that are used to deliver Spam. This list is a combination of lists with hijacked IP-Blocks. Hijacked IP space are IP blocks that are being used without permission by organizations that have no relation to original organization (or its legal successor) that received the IP block. In essence it's stealing of somebody else's IP resources." \
-	"iBlocklist.com" "https://www.iblocklist.com/"
+	"iBlocklist.com" "https://www.iblocklist.com/" \
+	dont_redistribute
 
-DO_NOT_REDISTRIBUTE[iblocklist_webexploit]="1"
 update iblocklist_webexploit $[12*60] 0 ipv4 ip \
 	"http://list.iblocklist.com/?list=ghlzqtqxnzctvvajwwag&fileformat=p2p&archiveformat=gz" \
 	p2p_gz \
 	"reputation" \
 	"Web server hack and exploit attempts. IP addresses related to current web server hack and exploit attempts that have been logged or can be found in and cross referenced with other related IP databases. Malicious and other non search engine bots will also be listed here, along with anything found that can have a negative impact on a website or webserver such as proxies being used for negative SEO hijacks, unauthorised site mirroring, harvesting, scraping, snooping and data mining / spy bot / security & copyright enforcement companies that target and continuosly scan webservers." \
-	"iBlocklist.com" "https://www.iblocklist.com/"
+	"iBlocklist.com" "https://www.iblocklist.com/" \
+	dont_redistribute
 
 # The Level1 list is recommended for general P2P users, but it all comes
 # down to your personal choice.
-DO_NOT_REDISTRIBUTE[iblocklist_level1]="1"
 update iblocklist_level1 $[12*60] 0 ipv4 both \
 	"http://list.iblocklist.com/?list=ydxerpxkpcfqjaybcssw&fileformat=p2p&archiveformat=gz" \
 	p2p_gz \
 	"reputation" \
 	"Level 1 (for use in p2p): Companies or organizations who are clearly involved with trying to stop filesharing (e.g. Baytsp, MediaDefender, Mediasentry a.o.). Companies which anti-p2p activity has been seen from. Companies that produce or have a strong financial interest in copyrighted material (e.g. music, movie, software industries a.o.). Government ranges or companies that have a strong financial interest in doing work for governments. Legal industry ranges. IPs or ranges of ISPs from which anti-p2p activity has been observed. Basically this list will block all kinds of internet connections that most people would rather not have during their internet travels." \
-	"iBlocklist.com" "https://www.iblocklist.com/"
+	"iBlocklist.com" "https://www.iblocklist.com/" \
+	dont_redistribute
 
-DO_NOT_REDISTRIBUTE[iblocklist_level2]="1"
 update iblocklist_level2 $[12*60] 0 ipv4 both \
 	"http://list.iblocklist.com/?list=gyisgnzbhppbvsphucsw&fileformat=p2p&archiveformat=gz" \
 	p2p_gz \
 	"reputation" \
 	"Level 2 (for use in p2p). General corporate ranges. Ranges used by labs or researchers. Proxies." \
-	"iBlocklist.com" "https://www.iblocklist.com/"
+	"iBlocklist.com" "https://www.iblocklist.com/" \
+	dont_redistribute
 
-DO_NOT_REDISTRIBUTE[iblocklist_level3]="1"
 update iblocklist_level3 $[12*60] 0 ipv4 both \
 	"http://list.iblocklist.com/?list=uwnukjqktoggdknzrhgh&fileformat=p2p&archiveformat=gz" \
 	p2p_gz \
 	"reputation" \
 	"Level 3 (for use in p2p). Many portal-type websites. ISP ranges that may be dodgy for some reason. Ranges that belong to an individual, but which have not been determined to be used by a particular company. Ranges for things that are unusual in some way. The L3 list is aka the paranoid list." \
-	"iBlocklist.com" "https://www.iblocklist.com/"
+	"iBlocklist.com" "https://www.iblocklist.com/" \
+	dont_redistribute
 
-DO_NOT_REDISTRIBUTE[iblocklist_edu]="1"
 update iblocklist_edu $[12*60] 0 ipv4 both \
 	"http://list.iblocklist.com/?list=imlmncgrkbnacgcwfjvh&fileformat=p2p&archiveformat=gz" \
 	p2p_gz \
 	"organizations" \
 	"IPs used by Educational Institutions." \
-	"iBlocklist.com" "https://www.iblocklist.com/"
+	"iBlocklist.com" "https://www.iblocklist.com/" \
+	dont_redistribute
 
-DO_NOT_REDISTRIBUTE[iblocklist_rangetest]="1"
 update iblocklist_rangetest $[12*60] 0 ipv4 both \
 	"http://list.iblocklist.com/?list=plkehquoahljmyxjixpu&fileformat=p2p&archiveformat=gz" \
 	p2p_gz \
 	"reputation" \
 	"Suspicious IPs that are under investigation." \
-	"iBlocklist.com" "https://www.iblocklist.com/"
+	"iBlocklist.com" "https://www.iblocklist.com/" \
+	dont_redistribute
 
-DO_NOT_REDISTRIBUTE[iblocklist_bogons]="1"
 update iblocklist_bogons $[12*60] 0 ipv4 both \
 	"http://list.iblocklist.com/?list=gihxqmhyunbxhbmgqrla&fileformat=p2p&archiveformat=gz" \
 	p2p_gz \
 	"unroutable" \
 	"Unallocated address space." \
-	"iBlocklist.com" "https://www.iblocklist.com/"
+	"iBlocklist.com" "https://www.iblocklist.com/" \
+	dont_redistribute
 
-DO_NOT_REDISTRIBUTE[iblocklist_ads]="1"
 update iblocklist_ads $[12*60] 0 ipv4 both \
 	"http://list.iblocklist.com/?list=dgxtneitpuvgqqcpfulq&fileformat=p2p&archiveformat=gz" \
 	p2p_gz \
 	"organizations" \
 	"Advertising trackers and a short list of bad/intrusive porn sites." \
-	"iBlocklist.com" "https://www.iblocklist.com/"
+	"iBlocklist.com" "https://www.iblocklist.com/" \
+	dont_redistribute
 
-DO_NOT_REDISTRIBUTE[iblocklist_org_microsoft]="1"
 update iblocklist_org_microsoft $[12*60] 0 ipv4 both \
 	"http://list.iblocklist.com/?list=xshktygkujudfnjfioro&fileformat=p2p&archiveformat=gz" \
 	p2p_gz \
 	"organizations" \
 	"Microsoft IP ranges." \
-	"iBlocklist.com" "https://www.iblocklist.com/"
+	"iBlocklist.com" "https://www.iblocklist.com/" \
+	dont_redistribute
 
-DO_NOT_REDISTRIBUTE[iblocklist_spider]="1"
 update iblocklist_spider $[12*60] 0 ipv4 both \
 	"http://list.iblocklist.com/?list=mcvxsnihddgutbjfbghy&fileformat=p2p&archiveformat=gz" \
 	p2p_gz \
 	"organizations" \
 	"IP list intended to be used by webmasters to block hostile spiders from their web sites." \
-	"iBlocklist.com" "https://www.iblocklist.com/"
+	"iBlocklist.com" "https://www.iblocklist.com/" \
+	dont_redistribute
 
-DO_NOT_REDISTRIBUTE[iblocklist_dshield]="1"
 update iblocklist_dshield $[12*60] 0 ipv4 both \
 	"http://list.iblocklist.com/?list=xpbqleszmajjesnzddhv&fileformat=p2p&archiveformat=gz" \
 	p2p_gz \
 	"reputation" \
 	"known Hackers and such people." \
-	"iBlocklist.com" "https://www.iblocklist.com/"
+	"iBlocklist.com" "https://www.iblocklist.com/" \
+	dont_redistribute
 
-DO_NOT_REDISTRIBUTE[iblocklist_iana_reserved]="1"
 update iblocklist_iana_reserved $[12*60] 0 ipv4 both \
 	"http://list.iblocklist.com/?list=bcoepfyewziejvcqyhqo&fileformat=p2p&archiveformat=gz" \
 	p2p_gz \
 	"unroutable" \
 	"IANA Reserved IPs." \
-	"iBlocklist.com" "https://www.iblocklist.com/"
+	"iBlocklist.com" "https://www.iblocklist.com/" \
+	dont_redistribute
 
-DO_NOT_REDISTRIBUTE[iblocklist_iana_private]="1"
 update iblocklist_iana_private $[12*60] 0 ipv4 both \
 	"http://list.iblocklist.com/?list=cslpybexmxyuacbyuvib&fileformat=p2p&archiveformat=gz" \
 	p2p_gz \
 	"unroutable" \
 	"IANA Private IPs." \
-	"iBlocklist.com" "https://www.iblocklist.com/"
+	"iBlocklist.com" "https://www.iblocklist.com/" \
+	dont_redistribute
 
-DO_NOT_REDISTRIBUTE[iblocklist_iana_multicast]="1"
 update iblocklist_iana_multicast $[12*60] 0 ipv4 both \
 	"http://list.iblocklist.com/?list=pwqnlynprfgtjbgqoizj&fileformat=p2p&archiveformat=gz" \
 	p2p_gz \
 	"unroutable" \
 	"IANA Multicast IPs." \
-	"iBlocklist.com" "https://www.iblocklist.com/"
+	"iBlocklist.com" "https://www.iblocklist.com/" \
+	dont_redistribute
 
-DO_NOT_REDISTRIBUTE[iblocklist_fornonlancomputers]="1"
 update iblocklist_fornonlancomputers $[12*60] 0 ipv4 both \
 	"http://list.iblocklist.com/?list=jhaoawihmfxgnvmaqffp&fileformat=p2p&archiveformat=gz" \
 	p2p_gz \
 	"reputation" \
 	"IP blocklist for non-LAN computers." \
-	"iBlocklist.com" "https://www.iblocklist.com/"
+	"iBlocklist.com" "https://www.iblocklist.com/" \
+	dont_redistribute
 
-DO_NOT_REDISTRIBUTE[iblocklist_exclusions]="1"
 update iblocklist_exclusions $[12*60] 0 ipv4 both \
 	"http://list.iblocklist.com/?list=mtxmiireqmjzazcsoiem&fileformat=p2p&archiveformat=gz" \
 	p2p_gz \
 	"reputation" \
 	"Exclusions." \
-	"iBlocklist.com" "https://www.iblocklist.com/"
+	"iBlocklist.com" "https://www.iblocklist.com/" \
+	dont_redistribute
 
-DO_NOT_REDISTRIBUTE[iblocklist_forumspam]="1"
 update iblocklist_forumspam $[12*60] 0 ipv4 both \
 	"http://list.iblocklist.com/?list=ficutxiwawokxlcyoeye&fileformat=p2p&archiveformat=gz" \
 	p2p_gz \
 	"abuse" \
 	"Forum spam." \
-	"iBlocklist.com" "https://www.iblocklist.com/"
+	"iBlocklist.com" "https://www.iblocklist.com/" \
+	dont_redistribute
 
 update iblocklist_pedophiles $[12*60] 0 ipv4 both \
 	"http://list.iblocklist.com/?list=dufcxgnbjsdwmwctgfuj&fileformat=p2p&archiveformat=gz" \
@@ -5825,176 +5925,176 @@ badipscom
 # we don't have yet the license to add this script here
 # (the script is ours, but sorbs.net is very sceptical about this)
 
-DO_NOT_REDISTRIBUTE[sorbs_dul]="1"
 update sorbs_dul 1 0 ipv4 both "" \
 	$CAT_CMD \
 	"spam" "[Sorbs.net](https://www.sorbs.net/) Dynamic IP Addresses." \
-	"Sorbs.net" "https://www.sorbs.net/"
+	"Sorbs.net" "https://www.sorbs.net/" \
+	dont_redistribute
 
-#DO_NOT_REDISTRIBUTE[sorbs_socks]="1"
 #update sorbs_socks 1 0 ipv4 both "" \
 #	$CAT_CMD \
 #	"anonymizers" \
 #	"[Sorbs.net](https://www.sorbs.net/) List of open SOCKS proxy servers." \
-#	"Sorbs.net" "https://www.sorbs.net/"
+#	"Sorbs.net" "https://www.sorbs.net/" \
+#	dont_redistribute
 
-#DO_NOT_REDISTRIBUTE[sorbs_http]="1"
 #update sorbs_http 1 0 ipv4 both "" \
 #	$CAT_CMD \
 #	"anonymizers" \
 #	"[Sorbs.net](https://www.sorbs.net/) List of open HTTP proxies." \
-#	"Sorbs.net" "https://www.sorbs.net/"
+#	"Sorbs.net" "https://www.sorbs.net/" \
+#	dont_redistribute
 
-#DO_NOT_REDISTRIBUTE[sorbs_misc]="1"
 #update sorbs_misc 1 0 ipv4 both "" \
 #	$CAT_CMD \
 #	"anonymizers" \
 #	"[Sorbs.net](https://www.sorbs.net/) List of open proxy servers (not listed in HTTP or SOCKS)." \
-#	"Sorbs.net" "https://www.sorbs.net/"
+#	"Sorbs.net" "https://www.sorbs.net/" \
+#	dont_redistribute
 
 # all the above are here:
-DO_NOT_REDISTRIBUTE[sorbs_anonymizers]="1"
 update sorbs_anonymizers 1 0 ipv4 both "" \
 	$CAT_CMD \
 	"spam" \
 	"[Sorbs.net](https://www.sorbs.net/) List of open HTTP and SOCKS proxies." \
-	"Sorbs.net" "https://www.sorbs.net/"
+	"Sorbs.net" "https://www.sorbs.net/" \
+	dont_redistribute
 
-DO_NOT_REDISTRIBUTE[sorbs_zombie]="1"
 update sorbs_zombie 1 0 ipv4 both "" \
 	$CAT_CMD \
 	"spam" \
 	"[Sorbs.net](https://www.sorbs.net/) List of networks hijacked from their original owners, some of which have already used for spamming." \
-	"Sorbs.net" "https://www.sorbs.net/"
+	"Sorbs.net" "https://www.sorbs.net/" \
+	dont_redistribute
 
-DO_NOT_REDISTRIBUTE[sorbs_smtp]="1"
 update sorbs_smtp 1 0 ipv4 both "" \
 	$CAT_CMD "spam" "[Sorbs.net](https://www.sorbs.net/) List of SMTP Open Relays." \
-	"Sorbs.net" "https://www.sorbs.net/"
+	"Sorbs.net" "https://www.sorbs.net/" \
+	dont_redistribute
 
 # this is HUGE !!!
-#DO_NOT_REDISTRIBUTE[sorbs_spam]="1"
 #update sorbs_spam 1 0 ipv4 both "" \
 #	remove_comments \
 #	"spam" \
 #	"[Sorbs.net](https://www.sorbs.net/) List of hosts that have been noted as sending spam/UCE/UBE at any time, and not subsequently resolving the matter and/or requesting a delisting. (Includes both sorbs_old_spam and sorbs_escalations)." \
-#	"Sorbs.net" "https://www.sorbs.net/"
+#	"Sorbs.net" "https://www.sorbs.net/" \
+#	dont_redistribute
 
-#DO_NOT_REDISTRIBUTE[sorbs_old_spam]="1"
 #update sorbs_old_spam 1 0 ipv4 both "" \
 #	remove_comments \
 #	"spam" \
 #	"[Sorbs.net](https://www.sorbs.net/) List of hosts that have been noted as sending spam/UCE/UBE within the last year. (includes sorbs_recent_spam)." \
-#	"Sorbs.net" "https://www.sorbs.net/"
+#	"Sorbs.net" "https://www.sorbs.net/" \
+#	dont_redistribute
 
-DO_NOT_REDISTRIBUTE[sorbs_new_spam]="1"
 update sorbs_new_spam 1 0 ipv4 both "" \
 	$CAT_CMD \
 	"spam" \
 	"[Sorbs.net](https://www.sorbs.net/) List of hosts that have been noted as sending spam/UCE/UBE within the last 48 hours" \
-	"Sorbs.net" "https://www.sorbs.net/"
+	"Sorbs.net" "https://www.sorbs.net/" \
+	dont_redistribute
 
-DO_NOT_REDISTRIBUTE[sorbs_recent_spam]="1"
 update sorbs_recent_spam 1 0 ipv4 both "" \
 	$CAT_CMD \
 	"spam" \
 	"[Sorbs.net](https://www.sorbs.net/) List of hosts that have been noted as sending spam/UCE/UBE within the last 28 days (includes sorbs_new_spam)" \
-	"Sorbs.net" "https://www.sorbs.net/"
+	"Sorbs.net" "https://www.sorbs.net/" \
+	dont_redistribute
 
-DO_NOT_REDISTRIBUTE[sorbs_web]="1"
 update sorbs_web 1 0 ipv4 both "" \
 	$CAT_CMD \
 	"spam" \
 	"[Sorbs.net](https://www.sorbs.net/) List of IPs which have spammer abusable vulnerabilities (e.g. FormMail scripts)" \
-	"Sorbs.net" "https://www.sorbs.net/"
+	"Sorbs.net" "https://www.sorbs.net/" \
+	dont_redistribute
 
-DO_NOT_REDISTRIBUTE[sorbs_escalations]="1"
 update sorbs_escalations 1 0 ipv4 both "" \
 	$CAT_CMD \
 	"spam" \
 	"[Sorbs.net](https://www.sorbs.net/) Netblocks of spam supporting service providers, including those who provide websites, DNS or drop boxes for a spammer. Spam supporters are added on a 'third strike and you are out' basis, where the third spam will cause the supporter to be added to the list." \
-	"Sorbs.net" "https://www.sorbs.net/"
+	"Sorbs.net" "https://www.sorbs.net/" \
+	dont_redistribute
 
-DO_NOT_REDISTRIBUTE[sorbs_noserver]="1"
 update sorbs_noserver 1 0 ipv4 both "" \
 	$CAT_CMD \
 	"spam" \
 	"[Sorbs.net](https://www.sorbs.net/) IP addresses and Netblocks of where system administrators and ISPs owning the network have indicated that servers should not be present." \
-	"Sorbs.net" "https://www.sorbs.net/"
+	"Sorbs.net" "https://www.sorbs.net/" \
+	dont_redistribute
 
-DO_NOT_REDISTRIBUTE[sorbs_block]="1"
 update sorbs_block 1 0 ipv4 both "" \
 	$CAT_CMD \
 	"spam" \
 	"[Sorbs.net](https://www.sorbs.net/) List of hosts demanding that they never be tested by SORBS." \
-	"Sorbs.net" "https://www.sorbs.net/"
+	"Sorbs.net" "https://www.sorbs.net/" \
+	dont_redistribute
 
 
 # -----------------------------------------------------------------------------
 # DroneBL.org lists
 
-DO_NOT_REDISTRIBUTE[dronebl_anonymizers]="1"
 update dronebl_anonymizers 1 0 ipv4 both "" \
 	$CAT_CMD \
 	"anonymizers" \
 	"[DroneBL.org](https://dronebl.org) List of open proxies. It includes IPs which DroneBL categorizes as SOCKS proxies (8), HTTP proxies (9), web page proxies (11), WinGate proxies (14), proxy chains (10)." \
-	"DroneBL.org" "https://dronebl.org"
+	"DroneBL.org" "https://dronebl.org" \
+	dont_redistribute
 
-DO_NOT_REDISTRIBUTE[dronebl_irc_drones]="1"
 update dronebl_irc_drones 1 0 ipv4 both "" \
 	$CAT_CMD \
 	"abuse" \
 	"[DroneBL.org](https://dronebl.org) List of IRC spam drones (litmus/sdbot/fyle). It includes IPs for which DroneBL responds with 3." \
-	"DroneBL.org" "https://dronebl.org"
+	"DroneBL.org" "https://dronebl.org" \
+	dont_redistribute
 
-DO_NOT_REDISTRIBUTE[dronebl_worms_bots]="1"
 update dronebl_worms_bots 1 0 ipv4 both "" \
 	$CAT_CMD \
 	"malware" \
 	"[DroneBL.org](https://dronebl.org) IPs of unknown worms or spambots. It includes IPs for which DroneBL responds with 6" \
-	"DroneBL.org" "https://dronebl.org"
+	"DroneBL.org" "https://dronebl.org" \
+	dont_redistribute
 
-DO_NOT_REDISTRIBUTE[dronebl_ddos_drones]="1"
 update dronebl_ddos_drones 1 0 ipv4 both "" \
 	$CAT_CMD \
 	"attacks" \
 	"[DroneBL.org](https://dronebl.org) IPs of DDoS drones. It includes IPs for which DroneBL responds with 7." \
-	"DroneBL.org" "https://dronebl.org"
+	"DroneBL.org" "https://dronebl.org" \
+	dont_redistribute
 
-DO_NOT_REDISTRIBUTE[dronebl_compromised]="1"
 update dronebl_compromised 1 0 ipv4 both "" \
 	$CAT_CMD \
 	"attacks" \
 	"[DroneBL.org](https://dronebl.org) IPs of compromised routers / gateways. It includes IPs for which DroneBL responds with 15 (BOPM detected)." \
-	"DroneBL.org" "https://dronebl.org"
+	"DroneBL.org" "https://dronebl.org" \
+	dont_redistribute
 
-DO_NOT_REDISTRIBUTE[dronebl_autorooting_worms]="1"
 update dronebl_autorooting_worms 1 0 ipv4 both "" \
 	$CAT_CMD \
 	"attacks" \
 	"[DroneBL.org](https://dronebl.org) IPs of autorooting worms. It includes IPs for which DroneBL responds with 16. These are usually SSH bruteforce attacks." \
-	"DroneBL.org" "https://dronebl.org"
+	"DroneBL.org" "https://dronebl.org" \
+	dont_redistribute
 
-DO_NOT_REDISTRIBUTE[dronebl_auto_botnets]="1"
 update dronebl_auto_botnets 1 0 ipv4 both "" \
 	$CAT_CMD \
 	"reputation" \
 	"[DroneBL.org](https://dronebl.org) IPs of automatically detected botnets. It includes IPs for which DroneBL responds with 17." \
-	"DroneBL.org" "https://dronebl.org"
+	"DroneBL.org" "https://dronebl.org" \
+	dont_redistribute
 
-DO_NOT_REDISTRIBUTE[dronebl_dns_mx_on_irc]="1"
 update dronebl_dns_mx_on_irc 1 0 ipv4 both "" \
 	$CAT_CMD \
 	"reputation" \
 	"[DroneBL.org](https://dronebl.org) List of IPs of DNS / MX hostname detected on IRC. It includes IPs for which DroneBL responds with 18." \
-	"DroneBL.org" "https://dronebl.org"
+	"DroneBL.org" "https://dronebl.org" \
+	dont_redistribute
 
-DO_NOT_REDISTRIBUTE[dronebl_unknown]="1"
 update dronebl_unknown 1 0 ipv4 both "" \
 	$CAT_CMD \
 	"reputation" \
 	"[DroneBL.org](https://dronebl.org) List of IPs of uncategorized threats. It includes IPs for which DroneBL responds with 255." \
-	"DroneBL.org" "https://dronebl.org"
+	"DroneBL.org" "https://dronebl.org" \
+	dont_redistribute
 
 
 # -----------------------------------------------------------------------------
