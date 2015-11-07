@@ -37,6 +37,7 @@ sbin/iprange
 sbin/*.o
 sbin/.deps
 sbin/update-ipsets
+unittest/coverage
 *.xz
 *.gz
 *.bz2
