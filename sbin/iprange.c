@@ -1380,7 +1380,9 @@ void dns_done(ipset *ips)
 {
 	if(ips) { ; }
 
-	unsigned long dots = 50, shown = 0, should_show = 0;
+	if(!dns_requests_made) return;
+
+	unsigned long dots = 40, shown = 0, should_show = 0;
 
 	while(dns_requests_pending) {
 		if(unlikely(debug))

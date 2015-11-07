@@ -297,8 +297,6 @@ Y|CP_CMD|@CP@|cp
 Y|IPSET_CMD|@IPSET@|ipset
 N|UNZIP_CMD|@UNZIP@|unzip
 N|FUNZIP_CMD|@FUNZIP@|funzip
-N|ADNSHOST_CMD|@ADNSHOST@|adnshost
-N|PV_CMD|@PV@|pv
 N|GIT_CMD|@GIT@|git
 !
 
@@ -559,7 +557,7 @@ IGNORE_REPEATING_DOWNLOAD_ERRORS=10
 # IMPORTANT: Giving 100 requests/second to your name server will create queue
 #            that will start filling up as time passes, possibly hitting a quota
 #            on the name server.
-DNS_QUERIES_PER_SECOND=100
+PARALLEL_DNS_QUERIES=100
 
 
 # -----------------------------------------------------------------------------
@@ -1612,7 +1610,7 @@ retention_detect() {
 	fi
 
 	# find the new ips in this set
-	ipset_silent "${ipset}" "finding the new IPs in this update..."
+	ipset_verbose "${ipset}" "finding the new IPs in this update..."
 	${IPRANGE_CMD} "${IPSET_FILE[${ipset}]}" --exclude-next "${LIB_DIR}/${ipset}/latest" --print-binary >"${LIB_DIR}/${ipset}/new/${ndate}" || ipset_error "${ipset}" "cannot find the new IPs in this update."
 	$TOUCH_CMD -r "${IPSET_FILE[${ipset}]}" "${LIB_DIR}/${ipset}/new/${ndate}"
 
@@ -1620,18 +1618,20 @@ retention_detect() {
 	if [ ! -s "${LIB_DIR}/${ipset}/new/${ndate}" ]
 		then
 		# there are no new IPs included
-		ipset_silent "${ipset}" "no new IPs in this update"
+		ipset_verbose "${ipset}" "no new IPs in this update"
 		$RM_CMD "${LIB_DIR}/${ipset}/new/${ndate}"
 	else
 		ips_added=$(${IPRANGE_CMD} -C "${LIB_DIR}/${ipset}/new/${ndate}")
 		ips_added=${ips_added/*,/}
-		ipset_silent "${ipset}" "added ${ips_added} new IPs"
+		ipset_verbose "${ipset}" "added ${ips_added} new IPs"
 	fi
 
-	ipset_silent "${ipset}" "finding the removed IPs in this update..."
+	ipset_verbose "${ipset}" "finding the removed IPs in this update..."
 	local ips_removed=$(${IPRANGE_CMD} "${LIB_DIR}/${ipset}/latest" --exclude-next "${IPSET_FILE[${ipset}]}" | ${IPRANGE_CMD} -C)
 	ips_removed=${ips_removed/*,/}
-	ipset_silent "${ipset}" "removed ${ips_removed} IPs"
+	ipset_verbose "${ipset}" "removed ${ips_removed} IPs"
+
+	ipset_silent "${ipset}" "added ${ips_added}, removed ${ips_removed} unique IPs"
 
 	ipset_verbose "${ipset}" "saving in changesets (${ndate})"
 	[ ! -f "${LIB_DIR}/${ipset}/changesets.csv" ] && echo >"${LIB_DIR}/${ipset}/changesets.csv" "DateTime,IPsAdded,IPsRemoved"
@@ -1838,7 +1838,7 @@ update_web() {
 					$CHMOD_CMD 0644 "${LIB_DIR}/${x}/history.csv"
 				fi
 				
-				ipset_silent "${x}" "updating history entries=${IPSET_ENTRIES[${x}]} IPs=${IPSET_IPS[${x}]}"
+				ipset_silent "${x}" "entries: ${IPSET_ENTRIES[${x}]}, unique IPs: ${IPSET_IPS[${x}]}"
 				echo >>"${LIB_DIR}/${x}/history.csv" "$($DATE_CMD -r "${IPSET_SOURCE[${x}]}" +%s),${IPSET_ENTRIES[${x}]},${IPSET_IPS[${x}]}"
 				
 				ipset_verbose "${x}" "preparing web history file (last ${WEB_CHARTS_ENTRIES} entries)"
@@ -1920,7 +1920,7 @@ update_web() {
 	#info "UPDATED: ${updated[@]}"
 
 	echo >&2 "-------------------------------------------------------------------------------"
-	echo >&2 "Comparing all ipsets (${all_count} x ${all_count} = $[all_count * (all_count - 1) / 2] unique comparisons)..."
+	echo >&2 "Comparing all ipsets (${all_count} x ${all_count} = $[all_count * (all_count - 1) / 2 - 1] unique comparisons)..."
 
 	local before=$(date +%s)
 	${IPRANGE_CMD} --compare "${all[@]}" |\
@@ -1951,8 +1951,9 @@ update_web() {
 		printf "\n]\n" >>${x}
 	done
 	local after=$(date +%s)
+	[ ${after} -eq ${before} ] && after=$[before + 1]
 
-	echo >&2 "Comparison of $[all_count * (all_count - 1) / 2] ipsets took $[after - before] seconds: (i.e. $[all_count * (all_count - 1) / 2 / (after - before)] ipset comparisons/s)"
+	echo >&2 "Comparison of $[all_count * (all_count - 1) / 2 - 1] ipsets took $[after - before] seconds: (i.e. $[(all_count * (all_count - 1) / 2 - 1) / (after - before)] ipset comparisons/s)"
 	echo >&2
 
 	if [ "${#updated[*]}" -ne 0 -a "${#geolite2_country[*]}" -ne 0 ]
@@ -2276,7 +2277,7 @@ finalize() {
 		ipset_same "${ipset}" "processed set is the same with the previous one."
 
 		# keep the old set, but make it think it was from this source
-		ipset_silent "${ipset}" "touching ${dst} from ${src}."
+		ipset_verbose "${ipset}" "touching ${dst} from ${src}."
 		$TOUCH_CMD -r "${src}" "${dst}"
 
 		check_file_too_old "${ipset}" "${dst}"
@@ -3163,99 +3164,19 @@ extract_ipv4_from_any_file() {
 		$GREP_CMD -oP "${IP4_MATCH}"
 }
 
-
 hostname_resolver() {
-	[ -z "${PV_CMD}"       ] && return 1
-	[ -z "${ADNSHOST_CMD}" ] && return 1
+	local opts="--dns-silent"
+	if [ ${VERBOSE} -eq 1 ]
+		then
+		opts="--dns-no-progress"
+	elif [ ${SILENT}  -eq 1 ]
+		then
+		opts="--dns-silent --dns-no-progress"
+	else
+		printf >&2 "${print_ipset_spacer}"
+	fi
 
-	echo >&2 "Please wait... resolving hostnames... it may take some time..."
-
-	local id n status t1 reason host dollar msg1 msg2 msg3 msg4 msg5
-	local h a inet reply
-	local x in out fa oin=0 label
-
-	[ -f "${RUN_DIR}/dns.outcnt" ] && rm "${RUN_DIR}/dns.outcnt"
-	[ -f "${RUN_DIR}/dns.errors" ] && rm "${RUN_DIR}/dns.errors"
-	[ -f "${RUN_DIR}/dns.failed" ] && rm "${RUN_DIR}/dns.failed"
-
-	# get all the input lines starting with a letter or number
-	# (we remove everything else because adnshost stops on errors)
-	$GREP_CMD "^[a-z0-9]" >"${RUN_DIR}/dns.input"
-	$TOUCH_CMD "${RUN_DIR}/dns.outcnt" "${RUN_DIR}/dns.errors" "${RUN_DIR}/dns.failed"
-
-	# we will do up to 20 loops (19 to be precise - the last one is not completed)
-	for x in {1..20}
-	do
-		# count the work we have to do and the work we have done so far
-		in=$(  $WC_CMD -l "${RUN_DIR}/dns.input"  | $CUT_CMD -d ' ' -f 1 )
-		out=$( $WC_CMD -l "${RUN_DIR}/dns.outcnt" | $CUT_CMD -d ' ' -f 1 )
-		fa=$(  $WC_CMD -l "${RUN_DIR}/dns.failed" | $CUT_CMD -d ' ' -f 1 )
-
-		# print something for the user to see about our progress
-		label="pending"
-		[ $x -ne 1 ] && label="timed out - will retry"
-		[ $in -eq $oin -o $x -eq 20 ] && label="timed out - giving up"
-
-		printf >&2 " > %d hostnames : %d resolved, %d ${label}, %d unresolvable...\n" \
-			$(( in + out + fa )) ${out} ${in} ${fa}
-
-		# check if it becomes better between loops
-		# if it does not, we do not have to do 20 loops
-		[ $in -eq $oin -o $x -eq 20 ] && break
-		oin=$in
-
-		# if we run on a terminal, tell pv to show some progress
-		local pv_opts="--quiet"
-		[ ${RUNNING_ON_TERMINAL} -eq 1 -a ${SILENT} -ne 1 ] && \
-			pv_opts="--size ${in} --timer --eta --rate --bytes"
-
-		# ok, here is the real job
-		$CAT_CMD "${RUN_DIR}/dns.input" |\
-			$PV_CMD --line-mode --rate-limit ${DNS_QUERIES_PER_SECOND} ${pv_opts} |\
-			$ADNSHOST_CMD --asynch --fmt-asynch --pipe |\
-			while read id n status t1 reason host dollar msg1 msg2 msg3 msg4 msg5
-			do
-				# id = the id of the job (sequence number)
-				# n = the number of lines after this that contain results
-				# status = the type of result
-				# t1 = ?
-				# reason = the reason of error
-				# host = the hostname we requested to be resolved
-				# dollar = $
-				# msg1 ... msg5 = ?
-				case "${status}" in
-					ok)	while [ ${n} -gt 0 ]
-						do
-							read h a inet reply
-							echo "${reply}"
-							n=$[n - 1]
-						done
-						# we need this only for proper counting
-						# of successful DNS resolutions
-						echo "${host}" >>"${RUN_DIR}/dns.outcnt"
-						;;
-
-					tempfail)
-						echo "${host}" >>"${RUN_DIR}/dns.errors"
-						;;
-
-					*)
-						echo "${host}" >>"${RUN_DIR}/dns.failed"
-						;;
-				esac
-
-				# skip any lines given with error
-				while [ ${n} -gt 0 ]; do read h a inet reply; n=$[n - 1]; done
-			done
-
-		# prepare for the next loop
-		# we move the errors to input
-		$MV_CMD "${RUN_DIR}/dns.errors" "${RUN_DIR}/dns.input"
-
-		# if no more input exists, stop
-		[ ! -s "${RUN_DIR}/dns.input" ] && break;
-	done |\
-	${IPRANGE_CMD} -1
+	${IPRANGE_CMD} -1 --dns-threads ${PARALLEL_DNS_QUERIES} ${opts}
 }
 
 # convert hphosts file to IPs, by resolving all IPs
@@ -3263,9 +3184,6 @@ hphosts2ips() {
 	remove_comments |\
 		$CUT_CMD -d ' ' -f 2- |\
 		$TR_CMD " " "\n" |\
-		$GREP_CMD -v "^$" |\
-		$GREP_CMD -v "^localhost$" |\
-		$SORT_CMD -u |\
 		hostname_resolver
 }
 
