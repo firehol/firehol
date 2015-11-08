@@ -50,7 +50,7 @@ get_version() {
 	do
 		case "$i" in
 			*[0-9].[0-9]*)
-				echo "$i" | sed -e 's/^v//'
+				echo "$i" | $SED_CMD -e 's/^v//'
 				return 0
 			;;
 			commit-[0-9a-zA-Z]*)
@@ -619,7 +619,7 @@ loadfile() {
 
 	cd "${LB_CONFIG_DIR}"
 	test ! -f "${file}" && syslog "WARNING: file '${file}' does not exist."
-	$CAT_CMD "${file}" | sed -e "s/#.*$//g" | trim_spaces | $TR_CMD '\n' ' '
+	$CAT_CMD "${file}" | $SED_CMD -e "s/#.*$//g" | trim_spaces | $TR_CMD '\n' ' '
 	local ret=$?
 	cd "${LB_RUN_DIR}"
 

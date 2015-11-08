@@ -507,7 +507,7 @@ if [ "${UID}" = "0" -o -z "${UID}" ]
 	RUN_PARENT_DIR="${RUN_PARENT_DIR-/var/run}"
 	IPSETS_APPLY=1
 else
-	mkdir -p "${HOME}/.update-ipsets" || exit 1
+	$MKDIR_CMD -p "${HOME}/.update-ipsets" || exit 1
 	BASE_DIR="${BASE_DIR-${HOME}/ipsets}"
 	CONFIG_FILE="${CONFIG_FILE-${HOME}/.update-ipsets/update-ipsets.conf}"
 	RUN_PARENT_DIR="${RUN_PARENT_DIR-${HOME}/.update-ipsets}"
@@ -1255,7 +1255,7 @@ download_manager() {
 	[ ! -z "${IPSET_TMP_NO_IF_MODIFIED_SINCE[${ipset}]}" ] && $TOUCH_CMD "${tmp}"
 	
 	# check if the downloaded file is the same with the last one
-	diff -q "${ipset}.source" "${tmp}" >/dev/null 2>&1
+	$DIFF_CMD -q "${ipset}.source" "${tmp}" >/dev/null 2>&1
 	if [ $? -eq 0 ]
 	then
 		# they are the same
@@ -2079,7 +2079,7 @@ update_web() {
 	echo >&2 "-------------------------------------------------------------------------------"
 	echo >&2 "Comparing all ipsets (${all_count} x ${all_count} = $[all_count * (all_count - 1) / 2 - 1] unique comparisons)..."
 
-	local before=$(date +%s)
+	local before=$($DATE_CMD +%s)
 	${IPRANGE_CMD} --compare "${all[@]}" |\
 		$SORT_CMD |\
 		while IFS="," read name1 name2 entries1 entries2 ips1 ips2 combined common
@@ -2107,7 +2107,7 @@ update_web() {
 	do
 		printf "\n]\n" >>${x}
 	done
-	local after=$(date +%s)
+	local after=$($DATE_CMD +%s)
 	[ ${after} -eq ${before} ] && after=$[before + 1]
 
 	echo >&2 "Comparison of $[all_count * (all_count - 1) / 2 - 1] ipsets took $[after - before] seconds: (i.e. $[(all_count * (all_count - 1) / 2 - 1) / (after - before)] ipset comparisons/s)"
@@ -2448,7 +2448,7 @@ finalize() {
 	fi
 
 	# compare the new and the old
-	diff -q "${tmp}.old" "${tmp}" >/dev/null 2>&1
+	$DIFF_CMD -q "${tmp}.old" "${tmp}" >/dev/null 2>&1
 	if [ $? -eq 0 -a ${REPROCESS_ALL} -eq 0 ]
 	then
 		# they are the same
@@ -3098,13 +3098,13 @@ remove_slash128() { $SED_CMD "s|/128$||g"; }
 append_slash32() {
 	# this command appends '/32' to all the lines
 	# that do not include a slash
-	awk '/\// {print $1; next}; // {print $1 "/32" }'
+	$GAWK_CMD '/\// {print $1; next}; // {print $1 "/32" }'
 }
 
 append_slash128() {
 	# this command appends '/32' to all the lines
 	# that do not include a slash
-	awk '/\// {print $1; next}; // {print $1 "/128" }'
+	$GAWK_CMD '/\// {print $1; next}; // {print $1 "/128" }'
 }
 
 filter_invalid4() {
@@ -3431,7 +3431,7 @@ geolite2_country() {
 
 	ipset_info "${ipset}" "extracting country and continent netsets..."
 	$UNZIP_CMD -jpx "${ipset}.source" "*/GeoLite2-Country-Blocks-IPv4.csv" |\
-		awk -F, '
+		$GAWK_CMD -F, '
 		{
 			if( $2 )        { print $1 >"geolite2_country.tmp/country."$2".source.tmp" }
 			if( $3 )        { print $1 >"geolite2_country.tmp/country."$3".source.tmp" }
@@ -5120,7 +5120,7 @@ parse_chaosreigns_once() {
 	if [ ! -f "${RUN_DIR}/${wanted}.source" ]
 		then
 		# parse the source and split it to all files in RUN_DIR
-		awk	>&2 "
+		$GAWK_CMD	>&2 "
 			/^[[:space:]]*[[:digit:]\./]+[[:space:]]+100[[:space:]]+[[:digit:]]+\$/          { print \$1 >\"${RUN_DIR}/chaosreigns_iprep100.source\"; next; }
 			/^[[:space:]]*[[:digit:]\./]+[[:space:]]+0[[:space:]]+[[:digit:]]+\$/            { print \$1 >\"${RUN_DIR}/chaosreigns_iprep0.source\"; next; }
 			/^[[:space:]]*[[:digit:]\./]+[[:space:]]+[[:digit:]]+[[:space:]]+[[:digit:]]+\$/ { print \$1 >\"${RUN_DIR}/chaosreigns_iprep50.source\"; next; }
@@ -5854,7 +5854,7 @@ badipscom() {
 		count=0
 		# info "bi_${category}"
 
-		for file in $(ls 2>/dev/null bi_${category}*.source)
+		for file in $($LS_CMD 2>/dev/null bi_${category}*.source)
 		do
 			count=$[count + 1]
 			if [[ "${file}" =~ ^bi_${category}_[0-9\.]+_[0-9]+[dwmy].source$ ]]

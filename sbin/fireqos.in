@@ -286,6 +286,7 @@ N|TCPDUMP_CMD|@TCPDUMP@|tcpdump
 Y|SEQ_CMD|@SEQ@|seq
 Y|LS_CMD|@LS@|ls
 Y|DATE_CMD|@DATE@|date
+Y|TAIL_CMD|@TAIL@|tail
 !
 
 VERSION=$(get_version)
@@ -2662,7 +2663,7 @@ match() {
 				proto_arg="match ip${ipvx} protocol ${tproto} 0xff"
 				;;
 			
-			*)	pid=`${CAT_CMD} /etc/protocols | ${EGREP_CMD} -i "^${tproto}[[:space:]]" | tail -n 1 | ${SED_CMD} "s/[[:space:]]\+/ /g" | ${CUT_CMD} -d ' ' -f 2`
+			*)	pid=`${CAT_CMD} /etc/protocols | ${EGREP_CMD} -i "^${tproto}[[:space:]]" | $TAIL_CMD -n 1 | ${SED_CMD} "s/[[:space:]]\+/ /g" | ${CUT_CMD} -d ' ' -f 2`
 				if [ -z "${pid}" ]
 				then
 					error "Cannot find protocol '${tproto}' in /etc/protocols."
