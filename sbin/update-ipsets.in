@@ -1891,7 +1891,12 @@ history_statistics() {
 	local update_mins=$[ IPSET_MINS[${ipset}] ]
 
 	# the average update time, in minutes
-	xavg=$[(xtotal / (count - 1) + 60) / 60]
+	if [ ${count} -eq 1 ]
+		then
+		xavg=${update_mins}
+	else
+		xavg=$[(xtotal / (count - 1) + 60) / 60]
+	fi
 
 	# the lo/hi update time, in minutes
 	xlo=$[(xlo + 60) / 60]
@@ -1910,7 +1915,7 @@ history_statistics() {
 
 	# if the list is downloaded, try to figure out
 	# if we download it too frequently or too late
-	if [ ! -z "${IPSET_URL[${ipset}]}" ]
+	if [ ! -z "${IPSET_URL[${ipset}]}" -a ${count} -gt $[WEB_CHARTS_ENTRIES / 10] ]
 		then
 		if [ $[xavg] -lt $[ update_mins * 5 / 4 ] ]
 			then
