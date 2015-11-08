@@ -500,23 +500,58 @@ fi
 # -----------------------------------------------------------------------------
 # CONFIGURATION
 
-# where to store the files
-BASE_DIR="${BASE_DIR-/etc/firehol/ipsets}"
+if [ "${UID}" = "0" -o -z "${UID}" ]
+	then
+	BASE_DIR="${BASE_DIR-/etc/firehol/ipsets}"
+	CONFIG_FILE="${CONFIG_FILE-/etc/firehol/update-ipsets.conf}"
+	RUN_PARENT_DIR="${RUN_PARENT_DIR-/var/run}"
+	IPSETS_APPLY=1
+else
+	mkdir -p "${HOME}/.update-ipsets" || exit 1
+	BASE_DIR="${BASE_DIR-${HOME}/ipsets}"
+	CONFIG_FILE="${CONFIG_FILE-${HOME}/.update-ipsets/update-ipsets.conf}"
+	RUN_PARENT_DIR="${RUN_PARENT_DIR-${HOME}/.update-ipsets}"
+	IPSETS_APPLY=0
+fi
 
-# where to keep the run files
-# this is used for the lock file
-RUN_PARENT_DIR="${RUN_PARENT_DIR-/var/run}"
+# where to keep the history files
+HISTORY_DIR="${HISTORY_DIR-${BASE_DIR}/history}"
+
+# where to keep the files we cannot process
+# when empty, error files will be deleted
+ERRORS_DIR="${ERRORS_DIR-${BASE_DIR}/errors}"
 
 # where to keep the tmp files
 # a subdirectory will be created as RUN_DIR
 TMP_DIR="${TMP_DIR-/tmp}"
 
-# where to keep the history files
-HISTORY_DIR="${HISTORY_DIR-/etc/firehol/ipsets/history}"
+# options to be given to iprange for reducing netsets
+IPSET_REDUCE_FACTOR=${IPSET_REDUCE_FACTOR-20}
+IPSET_REDUCE_ENTRIES=${IPSET_REDUCE_ENTRIES-65536}
 
-# where to keep the files we cannot process
-# when empty, error files will be deleted
-ERRORS_DIR="${ERRORS_DIR-/etc/firehol/ipsets/errors}"
+# how many entries the ipset charts should have
+WEB_CHARTS_ENTRIES=${WEB_CHARTS_ENTRIES-500}
+
+# if the .git directory is present, push it also
+PUSH_TO_GIT=${PUSH_TO_GIT-0}
+
+# the maximum time in seconds, to connect to the remote web server
+MAX_CONNECT_TIME=${MAX_CONNECT_TIME-10}
+
+# the maximum time in seconds any download may take
+MAX_DOWNLOAD_TIME=${MAX_DOWNLOAD_TIME-300}
+
+# ignore a few download failures
+# if the download fails more than these consecutive times, the ipset will be
+# penalized X times its failures (ie. MINUTES * ( FAILURES - the following number) )
+IGNORE_REPEATING_DOWNLOAD_ERRORS=${IGNORE_REPEATING_DOWNLOAD_ERRORS-10}
+
+# how many DNS queries to execute in parallel when resolving hostnames to IPs
+# IMPORTANT: Increasing this too much and you are going to need A LOT of bandwidth!
+# IMPORTANT: Giving a lot parallel requests to your name server will create a queue
+#            that will start filling up as time passes, possibly hitting a quota
+#            on the name server.
+PARALLEL_DNS_QUERIES=${PARALLEL_DNS_QUERIES-10}
 
 # where to put the CSV files for the web server
 # if empty or does not exist, web files will not be generated
@@ -538,40 +573,10 @@ WEB_URL="http://iplists.firehol.org/?ipset="
 GITHUB_LOCAL_COPY_URL="https://raw.githubusercontent.com/firehol/blocklist-ipsets/master/"
 GITHUB_CHANGES_URL="https://github.com/firehol/blocklist-ipsets/commits/master/"
 
-# options to be given to iprange for reducing netsets
-IPSET_REDUCE_FACTOR=${IPSET_REDUCE_FACTOR-20}
-IPSET_REDUCE_ENTRIES=${IPSET_REDUCE_ENTRIES-65536}
-
-# how many entries the ipset charts should have
-WEB_CHARTS_ENTRIES=${WEB_CHARTS_ENTRIES-500}
-
-# if the .git directory is present, push it also
-PUSH_TO_GIT=0
-
-# the maximum time in seconds, to connect to the remote web server
-MAX_CONNECT_TIME=${MAX_CONNECT_TIME-10}
-
-# the maximum time in seconds any download may take
-MAX_DOWNLOAD_TIME=${MAX_DOWNLOAD_TIME-300}
-
-# ignore a few download failures
-# if the download fails more than these consecutive times, the ipset will be
-# penalized X times its failures (ie. MINUTES * ( FAILURES - the following number) )
-IGNORE_REPEATING_DOWNLOAD_ERRORS=${IGNORE_REPEATING_DOWNLOAD_ERRORS-10}
-
-# how many DNS queries to execute in parallel when resolving hostnames to IPs
-# IMPORTANT: Increasing this too much and you are going to need A LOT of bandwidth!
-# IMPORTANT: Giving a lot parallel requests to your name server will create a queue
-#            that will start filling up as time passes, possibly hitting a quota
-#            on the name server.
-PARALLEL_DNS_QUERIES=${PARALLEL_DNS_QUERIES-10}
-
 
 # -----------------------------------------------------------------------------
 # Command line parsing
 
-CONFIG_FILE="/etc/firehol/update-ipsets.conf"
-IPSETS_APPLY=1
 ENABLE_ALL=0
 IGNORE_LASTCHECKED=0
 FORCE_WEB_REBUILD=0
@@ -686,56 +691,6 @@ if [ -f "${CONFIG_FILE}" ]
 	source "${CONFIG_FILE}"
 fi
 
-if [ "${#LISTS_TO_ENABLE[@]}" -gt 0 ]
-	then
-	for x in "${LISTS_TO_ENABLE[@]}"
-	do
-		if [ -f "${BASE_DIR}/${x}.source" ]
-			then
-			warning "${x}: is already enabled"
-		else
-			info "${x}: Enabling ${x}..."
-			$TOUCH_CMD -t 0001010000 "${BASE_DIR}/${x}.source" || exit 1
-		fi
-	done
-	exit 0
-fi
-
-
-# -----------------------------------------------------------------------------
-# user checks
-
-# to ensure only one runs
-UPDATE_IPSETS_LOCK_FILE="${RUN_PARENT_DIR}/update-ipsets.lock"
-[ ! "${UID}" = "0" ] && UPDATE_IPSETS_LOCK_FILE="${HOME}/.update-upsets.lock"
-
-# disable ipsets kernel update if running as a normal user
-if [ ! "${UID}" = "0" ]
-then
-	if [ $IPSETS_APPLY -eq 1 ]
-	then
-		echo >&2 "I run as a normal user. I'll not be able to load ipsets to the kernel."
-		IPSETS_APPLY=0
-	fi
-fi
-
-
-# -----------------------------------------------------------------------------
-# Make sure we are the only process doing this job
-
-exlcusive_lock() {
-	exec 200>"${UPDATE_IPSETS_LOCK_FILE}"
-	if [ $? -ne 0 ]; then exit; fi
-	${FLOCK_CMD} -n 200
-	if [ $? -ne 0 ]
-	then
-		echo >&2 "Already running. Try later..."
-		exit 1
-	fi
-	return 0
-}
-
-exlcusive_lock
 
 # -----------------------------------------------------------------------------
 # FIX DIRECTORIES
@@ -790,6 +745,46 @@ do
 	info "Created directory '${d}'."
 done
 cd "${BASE_DIR}" || exit 1
+
+
+# -----------------------------------------------------------------------------
+# if we are just enabling ipsets
+
+if [ "${#LISTS_TO_ENABLE[@]}" -gt 0 ]
+	then
+	for x in "${LISTS_TO_ENABLE[@]}"
+	do
+		if [ -f "${BASE_DIR}/${x}.source" ]
+			then
+			warning "${x}: is already enabled"
+		else
+			info "${x}: Enabling ${x}..."
+			$TOUCH_CMD -t 0001010000 "${BASE_DIR}/${x}.source" || exit 1
+		fi
+	done
+	exit 0
+fi
+
+
+# -----------------------------------------------------------------------------
+# Make sure we are the only process doing this job
+
+# to ensure only one runs
+UPDATE_IPSETS_LOCK_FILE="${RUN_PARENT_DIR}/update-ipsets.lock"
+
+exlcusive_lock() {
+	exec 200>"${UPDATE_IPSETS_LOCK_FILE}"
+	if [ $? -ne 0 ]; then exit; fi
+	${FLOCK_CMD} -n 200
+	if [ $? -ne 0 ]
+	then
+		echo >&2 "Already running. Try later..."
+		exit 1
+	fi
+	return 0
+}
+
+exlcusive_lock
 
 # -----------------------------------------------------------------------------
 # CLEANUP
