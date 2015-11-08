@@ -501,22 +501,22 @@ fi
 # CONFIGURATION
 
 # where to store the files
-BASE_DIR="/etc/firehol/ipsets"
+BASE_DIR="${BASE_DIR-/etc/firehol/ipsets}"
 
 # where to keep the run files
 # this is used for the lock file
-RUN_PARENT_DIR="/var/run"
+RUN_PARENT_DIR="${RUN_PARENT_DIR-/var/run}"
 
 # where to keep the tmp files
 # a subdirectory will be created as RUN_DIR
-TMP_DIR="/tmp"
+TMP_DIR="${TMP_DIR-/tmp}"
 
 # where to keep the history files
-HISTORY_DIR="${BASE_DIR}/history"
+HISTORY_DIR="${HISTORY_DIR-/etc/firehol/ipsets/history}"
 
 # where to keep the files we cannot process
 # when empty, error files will be deleted
-ERRORS_DIR="${BASE_DIR}/errors"
+ERRORS_DIR="${ERRORS_DIR-/etc/firehol/ipsets/errors}"
 
 # where to put the CSV files for the web server
 # if empty or does not exist, web files will not be generated
@@ -539,32 +539,32 @@ GITHUB_LOCAL_COPY_URL="https://raw.githubusercontent.com/firehol/blocklist-ipset
 GITHUB_CHANGES_URL="https://github.com/firehol/blocklist-ipsets/commits/master/"
 
 # options to be given to iprange for reducing netsets
-IPSET_REDUCE_FACTOR="20"
-IPSET_REDUCE_ENTRIES="65536"
+IPSET_REDUCE_FACTOR=${IPSET_REDUCE_FACTOR-20}
+IPSET_REDUCE_ENTRIES=${IPSET_REDUCE_ENTRIES-65536}
 
 # how many entries the ipset charts should have
-WEB_CHARTS_ENTRIES="500"
+WEB_CHARTS_ENTRIES=${WEB_CHARTS_ENTRIES-500}
 
 # if the .git directory is present, push it also
 PUSH_TO_GIT=0
 
 # the maximum time in seconds, to connect to the remote web server
-MAX_CONNECT_TIME=10
+MAX_CONNECT_TIME=${MAX_CONNECT_TIME-10}
 
 # the maximum time in seconds any download may take
-MAX_DOWNLOAD_TIME=300
+MAX_DOWNLOAD_TIME=${MAX_DOWNLOAD_TIME-300}
 
 # ignore a few download failures
 # if the download fails more than these consecutive times, the ipset will be
 # penalized X times its failures (ie. MINUTES * ( FAILURES - the following number) )
-IGNORE_REPEATING_DOWNLOAD_ERRORS=10
+IGNORE_REPEATING_DOWNLOAD_ERRORS=${IGNORE_REPEATING_DOWNLOAD_ERRORS-10}
 
 # how many DNS queries to execute in parallel when resolving hostnames to IPs
 # IMPORTANT: Increasing this too much and you are going to need A LOT of bandwidth!
 # IMPORTANT: Giving a lot parallel requests to your name server will create a queue
 #            that will start filling up as time passes, possibly hitting a quota
 #            on the name server.
-PARALLEL_DNS_QUERIES=50
+PARALLEL_DNS_QUERIES=${PARALLEL_DNS_QUERIES-10}
 
 
 # -----------------------------------------------------------------------------
