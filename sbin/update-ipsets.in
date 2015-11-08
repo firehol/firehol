@@ -520,14 +520,14 @@ ERRORS_DIR="${BASE_DIR}/errors"
 
 # where to put the CSV files for the web server
 # if empty or does not exist, web files will not be generated
-WEB_DIR="/var/www/localhost/htdocs/blocklists"
+WEB_DIR=""
 
 # how to chown web files
 WEB_OWNER="apache:apache"
 
 # where to store the web retention detection cache
 # if empty or does not exist, retention detection will be disabled
-LIB_DIR="/var/lib/update-ipsets"
+LIB_DIR=""
 
 # where is the web url to show info about each ipset
 # the ipset name is appended to it
@@ -770,10 +770,16 @@ if [ ! -d "${TMP_DIR}" ]
 	exit 1
 fi
 
-if [ ! -z "${WEB_DIR}" -a ! -d "${WEB_DIR}" ]
+if [ -z "${WEB_DIR}" -o -z "${LIB_DIR}" ]
 	then
-	warning "WEB_DIR='${WEB_DIR}' is invalid. Disabling web site updates. Set WEB_DIR in '${CONFIG_FILE}' to enable it."
+	LIB_DIR=
 	WEB_DIR=
+elif [ ! -d "${WEB_DIR}" -o ! -d "${LIB_DIR}" ]
+	then
+	LIB_DIR=
+	WEB_DIR=
+	[ ! -d "${WEB_DIR}" ] && warning "WEB_DIR='${WEB_DIR}' is invalid. Disabling web site updates. Set WEB_DIR in '${CONFIG_FILE}' to enable it."
+	[ ! -d "${LIB_DIR}" ] && warning "LIB_DIR='${LIB_DIR}' is invalid. Disabling web site updates. Set LIB_DIR in '${CONFIG_FILE}' to enable it."
 fi
 
 for d in "${BASE_DIR}" "${HISTORY_DIR}" "${ERRORS_DIR}"
@@ -1926,10 +1932,8 @@ update_web() {
 	print_ipset_reset
 	echo >&2
 
-	if [ -z "${WEB_DIR}" -o ! -d "${WEB_DIR}" ]
+	if [ -z "${WEB_DIR}" -o ! -d "${WEB_DIR}" -o -z "${LIB_DIR}" -o ! -d "${LIB_DIR}" ]
 		then
-		#echo >&2 "Web site update is disabled."
-		#echo >&2 "To enable it set WEB_DIR in config file '${CONFIG_FILE}'."
 		return 1
 	fi
 
@@ -1967,34 +1971,31 @@ update_web() {
 		#	# UPDATED_SETS[${x}]="${IPSET_FILE[$x]}"
 		#fi
 
-		if [ ! -z "${LIB_DIR}" ]
+		if [ ! -d "${LIB_DIR}/${x}" ]
 			then
-			if [ ! -d "${LIB_DIR}/${x}" ]
-				then
-				ipset_silent "${x}" "creating lib directory for tracking it"
-				$MKDIR_CMD -p "${LIB_DIR}/${x}"
-			fi
+			ipset_silent "${x}" "creating lib directory for tracking it"
+			$MKDIR_CMD -p "${LIB_DIR}/${x}" || continue
+		fi
 
-			# update the history CSV files
-			if [ ! -z "${UPDATED_SETS[${x}]}" -o ! -f "${LIB_DIR}/${x}/history.csv" ]
+		# update the history CSV files
+		if [ ! -z "${UPDATED_SETS[${x}]}" -o ! -f "${LIB_DIR}/${x}/history.csv" ]
+			then
+			if [ ! -f "${LIB_DIR}/${x}/history.csv" ]
 				then
-				if [ ! -f "${LIB_DIR}/${x}/history.csv" ]
-					then
-					ipset_verbose "${x}" "creating history file header"
-					echo "DateTime,Entries,UniqueIPs" >"${LIB_DIR}/${x}/history.csv"
-					# $TOUCH_CMD "${LIB_DIR}/${x}/history.csv"
-					$CHMOD_CMD 0644 "${LIB_DIR}/${x}/history.csv"
-				fi
-				
-				ipset_silent "${x}" "entries: ${IPSET_ENTRIES[${x}]}, unique IPs: ${IPSET_IPS[${x}]}"
-				echo >>"${LIB_DIR}/${x}/history.csv" "$($DATE_CMD -r "${IPSET_SOURCE[${x}]}" +%s),${IPSET_ENTRIES[${x}]},${IPSET_IPS[${x}]}"
-				
-				ipset_verbose "${x}" "preparing web history file (last ${WEB_CHARTS_ENTRIES} entries)"
-				echo >"${RUN_DIR}/${x}_history.csv" "DateTime,Entries,UniqueIPs"
-				$TAIL_CMD -n ${WEB_CHARTS_ENTRIES} "${LIB_DIR}/${x}/history.csv" | $GREP_CMD -v "^DateTime" | $SORT_CMD -n >>"${RUN_DIR}/${x}_history.csv"
-
-				history_statistics "${x}" "${RUN_DIR}/${x}_history.csv"
+				ipset_verbose "${x}" "creating history file header"
+				echo "DateTime,Entries,UniqueIPs" >"${LIB_DIR}/${x}/history.csv"
+				# $TOUCH_CMD "${LIB_DIR}/${x}/history.csv"
+				$CHMOD_CMD 0644 "${LIB_DIR}/${x}/history.csv"
 			fi
+			
+			ipset_silent "${x}" "entries: ${IPSET_ENTRIES[${x}]}, unique IPs: ${IPSET_IPS[${x}]}"
+			echo >>"${LIB_DIR}/${x}/history.csv" "$($DATE_CMD -r "${IPSET_SOURCE[${x}]}" +%s),${IPSET_ENTRIES[${x}]},${IPSET_IPS[${x}]}"
+			
+			ipset_verbose "${x}" "preparing web history file (last ${WEB_CHARTS_ENTRIES} entries)"
+			echo >"${RUN_DIR}/${x}_history.csv" "DateTime,Entries,UniqueIPs"
+			$TAIL_CMD -n ${WEB_CHARTS_ENTRIES} "${LIB_DIR}/${x}/history.csv" | $GREP_CMD -v "^DateTime" | $SORT_CMD -n >>"${RUN_DIR}/${x}_history.csv"
+
+			history_statistics "${x}" "${RUN_DIR}/${x}_history.csv"
 		fi
 
 		to_all=1
@@ -2079,7 +2080,7 @@ update_web() {
 
 	local before=$(date +%s)
 	${IPRANGE_CMD} --compare "${all[@]}" |\
-		sort |\
+		$SORT_CMD |\
 		while IFS="," read name1 name2 entries1 entries2 ips1 ips2 combined common
 		do
 			if [ ${common} -gt 0 ]
