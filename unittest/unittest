@@ -7,8 +7,12 @@ haderror=""
 # We need to be able to create a new user namespace so we can be root
 # in it.
 
-# https://github.com/bazelbuild/bazel/issues/433
-userns_disabled=$(/sbin/sysctl kernel.unprivileged_userns_clone | grep " 0$")
+userns_disabled=
+if [ -f /proc/sys/kernel/unprivileged_userns_clone ]
+then
+  # https://github.com/bazelbuild/bazel/issues/433
+  userns_disabled=$(/sbin/sysctl kernel.unprivileged_userns_clone | grep " 0$")
+fi
 
 if [ "$userns_disabled" -a "$(id -r -u)" != "0" ]
 then
@@ -18,6 +22,22 @@ then
   echo "  sudo sysctl kernel.unprivileged_userns_clone=1"
   haderror="Y"
 fi
+
+missing=""
+for tab in mangle raw filter nat
+do
+  for ip in ip ip6
+  do
+    module="${ip}table_${tab}"
+    if [ ! "$(lsmod | cut -f1 -d' ' | grep $module)" ]
+    then
+      test "$missing" = "" && echo "Missing module(s). Run:"
+      echo "  modprobe ${module}"
+      missing="Y"
+      haderror="Y"
+    fi
+  done
+done
 
 
 if [ ! -x tools/clean-iptables ]
@@ -141,6 +161,11 @@ fi
 
 if [ "$haderror" -o $# -lt 1 ]
 then
+  if [ "$haderror" ]
+  then
+    echo ""
+    echo ""
+  fi
   echo "Usage: ./unittest [--strace] all|test-dir|test-dir/test.conf [...]"
   echo ""
   echo "Example use of strace: see all non-absolute path executions:"
