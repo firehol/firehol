@@ -895,6 +895,7 @@ check_git_committed() {
 declare -A IPSET_TMP_DO_NOT_REDISTRIBUTE=()
 declare -A IPSET_TMP_ACCEPT_EMPTY=()
 declare -A IPSET_TMP_NO_IF_MODIFIED_SINCE=()
+declare -A IPSET_TMP_DO_NOT_ENABLE_WITH_ALL=()
 commit_to_git() {
 	if [ -d .git -a ! -z "${!UPDATED_SETS[*]}" ]
 	then
@@ -2367,6 +2368,7 @@ ipset_attributes() {
 			can_be_empty|empty)		IPSET_TMP_ACCEPT_EMPTY[${ipset}]="1"; shift; continue ;;
 			never_empty|no_empty)	unset IPSET_TMP_ACCEPT_EMPTY[${ipset}]; shift; continue ;;
 			no_if_modified_since)	IPSET_TMP_NO_IF_MODIFIED_SINCE[${ipset}]="1"; shift; continue ;;
+			dont_enable_with_all)	IPSET_TMP_DO_NOT_ENABLE_WITH_ALL[${ipset}]="1"; shift; continue ;;
 
 			inbound|outbound)		IPSET_PROTECTION[${ipset}]="${1}"; shift; continue ;;
 
@@ -2680,7 +2682,7 @@ update() {
 	then
 		[ ! -z "${IPSET_CHECKED_DATE[${ipset}]}" ] && cache_remove_ipset "${ipset}"
 
-		if [ ${ENABLE_ALL} -eq 1 ]
+		if [ ${ENABLE_ALL} -eq 1 -a -z "${IPSET_TMP_DO_NOT_ENABLE_WITH_ALL[${ipset}]}" ]
 			then
 			ipset_silent "${ipset}" "Enabling due to ENABLE_ALL option."
 			$TOUCH_CMD -t 0001010000 "${BASE_DIR}/${src}" || return 1
@@ -3336,12 +3338,15 @@ parse_maxmind_proxy_fraud() {
 }
 
 extract_ipv4_from_any_file() {
-	$GREP_CMD -oP "(^|[[:punct:]]|[[:space:]]|[[:cntrl:]])${IP4_MATCH}([[:punct:]]|[[:space:]]|[[:cntrl:]]|$)" |\
+	$GREP_CMD --text -oP "(^|[[:punct:]]|[[:space:]]|[[:cntrl:]])${IP4_MATCH}([[:punct:]]|[[:space:]]|[[:cntrl:]]|$)" |\
 		$EGREP_CMD -v "${IP4_MATCH}\." |\
 		$EGREP_CMD -v "\.${IP4_MATCH}" |\
 		$GREP_CMD -oP "${IP4_MATCH}"
 }
 
+# process a list of IPs, IP ranges, hostnames
+# this is capable of resolving hostnames to IPs
+# using parallel DNS queries
 hostname_resolver() {
 	local opts="--dns-silent --dns-progress"
 	if [ ${VERBOSE} -eq 1 ]
@@ -3351,7 +3356,7 @@ hostname_resolver() {
 		then
 		opts="--dns-silent"
 	else
-		printf >&2 "${print_ipset_spacer}"
+		printf >&2 "${print_ipset_spacer}DNS: "
 	fi
 
 	${IPRANGE_CMD} -1 --dns-threads ${PARALLEL_DNS_QUERIES} ${opts}
@@ -3885,7 +3890,8 @@ update openbl $[4*60] 0 ipv4 ip \
 	remove_comments \
 	"attacks" \
 	"[OpenBL.org](http://www.openbl.org/) default blacklist (currently it is the same with 90 days). OpenBL.org is detecting, logging and reporting various types of internet abuse. Currently they monitor ports 21 (FTP), 22 (SSH), 23 (TELNET), 25 (SMTP), 110 (POP3), 143 (IMAP), 587 (Submission), 993 (IMAPS) and 995 (POP3S) for bruteforce login attacks as well as scans on ports 80 (HTTP) and 443 (HTTPS) for vulnerable installations of phpMyAdmin and other web applications" \
-	"OpenBL.org" "http://www.openbl.org/"
+	"OpenBL.org" "http://www.openbl.org/" \
+	dont_enable_with_all
 
 update openbl_1d $[1*60] 0 ipv4 ip \
 	"http://www.openbl.org/lists/base_1days.txt" \
@@ -4176,12 +4182,14 @@ update blocklist_de_strongips 15 0 ipv4 ip \
 	"[Blocklist.de](https://www.blocklist.de/) All IPs which are older then 2 month and have more then 5.000 attacks." \
 	"Blocklist.de" "https://www.blocklist.de/"
 
+# it seems this is not active any more
 #update blocklist_de_ircbot 15 0 ipv4 ip \
 #	"http://lists.blocklist.de/lists/ircbot.txt" \
 #	remove_comments \
 #	"attacks" \
 #	"[Blocklist.de](https://www.blocklist.de/) (no information supplied)" \
-#	"Blocklist.de" "https://www.blocklist.de/"
+#	"Blocklist.de" "https://www.blocklist.de/" \
+#	dont_enable_with_all
 
 update blocklist_de_bruteforce 15 0 ipv4 ip \
 	"http://lists.blocklist.de/lists/bruteforcelogin.txt" \
@@ -4276,6 +4284,8 @@ update sslbl_aggressive 30 0 ipv4 ip \
 # -----------------------------------------------------------------------------
 # infiltrated.net
 # http://www.infiltrated.net/blacklisted
+
+# it appears to be permanently down
 
 #update infiltrated $[12*60] 0 ipv4 ip \
 #	"http://www.infiltrated.net/blacklisted" \
@@ -4608,7 +4618,8 @@ update php_bad 60 "$[24*60] $[7*24*60] $[30*24*60]" ipv4 ip \
 	parse_php_rss \
 	"spam" \
 	"[projecthoneypot.org](http://www.projecthoneypot.org/?rf=192670) bad web hosts (this list is composed using an RSS feed)" \
-	"ProjectHoneypot.org" "http://www.projecthoneypot.org/"
+	"ProjectHoneypot.org" "http://www.projecthoneypot.org/" \
+	dont_enable_with_all
 
 update php_commenters 60 "$[24*60] $[7*24*60] $[30*24*60]" ipv4 ip \
 	"http://www.projecthoneypot.org/list_of_ips.php?t=c&rss=1" \
@@ -4687,7 +4698,6 @@ update iw_spamlist 60 0 ipv4 ip \
 	"spam" \
 	"[ImproWare Antispam](http://antispam.imp.ch/) IPs sending spam, in the last 3 days" \
 	"ImproWare Antispam" "http://antispam.imp.ch/"
-
 
 update iw_wormlist 60 0 ipv4 ip \
 	"http://antispam.imp.ch/wormlist" \
@@ -5257,77 +5267,88 @@ update hphosts_ats $[24*60] 0 ipv4 ip \
 	hphosts2ips \
 	"organizations" \
 	"[hpHosts](http://hosts-file.net/?s=Download) ad/tracking servers listed in the hpHosts database. The maintainer's file contains hostnames, which have been DNS resolved to IP addresses." \
-	"hpHosts" "http://hosts-file.net/"
+	"hpHosts" "http://hosts-file.net/" \
+	dont_enable_with_all
 
 update hphosts_emd $[24*60] 0 ipv4 ip \
 	"http://hosts-file.net/emd.txt" \
 	hphosts2ips \
 	"malware" \
 	"[hpHosts](http://hosts-file.net/?s=Download) malware sites listed in the hpHosts database. The maintainer's file contains hostnames, which have been DNS resolved to IP addresses." \
-	"hpHosts" "http://hosts-file.net/"
+	"hpHosts" "http://hosts-file.net/" \
+	dont_enable_with_all
 
 update hphosts_exp $[24*60] 0 ipv4 ip \
 	"http://hosts-file.net/exp.txt" \
 	hphosts2ips \
 	"malware" \
 	"[hpHosts](http://hosts-file.net/?s=Download) exploit sites listed in the hpHosts database. The maintainer's file contains hostnames, which have been DNS resolved to IP addresses." \
-	"hpHosts" "http://hosts-file.net/"
+	"hpHosts" "http://hosts-file.net/" \
+	dont_enable_with_all
 
 update hphosts_fsa $[24*60] 0 ipv4 ip \
 	"http://hosts-file.net/fsa.txt" \
 	hphosts2ips \
 	"reputation" \
 	"[hpHosts](http://hosts-file.net/?s=Download) fraud sites listed in the hpHosts database. The maintainer's file contains hostnames, which have been DNS resolved to IP addresses." \
-	"hpHosts" "http://hosts-file.net/"
+	"hpHosts" "http://hosts-file.net/" \
+	dont_enable_with_all
 
 update hphosts_grm $[24*60] 0 ipv4 ip \
 	"http://hosts-file.net/grm.txt" \
 	hphosts2ips \
 	"spam" \
 	"[hpHosts](http://hosts-file.net/?s=Download) sites involved in spam (that do not otherwise meet any other classification criteria) listed in the hpHosts database. The maintainer's file contains hostnames, which have been DNS resolved to IP addresses." \
-	"hpHosts" "http://hosts-file.net/"
+	"hpHosts" "http://hosts-file.net/" \
+	dont_enable_with_all
 
 update hphosts_hfs $[24*60] 0 ipv4 ip \
 	"http://hosts-file.net/hfs.txt" \
 	hphosts2ips \
 	"abuse" \
 	"[hpHosts](http://hosts-file.net/?s=Download) sites spamming the hpHosts forums (and not meeting any other classification criteria) listed in the hpHosts database. The maintainer's file contains hostnames, which have been DNS resolved to IP addresses." \
-	"hpHosts" "http://hosts-file.net/"
+	"hpHosts" "http://hosts-file.net/" \
+	dont_enable_with_all
 
 update hphosts_hjk $[24*60] 0 ipv4 ip \
 	"http://hosts-file.net/hjk.txt" \
 	hphosts2ips \
 	"malware" \
 	"[hpHosts](http://hosts-file.net/?s=Download) hijack sites listed in the hpHosts database. The maintainer's file contains hostnames, which have been DNS resolved to IP addresses." \
-	"hpHosts" "http://hosts-file.net/"
+	"hpHosts" "http://hosts-file.net/" \
+	dont_enable_with_all
 
 update hphosts_mmt $[24*60] 0 ipv4 ip \
 	"http://hosts-file.net/mmt.txt" \
 	hphosts2ips \
 	"reputation" \
 	"[hpHosts](http://hosts-file.net/?s=Download) sites involved in misleading marketing (e.g. fake Flash update adverts) listed in the hpHosts database. The maintainer's file contains hostnames, which have been DNS resolved to IP addresses." \
-	"hpHosts" "http://hosts-file.net/"
+	"hpHosts" "http://hosts-file.net/" \
+	dont_enable_with_all
 
 update hphosts_pha $[24*60] 0 ipv4 ip \
 	"http://hosts-file.net/pha.txt" \
 	hphosts2ips \
 	"reputation" \
 	"[hpHosts](http://hosts-file.net/?s=Download) illegal pharmacy sites listed in the hpHosts database. The maintainer's file contains hostnames, which have been DNS resolved to IP addresses." \
-	"hpHosts" "http://hosts-file.net/"
+	"hpHosts" "http://hosts-file.net/" \
+	dont_enable_with_all
 
 update hphosts_psh $[24*60] 0 ipv4 ip \
 	"http://hosts-file.net/psh.txt" \
 	hphosts2ips \
 	"reputation" \
 	"[hpHosts](http://hosts-file.net/?s=Download) phishing sites listed in the hpHosts database. The maintainer's file contains hostnames, which have been DNS resolved to IP addresses." \
-	"hpHosts" "http://hosts-file.net/"
+	"hpHosts" "http://hosts-file.net/" \
+	dont_enable_with_all
 
 update hphosts_wrz $[24*60] 0 ipv4 ip \
 	"http://hosts-file.net/wrz.txt" \
 	hphosts2ips \
 	"reputation" \
 	"[hpHosts](http://hosts-file.net/?s=Download) warez/piracy sites listed in the hpHosts database. The maintainer's file contains hostnames, which have been DNS resolved to IP addresses." \
-	"hpHosts" "http://hosts-file.net/"
+	"hpHosts" "http://hosts-file.net/" \
+	dont_enable_with_all
 
 # -----------------------------------------------------------------------------
 # iBlocklist
@@ -5374,8 +5395,6 @@ update iblocklist_webexploit $[12*60] 0 ipv4 ip \
 	"iBlocklist.com" "https://www.iblocklist.com/" \
 	dont_redistribute
 
-# The Level1 list is recommended for general P2P users, but it all comes
-# down to your personal choice.
 update iblocklist_level1 $[12*60] 0 ipv4 both \
 	"http://list.iblocklist.com/?list=ydxerpxkpcfqjaybcssw&fileformat=p2p&archiveformat=gz" \
 	p2p_gz \
@@ -5932,28 +5951,32 @@ update sorbs_dul 1 0 ipv4 both "" \
 	$CAT_CMD \
 	"spam" "[Sorbs.net](https://www.sorbs.net/) Dynamic IP Addresses." \
 	"Sorbs.net" "https://www.sorbs.net/" \
-	dont_redistribute
+	dont_redistribute \
+	dont_enable_with_all
 
 #update sorbs_socks 1 0 ipv4 both "" \
 #	$CAT_CMD \
 #	"anonymizers" \
 #	"[Sorbs.net](https://www.sorbs.net/) List of open SOCKS proxy servers." \
 #	"Sorbs.net" "https://www.sorbs.net/" \
-#	dont_redistribute
+#	dont_redistribute \
+#	dont_enable_with_all
 
 #update sorbs_http 1 0 ipv4 both "" \
 #	$CAT_CMD \
 #	"anonymizers" \
 #	"[Sorbs.net](https://www.sorbs.net/) List of open HTTP proxies." \
 #	"Sorbs.net" "https://www.sorbs.net/" \
-#	dont_redistribute
+#	dont_redistribute \
+#	dont_enable_with_all
 
 #update sorbs_misc 1 0 ipv4 both "" \
 #	$CAT_CMD \
 #	"anonymizers" \
 #	"[Sorbs.net](https://www.sorbs.net/) List of open proxy servers (not listed in HTTP or SOCKS)." \
 #	"Sorbs.net" "https://www.sorbs.net/" \
-#	dont_redistribute
+#	dont_redistribute \
+#	dont_enable_with_all
 
 # all the above are here:
 update sorbs_anonymizers 1 0 ipv4 both "" \
@@ -5961,19 +5984,22 @@ update sorbs_anonymizers 1 0 ipv4 both "" \
 	"spam" \
 	"[Sorbs.net](https://www.sorbs.net/) List of open HTTP and SOCKS proxies." \
 	"Sorbs.net" "https://www.sorbs.net/" \
-	dont_redistribute
+	dont_redistribute \
+	dont_enable_with_all
 
 update sorbs_zombie 1 0 ipv4 both "" \
 	$CAT_CMD \
 	"spam" \
 	"[Sorbs.net](https://www.sorbs.net/) List of networks hijacked from their original owners, some of which have already used for spamming." \
 	"Sorbs.net" "https://www.sorbs.net/" \
-	dont_redistribute
+	dont_redistribute \
+	dont_enable_with_all
 
 update sorbs_smtp 1 0 ipv4 both "" \
 	$CAT_CMD "spam" "[Sorbs.net](https://www.sorbs.net/) List of SMTP Open Relays." \
 	"Sorbs.net" "https://www.sorbs.net/" \
-	dont_redistribute
+	dont_redistribute \
+	dont_enable_with_all
 
 # this is HUGE !!!
 #update sorbs_spam 1 0 ipv4 both "" \
@@ -5981,56 +6007,64 @@ update sorbs_smtp 1 0 ipv4 both "" \
 #	"spam" \
 #	"[Sorbs.net](https://www.sorbs.net/) List of hosts that have been noted as sending spam/UCE/UBE at any time, and not subsequently resolving the matter and/or requesting a delisting. (Includes both sorbs_old_spam and sorbs_escalations)." \
 #	"Sorbs.net" "https://www.sorbs.net/" \
-#	dont_redistribute
+#	dont_redistribute \
+#	dont_enable_with_all
 
 #update sorbs_old_spam 1 0 ipv4 both "" \
 #	remove_comments \
 #	"spam" \
 #	"[Sorbs.net](https://www.sorbs.net/) List of hosts that have been noted as sending spam/UCE/UBE within the last year. (includes sorbs_recent_spam)." \
 #	"Sorbs.net" "https://www.sorbs.net/" \
-#	dont_redistribute
+#	dont_redistribute \
+#	dont_enable_with_all
 
 update sorbs_new_spam 1 0 ipv4 both "" \
 	$CAT_CMD \
 	"spam" \
 	"[Sorbs.net](https://www.sorbs.net/) List of hosts that have been noted as sending spam/UCE/UBE within the last 48 hours" \
 	"Sorbs.net" "https://www.sorbs.net/" \
-	dont_redistribute
+	dont_redistribute \
+	dont_enable_with_all
 
 update sorbs_recent_spam 1 0 ipv4 both "" \
 	$CAT_CMD \
 	"spam" \
 	"[Sorbs.net](https://www.sorbs.net/) List of hosts that have been noted as sending spam/UCE/UBE within the last 28 days (includes sorbs_new_spam)" \
 	"Sorbs.net" "https://www.sorbs.net/" \
-	dont_redistribute
+	dont_redistribute \
+	dont_enable_with_all
 
 update sorbs_web 1 0 ipv4 both "" \
 	$CAT_CMD \
 	"spam" \
 	"[Sorbs.net](https://www.sorbs.net/) List of IPs which have spammer abusable vulnerabilities (e.g. FormMail scripts)" \
 	"Sorbs.net" "https://www.sorbs.net/" \
-	dont_redistribute
+	dont_redistribute \
+	dont_enable_with_all
 
 update sorbs_escalations 1 0 ipv4 both "" \
 	$CAT_CMD \
 	"spam" \
 	"[Sorbs.net](https://www.sorbs.net/) Netblocks of spam supporting service providers, including those who provide websites, DNS or drop boxes for a spammer. Spam supporters are added on a 'third strike and you are out' basis, where the third spam will cause the supporter to be added to the list." \
 	"Sorbs.net" "https://www.sorbs.net/" \
-	dont_redistribute
+	dont_redistribute \
+	dont_enable_with_all
 
 update sorbs_noserver 1 0 ipv4 both "" \
 	$CAT_CMD \
 	"spam" \
 	"[Sorbs.net](https://www.sorbs.net/) IP addresses and Netblocks of where system administrators and ISPs owning the network have indicated that servers should not be present." \
 	"Sorbs.net" "https://www.sorbs.net/" \
-	dont_redistribute
+	dont_redistribute \
+	dont_enable_with_all
 
 update sorbs_block 1 0 ipv4 both "" \
 	$CAT_CMD \
 	"spam" \
 	"[Sorbs.net](https://www.sorbs.net/) List of hosts demanding that they never be tested by SORBS." \
 	"Sorbs.net" "https://www.sorbs.net/" \
-	dont_redistribute
+	dont_redistribute \
+	dont_enable_with_all
 
 
 # -----------------------------------------------------------------------------
@@ -6041,63 +6075,72 @@ update dronebl_anonymizers 1 0 ipv4 both "" \
 	"anonymizers" \
 	"[DroneBL.org](https://dronebl.org) List of open proxies. It includes IPs which DroneBL categorizes as SOCKS proxies (8), HTTP proxies (9), web page proxies (11), WinGate proxies (14), proxy chains (10)." \
 	"DroneBL.org" "https://dronebl.org" \
-	dont_redistribute
+	dont_redistribute \
+	dont_enable_with_all
 
 update dronebl_irc_drones 1 0 ipv4 both "" \
 	$CAT_CMD \
 	"abuse" \
 	"[DroneBL.org](https://dronebl.org) List of IRC spam drones (litmus/sdbot/fyle). It includes IPs for which DroneBL responds with 3." \
 	"DroneBL.org" "https://dronebl.org" \
-	dont_redistribute
+	dont_redistribute \
+	dont_enable_with_all
 
 update dronebl_worms_bots 1 0 ipv4 both "" \
 	$CAT_CMD \
 	"malware" \
 	"[DroneBL.org](https://dronebl.org) IPs of unknown worms or spambots. It includes IPs for which DroneBL responds with 6" \
 	"DroneBL.org" "https://dronebl.org" \
-	dont_redistribute
+	dont_redistribute \
+	dont_enable_with_all
 
 update dronebl_ddos_drones 1 0 ipv4 both "" \
 	$CAT_CMD \
 	"attacks" \
 	"[DroneBL.org](https://dronebl.org) IPs of DDoS drones. It includes IPs for which DroneBL responds with 7." \
 	"DroneBL.org" "https://dronebl.org" \
-	dont_redistribute
+	dont_redistribute \
+	dont_enable_with_all
 
 update dronebl_compromised 1 0 ipv4 both "" \
 	$CAT_CMD \
 	"attacks" \
 	"[DroneBL.org](https://dronebl.org) IPs of compromised routers / gateways. It includes IPs for which DroneBL responds with 15 (BOPM detected)." \
 	"DroneBL.org" "https://dronebl.org" \
-	dont_redistribute
+	dont_redistribute \
+	dont_enable_with_all
 
 update dronebl_autorooting_worms 1 0 ipv4 both "" \
 	$CAT_CMD \
 	"attacks" \
 	"[DroneBL.org](https://dronebl.org) IPs of autorooting worms. It includes IPs for which DroneBL responds with 16. These are usually SSH bruteforce attacks." \
 	"DroneBL.org" "https://dronebl.org" \
-	dont_redistribute
+	dont_redistribute \
+	dont_enable_with_all
 
 update dronebl_auto_botnets 1 0 ipv4 both "" \
 	$CAT_CMD \
 	"reputation" \
 	"[DroneBL.org](https://dronebl.org) IPs of automatically detected botnets. It includes IPs for which DroneBL responds with 17." \
 	"DroneBL.org" "https://dronebl.org" \
-	dont_redistribute
+	dont_redistribute \
+	dont_enable_with_all
 
 update dronebl_dns_mx_on_irc 1 0 ipv4 both "" \
 	$CAT_CMD \
 	"reputation" \
 	"[DroneBL.org](https://dronebl.org) List of IPs of DNS / MX hostname detected on IRC. It includes IPs for which DroneBL responds with 18." \
 	"DroneBL.org" "https://dronebl.org" \
-	dont_redistribute
+	dont_redistribute \
+	dont_enable_with_all
 
 update dronebl_unknown 1 0 ipv4 both "" \
 	$CAT_CMD \
 	"reputation" \
 	"[DroneBL.org](https://dronebl.org) List of IPs of uncategorized threats. It includes IPs for which DroneBL responds with 255." \
 	"DroneBL.org" "https://dronebl.org" \
-	dont_redistribute
+	dont_redistribute \
+	dont_enable_with_all
 
 
 # -----------------------------------------------------------------------------
