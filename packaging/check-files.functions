@@ -114,6 +114,13 @@ check_commands() {
     fi
   done
 
+  (
+   a=`pwd`
+   cd $MYTMP/files
+   $a/packaging/detect-cmd.pl configure.ac $1 || touch $MYTMP/detect
+  )
+  if [ -f $MYTMP/detect ]; then status=1; fi
+
   return $status
 }
 

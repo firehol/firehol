@@ -37,8 +37,8 @@ get_version() {
 	for i in $@
 	do
 		case "$i" in
-			*[0-9].[0.9]*)
-				echo "$i" | sed -e 's/^v//'
+			*[0-9].[0-9]*)
+				echo "$i" | $SED_CMD -e 's/^v//'
 				return 0
 			;;
 			commit-[0-9a-zA-Z]*)
@@ -49,10 +49,206 @@ get_version() {
 	echo "$ver"
 	return 0
 }
+
+CONFIG_DIR="/etc/firehol"
+
+marksreset() { :; }
+markdef() { :; }
+if [ -f "${CONFIG_DIR}/firehol-defaults.conf" ]
+then
+	source "${CONFIG_DIR}/firehol-defaults.conf" || exit 1
+fi
+
+# Load commands vnetbuild will need.
+
+which_cmd() {
+	local name="$1"
+	shift
+
+	if [ "$1" = ":" ]
+	then
+		eval $name=":"
+		return 0
+	fi
+
+	unalias $1 >/dev/null 2>&1
+	local cmd=
+	IFS= read cmd <<-EOF
+	$(which $1 2> /dev/null)
+	EOF
+
+	if [ $? -gt 0 -o ! -x "${cmd}" ]
+	then
+		return 1
+	fi
+	shift
+
+	if [ $# -eq 0 ]
+	then
+		eval $name="'${cmd}'"
+	else
+		eval $name="'${cmd} ${@}'"
+	fi
+	return 0
+}
+
+require_cmd() {
+	local var= val= block=1
+
+	if [ "$1" = "-n" ]
+	then
+		block=0
+		shift
+	fi
+
+	var="$1"
+	shift
+
+	eval val=\$\{${var}\}
+	if [ "${val}" ]
+	then
+		local cmd="${val/ */}"
+		if [ ! -x "$cmd" ]
+		then
+			echo >&2
+			if [ $block -eq 0 ]
+			then
+				echo >&2 "WARNING: optional command does not exist or is not executable ($cmd)"
+				echo >&2 "please add or correct $var in firehol-defaults.conf"
+				val=""
+			else
+				echo >&2 "ERROR: required command does not exist or is not executable ($cmd)"
+				echo >&2 "please add or correct $var in firehol-defaults.conf"
+				exit 1
+			fi
+		fi
+
+		# link-balancer calls itself; export our findings so
+		# we do not repeat all of the lookups
+		eval export "$var"
+		return 0
+	elif [ $block -eq 0 ]
+	then
+		eval set -- "$@"
+		for cmd in "$@"
+		do
+			eval "NEED_${var}"="\$NEED_${var}' ${cmd/ */}'"
+		done
+		return 0
+	fi
+
+	if [ $# -eq 0 ]
+	then
+		eval set -- "\$NEED_${var}"
+	fi
+
+	echo >&2
+	echo >&2 "ERROR:	LINK-BALANCER REQUIRES ONE OF THESE COMMANDS:"
+	echo >&2
+	echo >&2 "	${@}"
+	echo >&2
+	echo >&2 "	You have requested the use of a link-balancer"
+	echo >&2 "	feature that requires certain external programs"
+	echo >&2 "	to be installed in the running system."
+	echo >&2
+	echo >&2 "	Please consult your Linux distribution manual to"
+	echo >&2 "	install the package(s) that provide these external"
+	echo >&2 "	programs and retry."
+	echo >&2
+	echo >&2 "	Note that you need an operational 'which' command"
+	echo >&2 "	for link-balancer to find all the external programs it"
+	echo >&2 "	needs. Check it yourself. Run:"
+	echo >&2
+	for x in "${@}"
+	do
+		echo >&2 "	which $x"
+	done
+
+	exit 1
+}
+
+which_all() {
+	local cmd_var="$1"
+
+	eval set -- "$2"
+	for cmd in "$@"
+	do
+		which_cmd $cmd_var $cmd && break
+	done
+}
+
+# Where required = Y, if a command is not found, FireHOL will refuse to run.
+# Where required = N, the command only required when it is actually used
+#
+# If a command is specified in /etc/firehol/firehol-defaults.conf it will
+# be used. Otherwise, if the script has been configured with ./configure
+# the detected versions will be used. If the script has not been configured
+# then the list of possible commands is autodetected.
+while IFS="|" read required cmd_var autoconf possibles
+do
+	if [ "@AUTOCONF_RUN@" = "Y" ]
+	then
+		case "$autoconf" in
+			"@"*) autoconf=""; ;;
+		esac
+	fi
+	eval set_in_defaults=\"\$$cmd_var\"
+	if [ "$set_in_defaults" ]
+	then
+		:
+	elif [ "@AUTOCONF_RUN@" = "Y" -a ! -z "$autoconf" ]
+	then
+		eval $cmd_var=\"$autoconf\"
+	else
+		PATH="/bin:/usr/bin:/sbin:/usr/sbin:$PATH" which_all $cmd_var "$possibles"
+	fi
+	if [ "$required" = "Y" ]
+	then
+		require_cmd $cmd_var $possibles
+	else
+		require_cmd -n $cmd_var $possibles
+	fi
+done <<-!
+Y|IP_CMD|@IP@|ip
+Y|BRCTL_CMD|@BRCTL@|brctl
+Y|FLOCK_CMD|@FLOCK@|flock
+Y|GREP_CMD|@GREP@|grep
+Y|FIND_CMD|@FIND@|find
+Y|SH_CMD|@SH@|sh bash ksh
+Y|CUT_CMD|@CUT@|cut
+Y|CAT_CMD|@CAT@|cat
+Y|SED_CMD|@SED@|sed
+Y|TR_CMD|@TR@|tr
+Y|LN_CMD|@LN@|ln
+Y|LS_CMD|@LS@|ls
+Y|SLEEP_CMD|@SLEEP@|sleep
+Y|TOUCH_CMD|@TOUCH@|touch
+Y|LOGGER_CMD|@LOGGER@|logger
+Y|MKDIR_CMD|@MKDIR@|mkdir
+Y|CHOWN_CMD|@CHOWN@|chown
+Y|CHMOD_CMD|@CHMOD@|chmod
+Y|RM_CMD|@RM@|rm
+Y|PING_CMD|@PING@|ping
+Y|PING6_CMD|@PING6@|ping6
+Y|TRACEROUTE_CMD|@TRACEROUTE@|traceroute
+Y|SORT_CMD|@SORT@|sort
+Y|GAWK_CMD|@GAWK@|gawk awk
+Y|MKTEMP_CMD|@MKTEMP@|mktemp
+Y|ENV_CMD|@ENV@|env
+N|WHOIS_CMD|@WHOIS@|whois
+N|JQ_CMD|@JQ@|jq
+N|HEAD_CMD|@HEAD@|head
+N|TPUT_CMD|@TPUT@|tput
+N|WGET_CMD|@WGET@|wget
+N|SCREEN_CMD|@SCREEN@|screen
+Y|AGGREGATE_CMD|@AGGREGATE@|aggregate aggregate-flim cat
+N|NEATO_CMD|@NEATO@|neato
+!
+
 VERSION=$(get_version)
 
 emit_version() {
-	cat <<EOF
+	$CAT_CMD <<EOF
 FireHOL vnetbuild $VERSION
 (C) Copyright 2015 Phil Whineray <phil@firehol.org>
 (C) Copyright 2015 Costa Tsaousis <costa@tsaousis.gr>
@@ -70,7 +266,7 @@ needroot=Y
 haderror=""
 #gvprog=dot
 #gvprog=sfdp
-gvprog=neato
+gvprog=$NEATO_CMD
 
 setup="$1"
 mode="$2"
@@ -86,10 +282,11 @@ case "$mode" in
     :
   ;;
   graphviz)
+    require_cmd NEATO_CMD
     needroot=
     case "$outfile" in
       *.gv|"")
-        graphviz=cat
+        graphviz=$CAT_CMD
       ;;
       *.ps)
         format=ps
@@ -121,7 +318,7 @@ then
   emit_version
 fi
 
-if [ "$needroot" -a "`id -r -u`" != "0" ]
+if [ "$needroot" -a "${UID}" != "0" ]
 then
   echo "Error: must be root to use '$mode'"
   haderror="Y"
@@ -138,11 +335,11 @@ else
   shift
 fi
 
-setupbase="$(basename $setup)"
+setupbase="${setup##*/}"
 errline=""
 error=""
 
-if ! MYTMP="`mktemp -d -t vnetbuild-XXXXXX`"
+if ! MYTMP="`$MKTEMP_CMD -d -t vnetbuild-XXXXXX`"
 then
             echo >&2
             echo >&2
@@ -157,7 +354,7 @@ myexit() {
   then
     echo "$setupbase: line $errline: $error"
   fi
-  rm -rf $MYTMP
+  $RM_CMD -rf $MYTMP
   exit $status
 }
 
@@ -170,12 +367,12 @@ export CURDIR
 
 set -e
 
-mkdir $MYTMP/setup
-sed = "$setup" > $MYTMP/withnum
-(echo "cd $CURDIR"; sed -e 'N;s/\n/\t/' -e 's/^/lineno=/' -e '/exec/s/[<>|&]/\\&/g' $MYTMP/withnum) > $MYTMP/setup/$setupbase
+$MKDIR_CMD $MYTMP/setup
+$SED_CMD = "$setup" > $MYTMP/withnum
+(echo "cd $CURDIR"; $SED_CMD -e 'N;s/\n/\t/' -e 's/^/lineno=/' -e '/exec/s/[<>|&]/\\&/g' $MYTMP/withnum) > $MYTMP/setup/$setupbase
 
-mkdir $MYTMP/ns
-mkdir $MYTMP/runtime-lines
+$MKDIR_CMD $MYTMP/ns
+$MKDIR_CMD $MYTMP/runtime-lines
 
 current_name=
  
@@ -186,12 +383,12 @@ create_namespace() {
   NSTMP=$MYTMP/ns/$current_name
   if [ -d $NSTMP ]
   then
-    error="$current_name: $(cat $NSTMP/type) already defined"
+    error="$current_name: $($CAT_CMD $NSTMP/type) already defined"
     return 1
   fi
-  mkdir $NSTMP
-  mkdir $NSTMP/devices
-  mkdir $NSTMP/devicepairs
+  $MKDIR_CMD $NSTMP
+  $MKDIR_CMD $NSTMP/devices
+  $MKDIR_CMD $NSTMP/devicepairs
   echo $type > $NSTMP/type
   echo 0 > $NSTMP/forward
   > $NSTMP/routes
@@ -233,8 +430,8 @@ dev() {
   local otherdev=
   case $1 in
     */[a-zA-Z]*)
-      otherns=$(echo $1 | cut -f1 -d/)
-      otherdev=$(echo $1 | cut -f2 -d/)
+      otherns=$(echo $1 | $CUT_CMD -f1 -d/)
+      otherdev=$(echo $1 | $CUT_CMD -f2 -d/)
       shift
       if [ -f $MYTMP/ns/$otherns/devicepairs/$otherdev ]
       then
@@ -244,7 +441,7 @@ dev() {
     ;;
   esac
 
-  local type="$(cat $NSTMP/type)"
+  local type="$($CAT_CMD $NSTMP/type)"
   if [ "$*" != "" -a "$type" = "switch" ]
   then
     error="device in switch may not specify an IP address"
@@ -293,7 +490,7 @@ route() {
     return 1
   fi
 
-  local type="$(cat $NSTMP/type)"
+  local type="$($CAT_CMD $NSTMP/type)"
   if [ "$type" = "switch" ]
   then
     error="can only specify route in a host"
@@ -316,7 +513,7 @@ bridgedev() {
     return 1
   fi
 
-  local type="$(cat $NSTMP/type)"
+  local type="$($CAT_CMD $NSTMP/type)"
   if [ "$type" = "switch" ]
   then
     error="can only specify bridgedev in a host"
@@ -378,7 +575,7 @@ errline=""
 cd $CURDIR
 
 exists_ns() {
-  if [ "$(ip netns list | grep "^$1\$")" ]
+  if [ "$($IP_CMD netns list | $GREP_CMD "^$1\$")" ]
   then
     return 0
   else
@@ -387,22 +584,22 @@ exists_ns() {
 }
 
 dev_in_ns() {
-  ip netns exec $1 ip link list | grep "^[0-9]" | cut -d: -f2 | tr -d ' '
+  $IP_CMD netns exec $1 $IP_CMD link list | $GREP_CMD "^[0-9]" | $CUT_CMD -d: -f2 | $CUT_CMD -f1 -d'@' | $TR_CMD -d ' '
 }
 
 get_pids() {
   # Not in all versions:
-  #   ip netns pids $1
-  find -L /proc/[0-9]*/ns -maxdepth 1 -samefile /var/run/netns/$1 2>/dev/null | cut -f3 -d/
+  #   $IP_CMD netns pids $1
+  $FIND_CMD -L /proc/[0-9]*/ns -maxdepth 1 -samefile /var/run/netns/$1 2>/dev/null | $CUT_CMD -f3 -d/
 }
 
 shutdown_ns() {
   for i in $(dev_in_ns $1)
   do
-    ip netns exec $1 ip link set $i down
+    $IP_CMD netns exec $1 $IP_CMD link set $i down
   done
   pids=$(get_pids $1)
-  if [ "$pids" ]; then kill $pids; sleep 1; fi
+  if [ "$pids" ]; then kill $pids; $SLEEP_CMD 1; fi
   pids=$(get_pids $1)
   if [ "$pids" ]; then kill -9 $pids; fi
 }
@@ -410,7 +607,7 @@ shutdown_ns() {
 startup_ns() {
   for i in $(dev_in_ns $1)
   do
-    ip netns exec $1 ip link set $i up
+    $IP_CMD netns exec $1 $IP_CMD link set $i up
   done
 }
 
@@ -450,7 +647,7 @@ then
    do
      read errline < $MYTMP/runtime-lines/$ns
      error="deleting namespace"
-     exists_ns $ns && ip netns del $ns
+     exists_ns $ns && $IP_CMD netns del $ns
    done < $MYTMP/nslist
 
   error=""
@@ -467,18 +664,18 @@ then
   do
     read errline < $MYTMP/runtime-lines/$ns
     error="adding namespace"
-    type="$(cat $MYTMP/ns/$ns/type)"
-    ip netns add $ns
+    type="$($CAT_CMD $MYTMP/ns/$ns/type)"
+    $IP_CMD netns add $ns
     if [ "$type" = "switch" ]
     then
       error="adding bridge to switch namespace"
-      ip netns exec $ns brctl addbr switch
+      $IP_CMD netns exec $ns $BRCTL_CMD addbr switch
     fi
   done < $MYTMP/nslist
 
   while read ns
   do
-    type="$(cat $MYTMP/ns/$ns/type)"
+    type="$($CAT_CMD $MYTMP/ns/$ns/type)"
     while read dev
     do
       read errline < $MYTMP/runtime-lines/$ns-dev-$dev
@@ -486,20 +683,20 @@ then
       if [ "$ons" != "n/a" ]
       then
         error="adding virtual ethernet to $type namespace"
-        ip link add $dev netns $ns type veth peer netns $ons name $odev
+        $IP_CMD link add $dev netns $ns type veth peer netns $ons name $odev
       else
         : # gets set up from the other end
       fi
       if [ "$type" = "switch" ]
       then
         error="adding virtual ethernet to bridge"
-        ip netns exec $ns brctl addif switch $dev
+        $IP_CMD netns exec $ns $BRCTL_CMD addif switch $dev
       fi
       while read ip
       do
         error="adding ip address to virtual ethernet"
         if is_ipv6 $ip; then bc=""; v6="-6"; else bc="broadcast +"; v6=""; fi
-        ip netns exec $ns ip $v6 addr add $ip $bc dev $dev
+        $IP_CMD netns exec $ns $IP_CMD $v6 addr add $ip $bc dev $dev
       done < $MYTMP/ns/$ns/devices/$dev
     done < $MYTMP/ns/$ns/devlist
 
@@ -507,17 +704,17 @@ then
     do
       read errline < $MYTMP/runtime-lines/$ns-dev-$bridge
       error="adding bridge to host namespace"
-      ip netns exec $ns brctl addbr $bridge
+      $IP_CMD netns exec $ns $BRCTL_CMD addbr $bridge
       while read dev
       do
         error="adding virtual interface to bridge"
-        ip netns exec $ns brctl addif $bridge $dev
+        $IP_CMD netns exec $ns $BRCTL_CMD addif $bridge $dev
       done < $MYTMP/ns/$ns/devices/$bridge-bridged
       while read ip
       do
         error="adding ip to virtual interface"
         if is_ipv6 $ip; then bc=""; v6="-6"; else bc="broadcast +"; v6=""; fi
-        ip netns exec $ns ip $v6 addr add $ip $bc dev $dev
+        $IP_CMD netns exec $ns $IP_CMD $v6 addr add $ip $bc dev $bridge
       done < $MYTMP/ns/$ns/devices/$bridge
     done < $MYTMP/ns/$ns/bridgelist
   done < $MYTMP/nslist
@@ -532,17 +729,17 @@ then
 
     while read route
     do
-      errline=$(tr "\n" "/" < $MYTMP/runtime-lines/$ns-routes | sed -e s:/$::)
+      errline=$($TR_CMD "\n" "/" < $MYTMP/runtime-lines/$ns-routes | $SED_CMD -e s:/$::)
       error="adding route to $ns"
       if is_ipv6 "$route"; then bc=""; v6="-6"; else bc="broadcast +"; v6=""; fi
-      ip netns exec $ns ip $v6 route add $route
+      $IP_CMD netns exec $ns $IP_CMD $v6 route add $route
     done < $MYTMP/ns/$ns/routes
 
     if [ -f $MYTMP/ns/$ns/exec ]
     then
-      errline=$(tr "\n" "/" < $MYTMP/runtime-lines/$ns-exec | sed -e s:/$::)
+      errline=$($TR_CMD "\n" "/" < $MYTMP/runtime-lines/$ns-exec | $SED_CMD -e s:/$::)
       error="running exec for $ns"
-      ip netns exec $ns sh -e $MYTMP/ns/$ns/exec
+      $IP_CMD netns exec $ns $SH_CMD -e $MYTMP/ns/$ns/exec
     fi
   done < $MYTMP/nslist
   error=""
@@ -555,9 +752,12 @@ then
     echo "---------------------- $ns --------------------"
     if exists_ns $ns
     then
-      ip netns exec $ns ip addr show
-      ip netns exec $ns ip route show
-      ip netns exec $ns brctl show
+      # We remove the @whatever part of the device names since these
+      # appear to be highly unreliable when creating devices in different
+      # namespaces, at least under linux 4.3.
+      $IP_CMD netns exec $ns $IP_CMD addr show | $SED_CMD 's/@[^:]*:/:/'
+      $IP_CMD netns exec $ns $IP_CMD route show
+      $IP_CMD netns exec $ns $BRCTL_CMD show
     else
       echo "Namespace not running"
     fi
@@ -578,7 +778,7 @@ then
   echo "edge [color=blue,style=dashed];" >>$gv
   while read ns
   do
-    type="$(cat $MYTMP/ns/$ns/type)"
+    type="$($CAT_CMD $MYTMP/ns/$ns/type)"
     if [ "$type" = "switch" ]
     then
       echo "switch_$ns [shape=polygon,sides=4,skew=.4,label=\"$ns\"];" >>$gv
@@ -624,13 +824,13 @@ then
   done < $MYTMP/nslist
   while read ns
   do
-    type="$(cat $MYTMP/ns/$ns/type)"
+    type="$($CAT_CMD $MYTMP/ns/$ns/type)"
     while read dev
     do
       read ons odev < $MYTMP/ns/$ns/devicepairs/$dev
       if [ "$ons" != "n/a" ]
       then
-        otype="$(cat $MYTMP/ns/$ons/type)"
+        otype="$($CAT_CMD $MYTMP/ns/$ons/type)"
         if [ "$type" = "switch" ]
         then
           from="switch_$ns"
