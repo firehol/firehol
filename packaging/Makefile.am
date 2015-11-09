@@ -2,7 +2,9 @@
 
 EXTRA_DIST = \
 	check-contents \
-	check-log \
+	check-files \
+	check-files.functions \
+	detect-cmd.pl \
 	git-build \
 	Makefile.am \
 	packver \

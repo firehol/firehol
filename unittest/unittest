@@ -60,8 +60,23 @@ if [ "$1" = "-inns" ]
 then
   # First set up our namespace so we can write where we need to
   mount -t tmpfs tmpfs /etc/firehol
-  mount -t tmpfs tmpfs /var/run/firehol
-  mount -t tmpfs tmpfs /var/spool/firehol
+  if [ -d /var/run/firehol ]
+  then
+    mount -t tmpfs tmpfs /var/run/firehol
+    mount -t tmpfs tmpfs /var/run/netns
+  else
+    mount -t tmpfs tmpfs /var/run
+    mkdir /var/run/firehol
+    mkdir /var/run/netns
+  fi
+  if [ -d /var/spool/firehol ]
+  then
+    mount -t tmpfs tmpfs /var/spool/firehol
+  else
+    mount -t tmpfs tmpfs /var/spool
+    mkdir /var/spool/firehol
+  fi
+  mount -o rbind /sys /sys
 
   # Check the files are gone
   if [ -f /etc/firehol/firehol.conf \
@@ -208,6 +223,12 @@ if [ "$1" = "--strace" ]
 then
   shift
   strace=1
+  STRACE_CMD=`which strace 2> /dev/null`
+  if [ -z "$STRACE_CMD" ]
+  then
+    echo "strace not found!"
+    exit 1
+  fi
 fi
 
 if [ $# -eq 1 -a "$1" = "all" ]
@@ -284,6 +305,7 @@ clear_iptables() {
   fi
 }
 
+#set -x
 started=`date`
 errors=0
 total=0
@@ -312,6 +334,9 @@ do
   export outtable=$(newext table.out $conf)
   export audrules=$(newext rules.aud $conf)
   export audtable=$(newext table.aud $conf)
+
+  export outns=$(newext ns.out $conf)
+  export audns=$(newext ns.aud $conf)
 
   case $conf in
     firehol*)
@@ -345,7 +370,7 @@ do
 
     if [ $strace -eq 1 ]
     then
-      export kcov="strace -f -o `pwd`/strace.${total}.txt"
+      export kcov="$STRACE_CMD -f -o `pwd`/strace.${total}.txt"
     fi
 
     # Define our configuration directory exactly as we want it
@@ -461,6 +486,13 @@ do
           then
             errors=$((errors + 1))
           elif ! cmp "$audtable" "$outtable"
+          then
+            errors=$((errors + 1))
+          fi
+        ;;
+        vnetbuild)
+          ip netns list > "$outns"
+          if ! cmp "$audns" "$outns"
           then
             errors=$((errors + 1))
           fi

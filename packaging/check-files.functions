@@ -1,0 +1,184 @@
+#!/bin/bash
+
+get_staged_file() {
+  local dir="${1%/*}"
+  if [ "$dir" = "$1" ]; then dir="."; fi
+  mkdir -p $MYTMP/files/$dir
+  if [ "$from_cache" ]
+  then
+    test -f $MYTMP/files/$1 || git show :$1 > $MYTMP/files/$1
+  else
+    test -f $MYTMP/files/$1 || cp $1 $MYTMP/files/$1
+  fi
+}
+
+check_version_matches() {
+  local status=0
+
+  get_staged_file ChangeLog
+  get_staged_file NEWS
+  get_staged_file configure.ac
+
+  local clogver=`sed -ne '1s/.*(\(.*\)).*/\1/p' $MYTMP/files/ChangeLog`
+  local newsver=`head -n 10 $MYTMP/files/NEWS | sed -ne 's/.*\<\([1-9][0-9]*\.[0-9][0-9]*[0-9A-Za-z.-]*\).*/\1/p' | head -n 1`
+
+  if [ $status -eq 0 -a ! "$clogver" ]
+  then
+    echo "Could not get version from ChangeLog"
+    status=1
+  fi
+
+  if [ $status -eq 0 -a ! "$newsver" ]
+  then
+    echo "Could not get version from NEWS"
+    status=1
+  fi
+
+  if [ $status -eq 0 -a "$newsver" != "$clogver" ]
+  then
+    echo "Version in NEWS ($newsver) differs from ChangeLog ($clogver)"
+    status=1
+  fi
+
+  return $status
+}
+
+check_commands() {
+  local status=0
+
+  get_staged_file $1
+  get_staged_file configure.ac
+
+  # Find commands that have been enclosed in quotes and remove anything after
+  #  if nothing matched the substitution, proceed to the next line
+  #  if the command is used in a -z check, proceed to the next line
+  #  if the command is in posix size check [ "$var" ], proceed to the next line
+  #  if the command is being assigned to a variable, proceed to the next line
+  #  if the command is being used in an eval, proceed to the next line
+  # Anything left, print the line number
+  sed -n -e 's/.*\([(`|&][^)`]*"\$[^("}]*_CMD}*\).*/\1/' \
+         -e 's/^[ 	]*\("\$[^("}]*_CMD}*\)/\1/' \
+         -e T \
+         -e '/-z *"\$/b' \
+         -e '/\[ *"\$/b' \
+         -e '/= *"\$/b' \
+         -e '/eval *"\$/b' \
+         -e '{=}' \
+         $MYTMP/files/$1 > $MYTMP/errors
+  if [ -s $MYTMP/errors ]
+  then
+    status=1
+    echo "Detected use(s) of \"\${SOMETHING_CMD}\" in ${1}. Check lines:"
+    cat $MYTMP/errors
+  fi
+
+  # Ignore lines from the command table and require_cmd entries
+  # ensure at least 2 characters before and after each word, reset cond jump
+  # extract the command and immediate surroundings, got to next line if no match
+  # remove brackets
+  # proceed to next line if command starts with a dollar
+  # proceed to next line if command ends with equals (assignment)
+  # print line number
+  sed -n -e '/^[YN]|/b' -e '/require_cmd/b' \
+         -e 's/^/  /' -e 's/$/  /' -e T \
+         -e 's/.*\(..\<[A-Z0-9_]*_CMD..\).*/\1/' -e T \
+         -e 's/[{}]//' \
+         -e '/$[A-Z]/b' \
+         -e '/[A-Z0-9]=/b' \
+         -e '=' \
+         $MYTMP/files/$1 > $MYTMP/errors
+  if [ -s $MYTMP/errors ]
+  then
+    status=1
+    echo "Detected use(s) of 'SOMETHING_CMD' (missing \$) in ${1}. Check lines:"
+    cat $MYTMP/errors
+  fi
+
+  grep "^[YN]|" $MYTMP/files/$1 > $MYTMP/commands-defined
+  for cmd in $(tr " " "\n" < $MYTMP/files/$1 |
+             sed -n -e 's/.*\(\<[A-Z0-9_]*\)_CMD.*/\1/p' | sort | uniq)
+  do
+    if ! grep -q "^[YN]|${cmd}_CMD|" $MYTMP/commands-defined
+    then
+      status=1
+      echo "Missing definition of $cmd in $1 detection table."
+    fi
+
+    # Hostname is a special case - configure will expand it to running host,
+    # overwriting the value we wanted to use.
+    if [ "$cmd" = "HOSTNAME" ]; then cmd="HOSTNAMECMD"; fi
+    if ! grep -q "_${cmd}(\|\[$cmd\]" $MYTMP/files/configure.ac
+    then
+      status=1
+      echo "Missing detection of $cmd for $1 in configure.ac"
+    fi
+  done
+
+  while IFS="|" read yn cmd rest
+  do
+    if ! grep -q "\${*$cmd" $MYTMP/files/$1
+    then
+      status=1
+      echo "$cmd detected but never used in $1"
+    fi
+  done < $MYTMP/commands-defined
+
+  (
+   a=`pwd`
+   cd $MYTMP/files
+   $a/packaging/detect-cmd.pl configure.ac $1 || touch $MYTMP/detect
+  )
+  if [ -f $MYTMP/detect ]; then status=1; fi
+
+  return $status
+}
+
+check_changelog() {
+  local status=0
+
+  get_staged_file ChangeLog
+
+  local version=`sed -ne '1s/.*(\(.*\)).*/\1/p' $filename`
+  if [ "`echo $version | grep '[[:space:]]'`" != "" ]
+  then
+    echo "ChangeLog version contains whitespace! Fix it!"
+    status=1
+  fi
+
+  which dpkg-gencontrol > /dev/null 2>&1
+  if [ $? -ne 0 ]
+  then
+    echo "dpkg-gencontrol not found; skipping ChangeLog verification!"
+    return $status
+  fi
+
+ (cd $MYTMP/files
+  mkdir -p debian/tmp
+  cat > debian/control <<!
+Source: firehol
+Section: net
+Priority: optional
+Homepage: http://firehol.org/
+Maintainer: firehol-devs@lists.firehol.org
+
+Package: firehol
+Architecture: all
+Depends: iptables
+Description: firewall for humans
+!
+  dpkg-gencontrol -O -pfirehol -lChangeLog > /dev/null 2> debian/tmp/l
+  status=$?
+  if [ $status -eq 0 -a `grep -v "FcntlLock not available" debian/tmp/l | wc -c` -gt 0 ]
+  then
+    status=1
+  fi
+  if [ $status -ne 0 ]
+  then
+    cat debian/tmp/l
+    touch $MYTMP/changelog.fail
+  fi
+ )
+
+  if [ -f $MYTMP/changelog.fail ]; then status=1; fi
+  return $status
+}
