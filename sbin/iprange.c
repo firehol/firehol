@@ -390,15 +390,23 @@ static inline void print_addr_range(in_addr_t lo, in_addr_t hi)
 		lo = t;
 	}
 
-	if (unlikely(lo != hi)) {
+	if(lo == hi) {
+		printf("%s%s-", print_prefix_ips, ip2str(lo));
+		printf("%s%s\n", ip2str(hi), print_suffix_ips);
+	}
+	else {
 		printf("%s%s-", print_prefix_nets, ip2str(lo));
 		printf("%s%s\n", ip2str(hi), print_suffix_nets);
-		return;
 	}
 
-	printf("%s%s%s\n", print_prefix_ips, ip2str(hi), print_suffix_ips);
-
 }				/* print_addr_range() */
+
+static inline void print_addr_single(in_addr_t x)
+{
+
+	printf("%s%s%s\n", print_prefix_ips, ip2str(x), print_suffix_ips);
+
+}				/* print_addr_single() */
 
 
 // ----------------------------------------------------------------------------
@@ -1694,7 +1702,7 @@ void ipset_print(ipset *ips, int print) {
 					continue;
 				}
 				for( x = start ; x >= start && x <= end ; x++ ) {
-					print_addr_range(x, x);
+					print_addr_single(x);
 					total++;
 				}
 			}
