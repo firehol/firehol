@@ -211,7 +211,6 @@ do
 done <<-!
 Y|IP_CMD|@IP@|ip
 Y|BRCTL_CMD|@BRCTL@|brctl
-Y|FLOCK_CMD|@FLOCK@|flock
 Y|GREP_CMD|@GREP@|grep
 Y|FIND_CMD|@FIND@|find
 Y|SH_CMD|@SH@|sh bash ksh
@@ -219,29 +218,10 @@ Y|CUT_CMD|@CUT@|cut
 Y|CAT_CMD|@CAT@|cat
 Y|SED_CMD|@SED@|sed
 Y|TR_CMD|@TR@|tr
-Y|LN_CMD|@LN@|ln
-Y|LS_CMD|@LS@|ls
 Y|SLEEP_CMD|@SLEEP@|sleep
-Y|TOUCH_CMD|@TOUCH@|touch
-Y|LOGGER_CMD|@LOGGER@|logger
 Y|MKDIR_CMD|@MKDIR@|mkdir
-Y|CHOWN_CMD|@CHOWN@|chown
-Y|CHMOD_CMD|@CHMOD@|chmod
 Y|RM_CMD|@RM@|rm
-Y|PING_CMD|@PING@|ping
-Y|PING6_CMD|@PING6@|ping6
-Y|TRACEROUTE_CMD|@TRACEROUTE@|traceroute
-Y|SORT_CMD|@SORT@|sort
-Y|GAWK_CMD|@GAWK@|gawk awk
 Y|MKTEMP_CMD|@MKTEMP@|mktemp
-Y|ENV_CMD|@ENV@|env
-N|WHOIS_CMD|@WHOIS@|whois
-N|JQ_CMD|@JQ@|jq
-N|HEAD_CMD|@HEAD@|head
-N|TPUT_CMD|@TPUT@|tput
-N|WGET_CMD|@WGET@|wget
-N|SCREEN_CMD|@SCREEN@|screen
-Y|AGGREGATE_CMD|@AGGREGATE@|aggregate aggregate-flim cat
 N|NEATO_CMD|@NEATO@|neato
 !
 

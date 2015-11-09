@@ -285,7 +285,6 @@ Y|RM_CMD|@RM@|rm
 Y|SORT_CMD|@SORT@|sort
 Y|GAWK_CMD|@GAWK@|gawk awk
 Y|MKTEMP_CMD|@MKTEMP@|mktemp
-Y|ENV_CMD|@ENV@|env
 N|TPUT_CMD|@TPUT@|tput
 Y|FOLD_CMD|@FOLD@|fold
 Y|CURL_CMD|@CURL@|curl

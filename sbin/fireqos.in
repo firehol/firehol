@@ -262,7 +262,6 @@ do
 		require_cmd -n $cmd_var $possibles
 	fi
 done <<-!
-Y|STTY_CMD|@STTY@|stty :
 N|TPUT_CMD|@TPUT@|tput
 Y|IP_CMD|@IP@|ip
 Y|MODPROBE_CMD|@MODPROBE@|'modprobe -q' insmod

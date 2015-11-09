@@ -60,9 +60,22 @@ if [ "$1" = "-inns" ]
 then
   # First set up our namespace so we can write where we need to
   mount -t tmpfs tmpfs /etc/firehol
-  mount -t tmpfs tmpfs /var/run/firehol
-  mount -t tmpfs tmpfs /var/spool/firehol
-  mount -t tmpfs tmpfs /var/run/netns
+  if [ -d /var/run/firehol ]
+  then
+    mount -t tmpfs tmpfs /var/run/firehol
+    mount -t tmpfs tmpfs /var/run/netns
+  else
+    mount -t tmpfs tmpfs /var/run
+    mkdir /var/run/firehol
+    mkdir /var/run/netns
+  fi
+  if [ -d /var/spool/firehol ]
+  then
+    mount -t tmpfs tmpfs /var/spool/firehol
+  else
+    mount -t tmpfs tmpfs /var/spool
+    mkdir /var/spool/firehol
+  fi
   mount -o rbind /sys /sys
 
   # Check the files are gone
@@ -292,7 +305,7 @@ clear_iptables() {
   fi
 }
 
-set -x
+#set -x
 started=`date`
 errors=0
 total=0

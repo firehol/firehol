@@ -114,6 +114,15 @@ check_commands() {
     fi
   done
 
+  while IFS="|" read yn cmd rest
+  do
+    if ! grep -q "\${*$cmd" $MYTMP/files/$1
+    then
+      status=1
+      echo "$cmd detected but never used in $1"
+    fi
+  done < $MYTMP/commands-defined
+
   (
    a=`pwd`
    cd $MYTMP/files
