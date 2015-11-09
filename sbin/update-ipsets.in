@@ -500,10 +500,13 @@ fi
 # -----------------------------------------------------------------------------
 # CONFIGURATION
 
+FIREHOL_SHARE_DIR="${FIREHOL_SHARE_DIR-/usr/share/firehol}"
+FIREHOL_CONFIG_DIR="${FIREHOL_CONFIG_DIR-/etc/firehol}"
+
 if [ "${UID}" = "0" -o -z "${UID}" ]
 	then
-	BASE_DIR="${BASE_DIR-/etc/firehol/ipsets}"
-	CONFIG_FILE="${CONFIG_FILE-/etc/firehol/update-ipsets.conf}"
+	BASE_DIR="${BASE_DIR-${FIREHOL_CONFIG_DIR}/ipsets}"
+	CONFIG_FILE="${CONFIG_FILE-${FIREHOL_CONFIG_DIR}/update-ipsets.conf}"
 	RUN_PARENT_DIR="${RUN_PARENT_DIR-/var/run}"
 	IPSETS_APPLY=1
 else
@@ -513,6 +516,15 @@ else
 	RUN_PARENT_DIR="${RUN_PARENT_DIR-${HOME}/.update-ipsets}"
 	IPSETS_APPLY=0
 fi
+
+# admin defined ipsets
+ADMIN_SUPPLIED_IPSETS="${ADMIN_SUPPLIED_IPSETS-${FIREHOL_CONFIG_DIR}/ipsets.d}"
+
+# distribution defined ipsets
+DISTRIBUTION_SUPPLIED_IPSETS="${DISTRIBUTION_SUPPLIED_IPSETS-${FIREHOL_SHARE_DIR}/ipsets.d}"
+
+# user defined ipsets
+USER_SUPPLIED_IPSETS="${USER_SUPPLIED_IPSETS-${HOME}/.update-ipsets/ipsets.d}"
 
 # where to keep the history files
 HISTORY_DIR="${HISTORY_DIR-${BASE_DIR}/history}"
@@ -585,6 +597,7 @@ SILENT=0
 VERBOSE=0
 
 declare -a LISTS_TO_ENABLE=()
+local -A RUN_ONLY_THESE_IPSETS=()
 
 usage() {
 $CAT_CMD <<EOFUSAGE
@@ -658,6 +671,13 @@ options are:
 			need to trigger a full refresh of the generated
 			metadata (it only affects the web site).
 
+
+	run ipset1 ipset2 ...
+			Will only process the given ipsets.
+			This parameter must be the last in command line, it
+			assumes all parameters after the keyword 'run' are
+			ipset names.
+
 EOFUSAGE
 }
 
@@ -667,6 +687,16 @@ do
 		enable)
 			shift
 			LISTS_TO_ENABLE=("${@}")
+			break
+			;;
+
+		run)
+			shift
+			while [ ! -z "${1}" ]
+			do
+				RUN_ONLY_THESE_IPSETS[${1}]="${1}"
+				shift
+			done
 			break
 			;;
 
@@ -765,6 +795,32 @@ if [ "${#LISTS_TO_ENABLE[@]}" -gt 0 ]
 	exit 0
 fi
 
+ipset_shall_be_run() {
+	local ipset="${1}"
+
+	if [ ! -f "${BASE_DIR}/${ipset}.source" ]
+	then
+		# cleanup - not required - it slows down because it saves the cache
+		# [ ! -z "${IPSET_CHECKED_DATE[${ipset}]}" ] && cache_remove_ipset "${ipset}"
+
+		if [ ${ENABLE_ALL} -eq 1 -a -z "${IPSET_TMP_DO_NOT_ENABLE_WITH_ALL[${ipset}]}" ]
+			then
+			ipset_silent "${ipset}" "Enabling due to --enable-all option."
+			$TOUCH_CMD -t 0001010000 "${BASE_DIR}/${ipset}.source" || return 1
+		else
+			ipset_disabled "${ipset}"
+			return 1
+		fi
+	fi
+
+	if [ ${#RUN_ONLY_THESE_IPSETS[@]} -ne 0 -a -z "${RUN_ONLY_THESE_IPSETS[${ipset}]}" ]
+		then
+		ipset_verbose "${ipset}" "skipping - not requested"
+		return 1
+	fi
+
+	return 0
+}
 
 # -----------------------------------------------------------------------------
 # Make sure we are the only process doing this job
@@ -795,9 +851,12 @@ if [ $? -ne 0 ]
 	error "ERROR: Cannot create temporary directory in ${TMP_DIR}."
 	exit 1
 fi
+cd "${RUN_DIR}"
 
 PROGRAM_COMPLETED=0
 cleanup() {
+	cd "${TMP_DIR}"
+
 	if [ ! -z "${RUN_DIR}" -a -d "${RUN_DIR}" ]
 		then
 		verbose "Cleaning up temporary files in ${RUN_DIR}."
@@ -821,7 +880,7 @@ trap cleanup INT
 # -----------------------------------------------------------------------------
 # other preparations
 
-if [ ! -d ".git" -a ${PUSH_TO_GIT} -ne 0 ]
+if [ ! -d "${BASE_DIR}/.git" -a ${PUSH_TO_GIT} -ne 0 ]
 then
 	info "Git is not initialized in ${BASE_DIR}. Ignoring git support."
 	PUSH_TO_GIT=0
@@ -829,9 +888,20 @@ else
 	[ -z "${GIT_CMD}" ] && PUSH_TO_GIT=0
 fi
 
+[ -d "${BASE_DIR}/.git" -a ! -f "${BASE_DIR}/.gitignore" ] && printf "*.setinfo\n*.source\n" >"${BASE_DIR}/.gitignore"
+
 
 # -----------------------------------------------------------------------------
 # COMMON FUNCTIONS
+
+# echo all the parameters, sorted
+params_sort() {
+	local x=
+	for x in "${@}"
+	do
+		echo "${x}"
+	done | $SORT_CMD
+}
 
 # convert a number of minutes to a human readable text
 mins_to_text() {
@@ -869,17 +939,35 @@ mins_to_text() {
 	return 0
 }
 
-# Generate the README.md file and push the repo to the remote server
 declare -A UPDATED_DIRS=()
 declare -A UPDATED_SETS=()
 
-check_git_committed() {
-	$GIT_CMD ls-files "${1}" --error-unmatch >/dev/null 2>&1
+git_checkout_or_add() {
+	local file="${1}"
+
+	$GIT_CMD -C "${BASE_DIR}" ls-files "${file}" --error-unmatch >/dev/null 2>&1
 	if [ $? -ne 0 ]
 		then
-		verbose "Adding '${1}' to git"
-		$GIT_CMD add "${1}"
+		[ ! -f "${BASE_DIR}/${file}" ] && $TOUCH_CMD "${BASE_DIR}/${file}"
+		verbose "Adding '${file}' to git"
+		$GIT_CMD -C "${BASE_DIR}" add "${file}"
+		return $?
 	fi
+	
+	$GIT_CMD -C "${BASE_DIR}" checkout "${file}"
+	return $?
+}
+
+git_ignore_file() {
+	local file="${1}"
+
+	local found=$(cat "${BASE_DIR}/.gitignore" | grep "^${file}$$")
+	if [ -z "${found}" ]
+		then
+		echo "${file}" >>"${BASE_DIR}/.gitignore" || return 1
+	fi
+
+	return 0
 }
 
 # http://stackoverflow.com/questions/3046436/how-do-you-stop-tracking-a-remote-branch-in-git
@@ -897,10 +985,10 @@ declare -A IPSET_TMP_ACCEPT_EMPTY=()
 declare -A IPSET_TMP_NO_IF_MODIFIED_SINCE=()
 declare -A IPSET_TMP_DO_NOT_ENABLE_WITH_ALL=()
 commit_to_git() {
+	cd "${BASE_DIR}" || return 1
+
 	if [ -d .git -a ! -z "${!UPDATED_SETS[*]}" ]
 	then
-		cd "${BASE}" || return 1
-
 		local d=
 		for d in "${!UPDATED_DIRS[@]}"
 		do
@@ -918,7 +1006,7 @@ commit_to_git() {
 			) >${d}/README.md
 
 			UPDATED_SETS[${d}/README.md]="${d}/README.md"
-			check_git_committed "${d}/README.md"
+			git_checkout_or_add "${d}/README.md"
 		done
 
 		declare -a to_be_pushed=()
@@ -939,8 +1027,8 @@ commit_to_git() {
 			do
 				echo "[ -f '${IPSET_FILE[${d}]}' ] && $TOUCH_CMD --date=@${IPSET_SOURCE_DATE[${d}]} '${IPSET_FILE[${d}]}'"
 			done
-		) | $SED_CMD "s|'${BASE}/|'|g" >set_file_timestamps.sh
-		check_git_committed set_file_timestamps.sh
+		) | $SED_CMD "s|'${BASE_DIR}/|'|g" >set_file_timestamps.sh
+		git_checkout_or_add set_file_timestamps.sh
 
 		echo >&2 
 		info "Committing ${to_be_pushed[@]} to git repository"
@@ -969,7 +1057,7 @@ touch_in_the_past() {
 	local date=$($DATE_CMD -d @$[now - (mins_ago * 60)] +"%y%m%d%H%M.%S")
 	$TOUCH_CMD -t "${date}" "${file}"
 }
-touch_in_the_past $[7 * 24 * 60] ".warn_if_last_downloaded_before_this"
+touch_in_the_past $[7 * 24 * 60] "${RUN_DIR}/.warn_if_last_downloaded_before_this"
 
 # get all the active ipsets in the system
 ipset_list_names() {
@@ -1003,7 +1091,7 @@ fi
 check_file_too_old() {
 	local ipset="${1}" file="${2}"
 
-	if [ -f "${file}" -a ".warn_if_last_downloaded_before_this" -nt "${file}" ]
+	if [ -f "${file}" -a "${RUN_DIR}/.warn_if_last_downloaded_before_this" -nt "${file}" ]
 	then
 		ipset_warning "${ipset}" "DATA ARE TOO OLD!"
 		return 1
@@ -1159,7 +1247,7 @@ download_manager() {
 
 	# make sure we have a proper time for last-checked
 	st=0
-	[ -f "${ipset}.source"                      ] && st="$($DATE_CMD -r "${ipset}.source" +%s)"
+	[ -f "${BASE_DIR}/${ipset}.source"          ] && st="$($DATE_CMD -r "${BASE_DIR}/${ipset}.source" +%s)"
 	[ -z "${IPSET_CHECKED_DATE[${ipset}]}"      ] && IPSET_CHECKED_DATE[${ipset}]=${st}
 	[ -z "${IPSET_CHECKED_DATE[${ipset}]}"      ] && IPSET_CHECKED_DATE[${ipset}]=0
 	[ -z "${IPSET_DOWNLOAD_FAILURES[${ipset}]}" ] && IPSET_DOWNLOAD_FAILURES[${ipset}]=0
@@ -1205,7 +1293,7 @@ download_manager() {
 	ipset_info "${ipset}" "$[dt/60]/${mins} mins passed, downloading..."
 
 	# download it
-	local reference="${ipset}.source"
+	local reference="${BASE_DIR}/${ipset}.source"
 	[ ! -z "${IPSET_TMP_NO_IF_MODIFIED_SINCE[${ipset}]}" ] && reference=""
 
 	if [ ${#url} -gt 55 ]
@@ -1255,21 +1343,21 @@ download_manager() {
 	[ ! -z "${IPSET_TMP_NO_IF_MODIFIED_SINCE[${ipset}]}" ] && $TOUCH_CMD "${tmp}"
 	
 	# check if the downloaded file is the same with the last one
-	$DIFF_CMD -q "${ipset}.source" "${tmp}" >/dev/null 2>&1
+	$DIFF_CMD -q "${BASE_DIR}/${ipset}.source" "${tmp}" >/dev/null 2>&1
 	if [ $? -eq 0 ]
 	then
 		# they are the same
 		ipset_same "${ipset}" "downloaded file is the same to the old one."
 
 		# copy the timestamp of the downloaded to our file
-		$TOUCH_CMD -r "${tmp}" "${ipset}.source"
+		$TOUCH_CMD -r "${tmp}" "${BASE_DIR}/${ipset}.source"
 		$RM_CMD "${tmp}"
 		return ${DOWNLOAD_NOT_UPDATED}
 	fi
 
 	# move it to its place
 	ipset_silent "${ipset}" "saving downloaded file"
-	$MV_CMD "${tmp}" "${ipset}.source" || return ${DOWNLOAD_FAILED}
+	$MV_CMD "${tmp}" "${BASE_DIR}/${ipset}.source" || return ${DOWNLOAD_FAILED}
 
 	return ${DOWNLOAD_OK}
 }
@@ -1366,7 +1454,7 @@ cache_save() {
 
 if [ -f "${BASE_DIR}/.cache" ]
 	then
-	info "Loading cache"
+	verbose "Loading cache file: ${BASE_DIR}/.cache"
 	source "${BASE_DIR}/.cache"
 fi
 
@@ -1585,6 +1673,8 @@ retention_print() {
 }
 
 retention_detect() {
+	cd "${BASE_DIR}" || return 1
+
 	local ipset="${1}"
 
 	# can we do it?
@@ -1785,14 +1875,6 @@ retention_detect() {
 	return 0
 }
 
-params_sort() {
-	local x=
-	for x in "${@}"
-	do
-		echo "${x}"
-	done | $SORT_CMD
-}
-
 sitemap_init() {
 	local sitemap_date="${1}"
 
@@ -1930,6 +2012,8 @@ history_statistics() {
 }
 
 update_web() {
+	cd "${BASE_DIR}" || return 1
+
 	print_ipset_reset
 	echo >&2
 
@@ -2408,13 +2492,30 @@ ipset_attributes() {
 # finalize() is called when a successful download and convertion completes
 # to update the ipset in the kernel and possibly commit it to git
 finalize() {
-	local 	ipset="${1}" tmp="${2}" setinfo="${3}" \
-			src="${4}" dst="${5}" \
-			mins="${6}" history_mins="${7}" \
-			ipv="${8}" limit="${9}" hash="${10}" \
-			url="${11}" category="${12}" info="${13}" \
-			maintainer="${14}" maintainer_url="${15}"
-	shift 15
+	local 	ipset="${1}" tmp="${2}" \
+			src="${3}" dst="${4}" \
+			mins="${5}" history_mins="${6}" \
+			ipv="${7}" limit="${8}" hash="${9}" \
+			url="${10}" category="${11}" info="${12}" \
+			maintainer="${13}" maintainer_url="${14}"
+	shift 14
+
+	# ipset 		the ipset name
+	# tmp 			the processed source, ready to be used
+	# src 			the source, as downloaded (we need the date)
+	# dst 			the destination to save the final ipset
+
+	if [ ! -f "${BASE_DIR}/${src}" ]
+		then
+		ipset_error "${ipset}" "source file '${BASE_DIR}/${src}' does not exist"
+		return 1
+	fi
+
+	if [ ! -f "${tmp}" ]
+		then
+		ipset_error "${ipset}" "tmp file '${tmp}' does not exist"
+		return 1
+	fi
 
 	ipset_attributes "${ipset}" "${@}"
 
@@ -2426,6 +2527,7 @@ finalize() {
 	fi
 
 	# make sure the new file is optimized
+	# FIXME - avoid this
 	if [ "${hash}" == "ip" ]
 		then
 		${IPRANGE_CMD} -1 "${tmp}" >"${tmp}.final"
@@ -2457,9 +2559,9 @@ finalize() {
 
 		# keep the old set, but make it think it was from this source
 		ipset_verbose "${ipset}" "touching ${dst} from ${src}."
-		$TOUCH_CMD -r "${src}" "${dst}"
+		$TOUCH_CMD -r "${BASE_DIR}/${src}" "${BASE_DIR}/${dst}"
 
-		check_file_too_old "${ipset}" "${dst}"
+		check_file_too_old "${ipset}" "${BASE_DIR}/${dst}"
 		return 0
 	fi
 	$RM_CMD "${tmp}.old"
@@ -2476,7 +2578,7 @@ finalize() {
 			then
 			$RM_CMD "${tmp}"
 			ipset_error "${ipset}" "processed file has no valid entries (zero unique IPs)"
-			check_file_too_old "${ipset}" "${dst}"
+			check_file_too_old "${ipset}" "${BASE_DIR}/${dst}"
 			return 1
 		else
 			ipset_warning "${ipset}" "processed file has no valid entries (zero unique IPs)"
@@ -2494,7 +2596,7 @@ finalize() {
 			$RM_CMD "${tmp}"
 			ipset_error "${ipset}" "failed to update ipset."
 		fi
-		check_file_too_old "${ipset}" "${dst}"
+		check_file_too_old "${ipset}" "${BASE_DIR}/${dst}"
 		return 1
 	fi
 
@@ -2511,7 +2613,7 @@ finalize() {
 	IPSET_IPS[${ipset}]="${ips}"
 	IPSET_URL[${ipset}]="${url}"
 	IPSET_SOURCE[${ipset}]="${src}"
-	IPSET_SOURCE_DATE[${ipset}]=$($DATE_CMD -r "${src}" +%s)
+	IPSET_SOURCE_DATE[${ipset}]=$($DATE_CMD -r "${BASE_DIR}/${src}" +%s)
 	IPSET_PROCESSED_DATE[${ipset}]=$($DATE_CMD +%s)
 	IPSET_CATEGORY[${ipset}]="${category}"
 	IPSET_MAINTAINER[${ipset}]="${maintainer}"
@@ -2560,7 +2662,7 @@ finalize() {
 # Maintainer      : ${maintainer}
 # Maintainer URL  : ${maintainer_url}
 # List source URL : ${url}
-# Source File Date: `$DATE_CMD -r "${src}" -u`
+# Source File Date: `$DATE_CMD -r "${BASE_DIR}/${src}" -u`
 #
 # Category        : ${category}
 # Version         : ${version}
@@ -2590,17 +2692,22 @@ EOFHEADER
 
 	$CAT_CMD "${tmp}" >>"${tmp}.wh"
 	$RM_CMD "${tmp}"
-	$TOUCH_CMD -r "${src}" "${tmp}.wh"
-	$MV_CMD "${tmp}.wh" "${dst}" || return 1
+	$TOUCH_CMD -r "${BASE_DIR}/${src}" "${tmp}.wh"
+	$MV_CMD "${tmp}.wh" "${BASE_DIR}/${dst}" || return 1
 
 	UPDATED_SETS[${ipset}]="${dst}"
 	local dir="`$DIRNAME_CMD "${dst}"`"
 	UPDATED_DIRS[${dir}]="${dir}"
 
-	if [ -d .git ]
+	if [ -d "${BASE_DIR}/.git" ]
 	then
-		echo >"${setinfo}" "[${ipset}](${WEB_URL}${ipset})|${info}|${ipv} hash:${hash}|${quantity}|`if [ ! -z "${url}" ]; then echo "updated every $(mins_to_text ${mins}) from [this link](${url})"; fi`"
-		[ -z "${IPSET_TMP_DO_NOT_REDISTRIBUTE[${ipset}]}" ] && check_git_committed "${dst}"
+		echo >"${BASE_DIR}/${dst}.setinfo" "[${ipset}](${WEB_URL}${ipset})|${info}|${ipv} hash:${hash}|${quantity}|`if [ ! -z "${url}" ]; then echo "updated every $(mins_to_text ${mins}) from [this link](${url})"; fi`"
+		if [ -z "${IPSET_TMP_DO_NOT_REDISTRIBUTE[${ipset}]}" ]
+			then
+			git_checkout_or_add "${dst}"
+		else
+			git_ignore_file "${dst}"
+		fi
 	fi
 
 	cache_save
@@ -2611,6 +2718,8 @@ EOFHEADER
 # -----------------------------------------------------------------------------
 
 update() {
+	cd "${RUN_DIR}" || return 1
+
 	local 	ipset="${1}" mins="${2}" history_mins="${3}" ipv="${4}" limit="${5}" \
 			url="${6}" \
 			processor="${7-$CAT_CMD}" \
@@ -2619,6 +2728,7 @@ update() {
 			maintainer="${10}" maintainer_url="${11}"
 	shift 11
 
+	# read it attributes
 	ipset_attributes "${ipset}" "${@}"
 
 	local	tmp= error=0 now= date= ret= \
@@ -2681,21 +2791,12 @@ update() {
 	# it must be a relative file (no path)
 	dst="${ipset}.${hash}set"
 
-	# check it is enabled
-	# it is enabled if the source file exists
-	if [ ! -f "${src}" ]
-	then
-		[ ! -z "${IPSET_CHECKED_DATE[${ipset}]}" ] && cache_remove_ipset "${ipset}"
-
-		if [ ${ENABLE_ALL} -eq 1 -a -z "${IPSET_TMP_DO_NOT_ENABLE_WITH_ALL[${ipset}]}" ]
-			then
-			ipset_silent "${ipset}" "Enabling due to ENABLE_ALL option."
-			$TOUCH_CMD -t 0001010000 "${BASE_DIR}/${src}" || return 1
-		else
-			[ -d .git ] && echo >"${ipset}.setinfo" "${ipset}|${info}|${ipv} hash:${hash}|disabled|`if [ ! -z "${url}" ]; then echo "updated every $(mins_to_text ${mins}) from [this link](${url})"; fi`"
-			ipset_disabled "${ipset}"
-			return 1
-		fi
+	# check if it is enabled
+	ipset_shall_be_run "${ipset}"
+	if [ $? -ne 0 ]
+		then
+		[ -d "${BASE_DIR}/.git" ] && echo >"${BASE_DIR}/${ipset}.setinfo" "${ipset}|${info}|${ipv} hash:${hash}|disabled|`if [ ! -z "${url}" ]; then echo "updated every $(mins_to_text ${mins}) from [this link](${url})"; fi`"
+		return 1
 	fi
 
 	# do we have something to download?
@@ -2707,32 +2808,32 @@ update() {
 		if [ $ret -eq ${DOWNLOAD_FAILED} ]
 			then
 			ipset_silent "${ipset}" "download manager reports failure"
-			check_file_too_old "${ipset}" "${dst}"
+			check_file_too_old "${ipset}" "${BASE_DIR}/${dst}"
 			return 1
 
-		elif [ $ret -eq ${DOWNLOAD_NOT_UPDATED} -a ! -f "${dst}" ]
+		elif [ $ret -eq ${DOWNLOAD_NOT_UPDATED} -a ! -f "${BASE_DIR}/${dst}" ]
 			then
 			ipset_silent "${ipset}" "download is the same, but we need to re-process it"
 
 		elif [ $ret -eq ${DOWNLOAD_NOT_UPDATED} -a ${REPROCESS_ALL} -eq 0 ]
 			then
 			ipset_silent "${ipset}" "download manager reports not updated source"
-			check_file_too_old "${ipset}" "${dst}"
+			check_file_too_old "${ipset}" "${BASE_DIR}/${dst}"
 			return 1
 		fi
 	fi
 
-	if [ -f "${dst}" ]
+	if [ -f "${BASE_DIR}/${dst}" ]
 		then
 		# check if the source file has been updated
-		if [ ${REPROCESS_ALL} -eq 0 -a ! "${src}" -nt "${dst}" ]
+		if [ ${REPROCESS_ALL} -eq 0 -a ! "${BASE_DIR}/${src}" -nt "${BASE_DIR}/${dst}" ]
 		then
 			ipset_notupdated "${ipset}" "source file has not been updated"
-			check_file_too_old "${ipset}" "${dst}"
+			check_file_too_old "${ipset}" "${BASE_DIR}/${dst}"
 			return 0
 		fi
 
-		if [ "${src}" -nt "${dst}" ]
+		if [ "${BASE_DIR}/${src}" -nt "${BASE_DIR}/${dst}" ]
 			then
 			ipset_silent "${ipset}" "source file has been updated"
 		fi
@@ -2740,13 +2841,16 @@ update() {
 
 	# support for older systems where hash:net cannot get hash:ip entries
 	# if the .split file exists, create 2 ipsets, one for IPs and one for subnets
-	if [ "${limit}" = "split" -o \( -z "${limit}" -a -f "${ipset}.split" \) ]
+	if [ "${limit}" = "split" -o \( -z "${limit}" -a -f "${BASE_DIR}/${ipset}.split" \) ]
 	then
 		ipset_info "${ipset}" "spliting IPs and subnets..."
-		test -f "${ipset}_ip.source" && $RM_CMD "${ipset}_ip.source"
-		test -f "${ipset}_net.source" && $RM_CMD "${ipset}_net.source"
-		$LN_CMD -s "${src}" "${ipset}_ip.source"
-		$LN_CMD -s "${src}" "${ipset}_net.source"
+		test -f "${BASE_DIR}/${ipset}_ip.source" && $RM_CMD "${BASE_DIR}/${ipset}_ip.source"
+		test -f "${BASE_DIR}/${ipset}_net.source" && $RM_CMD "${BASE_DIR}/${ipset}_net.source"
+		(
+			cd "${BASE_DIR}"
+			$LN_CMD -s "${src}" "${ipset}_ip.source"
+			$LN_CMD -s "${src}" "${ipset}_net.source"
+		)
 		
 		update "${ipset}_ip" "${mins}" "${history_mins}" "${ipv}" ip  \
 			"" \
@@ -2770,7 +2874,7 @@ update() {
 	# convert it
 	ipset_silent "${ipset}" "converting with '${processor}'"
 	tmp=`$MKTEMP_CMD "${RUN_DIR}/${ipset}.tmp-XXXXXXXXXX"` || return 1
-	${processor} <"${src}" |\
+	${processor} <"${BASE_DIR}/${src}" |\
 		trim |\
 		${pre_filter} |\
 		${filter} |\
@@ -2779,18 +2883,18 @@ update() {
 
 	if [ $? -ne 0 ]
 	then
-		ipset_error "${ipset}" "failed to convert file (processor: ${processor}, pre_filter: ${pre_filter}, filter: ${filter}, post_filter: ${post_filter}, post_filter2: ${post_filter2})."
+		ipset_error "${ipset}" "failed to convert file."
 		$RM_CMD "${tmp}"
-		check_file_too_old "${ipset}" "${dst}"
+		check_file_too_old "${ipset}" "${BASE_DIR}/${dst}"
 		return 1
 	fi
 
 	# if the downloaded file is empty, but we don't accept empty files
 	if [ ! -s "${tmp}" -a -z "${IPSET_TMP_ACCEPT_EMPTY[${ipset}]}" ]
 		then
-		ipset_error "${ipset}" "converted file is empty (processor: ${processor}, pre_filter: ${pre_filter}, filter: ${filter}, post_filter: ${post_filter}, post_filter2: ${post_filter2})."
+		ipset_error "${ipset}" "converted file is empty."
 		$RM_CMD "${tmp}"
-		check_file_too_old "${ipset}" "${dst}"
+		check_file_too_old "${ipset}" "${BASE_DIR}/${dst}"
 		return 1
 	fi
 
@@ -2836,7 +2940,7 @@ update() {
 			$TOUCH_CMD -r "${BASE_DIR}/${src}" "${BASE_DIR}/${ipset}${htag}.source"
 		fi
 
-		finalize "${ipset}${htag}" "${tmp}${htag}" "${ipset}${htag}.setinfo" \
+		finalize "${ipset}${htag}" "${tmp}${htag}" \
 			"${ipset}${htag}.source" "${ipset}${htag}.${hash}set" \
 			"${mins}" "${hmins}" "${ipv}" "${limit}" "${hash}" \
 			"${url}" \
@@ -2863,40 +2967,40 @@ update() {
 # FIXME
 # Cannot rename ipsets in subdirectories
 rename_ipset() {
+
 	local old="${1}" new="${2}"
 
-	if [ ! -f "${old}.source" -o -f "${new}.source" ]
-		then
-		return 1
-	fi
+	[ ! -f "${BASE_DIR}/${old}.source" -o -f "${BASE_DIR}/${new}.source" ] && return 1
+
+	cd "${BASE_DIR}" || return 1
 
 	local x=
 	for x in ipset netset
 	do
-		if [ -f "${old}.${x}" -a ! -f "${new}.${x}" ]
+		if [ -f "${BASE_DIR}/${old}.${x}" -a ! -f "${BASE_DIR}/${new}.${x}" ]
 			then
-			if [ -d .git -a ! -z "$($GIT_CMD ls-files "${old}.${x}")" ]
+			if [ -d "${BASE_DIR}/.git" -a ! -z "$($GIT_CMD -C "${BASE_DIR}" ls-files "${old}.${x}")" ]
 				then
-				ipset_info "${old}" "GIT Renaming ${old}.${x} to ${new}.${x}..."
-				$GIT_CMD mv "${old}.${x}" "${new}.${x}" || exit 1
-				$GIT_CMD commit "${old}.${x}" "${new}.${x}" -m 'renamed from ${old}.${x} to ${new}.${x}'
+				ipset_info "${old}" "git renaming ${old}.${x} to ${new}.${x}..."
+				$GIT_CMD -C "${BASE_DIR}" mv "${old}.${x}" "${new}.${x}" || exit 1
+				$GIT_CMD -C "${BASE_DIR}" commit "${old}.${x}" "${new}.${x}" -m 'renamed from ${old}.${x} to ${new}.${x}'
 			fi
 
-			if [ -f "${old}.${x}" -a ! -f "${new}.${x}" ]
+			if [ -f "${BASE_DIR}/${old}.${x}" -a ! -f "${BASE_DIR}/${new}.${x}" ]
 				then
-				ipset_info "${old}" "Renaming ${old}.${x} to ${new}.${x}..."
-				$MV_CMD "${old}.${x}" "${new}.${x}" || exit 1
+				ipset_info "${old}" "renaming ${old}.${x} to ${new}.${x}..."
+				$MV_CMD "${BASE_DIR}/${old}.${x}" "${BASE_DIR}/${new}.${x}" || exit 1
 			fi
 
 			# keep a link for the firewall
 			ipset_info "${old}" "Linking ${new}.${x} to ${old}.${x}..."
-			$LN_CMD -s "${new}.${x}" "${old}.${x}" || exit 1
+			( cd "${BASE_DIR}" ; $LN_CMD -s "${new}.${x}" "${old}.${x}" )
 
 			# now delete it, in order to be re-created this run
-			$RM_CMD "${new}.${x}"
+			$RM_CMD "${BASE_DIR}/${new}.${x}"
 
 			# FIXME:
-			# the ipset in memory is wrong and will not be updated.
+			# the ipset in kernel is wrong and will not be updated.
 			# Probably the solution is to create an list:set ipset
 			# which will link the old name with the new
 		fi
@@ -2904,37 +3008,34 @@ rename_ipset() {
 
 	for x in source split setinfo
 	do
-		if [ -f "${old}.${x}" -a ! -f "${new}.${x}" ]
+		if [ -f "${BASE_DIR}/${old}.${x}" -a ! -f "${BASE_DIR}/${new}.${x}" ]
 			then
-			$MV_CMD "${old}.${x}" "${new}.${x}" || exit 1
+			$MV_CMD "${BASE_DIR}/${old}.${x}" "${BASE_DIR}/${new}.${x}" || exit 1
 		fi
 	done
 
 	if [ -d "${HISTORY_DIR}/${old}" -a ! -d "${HISTORY_DIR}/${new}" ]
 		then
-		echo "Renaming ${HISTORY_DIR}/${old} ${HISTORY_DIR}/${new}"
+		ipset_info "${old}" "renaming ${HISTORY_DIR}/${old} ${HISTORY_DIR}/${new}"
 		$MV_CMD "${HISTORY_DIR}/${old}" "${HISTORY_DIR}/${new}"
 	fi
 
 	if [ ! -z "${LIB_DIR}" -a -d "${LIB_DIR}" -a -d "${LIB_DIR}/${old}" -a ! -d "${LIB_DIR}/${new}" ]
 		then
+		ipset_info "${old}" "renaming ${LIB_DIR}/${old} ${LIB_DIR}/${new}"
 		$MV_CMD -f "${LIB_DIR}/${old}" "${LIB_DIR}/${new}" || exit 1
 	fi
 
 	if [ -d "${WEB_DIR}" ]
 		then
-		cd "${WEB_DIR}" || exit 1
-
 		for x in _comparison.json _geolite2_country.json _ipdeny_country.json _ip2location_country.json _history.csv retention.json .json .html
 		do
-			if [ -f "${old}${x}" -a ! -f "${new}${x}" ]
+			if [ -f "${WEB_DIR}/${old}${x}" -a ! -f "${WEB_DIR}/${new}${x}" ]
 				then
-				$GIT_CMD mv -f "${old}${x}" "${new}${x}"
-				$GIT_CMD commit "${old}${x}" "${new}${x}" -m "renamed from ${old}${x} to ${new}${x}"
+				$GIT_CMD -C "${WEB_DIR}" mv -f "${old}${x}" "${new}${x}"
+				$GIT_CMD -C "${WEB_DIR}" commit "${old}${x}" "${new}${x}" -m "renamed from ${old}${x} to ${new}${x}"
 			fi
 		done
-
-		cd "${BASE_DIR}" || exit 1
 	fi
 
 	# rename the cache
@@ -2974,6 +3075,7 @@ rename_ipset() {
 	[ -z "${IPSET_MAX_UPDATE_TIME[${new}]}" ] && IPSET_MAX_UPDATE_TIME[${new}]="${IPSET_MAX_UPDATE_TIME[${old}]}"
 	cache_remove_ipset "${old}" # this also saves the cache
 
+	cd "${RUN_DIR}"
 	return 0
 }
 
@@ -3377,6 +3479,7 @@ hphosts2ips() {
 
 geolite2_country() {
 	[ -z "${UNZIP_CMD}" ] && return 1
+	cd "${RUN_DIR}" || return 1
 
 	local ipset="geolite2_country" limit="" hash="net" ipv="ipv4" \
 		mins=$[24 * 60 * 7] history_mins=0 \
@@ -3384,15 +3487,11 @@ geolite2_country() {
 		info="[MaxMind GeoLite2](http://dev.maxmind.com/geoip/geoip2/geolite2/)" \
 		ret=
 
-	if [ ! -f "${ipset}.source" ]
-	then
-		if [ ${ENABLE_ALL} -eq 1 ]
-			then
-			$TOUCH_CMD -t 0001010000 "${BASE_DIR}/${ipset}.source" || return 1
-		else
-			ipset_disabled "${ipset}"
-			return 1
-		fi
+	ipset_shall_be_run "${ipset}"
+	if [ $? -ne 0 ]
+		then
+		[ -d "${BASE_DIR}/.git" ] && echo >"${BASE_DIR}/${ipset}.setinfo" "${ipset}|${info}|${ipv} hash:${hash}|disabled|`if [ ! -z "${url}" ]; then echo "updated every $(mins_to_text ${mins}) from [this link](${url})"; fi`"
+		return 1
 	fi
 
 	# download it
@@ -3400,23 +3499,25 @@ geolite2_country() {
 	ret=$?
 	if [ $ret -eq ${DOWNLOAD_FAILED} -o $ret -eq ${DOWNLOAD_NOT_UPDATED} ]
 		then
-		[ ! -s "${ipset}.source" ] && return 1
-		[ -d ${ipset} -a ${REPROCESS_ALL} -eq 0 ] && return 1
+		[ ! -s "${BASE_DIR}/${ipset}.source" ] && return 1
+		[ -d "${BASE_DIR}/${ipset}" -a ${REPROCESS_ALL} -eq 0 ] && return 1
 	fi
 
 	# create a temp dir
-	[ -d ${ipset}.tmp ] && $RM_CMD -rf ${ipset}.tmp
-	$MKDIR_CMD ${ipset}.tmp || return 1
+	[ -d "${ipset}.tmp" ] && $RM_CMD -rf "${ipset}.tmp"
+	$MKDIR_CMD "${ipset}.tmp" || return 1
+	cd "${ipset}.tmp" || return 1
 
 	# create the final dir
-	if [ ! -d ${ipset} ]
+	if [ ! -d "${BASE_DIR}/${ipset}" ]
 	then
-		$MKDIR_CMD ${ipset} || return 1
+		$MKDIR_CMD "${BASE_DIR}/${ipset}" || return 1
 	fi
 
-	if [ -d "${BASE}/.git" ]
+	if [ -d "${BASE_DIR}/.git" -a ! -f "${BASE_DIR}/${ipset}/README-EDIT.md" ]
 		then
-		$GIT_CMD checkout ${ipset}/README-EDIT.md
+		# get the old version of README-EDIT.md, if any
+		git_checkout_or_add ${ipset}/README-EDIT.md
 	fi
 
 	# extract it
@@ -3430,20 +3531,20 @@ geolite2_country() {
 	# 6. is_satellite_provider 		boolean: cross-country providers
 
 	ipset_info "${ipset}" "extracting country and continent netsets..."
-	$UNZIP_CMD -jpx "${ipset}.source" "*/GeoLite2-Country-Blocks-IPv4.csv" |\
+	$UNZIP_CMD -jpx "${BASE_DIR}/${ipset}.source" "*/GeoLite2-Country-Blocks-IPv4.csv" |\
 		$GAWK_CMD -F, '
 		{
-			if( $2 )        { print $1 >"geolite2_country.tmp/country."$2".source.tmp" }
-			if( $3 )        { print $1 >"geolite2_country.tmp/country."$3".source.tmp" }
-			if( $4 )        { print $1 >"geolite2_country.tmp/country."$4".source.tmp" }
-			if( $5 == "1" ) { print $1 >"geolite2_country.tmp/anonymous.source.tmp" }
-			if( $6 == "1" ) { print $1 >"geolite2_country.tmp/satellite.source.tmp" }
+			if( $2 )        { print $1 >"country."$2".source.tmp" }
+			if( $3 )        { print $1 >"country."$3".source.tmp" }
+			if( $4 )        { print $1 >"country."$4".source.tmp" }
+			if( $5 == "1" ) { print $1 >"anonymous.source.tmp" }
+			if( $6 == "1" ) { print $1 >"satellite.source.tmp" }
 		}'
 
 	# remove the files created of the header line
-	[ -f "${ipset}.tmp/country.geoname_id.source.tmp"                     ] && $RM_CMD "${ipset}.tmp/country.geoname_id.source.tmp"
-	[ -f "${ipset}.tmp/country.registered_country_geoname_id.source.tmp"  ] && $RM_CMD "${ipset}.tmp/country.registered_country_geoname_id.source.tmp"
-	[ -f "${ipset}.tmp/country.represented_country_geoname_id.source.tmp" ] && $RM_CMD "${ipset}.tmp/country.represented_country_geoname_id.source.tmp"
+	[ -f "country.geoname_id.source.tmp"                     ] && $RM_CMD "country.geoname_id.source.tmp"
+	[ -f "country.registered_country_geoname_id.source.tmp"  ] && $RM_CMD "country.registered_country_geoname_id.source.tmp"
+	[ -f "country.represented_country_geoname_id.source.tmp" ] && $RM_CMD "country.represented_country_geoname_id.source.tmp"
 
 	# The localization db has the following columns:
 	# 1. geoname_id
@@ -3454,7 +3555,7 @@ geolite2_country() {
 	# 6. country_name
 
 	ipset_info "${ipset}" "grouping country and continent netsets..."
-	$UNZIP_CMD -jpx "${ipset}.source" "*/GeoLite2-Country-Locations-en.csv" |\
+	$UNZIP_CMD -jpx "${BASE_DIR}/${ipset}.source" "*/GeoLite2-Country-Locations-en.csv" |\
 	(
 		IFS=","
 		while read id locale cid cname iso name
@@ -3469,76 +3570,77 @@ geolite2_country() {
 			name="${name//]/)}"
 
 			ipset_verbose "${ipset}" "extracting country '${id}' (code='${iso}', name='${name}')..."
-			if [ -f "${ipset}.tmp/country.${id}.source.tmp" ]
+			if [ -f "country.${id}.source.tmp" ]
 			then
-				[ ! -z "${cid}" ] && $CAT_CMD "${ipset}.tmp/country.${id}.source.tmp" >>"${ipset}.tmp/continent_${cid,,}.source.tmp"
-				[ ! -z "${iso}" ] && $CAT_CMD "${ipset}.tmp/country.${id}.source.tmp" >>"${ipset}.tmp/country_${iso,,}.source.tmp"
-				$RM_CMD "${ipset}.tmp/country.${id}.source.tmp"
+				[ ! -z "${cid}" ] && $CAT_CMD "country.${id}.source.tmp" >>"continent_${cid,,}.source.tmp"
+				[ ! -z "${iso}" ] && $CAT_CMD "country.${id}.source.tmp" >>"country_${iso,,}.source.tmp"
+				$RM_CMD "country.${id}.source.tmp"
 
-				[ ! -f "${ipset}.tmp/continent_${cid,,}.source.tmp.info" ] && printf "%s" "${cname} (${cid}), with countries: " >"${ipset}.tmp/continent_${cid,,}.source.tmp.info"
-				printf "%s" "${name} (${iso}), " >>"${ipset}.tmp/continent_${cid,,}.source.tmp.info"
-				printf "%s" "${name} (${iso})" >"${ipset}.tmp/country_${iso,,}.source.tmp.info"
+				[ ! -f "continent_${cid,,}.source.tmp.info" ] && printf "%s" "${cname} (${cid}), with countries: " >"continent_${cid,,}.source.tmp.info"
+				printf "%s" "${name} (${iso}), " >>"continent_${cid,,}.source.tmp.info"
+				printf "%s" "${name} (${iso})" >"country_${iso,,}.source.tmp.info"
 			else
 				ipset_warning "${ipset}" "geoname_id ${id} does not exist!"
 			fi
 		done
 	)
-	printf "%s" "Anonymous Service Providers" >"${ipset}.tmp/anonymous.source.tmp.info"
-	printf "%s" "Satellite Service Providers" >"${ipset}.tmp/satellite.source.tmp.info"
+	printf "%s" "Anonymous Service Providers" >"anonymous.source.tmp.info"
+	printf "%s" "Satellite Service Providers" >"satellite.source.tmp.info"
 
 	ipset_info "${ipset}" "aggregating country and continent netsets..."
-	local x=
-	for x in ${ipset}.tmp/*.source.tmp
+	local x i info2 tmp
+	for x in *.source.tmp
 	do
+		i=${x/.source.tmp/}
+		tmp="${i}.source"
+
+		ipset_verbose "${i}" "Generating file '${tmp}'"
+
 		$CAT_CMD "${x}" |\
 			filter_all4 |\
 			${IPRANGE_CMD} |\
-			filter_invalid4 >"${x/.source.tmp/.source}"
+			filter_invalid4 >"${tmp}"
 
-		$TOUCH_CMD -r "${ipset}.source" "${x/.source.tmp/.source}"
+		$TOUCH_CMD -r "${BASE_DIR}/${ipset}.source" "${tmp}"
 		$RM_CMD "${x}"
 
-		local i=${x/.source.tmp/}
-		i=${i/${ipset}.tmp\//}
+		info2="`$CAT_CMD "${x}.info"` -- ${info}"
 
-		local info2="`$CAT_CMD "${x}.info"` -- ${info}"
-
-		finalize "${i}" "${x/.source.tmp/.source}" "${ipset}/${i}.setinfo" "${ipset}.source" "${ipset}/${i}.netset" "${mins}" "${history_mins}" "${ipv}" "${limit}" "${hash}" "${url}" "geolocation" "${info2}" "MaxMind.com" "http://www.maxmind.com/" \
+		finalize "${i}" "${tmp}" "${ipset}.source" "${ipset}/${i}.netset" "${mins}" "${history_mins}" "${ipv}" "${limit}" "${hash}" "${url}" "geolocation" "${info2}" "MaxMind.com" "http://www.maxmind.com/" \
 			service "geolocation"
 	done
 
-	if [ -d .git ]
+	if [ -d "${BASE_DIR}/.git" ]
 	then
 		# generate a setinfo for the home page
-		echo >"${ipset}.setinfo" "[${ipset}](https://github.com/ktsaou/blocklist-ipsets/tree/master/geolite2_country)|[MaxMind GeoLite2](http://dev.maxmind.com/geoip/geoip2/geolite2/) databases are free IP geolocation databases comparable to, but less accurate than, MaxMind’s GeoIP2 databases. They include IPs per country, IPs per continent, IPs used by anonymous services (VPNs, Proxies, etc) and Satellite Providers.|ipv4 hash:net|All the world|`if [ ! -z "${url}" ]; then echo "updated every $(mins_to_text ${mins}) from [this link](${url})"; fi`"
+		echo >"${BASE_DIR}/${ipset}.setinfo" "[${ipset}](https://github.com/ktsaou/blocklist-ipsets/tree/master/geolite2_country)|[MaxMind GeoLite2](http://dev.maxmind.com/geoip/geoip2/geolite2/) databases are free IP geolocation databases comparable to, but less accurate than, MaxMind’s GeoIP2 databases. They include IPs per country, IPs per continent, IPs used by anonymous services (VPNs, Proxies, etc) and Satellite Providers.|ipv4 hash:net|All the world|`if [ ! -z "${url}" ]; then echo "updated every $(mins_to_text ${mins}) from [this link](${url})"; fi`"
 	fi
 
 	# remove the temporary dir
+	cd "${RUN_DIR}"
 	$RM_CMD -rf "${ipset}.tmp"
 
 	return 0
 }
 
-declare -A IPDENY_COUNTRY_NAMES='([as]="American Samoa" [ge]="Georgia" [ar]="Argentina" [gd]="Grenada" [dm]="Dominica" [kp]="North Korea" [rw]="Rwanda" [gg]="Guernsey" [qa]="Qatar" [ni]="Nicaragua" [do]="Dominican Republic" [gf]="French Guiana" [ru]="Russia" [kr]="Republic of Korea" [aw]="Aruba" [ga]="Gabon" [rs]="Serbia" [no]="Norway" [nl]="Netherlands" [au]="Australia" [kw]="Kuwait" [dj]="Djibouti" [at]="Austria" [gb]="United Kingdom" [dk]="Denmark" [ky]="Cayman Islands" [gm]="Gambia" [ug]="Uganda" [gl]="Greenland" [de]="Germany" [nc]="New Caledonia" [az]="Azerbaijan" [hr]="Croatia" [na]="Namibia" [gn]="Guinea" [kz]="Kazakhstan" [et]="Ethiopia" [ht]="Haiti" [es]="Spain" [gi]="Gibraltar" [nf]="Norfolk Island" [ng]="Nigeria" [gh]="Ghana" [hu]="Hungary" [er]="Eritrea" [ua]="Ukraine" [ne]="Niger" [yt]="Mayotte" [gu]="Guam" [nz]="New Zealand" [om]="Oman" [gt]="Guatemala" [gw]="Guinea-Bissau" [hk]="Hong Kong" [re]="Réunion" [ag]="Antigua and Barbuda" [gq]="Equatorial Guinea" [ke]="Kenya" [gp]="Guadeloupe" [uz]="Uzbekistan" [af]="Afghanistan" [hn]="Honduras" [uy]="Uruguay" [dz]="Algeria" [kg]="Kyrgyzstan" [ae]="United Arab Emirates" [ad]="Andorra" [gr]="Greece" [ki]="Kiribati" [nr]="Nauru" [eg]="Egypt" [kh]="Cambodia" [ro]="Romania" [ai]="Anguilla" [np]="Nepal" [ee]="Estonia" [us]="United States" [ec]="Ecuador" [gy]="Guyana" [ao]="Angola" [km]="Comoros" [am]="Armenia" [ye]="Yemen" [nu]="Niue" [kn]="Saint Kitts and Nevis" [al]="Albania" [si]="Slovenia" [fr]="France" [bf]="Burkina Faso" [mw]="Malawi" [cy]="Cyprus" [vc]="Saint Vincent and the Grenadines" [mv]="Maldives" [bg]="Bulgaria" [pr]="Puerto Rico" [sk]="Slovak Republic" [bd]="Bangladesh" [mu]="Mauritius" [ps]="Palestine" [va]="Vatican City" [cz]="Czech Republic" [be]="Belgium" [mt]="Malta" [zm]="Zambia" [ms]="Montserrat" [bb]="Barbados" [sm]="San Marino" [pt]="Portugal" [io]="British Indian Ocean Territory" [vg]="British Virgin Islands" [sl]="Sierra Leone" [mr]="Mauritania" [la]="Laos" [in]="India" [ws]="Samoa" [mq]="Martinique" [im]="Isle of Man" [lb]="Lebanon" [tz]="Tanzania" [so]="Somalia" [mp]="Northern Mariana Islands" [ve]="Venezuela" [lc]="Saint Lucia" [ba]="Bosnia and Herzegovina" [sn]="Senegal" [pw]="Palau" [il]="Israel" [tt]="Trinidad and Tobago" [bn]="Brunei" [sa]="Saudi Arabia" [bo]="Bolivia" [py]="Paraguay" [bl]="Saint-Barthélemy" [tv]="Tuvalu" [sc]="Seychelles" [vi]="U.S. Virgin Islands" [cr]="Costa Rica" [bm]="Bermuda" [sb]="Solomon Islands" [tw]="Taiwan" [cu]="Cuba" [se]="Sweden" [bj]="Benin" [vn]="Vietnam" [li]="Liechtenstein" [mz]="Mozambique" [sd]="Sudan" [cw]="Curaçao" [ie]="Ireland" [sg]="Singapore" [jp]="Japan" [my]="Malaysia" [tr]="Turkey" [bh]="Bahrain" [mx]="Mexico" [cv]="Cape Verde" [id]="Indonesia" [lk]="Sri Lanka" [za]="South Africa" [bi]="Burundi" [ci]="Ivory Coast" [tl]="East Timor" [mg]="Madagascar" [lt]="Republic of Lithuania" [sy]="Syria" [sx]="Sint Maarten" [pa]="Panama" [mf]="Saint Martin" [lu]="Luxembourg" [ch]="Switzerland" [tm]="Turkmenistan" [bw]="Botswana" [jo]="Hashemite Kingdom of Jordan" [me]="Montenegro" [tn]="Tunisia" [ck]="Cook Islands" [bt]="Bhutan" [lv]="Latvia" [wf]="Wallis and Futuna" [to]="Tonga" [jm]="Jamaica" [sz]="Swaziland" [md]="Republic of Moldova" [br]="Brazil" [mc]="Monaco" [cm]="Cameroon" [th]="Thailand" [pe]="Peru" [cl]="Chile" [bs]="Bahamas" [pf]="French Polynesia" [co]="Colombia" [ma]="Morocco" [lr]="Liberia" [tj]="Tajikistan" [bq]="Bonaire, Sint Eustatius, and Saba" [tk]="Tokelau" [vu]="Vanuatu" [pg]="Papua New Guinea" [cn]="China" [ls]="Lesotho" [ca]="Canada" [is]="Iceland" [td]="Chad" [fj]="Fiji" [mo]="Macao" [ph]="Philippines" [mn]="Mongolia" [zw]="Zimbabwe" [ir]="Iran" [ss]="South Sudan" [mm]="Myanmar (Burma)" [iq]="Iraq" [sr]="Suriname" [je]="Jersey" [ml]="Mali" [tg]="Togo" [pk]="Pakistan" [fi]="Finland" [bz]="Belize" [pl]="Poland" [mk]="Former Yugoslav Republic of Macedonia" [pm]="Saint Pierre and Miquelon" [fo]="Faroe Islands" [st]="São Tomé and Príncipe" [ly]="Libya" [cd]="Congo" [cg]="Republic of the Congo" [sv]="El Salvador" [tc]="Turks and Caicos Islands" [it]="Italy" [fm]="Federated States of Micronesia" [mh]="Marshall Islands" [by]="Belarus" [cf]="Central African Republic" )'
-declare -A IPDENY_COUNTRY_CONTINENTS='([as]="oc" [ge]="as" [ar]="sa" [gd]="na" [dm]="na" [kp]="as" [rw]="af" [gg]="eu" [qa]="as" [ni]="na" [do]="na" [gf]="sa" [ru]="eu" [kr]="as" [aw]="na" [ga]="af" [rs]="eu" [no]="eu" [nl]="eu" [au]="oc" [kw]="as" [dj]="af" [at]="eu" [gb]="eu" [dk]="eu" [ky]="na" [gm]="af" [ug]="af" [gl]="na" [de]="eu" [nc]="oc" [az]="as" [hr]="eu" [na]="af" [gn]="af" [kz]="as" [et]="af" [ht]="na" [es]="eu" [gi]="eu" [nf]="oc" [ng]="af" [gh]="af" [hu]="eu" [er]="af" [ua]="eu" [ne]="af" [yt]="af" [gu]="oc" [nz]="oc" [om]="as" [gt]="na" [gw]="af" [hk]="as" [re]="af" [ag]="na" [gq]="af" [ke]="af" [gp]="na" [uz]="as" [af]="as" [hn]="na" [uy]="sa" [dz]="af" [kg]="as" [ae]="as" [ad]="eu" [gr]="eu" [ki]="oc" [nr]="oc" [eg]="af" [kh]="as" [ro]="eu" [ai]="na" [np]="as" [ee]="eu" [us]="na" [ec]="sa" [gy]="sa" [ao]="af" [km]="af" [am]="as" [ye]="as" [nu]="oc" [kn]="na" [al]="eu" [si]="eu" [fr]="eu" [bf]="af" [mw]="af" [cy]="eu" [vc]="na" [mv]="as" [bg]="eu" [pr]="na" [sk]="eu" [bd]="as" [mu]="af" [ps]="as" [va]="eu" [cz]="eu" [be]="eu" [mt]="eu" [zm]="af" [ms]="na" [bb]="na" [sm]="eu" [pt]="eu" [io]="as" [vg]="na" [sl]="af" [mr]="af" [la]="as" [in]="as" [ws]="oc" [mq]="na" [im]="eu" [lb]="as" [tz]="af" [so]="af" [mp]="oc" [ve]="sa" [lc]="na" [ba]="eu" [sn]="af" [pw]="oc" [il]="as" [tt]="na" [bn]="as" [sa]="as" [bo]="sa" [py]="sa" [bl]="na" [tv]="oc" [sc]="af" [vi]="na" [cr]="na" [bm]="na" [sb]="oc" [tw]="as" [cu]="na" [se]="eu" [bj]="af" [vn]="as" [li]="eu" [mz]="af" [sd]="af" [cw]="na" [ie]="eu" [sg]="as" [jp]="as" [my]="as" [tr]="as" [bh]="as" [mx]="na" [cv]="af" [id]="as" [lk]="as" [za]="af" [bi]="af" [ci]="af" [tl]="oc" [mg]="af" [lt]="eu" [sy]="as" [sx]="na" [pa]="na" [mf]="na" [lu]="eu" [ch]="eu" [tm]="as" [bw]="af" [jo]="as" [me]="eu" [tn]="af" [ck]="oc" [bt]="as" [lv]="eu" [wf]="oc" [to]="oc" [jm]="na" [sz]="af" [md]="eu" [br]="sa" [mc]="eu" [cm]="af" [th]="as" [pe]="sa" [cl]="sa" [bs]="na" [pf]="oc" [co]="sa" [ma]="af" [lr]="af" [tj]="as" [bq]="na" [tk]="oc" [vu]="oc" [pg]="oc" [cn]="as" [ls]="af" [ca]="na" [is]="eu" [td]="af" [fj]="oc" [mo]="as" [ph]="as" [mn]="as" [zw]="af" [ir]="as" [ss]="af" [mm]="as" [iq]="as" [sr]="sa" [je]="eu" [ml]="af" [tg]="af" [pk]="as" [fi]="eu" [bz]="na" [pl]="eu" [mk]="eu" [pm]="na" [fo]="eu" [st]="af" [ly]="af" [cd]="af" [cg]="af" [sv]="na" [tc]="na" [it]="eu" [fm]="oc" [mh]="oc" [by]="eu" [cf]="af" )'
+declare -A IPDENY_COUNTRY_NAMES='([eu]="European Union" [ap]="African Regional Industrial Property Organization" [as]="American Samoa" [ge]="Georgia" [ar]="Argentina" [gd]="Grenada" [dm]="Dominica" [kp]="North Korea" [rw]="Rwanda" [gg]="Guernsey" [qa]="Qatar" [ni]="Nicaragua" [do]="Dominican Republic" [gf]="French Guiana" [ru]="Russia" [kr]="Republic of Korea" [aw]="Aruba" [ga]="Gabon" [rs]="Serbia" [no]="Norway" [nl]="Netherlands" [au]="Australia" [kw]="Kuwait" [dj]="Djibouti" [at]="Austria" [gb]="United Kingdom" [dk]="Denmark" [ky]="Cayman Islands" [gm]="Gambia" [ug]="Uganda" [gl]="Greenland" [de]="Germany" [nc]="New Caledonia" [az]="Azerbaijan" [hr]="Croatia" [na]="Namibia" [gn]="Guinea" [kz]="Kazakhstan" [et]="Ethiopia" [ht]="Haiti" [es]="Spain" [gi]="Gibraltar" [nf]="Norfolk Island" [ng]="Nigeria" [gh]="Ghana" [hu]="Hungary" [er]="Eritrea" [ua]="Ukraine" [ne]="Niger" [yt]="Mayotte" [gu]="Guam" [nz]="New Zealand" [om]="Oman" [gt]="Guatemala" [gw]="Guinea-Bissau" [hk]="Hong Kong" [re]="Réunion" [ag]="Antigua and Barbuda" [gq]="Equatorial Guinea" [ke]="Kenya" [gp]="Guadeloupe" [uz]="Uzbekistan" [af]="Afghanistan" [hn]="Honduras" [uy]="Uruguay" [dz]="Algeria" [kg]="Kyrgyzstan" [ae]="United Arab Emirates" [ad]="Andorra" [gr]="Greece" [ki]="Kiribati" [nr]="Nauru" [eg]="Egypt" [kh]="Cambodia" [ro]="Romania" [ai]="Anguilla" [np]="Nepal" [ee]="Estonia" [us]="United States" [ec]="Ecuador" [gy]="Guyana" [ao]="Angola" [km]="Comoros" [am]="Armenia" [ye]="Yemen" [nu]="Niue" [kn]="Saint Kitts and Nevis" [al]="Albania" [si]="Slovenia" [fr]="France" [bf]="Burkina Faso" [mw]="Malawi" [cy]="Cyprus" [vc]="Saint Vincent and the Grenadines" [mv]="Maldives" [bg]="Bulgaria" [pr]="Puerto Rico" [sk]="Slovak Republic" [bd]="Bangladesh" [mu]="Mauritius" [ps]="Palestine" [va]="Vatican City" [cz]="Czech Republic" [be]="Belgium" [mt]="Malta" [zm]="Zambia" [ms]="Montserrat" [bb]="Barbados" [sm]="San Marino" [pt]="Portugal" [io]="British Indian Ocean Territory" [vg]="British Virgin Islands" [sl]="Sierra Leone" [mr]="Mauritania" [la]="Laos" [in]="India" [ws]="Samoa" [mq]="Martinique" [im]="Isle of Man" [lb]="Lebanon" [tz]="Tanzania" [so]="Somalia" [mp]="Northern Mariana Islands" [ve]="Venezuela" [lc]="Saint Lucia" [ba]="Bosnia and Herzegovina" [sn]="Senegal" [pw]="Palau" [il]="Israel" [tt]="Trinidad and Tobago" [bn]="Brunei" [sa]="Saudi Arabia" [bo]="Bolivia" [py]="Paraguay" [bl]="Saint-Barthélemy" [tv]="Tuvalu" [sc]="Seychelles" [vi]="U.S. Virgin Islands" [cr]="Costa Rica" [bm]="Bermuda" [sb]="Solomon Islands" [tw]="Taiwan" [cu]="Cuba" [se]="Sweden" [bj]="Benin" [vn]="Vietnam" [li]="Liechtenstein" [mz]="Mozambique" [sd]="Sudan" [cw]="Curaçao" [ie]="Ireland" [sg]="Singapore" [jp]="Japan" [my]="Malaysia" [tr]="Turkey" [bh]="Bahrain" [mx]="Mexico" [cv]="Cape Verde" [id]="Indonesia" [lk]="Sri Lanka" [za]="South Africa" [bi]="Burundi" [ci]="Ivory Coast" [tl]="East Timor" [mg]="Madagascar" [lt]="Republic of Lithuania" [sy]="Syria" [sx]="Sint Maarten" [pa]="Panama" [mf]="Saint Martin" [lu]="Luxembourg" [ch]="Switzerland" [tm]="Turkmenistan" [bw]="Botswana" [jo]="Hashemite Kingdom of Jordan" [me]="Montenegro" [tn]="Tunisia" [ck]="Cook Islands" [bt]="Bhutan" [lv]="Latvia" [wf]="Wallis and Futuna" [to]="Tonga" [jm]="Jamaica" [sz]="Swaziland" [md]="Republic of Moldova" [br]="Brazil" [mc]="Monaco" [cm]="Cameroon" [th]="Thailand" [pe]="Peru" [cl]="Chile" [bs]="Bahamas" [pf]="French Polynesia" [co]="Colombia" [ma]="Morocco" [lr]="Liberia" [tj]="Tajikistan" [bq]="Bonaire, Sint Eustatius, and Saba" [tk]="Tokelau" [vu]="Vanuatu" [pg]="Papua New Guinea" [cn]="China" [ls]="Lesotho" [ca]="Canada" [is]="Iceland" [td]="Chad" [fj]="Fiji" [mo]="Macao" [ph]="Philippines" [mn]="Mongolia" [zw]="Zimbabwe" [ir]="Iran" [ss]="South Sudan" [mm]="Myanmar (Burma)" [iq]="Iraq" [sr]="Suriname" [je]="Jersey" [ml]="Mali" [tg]="Togo" [pk]="Pakistan" [fi]="Finland" [bz]="Belize" [pl]="Poland" [mk]="Former Yugoslav Republic of Macedonia" [pm]="Saint Pierre and Miquelon" [fo]="Faroe Islands" [st]="São Tomé and Príncipe" [ly]="Libya" [cd]="Congo" [cg]="Republic of the Congo" [sv]="El Salvador" [tc]="Turks and Caicos Islands" [it]="Italy" [fm]="Federated States of Micronesia" [mh]="Marshall Islands" [by]="Belarus" [cf]="Central African Republic" )'
+declare -A IPDENY_COUNTRY_CONTINENTS='([eu]="eu" [ap]="af" [as]="oc" [ge]="as" [ar]="sa" [gd]="na" [dm]="na" [kp]="as" [rw]="af" [gg]="eu" [qa]="as" [ni]="na" [do]="na" [gf]="sa" [ru]="eu" [kr]="as" [aw]="na" [ga]="af" [rs]="eu" [no]="eu" [nl]="eu" [au]="oc" [kw]="as" [dj]="af" [at]="eu" [gb]="eu" [dk]="eu" [ky]="na" [gm]="af" [ug]="af" [gl]="na" [de]="eu" [nc]="oc" [az]="as" [hr]="eu" [na]="af" [gn]="af" [kz]="as" [et]="af" [ht]="na" [es]="eu" [gi]="eu" [nf]="oc" [ng]="af" [gh]="af" [hu]="eu" [er]="af" [ua]="eu" [ne]="af" [yt]="af" [gu]="oc" [nz]="oc" [om]="as" [gt]="na" [gw]="af" [hk]="as" [re]="af" [ag]="na" [gq]="af" [ke]="af" [gp]="na" [uz]="as" [af]="as" [hn]="na" [uy]="sa" [dz]="af" [kg]="as" [ae]="as" [ad]="eu" [gr]="eu" [ki]="oc" [nr]="oc" [eg]="af" [kh]="as" [ro]="eu" [ai]="na" [np]="as" [ee]="eu" [us]="na" [ec]="sa" [gy]="sa" [ao]="af" [km]="af" [am]="as" [ye]="as" [nu]="oc" [kn]="na" [al]="eu" [si]="eu" [fr]="eu" [bf]="af" [mw]="af" [cy]="eu" [vc]="na" [mv]="as" [bg]="eu" [pr]="na" [sk]="eu" [bd]="as" [mu]="af" [ps]="as" [va]="eu" [cz]="eu" [be]="eu" [mt]="eu" [zm]="af" [ms]="na" [bb]="na" [sm]="eu" [pt]="eu" [io]="as" [vg]="na" [sl]="af" [mr]="af" [la]="as" [in]="as" [ws]="oc" [mq]="na" [im]="eu" [lb]="as" [tz]="af" [so]="af" [mp]="oc" [ve]="sa" [lc]="na" [ba]="eu" [sn]="af" [pw]="oc" [il]="as" [tt]="na" [bn]="as" [sa]="as" [bo]="sa" [py]="sa" [bl]="na" [tv]="oc" [sc]="af" [vi]="na" [cr]="na" [bm]="na" [sb]="oc" [tw]="as" [cu]="na" [se]="eu" [bj]="af" [vn]="as" [li]="eu" [mz]="af" [sd]="af" [cw]="na" [ie]="eu" [sg]="as" [jp]="as" [my]="as" [tr]="as" [bh]="as" [mx]="na" [cv]="af" [id]="as" [lk]="as" [za]="af" [bi]="af" [ci]="af" [tl]="oc" [mg]="af" [lt]="eu" [sy]="as" [sx]="na" [pa]="na" [mf]="na" [lu]="eu" [ch]="eu" [tm]="as" [bw]="af" [jo]="as" [me]="eu" [tn]="af" [ck]="oc" [bt]="as" [lv]="eu" [wf]="oc" [to]="oc" [jm]="na" [sz]="af" [md]="eu" [br]="sa" [mc]="eu" [cm]="af" [th]="as" [pe]="sa" [cl]="sa" [bs]="na" [pf]="oc" [co]="sa" [ma]="af" [lr]="af" [tj]="as" [bq]="na" [tk]="oc" [vu]="oc" [pg]="oc" [cn]="as" [ls]="af" [ca]="na" [is]="eu" [td]="af" [fj]="oc" [mo]="as" [ph]="as" [mn]="as" [zw]="af" [ir]="as" [ss]="af" [mm]="as" [iq]="as" [sr]="sa" [je]="eu" [ml]="af" [tg]="af" [pk]="as" [fi]="eu" [bz]="na" [pl]="eu" [mk]="eu" [pm]="na" [fo]="eu" [st]="af" [ly]="af" [cd]="af" [cg]="af" [sv]="na" [tc]="na" [it]="eu" [fm]="oc" [mh]="oc" [by]="eu" [cf]="af" )'
 declare -A IPDENY_COUNTRIES=()
 declare -A IPDENY_CONTINENTS=()
 ipdeny_country() {
+	cd "${RUN_DIR}" || return 1
+
 	local ipset="ipdeny_country" limit="" hash="net" ipv="ipv4" \
 		mins=$[24 * 60 * 1] history_mins=0 \
 		url="http://www.ipdeny.com/ipblocks/data/countries/all-zones.tar.gz" \
 		info="[IPDeny.com](http://www.ipdeny.com/)" \
 		ret=
 
-	if [ ! -f "${ipset}.source" ]
-	then
-		if [ ${ENABLE_ALL} -eq 1 ]
-			then
-			$TOUCH_CMD -t 0001010000 "${BASE_DIR}/${ipset}.source" || return 1
-		else
-			ipset_disabled "${ipset}"
-			return 1
-		fi
+	ipset_shall_be_run "${ipset}"
+	if [ $? -ne 0 ]
+		then
+		[ -d "${BASE_DIR}/.git" ] && echo >"${BASE_DIR}/${ipset}.setinfo" "${ipset}|${info}|${ipv} hash:${hash}|disabled|`if [ ! -z "${url}" ]; then echo "updated every $(mins_to_text ${mins}) from [this link](${url})"; fi`"
+		return 1
 	fi
 
 	# download it
@@ -3546,26 +3648,28 @@ ipdeny_country() {
 	ret=$?
 	if [ $ret -eq ${DOWNLOAD_FAILED} -o $ret -eq ${DOWNLOAD_NOT_UPDATED} ]
 		then
-		[ ! -s "${ipset}.source" ] && return 1
-		[ -d ${ipset} -a ${REPROCESS_ALL} -eq 0 ] && return 1
+		[ ! -s "${BASE_DIR}/${ipset}.source" ] && return 1
+		[ -d "${BASE_DIR}/${ipset}" -a ${REPROCESS_ALL} -eq 0 ] && return 1
 	fi
 
 	# create a temp dir
-	[ -d ${ipset}.tmp ] && $RM_CMD -rf ${ipset}.tmp
-	$MKDIR_CMD ${ipset}.tmp || return 1
+	[ -d "${ipset}.tmp" ] && $RM_CMD -rf "${ipset}.tmp"
+	$MKDIR_CMD "${ipset}.tmp" || return 1
+	cd "${ipset}.tmp" || return 1
 
 	# create the final dir
-	if [ ! -d ${ipset} ]
+	if [ ! -d "${BASE_DIR}/${ipset}" ]
 	then
-		$MKDIR_CMD ${ipset} || return 1
+		$MKDIR_CMD "${BASE_DIR}/${ipset}" || return 1
 	fi
 
-	# extract it - in a subshell to do it in the tmp dir
-	( cd "${BASE_DIR}/${ipset}.tmp" && tar -zxpf "${BASE_DIR}/${ipset}.source" )
+	# FIXME - tar to TAR_CMD
+	# extract it
+	tar -zxpf "${BASE_DIR}/${ipset}.source"
 
 	# move them inside the tmp, and fix continents
 	local x=
-	for x in $($FIND_CMD "${ipset}.tmp/" -type f -a -name \*.zone)
+	for x in $($FIND_CMD . -type f -a -name \*.zone)
 	do
 		x=${x/*\//}
 		x=${x/.zone/}
@@ -3575,56 +3679,63 @@ ipdeny_country() {
 
 		if [ ! -z "${IPDENY_COUNTRY_CONTINENTS[${x}]}" ]
 			then
-			[ ! -f "${ipset}.tmp/id_continent_${IPDENY_COUNTRY_CONTINENTS[${x}]}.source.tmp.info" ] && printf "%s" "Continent ${IPDENY_COUNTRY_CONTINENTS[${x}]}, with countries: " >"${ipset}.tmp/id_continent_${IPDENY_COUNTRY_CONTINENTS[${x}]}.source.tmp.info"
-			printf "%s" "${IPDENY_COUNTRY_NAMES[${x}]} (${x^^}), " >>"${ipset}.tmp/id_continent_${IPDENY_COUNTRY_CONTINENTS[${x}]}.source.tmp.info"
-			$CAT_CMD "${ipset}.tmp/${x}.zone" >>"${ipset}.tmp/id_continent_${IPDENY_COUNTRY_CONTINENTS[${x}]}.source.tmp"
+			[ ! -f "id_continent_${IPDENY_COUNTRY_CONTINENTS[${x}]}.source.tmp.info" ] && \
+				printf "%s" "Continent ${IPDENY_COUNTRY_CONTINENTS[${x}]}, with countries: " >"id_continent_${IPDENY_COUNTRY_CONTINENTS[${x}]}.source.tmp.info"
+
+			printf "%s" "${IPDENY_COUNTRY_NAMES[${x}]} (${x^^}), " >>"id_continent_${IPDENY_COUNTRY_CONTINENTS[${x}]}.source.tmp.info"
+
+			$CAT_CMD "${x}.zone" >>"id_continent_${IPDENY_COUNTRY_CONTINENTS[${x}]}.source.tmp"
 			IPDENY_CONTINENTS[${IPDENY_COUNTRY_CONTINENTS[${x}]}]="1"
 		else
 			ipset_warning "${ipset}" "I don't know the continent of country ${x}."
 		fi
 
-		printf "%s" "${IPDENY_COUNTRY_NAMES[${x}]} (${x^^})" >"${ipset}.tmp/id_country_${x}.source.tmp.info"
-		$MV_CMD "${ipset}.tmp/${x}.zone" "${ipset}.tmp/id_country_${x}.source.tmp"
+		printf "%s" "${IPDENY_COUNTRY_NAMES[${x}]} (${x^^})" >"id_country_${x}.source.tmp.info"
+		$MV_CMD "${x}.zone" "id_country_${x}.source.tmp"
 	done
 
 	ipset_info "${ipset}" "aggregating country and continent netsets..."
-	for x in ${ipset}.tmp/*.source.tmp
+	local i info2 tmp
+	for x in *.source.tmp
 	do
+		i="${x/.source.tmp/}"
+		tmp="${i}.source"
+		info2="`$CAT_CMD "${x}.info"` -- ${info}"
+
+		ipset_verbose "${i}" "Generating file '${tmp}'"
+
 		$CAT_CMD "${x}" |\
 			filter_all4 |\
 			${IPRANGE_CMD} |\
-			filter_invalid4 >"${x/.source.tmp/.source}"
+			filter_invalid4 >"${tmp}"
 
-		$TOUCH_CMD -r "${ipset}.source" "${x/.source.tmp/.source}"
+		$TOUCH_CMD -r "${BASE_DIR}/${ipset}.source" "${tmp}"
 		$RM_CMD "${x}"
 
-		local i=${x/.source.tmp/}
-		i=${i/${ipset}.tmp\//}
-
-		local info2="`$CAT_CMD "${x}.info"` -- ${info}"
-
-		finalize "${i}" "${x/.source.tmp/.source}" "${ipset}/${i}.setinfo" "${ipset}.source" "${ipset}/${i}.netset" "${mins}" "${history_mins}" "${ipv}" "${limit}" "${hash}" "${url}" "geolocation" "${info2}" "IPDeny.com" "http://www.ipdeny.com/" \
+		finalize "${i}" "${tmp}" "${ipset}.source" "${ipset}/${i}.netset" "${mins}" "${history_mins}" "${ipv}" "${limit}" "${hash}" "${url}" "geolocation" "${info2}" "IPDeny.com" "http://www.ipdeny.com/" \
 			service "geolocation"
 	done
 
-	if [ -d .git ]
+	if [ -d "${BASE_DIR}/.git" ]
 	then
 		# generate a setinfo for the home page
-		echo >"${ipset}.setinfo" "[${ipset}](https://github.com/ktsaou/blocklist-ipsets/tree/master/ipdeny_country)|[IPDeny.com](http://www.ipdeny.com/) geolocation database|ipv4 hash:net|All the world|updated every `mins_to_text ${mins}` from [this link](${url})"
+		echo >"${BASE_DIR}/${ipset}.setinfo" "[${ipset}](https://github.com/ktsaou/blocklist-ipsets/tree/master/ipdeny_country)|[IPDeny.com](http://www.ipdeny.com/) geolocation database|ipv4 hash:net|All the world|updated every `mins_to_text ${mins}` from [this link](${url})"
 	fi
 
 	# remove the temporary dir
+	cd "${RUN_DIR}"
 	$RM_CMD -rf "${ipset}.tmp"
 
 	return 0
 }
 
 declare -A IP2LOCATION_COUNTRY_NAMES=()
-declare -A IP2LOCATION_COUNTRY_CONTINENTS='([um]="na" [fk]="sa" [ax]="eu" [as]="oc" [ge]="as" [ar]="sa" [gd]="na" [dm]="na" [kp]="as" [rw]="af" [gg]="eu" [qa]="as" [ni]="na" [do]="na" [gf]="sa" [ru]="eu" [kr]="as" [aw]="na" [ga]="af" [rs]="eu" [no]="eu" [nl]="eu" [au]="oc" [kw]="as" [dj]="af" [at]="eu" [gb]="eu" [dk]="eu" [ky]="na" [gm]="af" [ug]="af" [gl]="na" [de]="eu" [nc]="oc" [az]="as" [hr]="eu" [na]="af" [gn]="af" [kz]="as" [et]="af" [ht]="na" [es]="eu" [gi]="eu" [nf]="oc" [ng]="af" [gh]="af" [hu]="eu" [er]="af" [ua]="eu" [ne]="af" [yt]="af" [gu]="oc" [nz]="oc" [om]="as" [gt]="na" [gw]="af" [hk]="as" [re]="af" [ag]="na" [gq]="af" [ke]="af" [gp]="na" [uz]="as" [af]="as" [hn]="na" [uy]="sa" [dz]="af" [kg]="as" [ae]="as" [ad]="eu" [gr]="eu" [ki]="oc" [nr]="oc" [eg]="af" [kh]="as" [ro]="eu" [ai]="na" [np]="as" [ee]="eu" [us]="na" [ec]="sa" [gy]="sa" [ao]="af" [km]="af" [am]="as" [ye]="as" [nu]="oc" [kn]="na" [al]="eu" [si]="eu" [fr]="eu" [bf]="af" [mw]="af" [cy]="eu" [vc]="na" [mv]="as" [bg]="eu" [pr]="na" [sk]="eu" [bd]="as" [mu]="af" [ps]="as" [va]="eu" [cz]="eu" [be]="eu" [mt]="eu" [zm]="af" [ms]="na" [bb]="na" [sm]="eu" [pt]="eu" [io]="as" [vg]="na" [sl]="af" [mr]="af" [la]="as" [in]="as" [ws]="oc" [mq]="na" [im]="eu" [lb]="as" [tz]="af" [so]="af" [mp]="oc" [ve]="sa" [lc]="na" [ba]="eu" [sn]="af" [pw]="oc" [il]="as" [tt]="na" [bn]="as" [sa]="as" [bo]="sa" [py]="sa" [bl]="na" [tv]="oc" [sc]="af" [vi]="na" [cr]="na" [bm]="na" [sb]="oc" [tw]="as" [cu]="na" [se]="eu" [bj]="af" [vn]="as" [li]="eu" [mz]="af" [sd]="af" [cw]="na" [ie]="eu" [sg]="as" [jp]="as" [my]="as" [tr]="as" [bh]="as" [mx]="na" [cv]="af" [id]="as" [lk]="as" [za]="af" [bi]="af" [ci]="af" [tl]="oc" [mg]="af" [lt]="eu" [sy]="as" [sx]="na" [pa]="na" [mf]="na" [lu]="eu" [ch]="eu" [tm]="as" [bw]="af" [jo]="as" [me]="eu" [tn]="af" [ck]="oc" [bt]="as" [lv]="eu" [wf]="oc" [to]="oc" [jm]="na" [sz]="af" [md]="eu" [br]="sa" [mc]="eu" [cm]="af" [th]="as" [pe]="sa" [cl]="sa" [bs]="na" [pf]="oc" [co]="sa" [ma]="af" [lr]="af" [tj]="as" [bq]="na" [tk]="oc" [vu]="oc" [pg]="oc" [cn]="as" [ls]="af" [ca]="na" [is]="eu" [td]="af" [fj]="oc" [mo]="as" [ph]="as" [mn]="as" [zw]="af" [ir]="as" [ss]="af" [mm]="as" [iq]="as" [sr]="sa" [je]="eu" [ml]="af" [tg]="af" [pk]="as" [fi]="eu" [bz]="na" [pl]="eu" [mk]="eu" [pm]="na" [fo]="eu" [st]="af" [ly]="af" [cd]="af" [cg]="af" [sv]="na" [tc]="na" [it]="eu" [fm]="oc" [mh]="oc" [by]="eu" [cf]="af" )'
+declare -A IP2LOCATION_COUNTRY_CONTINENTS='([aq]="aq" [gs]="eu" [um]="na" [fk]="sa" [ax]="eu" [as]="oc" [ge]="as" [ar]="sa" [gd]="na" [dm]="na" [kp]="as" [rw]="af" [gg]="eu" [qa]="as" [ni]="na" [do]="na" [gf]="sa" [ru]="eu" [kr]="as" [aw]="na" [ga]="af" [rs]="eu" [no]="eu" [nl]="eu" [au]="oc" [kw]="as" [dj]="af" [at]="eu" [gb]="eu" [dk]="eu" [ky]="na" [gm]="af" [ug]="af" [gl]="na" [de]="eu" [nc]="oc" [az]="as" [hr]="eu" [na]="af" [gn]="af" [kz]="as" [et]="af" [ht]="na" [es]="eu" [gi]="eu" [nf]="oc" [ng]="af" [gh]="af" [hu]="eu" [er]="af" [ua]="eu" [ne]="af" [yt]="af" [gu]="oc" [nz]="oc" [om]="as" [gt]="na" [gw]="af" [hk]="as" [re]="af" [ag]="na" [gq]="af" [ke]="af" [gp]="na" [uz]="as" [af]="as" [hn]="na" [uy]="sa" [dz]="af" [kg]="as" [ae]="as" [ad]="eu" [gr]="eu" [ki]="oc" [nr]="oc" [eg]="af" [kh]="as" [ro]="eu" [ai]="na" [np]="as" [ee]="eu" [us]="na" [ec]="sa" [gy]="sa" [ao]="af" [km]="af" [am]="as" [ye]="as" [nu]="oc" [kn]="na" [al]="eu" [si]="eu" [fr]="eu" [bf]="af" [mw]="af" [cy]="eu" [vc]="na" [mv]="as" [bg]="eu" [pr]="na" [sk]="eu" [bd]="as" [mu]="af" [ps]="as" [va]="eu" [cz]="eu" [be]="eu" [mt]="eu" [zm]="af" [ms]="na" [bb]="na" [sm]="eu" [pt]="eu" [io]="as" [vg]="na" [sl]="af" [mr]="af" [la]="as" [in]="as" [ws]="oc" [mq]="na" [im]="eu" [lb]="as" [tz]="af" [so]="af" [mp]="oc" [ve]="sa" [lc]="na" [ba]="eu" [sn]="af" [pw]="oc" [il]="as" [tt]="na" [bn]="as" [sa]="as" [bo]="sa" [py]="sa" [bl]="na" [tv]="oc" [sc]="af" [vi]="na" [cr]="na" [bm]="na" [sb]="oc" [tw]="as" [cu]="na" [se]="eu" [bj]="af" [vn]="as" [li]="eu" [mz]="af" [sd]="af" [cw]="na" [ie]="eu" [sg]="as" [jp]="as" [my]="as" [tr]="as" [bh]="as" [mx]="na" [cv]="af" [id]="as" [lk]="as" [za]="af" [bi]="af" [ci]="af" [tl]="oc" [mg]="af" [lt]="eu" [sy]="as" [sx]="na" [pa]="na" [mf]="na" [lu]="eu" [ch]="eu" [tm]="as" [bw]="af" [jo]="as" [me]="eu" [tn]="af" [ck]="oc" [bt]="as" [lv]="eu" [wf]="oc" [to]="oc" [jm]="na" [sz]="af" [md]="eu" [br]="sa" [mc]="eu" [cm]="af" [th]="as" [pe]="sa" [cl]="sa" [bs]="na" [pf]="oc" [co]="sa" [ma]="af" [lr]="af" [tj]="as" [bq]="na" [tk]="oc" [vu]="oc" [pg]="oc" [cn]="as" [ls]="af" [ca]="na" [is]="eu" [td]="af" [fj]="oc" [mo]="as" [ph]="as" [mn]="as" [zw]="af" [ir]="as" [ss]="af" [mm]="as" [iq]="as" [sr]="sa" [je]="eu" [ml]="af" [tg]="af" [pk]="as" [fi]="eu" [bz]="na" [pl]="eu" [mk]="eu" [pm]="na" [fo]="eu" [st]="af" [ly]="af" [cd]="af" [cg]="af" [sv]="na" [tc]="na" [it]="eu" [fm]="oc" [mh]="oc" [by]="eu" [cf]="af" )'
 declare -A IP2LOCATION_COUNTRIES=()
 declare -A IP2LOCATION_CONTINENTS=()
 ip2location_country() {
 	[ -z "${UNZIP_CMD}" ] && return 1
+	cd "${RUN_DIR}" || return 1
 
 	local ipset="ip2location_country" limit="" hash="net" ipv="ipv4" \
 		mins=$[24 * 60 * 1] history_mins=0 \
@@ -3632,15 +3743,11 @@ ip2location_country() {
 		info="[IP2Location.com](http://lite.ip2location.com/database-ip-country)" \
 		ret=
 
-	if [ ! -f "${ipset}.source" ]
-	then
-		if [ ${ENABLE_ALL} -eq 1 ]
-			then
-			$TOUCH_CMD -t 0001010000 "${BASE_DIR}/${ipset}.source" || return 1
-		else
-			ipset_disabled "${ipset}"
-			return 1
-		fi
+	ipset_shall_be_run "${ipset}"
+	if [ $? -ne 0 ]
+		then
+		[ -d "${BASE_DIR}/.git" ] && echo >"${BASE_DIR}/${ipset}.setinfo" "${ipset}|${info}|${ipv} hash:${hash}|disabled|`if [ ! -z "${url}" ]; then echo "updated every $(mins_to_text ${mins}) from [this link](${url})"; fi`"
+		return 1
 	fi
 
 	# download it
@@ -3648,35 +3755,41 @@ ip2location_country() {
 	ret=$?
 	if [ $ret -eq ${DOWNLOAD_FAILED} -o $ret -eq ${DOWNLOAD_NOT_UPDATED} ]
 		then
-		[ ! -s "${ipset}.source" ] && return 1
-		[ -d ${ipset} -a ${REPROCESS_ALL} -eq 0 ] && return 1
+		[ ! -s "${BASE_DIR}/${ipset}.source" ] && return 1
+		[ -d "${BASE_DIR}/${ipset}" -a ${REPROCESS_ALL} -eq 0 ] && return 1
 	fi
 
 	# create a temp dir
-	[ -d ${ipset}.tmp ] && $RM_CMD -rf ${ipset}.tmp
-	$MKDIR_CMD ${ipset}.tmp || return 1
+	[ -d "${ipset}.tmp" ] && $RM_CMD -rf "${ipset}.tmp"
+	$MKDIR_CMD "${ipset}.tmp" || return 1
+	cd "${ipset}.tmp" || return 1
 
 	# extract it - in a subshell to do it in the tmp dir
-	( cd "${BASE_DIR}/${ipset}.tmp" && $UNZIP_CMD -x "${BASE_DIR}/${ipset}.source" )
-	local file="${ipset}.tmp/IP2LOCATION-LITE-DB1.CSV"
+	$UNZIP_CMD -x "${BASE_DIR}/${ipset}.source"
+	local file="IP2LOCATION-LITE-DB1.CSV"
 
 	if [ ! -f "${file}" ]
 		then
-		ipset_error "${ipset}" "failed to find file '${file/*\//}'' in downloaded archive"
-		$RM_CMD -rf "${ipset}.tmp"
+		ipset_error "${ipset}" "failed to find file '${file}' in downloaded archive"
 		return 1
 	fi
 
 	# create the final dir
-	if [ ! -d ${ipset} ]
+	if [ ! -d "${BASE_DIR}/${ipset}" ]
 	then
-		$MKDIR_CMD ${ipset} || return 1
+		$MKDIR_CMD "${BASE_DIR}/${ipset}" || return 1
 	fi
 
 	# find all the countries in the file
 
 	ipset_info "${ipset}" "finding included countries..."
-	$CAT_CMD "${file}" | $CUT_CMD -d ',' -f 3,4 | $SORT_CMD -u | $SED_CMD 's/","/|/g' | $TR_CMD '"\r' '  ' | trim >"${ipset}.tmp/countries"
+	$CAT_CMD "${file}" |\
+		$CUT_CMD -d ',' -f 3,4 |\
+		$SORT_CMD -u |\
+		$SED_CMD 's/","/|/g' |\
+		$TR_CMD '"\r' '  ' |\
+		trim >countries
+
 	local code= name=
 	while IFS="|" read code name
 	do
@@ -3686,7 +3799,7 @@ ip2location_country() {
 		fi
 
 		IP2LOCATION_COUNTRY_NAMES[${code}]="${name}"
-	done <"${ipset}.tmp/countries"
+	done <countries
 
 	ipset_info "${ipset}" "extracting countries..."
 	local x=
@@ -3706,46 +3819,47 @@ ip2location_country() {
 			$GREP_CMD ",\"${x}\"," 	|\
 			$CUT_CMD -d ',' -f 1,2 	|\
 			$SED_CMD 's/","/ - /g' 	|\
-			$TR_CMD '"' ' ' 			|\
-			${IPRANGE_CMD} 	|\
-			filter_invalid4 >"${ipset}.tmp/ip2location_country_${code}.source.tmp"
+			$TR_CMD '"' ' ' 		|\
+			${IPRANGE_CMD} 			|\
+			filter_invalid4 >"ip2location_country_${code}.source.tmp"
 
 		if [ ! -z "${IP2LOCATION_COUNTRY_CONTINENTS[${code}]}" ]
 			then
-			[ ! -f "${ipset}.tmp/id_continent_${IP2LOCATION_COUNTRY_CONTINENTS[${code}]}.source.tmp.info" ] && printf "%s" "Continent ${IP2LOCATION_COUNTRY_CONTINENTS[${code}]}, with countries: " >"${ipset}.tmp/id_continent_${IP2LOCATION_COUNTRY_CONTINENTS[${code}]}.source.tmp.info"
-			printf "%s" "${IP2LOCATION_COUNTRY_NAMES[${x}]} (${code^^}), " >>"${ipset}.tmp/ip2location_continent_${IP2LOCATION_COUNTRY_CONTINENTS[${code}]}.source.tmp.info"
-			$CAT_CMD "${ipset}.tmp/ip2location_country_${code}.source.tmp" >>"${ipset}.tmp/ip2location_continent_${IP2LOCATION_COUNTRY_CONTINENTS[${code}]}.source.tmp"
+			[ ! -f "id_continent_${IP2LOCATION_COUNTRY_CONTINENTS[${code}]}.source.tmp.info" ] && printf "%s" "Continent ${IP2LOCATION_COUNTRY_CONTINENTS[${code}]}, with countries: " >"id_continent_${IP2LOCATION_COUNTRY_CONTINENTS[${code}]}.source.tmp.info"
+			printf "%s" "${IP2LOCATION_COUNTRY_NAMES[${x}]} (${code^^}), " >>"ip2location_continent_${IP2LOCATION_COUNTRY_CONTINENTS[${code}]}.source.tmp.info"
+			$CAT_CMD "ip2location_country_${code}.source.tmp" >>"ip2location_continent_${IP2LOCATION_COUNTRY_CONTINENTS[${code}]}.source.tmp"
 			IP2LOCATION_CONTINENTS[${IP2LOCATION_COUNTRY_CONTINENTS[${code}]}]="1"
 		else
-			ipset_info "${ipset}" "I don't know the continent of country ${code}."
+			[ ! "${code}" = "countryless" ] && ipset_warning "${ipset}" "I don't know the continent of country ${code}."
 		fi
 
-		printf "%s" "${IP2LOCATION_COUNTRY_NAMES[${x}]} (${code^^})" >"${ipset}.tmp/ip2location_country_${code}.source.tmp.info"
+		printf "%s" "${IP2LOCATION_COUNTRY_NAMES[${x}]} (${code^^})" >"ip2location_country_${code}.source.tmp.info"
 	done
 
 	ipset_info "${ipset}" "aggregating country and continent netsets..."
-	for x in ${ipset}.tmp/*.source.tmp
+	local i info tmp
+	for x in *.source.tmp
 	do
-		$MV_CMD "${x}" "${x/.source.tmp/.source}"
-		$TOUCH_CMD -r "${ipset}.source" "${x/.source.tmp/.source}"
+		i=${x/.source.tmp/}
+		tmp="${i}.source"
+		local info2="$($CAT_CMD "${x}.info") -- ${info}"
 
-		local i=${x/.source.tmp/}
-		i=${i/${ipset}.tmp\//}
+		$MV_CMD "${x}" "${tmp}"
+		$TOUCH_CMD -r "${BASE_DIR}/${ipset}.source" "${tmp}"
 
-		local info2="`$CAT_CMD "${x}.info"` -- ${info}"
-
-		finalize "${i}" "${x/.source.tmp/.source}" "${ipset}/${i}.setinfo" "${ipset}.source" "${ipset}/${i}.netset" "${mins}" "${history_mins}" "${ipv}" "${limit}" "${hash}" "${url}" "geolocation" "${info2}" "IP2Location.com" "http://lite.ip2location.com/database-ip-country" \
+		finalize "${i}" "${tmp}" "${ipset}.source" "${ipset}/${i}.netset" "${mins}" "${history_mins}" "${ipv}" "${limit}" "${hash}" "${url}" "geolocation" "${info2}" "IP2Location.com" "http://lite.ip2location.com/database-ip-country" \
 			service "geolocation"		
 	done
 
 	if [ -d .git ]
 	then
 		# generate a setinfo for the home page
-		echo >"${ipset}.setinfo" "[${ipset}](https://github.com/ktsaou/blocklist-ipsets/tree/master/ip2location_country)|[IP2Location.com](http://lite.ip2location.com/database-ip-country) geolocation database|ipv4 hash:net|All the world|updated every `mins_to_text ${mins}` from [this link](${url})"
+		echo >"${BASE_DIR}/${ipset}.setinfo" "[${ipset}](https://github.com/ktsaou/blocklist-ipsets/tree/master/ip2location_country)|[IP2Location.com](http://lite.ip2location.com/database-ip-country) geolocation database|ipv4 hash:net|All the world|updated every `mins_to_text ${mins}` from [this link](${url})"
 	fi
 
 	# remove the temporary dir
-	$RM_CMD -rf "${ipset}.tmp"
+	cd "${RUN_DIR}"
+	$RM_CMD -rf ${ipset}.tmp
 
 	return 0
 }
@@ -3801,7 +3915,7 @@ merge() {
 			included=()
 	shift 7
 
-	if [ ! -f "${to}.source" ]
+	if [ ! -f "${BASE_DIR}/${to}.source" ]
 		then
 		if [ ${ENABLE_ALL} -eq 1 ]
 			then
@@ -3811,6 +3925,8 @@ merge() {
 			return 1
 		fi
 	fi
+
+	cd "${BASE_DIR}"
 
 	ipset_silent "${to}" "examining source ipsets:"
 	local -a files=()
@@ -3846,25 +3962,35 @@ merge() {
 	if [ -z "${files[*]}" ]
 		then
 		ipset_error "${to}" "no files available to merge."
+		cd "${RUN_DIR}"
 		return 1
 	fi
 
 	if [ ${found_updated} -eq 0 ]
 		then
 		ipset_notupdated "${to}" "source files have not been updated."
+		cd "${RUN_DIR}"
 		return 1
 	fi
 
 	ipset_silent "${to}" "merging files..."
-	$CAT_CMD "${files[@]}" >"${to}.source.tmp" || return 1
-	$TOUCH_CMD --date=@${max_date} "${to}.source.tmp" || return 1
-	$MV_CMD "${to}.source.tmp" "${to}.source" || return 1
+
+	$CAT_CMD "${files[@]}" >"${to}.source.tmp"
+	[ $? -ne 0 ] && cd "${RUN_DIR}" && return 1
+
+	$TOUCH_CMD --date=@${max_date} "${to}.source.tmp"
+	[ $? -ne 0 ] && cd "${RUN_DIR}" && return 1
+
+	$MV_CMD "${to}.source.tmp" "${to}.source"
+	[ $? -ne 0 ] && cd "${RUN_DIR}" && return 1
 
 	update "${to}" 1 0 "${ipv}" "${filter}" "" \
 		"cat" \
 		"${category}" \
 		"${info} (includes: ${included[*]})" \
 		"${maintainer}" "${maintainer_url}"
+
+	cd "${RUN_DIR}"
 }
 
 echo >&2
@@ -5821,32 +5947,34 @@ update iblocklist_isp_sprint $[24*60] 0 ipv4 both \
 badipscom() {
 	local ret=
 
-	if [ ! -f "badips.source" ]
+	ipset_shall_be_run "badips"
+	if [ $? -ne 0 ]
 		then
-		if [ ${ENABLE_ALL} -eq 1 ]
-			then
-			local x=
-			for x in badips bi_bruteforce_2_30d bi_ftp_2_30d bi_http_2_30d bi_mail_2_30d bi_proxy_2_30d bi_sql_2_30d bi_ssh_2_30d bi_voip_2_30d
-			do
-				$TOUCH_CMD -t 0001010000 "${BASE_DIR}/${x}.source" || return 1
-			done
-		else
-			[ -d .git ] && echo >"badips.setinfo" "badips.com categories ipsets|[BadIPs.com](https://www.badips.com) community based IP blacklisting. They score IPs based on the reports they reports.|ipv4 hash:ip|disabled|disabled"
-			ipset_disabled badips
-			return 1
-		fi
+		[ -d "${BASE_DIR}/.git" ] && echo >"${BASE_DIR}/badips.setinfo" "badips.com categories ipsets|[BadIPs.com](https://www.badips.com) community based IP blacklisting. They score IPs based on the reports they reports.|ipv4 hash:ip|disabled|disabled"
+		return 1
+	fi
+
+	if [ ${ENABLE_ALL} -eq 1 ]
+		then
+		local x=
+		for x in badips bi_bruteforce_2_30d bi_ftp_2_30d bi_http_2_30d bi_mail_2_30d bi_proxy_2_30d bi_sql_2_30d bi_ssh_2_30d bi_voip_2_30d
+		do
+			ipset_shall_be_run "${x}"
+		done
 	fi
 
 	download_manager "badips" $[24*60] "https://www.badips.com/get/categories"
 	ret=$?
-	[ ! -s "badips.source" ] && return 0
+	[ ! -s "${BASE_DIR}/badips.source" ] && return 0
 
-	local categories="any $($CAT_CMD badips.source |\
-		$TR_CMD "[]{}," "\n\n\n\n\n" |\
-		$EGREP_CMD '^"(Name|Parent)":"[a-zA-Z0-9_-]+"$' |\
-		$CUT_CMD -d ':' -f 2 |\
-		$CUT_CMD -d '"' -f 2 |\
-		$SORT_CMD -u)"
+	local categories="any $( \
+		$CAT_CMD ${BASE_DIR}/badips.source |\
+			$TR_CMD "[]{}," "\n\n\n\n\n" |\
+			$EGREP_CMD '^"(Name|Parent)":"[a-zA-Z0-9_-]+"$' |\
+			$CUT_CMD -d ':' -f 2 |\
+			$CUT_CMD -d '"' -f 2 |\
+			$SORT_CMD -u
+		)"
 
 	local category= file= score= age= i= ipset= url= info= count=0
 	for category in ${categories}
@@ -5854,7 +5982,7 @@ badipscom() {
 		count=0
 		# info "bi_${category}"
 
-		for file in $($LS_CMD 2>/dev/null bi_${category}*.source)
+		for file in $(cd "${BASE_DIR}"; $LS_CMD 2>/dev/null bi_${category}*.source)
 		do
 			count=$[count + 1]
 			if [[ "${file}" =~ ^bi_${category}_[0-9\.]+_[0-9]+[dwmy].source$ ]]
@@ -5866,9 +5994,9 @@ badipscom() {
 				ipset="bi_${category}_${score}_${age}"
 				url="https://www.badips.com/get/list/${category}/${score}?age=${age}"
 				info="[BadIPs.com](https://www.badips.com/) Bad IPs in category ${category} with score above ${score} and age less than ${age}"
-				if [ ! -f "${ipset}.source" ]
+				if [ ! -f "${BASE_DIR}/${ipset}.source" ]
 					then
-					warning "${file}: cannot parse ipset name to find score and age"
+					ipset_warning "${file}" "parsed as '${ipset}' seems invalid"
 					continue
 				fi
 
@@ -5880,9 +6008,9 @@ badipscom() {
 				ipset="bi_${category}_${age}"
 				url="https://www.badips.com/get/list/${category}/${score}?age=${age}"
 				info="[BadIPs.com](https://www.badips.com/) Bad IPs in category ${category} with age less than ${age}"
-				if [ ! -f "${ipset}.source" ]
+				if [ ! -f "${BASE_DIR}/${ipset}.source" ]
 					then
-					warning "${file}: cannot parse ipset name to find age"
+					ipset_warning "${file}" "parsed as '${ipset}' seems invalid"
 					continue
 				fi
 
@@ -5894,14 +6022,14 @@ badipscom() {
 				ipset="bi_${category}_${score}"
 				url="https://www.badips.com/get/list/${category}/${score}"
 				info="[BadIPs.com](https://www.badips.com/) Bad IPs in category ${category} with score above ${score}"
-				if [ ! -f "${ipset}.source" ]
+				if [ ! -f "${BASE_DIR}/${ipset}.source" ]
 					then
-					warning "${file}: cannot parse ipset name to find score"
+					ipset_warning "${file}" "parsed as '${ipset}' seems invalid"
 					continue
 				fi
 			else
 				# none present
-				warning "${file}: Cannot find SCORE or AGE in filename. Use numbers."
+				ipset_warning "${file}" "cannot find SCORE or AGE in filename. Use numbers."
 				continue
 			fi
 
@@ -5924,7 +6052,7 @@ badipscom() {
 				[ $[age] -gt 180 ] && freq=$[4 * 24 * 60] # 181-365 days
 				[ $[age] -gt 365 ] && freq=$[7 * 24 * 60] # 366-ever days
 
-				# ipset_info "${ipset}" "update frequency set to ${freq} mins"
+				ipset_verbose "${ipset}" "update frequency set to ${freq} mins"
 			fi
 
 			update "${ipset}" ${freq} 0 ipv4 ip \
@@ -6327,7 +6455,38 @@ merge firehol_anonymous ipv4 both \
 
 
 # -----------------------------------------------------------------------------
-# updates
+# load all third party ipsets
+
+cd "${RUN_DIR}" || continue
+for supplied_ipsets_dir in "${ADMIN_SUPPLIED_IPSETS}" "${DISTRIBUTION_SUPPLIED_IPSETS}" "${USER_SUPPLIED_IPSETS}"
+do
+	[ -z "${supplied_ipsets_dir}" ] && continue
+
+	if [ ! -d "${supplied_ipsets_dir}" ]
+		then
+		verbose "Supplied ipsets directory '${supplied_ipsets_dir}' does not exist. Ignoring it."
+		continue
+	fi
+
+	verbose "Loading ipset definitions from: '${supplied_ipsets_dir}'"
+	for supplied_ipset_file in $(ls "${supplied_ipsets_dir}"/*.conf 2>/dev/null)
+	do
+		verbose "Loading ipset definition file: '${supplied_ipset_file}'"
+		
+		cd "${RUN_DIR}" || continue
+		source "${supplied_ipset_file}"
+
+		if [ $? -ne 0 ]
+			then
+			error "'${supplied_ipset_file}' failed"
+		else
+			verbose "'${supplied_ipset_file}' completed"
+		fi
+	done
+done
+
+# -----------------------------------------------------------------------------
+# update the web site, if we have to (does nothing if not enabled)
 update_web
 
 # commit changes to git (does nothing if not enabled)
