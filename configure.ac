@@ -64,9 +64,6 @@ AC_SUBST(FIREHOL_CONFIG_DIR)
 
 PATH=$PATH:/sbin:/usr/sbin
 
-AX_CHECK_PROG([AGGREGATE], [aggregate], [])
-AX_CHECK_PROG([AGGREGATE], [aggregate-flim], [])
-AX_NEED_PROG([AGGREGATE], [cat], [])
 AX_NEED_PROG([BRCTL], [brctl], [])
 AX_NEED_PROG([CAT], [cat], [])
 AX_NEED_PROG([CHMOD], [chmod], [])
@@ -128,6 +125,7 @@ AX_NEED_PROG([SLEEP], [sleep], [])
 AX_NEED_PROG([SS], [ss], [])
 AX_NEED_PROG([SYSCTL], [sysctl], [])
 AX_NEED_PROG([TAIL], [tail], [])
+AX_NEED_PROG([TAR], [tar], [])
 AX_NEED_PROG([TOUCH], [touch], [])
 AX_NEED_PROG([TR], [tr], [])
 AX_NEED_PROG([UNAME], [uname], [])

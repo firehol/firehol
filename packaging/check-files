@@ -85,7 +85,7 @@ fi
 #cat $MYTMP/files.lst
 
 dirname="${0%/*}"
-if [ "$dir" = "$0" ]; then dir="."; fi
+if [ "$dirname" = "$0" ]; then dirname="."; fi
 source $dirname/check-files.functions
 
 status=0

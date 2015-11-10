@@ -276,7 +276,9 @@ do
 	then
 		eval $cmd_var=\"$autoconf\"
 	else
-		PATH="/bin:/usr/bin:/sbin:/usr/sbin:$PATH" which_all $cmd_var "$possibles"
+		dirname="${0%/*}"
+		if [ "$dirname" = "$0" ]; then dirname="."; fi
+		PATH="/bin:/usr/bin:/sbin:/usr/sbin:$PATH:$dirname" which_all $cmd_var "$possibles"
 	fi
 	if [ "$required" = "Y" ]
 	then
@@ -315,7 +317,7 @@ N|HEAD_CMD|@HEAD@|head
 N|TPUT_CMD|@TPUT@|tput
 N|WGET_CMD|@WGET@|wget
 N|SCREEN_CMD|@SCREEN@|screen
-Y|AGGREGATE_CMD|@AGGREGATE@|aggregate aggregate-flim cat
+Y|IPRANGE_CMD|@IPRANGE@|iprange
 !
 
 VERSION=$(get_version)
@@ -1854,7 +1856,7 @@ asips() {
 		$JQ_CMD .data.prefixes[].prefix |\
 		$SED_CMD -e 's| ||g' -e 's|"||g' |\
 		$EGREP_CMD "^[0-9]+\.[0-9]+\.[0-9]+\.[0-9]+/[0-9]+" |\
-		$AGGREGATE_CMD
+		$IPRANGE_CMD
 }
 
 # -----------------------------------------------------------------------------

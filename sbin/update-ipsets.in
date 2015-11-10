@@ -251,7 +251,9 @@ do
 	then
 		eval $cmd_var=\"$autoconf\"
 	else
-		PATH="/bin:/usr/bin:/sbin:/usr/sbin:$PATH" which_all $cmd_var "$possibles"
+		dirname="${0%/*}"
+		if [ "$dirname" = "$0" ]; then dirname="."; fi
+		PATH="/bin:/usr/bin:/sbin:/usr/sbin:$PATH:$dirname" which_all $cmd_var "$possibles"
 	fi
 	if [ "$required" = "Y" ]
 	then
@@ -292,6 +294,7 @@ Y|FIND_CMD|@FIND@|find
 Y|WC_CMD|@WC@|wc
 Y|MV_CMD|@MV@|mv
 Y|CP_CMD|@CP@|cp
+Y|TAR_CMD|@TAR@|tar
 Y|IPSET_CMD|@IPSET@|ipset
 N|UNZIP_CMD|@UNZIP@|unzip
 N|FUNZIP_CMD|@FUNZIP@|funzip
@@ -675,7 +678,7 @@ options are:
 			Will only process the given ipsets.
 			This parameter must be the last in command line, it
 			assumes all parameters after the keyword 'run' are
-			ipset names.
+			ipsets names.
 
 EOFUSAGE
 }
@@ -960,7 +963,7 @@ git_checkout_or_add() {
 git_ignore_file() {
 	local file="${1}"
 
-	local found=$(cat "${BASE_DIR}/.gitignore" | grep "^${file}$$")
+	local found=$($CAT_CMD "${BASE_DIR}/.gitignore" | $GREP_CMD "^${file}$$")
 	if [ -z "${found}" ]
 		then
 		echo "${file}" >>"${BASE_DIR}/.gitignore" || return 1
@@ -3662,9 +3665,8 @@ ipdeny_country() {
 		$MKDIR_CMD "${BASE_DIR}/${ipset}" || return 1
 	fi
 
-	# FIXME - tar to TAR_CMD
 	# extract it
-	tar -zxpf "${BASE_DIR}/${ipset}.source"
+	$TAR_CMD -zxpf "${BASE_DIR}/${ipset}.source"
 
 	# move them inside the tmp, and fix continents
 	local x=
@@ -6468,7 +6470,7 @@ do
 	fi
 
 	verbose "Loading ipset definitions from: '${supplied_ipsets_dir}'"
-	for supplied_ipset_file in $(ls "${supplied_ipsets_dir}"/*.conf 2>/dev/null)
+	for supplied_ipset_file in $($LS_CMD "${supplied_ipsets_dir}"/*.conf 2>/dev/null)
 	do
 		verbose "Loading ipset definition file: '${supplied_ipset_file}'"
 		

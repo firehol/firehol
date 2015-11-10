@@ -253,7 +253,9 @@ do
 	then
 		eval $cmd_var=\"$autoconf\"
 	else
-		PATH="/bin:/usr/bin:/sbin:/usr/sbin:$PATH" which_all $cmd_var "$possibles"
+		dirname="${0%/*}"
+		if [ "$dirname" = "$0" ]; then dirname="."; fi
+		PATH="/bin:/usr/bin:/sbin:/usr/sbin:$PATH:$dirname" which_all $cmd_var "$possibles"
 	fi
 	if [ "$required" = "Y" ]
 	then
