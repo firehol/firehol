@@ -599,7 +599,7 @@ SILENT=0
 VERBOSE=0
 
 declare -a LISTS_TO_ENABLE=()
-local -A RUN_ONLY_THESE_IPSETS=()
+declare -A RUN_ONLY_THESE_IPSETS=()
 
 usage() {
 $CAT_CMD <<EOFUSAGE
@@ -774,8 +774,8 @@ if [ -z "${WEB_DIR}" ]
 	WEB_DIR=
 elif [ ! -d "${WEB_DIR}" ]
 	then
+	warning "WEB_DIR='${WEB_DIR}' is invalid. Disabling web site updates. Set WEB_DIR in '${CONFIG_FILE}' to enable it."
 	WEB_DIR=
-	[ ! -d "${WEB_DIR}" ] && warning "WEB_DIR='${WEB_DIR}' is invalid. Disabling web site updates. Set WEB_DIR in '${CONFIG_FILE}' to enable it."
 fi
 
 for d in "${BASE_DIR}" "${HISTORY_DIR}" "${ERRORS_DIR}" "${CACHE_DIR}" "${LIB_DIR}"
