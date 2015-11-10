@@ -154,11 +154,11 @@ AC_SUBST(AUTOCONF_RUN)
 
 if test x"$enable_iprange" = xyes; then
 dnl We are installing it ourselves
-d=$(eval echo "$sbindir")
-if test x$d = xNONE/sbin; then
-IPRANGE=$(eval echo "$prefix/sbin/iprange" | sed -e 's|^NONE|/usr/local|')
+d=$(eval echo "$bindir")
+if test x$d = xNONE/bin; then
+IPRANGE=$(eval echo "$prefix/bin/iprange" | sed -e 's|^NONE|/usr/local|')
 else
-IPRANGE=$(eval echo "$sbindir/iprange" | sed -e 's|^NONE|/usr/local|')
+IPRANGE=$(eval echo "$bindir/iprange" | sed -e 's|^NONE|/usr/local|')
 fi
 AC_SUBST(IPRANGE)
 
