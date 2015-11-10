@@ -510,12 +510,16 @@ if [ "${UID}" = "0" -o -z "${UID}" ]
 	BASE_DIR="${BASE_DIR-${FIREHOL_CONFIG_DIR}/ipsets}"
 	CONFIG_FILE="${CONFIG_FILE-${FIREHOL_CONFIG_DIR}/update-ipsets.conf}"
 	RUN_PARENT_DIR="${RUN_PARENT_DIR-/var/run}"
+	CACHE_DIR="${CACHE_DIR-/var/cache/update-ipsets}"
+	LIB_DIR="${LIB_DIR-/var/lib/update-ipsets}"
 	IPSETS_APPLY=1
 else
 	$MKDIR_CMD -p "${HOME}/.update-ipsets" || exit 1
 	BASE_DIR="${BASE_DIR-${HOME}/ipsets}"
 	CONFIG_FILE="${CONFIG_FILE-${HOME}/.update-ipsets/update-ipsets.conf}"
 	RUN_PARENT_DIR="${RUN_PARENT_DIR-${HOME}/.update-ipsets}"
+	CACHE_DIR="${CACHE_DIR-${HOME}/.update-ipsets/cache}"
+	LIB_DIR="${LIB_DIR-${HOME}/.update-ipsets/lib}"
 	IPSETS_APPLY=0
 fi
 
@@ -572,11 +576,7 @@ PARALLEL_DNS_QUERIES=${PARALLEL_DNS_QUERIES-10}
 WEB_DIR=""
 
 # how to chown web files
-WEB_OWNER="apache:apache"
-
-# where to store the web retention detection cache
-# if empty or does not exist, retention detection will be disabled
-LIB_DIR=""
+WEB_OWNER=""
 
 # where is the web url to show info about each ipset
 # the ipset name is appended to it
@@ -586,7 +586,7 @@ WEB_URL="http://iplists.firehol.org/?ipset="
 # the ipset name will be appended
 GITHUB_LOCAL_COPY_URL="https://raw.githubusercontent.com/firehol/blocklist-ipsets/master/"
 GITHUB_CHANGES_URL="https://github.com/firehol/blocklist-ipsets/commits/master/"
-
+GITHUB_SETINFO="https://github.com/firehol/blocklist-ipsets/tree/master/"
 
 # -----------------------------------------------------------------------------
 # Command line parsing
@@ -745,6 +745,18 @@ if [ ! -d "${RUN_PARENT_DIR}" ]
 	exit 1
 fi
 
+if [ -z "${LIB_DIR}" ]
+	then
+	error "LIB_DIR is unset. Probably you empty it in '${CONFIG_FILE}'. Please leave it set."
+	exit 1
+fi
+
+if [ -z "${CACHE_DIR}" ]
+	then
+	error "CACHE_DIR is unset. Probably you empty it in '${CONFIG_FILE}'. Please leave it set."
+	exit 1
+fi
+
 if [ -z "${TMP_DIR}" ]
 	then
 	error "TMP_DIR is unset. Set it in '${CONFIG_FILE}'."
@@ -757,19 +769,16 @@ if [ ! -d "${TMP_DIR}" ]
 	exit 1
 fi
 
-if [ -z "${WEB_DIR}" -o -z "${LIB_DIR}" ]
+if [ -z "${WEB_DIR}" ]
 	then
-	LIB_DIR=
 	WEB_DIR=
-elif [ ! -d "${WEB_DIR}" -o ! -d "${LIB_DIR}" ]
+elif [ ! -d "${WEB_DIR}" ]
 	then
-	LIB_DIR=
 	WEB_DIR=
 	[ ! -d "${WEB_DIR}" ] && warning "WEB_DIR='${WEB_DIR}' is invalid. Disabling web site updates. Set WEB_DIR in '${CONFIG_FILE}' to enable it."
-	[ ! -d "${LIB_DIR}" ] && warning "LIB_DIR='${LIB_DIR}' is invalid. Disabling web site updates. Set LIB_DIR in '${CONFIG_FILE}' to enable it."
 fi
 
-for d in "${BASE_DIR}" "${HISTORY_DIR}" "${ERRORS_DIR}"
+for d in "${BASE_DIR}" "${HISTORY_DIR}" "${ERRORS_DIR}" "${CACHE_DIR}" "${LIB_DIR}"
 do
 	[ -z "${d}" -o -d "${d}" ] && continue
 
@@ -944,7 +953,7 @@ mins_to_text() {
 declare -A UPDATED_DIRS=()
 declare -A UPDATED_SETS=()
 
-git_checkout_or_add() {
+git_add_if_not_already_added() {
 	local file="${1}"
 
 	$GIT_CMD -C "${BASE_DIR}" ls-files "${file}" --error-unmatch >/dev/null 2>&1
@@ -956,8 +965,7 @@ git_checkout_or_add() {
 		return $?
 	fi
 	
-	$GIT_CMD -C "${BASE_DIR}" checkout "${file}"
-	return $?
+	return 0
 }
 
 git_ignore_file() {
@@ -1008,7 +1016,7 @@ commit_to_git() {
 			) >${d}/README.md
 
 			UPDATED_SETS[${d}/README.md]="${d}/README.md"
-			git_checkout_or_add "${d}/README.md"
+			git_add_if_not_already_added "${d}/README.md"
 		done
 
 		declare -a to_be_pushed=()
@@ -1030,7 +1038,7 @@ commit_to_git() {
 				echo "[ -f '${IPSET_FILE[${d}]}' ] && $TOUCH_CMD --date=@${IPSET_SOURCE_DATE[${d}]} '${IPSET_FILE[${d}]}'"
 			done
 		) | $SED_CMD "s|'${BASE_DIR}/|'|g" >set_file_timestamps.sh
-		git_checkout_or_add set_file_timestamps.sh
+		git_add_if_not_already_added set_file_timestamps.sh
 
 		echo >&2 
 		info "Committing ${to_be_pushed[@]} to git repository"
@@ -1158,11 +1166,26 @@ history_get() {
 
 # Fetch a url - the output file has the last modified timestamp of the server.
 # On the next run, the file is downloaded only if it has changed on the server.
-geturl_httpcode=
-geturl_message=
-geturl_curlcode=
+DOWNLOADER_MESSAGE=
+DOWNLOADER_OK=0
+DOWNLOADER_FAILED=1
+DOWNLOADER_NOTMODIFIED=255
+
+DOWNLOADER_IPSET=
+downloader_log() {
+	local severity="${1}" message="${2}"
+
+	case "${severity}" in
+		info)		ipset_info "${DOWNLOADER_IPSET}" "${message}" ;;
+		silent)		ipset_silent "${DOWNLOADER_IPSET}" "${message}" ;;
+		warning)	ipset_warning "${DOWNLOADER_IPSET}" "${message}" ;;
+		error)		ipset_warning "${DOWNLOADER_IPSET}" "${message}" ;;
+		*)			ipset_verbose "${DOWNLOADER_IPSET}" "${message}" ;;
+	esac
+}
+
 geturl() {
-	local file="${1}" reference="${2}" url="${3}" ret= http_code= curl_opts= msg=
+	local file="${1}" reference="${2}" url="${3}" ret= http_code= curl_opts= message=
 
 	if [ -z "${reference}" ]
 		then
@@ -1177,6 +1200,7 @@ geturl() {
 	curl_opts="--silent"
 	[ ${VERBOSE} -eq 1 ] && curl_opts=
 
+	downloader_log verbose "curl '${url}'"
 	http_code=$( \
 		$CURL_CMD --connect-timeout ${MAX_CONNECT_TIME} --max-time ${MAX_DOWNLOAD_TIME} \
 			--retry 0 --fail --compressed --user-agent "FireHOL-Update-Ipsets/3.0" \
@@ -1189,36 +1213,35 @@ geturl() {
 	case "${ret}" in
 		0)	if [ "${http_code}" = "304" -a ! "${file}" -nt "${reference}" ]
 			then
-				msg="Not Modified"
-				ret=99
+				message="Not Modified"
+				ret=${DOWNLOADER_NOTMODIFIED}
 			else
-				msg="OK"
+				message="OK"
+				ret=${DOWNLOADER_OK}
 			fi
 			;;
 
-		1)	msg="Unsupported Protocol" ;;
-		2)	msg="Failed to initialize" ;;
-		3)	msg="Malformed URL" ;;
-		5)	msg="Can't resolve proxy" ;;
-		6)	msg="Can't resolve host" ;;
-		7)	msg="Failed to connect" ;;
-		18)	msg="Partial Transfer" ;;
-		22)	msg="HTTP Error" ;;
-		23)	msg="Cannot write local file" ;;
-		26)	msg="Read Error" ;;
-		28)	msg="Timeout" ;;
-		35)	msg="SSL Error" ;;
-		47)	msg="Too many redirects" ;;
-		52)	msg="Server did not reply anything" ;;
-		55)	msg="Failed sending network data" ;;
-		56)	msg="Failure in receiving network data" ;;
-		61)	msg="Unrecognized transfer encoding" ;;
-		*)	msg="Error ${ret} returned by curl" ;;
+		1)	message="Unsupported Protocol"; ret=${DOWNLOADER_FAILED} ;;
+		2)	message="Failed to initialize"; ret=${DOWNLOADER_FAILED} ;;
+		3)	message="Malformed URL"; ret=${DOWNLOADER_FAILED} ;;
+		5)	message="Can't resolve proxy"; ret=${DOWNLOADER_FAILED} ;;
+		6)	message="Can't resolve host"; ret=${DOWNLOADER_FAILED} ;;
+		7)	message="Failed to connect"; ret=${DOWNLOADER_FAILED} ;;
+		18)	message="Partial Transfer"; ret=${DOWNLOADER_FAILED} ;;
+		22)	message="HTTP Error"; ret=${DOWNLOADER_FAILED} ;;
+		23)	message="Cannot write local file"; ret=${DOWNLOADER_FAILED} ;;
+		26)	message="Read Error"; ret=${DOWNLOADER_FAILED} ;;
+		28)	message="Timeout"; ret=${DOWNLOADER_FAILED} ;;
+		35)	message="SSL Error"; ret=${DOWNLOADER_FAILED} ;;
+		47)	message="Too many redirects"; ret=${DOWNLOADER_FAILED} ;;
+		52)	message="Server did not reply anything"; ret=${DOWNLOADER_FAILED} ;;
+		55)	message="Failed sending network data"; ret=${DOWNLOADER_FAILED} ;;
+		56)	message="Failure in receiving network data"; ret=${DOWNLOADER_FAILED} ;;
+		61)	message="Unrecognized transfer encoding"; ret=${DOWNLOADER_FAILED} ;;
+		*)	message="Error ${ret} returned by curl"; ret=${DOWNLOADER_FAILED} ;;
 	esac
 
-	geturl_httpcode="${http_code}"
-	geturl_message="${msg}"
-	geturl_curlcode="${ret}"
+	DOWNLOADER_MESSAGE="HTTP/${http_code} ${message}"
 
 	return ${ret}
 }
@@ -1306,9 +1329,13 @@ download_manager() {
 	fi
 
 	tmp=`$MKTEMP_CMD "${RUN_DIR}/download-${ipset}-XXXXXXXXXX"` || return ${DOWNLOAD_FAILED}
-	geturl "${tmp}" "${reference}" "${url}"
+	[ -z "${IPSET_DOWNLOADER[${ipset}]}" ] && IPSET_DOWNLOADER[${ipset}]="geturl"
+	DOWNLOADER_IPSET="${ipset}"
+
+	ipset_verbose "${ipset}" "running downloader '${IPSET_DOWNLOADER[${ipset}]}'"
+	"${IPSET_DOWNLOADER[${ipset}]}" "${tmp}" "${reference}" "${url}"
 	ret=$?
-	ipset_info "${ipset}" "HTTP/${geturl_httpcode} ${geturl_message}"
+	ipset_info "${ipset}" "${DOWNLOADER_MESSAGE}"
 
 	# if the downloaded file is empty, but we don't accept empty files
 	if [ $ret -eq 0 -a ! -s "${tmp}" -a -z "${IPSET_TMP_ACCEPT_EMPTY[${ipset}]}" ]
@@ -1318,6 +1345,7 @@ download_manager() {
 	fi
 
 	case $ret in
+		# DOWNLOADER_OK
 		0)
 			ipset_silent "${ipset}" "downloaded successfully"
 			IPSET_CHECKED_DATE[${ipset}]="$($DATE_CMD -r "${tmp}" +%s)"
@@ -1325,7 +1353,8 @@ download_manager() {
 			cache_save
 			;;
 
-		99)
+		# DOWNLOADER_NOTMODIFIED
+		255)
 			IPSET_DOWNLOAD_FAILURES[${ipset}]=0
 			cache_save
 			ipset_notupdated "${ipset}" "file on server has not been updated yet"
@@ -1333,6 +1362,7 @@ download_manager() {
 			return ${DOWNLOAD_NOT_UPDATED}
 			;;
 
+		# DOWNLOADER_FAILED
 		*)
 			$RM_CMD "${tmp}"
 			IPSET_DOWNLOAD_FAILURES[${ipset}]=$(( fails + 1 ))
@@ -1405,6 +1435,8 @@ declare -A IPSET_AVERAGE_UPDATE_TIME=()
 declare -A IPSET_MIN_UPDATE_TIME=()
 declare -A IPSET_MAX_UPDATE_TIME=()
 
+declare -A IPSET_DOWNLOADER=()
+
 # TODO - FIXME
 #declare -A IPSET_PREFIXES=()
 #declare -A IPSET_DOWNLOADER=()
@@ -1448,6 +1480,7 @@ cache_save() {
 		IPSET_AVERAGE_UPDATE_TIME \
 		IPSET_MIN_UPDATE_TIME \
 		IPSET_MAX_UPDATE_TIME \
+		IPSET_DOWNLOADER \
 		>"${BASE_DIR}/.cache.new.$$"
 	
 	[ -f "${BASE_DIR}/.cache" ] && $CP_CMD "${BASE_DIR}/.cache" "${BASE_DIR}/.cache.old"
@@ -1499,6 +1532,7 @@ cache_remove_ipset() {
 	unset IPSET_AVERAGE_UPDATE_TIME[${ipset}]
 	unset IPSET_MIN_UPDATE_TIME[${ipset}]
 	unset IPSET_MAX_UPDATE_TIME[${ipset}]
+	unset IPSET_DOWNLOADER[${ipset}]
 
 	cache_save
 }
@@ -1601,7 +1635,8 @@ ipset_json() {
 	"version": ${IPSET_VERSION[${ipset}]},
 	"average_update": ${IPSET_AVERAGE_UPDATE_TIME[${ipset}]},
 	"min_update": ${IPSET_MIN_UPDATE_TIME[${ipset}]},
-	"max_update": ${IPSET_MAX_UPDATE_TIME[${ipset}]}
+	"max_update": ${IPSET_MAX_UPDATE_TIME[${ipset}]},
+	"downloader": "${IPSET_DOWNLOADER[${ipset}]}"
 }
 EOFJSON
 }
@@ -2323,7 +2358,7 @@ update_web() {
 	print_ipset_reset
 
 	$MV_CMD -f "${RUN_DIR}"/*.{json,csv,xml} "${WEB_DIR}/"
-	$CHOWN_CMD ${WEB_OWNER} "${WEB_DIR}"/*
+	[ ! -z "${WEB_OWNER}" ] && $CHOWN_CMD -R ${WEB_OWNER} "${WEB_DIR}"
 	$CHMOD_CMD 0644 "${WEB_DIR}"/*.{json,csv,xml}
 
 	if [ ${PUSH_TO_GIT} -eq 1 ]
@@ -2463,6 +2498,7 @@ ipset_attributes() {
 
 			inbound|outbound)		IPSET_PROTECTION[${ipset}]="${1}"; shift; continue ;;
 
+			downloader)				IPSET_DOWNLOADER[${ipset}]="${2}" ;;
 			category)				IPSET_CATEGORY[${ipset}]="${2}" ;;
 			maintainer)				IPSET_MAINTAINER[${ipset}]="${2}" ;;
 			maintainer_url)			IPSET_MAINTAINER_URL[${ipset}]="${2}" ;;
@@ -2706,7 +2742,7 @@ EOFHEADER
 		echo >"${BASE_DIR}/${dst}.setinfo" "[${ipset}](${WEB_URL}${ipset})|${info}|${ipv} hash:${hash}|${quantity}|`if [ ! -z "${url}" ]; then echo "updated every $(mins_to_text ${mins}) from [this link](${url})"; fi`"
 		if [ -z "${IPSET_TMP_DO_NOT_REDISTRIBUTE[${ipset}]}" ]
 			then
-			git_checkout_or_add "${dst}"
+			git_add_if_not_already_added "${dst}"
 		else
 			git_ignore_file "${dst}"
 		fi
@@ -3075,6 +3111,7 @@ rename_ipset() {
 	[ -z "${IPSET_AVERAGE_UPDATE_TIME[${new}]}" ] && IPSET_AVERAGE_UPDATE_TIME[${new}]="${IPSET_AVERAGE_UPDATE_TIME[${old}]}"
 	[ -z "${IPSET_MIN_UPDATE_TIME[${new}]}" ] && IPSET_MIN_UPDATE_TIME[${new}]="${IPSET_MIN_UPDATE_TIME[${old}]}"
 	[ -z "${IPSET_MAX_UPDATE_TIME[${new}]}" ] && IPSET_MAX_UPDATE_TIME[${new}]="${IPSET_MAX_UPDATE_TIME[${old}]}"
+	[ -z "${IPSET_DOWNLOADER[${new}]}" ] && IPSET_DOWNLOADER[${new}]="${IPSET_DOWNLOADER[${old}]}"
 	cache_remove_ipset "${old}" # this also saves the cache
 
 	cd "${RUN_DIR}"
@@ -3516,10 +3553,15 @@ geolite2_country() {
 		$MKDIR_CMD "${BASE_DIR}/${ipset}" || return 1
 	fi
 
+	# get the old version of README-EDIT.md, if any
 	if [ -d "${BASE_DIR}/.git" -a ! -f "${BASE_DIR}/${ipset}/README-EDIT.md" ]
 		then
-		# get the old version of README-EDIT.md, if any
-		git_checkout_or_add ${ipset}/README-EDIT.md
+		$GIT_CMD -C "${BASE_DIR}" checkout ${ipset}/README-EDIT.md >/dev/null 2>&1
+		if [ ! -f ${ipset}/README-EDIT.md ]
+			then
+			touch ${ipset}/README-EDIT.md
+			git_add_if_not_already_added ${ipset}/README-EDIT.md
+		fi
 	fi
 
 	# extract it
@@ -3615,7 +3657,7 @@ geolite2_country() {
 	if [ -d "${BASE_DIR}/.git" ]
 	then
 		# generate a setinfo for the home page
-		echo >"${BASE_DIR}/${ipset}.setinfo" "[${ipset}](https://github.com/ktsaou/blocklist-ipsets/tree/master/geolite2_country)|[MaxMind GeoLite2](http://dev.maxmind.com/geoip/geoip2/geolite2/) databases are free IP geolocation databases comparable to, but less accurate than, MaxMind’s GeoIP2 databases. They include IPs per country, IPs per continent, IPs used by anonymous services (VPNs, Proxies, etc) and Satellite Providers.|ipv4 hash:net|All the world|`if [ ! -z "${url}" ]; then echo "updated every $(mins_to_text ${mins}) from [this link](${url})"; fi`"
+		echo >"${BASE_DIR}/${ipset}.setinfo" "[${ipset}](${GITHUB_SETINFO}geolite2_country)|[MaxMind GeoLite2](http://dev.maxmind.com/geoip/geoip2/geolite2/) databases are free IP geolocation databases comparable to, but less accurate than, MaxMind’s GeoIP2 databases. They include IPs per country, IPs per continent, IPs used by anonymous services (VPNs, Proxies, etc) and Satellite Providers.|ipv4 hash:net|All the world|`if [ ! -z "${url}" ]; then echo "updated every $(mins_to_text ${mins}) from [this link](${url})"; fi`"
 	fi
 
 	# remove the temporary dir
@@ -3663,6 +3705,17 @@ ipdeny_country() {
 	if [ ! -d "${BASE_DIR}/${ipset}" ]
 	then
 		$MKDIR_CMD "${BASE_DIR}/${ipset}" || return 1
+	fi
+
+	# get the old version of README-EDIT.md, if any
+	if [ -d "${BASE_DIR}/.git" -a ! -f "${BASE_DIR}/${ipset}/README-EDIT.md" ]
+		then
+		$GIT_CMD -C "${BASE_DIR}" checkout ${ipset}/README-EDIT.md >/dev/null 2>&1
+		if [ ! -f ${ipset}/README-EDIT.md ]
+			then
+			touch ${ipset}/README-EDIT.md
+			git_add_if_not_already_added ${ipset}/README-EDIT.md
+		fi
 	fi
 
 	# extract it
@@ -3720,7 +3773,7 @@ ipdeny_country() {
 	if [ -d "${BASE_DIR}/.git" ]
 	then
 		# generate a setinfo for the home page
-		echo >"${BASE_DIR}/${ipset}.setinfo" "[${ipset}](https://github.com/ktsaou/blocklist-ipsets/tree/master/ipdeny_country)|[IPDeny.com](http://www.ipdeny.com/) geolocation database|ipv4 hash:net|All the world|updated every `mins_to_text ${mins}` from [this link](${url})"
+		echo >"${BASE_DIR}/${ipset}.setinfo" "[${ipset}](${GITHUB_SETINFO}ipdeny_country)|[IPDeny.com](http://www.ipdeny.com/) geolocation database|ipv4 hash:net|All the world|updated every `mins_to_text ${mins}` from [this link](${url})"
 	fi
 
 	# remove the temporary dir
@@ -3781,8 +3834,18 @@ ip2location_country() {
 		$MKDIR_CMD "${BASE_DIR}/${ipset}" || return 1
 	fi
 
-	# find all the countries in the file
+	# get the old version of README-EDIT.md, if any
+	if [ -d "${BASE_DIR}/.git" -a ! -f "${BASE_DIR}/${ipset}/README-EDIT.md" ]
+		then
+		$GIT_CMD -C "${BASE_DIR}" checkout ${ipset}/README-EDIT.md >/dev/null 2>&1
+		if [ ! -f ${ipset}/README-EDIT.md ]
+			then
+			touch ${ipset}/README-EDIT.md
+			git_add_if_not_already_added ${ipset}/README-EDIT.md
+		fi
+	fi
 
+	# find all the countries in the file
 	ipset_info "${ipset}" "finding included countries..."
 	$CAT_CMD "${file}" |\
 		$CUT_CMD -d ',' -f 3,4 |\
@@ -3855,7 +3918,7 @@ ip2location_country() {
 	if [ -d .git ]
 	then
 		# generate a setinfo for the home page
-		echo >"${BASE_DIR}/${ipset}.setinfo" "[${ipset}](https://github.com/ktsaou/blocklist-ipsets/tree/master/ip2location_country)|[IP2Location.com](http://lite.ip2location.com/database-ip-country) geolocation database|ipv4 hash:net|All the world|updated every `mins_to_text ${mins}` from [this link](${url})"
+		echo >"${BASE_DIR}/${ipset}.setinfo" "[${ipset}](${GITHUB_SETINFO}ip2location_country)|[IP2Location.com](http://lite.ip2location.com/database-ip-country) geolocation database|ipv4 hash:net|All the world|updated every `mins_to_text ${mins}` from [this link](${url})"
 	fi
 
 	# remove the temporary dir
