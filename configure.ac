@@ -245,6 +245,8 @@ AC_CONFIG_FILES([
 	doc/vnetbuild/Makefile
 	examples/Makefile
 	etc/Makefile
+	html/Makefile
+	html/ipsets/Makefile
 	contrib/Makefile
 	packaging/Makefile
 	])
