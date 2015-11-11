@@ -50,13 +50,18 @@ get_version() {
 	return 0
 }
 
-CONFIG_DIR="/etc/firehol"
+if [ "@AUTOCONF_RUN@" = "Y" ]
+then
+	FIREHOL_CONFIG_DIR="@FIREHOL_CONFIG_DIR@"
+else
+	FIREHOL_CONFIG_DIR="/etc/firehol"
+fi
 
 marksreset() { :; }
 markdef() { :; }
-if [ -f "${CONFIG_DIR}/firehol-defaults.conf" ]
+if [ -r "${FIREHOL_CONFIG_DIR}/firehol-defaults.conf" ]
 then
-	source "${CONFIG_DIR}/firehol-defaults.conf" || exit 1
+	source "${FIREHOL_CONFIG_DIR}/firehol-defaults.conf" || exit 1
 fi
 
 # Load commands vnetbuild will need.

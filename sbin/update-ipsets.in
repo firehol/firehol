@@ -103,6 +103,20 @@ get_version() {
 
 PROGRAM_FILE="${0}"
 
+if [ "@AUTOCONF_RUN@" = "Y" ]
+then
+	FIREHOL_CONFIG_DIR="@FIREHOL_CONFIG_DIR@"
+else
+	FIREHOL_CONFIG_DIR="/etc/firehol"
+fi
+
+marksreset() { :; }
+markdef() { :; }
+if [ -r "${FIREHOL_CONFIG_DIR}/firehol-defaults.conf" ]
+then
+	source "${FIREHOL_CONFIG_DIR}/firehol-defaults.conf" || exit 1
+fi
+
 PATH="${PATH}:/sbin:/usr/sbin"
 
 LC_ALL=C
@@ -3559,7 +3573,7 @@ geolite2_country() {
 		$GIT_CMD -C "${BASE_DIR}" checkout ${ipset}/README-EDIT.md >/dev/null 2>&1
 		if [ ! -f ${ipset}/README-EDIT.md ]
 			then
-			touch ${ipset}/README-EDIT.md
+			$TOUCH_CMD ${ipset}/README-EDIT.md
 			git_add_if_not_already_added ${ipset}/README-EDIT.md
 		fi
 	fi
@@ -3713,7 +3727,7 @@ ipdeny_country() {
 		$GIT_CMD -C "${BASE_DIR}" checkout ${ipset}/README-EDIT.md >/dev/null 2>&1
 		if [ ! -f ${ipset}/README-EDIT.md ]
 			then
-			touch ${ipset}/README-EDIT.md
+			$TOUCH_CMD ${ipset}/README-EDIT.md
 			git_add_if_not_already_added ${ipset}/README-EDIT.md
 		fi
 	fi
@@ -3840,7 +3854,7 @@ ip2location_country() {
 		$GIT_CMD -C "${BASE_DIR}" checkout ${ipset}/README-EDIT.md >/dev/null 2>&1
 		if [ ! -f ${ipset}/README-EDIT.md ]
 			then
-			touch ${ipset}/README-EDIT.md
+			$TOUCH_CMD ${ipset}/README-EDIT.md
 			git_add_if_not_already_added ${ipset}/README-EDIT.md
 		fi
 	fi

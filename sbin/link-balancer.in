@@ -72,6 +72,13 @@ then
 	exit 1
 fi
 
+if [ "@AUTOCONF_RUN@" = "Y" ]
+then
+	FIREHOL_CONFIG_DIR="@FIREHOL_CONFIG_DIR@"
+else
+	FIREHOL_CONFIG_DIR="/etc/firehol"
+fi
+
 declare -a LB_ORIGINAL_ARGS=("${@}")
 LB_DEFAULT_WORKING_DIRECTORY="${PWD}"
 
@@ -117,7 +124,7 @@ LB_RULE_STEP=100
 declare -A LB_ALTERED=()
 
 # Where is the link-balancer configuration files?
-LB_CONFIG_DIR="/etc/firehol"
+LB_CONFIG_DIR="${FIREHOL_CONFIG_DIR}"
 
 # Link-balancer main configuration file.
 LB_CONFIG="${LB_CONFIG_DIR}/link-balancer.conf"
@@ -127,9 +134,9 @@ LB_DEFAULT_IPV=4
 
 marksreset() { :; }
 markdef() { :; }
-if [ -f "${LB_CONFIG_DIR}/firehol-defaults.conf" ]
+if [ -r "${FIREHOL_CONFIG_DIR}/firehol-defaults.conf" ]
 then
-	source "${LB_CONFIG_DIR}/firehol-defaults.conf" || exit 1
+	source "${FIREHOL_CONFIG_DIR}/firehol-defaults.conf" || exit 1
 fi
 
 # temporary variable (default LB_DEFAULT_IPV=4)

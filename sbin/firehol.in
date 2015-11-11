@@ -807,7 +807,7 @@ MULTICAST_IPV6="FF00::/16"
 # --- END OF FIREHOL DEFAULTS ---
 
 # load the defaults if they exist
-if [ -f "${FIREHOL_CONFIG_DIR}/firehol-defaults.conf" ]
+if [ -r "${FIREHOL_CONFIG_DIR}/firehol-defaults.conf" ]
 then
 	source "${FIREHOL_CONFIG_DIR}/firehol-defaults.conf" || exit 1
 fi
@@ -1624,7 +1624,7 @@ then
 		-e '/^# --- BEGIN OF FIREHOL DEFAULTS ---/,/^# --- END OF FIREHOL DEFAULTS ---/p' \
 		"${PROGRAM_FILE}" > "${FIREHOL_CONFIG_DIR}/firehol-defaults.conf" || exit 1
 	${CHOWN_CMD} root:root "${FIREHOL_CONFIG_DIR}/firehol-defaults.conf"	|| exit 1
-	${CHMOD_CMD} 600 "${FIREHOL_CONFIG_DIR}/firehol-defaults.conf"	|| exit 1
+	${CHMOD_CMD} 644 "${FIREHOL_CONFIG_DIR}/firehol-defaults.conf"	|| exit 1
 fi
 
 load_ips() {
