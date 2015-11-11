@@ -670,7 +670,9 @@ then
       if [ "$ons" != "n/a" ]
       then
         error="adding virtual ethernet to $type namespace"
-        $IP_CMD link add $dev netns $ns type veth peer netns $ons name $odev
+        #$IP_CMD link add $dev netns $ns type veth peer netns $ons name $odev
+        $IP_CMD link add $dev netns $ns type veth peer name $odev
+        $IP_CMD link set $odev netns $ons
       else
         : # gets set up from the other end
       fi
@@ -741,7 +743,10 @@ then
     then
       # We remove the @whatever part of the device names since these
       # appear to be highly unreliable when creating devices in different
-      # namespaces, at least under linux 4.3.
+      # namespaces, at least under linux 4.3. Adding in two steps, like
+      # this did not help:
+      #   $IP_CMD link add $dev netns $ns type veth peer name $odev
+      #   $IP_CMD link set $odev netns $ons
       $IP_CMD netns exec $ns $IP_CMD addr show | $SED_CMD 's/@[^:]*:/:/'
       $IP_CMD netns exec $ns $IP_CMD route show
       $IP_CMD netns exec $ns $BRCTL_CMD show
