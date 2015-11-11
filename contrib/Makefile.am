@@ -2,12 +2,22 @@
 
 contribdir = $(docdir)/contrib
 
+servicefiles =
+
+if ENABLE_FIREHOL
+
 contrib_SCRIPTS = \
 	dnsbl-ipset.sh
 
-contrib_DATA = \
-	firehol.service \
-	fireqos.service
+servicefiles += firehol.service
+
+endif
+
+if ENABLE_FIREQOS
+servicefiles += fireqos.service
+endif
+
+contrib_DATA = README $(servicefiles)
 
 EXTRA_DIST = \
 	$(contrib_SCRIPTS) \

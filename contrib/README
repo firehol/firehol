@@ -4,6 +4,4 @@ Manage IPSETs using iptables logging and DNSBL lookups:
    dnsbl-ipset.sh
 
 Example systemd services (see https://github.com/firehol/firehol/issues/17)
-from Arch linux:
-   firehol.service
-   fireqos.service
+from Arch linux: PROGNAME.service

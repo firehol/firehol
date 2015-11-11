@@ -32,5 +32,18 @@ fi
 
 mkdir $MYTMP/unpack
 tar xfzC "$2" $MYTMP/unpack
-diff -r "$1" $MYTMP/unpack/* | grep "^Only"
-
+diff -r "$1" $MYTMP/unpack/* | grep "^Only" | sed \
+	-e '/: autom4te\.cache$/d' \
+	-e '/: \.deps$/d' \
+	-e '/: \.git$/d' \
+	-e '/: \.gitattributes$/d' \
+	-e '/: \.gitignore$/d' \
+	-e '/: config\.log$/d' \
+	-e '/: config\.status$/d' \
+	-e '/: Makefile$/d' \
+	-e '/: tmp-anchor-links$/d' \
+	-e '/: tmp-manproc$/d' \
+	-e '/: firehol.*\.tar\.\(gz\|bz2\|xz\)$/d' \
+	-e '/: unittest$/d' \
+	-e '/sbin: \(firehol\|fireqos\|link-balancer\)$/d' \
+	-e '/sbin: \(update-ipsets\|vnetbuild\)$/d'

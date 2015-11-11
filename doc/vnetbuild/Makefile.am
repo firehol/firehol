@@ -30,6 +30,8 @@ MANUALMAN_GENERATED_INDIRECT = \
 	man/man5/vnetbuild-route.5 \
 	man/man5/vnetbuild-switch.5
 
+if ENABLE_VNETBUILD
+
 if ENABLE_DOC
 
 dochtml_DATA = \
@@ -45,6 +47,8 @@ if ENABLE_MAN
 man_MANS = \
 	$(MANUALMAN_GENERATED) \
 	$(MANUALMAN_GENERATED_INDIRECT)
+
+endif
 
 endif
 

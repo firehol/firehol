@@ -36,6 +36,36 @@ AC_ARG_ENABLE([iprange],
               [enable_iprange="yes"])
 AM_CONDITIONAL([ENABLE_IPRANGE], [test "${enable_iprange}" = "yes"])
 
+AC_ARG_ENABLE([firehol],
+              [AS_HELP_STRING([--disable-firehol], [disable firehol installation @<:@enabled@:>@])],
+              ,
+              [enable_firehol="yes"])
+AM_CONDITIONAL([ENABLE_FIREHOL], [test "${enable_firehol}" = "yes"])
+
+AC_ARG_ENABLE([fireqos],
+              [AS_HELP_STRING([--disable-fireqos], [disable fireqos installation @<:@enabled@:>@])],
+              ,
+              [enable_fireqos="yes"])
+AM_CONDITIONAL([ENABLE_FIREQOS], [test "${enable_fireqos}" = "yes"])
+
+AC_ARG_ENABLE([link-balancer],
+              [AS_HELP_STRING([--disable-link-balancer], [disable link-balancer installation @<:@enabled@:>@])],
+              ,
+              [enable_link_balancer="yes"])
+AM_CONDITIONAL([ENABLE_LINK_BALANCER], [test "${enable_link_balancer}" = "yes"])
+
+AC_ARG_ENABLE([update-ipsets],
+              [AS_HELP_STRING([--disable-update-ipsets], [disable update-ipsets installation @<:@enabled@:>@])],
+              ,
+              [enable_update_ipsets="yes"])
+AM_CONDITIONAL([ENABLE_UPDATE_IPSETS], [test "${enable_update_ipsets}" = "yes"])
+
+AC_ARG_ENABLE([vnetbuild],
+              [AS_HELP_STRING([--disable-vnetbuild], [disable vnetbuild installation @<:@enabled@:>@])],
+              ,
+              [enable_vnetbuild="yes"])
+AM_CONDITIONAL([ENABLE_VNETBUILD], [test "${enable_vnetbuild}" = "yes"])
+
 if test x"$USE_MAINTAINER_MODE" = xyes; then
 AC_MSG_NOTICE(***************** MAINTAINER MODE *****************)
 PACKAGE_BUILT_DATE=$(date '+%d %b %Y')

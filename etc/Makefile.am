@@ -3,15 +3,24 @@
 fireholconfdir = $(sysconfdir)/firehol
 servicesconfdir = $(sysconfdir)/firehol/services
 
-fireholconf_DATA = \
-	firehol.conf.example \
-	fireqos.conf.example
+conffiles=
+
+if ENABLE_FIREHOL
 
 servicesconf_DATA = \
 	bittorrent.conf.example
 
+conffiles += firehol.conf.example
+
+endif
+
+if ENABLE_FIREQOS
+conffiles += fireqos.conf.example
+endif
+
+fireholconf_DATA = $(conffiles)
+
 EXTRA_DIST = \
 	firehol.conf.example \
 	bittorrent.conf.example \
-	fireqos.conf.example \
-	fireqos-multiple-organizations.conf.example
+	fireqos.conf.example

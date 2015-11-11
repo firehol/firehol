@@ -117,6 +117,8 @@ MANUALMARKDOWN_GENERATED = \
 	contents.md \
 	firehol-services.5.md
 
+if ENABLE_FIREHOL
+
 if ENABLE_DOC
 
 dochtml_DATA = \
@@ -132,6 +134,8 @@ if ENABLE_MAN
 man_MANS = \
 	$(MANUALMAN_GENERATED) \
 	$(MANUALMAN_GENERATED_INDIRECT)
+
+endif
 
 endif
 
