@@ -277,6 +277,8 @@ then
 	FIREHOL_AUTOSAVE="@FIREHOL_AUTOSAVE@"
 	FIREHOL_AUTOSAVE6="@FIREHOL_AUTOSAVE6@"
 	FIREHOL_CONFIG_DIR="@FIREHOL_CONFIG_DIR@"
+	ENABLE_IPV4="@IPV4_ENABLED@"
+	ENABLE_IPV6="@IPV6_ENABLED@"
 else
 	FIREHOL_CONFIG_DIR="/etc/firehol"
 fi
@@ -332,11 +334,11 @@ FIREHOL_RESTORE_INSTEAD_OF_START="0"
 
 # Enable IPv4 firewall
 # Default: 1
-ENABLE_IPV4="1"
+ENABLE_IPV4="${ENABLE_IPV4-1}"
 
 # Enable IPv6 firewall
 # Default: 1
-ENABLE_IPV6="1"
+ENABLE_IPV6="${ENABLE_IPV6-1}"
 
 # Syslog facility to use when logging FireHOL events.
 # This is only used by FireHOL, not the iptables packet

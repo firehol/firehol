@@ -66,6 +66,32 @@ AC_ARG_ENABLE([vnetbuild],
               [enable_vnetbuild="yes"])
 AM_CONDITIONAL([ENABLE_VNETBUILD], [test "${enable_vnetbuild}" = "yes"])
 
+AC_ARG_ENABLE([ipv4],
+              [AS_HELP_STRING([--disable-ipv4], [disable ipv4 @<:@enabled@:>@])],
+              ,
+              [enable_ipv4="yes"])
+AM_CONDITIONAL([ENABLE_IPV4], [test "${enable_ipv4}" = "yes"])
+
+AC_ARG_ENABLE([ipv6],
+              [AS_HELP_STRING([--disable-ipv6], [disable ipv6 @<:@enabled@:>@])],
+              ,
+              [enable_ipv6="yes"])
+AM_CONDITIONAL([ENABLE_IPV6], [test "${enable_ipv6}" = "yes"])
+
+if test x"$enable_ipv4" = xyes; then
+IPV4_ENABLED=1
+else
+IPV4_ENABLED=0
+fi
+AC_SUBST(IPV4_ENABLED)
+
+if test x"$enable_ipv6" = xyes; then
+IPV6_ENABLED=1
+else
+IPV6_ENABLED=0
+fi
+AC_SUBST(IPV6_ENABLED)
+
 if test x"$USE_MAINTAINER_MODE" = xyes; then
 AC_MSG_NOTICE(***************** MAINTAINER MODE *****************)
 PACKAGE_BUILT_DATE=$(date '+%d %b %Y')
