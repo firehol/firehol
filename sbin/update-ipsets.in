@@ -2578,45 +2578,23 @@ finalize() {
 		info="${category}"
 	fi
 
-	# make sure the new file is optimized
-	# FIXME - avoid this
-	if [ "${hash}" == "ip" ]
+	if [ -f "${dst}" -a ${REPROCESS_ALL} -eq 0 ]
 		then
-		${IPRANGE_CMD} -1 "${tmp}" >"${tmp}.final"
-	else
-		${IPRANGE_CMD} "${tmp}" >"${tmp}.final"
-	fi
-	$MV_CMD "${tmp}.final" "${tmp}"
+		${IPRANGE_CMD} "${dst}" --diff "${tmp}" --quiet
+		if [ $? -eq 0 ]
+		then
+			# they are the same
+			$RM_CMD "${tmp}"
+			ipset_same "${ipset}" "processed set is the same with the previous one."
 
-	# make sure the old file is optimized
-	if [ -f "${dst}" ]
-		then
-		if [ "${hash}" == "ip" ]
-			then
-			${IPRANGE_CMD} -1 "${dst}" >"${tmp}.old"
-		else
-			${IPRANGE_CMD} "${dst}" >"${tmp}.old"
+			# keep the old set, but make it think it was from this source
+			ipset_verbose "${ipset}" "touching ${dst} from ${src}."
+			$TOUCH_CMD -r "${BASE_DIR}/${src}" "${BASE_DIR}/${dst}"
+
+			check_file_too_old "${ipset}" "${BASE_DIR}/${dst}"
+			return 0
 		fi
-	else
-		echo "# EMPTY SET" >"${tmp}.old"
 	fi
-
-	# compare the new and the old
-	$DIFF_CMD -q "${tmp}.old" "${tmp}" >/dev/null 2>&1
-	if [ $? -eq 0 -a ${REPROCESS_ALL} -eq 0 ]
-	then
-		# they are the same
-		$RM_CMD "${tmp}" "${tmp}.old"
-		ipset_same "${ipset}" "processed set is the same with the previous one."
-
-		# keep the old set, but make it think it was from this source
-		ipset_verbose "${ipset}" "touching ${dst} from ${src}."
-		$TOUCH_CMD -r "${BASE_DIR}/${src}" "${BASE_DIR}/${dst}"
-
-		check_file_too_old "${ipset}" "${BASE_DIR}/${dst}"
-		return 0
-	fi
-	$RM_CMD "${tmp}.old"
 
 	# calculate how many entries/IPs are in it
 	local ipset_opts=
