@@ -65,6 +65,10 @@
  *   - added DNS resolution of hostnames
  * 2015-11-05 Costa Tsaousis (costa@tsaousis.gr)
  *   - added threaded DNS resolution of hostnames
+ * 2015-11-11 Costa Tsaousis (costa@tsaousis.gr)
+ *   - added --diff to find the differences between ipsets
+ * 2015-11-12 Costa Tsaousis (costa@tsaousis.gr)
+ *   - added logic to retry temporary DNS failures
  *   
  */
 
@@ -1280,8 +1284,9 @@ void ipset_save_binary_v10(ipset *ips) {
  */
 
 typedef struct dnsreq {
-	char *hostname;
 	struct dnsreq *next;
+	char tries;
+	char hostname[];
 } DNSREQ;
 
 typedef struct dnsrep {
@@ -1298,6 +1303,7 @@ int dns_progress = 0;
 unsigned long dns_requests_pending = 0;
 unsigned long dns_requests_made = 0;
 unsigned long dns_requests_finished = 0;
+unsigned long dns_requests_retries = 0;
 unsigned long dns_replies_found = 0;
 unsigned long dns_replies_failed = 0;
 
@@ -1313,22 +1319,32 @@ void dns_unlock_replies(void)  { pthread_rwlock_unlock(&dns_replies_rwlock); }
 
 void *dns_thread_resolve(void *ptr);
 
-// to be called by the main thread
-// to add a new DNS resolution request
+
+/* ----------------------------------------------------------------------------
+ * dns_request_add()
+ *
+ * add a new DNS resolution request to the queue
+ *
+ */
+
 void dns_request_add(DNSREQ *d)
 {
+	unsigned long pending;
+
 	dns_lock_requests();
 	d->next = dns_requests;
 	dns_requests = d;
 	dns_requests_pending++;
 	dns_requests_made++;
+
+	pending = dns_requests_pending;
 	dns_unlock_requests();
 
-	if(dns_requests && (dns_requests->next || dns_threads == 0) && dns_threads < dns_threads_max) {
-		//if(unlikely(debug))
-		//	fprintf(stderr, "%s: Creating new DNS thread\n", PROG);
+	// do we have start a new thread?
+	if(pending > (unsigned long)dns_threads && dns_threads < dns_threads_max) {
+		if(unlikely(debug))
+			fprintf(stderr, "%s: Creating new DNS thread\n", PROG);
 
-		// start a new thread
 		pthread_t thread;
 		
 		if(pthread_create(&thread, NULL, dns_thread_resolve, NULL)) {
@@ -1343,13 +1359,21 @@ void dns_request_add(DNSREQ *d)
 		dns_threads++;
 	}
 
+	// signal the childs we have a new request for them
 	pthread_mutex_lock(&dns_mut);
 	pthread_cond_signal(&dns_cond);
 	pthread_mutex_unlock(&dns_mut);
 }
 
-// to be called by a worker thread
-// to let the main thread it has completed a DNS resolution
+
+/* ----------------------------------------------------------------------------
+ * dns_request_done()
+ *
+ * to be called by a worker thread
+ * let the main thread know a DNS resolution has been completed
+ *
+ */
+
 void dns_request_done(DNSREQ *d, int added)
 {
 	dns_lock_requests();
@@ -1361,18 +1385,83 @@ void dns_request_done(DNSREQ *d, int added)
 
 	dns_unlock_requests();
 
-	free(d->hostname);
 	free(d);
 }
 
-// to be called by a worker thread
-// to get a resolution request from the requests queue
+
+/* ----------------------------------------------------------------------------
+ * dns_request_failed()
+ *
+ * to be called by a worker thread
+ * handle a DNS failure (mainly for retries)
+ *
+ */
+
+void dns_request_failed(DNSREQ *d, int added, int gai_error)
+{
+	switch(gai_error) {
+		case EAI_AGAIN: // The name server returned a temporary failure indication.  Try again later.
+			if(d->tries > 0) {
+				if(!dns_silent)
+					fprintf(stderr, "%s: DNS: '%s' will be retried: %s\n", PROG, d->hostname, gai_strerror(gai_error));
+			
+				d->tries--;
+				
+				dns_lock_requests();
+				d->next = dns_requests;
+				dns_requests = d;
+				dns_requests_retries++;
+				dns_replies_found += added;
+				dns_unlock_requests();
+				
+				return;
+			}
+			dns_request_done(d, added);
+			return;
+			break;
+
+		case EAI_SYSTEM:
+			fprintf(stderr, "%s: DNS: '%s' system error: %s\n", PROG, d->hostname, strerror(errno));
+			dns_request_done(d, added);
+			return;
+			break;
+
+		case EAI_SOCKTYPE: // The requested socket type is not supported.
+		case EAI_SERVICE: // The requested service is not available for the requested socket type.
+		case EAI_NONAME: // The node or service is not known
+		case EAI_MEMORY: // Out of memory.
+		case EAI_BADFLAGS: // hints.ai_flags contains invalid flags; or, hints.ai_flags included AI_CANONNAME and name was NULL.
+			fprintf(stderr, "%s: DNS: '%s' error: %s\n", PROG, d->hostname, gai_strerror(gai_error));
+			dns_request_done(d, added);
+			return;
+			break;
+
+		case EAI_FAIL:   // The name server returned a permanent failure indication.
+		case EAI_FAMILY: // The requested address family is not supported.
+		default:
+			if(!dns_silent)
+				fprintf(stderr, "%s: DNS: '%s' failed permanently: %s\n", PROG, d->hostname, gai_strerror(gai_error));
+			dns_request_done(d, added);
+			return;
+			break;
+	}
+}
+
+
+/* ----------------------------------------------------------------------------
+ * dns_request_get()
+ *
+ * to be called by a worker thread
+ * get a request from the requests queue
+ *
+ */
+
 DNSREQ *dns_request_get(void)
 {
 	DNSREQ *ret = NULL;
 
 	//if(unlikely(debug))
-	//	fprintf(stderr, "%s: THREAD waiting for DNS REQUEST\n", PROG);
+	//	fprintf(stderr, "%s: DNS THREAD waiting for DNS REQUEST\n", PROG);
 
 	while(!ret) {
 		if(dns_requests) {
@@ -1395,19 +1484,27 @@ DNSREQ *dns_request_get(void)
 	return ret;
 }
 
+
+/* ----------------------------------------------------------------------------
+ * dns_thread_resolve()
+ *
+ * a pthread worker to get requests and generate replies
+ *
+ */
+
 void *dns_thread_resolve(void *ptr)
 {
 	if(ptr) { ; }
 
 	//if(unlikely(debug))
-	//	fprintf(stderr, "%s: THREAD created\n", PROG);
+	//	fprintf(stderr, "%s: DNS THREAD created\n", PROG);
 
 	DNSREQ *d;
 	while((d = dns_request_get())) {
 		int added = 0;
 
 		//if(unlikely(debug))
-		//	fprintf(stderr, "%s: THREAD resolving DNS REQUEST for '%s'\n", PROG, d->hostname);
+		//	fprintf(stderr, "%s: DNS THREAD resolving DNS REQUEST for '%s'\n", PROG, d->hostname);
 
 		int r;
 		struct addrinfo *result, *rp, hints;
@@ -1419,9 +1516,7 @@ void *dns_thread_resolve(void *ptr)
 
 		r = getaddrinfo(d->hostname, "80", &hints, &result);
 		if(r != 0) {
-			if(!dns_silent)
-				fprintf(stderr, "%s: DNS: '%s' failed: %s\n", PROG, d->hostname, gai_strerror(r));
-			dns_request_done(d, added);
+			dns_request_failed(d, 0, r);
 			continue;
 		}
 
@@ -1429,8 +1524,7 @@ void *dns_thread_resolve(void *ptr)
 			char host[MAX_INPUT_ELEMENT + 1] = "";
 			r = getnameinfo(rp->ai_addr, rp->ai_addrlen, host, sizeof(host), NULL, 0, NI_NUMERICHOST);
 			if (r != 0) {
-				if(!dns_silent)
-					fprintf(stderr, "%s: DNS: '%s' failed: %s\n", PROG, d->hostname, gai_strerror(r));
+				fprintf(stderr, "%s: DNS: '%s' failed to get IP string: %s\n", PROG, d->hostname, gai_strerror(r));
 				continue;
 			}
 
@@ -1465,6 +1559,13 @@ void *dns_thread_resolve(void *ptr)
 	return NULL;
 }
 
+/* ----------------------------------------------------------------------------
+ * dns_process_replies()
+ *
+ * dequeue the resolved hostnames by adding them to the ipset
+ *
+ */
+
 void dns_process_replies(ipset *ips)
 {
 	if(!dns_replies) return;
@@ -1483,27 +1584,45 @@ void dns_process_replies(ipset *ips)
 	dns_unlock_replies();
 }
 
+
+/* ----------------------------------------------------------------------------
+ * dns_request()
+ *
+ * attempt to resolv a hostname
+ * the result (one or more) will be appended to the ipset supplied
+ *
+ */
+
 void dns_request(ipset *ips, char *hostname)
 {
+	// dequeue if possible
 	dns_process_replies(ips);
 
 	//if(unlikely(debug))
 	//	fprintf(stderr, "%s: Adding DNS REQUEST for '%s'\n", PROG, hostname);
 
-	DNSREQ *d = malloc(sizeof(DNSREQ));
+	DNSREQ *d = malloc(sizeof(DNSREQ) + strlen(hostname) + 1);
 	if(!d) goto cleanup;
 
-	d->hostname = strdup(hostname);
-	if(!d->hostname) goto cleanup;
+	strcpy(d->hostname, hostname);
+	d->tries = 20;
 
+	// add the request to the queue
 	dns_request_add(d);
 
 	return;
 
 cleanup:
 	fprintf(stderr, "%s: out of memory, while trying to resolv '%s'\n", PROG, hostname);
-	if(d) free(d);
 }
+
+
+/* ----------------------------------------------------------------------------
+ * dns_done()
+ *
+ * wait for the DNS requests made to finish.
+ *
+ */
 
 void dns_done(ipset *ips)
 {
@@ -1530,7 +1649,7 @@ void dns_done(ipset *ips)
 	}
 
 	if(unlikely(debug))
-		fprintf(stderr, "%s: DNS: made %lu DNS requests, failed %lu, IPs got %lu, threads used %d of %d\n", PROG, dns_requests_made, dns_replies_failed, dns_replies_found, dns_threads, dns_threads_max);
+		fprintf(stderr, "%s: DNS: made %lu DNS requests, failed %lu, retries: %lu, IPs got %lu, threads used %d of %d\n", PROG, dns_requests_made, dns_replies_failed, dns_requests_retries, dns_replies_found, dns_threads, dns_threads_max);
 	else if(dns_progress) {
 		for(; shown <= dots; shown++) {
 			if(!(shown % 10)) fprintf(stderr, "%lu%%", shown * 100 / dots);
