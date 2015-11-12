@@ -2033,6 +2033,8 @@ void usage(const char *me) {
 		"		3. print all differences between A and B, i.e IPs\n"
 		"		   found is either A or B, but not both\n"
 		"		the resulting set is sorted\n"
+		"		when there are differences, iprange exits with 1\n"
+		"		when ipsets A and B are the same, exits with 0"
 		"\n"
 		"	--ipset-reduce PERCENT\n"
 		"	--reduce-factor PERCENT\n"
@@ -2183,6 +2185,10 @@ void usage(const char *me) {
 		"		useful for giving subnets different\n"
 		"		ipset options\n"
 		"\n"
+		"	--quiet\n"
+		"		do not print the actual ipset\n"
+		"		can only be used in DIFF mode\n"
+		"\n"
 		"\n"
 		"	--------------------------------------------------------------\n"
 		"	OPTIONS THAT AFFECT CSV OUTPUT\n"
@@ -2279,7 +2285,7 @@ int main(int argc, char **argv) {
 
 	int ipset_reduce_factor = 120;
 	int ipset_reduce_min_accepted = 16384;
-	int ret = 0;
+	int ret = 0, quiet = 0;
 
 	if ((PROG = strrchr(argv[0], '/')))
 		PROG++;
@@ -2460,6 +2466,9 @@ int main(int argc, char **argv) {
 		else if(!strcmp(argv[i], "--header")) {
 			header = 1;
 		}
+		else if(!strcmp(argv[i], "--quiet")) {
+			quiet = 1;
+		}
 		else if(!strcmp(argv[i], "--dont-fix-network")) {
 			cidr_use_network = 0;
 		}
@@ -2573,7 +2582,7 @@ int main(int argc, char **argv) {
 		ips = ipset_diff(root, second);
 
 		gettimeofday(&print_dt, NULL);
-		ipset_print(ips, print);
+		if(!quiet) ipset_print(ips, print);
 		gettimeofday(&print_dt, NULL);
 
 		if(ips->unique_ips) ret = 1;
