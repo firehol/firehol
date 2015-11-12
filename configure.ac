@@ -148,7 +148,6 @@ fi
 if test x"$enable_ipv6" = xyes; then
 AX_CHECK_PROG([IP6TABLES_SAVE], [ip6tables-save], [])
 fi
-AX_CHECK_PROG([IPRANGE], [iprange], [])
 AX_CHECK_PROG([IPSET], [ipset], [])
 if test x"$enable_ipv4" = xyes; then
 AX_CHECK_PROG([IPTABLES], [iptables], [])
@@ -226,7 +225,6 @@ AX_NEED_PROG([ENV], [env], [])
 AX_NEED_PROG([FLOCK], [flock], [])
 AX_CHECK_PROG([HEAD], [head], [])
 AX_NEED_PROG([IP], [ip], [])
-AX_NEED_PROG([IPRANGE], [iprange], [])
 AX_CHECK_PROG([JQ], [jq], [])
 AX_NEED_PROG([LN], [ln], [])
 AX_NEED_PROG([LOGGER], [logger], [])
@@ -268,7 +266,6 @@ AX_CHECK_PROG([FUNZIP], [funzip], [])
 AX_CHECK_PROG([GAWK], [gawk], [])
 AX_NEED_PROG([GAWK], [awk], [])
 AX_CHECK_PROG([GIT], [git], [])
-AX_NEED_PROG([IPRANGE], [iprange], [])
 AX_NEED_PROG([IPSET], [ipset], [])
 AX_NEED_PROG([LN], [ln], [])
 AX_NEED_PROG([LOGGER], [logger], [])
@@ -331,7 +328,7 @@ AC_CHECK_HEADERS(sys/time.h,,AC_MSG_ERROR(sys/time.h missing))
 AC_CHECK_FUNC(htonl,,AC_MSG_ERROR(htonl() not found))
 else
 dnl Try and detect it on the system anyway
-AX_CHECK_PROG([IPRANGE], [iprange], [])
+AX_NEED_PROG([IPRANGE], [iprange], [])
 
 dnl Horrible but how else to make the compiler completely optional?
 AM_CONDITIONAL([AMDEP], false)

@@ -56,6 +56,7 @@ my %special = (
               SED => "AX_NEED_SED()",
               GREP => "AX_NEED_GREP()",
               EGREP => "AX_NEED_EGREP()",
+              IPRANGE => "",
               );
 
 my %ipv = (
@@ -71,7 +72,7 @@ my %ipv = (
 
 print "dnl --- OUTPUT OF './packaging/gen-config-detect.pl sbin/*.in' BEGIN   ---\n";
 foreach my $special (sort(values(%special))) {
-  print $special . "\n";
+  print $special . "\n" if ($special);
 }
 
 foreach my $s (sort(keys(%scripts))) {
@@ -89,7 +90,7 @@ foreach my $s (sort(keys(%scripts))) {
     }
 
     if ($required) {
-      if ($special{$c}) {
+      if (defined($special{$c})) {
         # Already handled
       } else {
         my $i = 0;
