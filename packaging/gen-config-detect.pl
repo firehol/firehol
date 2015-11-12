@@ -1,0 +1,152 @@
+#!/usr/bin/perl -w
+
+use strict;
+use Data::Dumper;
+use File::Basename;
+
+if (@ARGV == 0) {
+  print "Usage: ./packaging/gen-config-detect.pl sbin/file.in ...\n";
+  print "\n";
+  print "Generates the configure.ac content for detecting commands\n";
+  exit 0;
+}
+
+my %options_for_command;
+my %scripts_for_command;
+my %scripts = ();
+
+while (<>) {
+  next unless $ARGV =~ /\.in$/;
+  next if $ARGV eq "Makefile.in";
+
+  my $required;
+  my $conf_cmd;
+  my $options;
+  if (/^([YN])[|][^|]+[|]@([^|]+)@[|](.*)/) {
+    $required = $1;
+    $conf_cmd = $2;
+    $options = $3;
+  } else {
+    next;
+  }
+
+  my $script = $ARGV;
+  $script =~ s/\.in$//;
+  $script =~ s/-/_/g;
+  $script =~ s/.*\///g;
+  $scripts{$script} = 1;
+
+# print STDERR "$conf_cmd-$options\n";
+
+
+  if ($options_for_command{$conf_cmd}
+      and $options_for_command{$conf_cmd} ne $options) {
+    die "$ARGV: $conf_cmd defined differently to " .
+          join("/", sort(keys(%{$scripts_for_command{$conf_cmd}}))) . "\n";
+  }
+
+  $options_for_command{$conf_cmd} = $options;
+  if ($scripts_for_command{$conf_cmd}{$script}) {
+    die "$ARGV: duplicate definition of $conf_cmd\n";
+  }
+  $scripts_for_command{$conf_cmd}{$script} = $required;
+}
+
+my %special = (
+              SED => "AX_NEED_SED()",
+              GREP => "AX_NEED_GREP()",
+              EGREP => "AX_NEED_EGREP()",
+              IPRANGE => "",
+              );
+
+my %ipv = (
+           IPTABLES => 4,
+           IPTABLES_RESTORE => 4,
+           IPTABLES_SAVE => 4,
+           PING => 4,
+           IP6TABLES => 6,
+           IP6TABLES_RESTORE => 6,
+           IP6TABLES_SAVE => 6,
+           PING6 => 6,
+          );
+
+print "dnl --- OUTPUT OF './packaging/gen-config-detect.pl sbin/*.in' BEGIN   ---\n";
+foreach my $special (sort(values(%special))) {
+  print $special . "\n" if ($special);
+}
+
+foreach my $s (sort(keys(%scripts))) {
+  print "if test x\"\$enable_$s\" = xyes; then\n";
+  my $n = $s; $n =~ s/_/-/g;
+  print "AC_MSG_NOTICE([Detecting commands for $n])\n";
+
+
+  foreach my $c (sort(keys(%options_for_command))) {
+    my @options = split_options($options_for_command{$c});
+    my $required = $scripts_for_command{$c}{$s};
+    if ($required and $options[$#options] eq ":") {
+      $required = "M";
+      pop @options;
+    }
+
+    if ($required) {
+      if (defined($special{$c})) {
+        # Already handled
+      } else {
+        my $i = 0;
+        #print "-- $options_for_command{$c} " . join('/', @options) . "\n";
+        if ($ipv{$c}) {
+          print "if test x\"\$enable_ipv$ipv{$c}\" = xyes; then\n";
+        }
+        while ($i < @options) {
+          if ($required eq "Y" and $i == $#options) {
+            print "AX_NEED_PROG";
+          } else {
+            print "AX_CHECK_PROG";
+          }
+          my ($cmd, $args) = split / /, $options[$i];
+          $args = "" unless defined($args);
+          print "([$c], [$cmd], [$args])\n";
+          $i++;
+        }
+        if ($ipv{$c}) {
+          print "fi\n";
+        }
+      }
+    } else {
+      # Command not used by this script
+    }
+  }
+
+  print "fi\n";
+}
+print "dnl --- OUTPUT OF './packaging/gen-config-detect.pl sbin/*.in' END   ---\n";
+
+sub split_options {
+  my $line = shift;
+
+  my @fields = split / /, $line;
+
+  my @output = ();
+
+  while (@fields) {
+    my $f = shift @fields;
+    if ($f =~ /^'/) {
+      while ($f !~ /'$/ and @fields) {
+        $f .= " ";
+        $f .= shift @fields;
+      }
+      $f =~ s/^'//;
+      $f =~ s/'$//;
+    } elsif ($f =~ /^"/) {
+      while ($f !~ /"$/ and @fields) {
+        $f .= " ";
+        $f .= shift @fields;
+      }
+      $f =~ s/^"//;
+      $f =~ s/"$//;
+    }
+    push @output, $f;
+  }
+  return @output;
+}

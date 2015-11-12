@@ -999,7 +999,7 @@ Y|CAT_CMD|@CAT@|cat
 Y|CUT_CMD|@CUT@|cut
 Y|CHOWN_CMD|@CHOWN@|chown
 Y|CHMOD_CMD|@CHMOD@|chmod
-Y|EGREP_CMD|@EGREP@|egrep
+Y|EGREP_CMD|@EGREP@|egrep 'grep -E'
 Y|EXPR_CMD|@EXPR@|expr
 Y|FIND_CMD|@FIND@|find
 Y|FOLD_CMD|@FOLD@|fold
