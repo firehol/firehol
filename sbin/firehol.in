@@ -6817,6 +6817,52 @@ close_all_groups() {
 }
 
 
+# ------------------------------------------------------------------------------
+# AUTO ACTIONS
+#
+
+FIREHOL_AUTO_ACTION_COUNTER=0
+FIREHOL_AUTO_ACTION_LAST=
+declare -A FIREHOL_AUTO_ACTIONS=()
+
+create_auto_state_new_action() {
+	local table="${1}" action="${2}" 
+	shift 2
+	local name="${action} ${*}" chain
+
+	# if it already exists, return
+	if [ ! -z "${FIREHOL_AUTO_ACTIONS[${name}]}" ]
+		then
+		FIREHOL_AUTO_ACTION_LAST="${FIREHOL_AUTO_ACTIONS[${name}]}"
+		return 0
+	fi
+
+	FIREHOL_AUTO_ACTION_COUNTER=$[FIREHOL_AUTO_ACTION_COUNTER + 1]
+
+	if [ ${#name} -gt 28 ]
+		then
+		chain="$(echo "${name:0:24}_ID${FIREHOL_AUTO_ACTION_COUNTER}" | $TR_CMD " /\-.[a-z]" "____[A-Z]")"
+	else
+		chain="$(echo "${name}" | $TR_CMD " /\-.[a-z]" "____[A-Z]")"
+	fi
+
+
+	# register it, to avoid creating it again
+	# echo >&2 "NEW AUTO ACTION: ${chain}"
+	FIREHOL_AUTO_ACTIONS[${name}]="${chain}"
+	FIREHOL_AUTO_ACTION_LAST="${chain}"
+
+	# the chain does not exist. create it.
+	# echo >&2 "CREATING CHAIN: ${chain}"
+	create_chain ${table} "${FIREHOL_AUTO_ACTION_LAST}" || return 1
+	
+	# echo >&2 "ADDING NOT-NEW MATCH: ${chain}"
+	rule table ${table} chain "${FIREHOL_AUTO_ACTION_LAST}" state not NEW action "${action}"
+	# echo >&2 "ADDING NEW MATCH: ${chain}"
+	rule table ${table} chain "${FIREHOL_AUTO_ACTION_LAST}" "${@}" action "${action}"
+
+	return 0
+}
 
 # ------------------------------------------------------------------------------
 # rule - the heart of FireHOL - iptables commands generation
@@ -6831,6 +6877,9 @@ close_all_groups() {
 
 # rule_action_param() should only be used within rule() - no other place
 
+FIREHOL_CONNLOG_CHAIN_COUNT=0
+declare -A FIREHOL_CONNLOG_TARGETS=()
+
 declare -A SMART_REJECT_CREATED=()
 FIREHOL_ACCEPT_CHAIN_COUNT=0
 rule_action_param() {
@@ -6841,8 +6890,9 @@ rule_action_param() {
 		statenot="${3}" \
 		state="${4}" \
 		table="${5}" \
+		connlog="${6}" \
 		count=0 val=
-	shift 5
+	shift 6
 	local -a action_param=()
 	
 	# All arguments until the separator are the parameters of the action
@@ -6862,174 +6912,10 @@ rule_action_param() {
 		return 1
 	fi
 	
-	# Do the rule
+	# prepare the actions
 	case "${action}" in
 		NONE)
 			return 0
-			;;
-			
-		ACCEPT)
-			# do we have any options for this accept?
-			if [ ! -z "${action_param[0]}" ]
-			then
-				# find the options we have
-				case "${action_param[0]}" in
-					"limit")
-						# limit NEW connections to the specified rate
-						local 	freq="${action_param[1]}" \
-							burst="${action_param[2]}" \
-							overflow="REJECT"
-						
-						# if we have a custom overflow action, parse it.
-						test "${action_param[3]}" = "overflow" && overflow="`echo "${action_param[4]}" | $TR_CMD "a-z" "A-Z"`"
-						
-						# unset the action_param, so that if this rule does not include NEW connections,
-						# we will not append anything to the generated iptables statements.
-						action_param=()
-						
-						# find is this rule matches NEW connections
-						local has_new=`echo "${state}" | $GREP_CMD -i NEW`
-						local do_accept_limit=0
-						if [ -z "${statenot}" ]
-						then
-							test ! -z "${has_new}" && do_accept_limit=1
-						else
-							test -z "${has_new}" && do_accept_limit=1
-						fi
-						
-						# we have a match for NEW connections.
-						# redirect the traffic to a new chain, which will control
-						# the NEW connections while allowing all the other traffic
-						# to pass.
-						if [ "${do_accept_limit}" = "1" ]
-						then
-							local accept_limit_chain="`echo "ACC LIM ${freq} ${burst} ${overflow}" | $TR_CMD " /." "___"`"
-							
-							# does the chain we need already exist?
-							#if [ ! -f "${FIREHOL_CHAINS_DIR}/${accept_limit_chain}.${iptables_cmd}" ]
-							if [ -z "${FIREHOL_CHAINS[${accept_limit_chain}.${iptables_cmd}]}" ]
-							then
-								# the chain does not exist. create it.
-								$iptables_cmd -t ${table} -N "${accept_limit_chain}"
-								FIREHOL_CHAINS[${accept_limit_chain}.${iptables_cmd}]="1"
-								#$TOUCH_CMD "${FIREHOL_CHAINS_DIR}/${accept_limit_chain}.${iptables_cmd}"
-								
-								# first, if the traffic is not a NEW connection, allow it.
-								# doing this first will speed up normal traffic.
-								$iptables_cmd -t ${table} -A "${accept_limit_chain}" -m conntrack ! --ctstate NEW -j ACCEPT
-								
-								# accept NEW connections within the given limits.
-								$iptables_cmd -t ${table} -A "${accept_limit_chain}" -m limit --limit "${freq}" --limit-burst "${burst}" -j ACCEPT
-								
-								# log the overflow NEW connections reaching this step within the new chain
-								prepare_iptables_log_arg "LIMIT OVERFLOW" || return 1
-								$iptables_cmd -t ${table} -A "${accept_limit_chain}" -m limit --limit "${FIREHOL_LOG_FREQUENCY}" --limit-burst "${FIREHOL_LOG_BURST}" -j ${FIREHOL_LOG_MODE} ${FIREHOL_LOG_OPTIONS} "${FIREHOL_LOG_IPTABLES_ARG[@]}"
-								
-								# if the overflow is to be rejected is tcp, reject it with TCP-RESET
-								if [ "${overflow}" = "REJECT" ]
-								then
-									$iptables_cmd -t ${table} -A "${accept_limit_chain}" -p tcp -j REJECT --reject-with tcp-reset
-								fi
-								
-								# do the specified action on the overflow
-								$iptables_cmd -t ${table} -A "${accept_limit_chain}" -j ${overflow}
-							fi
-							
-							# send the rule to be generated to this chain
-							action=${accept_limit_chain}
-						fi
-						;;
-						
-					"recent")
-						# limit NEW connections to the specified rate
-						local 	name="${action_param[1]}" \
-							seconds="${action_param[2]}" \
-							hits="${action_param[3]}"
-						
-						# unset the action_param, so that if this rule does not include NEW connections,
-						# we will not append anything to the generated iptables statements.
-						action_param=()
-						
-						# find is this rule matches NEW connections
-						local has_new=`echo "${state}" | $GREP_CMD -i NEW`
-						local do_accept_recent=0
-						if [ -z "${statenot}" ]
-						then
-							test ! -z "${has_new}" && do_accept_recent=1
-						else
-							test -z "${has_new}" && do_accept_recent=1
-						fi
-						
-						# we have a match for NEW connections.
-						# redirect the traffic to a new chain, which will control
-						# the NEW connections while allowing all the other traffic
-						# to pass.
-						if [ "${do_accept_recent}" = "1" ]
-						then
-							local accept_recent_chain="`echo "ACC REC $name $seconds $hits" | $TR_CMD " /." "___"`"
-							
-							# does the chain we need already exist?
-							#if [ ! -f "${FIREHOL_CHAINS_DIR}/${accept_recent_chain}.${iptables_cmd}" ]
-							if [ -z "${FIREHOL_CHAINS[${accept_recent_chain}.${iptables_cmd}]}" ]
-							then
-								# the chain does not exist. create it.
-								$iptables_cmd -t ${table} -N "${accept_recent_chain}"
-								FIREHOL_CHAINS[${accept_recent_chain}.${iptables_cmd}]="1"
-								#$TOUCH_CMD "${FIREHOL_CHAINS_DIR}/${accept_recent_chain}.${iptables_cmd}"
-								
-								# first, if the traffic is not a NEW connection, allow it.
-								# doing this first will speed up normal traffic.
-								$iptables_cmd -t ${table} -A "${accept_recent_chain}" -m conntrack ! --ctstate NEW -j ACCEPT
-								
-								# accept NEW connections within the given limits.
-								$iptables_cmd -t ${table} -A "${accept_recent_chain}" -m recent --set --name "${name}"
-								
-								local t1= t2=
-								test ! -z $seconds && t1="--seconds ${seconds}"
-								test ! -z $hits && t2="--hitcount ${hits}"
-								
-								$iptables_cmd -t ${table} -A "${accept_recent_chain}" -m recent --update ${t1} ${t2} --name "${name}" -j RETURN
-								$iptables_cmd -t ${table} -A "${accept_recent_chain}" -j ACCEPT
-							fi
-							
-							# send the rule to be generated to this chain
-							action=${accept_recent_chain}
-						fi
-						;;
-						
-					'knock')
-						# the name of the knock
-						local name="knock_${action_param[1]}"
-						
-						# unset the action_param, so that if this rule does not include NEW connections,
-						# we will not append anything to the generated iptables statements.
-						action_param=()
-						
-						# does the knock chain exists?
-						#if [ ! -f "${FIREHOL_CHAINS_DIR}/${name}.${iptables_cmd}" ]
-						if [ -z "${FIREHOL_CHAINS[${name}.${iptables_cmd}]}" ]
-						then
-							# the chain does not exist. create it.
-							$iptables_cmd -t ${table} -N "${name}"
-							FIREHOL_CHAINS[${name}.${iptables_cmd}]="1"
-							#$TOUCH_CMD "${FIREHOL_CHAINS_DIR}/${name}.${iptables_cmd}"
-							
-							$iptables_cmd -A "${name}" -m conntrack --ctstate ESTABLISHED -j ACCEPT
-							
-							# knockd (http://www.zeroflux.org/knock/)
-							# will create more rules inside this chain to match NEW packets.
-						fi
-						
-						# send the rule to be generated to this knock chain
-						action=${name}
-						;;
-						
-					*)
-						error "Internal error. Cannot understand action ${action} with parameter '${action_param[0]}'."
-						return 1
-						;;
-				esac
-			fi
 			;;
 			
 		SMART_REJECT)
@@ -7044,7 +6930,211 @@ rule_action_param() {
 			fi
 			;;
 	esac
+
+	# do we have a connlog?
+	# if yes, create a new chain for the log
+	if [ ! -z "${connlog}" -a ! "${action}" = "RETURN" ]
+		then
+		local connlog_name="${action} ${connlog}" connlog_chain=
+		if [ -z "${FIREHOL_CONNLOG_TARGETS[${connlog_name}]}" ]
+			then
+			FIREHOL_CONNLOG_CHAIN_COUNT=$[FIREHOL_CONNLOG_CHAIN_COUNT + 1]
+			connlog_chain="${action:0:23}_CL${FIREHOL_CONNLOG_CHAIN_COUNT}"
+			FIREHOL_CONNLOG_TARGETS[${connlog_name}]="${connlog_chain}"
+
+			create_chain ${table} ${connlog_chain}
+			rule table ${table} chain ${connlog_chain} state NEW action LOG "${connlog}"
+		else
+			connlog_chain="${FIREHOL_CONNLOG_TARGETS[${connlog_name}]}"
+		fi
+		rule table ${table} chain ${connlog_chain} action ${action}
+		action="${connlog_chain}"
+	fi
 	
+	# do we have any options?
+	if [ ! -z "${action_param[0]}" ]
+	then
+		# find the options we have
+		case "${action_param[0]}" in
+
+			connlimit|hashlimit)
+				# find is this rule matches NEW connections
+				local do_jump=0
+				if [ -z "${state}" ]
+					then
+					do_jump=1
+				else
+					local has_new=$(echo "${state}" | $GREP_CMD -i NEW)
+					if [ -z "${statenot}" ]
+					then
+						test ! -z "${has_new}" && do_jump=1
+					else
+						test -z "${has_new}" && do_jump=1
+					fi
+				fi
+
+				if [ ${do_jump} -eq 1 ]
+					then
+					create_auto_state_new_action ${table} ${action} "${action_param[@]}"
+					action_param=()
+					action="${FIREHOL_AUTO_ACTION_LAST}"
+				else
+					action_param=()
+				fi
+				;;
+
+			"limit")
+				# limit NEW connections to the specified rate
+				local 	freq="${action_param[1]}" \
+					burst="${action_param[2]}" \
+					overflow="REJECT"
+				
+				# if we have a custom overflow action, parse it.
+				test "${action_param[3]}" = "overflow" && overflow="`echo "${action_param[4]}" | $TR_CMD "a-z" "A-Z"`"
+				
+				# unset the action_param, so that if this rule does not include NEW connections,
+				# we will not append anything to the generated iptables statements.
+				action_param=()
+				
+				# find is this rule matches NEW connections
+				local has_new=`echo "${state}" | $GREP_CMD -i NEW`
+				local do_accept_limit=0
+				if [ -z "${statenot}" ]
+				then
+					test ! -z "${has_new}" && do_accept_limit=1
+				else
+					test -z "${has_new}" && do_accept_limit=1
+				fi
+				
+				# we have a match for NEW connections.
+				# redirect the traffic to a new chain, which will control
+				# the NEW connections while allowing all the other traffic
+				# to pass.
+				if [ "${do_accept_limit}" = "1" ]
+				then
+					local accept_limit_chain="`echo "ACC LIM ${freq} ${burst} ${overflow}" | $TR_CMD " /." "___"`"
+					
+					# does the chain we need already exist?
+					#if [ ! -f "${FIREHOL_CHAINS_DIR}/${accept_limit_chain}.${iptables_cmd}" ]
+					if [ -z "${FIREHOL_CHAINS[${accept_limit_chain}.${iptables_cmd}]}" ]
+					then
+						# the chain does not exist. create it.
+						$iptables_cmd -t ${table} -N "${accept_limit_chain}"
+						FIREHOL_CHAINS[${accept_limit_chain}.${iptables_cmd}]="1"
+						#$TOUCH_CMD "${FIREHOL_CHAINS_DIR}/${accept_limit_chain}.${iptables_cmd}"
+						
+						# first, if the traffic is not a NEW connection, allow it.
+						# doing this first will speed up normal traffic.
+						$iptables_cmd -t ${table} -A "${accept_limit_chain}" -m conntrack ! --ctstate NEW -j ${action}
+						
+						# accept NEW connections within the given limits.
+						$iptables_cmd -t ${table} -A "${accept_limit_chain}" -m limit --limit "${freq}" --limit-burst "${burst}" -j ${action}
+						
+						# log the overflow NEW connections reaching this step within the new chain
+						prepare_iptables_log_arg "LIMIT OVERFLOW" || return 1
+						$iptables_cmd -t ${table} -A "${accept_limit_chain}" -m limit --limit "${FIREHOL_LOG_FREQUENCY}" --limit-burst "${FIREHOL_LOG_BURST}" -j ${FIREHOL_LOG_MODE} ${FIREHOL_LOG_OPTIONS} "${FIREHOL_LOG_IPTABLES_ARG[@]}"
+						
+						# if the overflow is to be rejected is tcp, reject it with TCP-RESET
+						if [ "${overflow}" = "REJECT" ]
+						then
+							$iptables_cmd -t ${table} -A "${accept_limit_chain}" -p tcp -j REJECT --reject-with tcp-reset
+						fi
+						
+						# do the specified action on the overflow
+						$iptables_cmd -t ${table} -A "${accept_limit_chain}" -j ${overflow}
+					fi
+					
+					# send the rule to be generated to this chain
+					action=${accept_limit_chain}
+				fi
+				;;
+				
+			"recent")
+				# limit NEW connections to the specified rate
+				local 	name="${action_param[1]}" \
+					seconds="${action_param[2]}" \
+					hits="${action_param[3]}"
+				
+				# unset the action_param, so that if this rule does not include NEW connections,
+				# we will not append anything to the generated iptables statements.
+				action_param=()
+				
+				# find is this rule matches NEW connections
+				local has_new=`echo "${state}" | $GREP_CMD -i NEW`
+				local do_accept_recent=0
+				if [ -z "${statenot}" ]
+				then
+					test ! -z "${has_new}" && do_accept_recent=1
+				else
+					test -z "${has_new}" && do_accept_recent=1
+				fi
+				
+				# we have a match for NEW connections.
+				# redirect the traffic to a new chain, which will control
+				# the NEW connections while allowing all the other traffic
+				# to pass.
+				if [ "${do_accept_recent}" = "1" ]
+				then
+					local accept_recent_chain="`echo "ACC REC $name $seconds $hits" | $TR_CMD " /." "___"`"
+					
+					# does the chain we need already exist?
+					#if [ ! -f "${FIREHOL_CHAINS_DIR}/${accept_recent_chain}.${iptables_cmd}" ]
+					if [ -z "${FIREHOL_CHAINS[${accept_recent_chain}.${iptables_cmd}]}" ]
+					then
+						# the chain does not exist. create it.
+						$iptables_cmd -t ${table} -N "${accept_recent_chain}"
+						FIREHOL_CHAINS[${accept_recent_chain}.${iptables_cmd}]="1"
+						#$TOUCH_CMD "${FIREHOL_CHAINS_DIR}/${accept_recent_chain}.${iptables_cmd}"
+						
+						# first, if the traffic is not a NEW connection, allow it.
+						# doing this first will speed up normal traffic.
+						$iptables_cmd -t ${table} -A "${accept_recent_chain}" -m conntrack ! --ctstate NEW -j ${action}
+						
+						# accept NEW connections within the given limits.
+						$iptables_cmd -t ${table} -A "${accept_recent_chain}" -m recent --set --name "${name}"
+						
+						local t1= t2=
+						test ! -z $seconds && t1="--seconds ${seconds}"
+						test ! -z $hits && t2="--hitcount ${hits}"
+						
+						$iptables_cmd -t ${table} -A "${accept_recent_chain}" -m recent --update ${t1} ${t2} --name "${name}" -j RETURN
+						$iptables_cmd -t ${table} -A "${accept_recent_chain}" -j ${action}
+					fi
+					
+					# send the rule to be generated to this chain
+					action=${accept_recent_chain}
+				fi
+				;;
+				
+			'knock')
+				# the name of the knock
+				local name="knock_${action_param[1]}"
+				
+				# unset the action_param, so that if this rule does not include NEW connections,
+				# we will not append anything to the generated iptables statements.
+				action_param=()
+				
+				# does the knock chain exists?
+				#if [ ! -f "${FIREHOL_CHAINS_DIR}/${name}.${iptables_cmd}" ]
+				if [ -z "${FIREHOL_CHAINS[${name}.${iptables_cmd}]}" ]
+				then
+					# the chain does not exist. create it.
+					$iptables_cmd -t ${table} -N "${name}"
+					FIREHOL_CHAINS[${name}.${iptables_cmd}]="1"
+					#$TOUCH_CMD "${FIREHOL_CHAINS_DIR}/${name}.${iptables_cmd}"
+					
+					$iptables_cmd -A "${name}" -m conntrack --ctstate ESTABLISHED -j ${action}
+					
+					# knockd (http://www.zeroflux.org/knock/)
+					# will create more rules inside this chain to match NEW packets.
+				fi
+				
+				# send the rule to be generated to this knock chain
+				action=${name}
+				;;
+		esac
+	fi
+
 	$iptables_cmd "${@}" -j "${action}" "${action_param[@]}"
 }
 
@@ -7107,11 +7197,16 @@ rule() {
 		tos=(any) tosnot= \
 		log= logtxt= loglevel= \
 		limit= burst= connlimit= connlimit_mask= \
+		hashlimit= \
+		hashlimit_name= hashlimit_type= hashlimit_burst= \
+		hashlimit_mode= hashlimit_srcmask= hashlimit_dstmask= \
+		hashlimit_htable_size= hashlimit_htable_max= \
+		hashlimit_htable_expire= hashlimit_htable_gcinterval= \
 		action= state= statenot= \
 		failed=0 reverse=0 \
 		swi=0 swo=0 \
 		custom= \
-		accounting= \
+		accounting= connlog= \
 		ipsetnot= ipsetname= ipsetflags= ipsetopts= \
 		inout= x= param= not= helper=() helpernot= opt_args=
 	
@@ -7456,6 +7551,12 @@ rule() {
 				shift
 				;;
 				
+			connlog)
+				test ${softwarnings} -eq 1 -a ! -z "${not}" && softwarning "Cannot negate a connlog. 'not' ignored."
+				connlog="${1}"
+				shift
+				;;
+
 			log)
 				test ${softwarnings} -eq 1 -a ! -z "${not}" && softwarning "Cannot negate a log. 'not' ignored."
 				if [ ${nolog} -eq 0 ]
@@ -7503,9 +7604,125 @@ rule() {
 			connlimit|iplimit)
 				test ${softwarnings} -eq 1 -a ! -z "${not}" && softwarning "Cannot negate a connlimit. 'not' ignored."
 				test ${softwarnings} -eq 1 -a ! -z "${connlimit}" && softwarning "Overwriting param: connlimit '${connlimit}' becomes '${1}'"
-				connlimit="${1}"
-				connlimit_mask="${2}"
-				shift 2
+				connlimit_type="upto"
+				connlimit_addr="saddr"
+				connlimit_mask=32
+				while [ ! -z "${1}" ]
+				do
+					if [ "${1}" = "upto" ]
+						then
+						connlimit_type="upto"
+						connlimit="${2}"
+						shift 2
+						continue
+					elif [ "${1}" = "above" ]
+						then
+						connlimit_type="above"
+						connlimit="${2}"
+						shift 2
+						continue
+					elif [ "${1}" = "mask" ]
+						then
+						connlimit_mask="${2}"
+						shift 2
+						continue
+					elif [ "${1}" = "saddr" ]
+						then
+						connlimit_addr="saddr"
+						shift
+						continue
+					elif [ "${1}" = "daddr" ]
+						then
+						connlimit_addr="daddr"
+						shift
+						continue
+					else
+						break
+					fi
+				done
+				if [ -z "${connlimit}" ]
+					then
+					error "connlimit is not set. Use: connlimit upto|above X [mask M] [saddr|daddr]"
+					return 1
+				fi
+				;;
+				
+			hashlimit)
+				test ${softwarnings} -eq 1 -a ! -z "${not}" && softwarning "Cannot negate a hashlimit. 'not' ignored."
+				test ${softwarnings} -eq 1 -a ! -z "${hashlimit}" && softwarning "Overwriting param: hashlimit '${hashlimit}' becomes '${1}'"
+				hashlimit_name="${1}"; shift
+				hashlimit_type="upto"
+				hashlimit_burst=
+				hashlimit_mode="srcip,dstport"
+				hashlimit_srcmask=
+				hashlimit_dstmask=
+				hashlimit_htable_size=
+				hashlimit_htable_max=
+				hashlimit_htable_expire=
+				hashlimit_htable_gcinterval=
+				while [ ! -z "${1}" ]
+				do
+					if [ "${1}" = "upto" ]
+						then
+						hashlimit_type="upto"
+						hashlimit="${2}"
+						shift 2
+						continue
+					elif [ "${1}" = "above" ]
+						then
+						hashlimit_type="above"
+						hashlimit="${2}"
+						shift 2
+						continue
+					elif [ "${1}" = "mode" ]
+						then
+						hashlimit_mode="${2}"
+						shift 2
+						continue
+					elif [ "${1}" = "burst" ]
+						then
+						hashlimit_burst="${2}"
+						shift 2
+						continue
+					elif [ "${1}" = "srcmask" ]
+						then
+						hashlimit_srcmask="${2}"
+						shift 2
+						continue
+					elif [ "${1}" = "dstmask" ]
+						then
+						hashlimit_dstmask="${2}"
+						shift 2
+						continue
+					elif [ "${1}" = "htable_size" -o "${1}" = "htable-size" ]
+						then
+						hashlimit_htable_size="${2}"
+						shift 2
+						continue
+					elif [ "${1}" = "htable_max" -o "${1}" = "htable-max" ]
+						then
+						hashlimit_htable_max="${2}"
+						shift 2
+						continue
+					elif [ "${1}" = "htable_expire" -o "${1}" = "htable-expire" ]
+						then
+						hashlimit_htable_expire="${2}"
+						shift 2
+						continue
+					elif [ "${1}" = "htable_gcinterval" -o "${1}" = "htable-gcinterval" ]
+						then
+						hashlimit_htable_gcinterval="${2}"
+						shift 2
+						continue
+					else
+						break
+					fi
+				done
+				if [ -z "${hashlimit}" ]
+					then
+					error "hashlimit is not set. Use: hashlimit name upto|above amount/unit [burst amount] [mode {srcip|srcport|dstip|dstport},...] [srcmask prefix] [dstmask prefix] [htable-size buckets] [htable-max entries] [htable-expire msec] [htable-gcinterval msec]"
+					return 1
+				fi
 				;;
 				
 			acct|accounting)
@@ -7602,6 +7819,7 @@ rule() {
 					RETURN)	action="RETURN" ;;
 					NONE)	action="NONE" ;;
 					TARPIT)	action="TARPIT" ;;
+					ACCEPT)	action="ACCEPT" ;;
 
 					LOG)
 						action="${FIREHOL_LOG_MODE}"
@@ -7656,42 +7874,6 @@ rule() {
 						fi
 						;;
 
-					ACCEPT)	action="ACCEPT"
-						if [ "${1}" = "with" ]
-						then
-							shift
-							
-							case "${1}" in
-								limit|LIMIT)
-									action_param=("limit" "${2}" "${3}")
-									shift 3
-									
-									if [ "${1}" = "overflow" ]
-									then
-										action_param[3]="overflow"
-										action_param[4]="${2}"
-										shift 2
-									fi
-									;;
-								
-								recent|RECENT)
-									action_param=("recent" "${2}" "${3}" "${4}")
-									shift 4
-									;;
-								
-								knock|KNOCK)
-									action_param=("knock" "${2}")
-									shift 2
-									;;
-								
-								*)
-									error "Cannot understand action's '${action}' directive '${1}'"
-									return 1
-									;;
-							esac
-						fi
-						;;
-						
 					REJECT)	action="REJECT"
 						if [ "${1}" = "with" -o "${1}" = "--reject-with" ]
 						then
@@ -8033,6 +8215,88 @@ rule() {
 						local action_is_chain=$?
 						;;
 				esac
+
+				if [ "${1}" = "with" ]
+				then
+					if [ ${#action_param} -ne 0 ]
+						then
+						error "action ${action} does not accept 'with' parameters."
+						return 1
+					fi
+
+					shift
+					case "${1}" in
+						hashlimit)
+							action_param=("${1}" "${2}")
+							shift 2
+							while [ ! -z "${1}" ]
+							do
+								case "${1}" in
+									upto|above|mode|burst|srcmask|dstmask|htable_size|htable-size|htable_max|htable-max|htable_expire|htable-expire|htable_gcinterval|htable-gcinterval)
+										action_param=("${action_param[@]}" "${1}" "${2}")
+										shift 2
+										continue
+										;;
+									*)
+										break
+										;;
+								esac
+							done
+							;;
+
+						connlimit)
+							action_param=("${1}")
+							shift
+							while [ ! -z "${1}" ]
+							do
+								case "${1}" in
+									upto|above|mask)
+										action_param=("${action_param[@]}" "${1}" "${2}")
+										shift 2
+										continue
+										;;
+
+									saddr|daddr)
+										action_param=("${action_param[@]}" "${1}")
+										shift
+										continue
+										;;
+
+									*)
+										break
+										;;
+								esac
+							done
+							;;
+
+						limit|LIMIT)
+							action_param=("limit" "${2}" "${3}")
+							shift 3
+							
+							if [ "${1}" = "overflow" ]
+							then
+								action_param[3]="overflow"
+								action_param[4]="${2}"
+								shift 2
+							fi
+							;;
+						
+						recent|RECENT)
+							action_param=("recent" "${2}" "${3}" "${4}")
+							shift 4
+							;;
+						
+						knock|KNOCK)
+							action_param=("knock" "${2}")
+							shift 2
+							;;
+						
+						*)
+							error "Cannot understand action's '${action}' directive '${1}'"
+							return 1
+							;;
+					esac
+				fi
 				;;
 			
 			*)
@@ -8277,6 +8541,7 @@ rule() {
 	#
 	#            * limit
 	#            * connlimit
+	#            * hashlimit
 	#            * ipset
 	#            * helpers
 	#            * custom rules
@@ -8305,10 +8570,32 @@ rule() {
 	protected_args=(${custom})
 
 	# limit
-	[ ! -z "${limit}" ] && protected_args=("${protected_args[@]}" "-m" "limit" "--limit" "${limit}" "--limit-burst" "${burst}")
+	[ ! -z "${limit}" ] && protected_args=("${protected_args[@]}" "-m" "limit" \
+		"--limit" "${limit}" \
+		"--limit-burst" "${burst}")
 
 	# connlimit
-	[ ! -z "${connlimit}" ] && protected_args=("${protected_args[@]}" "-m" "connlimit" "--connlimit-above" "${connlimit}" "--connlimit-mask" "${connlimit_mask}")
+	[ ! -z "${connlimit}" ] && protected_args=("${protected_args[@]}" "-m" "connlimit" \
+		"--connlimit-${connlimit_type}" "${connlimit}" \
+		"--connlimit-mask" "${connlimit_mask}" \
+		"--connlimit-${connlimit_addr}")
+
+	# hashlimit
+	if [ ! -z "${hashlimit}" ]
+		then
+		protected_args=("${protected_args[@]}" "-m" "hashlimit" \
+			"--hashlimit-name" "${hashlimit_name}" \
+			"--hashlimit-${hashlimit_type}" "${hashlimit}" \
+			"--hashlimit-mode" "${hashlimit_mode}")
+
+		[ ! -z "${hashlimit_burst}"             ] && protected_args=("${protected_args[@]}" "--hashlimit-burst" "${hashlimit_burst}")
+		[ ! -z "${hashlimit_srcmask}"           ] && protected_args=("${protected_args[@]}" "--hashlimit-srcmask" "${hashlimit_srcmask}")
+		[ ! -z "${hashlimit_dstmask}"           ] && protected_args=("${protected_args[@]}" "--hashlimit-dstmask" "${hashlimit_dstmask}")
+		[ ! -z "${hashlimit_htable_size}"       ] && protected_args=("${protected_args[@]}" "--hashlimit-htable-size" "${hashlimit_htable_size}")
+		[ ! -z "${hashlimit_htable_max}"        ] && protected_args=("${protected_args[@]}" "--hashlimit_htable_max" "${hashlimit_htable_max}")
+		[ ! -z "${hashlimit_htable_expire}"     ] && protected_args=("${protected_args[@]}" "--hashlimit_htable_expire" "${hashlimit_htable_expire}")
+		[ ! -z "${hashlimit_htable_gcinterval}" ] && protected_args=("${protected_args[@]}" "--hashlimit_htable_gcinterval" "${hashlimit_htable_gcinterval}")
+	fi
 
 	# ipset
 	[ ! -z "${ipsetname}" ] && protected_args=("${protected_args[@]}" "-m" "set" ${ipsetnot} "--match-set" "${ipsetname}" "${ipsetflags}" ${ipsetopts})
@@ -8890,7 +9177,7 @@ rule() {
 
 					# the original action of the rule
 					# we cannot add positive_args or protected_args here - if we do, the logging and accounting will be broken
-					rule_action_param ${iptables} "${negative_action}" "" "" "${table}" "${action_param[@]}" -- -t ${table} -A "${negative_chain}" ${pr} "${protected_args[@]}" || failed=$[failed + 1]
+					rule_action_param ${iptables} "${negative_action}" "" "" "${table}" "${connlog}" "${action_param[@]}" -- -t ${table} -A "${negative_chain}" ${pr} "${protected_args[@]}" || failed=$[failed + 1]
 				done
 			done
 
@@ -8961,7 +9248,7 @@ rule() {
 
 				# the original action of the rule
 				# we cannot add positive_args or protected_args here - if we do, the logging and accounting will be broken
-				rule_action_param ${iptables} "${logging_action}" "" "" "${table}" "${action_param[@]}" -- -t ${table} -A "${logging_chain}" ${pr} "${protected_args[@]}" || failed=$[failed + 1]
+				rule_action_param ${iptables} "${logging_action}" "" "" "${table}" "${connlog}" "${action_param[@]}" -- -t ${table} -A "${logging_chain}" ${pr} "${protected_args[@]}" || failed=$[failed + 1]
 			done
 		done
 
@@ -9028,7 +9315,7 @@ rule() {
 					[ ! -z "${pr}"    ] && pr="-p ${pr}"
 
 					# the original action of the rule
-					rule_action_param ${iptables} "${protected_action}" "" "" "${table}" "${action_param[@]}" -- -t ${table} -A "${protected_chain}" ${pr} "${protected_args[@]}" || failed=$[failed + 1]
+					rule_action_param ${iptables} "${protected_action}" "" "" "${table}" "${connlog}" "${action_param[@]}" -- -t ${table} -A "${protected_chain}" ${pr} "${protected_args[@]}" || failed=$[failed + 1]
 				done
 			done
 
@@ -9375,6 +9662,7 @@ rule() {
 		"${addrtype_arg[@]}"    "${stp_arg[@]}"   "${dtp_arg[@]}"     "${state_arg[@]}" "${mark_arg[@]}"  "${dscp_arg[@]}" \
 		"${protected_args[@]}"  "${positive_args[@]}")
 
+	# if we append rules
 	if [ -z "${positive_rule_number}" ]
 	then
 		if [ "$logrule" = "limit"  ]; then ${iptables} -t ${table} ${attachement} "${basecmd[@]}" -m limit --limit "${FIREHOL_LOG_FREQUENCY}" --limit-burst "${FIREHOL_LOG_BURST}" -j ${FIREHOL_LOG_MODE} ${FIREHOL_LOG_OPTIONS} "${logopts_arg[@]}" || failed=$[failed + 1]; fi
@@ -9383,9 +9671,12 @@ rule() {
 	fi
 
 	# do it!
-	rule_action_param ${iptables} "${action}" "${statenot}" "${state}" "${table}" "${action_param[@]}" -- -t ${table} ${attachement} "${basecmd[@]}" || failed=$[failed + 1]
+	rule_action_param ${iptables} "${action}" "${statenot}" "${state}" "${table}" "${connlog}" "${action_param[@]}" -- -t ${table} ${attachement} "${basecmd[@]}" || failed=$[failed + 1]
 	(( FIREHOL_RULE_POSITIVE_STATEMENTS_GENERATED += 1 ))
 
+	# if we insert rules
+	# we insert these at the same position we inserted the actual rule
+	# so it will be inserted before the actual rule
 	if [ ! -z "${positive_rule_number}" ]
 	then
 		if [ "$logrule" = "limit"  ]; then ${iptables} -t ${table} ${attachement} "${basecmd[@]}" -m limit --limit "${FIREHOL_LOG_FREQUENCY}" --limit-burst "${FIREHOL_LOG_BURST}" -j ${FIREHOL_LOG_MODE} ${FIREHOL_LOG_OPTIONS} "${logopts_arg[@]}" || failed=$[failed + 1]; fi

@@ -87,6 +87,8 @@ gid [not] *group*
 
 _Logging_
 
+connlog "log text"
+
 log "log text" [level *loglevel*]
 
 loglimit "log text" [level *loglevel*]
@@ -103,8 +105,9 @@ ipset [not] name flags [no-counters] [bytes-lt|bytes-eq|bytes-gt|bytes-not-eq *n
 
 limit *limit* *burst*
 
-connlimit *limit* *mask*
+connlimit upto|above *limit* [mask *mask*] [saddr|daddr]
 
+hashlimit *name* upto|above *amount/period* [burst *amount*] [mode *{srcip|srcport|dstip|dstport},...*] [srcmask *prefix*] [dstmask *prefix*] [htable-size *buckets*] [htable-max *entries*] [htable-expire *msec*] [htable-gcinterval *msec*]
 
 # DESCRIPTION
 
@@ -350,6 +353,10 @@ Use `gid` to match the operating system group sending the traffic. The
 
 # LOGGING
 
+## connlog
+
+Use `connlog` to log only the first packet of a connection.
+
 ## log, loglimit
 
 Use `log` or `loglimit` to log matching packets to syslog. Unlike
@@ -389,6 +396,114 @@ implicit port.
 
 `limit` requires the arguments *frequency* and *burst* and will limit the
 matching of traffic in both directions.
+
+## connlimit
+
+`connlimit` matches on the number of connections per IP.
+
+*saddr* matches on source IP.
+*daddr* matches on destination IP.
+*mask* groups IPs with the *mask* given
+*upto* matches when the number of connections is up to the given *limit*
+*above* matches when the number of connections above to the given *limit*
+
+The number of connections counted are system wide, not service specific.
+For example for *saddr*, you cannot connlimit 2 connections for SSH and
+4 for SMTP. If you connlimit 2 connections for SSH, then the first 2
+connections of a client can be SSH. If a client has already 2 connections
+to another service, the client will not be able to connect to SSH.
+
+So, `connlimit` can safely be used:
+
+  - with *daddr* to limit the connections a server can accept
+  - with *saddr* to limit the total connections per client to all services.
+
+## hashlimit
+
+`hashlimit` hashlimit uses hash buckets to express a rate limiting match
+(like the limit match) for a group of connections using a single iptables
+rule. Grouping can be done per-hostgroup (source and/or destination address)
+and/or per-port. It gives you the ability to express "N packets per time
+quantum per group" or "N bytes per seconds" (see below for some examples).
+
+A hash limit type (`upto`, `above`) and *name* are required.
+
+*name*
+The name for the /proc/net/ipt_hashlimit/*name* entry.
+
+`upto` *amount[/second|/minute|/hour|/day]*
+Match if the rate is below or equal to amount/quantum. It is specified either
+as a number, with an optional time quantum suffix (the default is 3/hour),
+or as amountb/second (number of bytes per second).
+
+`above` *amount[/second|/minute|/hour|/day]*
+Match if the rate is above amount/quantum.
+
+`burst` *amount*
+Maximum initial number of packets to match: this number gets recharged by one
+every time the limit specified above is not reached, up to this number; the
+default is 5. When byte-based rate matching is requested, this option specifies
+the amount of bytes that can exceed the given rate. This option should be used
+with caution - if the entry expires, the burst value is reset too.
+
+`mode` *{srcip|srcport|dstip|dstport},...*
+A comma-separated list of objects to take into consideration. If no `mode` option
+is given, *srcip,dstport* is assumed.
+
+`srcmask` *prefix*
+When --hashlimit-mode srcip is used, all source addresses encountered will be
+grouped according to the given prefix length and the so-created subnet will be
+subject to hashlimit. prefix must be between (inclusive) 0 and 32.
+Note that `srcmask` *0* is basically doing the same thing as not specifying
+srcip for `mode`, but is technically more expensive.
+
+`dstmask` *prefix*
+Like `srcmask`, but for destination addresses.
+
+`htable-size` *buckets*
+The number of buckets of the hash table
+
+`htable-max` *entries*
+Maximum entries in the hash.
+
+`htable-expire` *msec*
+After how many milliseconds do hash entries expire.
+
+`htable-gcinterval` *msec*
+How many milliseconds between garbage collection intervals.
+
+Examples:
+
+matching on source host: "1000 packets per second for every host in 192.168.0.0/16"
+
+~~~~
+src 192.168.0.0/16 hashlimit mylimit mode srcip upto 1000/sec
+~~~~
+
+matching on source port: "100 packets per second for every service of 192.168.1.1"
+
+~~~~
+src 192.168.1.1 hashlimit mylimit mode srcport upto 100/sec
+~~~~
+
+matching on subnet: "10000 packets per minute for every /28 subnet (groups of 8 addresses) in 10.0.0.0/8"
+
+~~~~
+src 10.0.0.8 hashlimit mylimit mask 28 upto 10000/min
+~~~~
+
+matching bytes per second: "flows exceeding 512kbyte/s"
+
+~~~~
+hashlimit mylimit mode srcip,dstip,srcport,dstport above 512kb/s
+~~~~
+
+matching bytes per second: "hosts that exceed 512kbyte/s, but permit up to 1Megabytes without matching"
+
+~~~~
+hashlimit mylimit mode dstip above 512kb/s burst 1mb
+~~~~
+
 
 # SEE ALSO
 
