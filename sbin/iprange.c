@@ -1428,7 +1428,6 @@ void dns_request_failed(DNSREQ *d, int added, int gai_error)
 
 		case EAI_SOCKTYPE: // The requested socket type is not supported.
 		case EAI_SERVICE: // The requested service is not available for the requested socket type.
-		case EAI_NONAME: // The node or service is not known
 		case EAI_MEMORY: // Out of memory.
 		case EAI_BADFLAGS: // hints.ai_flags contains invalid flags; or, hints.ai_flags included AI_CANONNAME and name was NULL.
 			fprintf(stderr, "%s: DNS: '%s' error: %s\n", PROG, d->hostname, gai_strerror(gai_error));
@@ -1436,6 +1435,7 @@ void dns_request_failed(DNSREQ *d, int added, int gai_error)
 			return;
 			break;
 
+		case EAI_NONAME: // The node or service is not known
 		case EAI_FAIL:   // The name server returned a permanent failure indication.
 		case EAI_FAMILY: // The requested address family is not supported.
 		default:
@@ -1784,8 +1784,6 @@ ipset *ipset_load(const char *filename) {
  *
  * prefix_enable[] is not reset before use, so that it can be initialized with
  * some of the prefixes enabled and others disabled already (user driven)
- *
- * the ipset given MUST BE OPTIMIZED for this function to work
  *
  * this function does not alter the given ipset and it does not print it
  */
