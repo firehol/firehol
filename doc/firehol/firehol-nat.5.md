@@ -80,7 +80,7 @@ used are not predictable.
 `persistent` is used when the statement is given alternatives (i.e.
 many destination servers for `dnat`, many source IPs for `snat`, many
 ports for `redirect`). It will attempt to keep each client on the same
-nat map. See below for more information about persistance.
+nat map. See below for more information about persistence.
 
 The `nat` helper takes one of the following sub-commands:
 
@@ -191,32 +191,32 @@ Example:
  dnat4 to "10.0.0.1:70/30 10.0.0.2:80/30 10.0.0.3:90/40" proto tcp dst 1.1.1.1 port 80
 ~~~
 
-## PERSISTANCE
+## PERSISTENCE
 
-The kernel supports persistance only if the NAT alternatives are
+The kernel supports persistence only if the NAT alternatives are
 contiguous (i.e. dnat to A-B, snat to A-B, redirect to 1000:1010, etc).
-If they are contiguous, persistance is left at the kernel. FireHOL does
+If they are contiguous, persistence is left at the kernel. FireHOL does
 nothing.
 
 If the alternatives are not contiguous, FireHOL will use the *recent*
-iptables module to apply persistance itself.
+iptables module to apply persistence itself.
 
-FireHOL supports mixed mode persistance. For example, you can have
+FireHOL supports mixed mode persistence. For example, you can have
 something like this:
 
 ~~~~~
-dnat to A-B/70,C-D/20,F/10 persistance id mybalancer
+dnat to A-B/70,C-D/20,F/10 persistence id mybalancer
 ~~~~~
 
-The above is a weighted distribution of persistance. Group A-B will get
+The above is a weighted distribution of persistence. Group A-B will get
 70%, C-D 20% and server F 10%.
 
-Using the above, FireHOL will apply its persistance to pick one of
+Using the above, FireHOL will apply its persistence to pick one of
 the groups A-B, or C-D, or F. Once the group has been picked by
-FireHOL, the kernel will apply persistance within the group, to pick
+FireHOL, the kernel will apply persistence within the group, to pick
 the server that will handle the request.
 
-The FireHOL persistance works like this:
+The FireHOL persistence works like this:
 
 1. A packet is received that should be NATed
 2. A lookup is made using the *recent* module to find if it has been seen
@@ -237,7 +237,7 @@ The *recent* module has a few limitations:
 
 2. It can keep entries in its lookup tables for a given time.
    FireHOL sets this to 3600 seconds.
-   You can control it by setting `FIREHOL_NAT_PERSISTANCE_SECONDS`.
+   You can control it by setting `FIREHOL_NAT_PERSISTENCE_SECONDS`.
 
 3. It has a limit on the number of entries in the lookup tables.
    FireHOL cannot set this. This is kernel module option.
@@ -281,7 +281,7 @@ The *recent* module has a few limitations:
     ~~~~
 
     The number 16384 I used is the max number of unique client IPs
-    I expect to have per hour (`FIREHOL_NAT_PERSISTANCE_SECONDS`)
+    I expect to have per hour (`FIREHOL_NAT_PERSISTENCE_SECONDS`)
     for this service.
 
     `ip_list_hash_size` is calculated by kernel when the module

@@ -572,8 +572,8 @@ UNMATCHED_ROUTER_POLICY="DROP"
 # Default: 1024:65535
 DEFAULT_CLIENT_PORTS="1024:65535"
 
-# The time to track persistance manually, when the kernel cannot do it.
-FIREHOL_NAT_PERSISTANCE_SECONDS="3600"
+# The time to track persistence manually, when the kernel cannot do it.
+FIREHOL_NAT_PERSISTENCE_SECONDS="3600"
 
 # ----------------------------------------------------------------------
 # SYSTEM CONFIGURATION
@@ -4729,12 +4729,12 @@ nat_helper() {
 	fi
 
 	# check if we have to enable the use of the recent module
-	# to track persistance, ourselves
+	# to track persistence, ourselves
 	if [ ${total} -gt 1 -a ${persistent} -eq 1 ]
 	then
 		if [ -z "${id}" ]
 			then
-			warning "You have not specified an ID for ${action} with multiple servers and persistance. Using 'id ${id}', but you should give one yourself to allow persistance to work properly between firewall restarts."
+			warning "You have not specified an ID for ${action} with multiple servers and persistence. Using 'id ${id}', but you should give one yourself to allow persistence to work properly between firewall restarts."
 		fi
 		do_recent=1
 	fi
@@ -4742,22 +4742,22 @@ nat_helper() {
 	# make sure there is an id always
 	[ -z "${id}" ] && id="${name-BALANCER.${nat_count}}"
 
-	# if our persistance is enabled, make a chain for updating it
+	# if our persistence is enabled, make a chain for updating it
 	# to take the final action
 	if [ ${do_recent} -eq 1 ]
 		then
-		set_work_function "Matching connections for persistance..."
+		set_work_function "Matching connections for persistence..."
 
 		for to in ${tos[@]}
 		do
 			local rname="$( echo "${id}.${to/\/*}" | $TR_CMD ".\-: " "____" )"
-			[ ${FIREHOL_NAT_HELPER_LOG} -eq 1 ] && nat_log=(log "NAT_HELPER ${id}: UPDATED PERSISTANCE FOR ${to/\/*}")
+			[ ${FIREHOL_NAT_HELPER_LOG} -eq 1 ] && nat_log=(log "NAT_HELPER ${id}: UPDATED PERSISTENCE FOR ${to/\/*}")
 
-			set_work_function "Creating chain '${rname}' to update persistance for '${to/\/*}'..."
+			set_work_function "Creating chain '${rname}' to update persistence for '${to/\/*}'..."
 			
 			create_chain nat "${rname}"
 			rule table nat chain "${rname}" custom "-m recent --set --name ${rname} --rsource" action NOOP
-			rule table nat chain "${rname}" custom "-m recent --update --name ${rname} --rsource --seconds ${FIREHOL_NAT_PERSISTANCE_SECONDS} --reap" action NOOP
+			rule table nat chain "${rname}" custom "-m recent --update --name ${rname} --rsource --seconds ${FIREHOL_NAT_PERSISTENCE_SECONDS} --reap" action NOOP
 			rule table nat chain "${rname}" proto "${proto[*]}" "${nat_log[@]}" action "${action}" to ${to/\/*} ${options}
 
 			[ ${FIREHOL_NAT_HELPER_LOG} -eq 1 ] && nat_log=(log "NAT_HELPER ${id} PERSISTED PACKET FOR ${to/\/*}")
