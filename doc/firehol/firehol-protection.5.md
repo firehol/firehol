@@ -18,6 +18,11 @@ protection [reverse] *flood-protection-type* [*requests/period* [*burst*]]
 
 protection [reverse] { bad-packets | *packet-protection-type* }
 
+protection [reverse] connlimit *connections* [mask *prefix*]
+
+protection [reverse] connrate *rate* [burst *amount*] [srcmask *prefix*] [htable-size *buckets*] [htable-max *entries*] [htable-expire *msec*] [htable-gcinterval *msec*]
+
+
 # DESCRIPTION
 
 
@@ -50,6 +55,8 @@ commands or by using a single command and enclosing the types in quotes.
 
 # PACKET PROTECTION TYPES
 
+bad-packets:
+:   Drops all the bad packets detected by these rules.
 
 invalid
 :   Drops all incoming invalid packets, as detected INVALID by the
@@ -80,9 +87,14 @@ malformed-bad
 :   Drops all TCP packets that have illegal combinations of TCP flags
     set.
 
+## EXAMPLES
+
+~~~~
+protection bad-packets
+~~~~
+
 
 # FLOOD PROTECTION TYPES
-
 
 icmp-floods [*requests/period* [*burst*]]
 :   Allows only a certain amount of ICMP echo requests.
@@ -101,16 +113,61 @@ all-floods [*requests/period* [*burst*]]
     connections regardless of their final result (rejected, dropped,
     established, etc).
 
-
-# EXAMPLES
+## EXAMPLES
 
 ~~~~
-protection strong
-
-protection "invalid new-tcp-w/o-syn"
-
-protection syn-floods 90/sec 40
+protection all-floods 90/sec 40
 ~~~~
+
+
+# CLIENT LIMITING TYPES
+
+These protections were added in v3.
+
+These protections are used to limit the connections client make, per
+`interface` or `router`.
+
+They support appending `optional rule parameters` to limit their scope
+to certain clients only.
+
+protection [reverse] connlimit *connections* [mask *prefix*]
+:   Allow only a number of connections per client (implemented with `connlimit` with fixed type=*saddr*).
+
+protection [reverse] connrate *rate* [burst *amount*] [srcmask *prefix*] [htable-size *buckets*] [htable-max *entries*] [htable-expire *msec*] [htable-gcinterval *msec*]
+:   Allow up to a rate of new connections per client (implemented with `hashlimit` with fixed type=*upto* and mode=*srcip*).
+
+## EXAMPLES
+
+Limit the number of concurrent connections to 10 per client
+
+~~~~
+protection connlimit 10 mask 32
+~~~~
+
+Limit the number of concurrent connections to 100 per client class-C
+and also limit it to 5 for 1.2.3.4
+
+~~~~
+protection connlimit 100 mask 24
+protection connlimit 5 src 1.2.3.4
+~~~~
+
+In the last example above, if you want to give client 1.2.3.4 more
+connections than all others, you should exclude it from the first
+connlimit statement, like this:
+
+~~~~
+protection connlimit 100 mask 24 src not 1.2.3.4
+protection connlimit 200 src 1.2.3.4
+~~~~
+
+Limit all clients to 10 concurrect connections and 60 connections/minute
+
+~~~~
+protection connlimit 10
+protection connrate 60/minute
+~~~~
+
 
 # KNOWN ISSUES
 

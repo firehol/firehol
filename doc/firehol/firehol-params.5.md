@@ -399,7 +399,8 @@ matching of traffic in both directions.
 
 ## connlimit
 
-`connlimit` matches on the number of connections per IP.
+`connlimit` matches on the number of connections per IP. It has been added
+to FireHOL since v3.
 
 *saddr* matches on source IP.
 *daddr* matches on destination IP.
@@ -419,6 +420,8 @@ So, `connlimit` can safely be used:
   - with *saddr* to limit the total connections per client to all services.
 
 ## hashlimit
+
+`hashlimit` has been added to FireHOL since v3.
 
 `hashlimit` hashlimit uses hash buckets to express a rate limiting match
 (like the limit match) for a group of connections using a single iptables

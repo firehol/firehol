@@ -5919,6 +5919,8 @@ route() {
 
 # --- protection ---------------------------------------------------------------
 
+FIREHOL_PROTECTION_COUNT=0
+
 protection() {
         work_realcmd_secondary ${FUNCNAME} "${@}"
 	
@@ -5943,40 +5945,60 @@ protection() {
 		shift
 	fi
 	
-	local 	type="${1}" \
-		rate="${2}" \
-		burst="${3}"
-	
-	test -z "${rate}"  && rate="100/s"
-	test -z "${burst}" && burst="50"
-	
+	local 	type="${1}" rate= burst=
+	shift
+
 	set_work_function -ne "Rules for rotections on '${prface}' for ${work_cmd} '${work_name}'"
 	
-	for x in ${type}
+	for x in ${type//,/ }
 	do
-		case "${x}" in
-			none|NONE)
+		FIREHOL_PROTECTION_COUNT=$[FIREHOL_PROTECTION_COUNT + 1]
+
+		case "${x,,}" in
+			none)
 				return 0
 				;;
 			
-			bad-packets|BAD-PACKETS)
-				protection ${reverse} "fragments new-tcp-w/o-syn malformed-xmas malformed-null malformed-bad invalid" "${rate}" "${burst}"
+			bad-packets)
+				protection ${reverse} "fragments new-tcp-w/o-syn malformed-xmas malformed-null malformed-bad invalid" "${@}"
 				return $?
 				;;
 			
-			strong|STRONG|full|FULL|all|ALL)
-				protection ${reverse} "fragments new-tcp-w/o-syn icmp-floods syn-floods malformed-xmas malformed-null malformed-bad invalid" "${rate}" "${burst}"
+			strong|full|all)
+				protection ${reverse} "fragments new-tcp-w/o-syn icmp-floods syn-floods malformed-xmas malformed-null malformed-bad invalid" "${@}"
 				return $?
 				;;
 				
-			invalid|INVALID)
+			invalid)
 				if [ "${FIREHOL_DROP_INVALID}" -eq 0 ]
 				then
-					iptables_both -A "${in}_${work_name}" -m conntrack --ctstate INVALID -j DROP || return 1
+					set_work_function "Rules for dropping invalid packets on '${prface}' for ${work_cmd} '${work_name}'"
+					
+					rule in chain "${in}_${work_name}" state INVALID action drop || return 1
 				fi
 				;;
 			
-			fragments|FRAGMENTS)
+			connrate)
+				local mychain="${pre}_${work_name}_crt${FIREHOL_PROTECTION_COUNT}"
+				create_chain filter "${mychain}" "${in}_${work_name}" in state NEW 				|| return 1
+				
+				set_work_function "Rules for enforcing connection rate per client on '${prface}' for ${work_cmd} '${work_name}'"
+				
+				rule in chain "${mychain}" hashlimit "${pre}_${work_name}_connrate" upto "${rate}" mode srcip "${@}" action return || return 1
+				rule in chain "${mychain}" loglimit "CLIENT CONNECTION RATE REACHED" action drop		|| return 1
+				;;
+
+			connlimit)
+				local mychain="${pre}_${work_name}_clm${FIREHOL_PROTECTION_COUNT}"
+				create_chain filter "${mychain}" "${in}_${work_name}" in state NEW 				|| return 1
+				
+				set_work_function "Rules for enforcing connection limit per client on '${prface}' for ${work_cmd} '${work_name}'"
+				
+				rule in chain "${mychain}" connlimit saddr upto "${@}" action return 				|| return 1
+				rule in chain "${mychain}" loglimit "CLIENT CONNECTION LIMIT REACHED" action drop		|| return 1
+				;;
+
+			fragments)
 			# not needed - no use with connection tracking	
 			# 	if running_ipv4; then
 			# 		push_namespace ipv4
@@ -5999,8 +6021,8 @@ protection() {
 			# 	# before checking.
 			 	;;
 				
-			new-tcp-w/o-syn|NEW-TCP-W/O-SYN)
-				local mychain="${pre}_${work_name}_nosyn"
+			new-tcp-w/o-syn)
+				local mychain="${pre}_${work_name}_nsn${FIREHOL_PROTECTION_COUNT}"
 				create_chain filter "${mychain}" "${in}_${work_name}" in proto tcp state NEW custom "! --syn"	|| return 1
 				
 				set_work_function "Rules for protection from new TCP connections without the SYN flag set on '${prface}' for ${work_cmd} '${work_name}'"
@@ -6008,8 +6030,8 @@ protection() {
 				rule in chain "${mychain}" loglimit "NEW TCP w/o SYN" action drop				|| return 1
 				;;
 				
-			icmp-floods|ICMP-FLOODS)
-				local mychain="${pre}_${work_name}_icmpflood"
+			icmp-floods)
+				local mychain="${pre}_${work_name}_ifl${FIREHOL_PROTECTION_COUNT}"
 
 				if running_ipv4; then
 					ipv4 create_chain filter "${mychain}" "${in}_${work_name}" in proto icmp custom "--icmp-type echo-request"	|| return 1
@@ -6020,32 +6042,41 @@ protection() {
 				
 				set_work_function "Rules for protection from ICMP floods on '${prface}' for ${work_cmd} '${work_name}'"
 				
+				rate="${1-100/s}"
+				burst="${2-50}"
+
 				rule in chain "${mychain}" limit "${rate}" "${burst}" action return				|| return 1
 				rule in chain "${mychain}" loglimit "ICMP FLOOD" action drop					|| return 1
 				;;
 				
-			syn-floods|SYN-FLOODS)
-				local mychain="${pre}_${work_name}_synflood"
+			syn-floods)
+				local mychain="${pre}_${work_name}_sfl${FIREHOL_PROTECTION_COUNT}"
 				create_chain filter "${mychain}" "${in}_${work_name}" in proto tcp custom "--syn"		|| return 1
 				
 				set_work_function "Rules for protection from TCP SYN floods on '${prface}' for ${work_cmd} '${work_name}'"
 				
+				rate="${1-100/s}"
+				burst="${2-50}"
+
 				rule in chain "${mychain}" limit "${rate}" "${burst}" action return				|| return 1
 				rule in chain "${mychain}" loglimit "SYN FLOOD" action drop					|| return 1
 				;;
 				
-			all-floods|ALL-FLOODS)
-				local mychain="${pre}_${work_name}_allflood"
-				create_chain filter "${mychain}" "${in}_${work_name}" in state NEW		|| return 1
+			all-floods)
+				local mychain="${pre}_${work_name}_afl${FIREHOL_PROTECTION_COUNT}"
+				create_chain filter "${mychain}" "${in}_${work_name}" in state NEW				|| return 1
 				
 				set_work_function "Rules for protection from ALL floods on '${prface}' for ${work_cmd} '${work_name}'"
 				
+				rate="${1-100/s}"
+				burst="${2-50}"
+
 				rule in chain "${mychain}" limit "${rate}" "${burst}" action return				|| return 1
 				rule in chain "${mychain}" loglimit "ALL FLOOD" action drop					|| return 1
 				;;
 				
-			malformed-xmas|MALFORMED-XMAS)
-				local mychain="${pre}_${work_name}_malxmas"
+			malformed-xmas)
+				local mychain="${pre}_${work_name}_mxs${FIREHOL_PROTECTION_COUNT}"
 				create_chain filter "${mychain}" "${in}_${work_name}" in proto tcp custom "--tcp-flags ALL ALL"	|| return 1
 				
 				set_work_function "Rules for protection from packets with all TCP flags set on '${prface}' for ${work_cmd} '${work_name}'"
@@ -6053,8 +6084,8 @@ protection() {
 				rule in chain "${mychain}" loglimit "MALFORMED XMAS" action drop				|| return 1
 				;;
 				
-			malformed-null|MALFORMED-NULL)
-				local mychain="${pre}_${work_name}_malnull"
+			malformed-null)
+				local mychain="${pre}_${work_name}_mnl${FIREHOL_PROTECTION_COUNT}"
 				create_chain filter "${mychain}" "${in}_${work_name}" in proto tcp custom "--tcp-flags ALL NONE" || return 1
 				
 				set_work_function "Rules for protection from packets with all TCP flags unset on '${prface}' for ${work_cmd} '${work_name}'"
@@ -6062,8 +6093,8 @@ protection() {
 				rule in chain "${mychain}" loglimit "MALFORMED NULL" action drop				|| return 1
 				;;
 				
-			malformed-bad|MALFORMED-BAD)
-				local mychain="${pre}_${work_name}_malbad"
+			malformed-bad)
+				local mychain="${pre}_${work_name}_mbd${FIREHOL_PROTECTION_COUNT}"
 				create_chain filter "${mychain}" "${in}_${work_name}" in proto tcp custom "--tcp-flags SYN,FIN SYN,FIN"			|| return 1
 				
 				set_work_function "Rules for protection from packets with illegal TCP flags on '${prface}' for ${work_cmd} '${work_name}'"
@@ -7604,9 +7635,9 @@ rule() {
 			connlimit|iplimit)
 				test ${softwarnings} -eq 1 -a ! -z "${not}" && softwarning "Cannot negate a connlimit. 'not' ignored."
 				test ${softwarnings} -eq 1 -a ! -z "${connlimit}" && softwarning "Overwriting param: connlimit '${connlimit}' becomes '${1}'"
-				connlimit_type="upto"
+				connlimit_type=
 				connlimit_addr="saddr"
-				connlimit_mask=32
+				connlimit_mask=
 				while [ ! -z "${1}" ]
 				do
 					if [ "${1}" = "upto" ]
@@ -7651,7 +7682,7 @@ rule() {
 				test ${softwarnings} -eq 1 -a ! -z "${not}" && softwarning "Cannot negate a hashlimit. 'not' ignored."
 				test ${softwarnings} -eq 1 -a ! -z "${hashlimit}" && softwarning "Overwriting param: hashlimit '${hashlimit}' becomes '${1}'"
 				hashlimit_name="${1}"; shift
-				hashlimit_type="upto"
+				hashlimit_type=
 				hashlimit_burst=
 				hashlimit_mode="srcip,dstport"
 				hashlimit_srcmask=
@@ -8575,10 +8606,14 @@ rule() {
 		"--limit-burst" "${burst}")
 
 	# connlimit
-	[ ! -z "${connlimit}" ] && protected_args=("${protected_args[@]}" "-m" "connlimit" \
-		"--connlimit-${connlimit_type}" "${connlimit}" \
-		"--connlimit-mask" "${connlimit_mask}" \
-		"--connlimit-${connlimit_addr}")
+	if [ ! -z "${connlimit}" ]
+		then
+		protected_args=("${protected_args[@]}" "-m" "connlimit" \
+			"--connlimit-${connlimit_type}" "${connlimit}" \
+			"--connlimit-${connlimit_addr}")
+
+		[ ! -z "${connlimit_mask}" ] && protected_args=("${protected_args[@]}" "--connlimit-mask" "${connlimit_mask}")
+	fi
 
 	# hashlimit
 	if [ ! -z "${hashlimit}" ]
