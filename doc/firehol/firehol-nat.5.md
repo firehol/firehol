@@ -18,11 +18,11 @@ contents-table:helper:redirect:keyword-firehol-redirect-helper:Y:-:Redirect pack
 
 # SYNOPSIS 
 
-{ nat to-destination | dnat [to] } *ipaddr*[:*port*] [random] [persistent] [at *chain*] [*rule-params*]
+{ nat to-destination | dnat [to] } *ipaddr*[:*port*] [random] [persistent] [id *id*] [at *chain*] [*rule-params*]
 
-{ nat to-source | snat [to] } *ipaddr*[:*port*] [random] [persistent] [at *chain*] [*rule-params*]
+{ nat to-source | snat [to] } *ipaddr*[:*port*] [random] [persistent] [id *id*] [at *chain*] [*rule-params*]
 
-{ nat redirect-to | redirect [to] } *port*[-*range*] [random] [at *chain*] [*rule-params*]
+{ nat redirect-to | redirect [to] } *port*[-*range*] [random] [id *id*] [at *chain*] [*rule-params*]
 
 # DESCRIPTION
 
@@ -77,7 +77,10 @@ supported.
 `random` will randomise the port mapping involved, to ensure the ports
 used are not predictable.
 
-`persistent` will attempt to map to the same source or destination address.
+`persistent` is used when the statement is given alternatives (i.e.
+many destination servers for `dnat`, many source IPs for `snat`, many
+ports for `redirect`). It will attempt to keep each client on the same
+nat map. See below for more information about persistance.
 
 The `nat` helper takes one of the following sub-commands:
 
@@ -187,6 +190,106 @@ Example:
  # or
  dnat4 to "10.0.0.1:70/30 10.0.0.2:80/30 10.0.0.3:90/40" proto tcp dst 1.1.1.1 port 80
 ~~~
+
+## PERSISTANCE
+
+The kernel supports persistance only if the NAT alternatives are
+contiguous (i.e. dnat to A-B, snat to A-B, redirect to 1000:1010, etc).
+If they are contiguous, persistance is left at the kernel. FireHOL does
+nothing.
+
+If the alternatives are not contiguous, FireHOL will use the *recent*
+iptables module to apply persistance itself.
+
+FireHOL supports mixed mode persistance. For example, you can have
+something like this:
+
+~~~~~
+dnat to A-B/70,C-D/20,F/10 persistance id mybalancer
+~~~~~
+
+The above is a weighted distribution of persistance. Group A-B will get
+70%, C-D 20% and server F 10%.
+
+Using the above, FireHOL will apply its persistance to pick one of
+the groups A-B, or C-D, or F. Once the group has been picked by
+FireHOL, the kernel will apply persistance within the group, to pick
+the server that will handle the request.
+
+The FireHOL persistance works like this:
+
+1. A packet is received that should be NATed
+2. A lookup is made using the *recent* module to find if it has been seen
+   before. The source IP of packet is looked up.
+3. If it has been seen before, the connection is mapped the same way the
+   last time was mapped. The *recent* module is updated too.
+4. If it has not been seen before, the connection is mapped using the
+   distribution method specified. The *recent* module is updated too,
+   to be ready for the next connection.
+
+The *recent* module has a few limitations:
+
+1. It has lookup tables. We need one lookup table for each member of
+   of the NAT. FireHOL uses the `id` parameter and the definition of
+   each alternative in the NAT statement to form a name for the
+   lookup table. These lookup tables are persistent to firewall
+   restarts, this is why FireHOL requires from you to set an `id`.
+
+2. It can keep entries in its lookup tables for a given time.
+   FireHOL sets this to 3600 seconds.
+   You can control it by setting `FIREHOL_NAT_PERSISTANCE_SECONDS`.
+
+3. It has a limit on the number of entries in the lookup tables.
+   FireHOL cannot set this. This is kernel module option.
+   The default is 200 entries.
+
+   Check this:
+
+   ~~~~
+    # modinfo xt_recent
+    filename:       /lib/modules/4.1.12-gentoo/kernel/net/netfilter/xt_recent.ko
+    alias:          ip6t_recent
+    alias:          ipt_recent
+    license:        GPL
+    description:    Xtables: "recently-seen" host matching
+    author:         Jan Engelhardt <jengelh@medozas.de>
+    author:         Patrick McHardy <kaber@trash.net>
+    depends:        x_tables
+    intree:         Y
+    vermagic:       4.1.12-gentoo SMP preempt mod_unload modversions
+    parm:           ip_list_tot:number of IPs to remember per list (uint)
+    parm:           ip_list_hash_size:size of hash table used to look up IPs (uint)
+    parm:           ip_list_perms:permissions on /proc/net/xt_recent/* files (uint)
+    parm:           ip_list_uid:default owner of /proc/net/xt_recent/* files (uint)
+    parm:           ip_list_gid:default owning group of /proc/net/xt_recent/* files (uint)
+    parm:           ip_pkt_list_tot:number of packets per IP address to remember (max. 255) (uint)
+    ~~~~
+
+    You have to consult your distribution documentation to set these.
+    You can find their current values by examining files found in
+    `/sys/module/xt_recent/parameters/` Unfortunately, these files
+    are not writable, so to change parameters you have unload and
+    reload the module (i.e. apply a firewall that does not use the
+    *recent* module, `rmmod xt_recent`, change the parameter,
+    re-apply a firewall that uses the *recent* module).
+
+    Normaly, you will need a line in `/etc/modprobe.d/netfitler.conf`
+    like this:
+
+    ~~~~
+    options xt_recent ip_list_tot=16384
+    ~~~~
+
+    The number 16384 I used is the max number of unique client IPs
+    I expect to have per hour (`FIREHOL_NAT_PERSISTANCE_SECONDS`)
+    for this service.
+
+    `ip_list_hash_size` is calculated by kernel when the module
+    is loaded to be bigger and up to twice `ip_list_tot`.
+
+Once you have the balancer running, you can find its lookup tables in
+`/proc/net/xt_recent/`. There you will find files starting with the
+*id* parameter, one file for every alternative of the NAT rule.
 
 
 # EXAMPLES

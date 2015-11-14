@@ -522,6 +522,9 @@ FIREHOL_SYNPROXY_OPTIONS="--sack-perm --timestamp --wscale 7 --mss 1460"
 # Default: 0
 FIREHOL_SYNPROXY_LOG=0
 
+# Shall the dnat helper log the packets as they pass during?
+FIREHOL_NAT_HELPER_LOG=0
+
 # When enabled, synproxy will exclude for the SYNPROXY->SERVER match
 # all the packets that have an UID or a GID (ownmer matches).
 # When enabled, dst is not required for synproxy and synproxy can
@@ -569,6 +572,8 @@ UNMATCHED_ROUTER_POLICY="DROP"
 # Default: 1024:65535
 DEFAULT_CLIENT_PORTS="1024:65535"
 
+# The time to track persistance manually, when the kernel cannot do it.
+FIREHOL_NAT_PERSISTANCE_SECONDS="3600"
 
 # ----------------------------------------------------------------------
 # SYSTEM CONFIGURATION
@@ -4573,7 +4578,8 @@ nat_helper() {
 	
 	local 	type="${1}" to="${2}" tos=() name= persistent=0 \
 		chain= chains=() action= options= requirements= overwrite= \
-		x= w= total= balance=() args=() proto=(any) total_weight=0 without_weight=0 mode="nth"
+		id= x= w= total= balance=() args=() proto=(any) total_weight=0 without_weight=0 mode="nth" do_recent=0 \
+		nat_log=()
 	shift 2
 	
 	nat_count=$[nat_count + 1]
@@ -4617,6 +4623,11 @@ nat_helper() {
 	while [ ! -z "${1}" ]
 	do
 		case "${1,,}" in
+			id|--id)
+				id="${2}"
+				shift
+				;;
+
 			random|--random)
 				options="${options} random"
 				;;
@@ -4660,11 +4671,6 @@ nat_helper() {
 
 	# the total combinations we have
 	total="${#tos[@]}"
-
-	if [ ${total} -gt 1 -a ${persistent} -eq 1 ]
-	then
-		warning "${action} will not map addresses persistently, since ${total} rules will be generated."
-	fi
 
 	# If a name is given, or a balancer is requested (multiple 'to' value) or multiple chains
 	# are requested, centralize it on one chain, so that the balancing rules will be applied
@@ -4722,6 +4728,47 @@ nat_helper() {
 		mode="nth"
 	fi
 
+	# check if we have to enable the use of the recent module
+	# to track persistance, ourselves
+	if [ ${total} -gt 1 -a ${persistent} -eq 1 ]
+	then
+		if [ -z "${id}" ]
+			then
+			warning "You have not specified an ID for ${action} with multiple servers and persistance. Using 'id ${id}', but you should give one yourself to allow persistance to work properly between firewall restarts."
+		fi
+		do_recent=1
+	fi
+
+	# make sure there is an id always
+	[ -z "${id}" ] && id="${name-BALANCER.${nat_count}}"
+
+	# if our persistance is enabled, make a chain for updating it
+	# to take the final action
+	if [ ${do_recent} -eq 1 ]
+		then
+		set_work_function "Matching connections for persistance..."
+
+		for to in ${tos[@]}
+		do
+			local rname="$( echo "${id}.${to/\/*}" | $TR_CMD ".\-: " "____" )"
+			[ ${FIREHOL_NAT_HELPER_LOG} -eq 1 ] && nat_log=(log "NAT_HELPER ${id}: UPDATED PERSISTANCE FOR ${to/\/*}")
+
+			set_work_function "Creating chain '${rname}' to update persistance for '${to/\/*}'..."
+			
+			create_chain nat "${rname}"
+			rule table nat chain "${rname}" custom "-m recent --set --name ${rname} --rsource" action NOOP
+			rule table nat chain "${rname}" custom "-m recent --update --name ${rname} --rsource --seconds ${FIREHOL_NAT_PERSISTANCE_SECONDS} --reap" action NOOP
+			rule table nat chain "${rname}" proto "${proto[*]}" "${nat_log[@]}" action "${action}" to ${to/\/*} ${options}
+
+			[ ${FIREHOL_NAT_HELPER_LOG} -eq 1 ] && nat_log=(log "NAT_HELPER ${id} PERSISTED PACKET FOR ${to/\/*}")
+			for chain in ${chains[@]}
+			do
+				set_work_function "Matching persisted connections for '${to/\/*}' at ${chain}..."
+				rule table nat chain "${chain}" proto "${proto[*]}" "${args[@]}" custom "-m recent --rcheck --name ${rname} --rsource" "${nat_log[@]}" action "${rname}" || return 1
+			done
+		done
+	fi
+
 	x=0
 	for to in ${tos[@]}
 	do
@@ -4768,10 +4815,19 @@ nat_helper() {
 
 		to=${to/\/*/}
 		FIREHOL_LAST_NAT_MAP[$to]="${balance[*]}"
+		[ ${FIREHOL_NAT_HELPER_LOG} -eq 1 ] && nat_log=(log "NAT_HELPER ${id} NEW PACKET FOR ${to/\/*}")
 		for chain in ${chains[@]}
 		do
+			local laction=("${action}" to ${to} ${options})
+
+			if [ ${do_recent} -eq 1 ]
+				then
+				local rname="$( echo "${id}.${to/\/*}" | $TR_CMD ".\-: " "____" )"
+				laction=("${rname}")
+			fi
+
 			set_work_function "Rules for ${action} to ${to} at ${chain}"
-			rule table nat chain "${chain}" proto "${proto[*]}" "${args[@]}" "${balance[@]}" action "${action}" to ${to} ${options} || return 1
+			rule table nat chain "${chain}" proto "${proto[*]}" "${args[@]}" "${balance[@]}" "${nat_log[@]}" action "${laction[@]}" || return 1
 		done
 	done
 	
@@ -6945,7 +7001,14 @@ rule_action_param() {
 	
 	# prepare the actions
 	case "${action}" in
+		NOOP)
+			# run the statement without action
+			$iptables_cmd "${@}"
+			return 0
+			;;
+			
 		NONE)
+			# don't run any statements
 			return 0
 			;;
 			
