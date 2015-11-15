@@ -10,4 +10,5 @@ EXTRA_DIST = \
 	ax_need_sed.m4 \
 	ax_prog_pandoc.m4 \
 	ax_prog_xmllint.m4 \
+	ax_check_iprange_min.m4 \
 	ax_pthread.m4

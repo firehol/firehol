@@ -47,15 +47,6 @@ then
   haderror="Y"
 fi
 
-if [ -x ../sbin/iprange ]
-then
-  iprange_path="$(cd ../sbin; pwd)/iprange"
-else
-  echo "Executable ../sbin/iprange program not found (was it built yet?)"
-  echo ""
-  haderror="Y"
-fi
-
 if [ "$1" = "-inns" ]
 then
   # First set up our namespace so we can write where we need to
@@ -380,14 +371,12 @@ do
     # Default special cases:
     #  - egrep because /sbin/egrep makes use of PATH to find 'grep -E'
     #    the unit tests set PATH to empty so we must use the explicit one
-    #  - iprange because we want to test with the local version
     #  - logger so we get e.g. panics in our logs, not on the system console
     #  - LB_RUN_DIR + FIREQOS_LOCK_FILE + FIREQOS_DIR + RUN_PARENT_DIR
     #     keep within our mounts
     #  - PATH reset to ensure it is off (some programs reset it)
     cat > /etc/firehol/firehol-defaults.conf <<-!
 		EGREP_CMD='/bin/grep -E'
-		IPRANGE_CMD='$iprange_path'
 		LOGGER_CMD='/bin/echo logger:'
 		LB_RUN_DIR=/var/run/firehol/link-balancer
 		FIREQOS_DIR=/var/run/firehol/fireqos

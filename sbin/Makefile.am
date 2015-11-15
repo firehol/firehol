@@ -22,13 +22,3 @@ scripts += vnetbuild
 endif
 
 sbin_SCRIPTS = $(scripts)
-
-if ENABLE_IPRANGE
-
-bin_PROGRAMS = iprange
-iprange_SOURCES = iprange.c
-
-iprange_CFLAGS = $(PTHREAD_CFLAGS)
-iprange_LDADD = $(PTHREAD_LIBS)
-
-endif

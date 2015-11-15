@@ -1,6 +1,9 @@
 dnl Process this file with autoconf to produce a configure script.
 
 AC_PREREQ([2.63])
+
+define([MIN_IPRANGE_VERSION], [1.0.0])
+
 AC_INIT([firehol],[m4_esyscmd([./packaging/packver])],[firehol-devs@lists.firehol.org])
 AC_CONFIG_MACRO_DIR([m4])
 AC_CONFIG_AUX_DIR([autotool])
@@ -29,12 +32,6 @@ AC_ARG_ENABLE([man],
               ,
               [enable_man="yes"])
 AM_CONDITIONAL([ENABLE_MAN], [test "${enable_man}" = "yes"])
-
-AC_ARG_ENABLE([iprange],
-              [AS_HELP_STRING([--disable-iprange], [disable iprange installation @<:@enabled@:>@])],
-              ,
-              [enable_iprange="yes"])
-AM_CONDITIONAL([ENABLE_IPRANGE], [test "${enable_iprange}" = "yes"])
 
 AC_ARG_ENABLE([firehol],
               [AS_HELP_STRING([--disable-firehol], [disable firehol installation @<:@enabled@:>@])],
@@ -118,8 +115,11 @@ fi
 FIREHOL_CONFIG_DIR=$(eval echo "$sysconfdir/firehol" | sed -e 's|^NONE|/usr/local|')
 AC_SUBST(FIREHOL_CONFIG_DIR)
 
-PATH=$PATH:/sbin:/usr/sbin
+PATH=$PATH:/sbin:/usr/sbin:/usr/local/sbin:/usr/local/bin
+
 AX_NEED_PROG([BASH_SHELL_PATH], [bash], [])
+AX_NEED_PROG([IPRANGE], [iprange], [])
+AX_CHECK_IPRANGE_MIN(MIN_IPRANGE_VERSION,[],[AC_MSG_ERROR(could not find required version of iprange - check http://firehol.org/download/iprange/)])
 
 dnl --- OUTPUT OF './packaging/gen-config-detect.pl sbin/*.in' BEGIN   ---
 AX_NEED_EGREP()
@@ -308,33 +308,6 @@ dnl --- OUTPUT OF './packaging/gen-config-detect.pl sbin/*.in' END   ---
 
 AUTOCONF_RUN=Y
 AC_SUBST(AUTOCONF_RUN)
-
-if test x"$enable_iprange" = xyes; then
-dnl We are installing it ourselves
-d=$(eval echo "$bindir")
-if test x$d = xNONE/bin; then
-IPRANGE=$(eval echo "$prefix/bin/iprange" | sed -e 's|^NONE|/usr/local|')
-else
-IPRANGE=$(eval echo "$bindir/iprange" | sed -e 's|^NONE|/usr/local|')
-fi
-AC_SUBST(IPRANGE)
-
-AC_PROG_CC
-AC_HEADER_STDC
-AX_PTHREAD
-AC_CHECK_HEADERS(sys/socket.h,,AC_MSG_ERROR(sys/socket.h missing))
-AC_CHECK_HEADERS(netinet/in.h,,AC_MSG_ERROR(netinet/in.h missing))
-AC_CHECK_HEADERS(arpa/inet.h,,AC_MSG_ERROR(arpa/inet.h missing))
-AC_CHECK_HEADERS(sys/time.h,,AC_MSG_ERROR(sys/time.h missing))
-AC_CHECK_FUNC(htonl,,AC_MSG_ERROR(htonl() not found))
-else
-dnl Try and detect it on the system anyway
-AX_NEED_PROG([IPRANGE], [iprange], [])
-
-dnl Horrible but how else to make the compiler completely optional?
-AM_CONDITIONAL([AMDEP], false)
-AM_CONDITIONAL([am__fastdepCC], false)
-fi
 
 AC_CONFIG_FILES([
 	Makefile
