@@ -117,9 +117,11 @@ AC_SUBST(FIREHOL_CONFIG_DIR)
 
 PATH=$PATH:/sbin:/usr/sbin:/usr/local/sbin:/usr/local/bin
 
+if test x"$USE_MAINTAINER_MODE" = xno; then
 AX_NEED_PROG([BASH_SHELL_PATH], [bash], [])
 AX_NEED_PROG([IPRANGE], [iprange], [])
 AX_CHECK_IPRANGE_MIN(MIN_IPRANGE_VERSION,[],[AC_MSG_ERROR(could not find required version of iprange - check http://firehol.org/download/iprange/)])
+fi
 
 dnl --- OUTPUT OF './packaging/gen-config-detect.pl sbin/*.in' BEGIN   ---
 AX_NEED_EGREP()
