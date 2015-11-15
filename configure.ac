@@ -75,6 +75,8 @@ AC_ARG_ENABLE([ipv6],
               [enable_ipv6="yes"])
 AM_CONDITIONAL([ENABLE_IPV6], [test "${enable_ipv6}" = "yes"])
 
+AC_ARG_VAR([IPRANGE_VERSION], [version of iprange when cross-compiling])
+
 if test x"$enable_ipv4" = xyes; then
 IPV4_ENABLED=1
 else

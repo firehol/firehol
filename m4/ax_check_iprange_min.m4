@@ -60,7 +60,10 @@ AC_DEFUN([AX_CHECK_IPRANGE_MIN],
 		[
 			ac_cv_iprange_version=no
 
-			if test -n "$IPRANGE"; then
+			if test "${cross_compiling}" == 'yes'; then
+				ac_cv_iprange_version=$IPRANGE_VERSION
+				test -z "$IPRANGE_VERSION" && AC_MSG_ERROR([must set IPRANGE_VERSION when cross-compiling])
+			elif test -n "$IPRANGE"; then
 				ac_cv_iprange_version=$($IPRANGE --version 2> /dev/null | head -n 1 | cut -d'_' -f1)
 
 				if test "x$ac_cv_iprange_version" = "x"; then
