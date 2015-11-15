@@ -121,7 +121,7 @@ dev *DEVICE* ...
 
 bridgedev *BRIDGE* ...
 :   Define an ethernet bridge, *BRIDGE* in a `host`. These are setup
-    automatically using brctl(8).
+    automatically using ip(8) and shown with bridge(8).
 
     A bridge can specify network devices from its own namespace to
     be automatically added, as well as its own IP address(es).
@@ -266,5 +266,5 @@ approach see this [mailing list post][ml].
 * [VNetBuild Online Documentation](http://firehol.org/documentation/)
 * [ip(8)](http://manpages.ubuntu.com/manpages/trusty/man8/ip.8.html) - show/manipulate network devices
 * [ip-route(8)](http://manpages.ubuntu.com/manpages/trusty/man8/ip-route.8.html) - routing table management
-* [brctl(8)](http://manpages.ubuntu.com/manpages/trusty/man8/brctl.8.html) - routing table management
+* [bridge(8)](http://manpages.ubuntu.com/manpages/trusty/man8/bridge.8.html) - routing table management
 * [ulogd(8)](http://manpages.ubuntu.com/manpages/trusty/man8/ulogd.8.html) - netfilter/iptables logging daemon

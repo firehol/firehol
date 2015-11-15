@@ -291,7 +291,7 @@ AX_NEED_PROG([ZCAT], [gzip], [-dc])
 fi
 if test x"$enable_vnetbuild" = xyes; then
 AC_MSG_NOTICE([Detecting commands for vnetbuild])
-AX_NEED_PROG([BRCTL], [brctl], [])
+AX_NEED_PROG([BRIDGE], [bridge], [])
 AX_NEED_PROG([CAT], [cat], [])
 AX_NEED_PROG([CUT], [cut], [])
 AX_NEED_PROG([FIND], [find], [])

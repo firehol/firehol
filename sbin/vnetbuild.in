@@ -217,7 +217,7 @@ do
 	fi
 done <<-!
 Y|IP_CMD|@IP@|ip
-Y|BRCTL_CMD|@BRCTL@|brctl
+Y|BRIDGE_CMD|@BRIDGE@|bridge
 Y|GREP_CMD|@GREP@|grep
 Y|FIND_CMD|@FIND@|find
 Y|SH_CMD|@SH@|sh bash ksh
@@ -656,7 +656,7 @@ then
     if [ "$type" = "switch" ]
     then
       error="adding bridge to switch namespace"
-      $IP_CMD netns exec $ns $BRCTL_CMD addbr switch
+      $IP_CMD netns exec $ns $IP_CMD link add name switch type bridge
     fi
   done < $MYTMP/nslist
 
@@ -679,7 +679,7 @@ then
       if [ "$type" = "switch" ]
       then
         error="adding virtual ethernet to bridge"
-        $IP_CMD netns exec $ns $BRCTL_CMD addif switch $dev
+        $IP_CMD netns exec $ns $IP_CMD link set dev $dev master switch
       fi
       while read ip
       do
@@ -693,11 +693,11 @@ then
     do
       read errline < $MYTMP/runtime-lines/$ns-dev-$bridge
       error="adding bridge to host namespace"
-      $IP_CMD netns exec $ns $BRCTL_CMD addbr $bridge
+      $IP_CMD netns exec $ns $IP_CMD link add name $bridge type bridge
       while read dev
       do
         error="adding virtual interface to bridge"
-        $IP_CMD netns exec $ns $BRCTL_CMD addif $bridge $dev
+        $IP_CMD netns exec $ns $IP_CMD link set dev $dev master $bridge
       done < $MYTMP/ns/$ns/devices/$bridge-bridged
       while read ip
       do
@@ -749,7 +749,7 @@ then
       #   $IP_CMD link set $odev netns $ons
       $IP_CMD netns exec $ns $IP_CMD addr show | $SED_CMD 's/@[^:]*:/:/'
       $IP_CMD netns exec $ns $IP_CMD route show
-      $IP_CMD netns exec $ns $BRCTL_CMD show
+      $IP_CMD netns exec $ns $BRIDGE_CMD link show
     else
       echo "Namespace not running"
     fi
