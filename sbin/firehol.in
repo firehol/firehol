@@ -1035,7 +1035,7 @@ N|IPTABLES_SAVE_CMD|@IPTABLES_SAVE@|iptables-save
 N|IP6TABLES_SAVE_CMD|@IP6TABLES_SAVE@|ip6tables-save
 N|IPTABLES_RESTORE_CMD|@IPTABLES_RESTORE@|iptables-restore
 N|IP6TABLES_RESTORE_CMD|@IP6TABLES_RESTORE@|ip6tables-restore
-Y|PAGER_CMD|@PAGER@|less more pager cat
+Y|MORE_CMD|@MORE@|pager less more cat
 Y|RENICE_CMD|@RENICE@|renice :
 Y|STTY_CMD|@STTY@|stty :
 N|ZCAT_CMD|@ZCAT@|gzcat "gzip -dc"
@@ -10693,7 +10693,7 @@ case "${arg}" in
 			${IPSET_CMD} -L
 		fi
 		) >"${FIREHOL_DIR}/status"
-		${PAGER_CMD} <"${FIREHOL_DIR}/status"
+		${MORE_CMD} <"${FIREHOL_DIR}/status"
 		exit $?
 		;;
 	
