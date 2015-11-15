@@ -119,6 +119,7 @@ FIREHOL_CONFIG_DIR=$(eval echo "$sysconfdir/firehol" | sed -e 's|^NONE|/usr/loca
 AC_SUBST(FIREHOL_CONFIG_DIR)
 
 PATH=$PATH:/sbin:/usr/sbin
+AX_NEED_PROG([BASH_SHELL_PATH], [bash], [])
 
 dnl --- OUTPUT OF './packaging/gen-config-detect.pl sbin/*.in' BEGIN   ---
 AX_NEED_EGREP()
