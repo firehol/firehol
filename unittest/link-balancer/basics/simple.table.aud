@@ -14,9 +14,5 @@ default
 10.0.1.0/24 dev veth1  proto kernel  scope link  src 10.0.1.1 
 ===== TABLE 2 =====
 default via 10.0.0.254 dev veth0 
-10.0.0.0/24 dev veth0  proto kernel  scope link  src 10.0.0.1 
-10.0.1.0/24 dev veth1  proto kernel  scope link  src 10.0.1.1 
 ===== TABLE 3 =====
 default via 10.0.1.254 dev veth1 
-10.0.0.0/24 dev veth0  proto kernel  scope link  src 10.0.0.1 
-10.0.1.0/24 dev veth1  proto kernel  scope link  src 10.0.1.1 

@@ -32,7 +32,7 @@ do
     if [ ! "$(lsmod | cut -f1 -d' ' | grep $module)" ]
     then
       test "$missing" = "" && echo "Missing module(s). Run:"
-      echo "  modprobe ${module}"
+      echo "  sudo modprobe ${module}"
       missing="Y"
       haderror="Y"
     fi
@@ -51,15 +51,9 @@ if [ "$1" = "-inns" ]
 then
   # First set up our namespace so we can write where we need to
   mount -t tmpfs tmpfs /etc/firehol
-  if [ -d /var/run/firehol ]
-  then
-    mount -t tmpfs tmpfs /var/run/firehol
-    mount -t tmpfs tmpfs /var/run/netns
-  else
-    mount -t tmpfs tmpfs /var/run
-    mkdir /var/run/firehol
-    mkdir /var/run/netns
-  fi
+  mount -t tmpfs tmpfs /var/run
+  mkdir /var/run/firehol
+  mkdir /var/run/netns
   if [ -d /var/spool/firehol ]
   then
     mount -t tmpfs tmpfs /var/spool/firehol
@@ -81,7 +75,7 @@ then
   fi
 
   # /proc/net/ip_tables_names is read-only for the real root in kernels
-  # up to and possibly beyond 4.1, so we may not be able to access it.
+  # up to and possibly beyond 4.3, so we may not be able to access it.
   # This file just contains the well known list of tables, depending
   # on which modules are loaded.
   # It is relied on by firehol but also by iptables-save and iptables-restore
@@ -95,6 +89,7 @@ then
   # https://lists.linuxcontainers.org/pipermail/lxc-users/2014-November/008099.html
   if [ ! -r /proc/net/ip_tables_names ]
   then
+    echo "Faking /proc/net/ip_tables_names"
     mkdir /var/run/firehol/proc
     mkdir /var/run/firehol/proc/net
     ls /proc | while read name
@@ -161,7 +156,7 @@ then
 elif [ ! "$haderror" ]
 then
   echo "Unsharing namespaces"
-  unshare -m -n -U -r -- $0 -inns "$@"
+  unshare -r unshare -m -n -- $0 -inns "$@"
   exit
 fi
 
