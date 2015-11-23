@@ -50,6 +50,8 @@ ack|acks
 
 { proto|protocol *protocol* [,*protocol*...] } |tcp|udp|icmp|gre|ipv6
 
+{ tos | priority } *tosid* [,*tosid*...]
+
 { DSCP } *classname* [,*classname*...]
 
 mark *mark* [,*mark*...]
