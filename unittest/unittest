@@ -2,28 +2,22 @@
 
 PATH=/usr/bin:/bin:/usr/sbin:/sbin:/usr/local/bin:/usr/local/sbin
 
+dirname="${0%/*}"
+if [ "$dirname" = "$0" ]; then dirname="."; fi
+
+if [ "$IN_PRIVATE_NS" = "" ]
+then
+  if [ "$(id -r -u)" = "0" ]
+  then
+    echo "Do not run as root. The unittest system uses user namespaces instead."
+    exit 1
+  fi
+  exec $dirname/../examples/newns.sh $0 "$@"
+fi
+
 haderror=""
-
-# We need to be able to create a new user namespace so we can be root
-# in it.
-
-userns_disabled=
-if [ -f /proc/sys/kernel/unprivileged_userns_clone ]
-then
-  # https://github.com/bazelbuild/bazel/issues/433
-  userns_disabled=$(/sbin/sysctl kernel.unprivileged_userns_clone | grep " 0$")
-fi
-
-if [ "$userns_disabled" -a "$(id -r -u)" != "0" ]
-then
-  echo "Must have userns enabled"
-  echo ""
-  echo "To fix it, try:"
-  echo "  sudo sysctl kernel.unprivileged_userns_clone=1"
-  haderror="Y"
-fi
-
 missing=""
+
 for tab in mangle raw filter nat
 do
   for ip in ip ip6
@@ -39,125 +33,11 @@ do
   done
 done
 
-
 if [ ! -x tools/clean-iptables ]
 then
   echo "Executable tools/clean-iptables script not found"
   echo ""
   haderror="Y"
-fi
-
-if [ "$1" = "-inns" ]
-then
-  # First set up our namespace so we can write where we need to
-  mount -t tmpfs tmpfs /etc/firehol
-  mount -t tmpfs tmpfs /var/run
-  mkdir /var/run/firehol
-  mkdir /var/run/netns
-  if [ -d /var/spool/firehol ]
-  then
-    mount -t tmpfs tmpfs /var/spool/firehol
-  else
-    mount -t tmpfs tmpfs /var/spool
-    mkdir /var/spool/firehol
-  fi
-  mount -o rbind /sys /sys
-
-  # Check the files are gone
-  if [ -f /etc/firehol/firehol.conf \
-    -o -f /etc/firehol/firehol-defaults.conf \
-    -o -f /etc/firehol/fireqos.conf \
-    -o -f /etc/firehol/link-balancer.conf \
-    -o -d /etc/firehol/services ]
-  then
-    echo "Namespace switch failed! Aborting!"
-    exit 1
-  fi
-
-  # /proc/net/ip_tables_names is read-only for the real root in kernels
-  # up to and possibly beyond 4.3, so we may not be able to access it.
-  # This file just contains the well known list of tables, depending
-  # on which modules are loaded.
-  # It is relied on by firehol but also by iptables-save and iptables-restore
-  # We recreate the whole of proc using bind mounts, except these two files
-  # which we make with our known values. We then bind our proc over the
-  # original and everything just works...
-  # The amazing thing being that because we are in separate user and
-  # mount namespaces, none of this interferes with the running system
-  # and it all runs as a regular user.
-  # http://lists.linuxfoundation.org/pipermail/containers/2014-June/034682.html
-  # https://lists.linuxcontainers.org/pipermail/lxc-users/2014-November/008099.html
-  if [ ! -r /proc/net/ip_tables_names ]
-  then
-    echo "Faking /proc/net/ip_tables_names"
-    mkdir /var/run/firehol/proc
-    mkdir /var/run/firehol/proc/net
-    ls /proc | while read name
-    do
-      case $name in
-         $$)
-           mkdir /var/run/firehol/proc/$name
-           mount -o rbind /proc/$name /var/run/firehol/proc/$name
-         ;;
-
-         [0-9]*)
-           :
-         ;;
-
-         net)
-           :
-         ;;
-
-         *)
-           if [ -d /proc/$name ]
-           then
-             mkdir /var/run/firehol/proc/$name
-             mount -o rbind /proc/$name /var/run/firehol/proc/$name
-           else
-             touch /var/run/firehol/proc/$name
-             mount -o rbind /proc/$name /var/run/firehol/proc/$name
-           fi
-         ;;
-      esac
-    done
-
-    ls /proc/net | while read name
-    do
-      if [ "$name" = "ip_tables_names" -o "$name" = "ip6_tables_names" ]
-      then
-        echo "filter" > /var/run/firehol/proc/net/$name
-        echo "nat" >> /var/run/firehol/proc/net/$name
-        echo "mangle" >> /var/run/firehol/proc/net/$name
-        echo "raw" >> /var/run/firehol/proc/net/$name
-        chmod 444 /var/run/firehol/proc/net/$name
-      elif [ -d /proc/net/$name ]
-      then
-        mkdir /var/run/firehol/proc/net/$name
-        mount -o rbind /proc/net/$name /var/run/firehol/proc/net/$name
-      else
-        touch /var/run/firehol/proc/net/$name
-        mount -o rbind /proc/net/$name /var/run/firehol/proc/net/$name
-      fi
-    done
-
-    mount -o rbind  /var/run/firehol/proc /proc
-  fi
-
-  # Check it all worked
-  cat /proc/net/ip_tables_names > /dev/null || exit 1
-  mkdir /var/run/firehol/webdir || exit 1
-  echo "Running in separate namespace"
-  ip link add veth0 type veth peer name veth1
-  shift
-elif [ "$(id -r -u)" = "0" ]
-then
-  echo "Do not run as root. The unittest system uses user namespaces instead."
-  haderror="Y"
-elif [ ! "$haderror" ]
-then
-  echo "Unsharing namespaces"
-  unshare -r unshare -m -n -- $0 -inns "$@"
-  exit
 fi
 
 if [ "$haderror" -o $# -lt 1 ]
@@ -173,6 +53,32 @@ then
   echo "  grep 'execve[^,]*, \[\"[^/]' strace.*.txt | less"
   exit 1
 fi
+
+# First set up our namespace so we can write where we need to
+mount -t tmpfs tmpfs /etc/firehol || exit 1
+mkdir /var/run/firehol || exit 1
+mkdir /var/spool/firehol || exit 1
+mkdir /var/run/firehol/webdir || exit 1
+
+# Check the files are gone
+if [ -f /etc/firehol/firehol.conf \
+  -o -f /etc/firehol/firehol-defaults.conf \
+  -o -f /etc/firehol/fireqos.conf \
+  -o -f /etc/firehol/link-balancer.conf \
+  -o -d /etc/firehol/services ]
+then
+  echo "Namespace switch failed! Aborting!"
+  exit 1
+fi
+
+if [ ! -r /proc/net/ip_tables_names ]
+then
+  echo "Faking /proc/net/ip_tables_names"
+  $dirname/../examples/newns.sh --fake-proc || exit 1
+fi
+
+echo "Running in separate namespace"
+ip link add veth0 type veth peer name veth1 || exit 1
 
 if ! MYTMP="`mktemp -d -t firehol-unittest-XXXXXX`"
 then
