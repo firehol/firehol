@@ -21,6 +21,7 @@ extra-manpage: fireqos-icmp.5
 extra-manpage: fireqos-gre.5
 extra-manpage: fireqos-ipv6.5
 extra-manpage: fireqos-tos.5
+extra-manpage: fireqos-dscp.5
 extra-manpage: fireqos-priority.5
 extra-manpage: fireqos-mark.5
 extra-manpage: fireqos-port.5
@@ -49,7 +50,7 @@ ack|acks
 
 { proto|protocol *protocol* [,*protocol*...] } |tcp|udp|icmp|gre|ipv6
 
-{ tos | priority } *tosid* [,*tosid*...]
+{ DSCP } *classname* [,*classname*...]
 
 mark *mark* [,*mark*...]
 
@@ -184,6 +185,24 @@ the following:
 >
 > There is also a class parameter called `priority`, see
 > [fireqos-params-class(5)][keyword-fireqos-priority-class].
+
+## dscp
+
+Match to DSCP value in IP TOS header field. The *classname* has to be one of
+the following values:
+
+* CS1, CS2, CS3, CS4, CS5, CS6, CS7
+* AF11, AF12, AF13
+* AF21, AF22, AF23
+* AF31, AF32, AF33
+* AF41, AF42, AF43
+* EF
+
+> *Note*
+>
+> tc-filter only supports ToS parameters. That is why a lookaside table
+> is configured within fireqos code to translate the DSCP value to their
+> matching TOS value. See RFC2474 for more information.
 
 ## mark, connmark, custommark, rawmark
 
