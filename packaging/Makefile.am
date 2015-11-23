@@ -4,6 +4,7 @@ EXTRA_DIST = \
 	check-contents \
 	check-files \
 	check-files.functions \
+	gen-config-detect.pl \
 	detect-cmd.pl \
 	git-build \
 	Makefile.am \
