@@ -3019,6 +3019,7 @@ match() {
 	done # srcmac
 	done # mark
 	done # tos
+	done # dscp
 	done # dport
 	done # sport
 	done # port
