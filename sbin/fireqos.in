@@ -2281,7 +2281,7 @@ match() {
 
 	[ ${FIREQOS_DEBUG} -eq 1 -o ${FIREQOS_SHOW_MATCHES} -eq 1 ] && echo >&2 -e "${COLOR_GREEN}:		${FUNCNAME} $*${COLOR_RESET}"
 
-	local 	proto=any port=any sport=any dport=any src=any dst=any ip=any tos=any mark= \
+	local 	proto=any port=any sport=any dport=any src=any dst=any ip=any tos=any dscp=any mark= \
 		srcmac=any dstmac=any class=${class_name} flowid=${class_filters_flowid} \
 		ack=0 syn=0 at= custom= tcproto= ipv4=${class_ipv4} ipv6=${class_ipv6} \
 		reverse=0 estimator_interval= estimator_decay= police_arg= \
@@ -2343,6 +2343,11 @@ match() {
 
 			tos)
 				tos="${2//,/ }"
+				shift
+				;;
+
+         dscp)
+				dscp="${2//,/ }"
 				shift
 				;;
 
@@ -2503,6 +2508,7 @@ match() {
 	[ -z "${dst}" ]		&& error "Cannot accept empty destination IPs."		&& return 1
 	[ -z "${ip}" ]		&& error "Cannot accept empty IPs."			&& return 1
 	[ -z "${tos}" ]		&& error "Cannot accept empty TOS."			&& return 1
+	[ -z "${dscp}" ]		&& error "Cannot accept empty DSCP."			&& return 1
 	[ -z "${mark}" ]	&& error "Cannot accept empty MARK."			&& return 1
 	[ -z "${srcmac}" ] 	&& error "Cannot accept empty source MAC."		&& return 1
 	[ -z "${dstmac}" ] 	&& error "Cannot accept empty destination MAC."		&& return 1
@@ -2579,7 +2585,7 @@ match() {
 	local 	ipvx= ether_type= ack_arg= syn_arg= proto_arg= tcproto_arg= tproto= \
 		pid= tip= mtip= otherip= ip_arg= tsrc= src_arg= tdst= dst_arg= \
 		tport= mtport= otherport= port_arg= mportmask= tsport= sport_arg= tdport= dport_arg= \
-		u32= ttos= tos_arg= tos_value= tos_mask= estimator= police= sm1= sm2= dm1= dm2= \
+		u32= ttos= tos_arg= tos_value= tos_mask= tdscp= estimator= police= sm1= sm2= dm1= dm2= \
 		dmac= dmac_arg= smac= smac_arg= tmark= mark_arg=
 
 	# create all tc filter statements
@@ -2820,6 +2826,112 @@ match() {
 				if [ -z "${tos_value}" ]
 				then
 					error "Empty TOS value is not allowed."
+					exit 1
+				fi
+				;;
+		esac
+		if [ ! -z "${tos_value}" -a ! -z "${tos_mask}" ]
+		then
+			if [ "$ipvx" = "6" ]
+			then
+				tos_arg="match ip6 priority ${tos_value} ${tos_mask}"
+			else
+				tos_arg="match ip tos ${tos_value} ${tos_mask}"
+			fi
+		fi
+
+	for tdscp in ${dscp}
+	do
+		dscp_value=
+		tos_value=
+		tos_mask=
+		case "${tdscp}" in
+			any)	;;
+
+			CS1)
+				tos_value="0x20"
+				tos_mask="0x20"
+				;;
+			CS2)
+				tos_value="0x40"
+				tos_mask="0x40"
+				;;
+			CS3)
+				tos_value="0x60"
+				tos_mask="0x60"
+				;;
+			CS4)
+				tos_value="0x80"
+				tos_mask="0x80"
+				;;
+			CS5)
+				tos_value="0xA0"
+				tos_mask="0xA0"
+				;;
+			CS6)
+				tos_value="0xC0"
+				tos_mask="0xC0"
+				;;
+			CS7)
+				tos_value="0xE0"
+				tos_mask="0xE0"
+				;;
+			AF11)
+				tos_value="0x28"
+				tos_mask="0x28"
+				;;
+			AF12)
+				tos_value="0x30"
+				tos_mask="0x30"
+				;;
+			AF13)
+				tos_value="0x38"
+				tos_mask="0x38"
+				;;
+         AF21)
+				tos_value="0x48"
+				tos_mask="0x48"
+				;;
+			AF22)
+				tos_value="0x50"
+				tos_mask="0x50"
+				;;
+			AF23)
+				tos_value="0x58"
+				tos_mask="0x58"
+				;;
+         AF31)
+				tos_value="0x68"
+				tos_mask="0x68"
+				;;
+			AF32)
+				tos_value="0x70"
+				tos_mask="0x70"
+				;;
+			AF33)
+				tos_value="0x78"
+				tos_mask="0x78"
+				;;
+         AF41)
+				tos_value="0x88"
+				tos_mask="0x88"
+				;;
+			AF42)
+				tos_value="0x90"
+				tos_mask="0x90"
+				;;
+			AF43)
+				tos_value="0x98"
+				tos_mask="0x98"
+				;;
+         EF)
+				tos_value="0xB8"
+				tos_mask="0xB8"
+				;;
+			*)
+				if [ -z "${tdscp}" ]
+				then
+					error "Invalid DSCP value found."
 					exit 1
 				fi
 				;;
