@@ -39,7 +39,7 @@ sub printit {
 my $case = 0;
 my $case_start = 0;
 while (<>) {
-  next if (/^[YN]\|/); # Skip command tables
+  next if (/^\t*[YN]\|/); # Skip command tables
   next if (/^[[:space:]]*$/); # Skip blank lines
   next if (/^[[:space:]]#/); # Skip pure comments for efficiency
   next if (/`which .*head/); # Skip special case - initial command detection

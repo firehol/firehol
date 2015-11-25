@@ -22,7 +22,7 @@ while (<>) {
   my $required;
   my $conf_cmd;
   my $options;
-  if (/^([YN])[|][^|]+[|]@([^|]+)@[|](.*)/) {
+  if (/^\t*([YN])[|][^|]+[|]@([^|]+)@[|](.*)/) {
     $required = $1;
     $conf_cmd = $2;
     $options = $3;

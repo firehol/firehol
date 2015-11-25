@@ -24,5 +24,5 @@ EXTRA_DIST = \
 	$(ipsetsweb_DATA)
 
 uninstall-local:
-	@-rmdir --ignore-fail-on-non-empty $(DESTDIR)$(webdir)
+	@-rmdir --ignore-fail-on-non-empty $(DESTDIR)$(ipsetswebdir)
 	@-rmdir --ignore-fail-on-non-empty $(DESTDIR)$(ipsetsdir)

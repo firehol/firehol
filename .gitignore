@@ -29,6 +29,7 @@ doc/apa*.html
 doc/services-?.xml
 doc/service-links
 doc/tools/pandoc-post
+sbin/commands.sed
 sbin/firehol
 sbin/fireqos
 sbin/link-balancer

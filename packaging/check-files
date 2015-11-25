@@ -96,6 +96,13 @@ do
     sbin/Makefile.in)
       :
     ;;
+    configure.ac|sbin/commands.sed.in)
+      check_commands sbin/firehol.in || status=1
+      check_commands sbin/fireqos.in || status=1
+      check_commands sbin/link-balancer.in || status=1
+      check_commands sbin/update-ipsets.in || status=1
+      check_commands sbin/vnetbuild.in || status=1
+    ;;
     sbin/*.in)
       check_commands $filename || status=1
     ;;

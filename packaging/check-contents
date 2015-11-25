@@ -46,4 +46,4 @@ diff -r "$1" $MYTMP/unpack/* | grep "^Only" | sed \
 	-e '/: firehol.*\.tar\.\(gz\|bz2\|xz\)$/d' \
 	-e '/: unittest$/d' \
 	-e '/sbin: \(firehol\|fireqos\|link-balancer\)$/d' \
-	-e '/sbin: \(update-ipsets\|vnetbuild\)$/d'
+	-e '/sbin: \(update-ipsets\|vnetbuild\|commands.sed\)$/d'

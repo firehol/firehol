@@ -25,37 +25,31 @@
 #       See the file COPYING for details.
 #
 
-# make sure sbin is included in the path
-# it seems that pppd ip-up.d script need this
-export PATH="$PATH:/sbin:/usr/sbin:/usr/local/sbin"
+PROGRAM_FILE="${0}"
+PROGRAM_DIR="${0%/*}"
+if [ "$PROGRAM_DIR" = "$0" ]; then PROGRAM_DIR="."; fi
+PROGRAM_PWD="${PWD}"
+declare -a PROGRAM_ORIGINAL_ARGS=("${@}")
 
-get_version() {
-	GIT_REF='$Format:%d,commit-%h$'
-	local IFS=":(), "
-	set -- "$GIT_REF"
-	ver='$Id$'
-	for i in $@
-	do
-		case "$i" in
-			*[0-9].[0-9]*)
-				echo "$i" | $SED_CMD -e 's/^v//'
-				return 0
-			;;
-			commit-[0-9a-zA-Z]*)
-				ver="$i"
-			;;
-		esac
-	done
-	echo "$ver"
-	return 0
-}
+# Start defaults before configure
+prefix_POST=/usr
+sysconfdir_POST=/etc
+localstatedir_POST=/var
+libdir_POST=$PROGRAM_DIR
+# End defaults before configure
+for functions_file in $libdir_POST/functions.common.sh
+do
+	if [ -r $functions_file ]
+	then
+		source $functions_file
+	else
+		1>&2 echo "Cannot access $functions_file"
+		exit 1
+	fi
+done
 
-if [ "@AUTOCONF_RUN@" = "Y" ]
-then
-	FIREHOL_CONFIG_DIR="@FIREHOL_CONFIG_DIR@"
-else
-	FIREHOL_CONFIG_DIR="/etc/firehol"
-fi
+FIREHOL_CONFIG_DIR="$sysconfdir_POST/firehol"
+common_disable_localization || exit
 
 marksreset() { :; }
 markdef() { :; }
@@ -64,158 +58,7 @@ then
 	source "${FIREHOL_CONFIG_DIR}/firehol-defaults.conf" || exit 1
 fi
 
-# Load commands vnetbuild will need.
-
-which_cmd() {
-	local name="$1"
-	shift
-
-	if [ "$1" = ":" ]
-	then
-		eval $name=":"
-		return 0
-	fi
-
-	unalias $1 >/dev/null 2>&1
-	local cmd=
-	IFS= read cmd <<-EOF
-	$(which $1 2> /dev/null)
-	EOF
-
-	if [ $? -gt 0 -o ! -x "${cmd}" ]
-	then
-		return 1
-	fi
-	shift
-
-	if [ $# -eq 0 ]
-	then
-		eval $name="'${cmd}'"
-	else
-		eval $name="'${cmd} ${@}'"
-	fi
-	return 0
-}
-
-require_cmd() {
-	local var= val= block=1
-
-	if [ "$1" = "-n" ]
-	then
-		block=0
-		shift
-	fi
-
-	var="$1"
-	shift
-
-	eval val=\$\{${var}\}
-	if [ "${val}" ]
-	then
-		local cmd="${val/ */}"
-		if [ ! -x "$cmd" ]
-		then
-			echo >&2
-			if [ $block -eq 0 ]
-			then
-				echo >&2 "WARNING: optional command does not exist or is not executable ($cmd)"
-				echo >&2 "please add or correct $var in firehol-defaults.conf"
-				val=""
-			else
-				echo >&2 "ERROR: required command does not exist or is not executable ($cmd)"
-				echo >&2 "please add or correct $var in firehol-defaults.conf"
-				exit 1
-			fi
-		fi
-
-		# link-balancer calls itself; export our findings so
-		# we do not repeat all of the lookups
-		eval export "$var"
-		return 0
-	elif [ $block -eq 0 ]
-	then
-		eval set -- "$@"
-		for cmd in "$@"
-		do
-			eval "NEED_${var}"="\$NEED_${var}' ${cmd/ */}'"
-		done
-		return 0
-	fi
-
-	if [ $# -eq 0 ]
-	then
-		eval set -- "\$NEED_${var}"
-	fi
-
-	echo >&2
-	echo >&2 "ERROR:	LINK-BALANCER REQUIRES ONE OF THESE COMMANDS:"
-	echo >&2
-	echo >&2 "	${@}"
-	echo >&2
-	echo >&2 "	You have requested the use of a link-balancer"
-	echo >&2 "	feature that requires certain external programs"
-	echo >&2 "	to be installed in the running system."
-	echo >&2
-	echo >&2 "	Please consult your Linux distribution manual to"
-	echo >&2 "	install the package(s) that provide these external"
-	echo >&2 "	programs and retry."
-	echo >&2
-	echo >&2 "	Note that you need an operational 'which' command"
-	echo >&2 "	for link-balancer to find all the external programs it"
-	echo >&2 "	needs. Check it yourself. Run:"
-	echo >&2
-	for x in "${@}"
-	do
-		echo >&2 "	which $x"
-	done
-
-	exit 1
-}
-
-which_all() {
-	local cmd_var="$1"
-
-	eval set -- "$2"
-	for cmd in "$@"
-	do
-		which_cmd $cmd_var $cmd && break
-	done
-}
-
-# Where required = Y, if a command is not found, FireHOL will refuse to run.
-# Where required = N, the command only required when it is actually used
-#
-# If a command is specified in /etc/firehol/firehol-defaults.conf it will
-# be used. Otherwise, if the script has been configured with ./configure
-# the detected versions will be used. If the script has not been configured
-# then the list of possible commands is autodetected.
-while IFS="|" read required cmd_var autoconf possibles
-do
-	if [ "@AUTOCONF_RUN@" = "Y" ]
-	then
-		case "$autoconf" in
-			"@"*) autoconf=""; ;;
-		esac
-	fi
-	eval set_in_defaults=\"\$$cmd_var\"
-	if [ "$set_in_defaults" ]
-	then
-		:
-	elif [ "@AUTOCONF_RUN@" = "Y" -a ! -z "$autoconf" ]
-	then
-		eval $cmd_var=\"$autoconf\"
-	else
-		dirname="${0%/*}"
-		if [ "$dirname" = "$0" ]; then dirname="."; fi
-		PATH="/bin:/usr/bin:/sbin:/usr/sbin:$PATH:$dirname" which_all $cmd_var "$possibles"
-	fi
-	if [ "$required" = "Y" ]
-	then
-		require_cmd $cmd_var $possibles
-	else
-		require_cmd -n $cmd_var $possibles
-	fi
-done <<-!
+common_load_commands $PROGRAM_FILE @AUTOCONF_RUN@ <<-!
 Y|IP_CMD|@IP@|ip
 Y|BRIDGE_CMD|@BRIDGE@|bridge
 Y|GREP_CMD|@GREP@|grep
@@ -231,23 +74,10 @@ Y|RM_CMD|@RM@|rm
 Y|MKTEMP_CMD|@MKTEMP@|mktemp
 N|NEATO_CMD|@NEATO@|neato
 !
+status=$?
+test $status -eq 0 || exit $status
 
-VERSION=$(get_version)
-
-emit_version() {
-	$CAT_CMD <<EOF
-FireHOL vnetbuild $VERSION
-(C) Copyright 2015 Phil Whineray <phil@firehol.org>
-(C) Copyright 2015 Costa Tsaousis <costa@tsaousis.gr>
-FireHOL is distributed under the GPL v2+.
-Home Page: http://firehol.org
-
--------------------------------------------------------------------------
-Get notified of new FireHOL releases by subscribing to the mailing list:
-    http://lists.firehol.org/mailman/listinfo/firehol-support/
--------------------------------------------------------------------------
-EOF
-}
+VERSION=$(common_get_version '$Id$')
 
 needroot=Y
 haderror=""
@@ -269,7 +99,7 @@ case "$mode" in
     :
   ;;
   graphviz)
-    require_cmd NEATO_CMD
+    common_require_cmd $PROGRAM_FILE NEATO_CMD
     needroot=
     case "$outfile" in
       *.gv|"")
@@ -302,7 +132,18 @@ esac
 
 if [ "$mode" = "" ]
 then
-  emit_version
+  $CAT_CMD <<-EOF
+	FireHOL vnetbuild $VERSION
+	(C) Copyright 2015 Phil Whineray <phil@firehol.org>
+	(C) Copyright 2015 Costa Tsaousis <costa@tsaousis.gr>
+	FireHOL is distributed under the GPL v2+.
+	Home Page: http://firehol.org
+
+	------------------------------------------------------------------------
+	Get notified of new FireHOL releases by subscribing to the mailing list:
+	http://lists.firehol.org/mailman/listinfo/firehol-support/
+	------------------------------------------------------------------------
+	EOF
 fi
 
 if [ "$needroot" -a "${UID}" != "0" ]

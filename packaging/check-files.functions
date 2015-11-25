@@ -46,8 +46,19 @@ check_version_matches() {
 check_commands() {
   local status=0
 
+  touch $MYTMP/commands-checked
+  if grep -q -F -z "$1" $MYTMP/commands-checked
+  then
+    # Only check a file once - an edit to some files checks multiple
+    return 0
+  else
+    echo "$1" >> $MYTMP/commands-checked
+  fi
+
   get_staged_file $1
   get_staged_file configure.ac
+  get_staged_file sbin/commands.sed.in
+  get_staged_file sbin/functions.common.sh
 
   # Find commands that have been enclosed in quotes and remove anything after
   #  if nothing matched the substitution, proceed to the next line
@@ -79,7 +90,7 @@ check_commands() {
   # proceed to next line if command starts with a dollar
   # proceed to next line if command ends with equals (assignment)
   # print line number
-  sed -n -e '/^[YN]|/b' -e '/require_cmd/b' \
+  sed -n -e '/^	*[YN]|/b' -e '/require_cmd/b' \
          -e 's/^/  /' -e 's/$/  /' -e T \
          -e 's/.*\(..\<[A-Z0-9_]*_CMD..\).*/\1/' -e T \
          -e 's/[{}]//' \
@@ -94,11 +105,11 @@ check_commands() {
     cat $MYTMP/errors
   fi
 
-  grep "^[YN]|" $MYTMP/files/$1 > $MYTMP/commands-defined
+  sed -n -e "s/^	*[YN]|//p" $MYTMP/files/$1 > $MYTMP/commands-defined
   for cmd in $(tr " " "\n" < $MYTMP/files/$1 |
              sed -n -e 's/.*\(\<[A-Z0-9_]*\)_CMD.*/\1/p' | sort | uniq)
   do
-    if ! grep -q "^[YN]|${cmd}_CMD|" $MYTMP/commands-defined
+    if ! grep -q "^${cmd}_CMD|" $MYTMP/commands-defined
     then
       status=1
       echo "Missing definition of $cmd in $1 detection table."
@@ -114,12 +125,17 @@ check_commands() {
     fi
   done
 
-  while IFS="|" read yn cmd rest
+  while IFS="|" read cmd subst defaults
   do
-    if ! grep -q "\${*$cmd" $MYTMP/files/$1
+    if ! grep -q "\${*$cmd" $MYTMP/files/$1 $MYTMP/files/sbin/*.sh
     then
       status=1
-      echo "$cmd detected but never used in $1"
+      echo "$cmd detected but never used in $1 or function libraries"
+    fi
+    if ! grep -q "#$subst#" $MYTMP/files/sbin/commands.sed.in
+    then
+      status=1
+      echo "$cmd detected but $subst never substituted by sbin/commands.sed.in"
     fi
   done < $MYTMP/commands-defined
 

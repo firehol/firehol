@@ -80,35 +80,32 @@
 
 # -----------------------------------------------------------------------------
 
-get_version() {
-	GIT_REF='$Format:%d,commit-%h$'
-	local IFS=":(), "
-	set -- "$GIT_REF"
-	ver='$Id$'
-	for i in $@
-	do
-		case "$i" in
-			*[0-9].[0-9]*)
-				echo "$i" | $SED_CMD -e 's/^v//'
-				return 0
-			;;
-			commit-[0-9a-zA-Z]*)
-				ver="$i"
-			;;
-		esac
-	done
-	echo "$ver"
-	return 0
-}
-
 PROGRAM_FILE="${0}"
+PROGRAM_DIR="${0%/*}"
+if [ "$PROGRAM_DIR" = "$0" ]; then PROGRAM_DIR="."; fi
+PROGRAM_PWD="${PWD}"
+declare -a PROGRAM_ORIGINAL_ARGS=("${@}")
 
-if [ "@AUTOCONF_RUN@" = "Y" ]
-then
-	FIREHOL_CONFIG_DIR="@FIREHOL_CONFIG_DIR@"
-else
-	FIREHOL_CONFIG_DIR="/etc/firehol"
-fi
+# Start defaults before configure
+prefix_POST=/usr
+sysconfdir_POST=/etc
+localstatedir_POST=/var
+libdir_POST=$PROGRAM_DIR
+# End defaults before configure
+for functions_file in $libdir_POST/functions.common.sh
+do
+	if [ -r $functions_file ]
+	then
+		source $functions_file
+	else
+		1>&2 echo "Cannot access $functions_file"
+		exit 1
+	fi
+done
+
+FIREHOL_CONFIG_DIR="$sysconfdir_POST/firehol"
+common_disable_localization || exit
+common_private_umask || exit
 
 marksreset() { :; }
 markdef() { :; }
@@ -117,165 +114,7 @@ then
 	source "${FIREHOL_CONFIG_DIR}/firehol-defaults.conf" || exit 1
 fi
 
-PATH="${PATH}:/sbin:/usr/sbin"
-
-LC_ALL=C
-umask 077
-
-
-# -----------------------------------------------------------------------------
-# Load commands update-ipsets will need.
-
-which_cmd() {
-	local name="$1"
-	shift
-
-	if [ "$1" = ":" ]
-	then
-		eval $name=":"
-		return 0
-	fi
-
-	unalias $1 >/dev/null 2>&1
-	local cmd=
-	IFS= read cmd <<-EOF
-	$(which $1 2> /dev/null)
-	EOF
-
-	if [ $? -gt 0 -o ! -x "${cmd}" ]
-	then
-		return 1
-	fi
-	shift
-
-	if [ $# -eq 0 ]
-	then
-		eval $name="'${cmd}'"
-	else
-		eval $name="'${cmd} ${@}'"
-	fi
-	return 0
-}
-
-require_cmd() {
-	local var= val= block=1
-
-	if [ "$1" = "-n" ]
-	then
-		block=0
-		shift
-	fi
-
-	var="$1"
-	shift
-
-	eval val=\$\{${var}\}
-	if [ "${val}" ]
-	then
-		local cmd="${val/ */}"
-		if [ ! -x "$cmd" ]
-		then
-			echo >&2
-			if [ $block -eq 0 ]
-			then
-				echo >&2 "WARNING: optional command does not exist or is not executable ($cmd)"
-				echo >&2 "please add or correct $var in firehol-defaults.conf"
-				val=""
-			else
-				echo >&2 "ERROR: required command does not exist or is not executable ($cmd)"
-				echo >&2 "please add or correct $var in firehol-defaults.conf"
-				exit 1
-			fi
-		fi
-
-		# link-balancer calls itself; export our findings so
-		# we do not repeat all of the lookups
-		eval export "$var"
-		return 0
-	elif [ $block -eq 0 ]
-	then
-		eval set -- "$@"
-		for cmd in "$@"
-		do
-			eval "NEED_${var}"="\$NEED_${var}' ${cmd/ */}'"
-		done
-		return 0
-	fi
-
-	if [ $# -eq 0 ]
-	then
-		eval set -- "\$NEED_${var}"
-	fi
-
-	echo >&2
-	echo >&2 "ERROR:	UPDATE-IPSETS REQUIRES ONE OF THESE COMMANDS:"
-	echo >&2
-	echo >&2 "	${@}"
-	echo >&2
-	echo >&2 "	You have requested the use of a update-ipsets"
-	echo >&2 "	feature that requires certain external programs"
-	echo >&2 "	to be installed in the running system."
-	echo >&2
-	echo >&2 "	Please consult your Linux distribution manual to"
-	echo >&2 "	install the package(s) that provide these external"
-	echo >&2 "	programs and retry."
-	echo >&2
-	echo >&2 "	Note that you need an operational 'which' command"
-	echo >&2 "	for update-ipsets to find all the external programs it"
-	echo >&2 "	needs. Check it yourself. Run:"
-	echo >&2
-	for x in "${@}"
-	do
-		echo >&2 "	which $x"
-	done
-
-	exit 1
-}
-
-which_all() {
-	local cmd_var="$1"
-
-	eval set -- "$2"
-	for cmd in "$@"
-	do
-		which_cmd $cmd_var $cmd && break
-	done
-}
-
-# Where required = Y, if a command is not found, FireHOL will refuse to run.
-# Where required = N, the command only required when it is actually used
-#
-# If a command is specified in /etc/firehol/firehol-defaults.conf it will
-# be used. Otherwise, if the script has been configured with ./configure
-# the detected versions will be used. If the script has not been configured
-# then the list of possible commands is autodetected.
-while IFS="|" read required cmd_var autoconf possibles
-do
-	if [ "@AUTOCONF_RUN@" = "Y" ]
-	then
-		case "$autoconf" in
-			"@"*) autoconf=""; ;;
-		esac
-	fi
-	eval set_in_defaults=\"\$$cmd_var\"
-	if [ "$set_in_defaults" ]
-	then
-		:
-	elif [ "@AUTOCONF_RUN@" = "Y" -a ! -z "$autoconf" ]
-	then
-		eval $cmd_var=\"$autoconf\"
-	else
-		dirname="${0%/*}"
-		if [ "$dirname" = "$0" ]; then dirname="."; fi
-		PATH="/bin:/usr/bin:/sbin:/usr/sbin:$PATH:$dirname" which_all $cmd_var "$possibles"
-	fi
-	if [ "$required" = "Y" ]
-	then
-		require_cmd $cmd_var $possibles
-	else
-		require_cmd -n $cmd_var $possibles
-	fi
-done <<-!
+common_load_commands $PROGRAM_FILE @AUTOCONF_RUN@ <<-!
 Y|IPRANGE_CMD|@IPRANGE@|iprange
 Y|DIRNAME_CMD|@DIRNAME@|dirname
 Y|TAIL_CMD|@TAIL@|tail
@@ -314,47 +153,17 @@ N|UNZIP_CMD|@UNZIP@|unzip
 N|FUNZIP_CMD|@FUNZIP@|funzip
 N|GIT_CMD|@GIT@|git
 !
+status=$?
+test $status -eq 0 || exit $status
 
-VERSION=$(get_version)
-PROGRAM_PWD="${PWD}"
-PROGRAM_DIR="`$DIRNAME_CMD ${0}`"
-
-# -----------------------------------------------------------------------------
-# terminal
+VERSION=$(common_get_version '$Id$')
 
 RUNNING_ON_TERMINAL=0
 if [ "z$1" = "z-nc" ]
 then
 	shift
-elif [ ! -z "$TPUT_CMD" ]
-then
-	test -t 2 && RUNNING_ON_TERMINAL=1
-	if [ -t 2 -a $[$($TPUT_CMD colors 2>/dev/null)] -ge 8 ]
-	then
-		# Enable colors
-		COLOR_RESET="\e[0m"
-		COLOR_BLACK="\e[30m"
-		COLOR_RED="\e[31m"
-		COLOR_GREEN="\e[32m"
-		COLOR_YELLOW="\e[33m"
-		COLOR_BLUE="\e[34m"
-		COLOR_PURPLE="\e[35m"
-		COLOR_CYAN="\e[36m"
-		COLOR_WHITE="\e[37m"
-		COLOR_BGBLACK="\e[40m"
-		COLOR_BGRED="\e[41m"
-		COLOR_BGGREEN="\e[42m"
-		COLOR_BGYELLOW="\e[43m"
-		COLOR_BGBLUE="\e[44m"
-		COLOR_BGPURPLE="\e[45m"
-		COLOR_BGCYAN="\e[46m"
-		COLOR_BGWHITE="\e[47m"
-		COLOR_BOLD="\e[1m"
-		COLOR_DIM="\e[2m"
-		COLOR_UNDERLINED="\e[4m"
-		COLOR_BLINK="\e[5m"
-		COLOR_INVERTED="\e[7m"
-	fi
+else
+	common_setup_terminal && RUNNING_ON_TERMINAL=1
 fi
 
 $RENICE_CMD 10 $$ >/dev/null 2>/dev/null

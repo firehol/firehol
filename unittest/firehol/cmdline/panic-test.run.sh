@@ -1,5 +1,6 @@
 #!/bin/sh
 
+export SSH_CLIENT=
 $kcov $script panic
 status=$?
 if [ $status -eq 1 ]

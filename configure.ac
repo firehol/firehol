@@ -114,9 +114,6 @@ else
   fi
 fi
 
-FIREHOL_CONFIG_DIR=$(eval echo "$sysconfdir/firehol" | sed -e 's|^NONE|/usr/local|')
-AC_SUBST(FIREHOL_CONFIG_DIR)
-
 PATH=$PATH:/sbin:/usr/sbin:/usr/local/sbin:/usr/local/bin
 
 if test x"$USE_MAINTAINER_MODE" = xno; then
@@ -316,6 +313,7 @@ AC_SUBST(AUTOCONF_RUN)
 AC_CONFIG_FILES([
 	Makefile
 	sbin/Makefile
+	sbin/commands.sed
 	m4/Makefile
 	doc/Makefile
 	doc/firehol/Makefile
@@ -328,11 +326,5 @@ AC_CONFIG_FILES([
 	contrib/Makefile
 	packaging/Makefile
 	])
-
-AC_CONFIG_FILES([sbin/firehol], [chmod +x sbin/firehol])
-AC_CONFIG_FILES([sbin/fireqos], [chmod +x sbin/fireqos])
-AC_CONFIG_FILES([sbin/link-balancer], [chmod +x sbin/link-balancer])
-AC_CONFIG_FILES([sbin/update-ipsets], [chmod +x sbin/update-ipsets])
-AC_CONFIG_FILES([sbin/vnetbuild], [chmod +x sbin/vnetbuild])
 
 AC_OUTPUT
