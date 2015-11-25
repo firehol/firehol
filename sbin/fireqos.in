@@ -2517,6 +2517,7 @@ match() {
 	[ ! "${port}" = "any" -a ! "${dport}" = "any" ]	&& error "Cannot match 'port' and 'dport'." && exit 1
 	[ ! "${ip}" = "any" -a ! "${src}" = "any" ]	&& error "Cannot match 'ip' and 'src'." && exit 1
 	[ ! "${ip}" = "any" -a ! "${dst}" = "any" ]	&& error "Cannot match 'ip' and 'dst'." && exit 1
+	[ ! "${dscp}" = "any" -a ! "${tos}" = "any" ]   && error "Cannot match both 'dscp' and 'tos''." && exit 1
 
 	local device=${interface_realdev}
 	local parent="${parent_filters_to}"
