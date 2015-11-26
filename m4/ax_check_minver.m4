@@ -4,23 +4,24 @@ dnl ============================================================================
 dnl
 dnl SYNOPSIS
 dnl
-dnl   AX_CHECK_IPRANGE_MIN([MINIMUM-VERSION, [ACTION-IF-FOUND [, ACTION-IF-NOT-FOUND]]])
+dnl   AX_CHECK_MINVER(VARIABLE, MINIMUM, COMMAND, REST, [ACTION-IF-OVER [, ACTION-IF-UNDER]])
 dnl
 dnl DESCRIPTION
 dnl
-dnl   Check that the version of iprange is at least version MINIMUM-VERSION.
-dnl   If the test is successful, $IPRANGE_VERSION will be set to the iprange
-dnl   version and ACTION-IF-FOUND is performed; if not, it will be set to 'no'
-dnl   and ACTION-IF-NOT-FOUND is performed.
+dnl   Check that the version returned by running `COMMAND REST` is at least
+dnl   version MINIMUM.
+dnl
+dnl   If the test is successful, $VARIABLE will be set to the version
+dnl   and ACTION-IF-OVER is performed; if not, it will be set to 'no'
+dnl   and ACTION-IF-UNDER is performed.
 dnl
 dnl   Example:
 dnl
-dnl    AX_CHECK_IPRANGE_MIN([1.0.0])
+dnl    AX_CHECK_MINVER([IPRANGE_VERSION], [1.0.0], [iprange],
+dnl                     [--version 2> /dev/null | head -n 1 | cut -d'_' -f1])
 dnl    if test "x$IPRANGE_VERSION" = "xno"; then
 dnl    ...
-dnl
-dnl   NOTE: This macros is based upon the original AX_CHECK_DOCBOOK_XSLT_MIN macro
-dnl   from Dustin J. Mitchell <dustin@zmanda.com>
+dnl    fi
 dnl
 dnl LICENSE
 dnl
@@ -53,48 +54,54 @@ dnl   modified version of the Autoconf Macro, you may extend this special
 dnl   exception to the GPL to apply to your modified version as well.
 dnl
 
-AU_ALIAS([AC_CHECK_IPRANGE_MIN], [AX_CHECK_IPRANGE_MIN])
-AC_DEFUN([AX_CHECK_IPRANGE_MIN],
-[
-	AC_CACHE_CHECK([for iprange version], [ac_cv_iprange_version],
-		[
-			ac_cv_iprange_version=no
+AC_DEFUN([AX_CHECK_MINVER],[
+	pushdef([VARIABLE],$1)
+	pushdef([MINIMUM],$2)
+	pushdef([COMMAND],$3)
+	pushdef([REST],$4)
+	pushdef([IFOVER],$5)
+	pushdef([IFUNDER],$6)
 
-			if test "${cross_compiling}" == 'yes'; then
-				ac_cv_iprange_version=$IPRANGE_VERSION
-				test -z "$IPRANGE_VERSION" && AC_MSG_ERROR([must set IPRANGE_VERSION when cross-compiling])
-			elif test -n "$IPRANGE"; then
-				ac_cv_iprange_version=$($IPRANGE --version 2> /dev/null | head -n 1 | cut -d'_' -f1)
+	pushdef([RUN],COMMAND REST)
+	dnl AC_MSG_NOTICE([running(]RUN[)])
 
-				if test "x$ac_cv_iprange_version" = "x"; then
-					ac_cv_iprange_version='no'
-				fi
+	if test "${cross_compiling}" = 'yes'; then
+		test -z "$VARIABLE" && AC_MSG_ERROR([must set ]VARIABLE[ when cross-compiling])
+	elif test -z "$MINIMUM"; then
+		AC_MSG_ERROR([no mimumum for ]COMMAND[ version detection])
+	else
+		VARIABLE=`RUN`
 
-			fi
-		])
-
-		min_iprange_version=ifelse([$1], ,1.0.0,$1)
-
-		IPRANGE_VERSION="$ac_cv_iprange_version"
-		AC_MSG_CHECKING([whether iprange version is $min_iprange_version or newer])
-
-		if test x"$ac_cv_iprange_version" = xno ; then
-			AC_MSG_RESULT([no])
-			IPRANGE_VERSION='no'
-			ifelse([$3], , :, [$3])
-		else
-			ac_cv_iprange_compare_answer=yes
-			AX_COMPARE_VERSION([$IPRANGE_VERSION],[lt],[$min_iprange_version],[ac_cv_iprange_compare_answer=no])
-				if test x"$ac_cv_iprange_compare_answer" = xno ; then
-					AC_MSG_RESULT([no ($IPRANGE_VERSION)])
-					IPRANGE_VERSION='no'
-					ifelse([$3], , :, [$3])
-				else
-					AC_MSG_RESULT([yes ($IPRANGE_VERSION)])
-					ifelse([$2], , :, [$2])
-				fi
-			unset ac_cv_iprange_compare_answer
+		if test x"$VARIABLE" = "x"; then
+			VARIABLE='no'
 		fi
+	fi
+
+	AC_MSG_CHECKING([whether ]COMMAND[ version is ]MINIMUM[ or newer])
+
+	if test x"$VARIABLE" = xno ; then
+		AC_MSG_RESULT([no])
+		ifelse(IFUNDER, , :, IFUNDER)
+	else
+		ac_minimum_compare_answer=yes
+		AX_COMPARE_VERSION($VARIABLE,[lt],MINIMUM,[ac_minimum_compare_answer=no])
+		if test x"$ac_minimum_compare_answer" = xno ; then
+			AC_MSG_RESULT([no (]$VARIABLE[)])
+			VARIABLE='no'
+			ifelse(IFUNDER, , :, IFUNDER)
+		else
+			AC_MSG_RESULT([yes (]$VARIABLE[)])
+			ifelse(IFOVER, , :, IFOVER)
+		fi
+		unset ac_minimum_compare_answer
+	fi
+
+	popdef([RUN])
+
+	popdef([IFUNDER])
+	popdef([IFOVER])
+	popdef([REST])
+	popdef([COMMAND])
+	popdef([MINIMUM])
+	popdef([VARIABLE])
 ])
-dnl
-dnl

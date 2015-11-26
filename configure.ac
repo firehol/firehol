@@ -3,6 +3,11 @@ dnl Process this file with autoconf to produce a configure script.
 AC_PREREQ([2.63])
 
 define([MIN_IPRANGE_VERSION], [1.0.0])
+define([MIN_BASH_VERSION], [4.0])
+define([MIN_PANDOC_VERSION], [1.12.2.1])
+
+dnl pandoc 1.12.2.1+ is required to process github markdown
+dnl - Debian jessie and Ubuntu trusty packages are OK
 
 AC_INIT([firehol],[m4_esyscmd([./packaging/packver])],[firehol-devs@lists.firehol.org])
 AC_CONFIG_MACRO_DIR([m4])
@@ -76,6 +81,7 @@ AC_ARG_ENABLE([ipv6],
 AM_CONDITIONAL([ENABLE_IPV6], [test "${enable_ipv6}" = "yes"])
 
 AC_ARG_VAR([IPRANGE_VERSION], [version of iprange when cross-compiling])
+AC_ARG_VAR([BASH_VERSION], [version of bash when cross-compiling])
 
 if test x"$enable_ipv4" = xyes; then
 IPV4_ENABLED=1
@@ -95,13 +101,15 @@ if test x"$USE_MAINTAINER_MODE" = xyes; then
 AC_MSG_NOTICE(***************** MAINTAINER MODE *****************)
 PACKAGE_BUILT_DATE=$(date '+%d %b %Y')
 AX_PROG_XMLLINT([--nonet])
+
 AX_PROG_PANDOC([ -f markdown --toc -N],
                [ -f markdown -t html --email-obfuscation=references --toc -c firehol-manual.css],
                [ -f markdown -t man -s])
-dnl pandoc 1.12.2.1+ is required to process github markdown
-dnl   Debian jessie and Ubuntu trusty packages are OK
-AX_CHECK_PANDOC_MIN([1.12.2.1],[],[AC_MSG_ERROR(could not find required version of pandoc)])
+AX_CHECK_MINVER([PANDOC_VERSION], MIN_PANDOC_VERSION, [$PANDOC],
+                [-v | head -n 1 | cut -d' ' -f2],
+                [], [AC_MSG_ERROR(could not find required version of pandoc)])
 AX_CHECK_PANDOC_OUTPUT()
+
 AC_SUBST(PACKAGE_BUILT_DATE)
 AC_SUBST(PANDOC_VERSION)
 AC_CONFIG_FILES([doc/tools/pandoc-post], [chmod +x doc/tools/pandoc-post])
@@ -118,8 +126,14 @@ PATH=$PATH:/sbin:/usr/sbin:/usr/local/sbin:/usr/local/bin
 
 if test x"$USE_MAINTAINER_MODE" = xno; then
 AX_NEED_PROG([BASH_SHELL_PATH], [bash], [])
+AX_CHECK_MINVER([BASH_VERSION_PATH], MIN_BASH_VERSION, [$BASH_SHELL_PATH],
+                [--version | sed -n -e '1{s/.* \(.*\..*\)\..*/\1/p;}'],
+                [], [AC_MSG_ERROR(could not find required version of bash)])
+
 AX_NEED_PROG([IPRANGE], [iprange], [])
-AX_CHECK_IPRANGE_MIN(MIN_IPRANGE_VERSION,[],[AC_MSG_ERROR(could not find required version of iprange - check http://firehol.org/download/iprange/)])
+AX_CHECK_MINVER([IPRANGE_VERSION], MIN_IPRANGE_VERSION, [$IPRANGE],
+                [--version | head -n 1 | cut -d'_' -f1],
+                [], [AC_MSG_ERROR(could not find required version of iprange - check http://firehol.org/download/iprange/)])
 fi
 
 dnl --- OUTPUT OF './packaging/gen-config-detect.pl sbin/*.in' BEGIN   ---
