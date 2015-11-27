@@ -1,3 +1,4 @@
+/VERSION=/s#'[$]Id.*'#'@PACKAGE_VERSION@'#g
 s#[@]BRIDGE@#@BRIDGE@#g
 s#[@]CAT@#@CAT@#g
 s#[@]CHMOD@#@CHMOD@#g

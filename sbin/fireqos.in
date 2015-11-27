@@ -25,6 +25,7 @@
 #       See the file COPYING for details.
 #
 
+VERSION='$Id$'
 PROGRAM_FILE="${0}"
 PROGRAM_DIR="${0%/*}"
 if [ "$PROGRAM_DIR" = "$0" ]; then PROGRAM_DIR="."; fi
@@ -136,8 +137,6 @@ Y|TAIL_CMD|@TAIL@|tail
 !
 status=$?
 test $status -eq 0 || exit $status
-
-VERSION=$(common_get_version '$Id$')
 
 RUNNING_ON_TERMINAL=0
 if [ "z$1" = "z-nc" ]

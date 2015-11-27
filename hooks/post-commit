@@ -1,0 +1,2 @@
+#!/bin/sh
+exec git diff HEAD^ | ./packaging/update-tags -

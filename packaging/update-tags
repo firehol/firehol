@@ -1,9 +1,9 @@
 #!/bin/bash
 
 #
-# check-files
+# update-tags
 #
-scriptname=check-files
+scriptname=update-tags
 if ! MYTMP=$(mktemp -d -t $scriptname-XXXXXX)
 then
             echo >&2
@@ -15,6 +15,18 @@ fi
 
 cleanup() {
   status=$?
+  if [ $status -ne 0 ]
+  then
+    echo "FAILED."
+    if [ "$TAGVER" ]
+    then
+      git tag -d "$TAGVER"
+    fi
+    echo "To re-run manually:"
+    echo "  git diff HEAD^ | ./packaging/update-tags -"
+    echo "To undo commit:"
+    echo "  git reset HEAD^"
+  fi
   rm -rf "${MYTMP}"
   exit $status
 }
@@ -33,15 +45,11 @@ fi
 
 if [ $# -lt 1 ]
 then
-  echo "check-files [--debug] -|filenames"
-  echo "e.g."
-  echo "  git diff | ./packaging/check-files -"
-  echo "or in .git/hooks/pre-commit:"
-  echo "  exec git diff --cached | ./packaging/check-files -"
+  echo "Use only from .git/hooks/post-commit"
   exit 1
 fi
 
-if [ ! -x packaging/check-files ]
+if [ ! -x packaging/update-tags ]
 then
   echo "Must be run from base directory"
   exit 1
@@ -94,31 +102,15 @@ while read filename
 do
   #echo Checking $filename
   case $filename in
-    sbin/Makefile.in)
-      :
-    ;;
-    configure.ac|sbin/commands.sed.in)
-      check_versions || status=1
-      version_check=Y
-      if [ $status -eq 0 ]
-      then
-        check_commands sbin/firehol.in || status=1
-        check_commands sbin/fireqos.in || status=1
-        check_commands sbin/link-balancer.in || status=1
-        check_commands sbin/update-ipsets.in || status=1
-        check_commands sbin/vnetbuild.in || status=1
-      fi
-    ;;
-    sbin/*.in)
-      check_commands $filename || status=1
-    ;;
-    ChangeLog)
-      check_versions || status=1
-      version_check=Y
-      if [ $status -eq 0 ]
-      then
-        check_changelog || status=1
-      fi
+    configure.ac|ChangeLog)
+      mkdir -p $MYTMP/files
+      git show HEAD:configure.ac > $MYTMP/files/configure.ac
+      version=`get_configure_ac_version`
+      case "$(match_version $version)" in
+         prerelease|candidate|release)
+           do_release=Y
+         ;;
+      esac
     ;;
     *)
       #echo "No checks found for $filename"
@@ -127,19 +119,30 @@ do
   esac
 done < $MYTMP/files.lst
 
-if [ $status -eq 0 -a "$version_check" ]
+if [ "$do_release" ]
 then
-  version=`get_configure_ac_version`
-  case "$(match_version $version)" in
-    prerelease|candidate|release)
-      try_build || status=1
-      if [ $status -eq 0 ]
-      then
-         cp $MYTMP/build/*.tar.* .
-         echo "Check $(cd $MYTMP/build && ls *.tar.gz) before pushing tags"
-      fi
-    ;;
-  esac
+  echo "Tagging new release with:"
+  echo "   git tag -s \"v$version\" -m \"Release version $version\""
+  git tag -s "v$version" -m "Release version $version"
+  TAGVER="v$version"
+
+  splitver confmaj confmin conffix confsfx "$version"
+  if [ ! "$confsfx" ]
+  then
+    echo "Incrementing version in configure.ac:"
+    conffix=`expr $conffix + 1`
+    sed -i -e "s/define(\[VERSION_FIX\], \[.*])/define([VERSION_FIX], [$conffix])/" configure.ac
+  fi
+
+  echo "Resetting suffix in configure.ac:"
+  sed -i -e 's/define(\[VERSION_SUFFIX\], \[.*])/define([VERSION_SUFFIX], [_master])/' configure.ac
+
+  echo "Committing new configure.ac:"
+  git commit --no-verify -m "Post release $version" -- configure.ac
+  echo ""
+  echo "Verify, then:"
+  echo "  git push origin"
+  echo "  git push origin tag $TAGVER"
 fi
 
 exit $status
