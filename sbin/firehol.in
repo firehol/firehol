@@ -25,6 +25,7 @@
 #       See the file COPYING for details.
 #
 
+VERSION='$Id$'
 PROGRAM_FILE="${0}"
 PROGRAM_DIR="${0%/*}"
 if [ "$PROGRAM_DIR" = "$0" ]; then PROGRAM_DIR="."; fi
@@ -867,8 +868,6 @@ Y|SLEEP_CMD|@SLEEP@|sleep
 !
 status=$?
 test $status -eq 0 || exit $status
-
-VERSION=$(common_get_version '$Id$')
 
 emit_version() {
 	${CAT_CMD} <<EOF

@@ -1,5 +1,8 @@
 #!/usr/bin/perl -w
 
+# Create the configure.ac lines necessary to detect external commands
+# used by the programs.
+
 use strict;
 use Data::Dumper;
 use File::Basename;

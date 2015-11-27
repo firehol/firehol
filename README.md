@@ -1,7 +1,58 @@
-FireHOL, an iptables stateful packet filtering firewall for humans!
-FireQOS, a TC based bandwidth shaper for humans!
+FireHOL
+=======
 
-                        http://firehol.org/
+:   [http://firehol.org/](http://firehol.org/)
+
+    - FireHOL, an iptables stateful packet filtering firewall for humans!
+    - FireQOS, a TC based bandwidth shaper for humans!
+
+Git
+===
+These instructions are for people who are working with the git repository
+only. There are more general instructions starting at [Upgrade Notes][].
+
+Cloning Git Repository
+----------------------
+
+The [github firehol repoistory page][https://github.com/firehol/firehol]
+lists URLs which can be used to clone the repository.
+
+After cloning you should copy the git hooks, for style checking and more:
+
+~~~~
+cp hooks/* .git/hooks
+~~~~
+
+Building Git Repository
+-----------------------
+You need [GNU autoconf][http://www.gnu.org/software/autoconf/] and
+[GNU automake][http://www.gnu.org/software/automake/] to be able to
+run:
+
+~~~~
+./autogen.sh
+./configure --enable-maintainer-mode
+make
+make install
+~~~~
+
+If you don't want to have to install pandoc you can instead choose
+to build without documentation or manpages:
+
+~~~~
+./autogen.sh
+./configure --disable-doc --disable-man
+make
+make install
+~~~~
+
+Re-run `autogen.sh` whenever you change `configure.ac` or a `Makefile.am`
+
+You can run the `sbin/*.in` scripts in-situ but they will produce internal
+git versions e.g. `FireQOS $Id: def55bbc9c2a78aef580e88ad6d3f9ba689a6004 $`.
+
+The "compiled" scripts must be installed, along with their function
+libraries in order to work correctly.
 
 
 Upgrade Notes
@@ -16,17 +67,17 @@ please read the upgrade notes, here:
 
 Installation
 ============
-If you are installing direct from GitHub, please see:
-  http://firehol.org/source-install/
-
 If you are installing the package from a tar-files release, FireHOL uses
-the GNU Autotools so you can get away with:
+the GNU Autotools so you can just do:
   ./configure && make && make install
 
-You can set the compilation options for iprange like this:
-  CFLAGS=-O3 ./configure && make && make install
+You can get help on the options available (including disabling unwanted
+components) by running:
+  ./configure --help
 
-Take a look at the file INSTALL, also.
+From version 3.0.0 it is no longer recommended to install firehol by
+copying files, since a function library is now used, in addition to
+the scripts.
 
 
 Getting Started
@@ -58,9 +109,8 @@ installed from an distribution package this will be configured in the
 usual way.
 
 For a tar-file installation, the binaries can often be linked directly
-into /etc/init.d, since their options are SysVInit compatible. A systemd
-service file for FireHOL can be found here:
-  https://github.com/ktsaou/firehol/issues/17
+into /etc/init.d, since their options are SysVInit compatible. Some
+example systemd service files can be found in the contrib folder.
 
 
 Support and documentation

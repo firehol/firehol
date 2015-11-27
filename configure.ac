@@ -2,14 +2,20 @@ dnl Process this file with autoconf to produce a configure script.
 
 AC_PREREQ([2.63])
 
+dnl Package version
+define([VERSION_MAJOR], [3])
+define([VERSION_MINOR], [0])
+define([VERSION_FIX], [0])
+define([VERSION_SUFFIX], [_master])
+
+dnl Required program versions
 define([MIN_IPRANGE_VERSION], [1.0.0])
 define([MIN_BASH_VERSION], [4.0])
 define([MIN_PANDOC_VERSION], [1.12.2.1])
 
-dnl pandoc 1.12.2.1+ is required to process github markdown
-dnl - Debian jessie and Ubuntu trusty packages are OK
+define([VERSION_NUMBER], VERSION_MAJOR[.]VERSION_MINOR[.]VERSION_FIX)
+AC_INIT([firehol],VERSION_NUMBER[]VERSION_SUFFIX,[firehol-devs@lists.firehol.org])
 
-AC_INIT([firehol],[m4_esyscmd([./packaging/packver])],[firehol-devs@lists.firehol.org])
 AC_CONFIG_MACRO_DIR([m4])
 AC_CONFIG_AUX_DIR([autotool])
 AC_CONFIG_SRCDIR([sbin/firehol.in])
@@ -338,7 +344,6 @@ AC_CONFIG_FILES([
 	html/Makefile
 	html/ipsets/Makefile
 	contrib/Makefile
-	packaging/Makefile
 	])
 
 AC_OUTPUT

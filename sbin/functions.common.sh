@@ -13,28 +13,6 @@
 #   functions in the file.
 #
 
-common_get_version() {
-	local ver="$1"
-	shift
-	GIT_REF='$Format:%d,commit-%h$'
-	local IFS=":(), "
-	set -- "$GIT_REF"
-	for i in $@
-	do
-		case "$i" in
-			*[0-9].[0-9]*)
-				echo "$i" | $SED_CMD -e 's/^v//'
-				return 0
-			;;
-			commit-[0-9a-zA-Z]*)
-				ver="$i"
-			;;
-		esac
-	done
-	echo "$ver"
-	return 0
-}
-
 which_cmd() {
 	local name="$1"
 	shift

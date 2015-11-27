@@ -43,4 +43,4 @@ unittest/coverage
 *.gz
 *.bz2
 firehol-*.*.*/
-INSTALL
+README
