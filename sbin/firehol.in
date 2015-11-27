@@ -8046,7 +8046,7 @@ rule() {
 						then
 							if [ "${2}" = "class" ]
 							then
-								action_param=("--set-dscp-class" "${2}")
+								action_param=("--set-dscp-class" "${3}")
 								shift
 							else
 								action_param=("--set-dscp" "${2}")
