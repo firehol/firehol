@@ -1,20 +1,21 @@
 FireHOL
 =======
 
-:   [http://firehol.org/](http://firehol.org/)
+http://firehol.org/
 
-    - FireHOL, an iptables stateful packet filtering firewall for humans!
-    - FireQOS, a TC based bandwidth shaper for humans!
+    FireHOL, an iptables stateful packet filtering firewall for humans!
+    FireQOS, a TC based bandwidth shaper for humans!
 
 Git
 ===
-These instructions are for people who are working with the git repository
-only. There are more general instructions starting at [Upgrade Notes][].
+These instructions are for people who are working with the git repository.
+There are more general instructions starting with
+[Upgrade Notes](#upgrade-notes).
 
 Cloning Git Repository
 ----------------------
 
-The [github firehol repoistory page][https://github.com/firehol/firehol]
+The [github firehol repository page](https://github.com/firehol/firehol)
 lists URLs which can be used to clone the repository.
 
 After cloning you should copy the git hooks, for style checking and more:
@@ -25,8 +26,8 @@ cp hooks/* .git/hooks
 
 Building Git Repository
 -----------------------
-You need [GNU autoconf][http://www.gnu.org/software/autoconf/] and
-[GNU automake][http://www.gnu.org/software/automake/] to be able to
+You need [GNU autoconf](http://www.gnu.org/software/autoconf/) and
+[GNU automake](http://www.gnu.org/software/automake/) to be able to
 run:
 
 ~~~~
@@ -61,8 +62,7 @@ From version 2.0.0-pre6, FireHOL adds combined IPv4/IPv6 support within
 a single configuration.
 
 If you are upgrading FireHOL from a version earlier than 2.0.0-pre6,
-please read the upgrade notes, here:
-   http://firehol.org/upgrade/
+please read the [upgrade notes](http://firehol.org/upgrade/).
 
 
 Installation
@@ -82,59 +82,65 @@ the scripts.
 
 Getting Started
 ===============
-Configuration for FireHOL goes in /etc/firehol/firehol.conf
-Configuration for FireQOS goes in /etc/firehol/fireqos.conf
+Configuration for FireHOL goes in `/etc/firehol/firehol.conf`
+Configuration for FireQOS goes in `/etc/firehol/fireqos.conf`
 
 In the examples directory, you can find examples for both programs.
 
 To start the programs:
-  firehol start
-  fireqos start
+
+~~~~
+firehol start
+fireqos start
+~~~~
 
 For more details on the command-line options, see the man-pages:
-  man firehol
-  man fireqos
 
-Read the tutorials on the website for more information and to learn
-how to configure the programs:
-  http://firehol.org/tutorial/
+~~~~
+man firehol
+man fireqos
+~~~~
+
+Read the [tutorials](http://firehol.org/tutorial/) on the website for
+more information and to learn how to configure the programs.
 
 For detailed information on the configuration files, read the manual
 online, or start with these the man-pages:
-  man firehol.conf
-  man fireqos.conf
+
+~~~~
+man firehol.conf
+man fireqos.conf
+~~~~
 
 You may want to ensure that FireHOL and FireQOS run at boot-time. If you
 installed from an distribution package this will be configured in the
 usual way.
 
 For a tar-file installation, the binaries can often be linked directly
-into /etc/init.d, since their options are SysVInit compatible. Some
+into `/etc/init.d`, since their options are SysVInit compatible. Some
 example systemd service files can be found in the contrib folder.
 
 
 Support and documentation
 =========================
-The main website is here:
-   http://firehol.org/
+The main website is [http://firehol.org/](http://firehol.org/).
 
-To ask questions please sign up to the list:
-   http://lists.firehol.org/mailman/listinfo/firehol-support
+To ask questions please sign up to the
+[mailing list](http://lists.firehol.org/mailman/listinfo/firehol-support)
 
 Man pages, PDF and HTML documentation are provided as part of the package
 and can be found in the tarball or in your distribution's standard locations
-(e.g. /usr/share/doc). The latest manual is always available here:
-   http://firehol.org/manual/
+(e.g. `/usr/share/doc`). The [latest manual](http://firehol.org/manual/)
+is also online.
 
-The list of all services supported by FireHOL "out of the box" and
-information on adding new services is here:
-   http://firehol.org/services/
+The site has a [list of all services](http://firehol.org/services/) supported
+by FireHOL "out of the box" as well as information on adding new services.
 
 
 License
 =======
-Copyright (C) 2012,2013 Phil Whineray <phil@sanewall.org>
-Copyright (C) 2003-2013 Costa Tsaousis <costa@tsaousis.gr>
+Copyright (C) 2012-2015 Phil Whineray <phil@firehol.org>
+Copyright (C) 2003-2015 Costa Tsaousis <costa@tsaousis.gr>
 
 This program is free software; you can redistribute it and/or modify
 it under the terms of the GNU General Public License as published by
