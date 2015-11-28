@@ -24,9 +24,13 @@ Making a release
 Just update ChangeLog and configure.ac to specify a suitable version
 suffix:
 
-  empty - final release
-  pre.# - pre-release candidate
-  rc.# - pre-release candidate
+    empty - final release
+    pre.# - pre-release candidate
+    rc.# - pre-release candidate
+
+If it is a final release and there is a package.spec.in, add a new
+entry to the top of the %changelog section and update:
+    PACKAGE_RPM_RELEASE="1"
 
 The hooks will take over and if everything is OK will tag the release
 (you will be asked to sign the tag) and then update the files ready
