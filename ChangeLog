@@ -1,4 +1,37 @@
-firehol (3.0.0-rc.3) unstable; urgency=low
+firehol (3.0.0-rc.4) - 2015-11-28
+
+  * Rework packaging
+    - Simplify version number handling
+    - Common functions moved to a file in lib
+    - Allow disabling IPv4/IPv6 at configure time
+    - Allow disabling any unwanted tools
+    - Allow disabling manpages and/or docs
+    - Honour configure script setting for AUTOSAVE and others
+    - All commands detected via configure, used via variables
+      Incuding new 'iprange' tool https://github.com/firehol/iprange/releases
+
+  * FireHOL
+    - Fixes to DSCP class
+    - added protection *connlimit* and *connrate*; removed default mask
+      from parameter connlimit
+    - added rule option *connlog* to only log the first packet of connections
+      added *hashlimit* with all its options
+    - most actions now accept the keywork *with* which also supports
+      *with connlimit* and *with hashlimit*
+    - use iprange --diff mode for comparing ipset versions
+
+  * FireQOS
+    - fail if DSCP and TOS match have been specified at the same time
+    - various fixes
+
+  * VNetBuild
+    - Eliminate dependency on brctl
+
+  * Update-Ipsets
+    - Promoted from contrib
+    - Various improvements
+
+firehol (3.0.0-rc.3) - 2015-10-10
 
   * Common
     - ipset fixes
@@ -49,9 +82,7 @@ firehol (3.0.0-rc.3) unstable; urgency=low
   * VNetBuild updates
     - Added
 
- -- Phil Whineray <phil@sanewall.org>  Sat, 10 Oct 2015 09:30:00 +0100
-
-firehol (3.0.0-rc.2) unstable; urgency=low
+firehol (3.0.0-rc.2) - 2015-03-14
 
   * Common
     - Added --disable-doc to configure script to stop the installation
@@ -85,9 +116,7 @@ firehol (3.0.0-rc.2) unstable; urgency=low
     - Fix to stop ignoring fallback gateways
     - Use "traceroute -6" not "traceroute6"
 
- -- Phil Whineray <phil@sanewall.org>  Sat, 14 Mar 2015 13:24:00 +0000
-
-firehol (3.0.0-rc.1) unstable; urgency=low
+firehol (3.0.0-rc.1) - 2015-02-15
 
   * Performance improvements
     - Both the script and resulting firewalls are faster
@@ -102,177 +131,3 @@ firehol (3.0.0-rc.1) unstable; urgency=low
     - separate default settings file
 
   * Introduction of link-balancer script
-
- -- Phil Whineray <phil@sanewall.org>  Fri, 15 Feb 2015 17:24:00 +0100
-
-firehol (2.0.0) stable; urgency=low
-
-  * No changes from 2.0.0-rc.3
-
- -- Phil Whineray <phil@sanewall.org>  Fri, 24 Oct 2014 08:40:00 +0100
-
-firehol (2.0.0-rc.3) unstable; urgency=low
-
-  * Fix chain lengths and ensure both IPv4/IPv6 ones created for:
-    - with limit (#38)
-    - with knock (#40)
-    - with recent
-
-  * Silently disable IPv6 where the kernel has no IPv6 support (#39)
-
-  * Reverted accidental commit a714b186aa
-
- -- Phil Whineray <phil@sanewall.org>  Sun, 19 Oct 2014 09:03:00 +0100
-
-firehol (2.0.0-rc.2) unstable; urgency=low
-
-  * Create functional firehol helpme output (issue #35)
-    - Includes pointers to the IPv6 upgrade documentation
-
-  * Added srcmac dstmac matches to FireQOS
-
-  * Tidy-ups and small patches from Jerome Benoit
-    - Remove long-redundant firehol_wget and wget_cmd helpers
-    - Use mktemp for temporary directories during RPC enumeration
-    - Don't delete and recreate the main temporary directory
-    - Treat mktemp like other required commands
-    - Silence module detection warning when not loading modules
-
-  * Clean up some intermediate files before packing
-
- -- Phil Whineray <phil@sanewall.org>  Mon,  6 Oct 2014 07:42:00 +0100
-
-firehol (2.0.0-rc.1) unstable; urgency=low
-
-  * FireHOL fixes/enhancements
-    - #15 Do not fix source ports for DHCPv6 (not required by RFC)
-
-  * FireQOS fixes/enhancements
-    - fixed mixed ipv4 and ipv6 matches that were generating match
-      priorities above 0xffff
-    - #29 added warning when rate is lower than minrate
-
-  * Documentation
-    - split manual in two
-    - explain that ICMPv6 ND/RD packets are untracked by default, so not in all
-    - #31 fixed magic line of services definition
-
- -- Phil Whineray <phil@sanewall.org>  Sat,  2 Aug 2014 08:16:00 +0100
-
-firehol (2.0.0-pre9) unstable; urgency=low
-
-  * FireHOL fixes/enhancements
-    - recognise dst4/dst6 on interface/router as well as src4/src6
-
- -- Phil Whineray <phil@sanewall.org>  Sat,  8 Jun 2014 16:14:00 +0100
-
-firehol (2.0.0-pre8) unstable; urgency=low
-
-  * FireQOS fixes/enhancements
-    - resolved an issue with pppd ip-up scripts
-    - automatic numbering continues giving class priorities after
-      a manual priority is given
-
-  * Documentation
-    - replaced docbook with pandoc (issue #24)
-
- -- Phil Whineray <phil@sanewall.org>  Sat, 10 May 2014 08:25:00 +0100
-
-firehol (2.0.0-pre7) unstable; urgency=low
-
-  * FireQOS fixes/enhancements
-    - full bidirectional interface support, including firehol like services
-    - running on OpenWRT (insmod instead of modprobe, low-res timers)
-    - option to limit each match to a specific rate
-
-  * FireHOL fixes/enhancements
-    - firehol save now writes to the specified files again
-    - firehol save, restore and fastactivation now work IPv4-only mode
-    - improved fast activation error handling (issue #22)
-    - improved mark/connmark handling (issue #23)
-    - tproxy support added
-
-  * Documentation
-    - Link and spelling fixes
-    - new config examples
-
- -- Phil Whineray <phil@sanewall.org>  Sun, 13 Apr 2014 17:04:00 +0100
-
-firehol (2.0.0-pre6) unstable; urgency=low
-
-  * Implement dual IPv4/IPv6 as standard
-    - Update your config from version 5 to 6 to enable
-    - See http://firehol.org/upgrade/#config-version-6
-
-  * Include FireQOS manual pages
-
- -- Phil Whineray <phil@sanewall.org>  Sat, 15 Feb 2014 11:05:00 +0000
-
-firehol (2.0.0-pre5) unstable; urgency=low
-
-  * Fix error in new FIREHOL_DEBUGGING code which prevented errors
-    reported by iptables from being detected.
-
- -- Phil Whineray <phil@sanewall.org>  Tue, 29 Oct 2013 21:29:00 +0000
-
-firehol (2.0.0-pre4) unstable; urgency=low
-
-  * Cleanups and minor improvements
-    - Remove the blank line from wizard/helpme output
-    - Remove the #! from wizard output - it cannot be executed directly
-    - Cleaned up boilerplace information in script
-    - "firehol condrestart" now follows official conventions by restarting
-       only if already running
-
-  * Fix kernel version detection so that it is more flexible and
-    less error prone.
-
-  * Allow switching on of debug output by setting environment variable
-    FIREHOL_DEBUGGING to a non-empty value.
-
-  * Fix "mac" helper command so that it works with iptables 1.4.12+
-    - Previous behaviour was deprecated in 1.4.3 (Jul 2009)
-    - Also prevent mac addresses being seen as IPv6 addresses
-
-  * Allow some config variables to be set as environment variables
-    - FIREHOL_ESTABLISHED_ACTIVATION_ACCEPT,
-      FIREHOL_INPUT_ACTIVATION_POLICY, FIREHOL_FORWARD_ACTIVATION_POLICY,
-      FIREHOL_OUTPUT_ACTIVATION_POLICY, FIREHOL_LOAD_KERNEL_MODULES,
-      FIREHOL_NAT, FIREHOL_ROUTING, FIREHOL_AUTOSAVE
-
-  * Do not try to add DROP rules to NAT chains
-    - See http://bugs.debian.org/cgi-bin/bugreport.cgi?bug=536675
-
-  * Use "ss" in place of "netstat"
-    - As suggested here https://bugzilla.redhat.com/show_bug.cgi?id=784520
-
- -- Phil Whineray <phil@sanewall.org>  Tue, 29 Oct 2013 19:07:00 +0000
-
-firehol (2.0.0-pre3) unstable; urgency=low
-
-  * FireQOS updates
-    - Fix for issue https://github.com/ktsaou/firehol/issues/6
-    - Fix for issue https://github.com/ktsaou/firehol/issues/9
-
- -- Phil Whineray <phil@sanewall.org>  Mon, 28 Oct 2013 22:20:00 +0000
-
-firehol (2.0.0-pre2) unstable; urgency=low
-
-  * Inclusion of FireQOS
-  * Standardisation of version information suitable for Git
-  * Allow tcpmss usage in interfaces
-
- -- Phil Whineray <phil@sanewall.org>  Mon, 27 Oct 2013 18:00:00 +0000
-
-firehol (2.0.0-pre1) unstable; urgency=low
-
-  * Move to autotools
-    - Can still be installed just by copying firehol/firehol.in
-    - CVS versions will not work any longer, so now following
-      http://semver.org/
-    - Git commit hooks included to enforce version numbering
-      across the various files, NEWS, ChangeLog, configure.ac and 
-      sbin/firehol.in
-    - Replace HTML website copy with DocBook manual
-
- -- Phil Whineray <phil@sanewall.org>  Mon, 19 Aug 2013 20:10:00 +0100
