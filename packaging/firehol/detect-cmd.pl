@@ -1,11 +1,16 @@
 #!/usr/bin/perl -w
 
+#
+# Find FireHOL program lines that are using program names direct rather
+# than via detected environments
+#
+
 use strict;
 use Data::Dumper;
 use File::Basename;
 
 if (@ARGV == 0) {
-  print "Usage: ./packaging/detect-cmd.pl configure.ac sbin/file.in ...\n";
+  print "Usage: ./packaging/firehol/detect-cmd.pl configure.ac sbin/file.in ...\n";
   print "\n";
   print "Finds usages of commands which should be converted to \$COMMAND_CMD format\n";
   exit 0;

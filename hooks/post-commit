@@ -1,2 +1,5 @@
 #!/bin/sh
-exec git diff HEAD^ | ./packaging/update-tags -
+if [ -x ./packaging/update-tags ]
+then
+  exec git diff HEAD^ | ./packaging/update-tags -
+fi
