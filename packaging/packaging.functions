@@ -12,6 +12,10 @@ packaging_check_file() {
       check_versions || status=1
       version_check=Y
     ;;
+    *.spec.in)
+      check_versions || status=1
+      version_check=Y
+    ;;
     ChangeLog)
       check_versions || status=1
       version_check=Y
@@ -46,14 +50,32 @@ packaging_check_fin() {
 }
 
 get_staged_file() {
+  local optional=0
+  if [ "$1" = "-o" ]
+  then
+    optional=1
+    shift
+  fi
+
   local dir="${1%/*}"
   if [ "$dir" = "$1" ]; then dir="."; fi
   mkdir -p $MYTMP/files/$dir
+
+  test -f $MYTMP/files/$1 && return 0
+
   if [ "$from_cache" ]
   then
-    test -f $MYTMP/files/$1 || git show :$1 > $MYTMP/files/$1
+    if [ $optional -eq 1 ]
+    then
+      git show :$1 > $MYTMP/files/$1 2> /dev/null || rm -f $MYTMP/files/$1
+    else
+      git show :$1 > $MYTMP/files/$1
+    fi
   else
-    test -f $MYTMP/files/$1 || cp $1 $MYTMP/files/$1
+    if [ $optional -eq 0 -o -f $1 ]
+    then
+      cp $1 $MYTMP/files/$1
+    fi
   fi
 }
 
@@ -87,6 +109,26 @@ get_configure_ac_version() {
   echo "$v"
 }
 
+get_configure_ac_package() {
+  get_staged_file configure.ac
+  local v=`sed -n -e 's/AC_INIT(\[\([^]]*\)\].*/\1/p' configure.ac`
+  if [ ! "$v" ]; then v="noname"; fi
+  echo "$v"
+}
+
+get_configure_ac_rpmrel() {
+  get_staged_file configure.ac
+  local v=`sed -n -e 's/PACKAGE_RPM_RELEASE="\([^"]*\)".*/\1/p' configure.ac`
+  if [ ! "$v" ]; then v="norpmrel"; fi
+  echo "$v"
+}
+
+get_spec_version() {
+  get_staged_file "$1".spec.in
+  test -f $MYTMP/files/"$1".spec.in || return 0 # Spec file is optional
+  sed -n -e '1,/^%changelog/d' -e '/^*/{s/.*- \([0-9].*\)/\1/p;q}' "$1".spec.in
+}
+
 splitver() {
 	local maj min fix sfx IFS=.-_
 
@@ -96,7 +138,7 @@ splitver() {
 	sfx=$4
 
 	set -- $5
-	eval $maj=\$1 $min=\$2 $fix=\$3
+	eval $maj=\$1 $min=\$2 $fix=\$3 $sfx=\$4
 }
 
 match_version() {
@@ -162,13 +204,30 @@ check_versions() {
      ;;
   esac
 
+  local package=`get_configure_ac_package`
+  local specver=`get_spec_version $package`
+
+  local clogmaj clogmin clogfix clogsfx
+  local confmaj confmin conffix confsfx
+  local specmaj specmin specfix specsfx
+
+  splitver clogmaj clogmin clogfix clogsfx "$clogver"
+  splitver confmaj confmin conffix confsfx "$confver"
+  splitver specmaj specmin specfix specsfx "$specver"
+
+  if [ "$specver" ]
+  then
+    if [ $specmaj -ne $clogmaj \
+      -o $specmin -ne $clogmin \
+      -o $specfix -ne $clogfix ]
+    then
+      echo "Main version of $package.spec.in ($specver) differs from ChangeLog ($clogver)"
+      status=1
+    fi
+  fi
+
   if [ $status -eq 0 -a $exact -eq 0 ]
   then
-    local clogmaj clogmin clogfix clogsfx
-    local confmaj confmin conffix confsfx
-
-    splitver clogmaj clogmin clogfix clogsfx "$clogver"
-    splitver confmaj confmin conffix confsfx "$confver"
 
     if [ $confmaj -gt $clogmaj \
       -o $confmin -gt $clogmin \
@@ -201,6 +260,16 @@ check_versions() {
       status=1
     fi
 
+    if [ "$specver" ]
+    then
+      local confrpmrel=`get_configure_ac_rpmrel`
+      if [ "$specsfx" != "$confrpmrel" ]
+      then
+        echo "%changelog suffix in $package.spec.in ($specsfx) differs from configure.ac PACKAGE_RPM_RELEASE ($confrpmrel)"
+        status=1
+      fi
+    fi
+
     if [ "$(git config user.signingkey)" = "" ]
     then
       echo "You need to set up a PGP signing key e.g.:"
@@ -229,7 +298,11 @@ check_versions() {
 check_changelog() {
   local status=0
 
-  get_staged_file ChangeLog
+  if [ -f $MYTMP/changelog-checked ]
+  then
+    read status < $MYTMP/changelog-checked
+    return $status
+  fi
 
   local version=`sed -ne '1s/.*(\(.*\)).*/\1/p' $filename`
   if [ "`echo $version | grep '[[:space:]]'`" != "" ]
@@ -238,45 +311,6 @@ check_changelog() {
     status=1
   fi
 
-  set +e
-  which dpkg-gencontrol > /dev/null 2>&1
-  status=$?
-  set -e
-  if [ $status -ne 0 ]
-  then
-    echo "dpkg-gencontrol not found; skipping ChangeLog verification!"
-    return $status
-  fi
-
- (cd $MYTMP/files
-  mkdir -p debian/tmp
-  cat > debian/control <<!
-Source: firehol
-Section: net
-Priority: optional
-Homepage: http://firehol.org/
-Maintainer: firehol-devs@lists.firehol.org
-
-Package: firehol
-Architecture: all
-Depends: iptables
-Description: firewall for humans
-!
-  set +e
-  dpkg-gencontrol -O -pfirehol -lChangeLog > /dev/null 2> debian/tmp/l
-  set -e
-  status=$?
-  if [ $status -eq 0 -a `grep -v "FcntlLock not available" debian/tmp/l | wc -c` -gt 0 ]
-  then
-    status=1
-  fi
-  if [ $status -ne 0 ]
-  then
-    cat debian/tmp/l
-    touch $MYTMP/changelog.fail
-  fi
- )
-
-  if [ -f $MYTMP/changelog.fail ]; then status=1; fi
+  echo $status > $MYTMP/changelog-checked
   return $status
 }
