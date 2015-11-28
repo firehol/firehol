@@ -1,14 +1,14 @@
 #!/usr/bin/perl -w
 
 # Create the configure.ac lines necessary to detect external commands
-# used by the programs.
+# used by the FireHOL programs.
 
 use strict;
 use Data::Dumper;
 use File::Basename;
 
 if (@ARGV == 0) {
-  print "Usage: ./packaging/gen-config-detect.pl sbin/file.in ...\n";
+  print "Usage: ./packaging/firehol/gen-config-detect.pl sbin/file.in ...\n";
   print "\n";
   print "Generates the configure.ac content for detecting commands\n";
   exit 0;

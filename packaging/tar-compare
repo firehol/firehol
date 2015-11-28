@@ -42,14 +42,18 @@ diff -r "$1" $MYTMP/unpack/* | grep "^Only" | sed \
 	-e '/: \.gitignore$/d' \
 	-e '/: config\.log$/d' \
 	-e '/: config\.status$/d' \
+	-e '/: config\.h.*$/d' \
 	-e '/: Makefile$/d' \
 	-e '/: hooks$/d' \
 	-e '/: packaging$/d' \
+	-e '/: stamp-h1$/d' \
 	-e '/: README\.md$/d' \
 	-e '/: tmp-anchor-links$/d' \
 	-e '/: tmp-manproc$/d' \
-	-e '/: firehol.*\.tar\.\(gz\|bz2\|xz\)$/d' \
+	-e '/: .*\.tar\.\(gz\|bz2\|xz\)$/d' \
 	-e '/: unittest$/d' \
+	-e '/: iprange$/d' \
+	-e '/: .*\.o$/d' \
 	-e '/sbin: \(firehol\|fireqos\|link-balancer\)$/d' \
 	-e '/sbin: \(update-ipsets\|vnetbuild\|commands.sed\)$/d' > $MYTMP/out
 

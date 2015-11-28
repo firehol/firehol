@@ -1,2 +1,5 @@
 #!/bin/sh
-exec git diff --cached | ./packaging/check-files -
+if [ -x ./packaging/check-files ]
+then
+  exec git diff --cached | ./packaging/check-files -
+fi

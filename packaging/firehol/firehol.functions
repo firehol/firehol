@@ -1,24 +1,25 @@
 #!/bin/bash
 
-packaging_check_init() {
-  version_check=
+firehol_check_init() {
+  :
 }
 
-packaging_check_file() {
+firehol_check_file() {
   local filename="$1" status=0
 
   case $filename in
-    configure.ac)
-      check_versions || status=1
-      version_check=Y
+    sbin/Makefile.in)
+      :
     ;;
-    ChangeLog)
-      check_versions || status=1
-      version_check=Y
-      if [ $status -eq 0 ]
-      then
-        check_changelog || status=1
-      fi
+    configure.ac|sbin/commands.sed.in)
+      check_commands sbin/firehol.in || status=1
+      check_commands sbin/fireqos.in || status=1
+      check_commands sbin/link-balancer.in || status=1
+      check_commands sbin/update-ipsets.in || status=1
+      check_commands sbin/vnetbuild.in || status=1
+    ;;
+    sbin/*.in)
+      check_commands $filename || status=1
     ;;
     *)
       #echo "No checks found for $filename"
@@ -28,21 +29,8 @@ packaging_check_file() {
   return $status
 }
 
-packaging_check_fin() {
-  if [ "$version_check" ]
-  then
-    version=`get_configure_ac_version`
-    case "$(match_version $version)" in
-      prerelease|candidate|release)
-        try_build || status=1
-        if [ $status -eq 0 ]
-        then
-           cp $MYTMP/build/*.tar.* .
-           echo "Check $(cd $MYTMP/build && ls *.tar.gz) before pushing tags"
-        fi
-      ;;
-    esac
-  fi
+firehol_check_fin() {
+  :
 }
 
 get_staged_file() {
@@ -223,6 +211,112 @@ check_versions() {
   fi
 
   echo $status > $MYTMP/version-checked
+  return $status
+}
+
+check_commands() {
+  local status=0
+
+  touch $MYTMP/commands-checked
+  if grep -q -F -z "$1" $MYTMP/commands-checked
+  then
+    # Only check a file once - an edit to some files checks multiple
+    return 0
+  else
+    echo "$1" >> $MYTMP/commands-checked
+  fi
+
+  get_staged_file $1
+  get_staged_file configure.ac
+  get_staged_file sbin/commands.sed.in
+  get_staged_file sbin/functions.common.sh
+
+  # Find commands that have been enclosed in quotes and remove anything after
+  #  if nothing matched the substitution, proceed to the next line
+  #  if the command is used in a -z check, proceed to the next line
+  #  if the command is in posix size check [ "$var" ], proceed to the next line
+  #  if the command is being assigned to a variable, proceed to the next line
+  #  if the command is being used in an eval, proceed to the next line
+  # Anything left, print the line number
+  sed -n -e 's/.*\([(`|&][^)`]*"\$[^("}]*_CMD}*\).*/\1/' \
+         -e 's/^[ 	]*\("\$[^("}]*_CMD}*\)/\1/' \
+         -e T \
+         -e '/-z *"\$/b' \
+         -e '/\[ *"\$/b' \
+         -e '/= *"\$/b' \
+         -e '/eval *"\$/b' \
+         -e '{=}' \
+         $MYTMP/files/$1 > $MYTMP/errors
+  if [ -s $MYTMP/errors ]
+  then
+    status=1
+    echo "Detected use(s) of \"\${SOMETHING_CMD}\" in ${1}. Check lines:"
+    cat $MYTMP/errors
+  fi
+
+  # Ignore lines from the command table and require_cmd entries
+  # ensure at least 2 characters before and after each word, reset cond jump
+  # extract the command and immediate surroundings, got to next line if no match
+  # remove brackets
+  # proceed to next line if command starts with a dollar
+  # proceed to next line if command ends with equals (assignment)
+  # print line number
+  sed -n -e '/^	*[YN]|/b' -e '/require_cmd/b' \
+         -e 's/^/  /' -e 's/$/  /' -e T \
+         -e 's/.*\(..\<[A-Z0-9_]*_CMD..\).*/\1/' -e T \
+         -e 's/[{}]//' \
+         -e '/$[A-Z]/b' \
+         -e '/[A-Z0-9]=/b' \
+         -e '=' \
+         $MYTMP/files/$1 > $MYTMP/errors
+  if [ -s $MYTMP/errors ]
+  then
+    status=1
+    echo "Detected use(s) of 'SOMETHING_CMD' (missing \$) in ${1}. Check lines:"
+    cat $MYTMP/errors
+  fi
+
+  sed -n -e "s/^	*[YN]|//p" $MYTMP/files/$1 > $MYTMP/commands-defined
+  for cmd in $(tr " " "\n" < $MYTMP/files/$1 |
+             sed -n -e 's/.*\(\<[A-Z0-9_]*\)_CMD.*/\1/p' | sort | uniq)
+  do
+    if ! grep -q "^${cmd}_CMD|" $MYTMP/commands-defined
+    then
+      status=1
+      echo "Missing definition of $cmd in $1 detection table."
+    fi
+
+    # Hostname is a special case - configure will expand it to running host,
+    # overwriting the value we wanted to use.
+    if [ "$cmd" = "HOSTNAME" ]; then cmd="HOSTNAMECMD"; fi
+    if ! grep -q "_${cmd}(\|\[$cmd\]" $MYTMP/files/configure.ac
+    then
+      status=1
+      echo "Missing detection of $cmd for $1 in configure.ac"
+    fi
+  done
+
+  while IFS="|" read cmd subst defaults
+  do
+    if ! grep -q "\${*$cmd" $MYTMP/files/$1 $MYTMP/files/sbin/*.sh
+    then
+      status=1
+      echo "$cmd detected but never used in $1 or function libraries"
+    fi
+    if ! grep -q "#$subst#" $MYTMP/files/sbin/commands.sed.in
+    then
+      status=1
+      echo "$cmd detected but $subst never substituted by sbin/commands.sed.in"
+    fi
+  done < $MYTMP/commands-defined
+
+  (
+   a=`pwd`
+   cd $MYTMP/files
+   $a/packaging/firehol/detect-cmd.pl configure.ac $1 || touch $MYTMP/detect
+  )
+  if [ -f $MYTMP/detect ]; then status=1; fi
+
   return $status
 }
 
