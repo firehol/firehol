@@ -61,7 +61,7 @@ export PATH="$PATH:/sbin:/usr/sbin:/usr/local/sbin"
 shopt -s extglob
 
 FIREQOS_SYSLOG_FACILITY="daemon"
-FIREQOS_CONFIG=/etc/firehol/fireqos.conf
+FIREQOS_CONFIG="${FIREHOL_CONFIG_DIR}/fireqos.conf"
 FIREQOS_LOCK_FILE=/var/run/fireqos.lock
 FIREQOS_LOCK_FILE_TIMEOUT=600
 FIREQOS_DIR=/var/run/fireqos
