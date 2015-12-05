@@ -2451,16 +2451,15 @@ match() {
 				;;
 
 			tcp|TCP)
-				proto_arg="match ip${ipvx} protocol 6 0xff"
 
 				# http://www.lartc.org/lartc.html#LARTC.ADV-FILTER
 				if [ ${ack} -eq 1 ]
 				then
 					if [ "${insidegre}" -eq 1 ]
 					then
-						proto_arg="protocol ip prio 1"
-						ack_arg="u32 match u8 0x06 0xff at 33 match u8 0x05 0x0f at 24 match u16 0x0000 0xffc0 at 26 match u8 0x10 0xff at 57"
+						ack_arg="match u8 0x06 0xff at 33 match u8 0x05 0x0f at 24 match u16 0x0000 0xffc0 at 26 match u8 0x10 0xff at 57"
 					else
+						proto_arg="match ip${ipvx} protocol 6 0xff"
 						if [ "${ipvx}" = "6" ]
 						then
 							ack_arg="match u8 0x10 0xff at nexthdr+13"
