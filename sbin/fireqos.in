@@ -2099,7 +2099,7 @@ match() {
 		srcmac=any dstmac=any class=${class_name} flowid=${class_filters_flowid} \
 		ack=0 syn=0 at= custom= tcproto= ipv4=${class_ipv4} ipv6=${class_ipv6} \
 		reverse=0 estimator_interval= estimator_decay= police_arg= \
-		prio= limit_rate= t=
+		prio= limit_rate= t= insidegre=0
 
 	case "${force_ipv}" in
 		4)
@@ -2145,6 +2145,10 @@ match() {
 
 			ack|acks)
 				ack=1
+				;;
+
+			insidegre)
+				insidegre=1
 				;;
 
 			arp)
@@ -2453,13 +2457,19 @@ match() {
 				# http://www.lartc.org/lartc.html#LARTC.ADV-FILTER
 				if [ ${ack} -eq 1 ]
 				then
-					if [ "${ipvx}" = "6" ]
+					if [ "${insidegre}" -eq 1 ]
 					then
-						ack_arg="match u8 0x10 0xff at nexthdr+13"
-						error "I don't know how to match ACKs in ipv6"
-						exit 1
+						proto_arg="protocol ip prio 1"
+						ack_arg="u32 match u8 0x06 0xff at 33 match u8 0x05 0x0f at 24 match u16 0x0000 0xffc0 at 26 match u8 0x10 0xff at 57"
 					else
-						ack_arg="match u8 0x05 0x0f at 0 match u16 0x0000 0xffc0 at 2 match u8 0x10 0xff at 33"
+						if [ "${ipvx}" = "6" ]
+						then
+							ack_arg="match u8 0x10 0xff at nexthdr+13"
+							error "I don't know how to match ACKs in ipv6"
+							exit 1
+						else
+							ack_arg="match u8 0x05 0x0f at 0 match u16 0x0000 0xffc0 at 2 match u8 0x10 0xff at 33"
+						fi
 					fi
 				fi
 
@@ -2480,15 +2490,31 @@ match() {
 				;;
 
 			udp|UDP)
-				proto_arg="match ip${ipvx} protocol 17 0xff"
+				if [ ${insidegre} -eq 1 ]
+				then
+					proto_arg="match u8 0x11 0xff at 33"
+				else
+					proto_arg="match ip${ipvx} protocol 17 0xff"
+				fi
 				;;
 
 			gre|GRE)
-				proto_arg="match ip${ipvx} protocol 47 0xff"
+				if [ ${insidegre} -eq 1 ]
+				then
+					proto_arg="match u8 0x2f 0xff at 33"
+				else
+					proto_arg="match ip${ipvx} protocol 47 0xff"
+				fi
 				;;
 
 			+([0-9]))
-				proto_arg="match ip${ipvx} protocol ${tproto} 0xff"
+				if [ ${insidegre} -eq 1 ]
+				then
+					tproto_hex=$(printf '%02X' ${tproto})
+					proto_arg="match u8 0x${tproto_hex} 0xff at 33"
+				else
+					proto_arg="match ip${ipvx} protocol ${tproto} 0xff"
+				fi
 				;;
 
 			*)	pid=`${CAT_CMD} /etc/protocols | ${EGREP_CMD} -i "^${tproto}[[:space:]]" | $TAIL_CMD -n 1 | ${SED_CMD} "s/[[:space:]]\+/ /g" | ${CUT_CMD} -d ' ' -f 2`
@@ -2497,7 +2523,13 @@ match() {
 					error "Cannot find protocol '${tproto}' in /etc/protocols."
 					return 1
 				fi
-				proto_arg="match ip${ipvx} protocol ${pid} 0xff"
+				if [ ${insidegre} -eq 1 ]
+				then
+					tproto_hex=$(printf '%02X' ${pid})
+					proto_arg="match u8 0x${tproto_hex} 0xff at 33"
+				else
+					proto_arg="match ip${ipvx} protocol ${pid} 0xff"
+				fi
 				;;
 		esac
 
@@ -2523,6 +2555,27 @@ match() {
 
 	for tsrc in ${src}
 	do
+		if [ ${insidegre} -eq 1 ] && [[ "${tsrc}" =~ ^[[:digit:]] ]]
+		then
+			if [[ "${tsrc}" =~ ^([[:graph:]]+)/([[:graph:]]+)$ ]]
+			then
+				tsrc=${BASH_REMATCH[1]}
+				tmask=${BASH_REMATCH[2]}
+			else
+				tmask="255.255.255.255"
+			fi
+			if [ ! -z "${tmask}" ] && [[ "${tmask}" =~ ^[[:digit:]]+$ ]]
+			then
+				tmask=$(cidr_length_to_mask ${tmask})
+			fi
+			tsrc=$(ip_to_hex ${tsrc})
+			tmask=$(ip_to_hex ${tmask})
+			if [ -z "${tsrc}" ] || [ -z "${tmask}" ]
+			then
+				echo "incomplete tsrc/tmask found!"
+				exit 1
+			fi
+		fi
 		src_arg=
 		case "${tsrc}" in
 			any)	;;
@@ -2531,12 +2584,38 @@ match() {
 				src_arg="match ip${ipvx} src 0.0.0.0/0"
 				;;
 
-			*)	src_arg="match ip${ipvx} src ${tsrc}"
+			*)	if [ ${insidegre} -eq 1 ]
+				then
+					src_arg="match u32 0x${tsrc} ${tmask} at 36"
+				else
+					src_arg="match ip${ipvx} src ${tsrc}"
+				fi
 				;;
 		esac
 
 	for tdst in ${dst}
 	do
+		if [ ${insidegre} -eq 1 ] && [[ "${tdst}" =~ ^[[:digit:]] ]]
+		then
+			if [[ "${tdst}" =~ ^([[:graph:]]+)/([[:graph:]]+)$ ]]
+			then
+				tdst=${BASH_REMATCH[1]}
+				tmask=${BASH_REMATCH[2]}
+			else
+				tmask="255.255.255.255"
+			fi
+			if [ ! -z "${tmask}" ] && [[ "${tmask}" =~ ^[[:digit:]]+$ ]]
+			then
+				tmask=$(cidr_length_to_mask ${tmask})
+			fi
+			tdst=$(ip_to_hex ${tdst})
+			tmask=$(ip_to_hex ${tmask})
+			if [ -z "${tdst}" ] || [ -z "${tmask}" ]
+			then
+				echo "incomplete tdst/tmask found!"
+				exit 1
+			fi
+		fi
 		dst_arg=
 		case "${tdst}" in
 			any)	;;
@@ -2544,7 +2623,12 @@ match() {
 			all)	dst_arg="match ip${ipvx} dst 0.0.0.0/0"
 				;;
 
-			*)	dst_arg="match ip${ipvx} dst ${tdst}"
+			*)	if [ ${insidegre} -eq 1 ]
+				then
+					dst_arg="match u32 0x${tdst} ${tmask} at 40"
+				else
+					dst_arg="match ip${ipvx} dst ${tdst}"
+				fi
 				;;
 		esac
 
@@ -2577,7 +2661,12 @@ match() {
 				;;
 
 			*)	mportmask=`echo ${tsport} | ${TR_CMD} "/" " "`
-				sport_arg="match ip${ipvx} sport ${mportmask}"
+				if [ ${insidegre} -eq 1 ]
+				then
+					sport_arg="match u16 ${mtport} ${mportmask} at 44"
+				else
+					sport_arg="match ip${ipvx} sport ${mportmask}"
+				fi
 				;;
 		esac
 
@@ -2591,7 +2680,12 @@ match() {
 				;;
 
 			*)	mportmask=`echo ${tdport} | $TR_CMD "/" " "`
-				dport_arg="match ip${ipvx} dport ${mportmask}"
+				if [ ${insidegre} -eq 1 ]
+				then
+					dport_arg="match u16 ${tdport} ${mportmask} at 46"
+				else
+					dport_arg="match ip${ipvx} dport ${mportmask}"
+				fi
 				;;
 		esac
 
@@ -2757,7 +2851,12 @@ match() {
 			then
 				tos_arg="match ip6 priority ${tos_value} ${tos_mask}"
 			else
-				tos_arg="match ip tos ${tos_value} ${tos_mask}"
+				if [ "${insidegre}" -eq 1 ]
+				then
+					tos_arg="match u8 ${tos_value} ${tos_mask} at 25"
+				else
+					tos_arg="match ip tos ${tos_value} ${tos_mask}"
+				fi
 			fi
 		fi
 
@@ -2972,6 +3071,75 @@ check_root() {
 		echo >&2
 		exit 1
 	fi
+}
+
+ip_to_hex () {
+	if [ -z "${1}" ]; then
+		echo "ip_to_hex() requires at least one parameter!"
+		exit 1
+	fi
+	hex=$(printf '%02x' ${1//./ })
+	if [ -z "${hex}" ]; then
+		echo "ip_to_hex() failed!"
+		exit 1
+	fi
+	echo ${hex}
+}
+
+cidr_length_to_mask () {
+	if [ -z "${1}" ]; then
+		echo "cidr_length_to_mask() requires at least one parameter!"
+		exit 1
+	fi
+	if ! [[ "${1}" =~ ^[[:digit:]]+$ ]]; then
+		echo "cidr_length_to_mask() requires at numeric value as parameter!"
+		exit 1
+	fi
+	if [ ${1} -lt 0 ] || [ ${1} -gt 32 ]; then
+		echo "cidr_length_to_mask() requires at parameter to be in a range of 0 to 32!"
+		exit 1
+	fi
+	case ${1} in
+		0) mask="0.0.0.0" ;;
+		1) mask="128.0.0.0" ;;
+		2) mask="192.0.0.0" ;;
+		3) mask="224.0.0.0" ;;
+		4) mask="240.0.0.0" ;;
+		5) mask="248.0.0.0" ;;
+		6) mask="252.0.0.0" ;;
+		7) mask="254.0.0.0" ;;
+		8) mask="255.0.0.0" ;;
+		9) mask="255.128.0.0" ;;
+		10) mask="255.192.0.0" ;;
+		11) mask="255.224.0.0" ;;
+		12) mask="255.240.0.0" ;;
+		13) mask="255.248.0.0" ;;
+		14) mask="255.252.0.0" ;;
+		15) mask="255.254.0.0" ;;
+		16) mask="255.255.0.0" ;;
+		17) mask="255.255.128.0" ;;
+		18) mask="255.255.192.0" ;;
+		19) mask="255.255.224.0" ;;
+		20) mask="255.255.240.0" ;;
+		21) mask="255.255.248.0" ;;
+		22) mask="255.255.252.0" ;;
+		23) mask="255.255.254.0" ;;
+		24) mask="255.255.255.0" ;;
+		25) mask="255.255.255.128" ;;
+		26) mask="255.255.255.192" ;;
+		27) mask="255.255.255.224" ;;
+		28) mask="255.255.255.240" ;;
+		29) mask="255.255.255.248" ;;
+		30) mask="255.255.255.252" ;;
+		31) mask="255.255.255.254" ;;
+		32) mask="255.255.255.255" ;;
+		*) echo "invalid CIDR length found!"; exit 1 ;;
+	esac
+	if [ -z "${mask}" ]; then
+		echo "cidr_length_to_mask() was unable to convert ${1} into a mask!"
+		exit 1
+	fi
+	echo ${mask}
 }
 
 show_interfaces() {
