@@ -5254,6 +5254,23 @@ merge cleantalk_30d ipv4 ip \
 	cleantalk_new_30d \
 	cleantalk_updated_30d
 
+# -----------------------------------------------------------------------------
+# http://www.jigsawsecurityenterprise.com/#!open-blacklist/kafsx
+
+update jigsaw_attacks $[24*60] 0 ipv4 ip \
+	"http://www.slcsecurity.com/feedspublic/IP/malicious-ip-src.txt" \
+	remove_comments \
+	"attacks" \
+	"[Jigsaw Security Enterprise](http://www.jigsawsecurityenterprise.com/#!open-blacklist/kafsx) IP Address Sources of Attack. Information on this blacklist is low fidelity meaning we do not update these indicators that often and there is no validation of the data. These are raw feeds that have not been processed. In order to get the most up to date data and to remove false positives you should consider subscribing to our Jigsaw Enterprise Solution." \
+	"Jigsaw Security Enterprise" "http://www.jigsawsecurityenterprise.com/#!open-blacklist/kafsx"
+
+update jigsaw_malware $[24*60] 0 ipv4 ip \
+	"http://www.slcsecurity.com/feedspublic/IP/malicious-ip-dst.txt" \
+	remove_comments \
+	"malware" \
+	"[Jigsaw Security Enterprise](http://www.jigsawsecurityenterprise.com/#!open-blacklist/kafsx) Malicious IP Destinations usually C2 or botnet activity or malicious payloads. Information on this blacklist is low fidelity meaning we do not update these indicators that often and there is no validation of the data. These are raw feeds that have not been processed. In order to get the most up to date data and to remove false positives you should consider subscribing to our Jigsaw Enterprise Solution." \
+	"Jigsaw Security Enterprise" "http://www.jigsawsecurityenterprise.com/#!open-blacklist/kafsx"
+	
 
 # -----------------------------------------------------------------------------
 # http://hosts-file.net/
