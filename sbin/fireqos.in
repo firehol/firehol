@@ -806,7 +806,9 @@ parse_class_params() {
 		prio= qdisc= qdisc_options= minrate= rate= ceil= r2q= \
 		burst= cburst= quantum= mtu= mpu= tsize= param= value= \
 		linklayer= linklayer_type= linklayer_encoding= overhead= diff= \
-		valid_options="$interface_inout" current_options="$interface_inout"
+		valid_options="$interface_inout" current_options="$interface_inout" \
+		hashfilter=0 hashfilter_prefix= hashfilter_direction= hashfilter_key= \
+		hashfilter_mask=
 	shift 2
 
 	eval local base_rate="\$${parent}_rate"
@@ -1007,6 +1009,29 @@ parse_class_params() {
 					shift
 					;;
 
+			hashfilter)
+					if [ -z "${2}" ] || [ -z "${3}" ]
+					then
+					   error "Hashing filter requires additional parameters!"
+					   return 1
+					fi
+					hashfilter=1
+					if [ "${2}" == "key" ]
+					then
+						hashfilter_key="$3"
+						shift 2
+					else
+						if [ -z "${4}" ]
+						then
+							error "Hashing filter requires additional parameters!"
+						fi
+						hashfilter_direction="$2"
+						hashfilter_prefix="$3"
+						hashfilter_mask="$4"
+						shift 3
+					fi
+					;;
+
 			*)		error "Cannot understand what '${1}' means."
 					return 1
 					;;
@@ -1030,7 +1055,7 @@ parse_class_params() {
 	done
 
 	# no inheritance for these parameters
-	for param in rate mtu mpu tsize overhead linklayer linklayer_type linklayer_encoding r2q prio minrate
+	for param in rate mtu mpu tsize overhead linklayer linklayer_type linklayer_encoding r2q prio minrate hashfilter hashfilter_direction hashfilter_prefix hashfilter_key hashfilter_mask
 	do
 		eval export ${prefix}_${param}="\$$param"
 	done
@@ -1814,6 +1839,49 @@ class() {
 		class_rate=${interface_minrate}
 	fi
 
+	if [ ${class_hashfilter} -eq 1 ]
+	then
+		if [ ${class_group} -eq 0 ]
+		then
+			( [ ! -z "${class_hashfilter_prefix}" ] || [ ! -z "${class_hashfilter_direction}" ] || [ ! -z "${class_hashfilter_mask}" ] ) && error "Class group '${class_name}' has hashfilter group parameters set, but class is not definied as a group!"
+			if ! [[ "${class_hashfilter_key}" =~ ^[[:digit:]]{1,3}$ ]]
+			then
+				error "Class group '${class_name}' has hashfilter key parameter set in incorrect notation!"
+			fi
+         class_hashfilter_key=$(printf '%x' ${class_hashfilter_key})
+		else
+			[ ! -z "${class_hashfilter_key}" ]  && error "Class group '${class_name}' has hashfilter key parameters set, but class is definied as a group!"
+
+			if ! [[ "${class_hashfilter_prefix}" =~ ^([[:graph:]]+)/([[:graph:]]+)$ ]]
+			then
+				error "hashfilter prefix parameter for class '${class_name}' is in incorrect notation!"
+			fi
+			class_hashfilter_prefix_network=${BASH_REMATCH[1]}
+			class_hashfilter_prefix_mask=${BASH_REMATCH[2]}
+			if ! [[ "${class_hashfilter_prefix_network}" =~ ^[[:digit:]]{1,3}\.[[:digit:]]{1,3}\.[[:digit:]]{1,3}\.[[:digit:]]{1,3}$ ]]
+			then
+				error "Hashfilter prefix parameter for class '${class_name}' has an invalid network address!"
+			fi
+			if ! [[ "${class_hashfilter_prefix_mask}" =~ ^[[:digit:]]+$ ]] &&
+				! [[ "${class_hashfilter_prefix_mask}" =~ ^[[:digit:]]{1,3}\.[[:digit:]]{1,3}\.[[:digit:]]{1,3}\.[[:digit:]]{1,3}$ ]]
+			then
+				error "Hashfilter prefix parameter for class '${class_name}' has an invalid network mask!"
+			fi
+			if [[ "${class_hashfilter_prefix_mask}" =~ ^[[:digit:]]+$ ]]
+			then
+				class_hashfilter_prefix_mask=$(cidr_length_to_mask ${class_hashfilter_prefix_mask})
+				if ! [[ "${class_hashfilter_prefix_mask}" =~ ^[[:digit:]]{1,3}\.[[:digit:]]{1,3}\.[[:digit:]]{1,3}\.[[:digit:]]{1,3}$ ]]
+				then
+					error "Hashfilter prefix parameter for class '${class_name}' has an incorrect mask defined!"
+				fi
+			fi
+			if [ "${class_hashfilter_direction}" != "src" ] && [ "${class_hashfilter_direction}" != "dst" ]
+			then
+				error "Hashfilter direction parameter for class '${class_name}' is neither 'src' nor 'dst'!"
+			fi
+	   fi
+   fi
+
 	# class rate cannot go bellow 1/100 of the interface rate
 	if [ ${class_rate} -lt ${interface_minrate} ]
 	then
@@ -1919,6 +1987,15 @@ class() {
 		# so we add the filters and when we encounter the next class, we push it into the parents' stack, so that it becomes
 		# the parent for all classes following, until we encounter its matching 'class group end'.
 
+		if [ ${class_hashfilter} -eq 1 ]
+		then
+			local mask_hex="$(ip_to_hex ${class_hashfilter_mask})"
+			[ "${class_hashfilter_direction}" == "src" ] && local hashkey_pos=12
+			[ "${class_hashfilter_direction}" == "dst" ] && local hashkey_pos=16
+			[[ "${mask_hex}" =~ ^[[:alnum:]]{8}$ ]] || error "Unable to convert ${class_hashfilter_mask} to hex!"
+			tc filter add dev ${interface_realdev} parent 1:0 protocol all prio 2 handle 10: u32 divisor 256
+			tc filter add dev ${interface_realdev} parent 1:0 protocol all prio 2 u32 ht 800:: match ip ${class_hashfilter_direction} ${class_hashfilter_prefix_network}/${class_hashfilter_prefix_mask} hashkey mask 0x${mask_hex} at ${hashkey_pos} link 10:
+		fi
 	else
 		# this is a leaf class (no child classes possible)
 
@@ -1993,8 +2070,14 @@ class_${ncid}_qdisc_stab="${stab}"
 class_${ncid}_qdisc_options="${qdisc_options}"
 class_${ncid}_qdisc_command="${qdisc_command}"
 class_${ncid}_group="${class_group}"
+class_${ncid}_hashfilter="${class_hashfilter}"
+class_${ncid}_hashfilter_direction="${class_hashfilter_direction}"
+class_${ncid}_hashfilter_prefix="${class_hashfilter_prefix}"
+class_${ncid}_hashfilter_prefix_network="${class_hashfilter_prefix_network}"
+class_${ncid}_hashfilter_prefix_mask="${class_hashfilter_prefix_mask}"
+class_${ncid}_hashfilter_mask="${class_hashfilter_mask}"
+class_${ncid}_hashfilter_key="${class_hashfilter_key}"
 EOF
-
 	return 0
 }
 
@@ -2098,7 +2181,7 @@ match() {
 		srcmac=any dstmac=any class=${class_name} flowid=${class_filters_flowid} \
 		ack=0 syn=0 at= custom= tcproto= ipv4=${class_ipv4} ipv6=${class_ipv6} \
 		reverse=0 estimator_interval= estimator_decay= police_arg= \
-		prio= limit_rate= t= insidegre=0
+		prio= limit_rate= t= insidegre=0 hashtable=
 
 	case "${force_ipv}" in
 		4)
@@ -2914,6 +2997,13 @@ match() {
 	if [ ! -z "${police_arg}" ]
 	then
 		police="police ${police_arg}"
+	fi
+
+	if [ ${class_hashfilter} -eq 1 ]
+	then
+		parent="1:0"
+		hashtable="ht 10:${class_hashfilter_key}"
+		u32="u32 ${hashtable}"
 	fi
 
 	tc filter add \
