@@ -36,6 +36,7 @@ extra-manpage: fireqos-host.5
 extra-manpage: fireqos-src.5
 extra-manpage: fireqos-dst.5
 extra-manpage: fireqos-prio.5
+extra-manpage: fireqos-insidegre.5
   -->
 
 # SYNOPSIS
@@ -89,6 +90,8 @@ custom '*custom tc parameters*'
 estimator *interval* *decay*
 
 police *police*
+
+insidegre
 
 # DESCRIPTION
 
