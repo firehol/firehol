@@ -2898,7 +2898,12 @@ match() {
 	then
 		u32="u32 match u32 0 0"
 	else
-		u32="u32"
+		if [ "${insidegre}" -eq 1 ]
+		then
+			u32="u32 match ip${ipvx} protocol 47 0xff"
+		else
+			u32="u32"
+		fi
 		[ -z "${proto_arg}${ip_arg}${src_arg}${dst_arg}${port_arg}${sport_arg}${dport_arg}${tos_arg}${ack_arg}${syn_arg}" ] && u32=
 	fi
 
