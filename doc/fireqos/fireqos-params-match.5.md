@@ -90,7 +90,6 @@ estimator *interval* *decay*
 
 police *police*
 
-
 # DESCRIPTION
 
 These options apply to `match` statements.
@@ -316,6 +315,30 @@ interface eth0 lan output rate 1Gbit
 
   class low
     match host 192.0.2.1 port 1234 prio 1 # Matches before host-only
+~~~~
+
+## insidegre
+
+By specifying keyword `insidegre` a GRE (Generic Routing Encapsulation)
+packet can be matched on the encapsulated IP packet header information.
+
+`insidegre` is available for the following matches:
+
+* src
+* dst
+* protocol
+* port
+* tos
+* dscp
+
+~~~~
+  interface eth0 world ...
+    class surfing commit 128kbit ceil 1024kbit prio 7
+      match src 10.1.128.230 dst 8.8.8.8 insidegre
+      match protocol ospf insidegre
+      match port 25 insidegre
+      match tos 3 insidegre
+      match dscp ef insidegre
 ~~~~
 
 # SEE ALSO
