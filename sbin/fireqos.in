@@ -2752,7 +2752,7 @@ match() {
 		dscp_value=
 		tos_value=
 		tos_mask=
-		case "${tdscp}" in
+		case "${tdscp^^}" in
 			any)	;;
 
 			CS1)
