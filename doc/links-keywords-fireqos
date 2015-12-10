@@ -78,3 +78,4 @@
 [keyword-fireqos-tos]: fireqos-params-match.5.md#tos-priority
 [keyword-fireqos-tsize]: fireqos-params-class.5.md#tsize
 [keyword-fireqos-udp]: fireqos-params-match.5.md#proto-protocol-tcp-udp-icmp-gre-ipv6
+[keyword-fireqos-insidegre]: fireqos-params-match.5.md#insidegre
