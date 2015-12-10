@@ -696,7 +696,7 @@ cleanup() {
 		$RM_CMD -rf "${RUN_DIR}"
 	fi
 	trap exit EXIT
-	
+
 	if [ ${PROGRAM_COMPLETED} -eq 1 ]
 		then
 		verbose "Completed successfully."
@@ -862,7 +862,7 @@ commit_to_git() {
 		) | $SED_CMD "s|'${BASE_DIR}/|'|g" >set_file_timestamps.sh
 		git_add_if_not_already_added set_file_timestamps.sh
 
-		echo >&2 
+		echo >&2
 		info "Committing ${to_be_pushed[@]} to git repository"
 		local date="$($DATE_CMD -u)"
 		# we commit each file alone, to have a clear history per file in github
@@ -1102,7 +1102,7 @@ download_manager() {
 	# nunber of consecutive failures so far
 	fails=${IPSET_DOWNLOAD_FAILURES[${ipset}]}
 	base=${IPSET_CHECKED_DATE[${ipset}]}
-	if [ ${IGNORE_LASTCHECKED} -eq 1 ] 
+	if [ ${IGNORE_LASTCHECKED} -eq 1 ]
 		then
 		base=${st}
 		fails=0
@@ -1124,7 +1124,7 @@ download_manager() {
 		detail="$[dt/60]/${mins} mins passed, will fetch in $[mins - (dt/60)] mins"
 		ipset_silent "${ipset}" "${fails} fails so far, time decreased from ${omins} to ${mins} mins"
 	fi
-	
+
 	# echo >&2 "${ipset}: source:${st} processed:${IPSET_PROCESSED_DATE[${ipset}]} checked:${IPSET_CHECKED_DATE[${ipset}]}, fails:${IPSET_DOWNLOAD_FAILURES[${ipset}]}, mins:${omins}, dt:$[dt / 60]"
 
 	# if it is too soon, do nothing
@@ -1195,7 +1195,7 @@ download_manager() {
 	esac
 
 	[ ! -z "${IPSET_TMP_NO_IF_MODIFIED_SINCE[${ipset}]}" ] && $TOUCH_CMD "${tmp}"
-	
+
 	# check if the downloaded file is the same with the last one
 	$DIFF_CMD -q "${BASE_DIR}/${ipset}.source" "${tmp}" >/dev/null 2>&1
 	if [ $? -eq 0 ]
@@ -1266,7 +1266,7 @@ declare -A IPSET_DOWNLOADER=()
 
 cache_save() {
 	#info "Saving cache"
-	
+
 	declare -p \
 		IPSET_INFO \
 		IPSET_SOURCE \
@@ -1304,7 +1304,7 @@ cache_save() {
 		IPSET_MAX_UPDATE_TIME \
 		IPSET_DOWNLOADER \
 		>"${BASE_DIR}/.cache.new.$$"
-	
+
 	[ -f "${BASE_DIR}/.cache" ] && $CP_CMD "${BASE_DIR}/.cache" "${BASE_DIR}/.cache.old"
 	$MV_CMD "${BASE_DIR}/.cache.new.$$" "${BASE_DIR}/.cache" || exit 1
 }
@@ -1544,7 +1544,7 @@ retention_detect() {
 	RETENTION_HISTOGRAM_REST=()
 	RETENTION_HISTOGRAM_STARTED=
 	RETENTION_HISTOGRAM_INCOMPLETE=1
-	
+
 	if [ -f "${LIB_DIR}/${ipset}/histogram" ]
 		then
 		ipset_verbose "${ipset}" "loading old data"
@@ -1931,10 +1931,10 @@ update_web() {
 				# $TOUCH_CMD "${LIB_DIR}/${x}/history.csv"
 				$CHMOD_CMD 0644 "${LIB_DIR}/${x}/history.csv"
 			fi
-			
+
 			ipset_silent "${x}" "entries: ${IPSET_ENTRIES[${x}]}, unique IPs: ${IPSET_IPS[${x}]}"
 			echo >>"${LIB_DIR}/${x}/history.csv" "$($DATE_CMD -r "${IPSET_SOURCE[${x}]}" +%s),${IPSET_ENTRIES[${x}]},${IPSET_IPS[${x}]}"
-			
+
 			ipset_verbose "${x}" "preparing web history file (last ${WEB_CHARTS_ENTRIES} entries)"
 			echo >"${RUN_DIR}/${x}_history.csv" "DateTime,Entries,UniqueIPs"
 			$TAIL_CMD -n ${WEB_CHARTS_ENTRIES} "${LIB_DIR}/${x}/history.csv" | $GREP_CMD -v "^DateTime" | $SORT_CMD -n >>"${RUN_DIR}/${x}_history.csv"
@@ -1957,7 +1957,7 @@ update_web() {
 				*)				i= ;;
 			esac
 			[ ! -z "${i}" ] && geolite2_country=("${geolite2_country[@]}" "${IPSET_FILE[$x]}" "as" "${i^^}")
-		
+
 		elif [[ "${IPSET_FILE[$x]}" =~ ^ipdeny_country.* ]]
 			then
 			ipset_verbose "${x}" "is an IPDeny file"
@@ -1968,7 +1968,7 @@ update_web() {
 				*)				i= ;;
 			esac
 			[ ! -z "${i}" ] && ipdeny_country=("${ipdeny_country[@]}" "${IPSET_FILE[$x]}" "as" "${i^^}")
-		
+
 		elif [[ "${IPSET_FILE[$x]}" =~ ^ip2location_country.* ]]
 			then
 			ipset_verbose "${x}" "is an IP2Location file"
@@ -1986,7 +1986,7 @@ update_web() {
 			ipset_verbose "${x}" "ipset will be compared with all others"
 			all=("${all[@]}" "${IPSET_FILE[$x]}" "as" "${x}")
 			all_count=$[ all_count + 1 ]
-			
+
 			# if we need a full rebuild, pretend all are updated
 			[ ${FORCE_WEB_REBUILD} -eq 1 ] && UPDATED_SETS[${x}]="${IPSET_FILE[${x}]}"
 
@@ -2195,7 +2195,7 @@ update_web() {
 		$GIT_CMD commit -a -m "$($DATE_CMD -u) update"
 		$GIT_CMD push origin gh-pages
 		cd "${BASE_DIR}" || exit 1
-		
+
 		echo >&2
 	fi
 }
@@ -2689,7 +2689,7 @@ update() {
 			$LN_CMD -s "${src}" "${ipset}_ip.source"
 			$LN_CMD -s "${src}" "${ipset}_net.source"
 		)
-		
+
 		update "${ipset}_ip" "${mins}" "${history_mins}" "${ipv}" ip  \
 			"" \
 			"${processor}" \
@@ -2697,7 +2697,7 @@ update() {
 			"${info}" \
 			"${maintainer}" "${maintainer_url}" \
 			"${@}"
-		
+
 		update "${ipset}_net" "${mins}" "${history_mins}" "${ipv}" net \
 			"" \
 			"${processor}" \
@@ -2705,7 +2705,7 @@ update() {
 			"${info}" \
 			"${maintainer}" "${maintainer_url}" \
 			"${@}"
-		
+
 		return $?
 	fi
 
@@ -2738,7 +2738,7 @@ update() {
 
 	local h= hmax=-1
 	[ "${history_mins}" = "0" ] && history_mins=
-	
+
 	if [ ! -z "${history_mins}" ]
 		then
 		history_keep "${ipset}" "${tmp}"
@@ -3227,14 +3227,22 @@ dshield_parser() {
 
 # unzip the first file in the zip and convert comma to new lines
 unzip_and_split_csv() {
-	[ -z "${FUNZIP_CMD}" ] && return 1
+	if [ -z "${FUNZIP_CMD}" ]
+	then
+		error "command 'funzip' is not installed"
+		return 1
+	fi
 
 	$FUNZIP_CMD | $TR_CMD ",\r" "\n\n"
 }
 
 # unzip the first file in the zip
 unzip_and_extract() {
-	[ -z "${FUNZIP_CMD}" ] && return 1
+	if [ -z "${FUNZIP_CMD}" ]
+	then
+		error "command 'funzip' is not installed"
+		return 1
+	fi
 
 	$FUNZIP_CMD
 }
@@ -3317,7 +3325,12 @@ hphosts2ips() {
 }
 
 geolite2_country() {
-	[ -z "${UNZIP_CMD}" ] && return 1
+	if [ -z "${UNZIP_CMD}" ]
+	then
+		ipset_error "geolite2_country" "Command 'unzip' is not installed."
+		return 1
+	fi
+
 	cd "${RUN_DIR}" || return 1
 
 	local ipset="geolite2_country" limit="" hash="net" ipv="ipv4" \
@@ -3588,7 +3601,12 @@ declare -A IP2LOCATION_COUNTRY_CONTINENTS='([aq]="aq" [gs]="eu" [um]="na" [fk]="
 declare -A IP2LOCATION_COUNTRIES=()
 declare -A IP2LOCATION_CONTINENTS=()
 ip2location_country() {
-	[ -z "${UNZIP_CMD}" ] && return 1
+	if [ -z "${UNZIP_CMD}" ]
+	then
+		ipset_error "ip2location_country" "Command 'unzip' is not installed."
+		return 1
+	fi
+
 	cd "${RUN_DIR}" || return 1
 
 	local ipset="ip2location_country" limit="" hash="net" ipv="ipv4" \
@@ -3712,7 +3730,7 @@ ip2location_country() {
 		$TOUCH_CMD -r "${BASE_DIR}/${ipset}.source" "${tmp}"
 
 		finalize "${i}" "${tmp}" "${ipset}.source" "${ipset}/${i}.netset" "${mins}" "${history_mins}" "${ipv}" "${limit}" "${hash}" "${url}" "geolocation" "${info2}" "IP2Location.com" "http://lite.ip2location.com/database-ip-country" \
-			service "geolocation"		
+			service "geolocation"
 	done
 
 	if [ -d .git ]
