@@ -83,6 +83,7 @@ FIREQOS_DEBUG_QDISC=${FIREQOS_DEBUG_QDISC-0}
 FIREQOS_DEBUG_FILTER=${FIREQOS_DEBUG_FILTER-0}
 FIREQOS_DEBUG_COMMAND=${FIREQOS_DEBUG_COMMAND-0}
 FIREQOS_DEBUG_FLOW=${FIREQOS_DEBUG_FLOW-0}
+FIREQOS_DEBUG_BIDIRECTIONAL=${FIREQOS_DEBUG_BIDIRECTIONAL-0}
 
 # The default and minimum rate for all classes is 1/100
 # of the interface bandwidth
@@ -1284,7 +1285,15 @@ interface_close() {
 
 		# move the exiting file to a new place, to avoid recursion
 		$MV_CMD "${FIREQOS_SAVE}" "${FIREQOS_SAVE}.run"
-		# $CAT_CMD "${FIREQOS_SAVE}.run"
+
+		if [ ${FIREQOS_DEBUG_BIDIRECTIONAL} -eq 1 ]
+			then
+			echo >&2
+			echo >&2 "BEGIN - GENERATED OUTPUT INTERFACE"
+			$CAT_CMD >&2 "${FIREQOS_SAVE}.run"
+			echo >&2 "END - GENERATED OUTPUT INTERFACE"
+			echo >&2
+		fi
 
 		# close the existing, input, interface
 		interface_close
