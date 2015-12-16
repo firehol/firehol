@@ -76,12 +76,13 @@ FIREQOS_LOWRES_TIMER=0
 FIREQOS_DEBUG=0
 
 # These are finer debugging options.
-FIREQOS_DEBUG_STACK=0
-FIREQOS_DEBUG_PORTS=0
-FIREQOS_DEBUG_CLASS=0
-FIREQOS_DEBUG_QDISC=0
-FIREQOS_DEBUG_FILTER=0
-FIREQOS_DEBUG_COMMAND=0
+FIREQOS_DEBUG_STACK=${FIREQOS_DEBUG_STACK-0}
+FIREQOS_DEBUG_PORTS=${FIREQOS_DEBUG_PORTS-0}
+FIREQOS_DEBUG_CLASS=${FIREQOS_DEBUG_CLASS-0}
+FIREQOS_DEBUG_QDISC=${FIREQOS_DEBUG_QDISC-0}
+FIREQOS_DEBUG_FILTER=${FIREQOS_DEBUG_FILTER-0}
+FIREQOS_DEBUG_COMMAND=${FIREQOS_DEBUG_COMMAND-0}
+FIREQOS_DEBUG_FLOW=${FIREQOS_DEBUG_FLOW-0}
 
 # The default and minimum rate for all classes is 1/100
 # of the interface bandwidth
@@ -339,6 +340,8 @@ save() {
 }
 
 simple_service() {
+	[ ${FIREQOS_DEBUG_FLOW} -eq 1 ] && echo >&2 " >> ${FUNCNAME} ${@}"
+
 	[ $interface_save -eq 1 ] && save ${FUNCNAME} "$@"
 
 	local direction="$1" service="$2" s= sports= reverse= p= proto= ports=
@@ -417,6 +420,8 @@ fireqos_active_interfaces() {
 
 FIREQOS_COMPLETED=
 fireqos_exit() {
+	[ ${FIREQOS_DEBUG_FLOW} -eq 1 ] && echo >&2 " >> ${FUNCNAME} ${@}"
+
 	if [ "$FIREQOS_COMPLETED" = "0" ]
 	then
 		echo >&2 "FAILED TO ACTIVATE TRAFFIC CONTROL."
@@ -1137,6 +1142,8 @@ set_tabs() {
 }
 
 check_constrains() {
+	[ ${FIREQOS_DEBUG_FLOW} -eq 1 ] && echo >&2 " >> ${FUNCNAME} ${@}"
+
 	local prefix="$1"
 	eval "local mtu=\$${prefix}_mtu \
 		burst=\$${prefix}_burst \
@@ -1231,7 +1238,7 @@ check_constrains() {
 }
 
 check_committed_rate() {
-	if [ $parent_rate -ge ${parent_sumrate} ]
+	if [ ${parent_rate} -ge ${parent_sumrate} ]
 	then
 		echo >&2 -e ": $class_tabs${COLOR_GREEN}${COLOR_BOLD}committed rate $((parent_sumrate * 8 / 1000))kbit ($((parent_sumrate * 100 / parent_rate))%), the remaining $(((parent_rate - parent_sumrate)*8/1000))kbit will be spare bandwidth.${COLOR_RESET}"
 	else
@@ -1268,6 +1275,8 @@ force_ipv=
 interface_close() {
 	if [ -f "${FIREQOS_SAVE}" ]
 	then
+		[ ${FIREQOS_DEBUG_FLOW} -eq 1 ] && echo >&2 " >> (save mode) ${FUNCNAME} ${@}"
+
 		# we have the output of a bidirectional interface to run
 
 		# debug info
@@ -1292,6 +1301,8 @@ interface_close() {
 
 	if [ ! -z "$interface_dev" ]
 	then
+		[ ${FIREQOS_DEBUG_FLOW} -eq 1 ] && echo >&2 " >> ${FUNCNAME} ${@}"
+
 		# close all open class groups
 		while [ $parent_stack_size -gt 1 ]
 		do
@@ -1316,6 +1327,8 @@ interface_close() {
 		echo "interface_classes='TOTAL|${interface_major}:1 $interface_classes'" >>"${FIREQOS_DIR}/${interface_name}.conf"
 		echo "interface_classes_ids='${interface_major}_1 $interface_classes_ids'" >>"${FIREQOS_DIR}/${interface_name}.conf"
 		echo "interface_classes_monitor='$interface_classes_monitor'" >>"${FIREQOS_DIR}/${interface_name}.conf"
+	else
+		[ ${FIREQOS_DEBUG_FLOW} -eq 1 ] && echo >&2 " >> (dummy) ${FUNCNAME} ${@}"
 	fi
 
 	echo >&2
@@ -1400,6 +1413,8 @@ interface_count=0
 interface() {
 	if [ "$3" = "both" -o "$3" = "bidirectional" ]
 	then
+		[ ${FIREQOS_DEBUG_FLOW} -eq 1 ] && echo >&2 " >> (bidirectional) ${FUNCNAME} ${@}"
+
 		local a1="$1" a2="$2" a3="$3"
 		shift 3
 
@@ -1413,6 +1428,8 @@ interface() {
 	(( interface_count += 1 ))
 
 	interface_close
+
+	[ ${FIREQOS_DEBUG_FLOW} -eq 1 ] && echo >&2 " >> ${FUNCNAME} ${@}"
 
 	printf >&2 ": ${FUNCNAME} %s" "$*"
 
@@ -1652,6 +1669,8 @@ class46() {
 
 class_count=0
 class() {
+	[ ${FIREQOS_DEBUG_FLOW} -eq 1 ] && echo >&2 " >> ${FUNCNAME} ${@}"
+
 	[ ${interface_save} -eq 1 ] && save ${FUNCNAME} "$@"
 
 	(( class_count += 1 ))
@@ -2082,7 +2101,8 @@ match4() { ipv4 match "${@}"; }
 match6() { ipv6 match "${@}"; }
 match46() { ipv46 match "${@}"; }
 match() {
-	# echo >&2 "${FUNCNAME} ${@}"
+	[ ${FIREQOS_DEBUG_FLOW} -eq 1 ] && echo >&2 " >> ${FUNCNAME} ${@}"
+
 	(( match_count += 1 ))
 
 	if [ "z${1}" = "z-ns" ]
@@ -2954,6 +2974,8 @@ match() {
 }
 
 clear_everything() {
+	[ ${FIREQOS_DEBUG_FLOW} -eq 1 ] && echo >&2 " >> ${FUNCNAME} ${@}"
+
 	local iface= found=
 
 	local fqifaces=
