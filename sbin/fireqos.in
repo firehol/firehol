@@ -333,11 +333,9 @@ save() {
 		local ipv="ipv$ipv"
 	fi
 	config_line -ne
-	(
-		printf "FORCE_CONFIG_LINEID=\"${LAST_CONFIG_LINE}\"\n"
-		printf "%q " $ipv "$@"
-		printf "\n"
-	) >>"${FIREQOS_SAVE}"
+	printf "FORCE_CONFIG_LINEID=\"${LAST_CONFIG_LINE}\"\n" >>"${FIREQOS_SAVE}"
+	printf "%q " $ipv "$@" >>"${FIREQOS_SAVE}"
+	printf "\n" >>"${FIREQOS_SAVE}"
 }
 
 simple_service() {
@@ -1274,14 +1272,21 @@ class_matchid=0
 force_ipv=
 
 interface_close() {
-	if [ -f "${FIREQOS_SAVE}" ]
+	local nosave=0
+	if [ "$1" = "nosave" ]
+		then
+		nosave=1
+		shift
+	fi
+
+	if [ -f "${FIREQOS_SAVE}" -a $nosave -eq 0 ]
 	then
-		[ ${FIREQOS_DEBUG_FLOW} -eq 1 ] && echo >&2 " >> (save mode) ${FUNCNAME} ${@}"
+		[ ${FIREQOS_DEBUG_FLOW} -eq 1 ] && echo >&2 " >> ${FUNCNAME} ${@} (save mode while closing $interface_dev)"
 
 		# we have the output of a bidirectional interface to run
 
-		# debug info
-		# $CAT_CMD "${FIREQOS_SAVE}"
+		# close the existing, input, interface
+		interface_close nosave
 
 		# move the exiting file to a new place, to avoid recursion
 		$MV_CMD "${FIREQOS_SAVE}" "${FIREQOS_SAVE}.run"
@@ -1294,9 +1299,6 @@ interface_close() {
 			echo >&2 "# END - GENERATED OUTPUT INTERFACE"
 			echo >&2
 		fi
-
-		# close the existing, input, interface
-		interface_close
 
 		# run the new, output, interface
 		[ ${FIREQOS_DEBUG_FLOW} -eq 1 ] && echo >&2 " >> Sourcing generated output interface..."
@@ -1319,7 +1321,7 @@ interface_close() {
 
 	if [ ! -z "$interface_dev" ]
 	then
-		[ ${FIREQOS_DEBUG_FLOW} -eq 1 ] && echo >&2 " >> ${FUNCNAME} ${@}"
+		[ ${FIREQOS_DEBUG_FLOW} -eq 1 ] && echo >&2 " >> ${FUNCNAME} ${@} (of $interface_dev)"
 
 		# close all open class groups
 		while [ $parent_stack_size -gt 1 ]
@@ -1443,11 +1445,11 @@ interface() {
 		return 0
 	fi
 
-	(( interface_count += 1 ))
-
 	interface_close
 
 	[ ${FIREQOS_DEBUG_FLOW} -eq 1 ] && echo >&2 " >> ${FUNCNAME} ${@}"
+
+	(( interface_count += 1 ))
 
 	printf >&2 ": ${FUNCNAME} %s" "$*"
 
