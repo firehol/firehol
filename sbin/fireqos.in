@@ -1289,9 +1289,9 @@ interface_close() {
 		if [ ${FIREQOS_DEBUG_BIDIRECTIONAL} -eq 1 ]
 			then
 			echo >&2
-			echo >&2 "BEGIN - GENERATED OUTPUT INTERFACE"
+			echo >&2 "# BEGIN - GENERATED OUTPUT INTERFACE"
 			$CAT_CMD >&2 "${FIREQOS_SAVE}.run"
-			echo >&2 "END - GENERATED OUTPUT INTERFACE"
+			echo >&2 "# END - GENERATED OUTPUT INTERFACE"
 			echo >&2
 		fi
 
@@ -1299,7 +1299,16 @@ interface_close() {
 		interface_close
 
 		# run the new, output, interface
+		[ ${FIREQOS_DEBUG_FLOW} -eq 1 ] && echo >&2 " >> Sourcing generated output interface..."
 		source "${FIREQOS_SAVE}.run"
+		if [ $? -ne 0 ]
+			then
+			error "Cannot run the generated statements for the output interface of $interface_dev."
+			echo >&2 "# BEGIN - FAILED OUTPUT INTERFACE"
+			$CAT_CMD >&2 "${FIREQOS_SAVE}.run"
+			echo >&2 "# END - FAILED OUTPUT INTERFACE"
+			exit 1
+		fi
 		FORCE_CONFIG_LINEID=
 
 		# delete the file, we don't need it any more
