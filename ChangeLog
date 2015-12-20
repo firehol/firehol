@@ -1,3 +1,14 @@
+firehol (3.0.0) - 2015-12-20
+
+  * FireQOS
+    - Bidirectional fixes
+    - accept DSCP parameters case insensitive
+    - allow matching within GRE packets
+    - use configured firehol config directory
+
+  * Update-Ipsets
+    - added jigsaw lists
+
 firehol (3.0.0-rc.4) - 2015-11-28
 
   * Rework packaging
