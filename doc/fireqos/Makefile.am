@@ -20,6 +20,7 @@ MANUALMAN_GENERATED = \
 	man/man5/fireqos-class.5 \
 	man/man5/fireqos-conf.5 \
 	man/man5/fireqos-dscp.5 \
+	man/man5/fireqos-insidegre.5 \
 	man/man5/fireqos-interface.5 \
 	man/man5/fireqos-match.5 \
 	man/man5/fireqos-params.5 \
