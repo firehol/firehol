@@ -323,6 +323,8 @@ AX_NEED_PROG([SH], [ksh], [])
 AX_NEED_PROG([SLEEP], [sleep], [])
 AX_NEED_PROG([TR], [tr], [])
 fi
+else
+AC_MSG_NOTICE(MAKEDIST_BUILD_ONLY is yes - skipping command checks)
 fi
 dnl --- OUTPUT OF './packaging/gen-config-detect.pl sbin/*.in' END   ---
 

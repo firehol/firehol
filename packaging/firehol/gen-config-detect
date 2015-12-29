@@ -124,6 +124,8 @@ foreach my $s (sort(keys(%scripts))) {
 
   print "fi\n";
 }
+print "else\n";
+print "AC_MSG_NOTICE(MAKEDIST_BUILD_ONLY is yes - skipping command checks)\n";
 print "fi\n";
 print "dnl --- OUTPUT OF './packaging/gen-config-detect.pl sbin/*.in' END   ---\n";
 
