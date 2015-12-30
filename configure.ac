@@ -115,7 +115,6 @@ AX_CHECK_MINVER([PANDOC_VERSION], MIN_PANDOC_VERSION, [$PANDOC],
                 [-v | head -n 1 | cut -d' ' -f2],
                 [], [AC_MSG_ERROR(could not find required version of pandoc)])
 AX_CHECK_PANDOC_OUTPUT()
-AX_NEED_SED()
 
 AC_SUBST(PACKAGE_BUILT_DATE)
 AC_SUBST(PANDOC_VERSION)
@@ -135,6 +134,7 @@ AX_NEED_PROG([BASH_SHELL_PATH], [bash], [])
 AX_CHECK_MINVER([BASH_VERSION_PATH], MIN_BASH_VERSION, [$BASH_SHELL_PATH],
                 [--version | sed -n -e '1{s/.* \(.*\..*\)\..*/\1/p;}'],
                 [], [AC_MSG_ERROR(could not find required version of bash)])
+AX_NEED_SED()
 
 dnl --- OUTPUT OF './packaging/firehol/gen-config-detect sbin/*.in' BEGIN   ---
 if test x"$MAKEDIST_BUILD_ONLY" != xyes; then
