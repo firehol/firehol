@@ -63,7 +63,7 @@ common_require_cmd() {
 	if [ "${val}" ]
 	then
 		local cmd="${val/ */}"
-		if [ ! -x "$cmd" ]
+		if [ "$cmd" != ":" -a ! -x "$cmd" ]
 		then
 			echo >&2
 			if [ $block -eq 0 ]
