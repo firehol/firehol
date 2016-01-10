@@ -2,4 +2,6 @@
 if [ -x ./packaging/check-files ]
 then
   exec git diff --cached | ./packaging/check-files -
+else
+  exit 0
 fi
