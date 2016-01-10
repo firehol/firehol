@@ -1646,6 +1646,7 @@ add_icmpv6_rule_pair_stateless() {
 	local type="${1}"; shift
 	local icmpv6in="${1}"; shift
 	local icmpv6out="${1}"; shift
+	local icmptype=""
 
 	local in=in
 	local out=out
@@ -1655,9 +1656,15 @@ add_icmpv6_rule_pair_stateless() {
 		out=in
 	fi
 
-	rule ${in} action "$@" chain "${in}_${mychain}" proto icmpv6 custom "--icmpv6-type $icmpv6in" || return 1
+	for icmptype in $icmpv6in
+	do
+		rule ${in} action "$@" chain "${in}_${mychain}" proto icmpv6 custom "--icmpv6-type $icmptype" || return 1
+	done
 
-	rule ${out} reverse action "$@" chain "${out}_${mychain}" proto icmpv6 custom "--icmpv6-type $icmpv6out" || return 1
+	for icmptype in $icmpv6out
+	do
+		rule ${out} reverse action "$@" chain "${out}_${mychain}" proto icmpv6 custom "--icmpv6-type $icmptype" || return 1
+	done
 
 	return 0
 }
