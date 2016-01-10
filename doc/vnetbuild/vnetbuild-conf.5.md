@@ -14,6 +14,7 @@ extra-manpage: vnetbuild-dev.5
 extra-manpage: vnetbuild-bridgedev.5
 extra-manpage: vnetbuild-route.5
 extra-manpage: vnetbuild-exec.5
+extra-manpage: vnetbuild-pre_up.5
   -->
 
 # SYNOPSIS
@@ -26,16 +27,20 @@ host *ID*
     ...
     route *ROUTECMD*
     ...
+    pre_up *DEVICE* *CUSTOMCMD*
+    ...
     exec *CUSTOMCMD*
     ...
 
 ...
 
 switch *ID*
-  dev *DEVICE* [ *ID*/*PAIRDEV* ]
-  ...
-  exec *CUSTOMCMD*
-  ...
+    dev *DEVICE* [ *ID*/*PAIRDEV* ]
+    ...
+    pre_up *DEVICE* *CUSTOMCMD*
+    ...
+    exec *CUSTOMCMD*
+    ...
 
 ...
 ````
@@ -159,6 +164,21 @@ route *ROUTECMD*
     anything more complex than simply adding routes, use the `exec`
     configuration statement.
 
+pre_up *DEVICE* *CUSTOMCMD*
+:   Execute custom commands in a `host` or `switch` just before bringing
+    up the specified device. All of the `pre_up` statements for a
+    device are combined and executed in the namespace.
+
+    In addition to any explicitly defined interfaces, switches have an
+    implicit bridge device called `switch` which can also be used in `pre_up`
+    commands.
+
+    Bridges always start after other devices, so to run a command
+    after all everything has been created but before any interfaces
+    are up, you can make use of `pre_up` on the first defined `dev`.
+
+    See below for some common uses for custom `pre_up` and `exec` commands.
+
 exec *CUSTOMCMD*
 :   Execute a custom command in a `host` or `switch` once the rest
     of the namespace setup is complete.
@@ -170,12 +190,24 @@ exec *CUSTOMCMD*
     it after `vnetbuild start` has finished:
 
     ````
-    sudo iptables netns exec myns ./myscript.sh
+    sudo ip netns exec myns ./myscript.sh
     ````
 
-    See below for some common uses for custom `exec` commands.
+    See below for some common uses for custom `pre_up` and `exec` commands.
 
 # COMMON CUSTOM COMMANDS
+
+For the most part it doesn't matter whether these commands are used
+in `pre_up` or `exec` operations - the only difference is when they
+will execute, so e.g. if you want a firewall in place before any interfaces
+come up then start it from the `pre_up` of the first device. If you only
+want the firewall after all devices are up, put it in `exec`, e.g.:
+
+~~~~
+host myfirewall
+    ...
+    exec firehol myfirewall.conf start
+~~~~
 
 Forwarding is not enabled by the Linux kernel when a namespace is first
 created. This can be easily done for any hosts that need to forward
@@ -189,6 +221,32 @@ host mygateway
 
 The `exec` operates in the `mygateway` namespace so your host is not
 affected.
+
+Bridges are created without STP being enabled. To enable STP to ensure
+loops are not created, the following can be done:
+
+~~~~
+host myhost
+    bridgedev vbr0 ...
+    ...
+    pre_up vbr0 echo 2 > /sys/class/net/vbr0/bridge/stp_state
+
+switch myswitch
+    ...
+    pre_up switch echo 2 > /sys/class/net/vbr0/bridge/stp_state
+~~~~
+
+You could also use `brctl stp vbr0 on` and `brctl stp switch on` instead
+of setting the values directly. To disable multicast snooping you can
+use exactly the same method e.g.:
+
+~~~~
+switch myswitch
+    ...
+    pre_up switch echo 0 > /sys/class/net/switch/bridge/multicast_snooping
+~~~~
+
+It is possible to run firehol within a namespace to set up custom
 
 Logs from network namespaces are not included in the normal system
 logs. To enable iptables logging you must start an instance of
@@ -215,7 +273,7 @@ is is stopping, which includes the logging daemon.
 
 The configuration file will get cleaned as soon as `vnetbuild start`
 is finished. To be able to access such files you need to write them to
-a location not under `$NSTMP` or create them up outside the `vnetbuild`
+a location not under `$NSTMP` or create them outside the `vnetbuild`
 configuration altogether.
 
 # EXAMPLE

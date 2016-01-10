@@ -196,7 +196,7 @@ set -e
 
 $MKDIR_CMD $MYTMP/setup
 $SED_CMD = "$setup" > $MYTMP/withnum
-(echo "cd $CURDIR"; $SED_CMD -e 'N;s/\n/\t/' -e 's/^/lineno=/' -e '/exec/s/[<>|&]/\\&/g' $MYTMP/withnum) > $MYTMP/setup/$setupbase
+(echo "cd $CURDIR"; $SED_CMD -e 'N;s/\n/\t/' -e 's/^/lineno=/' -e '/exec\|pre_up/s/[<>|&]/\\&/g' $MYTMP/withnum) > $MYTMP/setup/$setupbase
 
 $MKDIR_CMD $MYTMP/ns
 $MKDIR_CMD $MYTMP/runtime-lines
@@ -387,6 +387,31 @@ exec() {
   return 0
 }
 
+pre_up() {
+  errline=$lineno
+  device="$1"
+  shift
+
+  if [ ! "$current_name" ]
+  then
+    error="can only specify pre_up in a host or switch"
+    return 1
+  fi
+
+  if [ "$($CAT_CMD $NSTMP/type)" = "switch" -a "$device" = "switch" ]
+  then
+    :
+  elif [ ! -f $NSTMP/devices/$device ]
+  then
+    error="$current_name/$device: device not defined"
+    return 1
+  fi
+
+  echo "$*" >> $NSTMP/pre-up-$device
+  echo $errline >> $MYTMP/runtime-lines/$current_name-pre-up-$device
+  return 0
+}
+
 is_ipv6() {
   case "$1" in
     *:*)
@@ -434,6 +459,12 @@ shutdown_ns() {
 startup_ns() {
   for i in $(dev_in_ns $1)
   do
+    if [ -f $MYTMP/ns/$ns/pre-up-$i ]
+    then
+      errline=$($TR_CMD "\n" "/" < $MYTMP/runtime-lines/$ns-pre-up-$i | $SED_CMD -e s:/$::)
+      error="running pre-up-$i for $ns"
+      $IP_CMD netns exec $ns $SH_CMD -e $MYTMP/ns/$ns/pre-up-$i
+    fi
     $IP_CMD netns exec $1 $IP_CMD link set $i up
   done
 }
