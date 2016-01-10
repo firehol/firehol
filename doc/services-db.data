@@ -680,6 +680,38 @@ SERVICE ipv6router
 		-
 		This service implicitly sets its client or server to ipv6 mode.
 
+SERVICE ipv6mld
+	NAME IPv6 Multicast Listener Discovery for IPv6
+	WIKI https://en.wikipedia.org/wiki/Multicast_Listener_Discovery
+	EXAMPLE
+		client ipv6mld accept
+	NOTES
+		IPv6 uses Multicast Listener Discovery to discover multicast
+		listeners and what they are listening for.
+		-
+		In practice all IPv6 nodes are multicast listeners since
+		multicast is used in the neighbour discovery protocol which
+		replaces ARP in IPv4.
+		-
+		These rules are stateless since reports can happen
+		automatically as well as on query.
+		-
+		Unless muticast snooping is disabled across the network, MLD
+		should be enabled for any clients:
+		-
+		    `client ipv6mld accept`
+		-
+		MLD should also be enabled as a server on any hosts acting as a
+		router:
+		-
+		    `server ipv6mld accept`
+		-
+		The rules should generally not be used to pass packets across a
+		firewall (e.g. in a router definition) unless the firewall
+		is for a bridge.
+		-
+		This service implicitly sets its client or server to ipv6 mode.
+
 SERVICE irc
 	NAME Internet Relay Chat
 	WIKI  http://en.wikipedia.org/wiki/Internet_Relay_Chat

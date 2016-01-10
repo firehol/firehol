@@ -2436,6 +2436,26 @@ rules_ipv6router() {
 	return $status
 }
 
+# --- IVP6MLD ------------------------------------------------------------------
+
+rules_ipv6mld() {
+	local 	mychain="${1}" \
+		type="${2}" \
+		status=0
+	shift 2
+
+	if ! push_namespace ipv6; then return 1; fi
+
+	# 130 	Multicast Listener Query
+	# 131 	Multicast Listener Report
+	# 132 	Multicast Listener Done
+	# 143 	Version 2 Multicast Listener Report
+	add_icmpv6_rule_pair_stateless $mychain $type "131 132 143" 130 "${@}" || status=1
+
+	pop_namespace
+	return $status
+}
+
 # --- IVP6ERROR ----------------------------------------------------------------
 
 rules_ipv6error() {
