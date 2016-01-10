@@ -73,7 +73,7 @@ SERVICE all
 	NOTES
 		Matches all traffic (all protocols, ports, etc.). Note that
 		to provide "connections in one direction with replies"
-                semantics, the kernel connection tracker is still used:
+		semantics, the kernel connection tracker is still used:
 		this will therefore still not match packets if they are
 		not understood as part of a connection (e.g. some
 		ICMPv6 packets, requests and replies taking different routes,
