@@ -1,3 +1,12 @@
+firehol (2.0.4) stable; urgency=low
+
+  *  Add ipv6mld to simplify enabling Multicast Listener Discovery
+     protocol, required on networks which do multicast snooping.
+  *  Update the example to make it more likely to work copy-pasted,
+     include MLD
+
+ -- Phil Whineray <phil@firehol.org>  Sun, 10 Jan 2016 16:31:00 +0000
+
 firehol (2.0.3) stable; urgency=low
 
   * Fix to avoid errors when using physin/physout. Note that these
