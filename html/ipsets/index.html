@@ -144,7 +144,7 @@
 					<ul class="dropdown-menu scrollable-menu" role="menu" id="links">
 						<li class="dropdown-header">FireHOL Sites</li>
 						<li><a href="http://firehol.org/" target="_blank">FireHOL Home</a></li>
-						<li><a href="https://github.com/ktsaou/blocklist-ipsets/" target="_blank">IPSet Files in GitHub</a></li>
+						<li><a href="https://github.com/firehol/blocklist-ipsets/" target="_blank">IPSet Files in GitHub</a></li>
 
 						<li role="separator" class="divider"></li>
 						<li class="dropdown-header">Interesting Articles</li>
@@ -157,6 +157,7 @@
 
 						<li role="separator" class="divider"></li>
 						<li class="dropdown-header">Global Real Time Threat Monitors</li>
+						<li><a href="https://www.google.com/transparencyreport/safebrowsing/malware/" target="_blank">Google, Malware Distribution</a></li>
 						<li><a href="http://www.digitalattackmap.com/" target="_blank">Google, Digital Attack Map</a></li>
 						<li><a href="https://www.fireeye.com/cyber-map/threat-map.html" target="_blank">FireEye, Threat Map</a></li>
 						<li><a href="https://cybermap.kaspersky.com/" target="_blank">Kaspersky, Cyber Warfare Real Time Map</a></li>
@@ -291,7 +292,7 @@
 						<div id="evolutionCollapseOne" class="panel-collapse collapse" role="tabpanel">
 							If you are going to use this IP list as a blocklist / blacklist at a firewall, its size can be important for the <b>performance</b> of the firewall.
 							<br/>
-							Keep in mind that the performance of Linux netfilter / iptables firewalls that use <strong>ipsets</strong> (like <a href="http://firehol.org/">FireHOL</a> does), is not affected by the size of an ipset. Any number of entries can be added and the firewall will just do one lookup for every packet checked against the ipset. Linux ipsets are affected only by the number of different subnets in an ipset. <a href="http://firehol.org/">FireHOL</a> solves this by <b>automatically reducing</b> the number of unique subnets on all <code>hash:net</code> ipsets (check <a href="https://github.com/ktsaou/firehol/wiki/iprange:-optimizing-ipsets-for-iptables#reducing-ipsets">this article</a> for more information on how this is done).
+							Keep in mind that the performance of Linux netfilter / iptables firewalls that use <strong>ipsets</strong> (like <a href="http://firehol.org/">FireHOL</a> does), is not affected by the size of an ipset. Any number of entries can be added and the firewall will just do one lookup for every packet checked against the ipset. Linux ipsets are affected only by the number of different subnets in an ipset. <a href="http://firehol.org/">FireHOL</a> solves this by <b>automatically reducing</b> the number of unique subnets on all <code>hash:net</code> ipsets (check <a href="https://github.com/firehol/firehol/wiki/iprange:-optimizing-ipsets-for-iptables#reducing-ipsets">this article</a> for more information on how this is done).
 						</div>
 					</li>
 					<li><h5><a role="button" data-toggle="collapse" href="#evolutionCollapseTwo" aria-expanded="false" aria-controls="evolutionCollapseTwo">How many unique IPs does it match? <strong class="caret"></strong></a></h5>
@@ -568,7 +569,7 @@
 			<div id="site_last_updated" class="pull-right" align="right"></div><br/>&nbsp;<br/>
 			<span class="glyphicon glyphicon-copyright-mark" aria-hidden="true"></span> 2015 <a href="mailto:costa@tsaousis.gr">Costa Tsaousis</a>, for <a href="http://firehol.org">FireHOL</a> <i>a firewall for humans!</i>.
 			<br/>
-			The data on this page are automatically generated using FireHOL's <a href="https://github.com/ktsaou/firehol/blob/master/contrib/update-ipsets.sh">update-ipsets.sh</a> (for downloading the lists from their sources and generating the data for this site), which utilizes <a href="https://github.com/ktsaou/firehol/wiki/iprange:-optimizing-ipsets-for-iptables">iprange</a> (for comparing and manipulating IP lists). Both are part of <a href="http://firehol.org">FireHOL</a>, which is provided under GPL v2, so you are free to get, use, adapt and re-distribute.
+			The data on this page are automatically generated using FireHOL's <a href="https://github.com/firehol/firehol/blob/master/sbin/update-ipsets.in">update-ipsets.sh</a> (for downloading the lists from their sources and generating the data for this site), which utilizes <a href="https://github.com/firehol/firehol/wiki/iprange:-optimizing-ipsets-for-iptables">iprange</a> (for comparing and manipulating IP lists). Both are part of <a href="http://firehol.org">FireHOL</a>, which is provided under GPL v2, so you are free to get, use, adapt and re-distribute.
 			<br/>
 			This site is provided as-is, without any warranty. IP Lists are a property of their maintainers.
 			<br/>
@@ -593,7 +594,7 @@
 				<h5>You can help!</h5>
 				<ul>
 					<li><b>Do you know any other IP lists or teams tracking attacks, abuse, or malware?</b><br/>
-					<a href="https://github.com/ktsaou/blocklist-ipsets/issues/new?title=New%20list:%20name%20it%20please&labels=feedback" target="_blank">Let me know</a> and I will do my best to add them here.<br/>
+					<a href="https://github.com/firehol/blocklist-ipsets/issues/new?title=New%20list:%20name%20it%20please&labels=feedback" target="_blank">Let me know</a> and I will do my best to add them here.<br/>
 					</li>
 					<li><b>Share your exprerience</b><br/>
 					Do you use IP lists? Have you faced any attacks and you found IP lists helpful? Do you have any experience with false positives? Share your experience and your ideas by commenting on this site.
@@ -1354,7 +1355,7 @@ $(function () {
 		$('#ipset_name').html(ipset + ' <small><small>by <a href="' + data.maintainer_url + '">' + data.maintainer + '</a></small></small>');
 		$('#ipset_info').html(data.info + '<br/>&nbsp;<p><a class="btn btn-primary btn-lg" href="#disqus"><span class="glyphicon glyphicon-comment" aria-hidden="true"></span> Discuss ' + ipset + '</a>');
 
-		$('#open_bug').html('<div class="btn-group" role="group" aria-label="support_buttons" style="width: 100%;"><a class="btn btn-info" href="https://github.com/ktsaou/blocklist-ipsets/issues/new?title=[' + ipset + ']:%20give%20a%20title%20please&labels=feedback" target="_blank" style="display: block; width: 50%;"><span class="glyphicon glyphicon-user" aria-hidden="true"></span> Found a bug?</a><a class="btn btn-info" href="https://github.com/ktsaou/blocklist-ipsets/issues?utf8=%E2%9C%93&q=is%3Aissue+is%3Aopen+' + ipset + '" target="_blank" style="display: block; width: 50%;"><span class="glyphicon glyphicon-search" aria-hidden="true"></span> Search issues</a></div>');
+		$('#open_bug').html('<div class="btn-group" role="group" aria-label="support_buttons" style="width: 100%;"><a class="btn btn-info" href="https://github.com/firehol/blocklist-ipsets/issues/new?title=[' + ipset + ']:%20give%20a%20title%20please&labels=feedback" target="_blank" style="display: block; width: 50%;"><span class="glyphicon glyphicon-user" aria-hidden="true"></span> Found a bug?</a><a class="btn btn-info" href="https://github.com/firehol/blocklist-ipsets/issues?utf8=%E2%9C%93&q=is%3Aissue+is%3Aopen+' + ipset + '" target="_blank" style="display: block; width: 50%;"><span class="glyphicon glyphicon-search" aria-hidden="true"></span> Search issues</a></div>');
 
 		$('#facts_name').html(data.name);
 		$('#facts_family').html(data.ipv);
