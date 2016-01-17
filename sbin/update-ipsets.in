@@ -1633,14 +1633,21 @@ retention_detect() {
 	ipset_silent "${ipset}" "comparing this update against all past"
 
 	# find the new/* files that are affected
+	local -a new_files=("${LIB_DIR}/${ipset}/new"/*)
 	local name1= name2= entries1= entries2= ips1= ips2= combined= common= odate= hours= removed=
-	${IPRANGE_CMD} "${LIB_DIR}/${ipset}/latest" --compare-next "${LIB_DIR}/${ipset}/new"/* |\
-		while IFS="," read name1 name2 entries1 entries2 ips1 ips2 combined common
-		do
-			[ $[ combined - ips1 ] -ne 0 -o $[ ips2 - common ] -ne 0 ] && echo "${name2}"
-		done | $SORT_CMD -u >"${RUN_DIR}/retention_affected_updates"
+	if [ ${#new_files[@]} -gt 0 ]
+		then
+		${IPRANGE_CMD} "${LIB_DIR}/${ipset}/latest" --compare-next "${new_files[@]}" |\
+			while IFS="," read name1 name2 entries1 entries2 ips1 ips2 combined common
+			do
+				[ $[ combined - ips1 ] -ne 0 -o $[ ips2 - common ] -ne 0 ] && echo "${name2}"
+			done | $SORT_CMD -u >"${RUN_DIR}/retention_affected_updates"
 
-	[ $? -ne 0 ] && ipset_error "${ipset}" "cannot find its affected updates"
+		[ $? -ne 0 ] && ipset_error "${ipset}" "cannot find its affected updates"
+	else
+		[ -f "${RUN_DIR}/retention_affected_updates" ] && ${RM_CMD} "${RUN_DIR}/retention_affected_updates"
+		${TOUCH_CMD} "${RUN_DIR}/retention_affected_updates"
+	fi
 
 	local x=
 	for x in $($CAT_CMD "${RUN_DIR}/retention_affected_updates")
