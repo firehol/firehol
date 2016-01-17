@@ -1701,13 +1701,25 @@ retention_detect() {
 
 	ipset_verbose "${ipset}" "determining the age of currently listed IPs..."
 
+	if [ "${#RETENTION_HISTOGRAM[@]}" -eq 0 ]
+		then
+		RETENTION_HISTOGRAM=()
+	fi
+
 	# empty the remaining IPs counters
 	# they will be re-calculated below
 	RETENTION_HISTOGRAM_REST=()
 	RETENTION_HISTOGRAM_INCOMPLETE=0
 
 	# find the IPs in all new/*
-	${IPRANGE_CMD} --count-unique-all "${LIB_DIR}/${ipset}/new"/* >"${RUN_DIR}/retention_rest" 2>/dev/null
+	local -a new_files=("${LIB_DIR}/${ipset}/new"/*)
+	if [ "${#new_files[@]}" -gt 0 ]
+		then
+		${IPRANGE_CMD} --count-unique-all "${new_files[@]}" >"${RUN_DIR}/retention_rest" 2>/dev/null
+	else
+		[ -f "${RUN_DIR}/retention_rest" ] && ${RM_CMD} "${RUN_DIR}/retention_rest"
+		${TOUCH_CMD} "${RUN_DIR}/retention_rest"
+	fi
 
 	local entries= ips=
 	while IFS="," read x entries ips
