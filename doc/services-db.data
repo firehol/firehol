@@ -71,8 +71,13 @@ SERVICE all
 	EXAMPLE
 		server all accept
 	NOTES
-		Matches all traffic (all protocols, ports, etc) while ensuring
-		that required kernel modules are loaded.
+		Matches all traffic (all protocols, ports, etc.). Note that
+		to provide "connections in one direction with replies"
+		semantics, the kernel connection tracker is still used:
+		this will therefore still not match packets if they are
+		not understood as part of a connection (e.g. some
+		ICMPv6 packets, requests and replies taking different routes,
+		complex protocols with no helper loaded).
 		-
 		This service may indirectly setup a set of other services,
 		if they require kernel modules to be loaded.
@@ -670,6 +675,38 @@ SERVICE ipv6router
 		    `server ipv6router accept`
 		-
 		The rules should not be used to pass packets across a
+		firewall (e.g. in a router definition) unless the firewall
+		is for a bridge.
+		-
+		This service implicitly sets its client or server to ipv6 mode.
+
+SERVICE ipv6mld
+	NAME IPv6 Multicast Listener Discovery for IPv6
+	WIKI https://en.wikipedia.org/wiki/Multicast_Listener_Discovery
+	EXAMPLE
+		client ipv6mld accept
+	NOTES
+		IPv6 uses Multicast Listener Discovery to discover multicast
+		listeners and what they are listening for.
+		-
+		In practice all IPv6 nodes are multicast listeners since
+		multicast is used in the neighbour discovery protocol which
+		replaces ARP in IPv4.
+		-
+		These rules are stateless since reports can happen
+		automatically as well as on query.
+		-
+		Unless muticast snooping is disabled across the network, MLD
+		should be enabled for any clients:
+		-
+		    `client ipv6mld accept`
+		-
+		MLD should also be enabled as a server on any hosts acting as a
+		router:
+		-
+		    `server ipv6mld accept`
+		-
+		The rules should generally not be used to pass packets across a
 		firewall (e.g. in a router definition) unless the firewall
 		is for a bridge.
 		-

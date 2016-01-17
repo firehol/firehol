@@ -8,7 +8,7 @@ use Data::Dumper;
 use File::Basename;
 
 if (@ARGV == 0) {
-  print "Usage: ./packaging/firehol/gen-config-detect.pl sbin/file.in ...\n";
+  print "Usage: ./packaging/firehol/gen-config-detect sbin/file.in ...\n";
   print "\n";
   print "Generates the configure.ac content for detecting commands\n";
   exit 0;
@@ -59,7 +59,6 @@ my %special = (
               SED => "AX_NEED_SED()",
               GREP => "AX_NEED_GREP()",
               EGREP => "AX_NEED_EGREP()",
-              IPRANGE => "",
               );
 
 my %ipv = (
@@ -73,7 +72,9 @@ my %ipv = (
            PING6 => 6,
           );
 
-print "dnl --- OUTPUT OF './packaging/gen-config-detect.pl sbin/*.in' BEGIN   ---\n";
+print "dnl --- OUTPUT OF './packaging/firehol/gen-config-detect sbin/*.in' BEGIN   ---\n";
+print 'if test x"$MAKEDIST_BUILD_ONLY" != xyes; then', "\n";
+
 foreach my $special (sort(values(%special))) {
   print $special . "\n" if ($special);
 }
@@ -123,6 +124,9 @@ foreach my $s (sort(keys(%scripts))) {
 
   print "fi\n";
 }
+print "else\n";
+print "AC_MSG_NOTICE(MAKEDIST_BUILD_ONLY is yes - skipping command checks)\n";
+print "fi\n";
 print "dnl --- OUTPUT OF './packaging/gen-config-detect.pl sbin/*.in' END   ---\n";
 
 sub split_options {

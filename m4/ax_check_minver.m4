@@ -68,7 +68,7 @@ AC_DEFUN([AX_CHECK_MINVER],[
 	if test "${cross_compiling}" = 'yes'; then
 		test -z "$VARIABLE" && AC_MSG_ERROR([must set ]VARIABLE[ when cross-compiling])
 	elif test -z "$MINIMUM"; then
-		AC_MSG_ERROR([no mimumum for ]COMMAND[ version detection])
+		AC_MSG_ERROR([no minumum for ]COMMAND[ version detection])
 	else
 		VARIABLE=`RUN`
 

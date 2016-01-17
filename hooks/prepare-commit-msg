@@ -1,2 +1,7 @@
 #!/bin/sh
-test -x ./packaging/release-msg && exec ./packaging/release-msg "$@"
+if [ -x ./packaging/release-msg ]
+then
+  exec ./packaging/release-msg "$@"
+else
+  exit 0
+fi

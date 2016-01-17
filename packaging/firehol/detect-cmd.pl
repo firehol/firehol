@@ -30,12 +30,14 @@ while (<C>) {
   }
 }
 
+my $status = 0;
 my @commands = sort(keys(%commands));
 
 #print join(",", @commands), "\n";
 #exit 0;
 
 sub printit {
+  $status = 1;
   my $message = join('', @_);
 
   print basename($ARGV), ":", $., ": ", $message;
@@ -91,3 +93,5 @@ while (<>) {
   }
   $case_start = 0 if ($case_start);
 }
+
+exit $status;

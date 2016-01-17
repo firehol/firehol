@@ -1,3 +1,29 @@
+firehol (3.0.1) - 2016-01-10
+
+  * FireHOL
+    - Add ipv6mld to simplify enabling Multicast Listener Discovery
+      protocol, required on networks which do multicast snooping.
+    - Update the example to make it more likely to work copy-pasted,
+      include MLD
+
+  * VNetBuild
+    - Add pre_up to run commands immediately before an interface is started
+
+  * Common
+    - Packaging fixes
+    - Command detection fix for :
+
+firehol (3.0.0) - 2015-12-20
+
+  * FireQOS
+    - Bidirectional fixes
+    - accept DSCP parameters case insensitive
+    - allow matching within GRE packets
+    - use configured firehol config directory
+
+  * Update-Ipsets
+    - added jigsaw lists
+
 firehol (3.0.0-rc.4) - 2015-11-28
 
   * Rework packaging

@@ -5,11 +5,11 @@ AC_PREREQ([2.63])
 dnl Package version
 define([VERSION_MAJOR], [3])
 define([VERSION_MINOR], [0])
-define([VERSION_FIX], [0])
+define([VERSION_FIX], [2])
 define([VERSION_SUFFIX], [_master])
 
 dnl Required program versions
-define([MIN_IPRANGE_VERSION], [1.0.0])
+define([MIN_IPRANGE_VERSION], [1.0.2])
 define([MIN_BASH_VERSION], [4.0])
 define([MIN_PANDOC_VERSION], [1.12.2.1])
 
@@ -130,19 +130,14 @@ fi
 
 PATH=$PATH:/sbin:/usr/sbin:/usr/local/sbin:/usr/local/bin
 
-if test x"$USE_MAINTAINER_MODE" = xno; then
 AX_NEED_PROG([BASH_SHELL_PATH], [bash], [])
 AX_CHECK_MINVER([BASH_VERSION_PATH], MIN_BASH_VERSION, [$BASH_SHELL_PATH],
                 [--version | sed -n -e '1{s/.* \(.*\..*\)\..*/\1/p;}'],
                 [], [AC_MSG_ERROR(could not find required version of bash)])
+AX_NEED_SED()
 
-AX_NEED_PROG([IPRANGE], [iprange], [])
-AX_CHECK_MINVER([IPRANGE_VERSION], MIN_IPRANGE_VERSION, [$IPRANGE],
-                [--version | head -n 1 | cut -d'_' -f1],
-                [], [AC_MSG_ERROR(could not find required version of iprange - check http://firehol.org/download/iprange/)])
-fi
-
-dnl --- OUTPUT OF './packaging/gen-config-detect.pl sbin/*.in' BEGIN   ---
+dnl --- OUTPUT OF './packaging/firehol/gen-config-detect sbin/*.in' BEGIN   ---
+if test x"$MAKEDIST_BUILD_ONLY" != xyes; then
 AX_NEED_EGREP()
 AX_NEED_GREP()
 AX_NEED_SED()
@@ -170,6 +165,7 @@ fi
 if test x"$enable_ipv6" = xyes; then
 AX_CHECK_PROG([IP6TABLES_SAVE], [ip6tables-save], [])
 fi
+AX_CHECK_PROG([IPRANGE], [iprange], [])
 AX_CHECK_PROG([IPSET], [ipset], [])
 if test x"$enable_ipv4" = xyes; then
 AX_CHECK_PROG([IPTABLES], [iptables], [])
@@ -187,12 +183,12 @@ AX_NEED_PROG([MKDIR], [mkdir], [])
 AX_NEED_PROG([MKTEMP], [mktemp], [])
 AX_CHECK_PROG([MODPROBE], [modprobe], [-q])
 AX_CHECK_PROG([MODPROBE], [insmod], [])
-AX_NEED_PROG([MV], [mv], [])
-AX_CHECK_PROG([NFACCT], [nfacct], [])
 AX_CHECK_PROG([MORE], [pager], [])
 AX_CHECK_PROG([MORE], [less], [])
 AX_CHECK_PROG([MORE], [more], [])
 AX_NEED_PROG([MORE], [cat], [])
+AX_NEED_PROG([MV], [mv], [])
+AX_CHECK_PROG([NFACCT], [nfacct], [])
 AX_CHECK_PROG([RENICE], [renice], [])
 AX_NEED_PROG([RM], [rm], [])
 AX_NEED_PROG([SLEEP], [sleep], [])
@@ -247,6 +243,7 @@ AX_NEED_PROG([ENV], [env], [])
 AX_NEED_PROG([FLOCK], [flock], [])
 AX_CHECK_PROG([HEAD], [head], [])
 AX_NEED_PROG([IP], [ip], [])
+AX_NEED_PROG([IPRANGE], [iprange], [])
 AX_CHECK_PROG([JQ], [jq], [])
 AX_NEED_PROG([LN], [ln], [])
 AX_NEED_PROG([LOGGER], [logger], [])
@@ -288,6 +285,7 @@ AX_CHECK_PROG([FUNZIP], [funzip], [])
 AX_CHECK_PROG([GAWK], [gawk], [])
 AX_NEED_PROG([GAWK], [awk], [])
 AX_CHECK_PROG([GIT], [git], [])
+AX_NEED_PROG([IPRANGE], [iprange], [])
 AX_NEED_PROG([IPSET], [ipset], [])
 AX_NEED_PROG([LN], [ln], [])
 AX_NEED_PROG([LOGGER], [logger], [])
@@ -325,7 +323,16 @@ AX_NEED_PROG([SH], [ksh], [])
 AX_NEED_PROG([SLEEP], [sleep], [])
 AX_NEED_PROG([TR], [tr], [])
 fi
+else
+AC_MSG_NOTICE(MAKEDIST_BUILD_ONLY is yes - skipping command checks)
+fi
 dnl --- OUTPUT OF './packaging/gen-config-detect.pl sbin/*.in' END   ---
+
+if test x"$IPRANGE" != x; then
+AX_CHECK_MINVER([IPRANGE_VERSION], MIN_IPRANGE_VERSION, [$IPRANGE],
+                [--version | head -n 1 | cut -d'_' -f1],
+                [], [AC_MSG_ERROR(could not find required version of iprange - check http://firehol.org/download/iprange/)])
+fi
 
 AUTOCONF_RUN=Y
 AC_SUBST(AUTOCONF_RUN)

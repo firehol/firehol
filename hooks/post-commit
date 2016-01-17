@@ -2,4 +2,6 @@
 if [ -x ./packaging/update-tags ]
 then
   exec git diff HEAD^ | ./packaging/update-tags -
+else
+  exit 0
 fi

@@ -27,6 +27,7 @@ MANUALMAN_GENERATED_INDIRECT = \
 	man/man5/vnetbuild-dev.5 \
 	man/man5/vnetbuild-exec.5 \
 	man/man5/vnetbuild-host.5 \
+	man/man5/vnetbuild-pre_up.5 \
 	man/man5/vnetbuild-route.5 \
 	man/man5/vnetbuild-switch.5
 
