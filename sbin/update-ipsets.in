@@ -793,7 +793,7 @@ git_add_if_not_already_added() {
 git_ignore_file() {
 	local file="${1}"
 
-	local found=$($CAT_CMD "${BASE_DIR}/.gitignore" | $GREP_CMD "^${file}$$")
+	local found=$($CAT_CMD "${BASE_DIR}/.gitignore" | $GREP_CMD "^${file}$")
 	if [ -z "${found}" ]
 		then
 		echo "${file}" >>"${BASE_DIR}/.gitignore" || return 1
