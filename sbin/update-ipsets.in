@@ -6206,7 +6206,6 @@ merge firehol_level1 ipv4 both \
 	"A firewall blacklist composed from IP lists, providing maximum protection with minimum false positives. Suitable for basic protection on all internet facing servers, routers and firewalls." \
 	"FireHOL" "http://iplists.firehol.org/" \
 	bambenek_c2 \
-	cta_cryptowall \
 	dshield \
 	feodo \
 	fullbogons \
