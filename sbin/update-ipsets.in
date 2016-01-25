@@ -2405,9 +2405,9 @@ finalize() {
 		info="${category}"
 	fi
 
-	if [ -f "${dst}" -a ${REPROCESS_ALL} -eq 0 ]
+	if [ -f "${BASE_DIR}/${dst}" -a ${REPROCESS_ALL} -eq 0 ]
 		then
-		${IPRANGE_CMD} "${dst}" --diff "${tmp}" --quiet
+		${IPRANGE_CMD} "${BASE_DIR}/${dst}" --diff "${tmp}" --quiet
 		if [ $? -eq 0 ]
 		then
 			# they are the same
@@ -2420,7 +2420,11 @@ finalize() {
 
 			check_file_too_old "${ipset}" "${BASE_DIR}/${dst}"
 			return 0
+	#	else
+	#		ipset_info "${ipset}" "processed file differs from the last."
 		fi
+	#else
+	#	ipset_info "${ipset}" "not comparing file with the last."
 	fi
 
 	# calculate how many entries/IPs are in it
