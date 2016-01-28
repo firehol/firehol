@@ -2198,9 +2198,9 @@ update_web() {
 
 	print_ipset_reset
 
+	$CHMOD_CMD 0644 "${RUN_DIR}"/*.{json,csv,xml}
 	$MV_CMD -f "${RUN_DIR}"/*.{json,csv,xml} "${WEB_DIR}/"
-	[ ! -z "${WEB_OWNER}" ] && $CHOWN_CMD -R ${WEB_OWNER} "${WEB_DIR}"
-	$CHMOD_CMD 0644 "${WEB_DIR}"/*.{json,csv,xml}
+	[ ! -z "${WEB_OWNER}" ] $CHOWN_CMD ${WEB_OWNER} "${WEB_DIR}"/*.{json,csv,xml}
 
 	if [ ${PUSH_TO_GIT} -eq 1 ]
 		then
@@ -6335,6 +6335,9 @@ merge firehol_anonymous ipv4 both \
 # TODO
 #
 # add sets
+# - https://github.com/certtools/intelmq/blob/master/intelmq/bots/BOTS
+# - https://www.tc.edu.tw/net/netflow/lkout/recent/30
+#
 # - http://security-research.dyndns.org/pub/botnet/ponmocup/ponmocup-finder/ponmocup-infected-domains-latest.txt - sent email to toms.security.stuff@gmail.com
 # - http://jeroen.steeman.org/FS-PlainText - sent email to jeroen@steeman.org
 
