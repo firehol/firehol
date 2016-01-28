@@ -2200,7 +2200,7 @@ update_web() {
 
 	$CHMOD_CMD 0644 "${RUN_DIR}"/*.{json,csv,xml}
 	$MV_CMD -f "${RUN_DIR}"/*.{json,csv,xml} "${WEB_DIR}/"
-	[ ! -z "${WEB_OWNER}" ] $CHOWN_CMD ${WEB_OWNER} "${WEB_DIR}"/*.{json,csv,xml}
+	[ ! -z "${WEB_OWNER}" ] && $CHOWN_CMD ${WEB_OWNER} "${WEB_DIR}"/*.{json,csv,xml}
 
 	if [ ${PUSH_TO_GIT} -eq 1 ]
 		then
