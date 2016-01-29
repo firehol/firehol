@@ -4749,7 +4749,7 @@ update dyndns_ponmocup $[24 * 60] 0 ipv4 ip \
 # Turris
 
 parse_turris_greylist() { $CUT_CMD -d ',' -f 1; }
-update turris_greylist $[7* 24 * 60] 0 ipv4 ip \
+update turris_greylist $[7 * 24 * 60] 0 ipv4 ip \
 	"https://www.turris.cz/greylist-data/greylist-latest.csv" \
 	parse_turris_greylist \
 	"reputation" \
@@ -4760,13 +4760,23 @@ update turris_greylist $[7* 24 * 60] 0 ipv4 ip \
 # -----------------------------------------------------------------------------
 # http://www.urlvir.com/
 
-parse_urlvir() { remove_comments | hostname_resolver; }
-update urlvir $[7* 24 * 60] 0 ipv4 ip \
+update urlvir $[24 * 60] 0 ipv4 ip \
 	"http://www.urlvir.com/export-ip-addresses/" \
-	parse_urlvir \
+	remove_comments \
 	"malware" \
-	"[URLVir.com](http://www.urlvir.com/) URLVir is an online security service developed by NoVirusThanks Company Srl that automatically monitors changes of malicious URLs (executable files)." \
+	"[URLVir.com](http://www.urlvir.com/) Active Malicious IP Addresses Hosting Malware. URLVir is an online security service developed by NoVirusThanks Company Srl that automatically monitors changes of malicious URLs (executable files)." \
 	"URLVir.com" "http://www.urlvir.com/"
+
+
+# -----------------------------------------------------------------------------
+# Taichung
+
+update taichung $[24 * 60] 0 ipv4 ip \
+	"https://www.tc.edu.tw/net/netflow/lkout/recent/30" \
+	extract_ipv4_from_any_file \
+	"attacks" \
+	"[Taichung Education Center](https://www.tc.edu.tw/net/netflow/lkout/recent/30) Blocked IP Addresses (attacks and bots)." \
+	"Taichung Education Center" "https://www.tc.edu.tw/net/netflow/lkout/recent/30"
 
 
 # -----------------------------------------------------------------------------
