@@ -4712,14 +4712,61 @@ update alienvault_reputation $[6*60] 0 ipv4 ip \
 
 # -----------------------------------------------------------------------------
 # Clean-MX
-# Viruses
 
+# Viruses
 update cleanmx_viruses 30 0 ipv4 ip \
 	"http://support.clean-mx.de/clean-mx/xmlviruses.php?response=alive&fields=ip" \
 	parse_xml_clean_mx \
 	"spam" \
 	"[Clean-MX.de](http://support.clean-mx.de/clean-mx/viruses.php) IPs with viruses" \
 	"Clean-MX.de" "http://support.clean-mx.de/clean-mx/viruses.php"
+
+
+# Phishing
+parse_cvs_clean_mx_phishing() { $SED_CMD -e 's/|/_/g' -e 's/","/|/g' | $CUT_CMD -d '|' -f 10; }
+update cleanmx_phishing 30 0 ipv4 ip \
+	"http://support.clean-mx.de/clean-mx/xmlphishing?response=alive&format=csv&domain=" \
+	parse_cvs_clean_mx_phishing \
+	"spam" \
+	"[Clean-MX.de](http://support.clean-mx.de/) IPs sending phishing messages" \
+	"Clean-MX.de" "http://support.clean-mx.de/"
+
+
+# -----------------------------------------------------------------------------
+# DynDNS
+
+# Phishing
+parse_cvs_dyndns_ponmocup() { $SED_CMD -e 's/|/_/g' -e 's/","/|/g' | $CUT_CMD -d '|' -f 2; }
+update dyndns_ponmocup $[24 * 60] 0 ipv4 ip \
+	"http://security-research.dyndns.org/pub/malware-feeds/ponmocup-infected-domains-shadowserver.csv" \
+	parse_cvs_dyndns_ponmocup \
+	"malware" \
+	"[DynDNS.org](http://security-research.dyndns.org/pub/malware-feeds/) Ponmocup. The malware powering the botnet has been around since 2006 and it’s known under various names, including Ponmocup, Vundo, Virtumonde, Milicenso and Swisyn. It has been used for ad fraud, data theft and downloading additional threats to infected systems. Ponmocup is one of the largest currently active and, with nine consecutive years, also one of the longest running, but it is rarely noticed as the operators take care to keep it operating under the radar." \
+	"DynDNS.org" "http://security-research.dyndns.org/pub/malware-feeds/"
+
+
+# -----------------------------------------------------------------------------
+# Turris
+
+parse_turris_greylist() { $CUT_CMD -d ',' -f 1; }
+update turris_greylist $[7* 24 * 60] 0 ipv4 ip \
+	"https://www.turris.cz/greylist-data/greylist-latest.csv" \
+	parse_turris_greylist \
+	"reputation" \
+	"[Turris Greylist](https://www.turris.cz/en/greylist) IPs that are blocked on the firewalls of Turris routers. The data are processed and clasified every week and behaviour of IP addresses that accessed a larger number of Turris routers is evaluated. The result is a list of addresses that have tried to obtain information about services on the router or tried to gain access to them. We do not recommend to use these data as a list of addresses that should be blocked but it can be used for example in analysis of the traffic in other networks." \
+	"Turris" "https://www.turris.cz/en/greylist"
+
+
+# -----------------------------------------------------------------------------
+# http://www.urlvir.com/
+
+parse_urlvir() { remove_comments | hostname_resolver; }
+update urlvir $[7* 24 * 60] 0 ipv4 ip \
+	"http://www.urlvir.com/export-ip-addresses/" \
+	parse_urlvir \
+	"malware" \
+	"[URLVir.com](http://www.urlvir.com/) URLVir is an online security service developed by NoVirusThanks Company Srl that automatically monitors changes of malicious URLs (executable files)." \
+	"URLVir.com" "http://www.urlvir.com/"
 
 
 # -----------------------------------------------------------------------------
