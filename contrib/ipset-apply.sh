@@ -1,13 +1,37 @@
 #!/bin/bash
 
+# (C) Copyright 2016, Costa Tsaousis
+# For FireHOL, a firewall for humans...
+
+# This script can activate any IP list in kernel.
+# It can also update existing (in kernel) ipsets.
+# The source file can be whatever iprange accepts
+# including IPs, CIDRs, ranges, hostnames, etc.
+
+# ipset activation is atomic.
+# There is no point at which the system is left
+# with the ipset empty or incomplete.
+# The new ipset is either applied at once, or
+# the old ipset will remain untouched.
+
+# Call this script with just a filename.
+
 ipset="${1}"
 file=""
 hash=""
-base="/etc/firehol/ipsets"
 tmpname="tmp-$$-${RANDOM}-$(date +%s)"
 exists="no"
 
-if [ -z "${ipset}" ]
+# ipsets are searched in this path too.
+base="/etc/firehol/ipsets"
+
+# Default values for iprange reduce mode
+# which optimizes netsets for optimal
+# kernel performance.
+IPSET_REDUCE_FACTOR=20
+IPSET_REDUCE_ENTRIES=65535
+
+if [ -z "${ipset}" -o "${ipset}" = "-h" -o "${ipset}" = "--help" ]
 	then
 	echo >&2 "This script can load any IPv4 ipset in kernel."
 	echo >&2 "Just give an ipset name (or filename) to load."
@@ -79,7 +103,11 @@ cleanup() {
 	trap - EXIT
 	trap - SIGHUP
 
-	[ $FINISHED -eq 0 ] && exit 1
+	if [ $FINISHED -eq 0 ]
+		then
+		echo >&2 "FAILED, sorry!"
+		exit 1
+	fi
 
 	echo >&2 "OK, all done!"
 	exit 0
@@ -94,12 +122,16 @@ ips=${ips/*,/}
 # create the ipset restore file
 if [ "${hash}" = "net" ]
 	then
-	iprange "${file}" --print-prefix "-A ${tmpname} " >"/tmp/${tmpname}" || exit 1
+	iprange "${file}" \
+		--ipset-reduce ${IPSET_REDUCE_FACTOR} \
+		--ipset-reduce-entries ${IPSET_REDUCE_ENTRIES} \
+		--print-prefix "-A ${tmpname} " >"/tmp/${tmpname}" || exit 1
 	entries=$( wc -l <"/tmp/${tmpname}" )
 
 elif [ "${hash}" = "ip" ]
 	then
-	iprange -1 "${file}" --print-prefix "-A ${tmpname} " >"/tmp/${tmpname}" || exit 1
+	iprange -1 "${file}" \
+		--print-prefix "-A ${tmpname} " >"/tmp/${tmpname}" || exit 1
 	entries=${ips}
 fi
 echo "COMMIT" >>"/tmp/${tmpname}"
