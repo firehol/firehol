@@ -70,10 +70,10 @@ done
 FINISHED=0
 cleanup() {
 	# remove the temporary file
-	rm "/tmp/${tmpname}" #2>/dev/null
+	rm "/tmp/${tmpname}" 2>/dev/null
 
 	# destroy the temporary ipset
-	ipset -X "${tmpname}" #2>/dev/null
+	ipset -X "${tmpname}" 2>/dev/null
 
 	# remove our cleanup handler
 	trap - EXIT
