@@ -120,7 +120,7 @@ Y|IPRANGE_CMD|@IPRANGE@|iprange
 Y|DIRNAME_CMD|@DIRNAME@|dirname
 Y|TAIL_CMD|@TAIL@|tail
 Y|RENICE_CMD|@RENICE@|renice :
-Y|ZCAT_CMD|@ZCAT@|gzcat "gzip -dc"
+Y|ZCAT_CMD|@ZCAT@|zcat gzcat "gzip -dc"
 Y|DATE_CMD|@DATE@|date
 Y|DIFF_CMD|@DIFF@|diff
 Y|FLOCK_CMD|@FLOCK@|flock
