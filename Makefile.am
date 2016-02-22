@@ -17,14 +17,15 @@ DIST_SUBDIRS = $(SUBDIRS) m4
 
 EXTRA_DIST = autogen.sh README
 
-if MAINTAINER_MODE
-
-all-local: README
-
-README: README.md
-	sed -e '/^Upgrade Notes$$/p' -e '/^Git$$/,/^Upgrade Notes$$/d' $< > $@
-
-endif
+## README.md not present in upstream source tarball (3.0.0)
+##if MAINTAINER_MODE
+##
+##all-local: README
+##
+##README: README.md
+##	sed -e '/^Upgrade Notes$$/p' -e '/^Git$$/,/^Upgrade Notes$$/d' $< > $@
+##
+##endif
 
 uninstall-local:
 	@-rmdir --ignore-fail-on-non-empty $(DESTDIR)$(docdir)
