@@ -19,7 +19,7 @@
 	<meta property="og:type" content="website"/>
 	<meta property="og:site_name" content="FireHOL IP Lists"/>
 	<meta property="og:title" content="FireHOL IP Lists | IP Blacklists | IP Reputation Feeds"/>
-	<meta property="og:description" content="250+ IP blacklists, IP blocklists and IP Reputation feeds, about Cybercrime, Fraud, Botnets, Μalware, Virus, Abuse, Attacks, Open Proxies, Anonymizers. See their changes and updates, size over time, retention policy, geographic coverage, comparisons and overlaps." />
+	<meta property="og:description" content="300+ IP blacklists, IP blocklists and IP Reputation feeds, about Cybercrime, Fraud, Botnets, Μalware, Virus, Abuse, Attacks, Open Proxies, Anonymizers. See their changes and updates, size over time, retention policy, geographic coverage, comparisons and overlaps." />
 
 	<meta name="google-site-verification" content="nkdzz1kNjFr94M9WrgTUApW6OUCS-uOIzXCCLbdlnts" />
 	<meta name="msvalidate.01" content="896DCA31C9A664CE359FCF1A645DD476" />
@@ -183,6 +183,32 @@
 				<p id="ipset_info">
 					Please wait while ipset data are being loaded...
 				</p>
+			</div>
+			<div id="netdata" class="hidden-xs hidden-sm" style="display: none; position: absolute; width: 250px; height: 205px; flex-wrap: wrap; overflow: hidden; bottom: -40px; right: 50px; background-color: #FFF; border-radius: 10px; border: 1px solid #DDD; padding: 5px; padding-left: 10px; padding-right: 10px; z-Index: 10;">
+			<small>Have you seen <b><a href="http://netdata.firehol.org/" target="_blank">netdata</a></b>?</small>
+				<div style="text-align: center; margin-top: 10px;">
+					<div data-netdata="netdata.apps_cpu"
+							data-dimensions="user"
+							data-chart-library="gauge"
+							data-width="170px"
+							data-after="-60"
+							data-points="60"
+							data-title="Realtime!"
+							data-units="Hover below"
+							data-colors="#FF5555"
+							></div>
+					<br/>
+					<div data-netdata="netdata.apps_cpu"
+							data-dimensions="user"
+							data-chart-library="dygraph"
+							data-dygraph-theme="sparkline"
+							data-width="200px"
+							data-height="30px"
+							data-after="-60"
+							data-points="60"
+							data-colors="#FF0000"
+							></div>
+				</div>
 			</div>
 		</div>
 	</div>
@@ -567,7 +593,7 @@
 	<div class="row clearfix">
 		<div class="col-md-12 column">
 			<div id="site_last_updated" class="pull-right" align="right"></div><br/>&nbsp;<br/>
-			<span class="glyphicon glyphicon-copyright-mark" aria-hidden="true"></span> 2015 <a href="mailto:costa@tsaousis.gr">Costa Tsaousis</a>, for <a href="http://firehol.org">FireHOL</a> <i>a firewall for humans!</i>.
+			<span class="glyphicon glyphicon-copyright-mark" aria-hidden="true"></span> 2015 <a href="/cdn-cgi/l/email-protection#670408141306271314060812140e14490015">Costa Tsaousis</a>, for <a href="http://firehol.org">FireHOL</a> <i>a firewall for humans!</i>.
 			<br/>
 			The data on this page are automatically generated using FireHOL's <a href="https://github.com/firehol/firehol/blob/master/sbin/update-ipsets.in">update-ipsets.sh</a> (for downloading the lists from their sources and generating the data for this site), which utilizes <a href="https://github.com/firehol/firehol/wiki/iprange:-optimizing-ipsets-for-iptables">iprange</a> (for comparing and manipulating IP lists). Both are part of <a href="http://firehol.org">FireHOL</a>, which is provided under GPL v2, so you are free to get, use, adapt and re-distribute.
 			<br/>
@@ -587,26 +613,42 @@
 				<h4 class="modal-title" id="helpUsModalLabel">About this site</h4>
 			</div>
 			<div class="modal-body">
-				<p>In April 2015 my systems were abused by more than 37.500 unique IPs from all over the world. Since the abusers were doing exactly what my users were expected to do, it was very hard to pinpoint them, to separate abusers from legitimate users. Anyway, I stopped them. Of course I used IP blocklists. The interesting thing I found, is that they were using open proxies, VPN providers and command and control bots to execute the attack in that scale, originating from a single point. I decided then to do something about it. This site and the software that supports it, is the result.</p>
-				<p><strong>In this site you will find up to date information for IP lists tracking attacks, abuse, malware and anonymizers. Each IP list is analyzed and documented for its size over time, its country map, its retention policy and its overlaps with all other IP lists.</strong></p>
-				<p>The data of the IP lists are the work of their maintainers. All of us should thank all these security teams for allowing us to use the result of their work to improve our security.</p>
-				<hr/>
-				<h5>You can help!</h5>
-				<ul>
-					<li><b>Do you know any other IP lists or teams tracking attacks, abuse, or malware?</b><br/>
-					<a href="https://github.com/firehol/blocklist-ipsets/issues/new?title=New%20list:%20name%20it%20please&labels=feedback" target="_blank">Let me know</a> and I will do my best to add them here.<br/>
-					</li>
-					<li><b>Share your exprerience</b><br/>
-					Do you use IP lists? Have you faced any attacks and you found IP lists helpful? Do you have any experience with false positives? Share your experience and your ideas by commenting on this site.
-					</li>
-					<li><b>Share this site</b><br/>
-					<a href="https://en.wikipedia.org/wiki/Collective_intelligence" target="_blank">Collective intelligence</a> is achieved <b>collectively</b>. Share this site. The more people involved, the better.
-					</li>
-				</ul>
-				<hr/>
-				<p>Of course, security is achieved with a lot more than IP lists. And not all IP lists included here should be used for blocking traffic at a firewall or border router. Many of them, should be used, for example, in anti-fraud systems for scoring transactions, or influence the way applications handle clients.
+				<p>
+				This site <b>aggregates</b>, <b>analyzes</b>, <b>compares</b> and <b>documents</b> publicly available IP Feeds, with a focus on <b>attacks</b> and <b>abuse</b>. It is automatically generated and maintained using <b>open source</b> software (check the wiki), that can be installed and run on your systems too, to download all IP lists directly from their maintainers, process them and re-generate the site and its data.
 				</p>
-				<p><small>This site and the software is <b>open source</b>. Check the site footnote. All the software used is part of <a href="http://firehol.org" target="_blank">FireHOL</a>. You can actually re-create it yourself! I created it and maintain it for the benefit of the community, not for money.</small></p>
+				<p>
+				Special care has been given to make this analysis as scientific and objective as possible, respecting the <b>hard work of the security teams, security companies and security professionals</b> who offer these IP lists to the rest of us.
+				</p>
+				<p>
+				Of course, security is achieved with a lot more than IP lists. And not all IP lists included here should be used for blocking traffic at a firewall or border router. Many of them, should be used, for example, to influence the way applications handle clients, or help in the development of further threat analysis.
+				</p>
+				<p>
+				Unfortunatelly, the InfoSec industry still considers as a <b>standard industry practice the trade of Threat Intelligence for money</b>.<br/>
+				</p>
+				<p>
+				This is disappointing.<br/>
+				Why?
+				</p>
+				<p>
+				Threat Intelligence requires <b>knowledge</b>, <b>skills</b> and <b>sophisticated tools</b> to be effective. Instead of selling these skills and tools, security firms selling threat intel state clearly they have valid information that identifies criminals. But they want money to reveal it.
+				</p>
+				<p>
+				This is contradictory to what we consider acceptable, if it was about criminal activity other than cyber.
+				</p>
+				<p>
+				So, I have concluded that either the InfoSec industry has a severe <b>cultural fault</b>, or they have nothing. The super duper feeds they advertise are just a marketing tool to attract customers. They sell an illusion...
+				</p>
+				<p>
+				Many will argue that collecting threat intel is expensive.
+				</p>
+				<p>
+				Of course it is!<br/>
+				Then, you will also accept it if someone opens an online shop to sell information about a gang that breaks houses in your neighbor, as long as it cost them enough to acquire this information. Yes?
+				</p>
+				<p>
+				To my understanding <b>Threat Intelligence</b> cannot be effective when it is treated as <b>Intellectual Property</b>.<br/>
+				Hopefully, many security companies and professionals agree and openly distribute the result of their hard work.
+				</p>
 			</div>
 			<div class="modal-footer">
 				<button type="button" class="btn btn-default" data-dismiss="modal">Close</button>
@@ -614,7 +656,7 @@
 		</div>
 	</div>
 </div>
-</body>
+<script type="text/javascript">/* <![CDATA[ */(function(d,s,a,i,j,r,l,m){try{l=d.getElementsByTagName('a');t=d.createElement('textarea');for(i=0;l.length-i;i++){try{a=l[i].href;s=a.indexOf('/cdn-cgi/l/email-protection');m=a.length;if(a&&!s&&m>28){j=28+s;s='';if(j<m){r='0x'+a.substr(j,2)|0;for(j+=2;j<m&&a.charAt(j)!='X';j+=2)s+='%'+('0'+('0x'+a.substr(j,2)^r).toString(16)).slice(-2);j++;s=decodeURIComponent(s)+a.substr(j,m-j)}t.innerHTML=s.replace(/</g,'&lt;').replace(/>/g,'&gt;');l[i].href='mailto:'+t.value}}catch(e){}}}catch(e){}})(document);/* ]]> */</script></body>
 </html>
 
 	<script type="text/javascript" src="//cdnjs.cloudflare.com/ajax/libs/jquery/2.1.4/jquery.min.js"></script>
@@ -649,6 +691,17 @@
 	<script type='text/javascript' src='//dsms0mj1bbhn4.cloudfront.net/assets/pub/shareaholic.js' data-shr-siteid='ea1177a09f94c4fa463b43002ebed053' data-cfasync='false' async='async'></script>
 
 <script type="text/javascript">//<![CDATA[ 
+
+if(window.location.hostname === 'iplists.firehol.org') {
+	netdataServer = "https://netdata.firehol.org/"
+	var script = document.createElement('script');
+	script.type = 'text/javascript';
+	script.async = true;
+	script.src = netdataServer + "dashboard.js";
+	document.head.appendChild(script);
+	var netdata = document.getElementById('netdata');
+	if(netdata !== null) netdata.style.display = 'inline-block';
+}
 
 // global variables for disqus
 // without them disqus will not work properly
@@ -1087,7 +1140,7 @@ function drawretention(ipset, container_age, container_retention) {
 					data.current.hours[index] = value + dt;
 				});
 			}
-			else if(dt < 0) {
+			else if(dt < -2) {
 				$('#clock-warning').prop('hidden', false);
 			}
 
