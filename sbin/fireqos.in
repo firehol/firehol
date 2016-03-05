@@ -3221,60 +3221,29 @@ ip_to_hex () {
 	echo ${hex}
 }
 
-cidr_length_to_mask () {
-	if [ -z "${1}" ]; then
-		echo "cidr_length_to_mask() requires at least one parameter!"
-		exit 1
-	fi
-	if ! [[ "${1}" =~ ^[[:digit:]]+$ ]]; then
-		echo "cidr_length_to_mask() requires at numeric value as parameter!"
-		exit 1
-	fi
-	if [ ${1} -lt 0 ] || [ ${1} -gt 32 ]; then
-		echo "cidr_length_to_mask() requires at parameter to be in a range of 0 to 32!"
-		exit 1
-	fi
-	case ${1} in
-		0) mask="0.0.0.0" ;;
-		1) mask="128.0.0.0" ;;
-		2) mask="192.0.0.0" ;;
-		3) mask="224.0.0.0" ;;
-		4) mask="240.0.0.0" ;;
-		5) mask="248.0.0.0" ;;
-		6) mask="252.0.0.0" ;;
-		7) mask="254.0.0.0" ;;
-		8) mask="255.0.0.0" ;;
-		9) mask="255.128.0.0" ;;
-		10) mask="255.192.0.0" ;;
-		11) mask="255.224.0.0" ;;
-		12) mask="255.240.0.0" ;;
-		13) mask="255.248.0.0" ;;
-		14) mask="255.252.0.0" ;;
-		15) mask="255.254.0.0" ;;
-		16) mask="255.255.0.0" ;;
-		17) mask="255.255.128.0" ;;
-		18) mask="255.255.192.0" ;;
-		19) mask="255.255.224.0" ;;
-		20) mask="255.255.240.0" ;;
-		21) mask="255.255.248.0" ;;
-		22) mask="255.255.252.0" ;;
-		23) mask="255.255.254.0" ;;
-		24) mask="255.255.255.0" ;;
-		25) mask="255.255.255.128" ;;
-		26) mask="255.255.255.192" ;;
-		27) mask="255.255.255.224" ;;
-		28) mask="255.255.255.240" ;;
-		29) mask="255.255.255.248" ;;
-		30) mask="255.255.255.252" ;;
-		31) mask="255.255.255.254" ;;
-		32) mask="255.255.255.255" ;;
-		*) echo "invalid CIDR length found!"; exit 1 ;;
-	esac
-	if [ -z "${mask}" ]; then
-		echo "cidr_length_to_mask() was unable to convert ${1} into a mask!"
-		exit 1
-	fi
-	echo ${mask}
+# https://github.com/firehol/firehol/pull/113
+mask2bits() {
+        local x="${1}"
+
+        x=$[ x - ( (x >> 1) & 0x55555555) ]
+        x=$[ (x & 0x33333333) + ( (x >> 2) & 0x33333333) ]
+        x=$[ (x + (x >> 4) ) & 0x0F0F0F0F ]
+        x=$[ x + (x >> 8) ]
+        x=$[ x + (x >> 16) ]
+        echo $[ 1 << (x & 0x0000003F) ]
+}
+
+# https://github.com/firehol/firehol/pull/113
+cidr_length_to_mask() {
+        local n="${1}" hex
+
+        # find the mask in hex
+        hex="$(printf "%x" $[ ~(( 1 << ( 32 - n )) -1 ) ])"
+
+        # get the last 8 digits of the number (bash uses 64 bit numbers)
+        hex="${hex: -8}"
+
+        printf "%d.%d.%d.%d\n" "0x${hex:0:2}" "0x${hex:2:2}" "0x${hex:4:2}" "0x${hex:6:2}"
 }
 
 show_interfaces() {
