@@ -12,7 +12,7 @@ contents-table:helper:blacklist:keyword-firehol-blacklist:Y:-:Drop matching pack
 
 # SYNOPSIS
 
-{ blacklist | blacklist4 | blacklist6 } [ *type* ] [ inface *device* ] [ log *"text"* ] [ loglimit *"text"* ] [ accounting *accounting_name* ] *ip*... [ except *rule-params* ]
+{ blacklist | blacklist4 | blacklist6 } [ *type* ] [ inface *device* ] [ log *"text"* ] [ connlog *"text"* ] [ loglimit *"text"* ] [ accounting *accounting_name* ] *ip*... [ except *rule-params* [or *rule-params* [or ... ]]]
 
 
 # DESCRIPTION
@@ -22,16 +22,28 @@ The `blacklist` helper command creates a blacklist for the *ip* list given
 (which can be in quotes or not).
 
 If the type `full` or `all` is supplied (or no type at all), a bidirectional
-stateless blacklist will be generated. The firewall will REJECT all traffic
+*stateless* blacklist will be generated. The firewall will REJECT all traffic
 going to the IP addresses and DROP all traffic coming from them.
 
+If the type `stateful` is supplied, a bidirectional *stateful* blacklist will
+be generated. The firewall will REJECT all traffic going to the IP addresses
+and DROP all traffic coming from them.
+
+The differences between `full` and `stateful` are:
+
+1. `stateful` is resource efficient, since only the packets that initiate connections are examined. Established connections will never be re-tested against the blacklist.
+
+2. when using `full` and an ipset is updated to match the IP of an established connection, this established connection will immediately be blocked too.
+
+
 If the type `input` or `him`, `her`, `it`, `this`, `these` is supplied,
-a unidirectional stateful blacklist will be generated. Connections can be
+a unidirectional *stateful* blacklist will be generated. Connections can be
 established to such IP addresses, but the IP addresses will not be able to
 connect to the firewall or hosts protected by it.
 
-Using `log` or `loglimit`, the `text` will be logged when matching packets
-are found.
+Using `log` (log every packet), `connlog` (log connections once),
+or `loglimit` (log packets according to global throttling settings),
+the `text` will be logged when matching packets are found.
 
 Using `inface`, the blacklist will be created on the interface `device` only
 (this includes forwarded traffic).

@@ -32,7 +32,11 @@ Defaults:
 * FIREHOL\_AUTOSAVE6=*see notes*
 * FIREHOL\_LOAD\_KERNEL\_MODULES="1"
 * FIREHOL\_TRUST\_LOOPBACK="1"
-* FIREHOL\_DROP\_ORPHAN\_TCP\_ACK\_FIN="0"
+* FIREHOL\_DROP\_ORPHAN\_TCP\_ACK\_FIN="1"
+* FIREHOL\_DROP\_ORPHAN\_TCP\_ACK\_RST="1"
+* FIREHOL\_DROP\_ORPHAN\_TCP\_ACK="1"
+* FIREHOL\_DROP\_ORPHAN\_TCP\_RST="1"
+* FIREHOL\_DROP\_ORPHAN\_IPV4\_ICMP\_TYPE3="1"
 * FIREHOL\_DEBUGGING=""
 * WAIT\_FOR\_IFACE=""
 
@@ -336,7 +340,7 @@ FIREHOL\_TRUST\_LOOPBACK
     ~~~~
 
 FIREHOL\_DROP\_ORPHAN\_TCP\_ACK\_FIN
-:   If set to 1, FireHOL will drop all TCP connections with ACK FIN set
+:   If set to 1, FireHOL will drop all orphan such packets
     without logging them.
 
     In busy environments the iptables(8) connection tracker removes
@@ -349,6 +353,68 @@ FIREHOL\_DROP\_ORPHAN\_TCP\_ACK\_FIN
     ~~~~
 
     FIREHOL_DROP_ORPHAN_TCP_ACK_FIN="1"
+    ~~~~
+
+FIREHOL\_DROP\_ORPHAN\_TCP\_ACK\_RST
+:   If set to 1, FireHOL will drop all orphan such packets
+    without logging them.
+
+    In busy environments the iptables(8) connection tracker removes
+    connection tracking list entries as soon as it receives a RST. This
+    makes the ACK RST appear as an invalid packet which will normally be
+    logged by FireHOL.
+
+    Example:
+
+    ~~~~
+
+    FIREHOL_DROP_ORPHAN_TCP_ACK_RST="1"
+    ~~~~
+
+FIREHOL\_DROP\_ORPHAN\_TCP\_ACK
+:   If set to 1, FireHOL will drop all orphan such packets
+    without logging them.
+
+    In busy environments the iptables(8) connection tracker removes
+    uneeded connection tracking list entries. This makes ACK packets
+    appear as an invalid packet which will normally be logged by FireHOL.
+
+    Example:
+
+    ~~~~
+
+    FIREHOL_DROP_ORPHAN_TCP_ACK="1"
+    ~~~~
+
+FIREHOL\_DROP\_ORPHAN\_TCP\_RST
+:   If set to 1, FireHOL will drop all orphan such packets
+    without logging them.
+
+    In busy environments the iptables(8) connection tracker removes
+    uneeded connection tracking list entries. This makes RST packets
+    appear as an invalid packet which will normally be logged by FireHOL.
+
+    Example:
+
+    ~~~~
+
+    FIREHOL_DROP_ORPHAN_TCP_RST="1"
+    ~~~~
+
+FIREHOL\_DROP\_ORPHAN\_IPV4\_ICMP\_TYPE3
+:   If set to 1, FireHOL will drop all orphan ICMP destination
+    unreachable packets without logging them.
+
+    In busy environments the iptables(8) connection tracker removes
+    uneeded connection tracking list entries. This makes ICMP destination
+    unreachable appear as an invalid packet which will normally be logged
+    by FireHOL.
+
+    Example:
+
+    ~~~~
+
+    FIREHOL_DROP_ORPHAN_IPV4_ICMP_TYPE3="1"
     ~~~~
 
 FIREHOL\_DEBUGGING
