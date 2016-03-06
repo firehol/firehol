@@ -427,7 +427,7 @@ errline=""
 cd $CURDIR
 
 exists_ns() {
-  if [ "$($IP_CMD netns list | $GREP_CMD "^$1\$")" ]
+  if [ "$($IP_CMD netns list | $GREP_CMD -E "^$1([[:space:]]+\(|\$)")" ]
   then
     return 0
   else
@@ -618,8 +618,14 @@ then
       # this did not help:
       #   $IP_CMD link add $dev netns $ns type veth peer name $odev
       #   $IP_CMD link set $odev netns $ons
+      echo
+      echo "# $IP_CMD addr show"
       $IP_CMD netns exec $ns $IP_CMD addr show | $SED_CMD 's/@[^:]*:/:/'
+      echo
+      echo "# $IP_CMD route show"
       $IP_CMD netns exec $ns $IP_CMD route show
+      echo
+      echo "# $BRIDGE_CMD link show"
       $IP_CMD netns exec $ns $BRIDGE_CMD link show
     else
       echo "Namespace not running"
