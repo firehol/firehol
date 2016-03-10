@@ -6114,7 +6114,7 @@ else
 	update blueliv_online $[24 * 60] 0 ipv4 ip \
 		"https://freeapi.blueliv.com/v1/crimeserver/online" \
 		blueliv_parser \
-		"attacks" "[blueliv.com](https://www.blueliv.com/) Online Cybercrime IPs" \
+		"attacks" "[blueliv.com](https://www.blueliv.com/) Online Cybercrime IPs, in all categories: BACKDOOR, C_AND_C, EXPLOIT_KIT, MALWARE and PHISHING (to download the source data you need an API key from blueliv.com)" \
 		"blueliv.com" "https://www.blueliv.com/" \
 		dont_redistribute \
 		dont_enable_with_all \
@@ -6123,7 +6123,7 @@ else
 	update blueliv_recent $[24 * 60] 0 ipv4 ip \
 		"https://freeapi.blueliv.com/v1/crimeserver/recent" \
 		blueliv_parser \
-		"attacks" "[blueliv.com](https://www.blueliv.com/) Recent Cybercrime IPs" \
+		"attacks" "[blueliv.com](https://www.blueliv.com/) Recent Cybercrime IPs, in all categories: BACKDOOR, C_AND_C, EXPLOIT_KIT, MALWARE and PHISHING (to download the source data you need an API key from blueliv.com)" \
 		"blueliv.com" "https://www.blueliv.com/" \
 		dont_redistribute \
 		dont_enable_with_all \
@@ -6132,7 +6132,7 @@ else
 	update blueliv_last $[6 * 60] "$[24*60] $[48*60] $[7*24*60] $[30*24*60]" ipv4 ip \
 		"https://freeapi.blueliv.com/v1/crimeserver/last" \
 		blueliv_parser \
-		"attacks" "[blueliv.com](https://www.blueliv.com/) Last 6 hours Cybercrime IPs" \
+		"attacks" "[blueliv.com](https://www.blueliv.com/) Last 6 hours Cybercrime IPs, in all categories: BACKDOOR, C_AND_C, EXPLOIT_KIT, MALWARE and PHISHING (to download the source data you need an API key from blueliv.com)" \
 		"blueliv.com" "https://www.blueliv.com/" \
 		dont_redistribute \
 		dont_enable_with_all \
