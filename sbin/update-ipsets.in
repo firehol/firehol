@@ -152,6 +152,7 @@ Y|TAR_CMD|@TAR@|tar
 Y|IPSET_CMD|@IPSET@|ipset
 N|UNZIP_CMD|@UNZIP@|unzip
 N|FUNZIP_CMD|@FUNZIP@|funzip
+N|JQ_CMD|@JQ@|jq
 N|GIT_CMD|@GIT@|git
 !
 status=$?
@@ -633,15 +634,16 @@ ipset_shall_be_run() {
 
 	if [ ! -f "${BASE_DIR}/${ipset}.source" ]
 	then
-		# cleanup - not required - it slows down because it saves the cache
-		# [ ! -z "${IPSET_CHECKED_DATE[${ipset}]}" ] && cache_remove_ipset "${ipset}"
-
 		if [ ${ENABLE_ALL} -eq 1 -a -z "${IPSET_TMP_DO_NOT_ENABLE_WITH_ALL[${ipset}]}" ]
 			then
 			ipset_silent "${ipset}" "Enabling due to --enable-all option."
 			$TOUCH_CMD -t 0001010000 "${BASE_DIR}/${ipset}.source" || return 1
 		else
 			ipset_disabled "${ipset}"
+
+			# cleanup the cache
+			[ ! -z "${IPSET_CHECKED_DATE[${ipset}]}" ] && cache_remove_ipset "${ipset}"
+
 			return 1
 		fi
 	fi
@@ -649,7 +651,7 @@ ipset_shall_be_run() {
 	if [ ${#RUN_ONLY_THESE_IPSETS[@]} -ne 0 -a -z "${RUN_ONLY_THESE_IPSETS[${ipset}]}" ]
 		then
 		ipset_verbose "${ipset}" "skipping - not requested"
-		return 1
+		return 2
 	fi
 
 	return 0
@@ -1007,7 +1009,9 @@ downloader_log() {
 }
 
 geturl() {
-	local file="${1}" reference="${2}" url="${3}" ret= http_code= curl_opts= message=
+	local file="${1}" reference="${2}" url="${3}" doptions=() ret= http_code= curl_opts= message=
+
+	eval "local doptions=(${4})"
 
 	if [ -z "${reference}" ]
 		then
@@ -1022,13 +1026,13 @@ geturl() {
 	curl_opts="--silent"
 	[ ${VERBOSE} -eq 1 ] && curl_opts=
 
-	downloader_log verbose "curl '${url}'"
+	downloader_log verbose "curl ${doptions} '${url}'"
 	http_code=$( \
 		$CURL_CMD --connect-timeout ${MAX_CONNECT_TIME} --max-time ${MAX_DOWNLOAD_TIME} \
 			--retry 0 --fail --compressed --user-agent "FireHOL-Update-Ipsets/3.0" \
 			--time-cond "${reference}" --output "${file}" --remote-time \
 			--location --referer "http://iplists.firehol.org/" \
-			${curl_opts} --write-out '%{http_code}' "${url}" \
+			${curl_opts} --write-out '%{http_code}' "${doptions[@]}" "${url}" \
 		)
 	ret=$?
 
@@ -1155,7 +1159,7 @@ download_manager() {
 	DOWNLOADER_IPSET="${ipset}"
 
 	ipset_verbose "${ipset}" "running downloader '${IPSET_DOWNLOADER[${ipset}]}'"
-	"${IPSET_DOWNLOADER[${ipset}]}" "${tmp}" "${reference}" "${url}"
+	"${IPSET_DOWNLOADER[${ipset}]}" "${tmp}" "${reference}" "${url}" "${IPSET_DOWNLOADER_OPTIONS[${ipset}]}"
 	ret=$?
 	ipset_info "${ipset}" "${DOWNLOADER_MESSAGE}"
 
@@ -1258,11 +1262,10 @@ declare -A IPSET_MIN_UPDATE_TIME=()
 declare -A IPSET_MAX_UPDATE_TIME=()
 
 declare -A IPSET_DOWNLOADER=()
+declare -A IPSET_DOWNLOADER_OPTIONS=()
 
 # TODO - FIXME
 #declare -A IPSET_PREFIXES=()
-#declare -A IPSET_DOWNLOADER=()
-#declare -A IPSET_DOWNLOADER_OPTIONS=()
 
 cache_save() {
 	#info "Saving cache"
@@ -1303,6 +1306,7 @@ cache_save() {
 		IPSET_MIN_UPDATE_TIME \
 		IPSET_MAX_UPDATE_TIME \
 		IPSET_DOWNLOADER \
+		IPSET_DOWNLOADER_OPTIONS \
 		>"${BASE_DIR}/.cache.new.$$"
 
 	[ -f "${BASE_DIR}/.cache" ] && $CP_CMD "${BASE_DIR}/.cache" "${BASE_DIR}/.cache.old"
@@ -1355,6 +1359,7 @@ cache_remove_ipset() {
 	unset IPSET_MIN_UPDATE_TIME[${ipset}]
 	unset IPSET_MAX_UPDATE_TIME[${ipset}]
 	unset IPSET_DOWNLOADER[${ipset}]
+	unset IPSET_DOWNLOADER_OPTIONS[${ipset}]
 
 	cache_save
 }
@@ -2340,6 +2345,7 @@ ipset_attributes() {
 			inbound|outbound)		IPSET_PROTECTION[${ipset}]="${1}"; shift; continue ;;
 
 			downloader)				IPSET_DOWNLOADER[${ipset}]="${2}" ;;
+			downloader_options)		IPSET_DOWNLOADER_OPTIONS[${ipset}]="${2}" ;;
 			category)				IPSET_CATEGORY[${ipset}]="${2}" ;;
 			maintainer)				IPSET_MAINTAINER[${ipset}]="${2}" ;;
 			maintainer_url)			IPSET_MAINTAINER_URL[${ipset}]="${2}" ;;
@@ -2654,11 +2660,16 @@ update() {
 
 	# check if it is enabled
 	ipset_shall_be_run "${ipset}"
-	if [ $? -ne 0 ]
-		then
-		[ -d "${BASE_DIR}/.git" ] && echo >"${BASE_DIR}/${ipset}.setinfo" "${ipset}|${info}|${ipv} hash:${hash}|disabled|`if [ ! -z "${url}" ]; then echo "updated every $(mins_to_text ${mins}) from [this link](${url})"; fi`"
-		return 1
-	fi
+	case "$?" in
+		0)	;;
+
+		1)	[ -d "${BASE_DIR}/.git" ] && echo >"${BASE_DIR}/${ipset}.setinfo" "${ipset}|${info}|${ipv} hash:${hash}|disabled|`if [ ! -z "${url}" ]; then echo "updated every $(mins_to_text ${mins}) from [this link](${url})"; fi`"
+			return 1
+			;;
+
+		*)	return 1
+			;;
+	esac
 
 	# do we have something to download?
 	if [ ! -z "${url}" ]
@@ -2935,6 +2946,7 @@ rename_ipset() {
 	[ -z "${IPSET_MIN_UPDATE_TIME[${new}]}" ] && IPSET_MIN_UPDATE_TIME[${new}]="${IPSET_MIN_UPDATE_TIME[${old}]}"
 	[ -z "${IPSET_MAX_UPDATE_TIME[${new}]}" ] && IPSET_MAX_UPDATE_TIME[${new}]="${IPSET_MAX_UPDATE_TIME[${old}]}"
 	[ -z "${IPSET_DOWNLOADER[${new}]}" ] && IPSET_DOWNLOADER[${new}]="${IPSET_DOWNLOADER[${old}]}"
+	[ -z "${IPSET_DOWNLOADER_OPTIONS[${new}]}" ] && IPSET_DOWNLOADER_OPTIONS[${new}]="${IPSET_DOWNLOADER_OPTIONS[${old}]}"
 	cache_remove_ipset "${old}" # this also saves the cache
 
 	cd "${RUN_DIR}"
@@ -3363,11 +3375,16 @@ geolite2_country() {
 		ret=
 
 	ipset_shall_be_run "${ipset}"
-	if [ $? -ne 0 ]
-		then
-		[ -d "${BASE_DIR}/.git" ] && echo >"${BASE_DIR}/${ipset}.setinfo" "${ipset}|${info}|${ipv} hash:${hash}|disabled|`if [ ! -z "${url}" ]; then echo "updated every $(mins_to_text ${mins}) from [this link](${url})"; fi`"
-		return 1
-	fi
+	case "$?" in
+		0)	;;
+
+		1)	[ -d "${BASE_DIR}/.git" ] && echo >"${BASE_DIR}/${ipset}.setinfo" "${ipset}|${info}|${ipv} hash:${hash}|disabled|`if [ ! -z "${url}" ]; then echo "updated every $(mins_to_text ${mins}) from [this link](${url})"; fi`"
+			return 1
+			;;
+
+		*)	return 1
+			;;
+	esac
 
 	# download it
 	download_manager "${ipset}" "${mins}" "${url}"
@@ -3517,11 +3534,16 @@ ipdeny_country() {
 		ret=
 
 	ipset_shall_be_run "${ipset}"
-	if [ $? -ne 0 ]
-		then
-		[ -d "${BASE_DIR}/.git" ] && echo >"${BASE_DIR}/${ipset}.setinfo" "${ipset}|${info}|${ipv} hash:${hash}|disabled|`if [ ! -z "${url}" ]; then echo "updated every $(mins_to_text ${mins}) from [this link](${url})"; fi`"
-		return 1
-	fi
+	case "$?" in
+		0)	;;
+
+		1)	[ -d "${BASE_DIR}/.git" ] && echo >"${BASE_DIR}/${ipset}.setinfo" "${ipset}|${info}|${ipv} hash:${hash}|disabled|`if [ ! -z "${url}" ]; then echo "updated every $(mins_to_text ${mins}) from [this link](${url})"; fi`"
+			return 1
+			;;
+
+		*)	return 1
+			;;
+	esac
 
 	# download it
 	download_manager "${ipset}" "${mins}" "${url}"
@@ -3639,11 +3661,16 @@ ip2location_country() {
 		ret=
 
 	ipset_shall_be_run "${ipset}"
-	if [ $? -ne 0 ]
-		then
-		[ -d "${BASE_DIR}/.git" ] && echo >"${BASE_DIR}/${ipset}.setinfo" "${ipset}|${info}|${ipv} hash:${hash}|disabled|`if [ ! -z "${url}" ]; then echo "updated every $(mins_to_text ${mins}) from [this link](${url})"; fi`"
-		return 1
-	fi
+	case "$?" in
+		0)	;;
+
+		1)	[ -d "${BASE_DIR}/.git" ] && echo >"${BASE_DIR}/${ipset}.setinfo" "${ipset}|${info}|${ipv} hash:${hash}|disabled|`if [ ! -z "${url}" ]; then echo "updated every $(mins_to_text ${mins}) from [this link](${url})"; fi`"
+			return 1
+			;;
+
+		*)	return 1
+			;;
+	esac
 
 	# download it
 	download_manager "${ipset}" "${mins}" "${url}"
@@ -5927,11 +5954,16 @@ badipscom() {
 	local ret=
 
 	ipset_shall_be_run "badips"
-	if [ $? -ne 0 ]
-		then
-		[ -d "${BASE_DIR}/.git" ] && echo >"${BASE_DIR}/badips.setinfo" "badips.com categories ipsets|[BadIPs.com](https://www.badips.com) community based IP blacklisting. They score IPs based on the reports they reports.|ipv4 hash:ip|disabled|disabled"
-		return 1
-	fi
+	case "$?" in
+		0)	;;
+
+		1)	[ -d "${BASE_DIR}/.git" ] && echo >"${BASE_DIR}/badips.setinfo" "badips.com categories ipsets|[BadIPs.com](https://www.badips.com) community based IP blacklisting. They score IPs based on the reports they reports.|ipv4 hash:ip|disabled|disabled"
+			return 1
+			;;
+
+		*)	return 1
+			;;
+	esac
 
 	if [ ${ENABLE_ALL} -eq 1 ]
 		then
@@ -6051,6 +6083,61 @@ badipscom() {
 }
 
 badipscom
+
+# -----------------------------------------------------------------------------
+# blueliv
+
+blueliv_parser() {
+	if [ -z "${JQ_CMD}" ]
+	then
+		error "command 'jq' is not installed"
+		return 1
+	fi
+
+	${JQ_CMD} '[.crimeServers[] | {ip:.ip}]' | grep '"ip":' |\
+		cut -d ':' -f 2 |\
+		cut -d '"' -f 2 |\
+		grep -v null
+}
+
+# check if it is enabled
+if [ -z "${BLUELIV_API_KEY}" ]
+	then
+	for x in online recent last
+	do
+		if [ -f "${BASE_DIR}/blueliv_${x}.source" ]
+			then
+			ipset_error blueliv_${x} "Please set BLUELIV_API_KEY='...' in ${CONFIG_FILE}"
+		fi
+	done
+else
+	update blueliv_online $[24 * 60] 0 ipv4 ip \
+		"https://freeapi.blueliv.com/v1/crimeserver/online" \
+		blueliv_parser \
+		"attacks" "[blueliv.com](https://www.blueliv.com/) Online Cybercrime IPs" \
+		"blueliv.com" "https://www.blueliv.com/" \
+		dont_redistribute \
+		dont_enable_with_all \
+		downloader_options "-H 'Authorization: bearer ${BLUELIV_API_KEY}'"
+
+	update blueliv_recent $[24 * 60] 0 ipv4 ip \
+		"https://freeapi.blueliv.com/v1/crimeserver/recent" \
+		blueliv_parser \
+		"attacks" "[blueliv.com](https://www.blueliv.com/) Recent Cybercrime IPs" \
+		"blueliv.com" "https://www.blueliv.com/" \
+		dont_redistribute \
+		dont_enable_with_all \
+		downloader_options "-H 'Authorization: bearer ${BLUELIV_API_KEY}'"
+
+	update blueliv_last $[6 * 60] "$[24*60] $[48*60] $[7*24*60] $[30*24*60]" ipv4 ip \
+		"https://freeapi.blueliv.com/v1/crimeserver/last" \
+		blueliv_parser \
+		"attacks" "[blueliv.com](https://www.blueliv.com/) Last 6 hours Cybercrime IPs" \
+		"blueliv.com" "https://www.blueliv.com/" \
+		dont_redistribute \
+		dont_enable_with_all \
+		downloader_options "-H 'Authorization: bearer ${BLUELIV_API_KEY}'"
+fi
 
 # -----------------------------------------------------------------------------
 # SORBS test
@@ -6402,7 +6489,6 @@ merge firehol_anonymous ipv4 both \
 # - http://www.cidr-report.org/bogons/freespace-prefix6.txt
 # - https://github.com/mlsecproject/combine/issues/25
 #
-# - https://github.com/Blueliv/api-python-sdk/wiki/Blueliv-REST-API-Documentation
 # - https://atlas.arbor.net/summary/attacks.csv
 # - https://atlas.arbor.net/summary/botnets.csv
 # - https://atlas.arbor.net/summary/fastflux.csv
@@ -6459,9 +6545,9 @@ do
 
 		if [ $? -ne 0 ]
 			then
-			error "'${supplied_ipset_file}' failed"
+			error "run of '${supplied_ipset_file}' reports failure"
 		else
-			verbose "'${supplied_ipset_file}' completed"
+			verbose "run of '${supplied_ipset_file}' completed"
 		fi
 	done
 done

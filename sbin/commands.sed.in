@@ -16,6 +16,7 @@ s#[@]FIND@#@FIND@#g
 s#[@]FLOCK@#@FLOCK@#g
 s#[@]FOLD@#@FOLD@#g
 s#[@]FUNZIP@#@FUNZIP@#g
+s#[@]JQ@#@JQ@#g
 s#[@]GAWK@#@GAWK@#g
 s#[@]GIT@#@GIT@#g
 s#[@]GREP@#@GREP@#g
