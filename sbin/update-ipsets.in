@@ -6103,15 +6103,17 @@ blueliv_parser() {
 # check if it is enabled
 if [ -z "${BLUELIV_API_KEY}" ]
 	then
-	for x in cybercrime_online cybercrime_recent cybercrime_last
+	for x in blueliv_crimeserver_online blueliv_crimeserver_recent blueliv_crimeserver_last
 	do
-		if [ -f "${BASE_DIR}/blueliv_${x}.source" ]
+		if [ -f "${BASE_DIR}/${x}.source" ]
 			then
-			ipset_error blueliv_${x} "Please set BLUELIV_API_KEY='...' in ${CONFIG_FILE}"
+			ipset_error ${x} "Please set BLUELIV_API_KEY='...' in ${CONFIG_FILE}"
+		else
+			ipset_disabled ${x}
 		fi
 	done
 else
-	update blueliv_cybercrime_online $[24 * 60] 0 ipv4 ip \
+	update blueliv_crimeserver_online $[24 * 60] 0 ipv4 ip \
 		"https://freeapi.blueliv.com/v1/crimeserver/online" \
 		blueliv_parser \
 		"attacks" "[blueliv.com](https://www.blueliv.com/) Online Cybercrime IPs, in all categories: BACKDOOR, C_AND_C, EXPLOIT_KIT, MALWARE and PHISHING (to download the source data you need an API key from blueliv.com)" \
@@ -6120,7 +6122,7 @@ else
 		dont_enable_with_all \
 		downloader_options "-H 'Authorization: bearer ${BLUELIV_API_KEY}'"
 
-	update blueliv_cybercrime_recent $[24 * 60] 0 ipv4 ip \
+	update blueliv_crimeserver_recent $[24 * 60] 0 ipv4 ip \
 		"https://freeapi.blueliv.com/v1/crimeserver/recent" \
 		blueliv_parser \
 		"attacks" "[blueliv.com](https://www.blueliv.com/) Recent Cybercrime IPs, in all categories: BACKDOOR, C_AND_C, EXPLOIT_KIT, MALWARE and PHISHING (to download the source data you need an API key from blueliv.com)" \
@@ -6129,7 +6131,7 @@ else
 		dont_enable_with_all \
 		downloader_options "-H 'Authorization: bearer ${BLUELIV_API_KEY}'"
 
-	update blueliv_cybercrime_last $[6 * 60] "$[24*60] $[48*60] $[7*24*60] $[30*24*60]" ipv4 ip \
+	update blueliv_crimeserver_last $[6 * 60] "$[24*60] $[48*60] $[7*24*60] $[30*24*60]" ipv4 ip \
 		"https://freeapi.blueliv.com/v1/crimeserver/last" \
 		blueliv_parser \
 		"attacks" "[blueliv.com](https://www.blueliv.com/) Last 6 hours Cybercrime IPs, in all categories: BACKDOOR, C_AND_C, EXPLOIT_KIT, MALWARE and PHISHING (to download the source data you need an API key from blueliv.com)" \
