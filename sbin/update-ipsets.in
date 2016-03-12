@@ -5972,6 +5972,31 @@ update iblocklist_isp_sprint $[24*60] 0 ipv4 both \
 	"iBlocklist.com" "https://www.iblocklist.com/"
 
 # -----------------------------------------------------------------------------
+# https://blocklist.sigmaprojects.org/
+
+update sp_atma $[24*60] 0 ipv4 both \
+	"https://blocklist.sigmaprojects.org/api.cfc?method=getList&lists=atma" \
+	${ZCAT_CMD} \
+	"attacks" \
+	"Attackers who try to spy or remotely control others' computers by means such as Microsoft remote terminal, SSH, Telnet or shared desktops. Threats for email servers or users: spiders/bots, account hijacking, etc. Sites spreading virus, trojans, spyware, etc. or just being used by them to let their authors know that a new computer has been infected. Threats for servers: exploits, fake identities/agents, DDoS attackers, etc. Port scans, which are the first step towards more dangerous actions. Malicious P2P sharers or bad peers who spread malware, inject bad traffic or share fake archives. (The site states they re-distribute this IP List from iblocklist.com)." \
+	"SigmaProjects.org" "https://blocklist.sigmaprojects.org/"
+
+update sp_anti_infringement $[24*60] 0 ipv4 both \
+	"https://blocklist.sigmaprojects.org/api.cfc?method=getList&lists=anti-infringement" \
+	${ZCAT_CMD} \
+	"organizations" \
+	"IPs of Anti-Infringement organizations. (The site states they re-distribute this IP List from iblocklist.com)" \
+	"SigmaProjects.org" "https://blocklist.sigmaprojects.org/"
+
+update sp_spammers $[24*60] 0 ipv4 both \
+	"https://blocklist.sigmaprojects.org/api.cfc?method=getList&lists=spammers" \
+	${ZCAT_CMD} \
+	"spam" \
+	"Spammers. (The site states they re-distribute this IP List from iblocklist.com)" \
+	"SigmaProjects.org" "https://blocklist.sigmaprojects.org/"
+
+
+# -----------------------------------------------------------------------------
 # BadIPs.com
 
 badipscom() {
