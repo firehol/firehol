@@ -5997,6 +5997,18 @@ update sp_spammers $[24*60] 0 ipv4 both \
 
 
 # -----------------------------------------------------------------------------
+# https://www.gpf-comics.com/dnsbl/export.php
+
+update gpf_comics $[24*60] 0 ipv4 ip \
+	"https://www.gpf-comics.com/dnsbl/export.php" \
+	remove_comments \
+	"abuse" \
+	"The GPF DNS Block List is a list of IP addresses on the Internet that have attacked the [GPF Comics](http://www.gpf-comics.com/) family of Web sites. IPs on this block list have been banned from accessing all of our servers because they were caught in the act of spamming, attempting to exploit our scripts, scanning for vulnerabilities, or consuming resources to the detriment of our human visitors. For more information about this block list, please see the additional links at the bottom of this page." \
+	"GPF Comics" "https://www.gpf-comics.com/dnsbl/" \
+	downloader_options "--data 'ipv6=0&export_type=text&submit=Export'"
+
+
+# -----------------------------------------------------------------------------
 # BadIPs.com
 
 badipscom() {
