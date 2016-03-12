@@ -1642,6 +1642,17 @@ retention_detect() {
 	local name1= name2= entries1= entries2= ips1= ips2= combined= common= odate= hours= removed=
 	if [ ${#new_files[@]} -gt 0 ]
 		then
+		# we are searching for the affected files
+		# to find them we compare:
+		#
+		# > ips1 (the number of IPs in the latest)
+		# > combined (the number of IPs in both the latest and the history file in question)
+		#   when ips1 = combined, all IPs in the history file in question are still in the latest
+		#
+		# > ips2 (the number of IPs in the history file in question)
+		# > common (the IPs common in latest and the history file in question)
+		#   when ips2 = common, all IPs in the history file in question are still in the latest
+		#
 		${IPRANGE_CMD} "${LIB_DIR}/${ipset}/latest" --compare-next "${new_files[@]}" |\
 			while IFS="," read name1 name2 entries1 entries2 ips1 ips2 combined common
 			do
@@ -2048,27 +2059,25 @@ update_web() {
 
 	local before=$($DATE_CMD +%s)
 	${IPRANGE_CMD} --compare "${all[@]}" |\
+		${GREP_CMD} -v ",0$" |\
 		$SORT_CMD |\
 		while IFS="," read name1 name2 entries1 entries2 ips1 ips2 combined common
 		do
-			if [ ${common} -gt 0 ]
+			if [ ! -f "${RUN_DIR}/${name1}_comparison.json" ]
 				then
-				if [ ! -f "${RUN_DIR}/${name1}_comparison.json" ]
-					then
-					printf >"${RUN_DIR}/${name1}_comparison.json" "[\n"
-				else
-					printf >>"${RUN_DIR}/${name1}_comparison.json" ",\n"
-				fi
-				printf >>"${RUN_DIR}/${name1}_comparison.json" "	{\n		\"name\": \"${name2}\",\n		\"category\": \"${IPSET_CATEGORY[${name2}]}\",\n		\"ips\": ${ips2},\n		\"common\": ${common}\n	}"
-
-				if [ ! -f "${RUN_DIR}/${name2}_comparison.json" ]
-					then
-					printf >"${RUN_DIR}/${name2}_comparison.json" "[\n"
-				else
-					printf >>"${RUN_DIR}/${name2}_comparison.json" ",\n"
-				fi
-				printf >>"${RUN_DIR}/${name2}_comparison.json" "	{\n		\"name\": \"${name1}\",\n		\"category\": \"${IPSET_CATEGORY[${name1}]}\",\n		\"ips\": ${ips1},\n		\"common\": ${common}\n	}"
+				printf >"${RUN_DIR}/${name1}_comparison.json" "[\n"
+			else
+				printf >>"${RUN_DIR}/${name1}_comparison.json" ",\n"
 			fi
+			printf >>"${RUN_DIR}/${name1}_comparison.json" "	{\n		\"name\": \"${name2}\",\n		\"category\": \"${IPSET_CATEGORY[${name2}]}\",\n		\"ips\": ${ips2},\n		\"common\": ${common}\n	}"
+
+			if [ ! -f "${RUN_DIR}/${name2}_comparison.json" ]
+				then
+				printf >"${RUN_DIR}/${name2}_comparison.json" "[\n"
+			else
+				printf >>"${RUN_DIR}/${name2}_comparison.json" ",\n"
+			fi
+			printf >>"${RUN_DIR}/${name2}_comparison.json" "	{\n		\"name\": \"${name1}\",\n		\"category\": \"${IPSET_CATEGORY[${name1}]}\",\n		\"ips\": ${ips1},\n		\"common\": ${common}\n	}"
 		done
 	for x in $($FIND_CMD "${RUN_DIR}" -name \*_comparison.json)
 	do
@@ -2077,7 +2086,7 @@ update_web() {
 	local after=$($DATE_CMD +%s)
 	[ ${after} -eq ${before} ] && after=$[before + 1]
 
-	echo >&2 "Comparison of $[all_count * (all_count - 1) / 2 - 1] ipsets took $[after - before] seconds: (i.e. $[(all_count * (all_count - 1) / 2 - 1) / (after - before)] ipset comparisons/s)"
+	echo >&2 "$[all_count * (all_count - 1) / 2 - 1] ipset comparisons made in $[after - before] seconds ($[(all_count * (all_count - 1) / 2 - 1) / (after - before)] ipset comparisons/s)"
 	echo >&2
 
 	if [ "${#updated[*]}" -ne 0 -a "${#geolite2_country[*]}" -ne 0 ]
@@ -2088,20 +2097,18 @@ update_web() {
 		echo >&2 "Comparing updated ipsets with GeoLite2 country..."
 
 		${IPRANGE_CMD} "${updated[@]}" --compare-next "${geolite2_country[@]}" |\
+			${GREP_CMD} -v ",0$" |\
 			$SORT_CMD |\
 			while IFS="," read name1 name2 entries1 entries2 ips1 ips2 combined common
 			do
-				if [ ${common} -gt 0 ]
+				if [ ! -f "${RUN_DIR}/${name1}_geolite2_country.json" ]
 					then
-					if [ ! -f "${RUN_DIR}/${name1}_geolite2_country.json" ]
-						then
-						printf "[\n" >"${RUN_DIR}/${name1}_geolite2_country.json"
-					else
-						printf ",\n" >>"${RUN_DIR}/${name1}_geolite2_country.json"
-					fi
-
-					printf "	{\n		\"code\": \"${name2}\",\n		\"value\": ${common}\n	}" >>"${RUN_DIR}/${name1}_geolite2_country.json"
+					printf "[\n" >"${RUN_DIR}/${name1}_geolite2_country.json"
+				else
+					printf ",\n" >>"${RUN_DIR}/${name1}_geolite2_country.json"
 				fi
+
+				printf "	{\n		\"code\": \"${name2}\",\n		\"value\": ${common}\n	}" >>"${RUN_DIR}/${name1}_geolite2_country.json"
 			done
 		echo >&2
 		for x in $($FIND_CMD "${RUN_DIR}" -name \*_geolite2_country.json)
@@ -2116,20 +2123,18 @@ update_web() {
 		echo >&2 "Comparing updated ipsets with IPDeny country..."
 
 		${IPRANGE_CMD} "${updated[@]}" --compare-next "${ipdeny_country[@]}" |\
+			${GREP_CMD} -v ",0$" |\
 			$SORT_CMD |\
 			while IFS="," read name1 name2 entries1 entries2 ips1 ips2 combined common
 			do
-				if [ ${common} -gt 0 ]
+				if [ ! -f "${RUN_DIR}/${name1}_ipdeny_country.json" ]
 					then
-					if [ ! -f "${RUN_DIR}/${name1}_ipdeny_country.json" ]
-						then
-						printf "[\n" >"${RUN_DIR}/${name1}_ipdeny_country.json"
-					else
-						printf ",\n" >>"${RUN_DIR}/${name1}_ipdeny_country.json"
-					fi
-
-					printf "	{\n		\"code\": \"${name2}\",\n		\"value\": ${common}\n	}" >>"${RUN_DIR}/${name1}_ipdeny_country.json"
+					printf "[\n" >"${RUN_DIR}/${name1}_ipdeny_country.json"
+				else
+					printf ",\n" >>"${RUN_DIR}/${name1}_ipdeny_country.json"
 				fi
+
+				printf "	{\n		\"code\": \"${name2}\",\n		\"value\": ${common}\n	}" >>"${RUN_DIR}/${name1}_ipdeny_country.json"
 			done
 		echo >&2
 		for x in $($FIND_CMD "${RUN_DIR}" -name \*_ipdeny_country.json)
@@ -2146,20 +2151,18 @@ update_web() {
 		echo >&2 "Comparing updated ipsets with IP2Location country..."
 
 		${IPRANGE_CMD} "${updated[@]}" --compare-next "${ip2location_country[@]}" |\
+			${GREP_CMD} -v ",0$" |\
 			$SORT_CMD |\
 			while IFS="," read name1 name2 entries1 entries2 ips1 ips2 combined common
 			do
-				if [ ${common} -gt 0 ]
+				if [ ! -f "${RUN_DIR}/${name1}_ip2location_country.json" ]
 					then
-					if [ ! -f "${RUN_DIR}/${name1}_ip2location_country.json" ]
-						then
-						printf "[\n" >"${RUN_DIR}/${name1}_ip2location_country.json"
-					else
-						printf ",\n" >>"${RUN_DIR}/${name1}_ip2location_country.json"
-					fi
-
-					printf "	{\n		\"code\": \"${name2}\",\n		\"value\": ${common}\n	}" >>"${RUN_DIR}/${name1}_ip2location_country.json"
+					printf "[\n" >"${RUN_DIR}/${name1}_ip2location_country.json"
+				else
+					printf ",\n" >>"${RUN_DIR}/${name1}_ip2location_country.json"
 				fi
+
+				printf "	{\n		\"code\": \"${name2}\",\n		\"value\": ${common}\n	}" >>"${RUN_DIR}/${name1}_ip2location_country.json"
 			done
 		echo >&2
 		for x in $($FIND_CMD "${RUN_DIR}" -name \*_ip2location_country.json)
