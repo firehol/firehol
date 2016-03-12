@@ -2571,7 +2571,21 @@ EOFHEADER
 
 	if [ -d "${BASE_DIR}/.git" ]
 	then
-		echo >"${BASE_DIR}/${dst}.setinfo" "[${ipset}](${WEB_URL}${ipset})|${info}|${ipv} hash:${hash}|${quantity}|`if [ ! -z "${url}" ]; then echo "updated every $(mins_to_text ${mins}) from [this link](${url})"; fi`"
+		# --- BEGIN: Fix bug with duplicate setinfo files ---
+		# fix a bug where the .setinfo file was created
+		# using the ${dst} name, instead of the ${ipset} name
+		if [ "${dst}.setinfo" != "${ipset}.setinfo" -a -f "${BASE_DIR}/${dst}.setinfo" ]
+			then
+			if [ ! -f "${BASE_DIR}/${ipset}.setinfo" -o "${BASE_DIR}/${dst}.setinfo" -nt "${BASE_DIR}/${ipset}.setinfo" ]
+				then
+				${MV_CMD} "${BASE_DIR}/${dst}.setinfo" "${BASE_DIR}/${ipset}.setinfo"
+			else
+				${RM_CMD} "${BASE_DIR}/${dst}.setinfo"
+			fi
+		fi
+		# --- END: Fix bug with duplicate setinfo files ---
+
+		echo >"${BASE_DIR}/${ipset}.setinfo" "[${ipset}](${WEB_URL}${ipset})|${info}|${ipv} hash:${hash}|${quantity}|`if [ ! -z "${url}" ]; then echo "updated every $(mins_to_text ${mins}) from [this link](${url})"; fi`"
 		if [ -z "${IPSET_TMP_DO_NOT_REDISTRIBUTE[${ipset}]}" ]
 			then
 			git_add_if_not_already_added "${dst}"
@@ -3293,13 +3307,20 @@ p2p_gz() {
 		${IPRANGE_CMD}
 }
 
+p2p_gz_ips() {
+	$ZCAT_CMD |\
+		$CUT_CMD -d ':' -f 2 |\
+		$EGREP_CMD "^${IP4_MATCH}-${IP4_MATCH}$" |\
+		${IPRANGE_CMD} -1
+}
+
 # extract only the lines starting with Proxy from the P2P blocklist
 p2p_gz_proxy() {
 	$ZCAT_CMD |\
 		$GREP_CMD "^Proxy" |\
 		$CUT_CMD -d ':' -f 2 |\
 		$EGREP_CMD "^${IP4_MATCH}-${IP4_MATCH}$" |\
-		${IPRANGE_CMD}
+		${IPRANGE_CMD} -1
 }
 
 # get the first column from the csv
@@ -5513,7 +5534,7 @@ update iblocklist_spyware $[12*60] 0 ipv4 both \
 
 update iblocklist_badpeers $[12*60] 0 ipv4 ip \
 	"http://list.iblocklist.com/?list=cwworuawihqvocglcoss&fileformat=p2p&archiveformat=gz" \
-	p2p_gz \
+	p2p_gz_ips \
 	"reputation" \
 	"IPs that have been reported for bad deeds in p2p." \
 	"iBlocklist.com" "https://www.iblocklist.com/" \
@@ -5529,7 +5550,7 @@ update iblocklist_hijacked $[12*60] 0 ipv4 both \
 
 update iblocklist_webexploit $[12*60] 0 ipv4 ip \
 	"http://list.iblocklist.com/?list=ghlzqtqxnzctvvajwwag&fileformat=p2p&archiveformat=gz" \
-	p2p_gz \
+	p2p_gz_ips \
 	"reputation" \
 	"Web server hack and exploit attempts. IP addresses related to current web server hack and exploit attempts that have been logged or can be found in and cross referenced with other related IP databases. Malicious and other non search engine bots will also be listed here, along with anything found that can have a negative impact on a website or webserver such as proxies being used for negative SEO hijacks, unauthorised site mirroring, harvesting, scraping, snooping and data mining / spy bot / security & copyright enforcement companies that target and continuosly scan webservers." \
 	"iBlocklist.com" "https://www.iblocklist.com/" \
