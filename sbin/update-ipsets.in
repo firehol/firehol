@@ -5532,9 +5532,9 @@ update iblocklist_spyware $[12*60] 0 ipv4 both \
 	"iBlocklist.com" "https://www.iblocklist.com/" \
 	dont_redistribute
 
-update iblocklist_badpeers $[12*60] 0 ipv4 ip \
+update iblocklist_badpeers $[12*60] 0 ipv4 both \
 	"http://list.iblocklist.com/?list=cwworuawihqvocglcoss&fileformat=p2p&archiveformat=gz" \
-	p2p_gz_ips \
+	p2p_gz \
 	"reputation" \
 	"IPs that have been reported for bad deeds in p2p." \
 	"iBlocklist.com" "https://www.iblocklist.com/" \
