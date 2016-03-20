@@ -1,5 +1,7 @@
 # Process this file with automake to produce Makefile.in
 
+libarchinddir = $(prefix)/lib
+
 scriptsin = \
 	firehol.in \
 	fireqos.in \
@@ -7,7 +9,7 @@ scriptsin = \
 	update-ipsets.in \
 	vnetbuild.in
 
-inclibdir = $(libdir)/firehol
+inclibdir = $(libarchinddir)/firehol
 
 SUFFIXES = .in
 .in:
@@ -17,7 +19,7 @@ SUFFIXES = .in
 		-e '/^# Start defaults before configure/,/^# End/d' \
 		-e 's#[$$]prefix_POST#$(prefix)#g' \
 		-e 's#[$$]bindir_POST#$(bindir)#g' \
-		-e 's#[$$]libdir_POST#$(libdir)/firehol#g' \
+		-e 's#[$$]libdir_POST#$(inclibdir)#g' \
 		-e 's#[$$]localstatedir_POST#$(localstatedir)#g' \
 		-e 's#[$$]sysconfdir_POST#$(sysconfdir)#g' \
 		-f commands.sed \
