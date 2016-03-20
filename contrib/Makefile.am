@@ -7,7 +7,8 @@ servicefiles =
 if ENABLE_FIREHOL
 
 contrib_SCRIPTS = \
-	dnsbl-ipset.sh
+	dnsbl-ipset.sh \
+	ipset-apply.sh
 
 servicefiles += firehol.service
 
