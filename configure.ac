@@ -138,6 +138,10 @@ AX_CHECK_MINVER([BASH_VERSION_PATH], MIN_BASH_VERSION, [$BASH_SHELL_PATH],
                 [], [AC_MSG_ERROR(could not find required version of bash)])
 AX_NEED_SED()
 
+if test x"$enable_ipv6" = xyes; then
+AX_CHECK_PING_IPV6()
+fi
+
 dnl --- OUTPUT OF './packaging/firehol/gen-config-detect sbin/*.in' BEGIN   ---
 if test x"$MAKEDIST_BUILD_ONLY" != xyes; then
 AX_NEED_EGREP()
