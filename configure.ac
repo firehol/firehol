@@ -29,6 +29,8 @@ AM_MAINTAINER_MODE([disable])
 dnl Checks for programs.
 AC_PROG_MAKE_SET
 
+AM_CONDITIONAL([GIT_TREE], [test -f README.md])
+
 AX_FIREHOL_AUTOSAVE()
 AX_FIREHOL_AUTOSAVE6()
 

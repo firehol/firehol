@@ -17,7 +17,7 @@ DIST_SUBDIRS = $(SUBDIRS) m4
 
 EXTRA_DIST = autogen.sh README
 
-if MAINTAINER_MODE
+if GIT_TREE
 
 all-local: README
 
