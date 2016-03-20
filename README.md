@@ -69,12 +69,28 @@ Installation
 ============
 If you are installing the package from a tar-files release, FireHOL uses
 the GNU Autotools so you can just do:
-  ./configure && make && make install
+
+~~~~
+./configure
+make
+make install
+~~~~
+
+Since all components will go under `/usr/local`, you may prefer something
+like this:
+
+~~~~
+./configure --prefix=/usr --sysconfdir=/etc --localstatedir=/var 
+make
+make install
+~~~~
 
 You can get help on the options available (including disabling unwanted
 components) by running:
-  ./configure --help
 
+~~~~
+./configure --help
+~~~~
 From version 3.0.0 it is no longer recommended to install firehol by
 copying files, since a function library is now used, in addition to
 the scripts.
