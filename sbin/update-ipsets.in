@@ -6155,10 +6155,10 @@ blueliv_parser() {
 		return 1
 	fi
 
-	${JQ_CMD} '[.crimeServers[] | {ip:.ip}]' | grep '"ip":' |\
-		cut -d ':' -f 2 |\
-		cut -d '"' -f 2 |\
-		grep -v null
+	${JQ_CMD} '[.crimeServers[] | {ip:.ip}]' | ${GREP_CMD} '"ip":' |\
+		${CUT_CMD} -d ':' -f 2 |\
+		${CUT_CMD} -d '"' -f 2 |\
+		${GREP_CMD} -v null
 }
 
 # check if it is enabled
