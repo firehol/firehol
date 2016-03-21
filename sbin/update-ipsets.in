@@ -4402,7 +4402,7 @@ update ransomware_cryptowall_ps 5 0 ipv4 ip \
 	"Abuse.ch" "https://ransomwaretracker.abuse.ch" \
 	can_be_empty
 
-update ransomware_teslacyrpt_ps 5 0 ipv4 ip \
+update ransomware_teslacrypt_ps 5 0 ipv4 ip \
 	"https://ransomwaretracker.abuse.ch/downloads/TC_PS_IPBL.txt" \
 	remove_comments \
 	"malware" \
