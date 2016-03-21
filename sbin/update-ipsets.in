@@ -4468,6 +4468,17 @@ update malc0de $[24*60] 0 ipv4 ip \
 	"[Malc0de.com](http://malc0de.com) malicious IPs of the last 30 days" \
 	"malc0de.com" "http://malc0de.com/"
 
+# -----------------------------------------------------------------------------
+# Threat Crowd
+# http://threatcrowd.blogspot.gr/2016/02/crowdsourced-feeds-from-threatcrowd.html
+
+update threatcrowd 60 0 ipv4 ip \
+	"https://www.threatcrowd.org/feeds/ips.txt" \
+	remove_comments \
+	"malware" \
+	"[Crowdsourced IP feed from ThreatCrowd](http://threatcrowd.blogspot.gr/2016/02/crowdsourced-feeds-from-threatcrowd.html). These feeds are not a substitute for the scale of auto-extracted command and control domains or the quality of some commercially provided feeds. But crowd-sourcing does go some way towards the quick sharing of threat intelligence between the community." \
+	"Threat Crowd" "https://www.threatcrowd.org/"
+
 
 # -----------------------------------------------------------------------------
 # ASPROX
