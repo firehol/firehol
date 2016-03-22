@@ -31,6 +31,7 @@ doc/service-links
 doc/tools/pandoc-post
 sbin/commands.sed
 sbin/firehol
+sbin/firehol.in
 sbin/fireqos
 sbin/link-balancer
 sbin/vnetbuild
