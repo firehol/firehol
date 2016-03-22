@@ -343,13 +343,13 @@ AX_CHECK_MINVER([IPRANGE_VERSION], MIN_IPRANGE_VERSION, [$IPRANGE],
                 [], [AC_MSG_ERROR(could not find required version of iprange - check http://firehol.org/download/iprange/)])
 fi
 
-AUTOCONF_RUN=Y
-AC_SUBST(AUTOCONF_RUN)
+AC_SUBST([AUTOCONF_RUN], [Y])
 
 AC_CONFIG_FILES([
 	Makefile
 	sbin/Makefile
 	sbin/commands.sed
+	sbin/firehol.in
 	m4/Makefile
 	doc/Makefile
 	doc/firehol/Makefile
