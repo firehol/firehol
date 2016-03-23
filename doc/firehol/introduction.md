@@ -46,7 +46,11 @@ To build and install taking the default options:
     ./configure && make && sudo make install
           
 
-Alternatively, just copy the `sbin/firehol.in` file to where you want it.
+Since all components (including configuration files) will go
+under `/usr/local`, you may prefer to configure more like this:
+
+    ./configure --prefix=/usr --sysconfdir=/etc --localstatedir=/var --libexecdir=/usr/lib
+
 All of the common SysVInit command line arguments are recognised which
 makes it easy to deploy the script as a startup service.
 

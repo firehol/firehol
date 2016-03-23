@@ -25,31 +25,28 @@
 #       See the file COPYING for details.
 #
 
-VERSION='$Id$'
-PROGRAM_FILE="${0}"
-PROGRAM_DIR="${0%/*}"
-if [ "$PROGRAM_DIR" = "$0" ]; then PROGRAM_DIR="."; fi
+PROGRAM_FILE="$(/bin/readlink $0)"
+PROGRAM_FILE="${PROGRAM_FILE:-$0}"
+if [ -d "${FIREHOL_OVERRIDE_PROGRAM_DIR}" ]
+then
+	PROGRAM_DIR="${FIREHOL_OVERRIDE_PROGRAM_DIR}"
+else
+	PROGRAM_DIR="$(/usr/bin/dirname "$PROGRAM_FILE")"
+fi
 PROGRAM_PWD="${PWD}"
 declare -a PROGRAM_ORIGINAL_ARGS=("${@}")
 
-# Start defaults before configure
-prefix_POST=/usr
-sysconfdir_POST=/etc
-localstatedir_POST=/var
-libdir_POST=$PROGRAM_DIR
-# End defaults before configure
-for functions_file in $libdir_POST/functions.common.sh
+for functions_file in install.config functions.common
 do
-	if [ -r $functions_file ]
+	if [ -r "$PROGRAM_DIR/$functions_file" ]
 	then
-		source $functions_file
+		source "$PROGRAM_DIR/$functions_file"
 	else
-		1>&2 echo "Cannot access $functions_file"
+		1>&2 echo "Cannot access $PROGRAM_DIR/$functions_file"
 		exit 1
 	fi
 done
 
-FIREHOL_CONFIG_DIR="$sysconfdir_POST/firehol"
 common_disable_localization || exit
 
 marksreset() { :; }
@@ -59,22 +56,6 @@ then
 	source "${FIREHOL_CONFIG_DIR}/firehol-defaults.conf" || exit 1
 fi
 
-common_load_commands $PROGRAM_FILE @AUTOCONF_RUN@ <<-!
-Y|IP_CMD|@IP@|ip
-Y|BRIDGE_CMD|@BRIDGE@|bridge
-Y|GREP_CMD|@GREP@|grep
-Y|FIND_CMD|@FIND@|find
-Y|SH_CMD|@SH@|sh bash ksh
-Y|CUT_CMD|@CUT@|cut
-Y|CAT_CMD|@CAT@|cat
-Y|SED_CMD|@SED@|sed
-Y|TR_CMD|@TR@|tr
-Y|SLEEP_CMD|@SLEEP@|sleep
-Y|MKDIR_CMD|@MKDIR@|mkdir
-Y|RM_CMD|@RM@|rm
-Y|MKTEMP_CMD|@MKTEMP@|mktemp
-N|NEATO_CMD|@NEATO@|neato
-!
 status=$?
 test $status -eq 0 || exit $status
 

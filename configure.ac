@@ -18,21 +18,26 @@ AC_INIT([firehol],VERSION_NUMBER[]VERSION_SUFFIX,[firehol-devs@lists.firehol.org
 
 AC_CONFIG_MACRO_DIR([m4])
 AC_CONFIG_AUX_DIR([autotool])
-AC_CONFIG_SRCDIR([sbin/firehol.in])
-AC_CONFIG_SRCDIR([sbin/fireqos.in])
-AC_CONFIG_SRCDIR([sbin/link-balancer.in])
-AC_CONFIG_SRCDIR([sbin/update-ipsets.in])
-AC_CONFIG_SRCDIR([sbin/vnetbuild.in])
+AC_CONFIG_SRCDIR([sbin/firehol])
 AM_INIT_AUTOMAKE([gnu])
 AM_MAINTAINER_MODE([disable])
 
 dnl Checks for programs.
 AC_PROG_MAKE_SET
 
+dnl Check for functioning symbolic links
+AC_PROG_LN_S
+
 AM_CONDITIONAL([GIT_TREE], [test -f README.md])
 
 AX_FIREHOL_AUTOSAVE()
 AX_FIREHOL_AUTOSAVE6()
+
+AC_ARG_ENABLE([filename-versions],
+              [AS_HELP_STRING([--disable-filename-versions], [no versions on executable filenames @<:@enabled@:>@])],
+              ,
+              [enable_filename_versions="yes"])
+AM_CONDITIONAL([FILENAME_VERSIONS],[test "${enable_filename_versions}" = "yes"])
 
 AC_ARG_ENABLE([doc],
               [AS_HELP_STRING([--disable-doc], [disable doc installation @<:@enabled@:>@])],
@@ -147,6 +152,8 @@ if test x"$MAKEDIST_BUILD_ONLY" != xyes; then
 AX_NEED_EGREP()
 AX_NEED_GREP()
 AX_NEED_SED()
+AX_NEED_PROG([READLINK], [readlink], [])
+AX_NEED_PROG([DIRNAME], [dirname], [])
 if test x"$enable_firehol" = xyes; then
 AC_MSG_NOTICE([Detecting commands for firehol])
 AX_NEED_PROG([CAT], [cat], [])
@@ -154,14 +161,14 @@ AX_NEED_PROG([CHMOD], [chmod], [])
 AX_NEED_PROG([CHOWN], [chown], [])
 AX_NEED_PROG([CP], [cp], [])
 AX_NEED_PROG([CUT], [cut], [])
-AX_CHECK_PROG([DATE], [date], [])
+AX_NEED_PROG([DATE], [date], [])
 AX_NEED_PROG([EXPR], [expr], [])
 AX_NEED_PROG([FIND], [find], [])
 AX_NEED_PROG([FLOCK], [flock], [])
 AX_NEED_PROG([FOLD], [fold], [])
 AX_NEED_PROG([HEAD], [head], [])
-AX_CHECK_PROG([HOSTNAMECMD], [hostname], [])
-AX_CHECK_PROG([IP], [ip], [])
+AX_NEED_PROG([HOSTNAMECMD], [hostname], [])
+AX_NEED_PROG([IP], [ip], [])
 if test x"$enable_ipv6" = xyes; then
 AX_CHECK_PROG([IP6TABLES], [ip6tables], [])
 fi
@@ -196,11 +203,17 @@ AX_NEED_PROG([MORE], [cat], [])
 AX_NEED_PROG([MV], [mv], [])
 AX_CHECK_PROG([NFACCT], [nfacct], [])
 AX_CHECK_PROG([RENICE], [renice], [])
+if test x"$RENICE" = x; then
+AC_SUBST([RENICE], [:])
+fi
 AX_NEED_PROG([RM], [rm], [])
 AX_NEED_PROG([SLEEP], [sleep], [])
 AX_NEED_PROG([SORT], [sort], [])
-AX_CHECK_PROG([SS], [ss], [])
+AX_NEED_PROG([SS], [ss], [])
 AX_CHECK_PROG([STTY], [stty], [])
+if test x"$STTY" = x; then
+AC_SUBST([STTY], [:])
+fi
 AX_NEED_PROG([SYSCTL], [sysctl], [])
 AX_NEED_PROG([TAIL], [tail], [])
 AX_NEED_PROG([TOUCH], [touch], [])
@@ -211,7 +224,7 @@ AX_NEED_PROG([UNIQ], [uniq], [])
 AX_NEED_PROG([WC], [wc], [])
 AX_CHECK_PROG([ZCAT], [zcat], [])
 AX_CHECK_PROG([ZCAT], [gzcat], [])
-AX_CHECK_PROG([ZCAT], [gzip], [-dc])
+AX_NEED_PROG([ZCAT], [gzip], [-dc])
 fi
 if test x"$enable_fireqos" = xyes; then
 AC_MSG_NOTICE([Detecting commands for fireqos])
@@ -220,7 +233,7 @@ AX_NEED_PROG([CUT], [cut], [])
 AX_NEED_PROG([DATE], [date], [])
 AX_NEED_PROG([FLOCK], [flock], [])
 AX_CHECK_PROG([GAWK], [gawk], [])
-AX_CHECK_PROG([GAWK], [awk], [])
+AX_NEED_PROG([GAWK], [awk], [])
 AX_NEED_PROG([IP], [ip], [])
 AX_NEED_PROG([LOGGER], [logger], [])
 AX_NEED_PROG([LS], [ls], [])
@@ -284,7 +297,6 @@ AX_NEED_PROG([CURL], [curl], [])
 AX_NEED_PROG([CUT], [cut], [])
 AX_NEED_PROG([DATE], [date], [])
 AX_NEED_PROG([DIFF], [diff], [])
-AX_NEED_PROG([DIRNAME], [dirname], [])
 AX_NEED_PROG([FIND], [find], [])
 AX_NEED_PROG([FLOCK], [flock], [])
 AX_NEED_PROG([FOLD], [fold], [])
@@ -302,6 +314,9 @@ AX_NEED_PROG([MKDIR], [mkdir], [])
 AX_NEED_PROG([MKTEMP], [mktemp], [])
 AX_NEED_PROG([MV], [mv], [])
 AX_CHECK_PROG([RENICE], [renice], [])
+if test x"$RENICE" = x; then
+AC_SUBST([RENICE], [:])
+fi
 AX_NEED_PROG([RM], [rm], [])
 AX_NEED_PROG([SORT], [sort], [])
 AX_NEED_PROG([TAIL], [tail], [])
@@ -343,13 +358,12 @@ AX_CHECK_MINVER([IPRANGE_VERSION], MIN_IPRANGE_VERSION, [$IPRANGE],
                 [], [AC_MSG_ERROR(could not find required version of iprange - check http://firehol.org/download/iprange/)])
 fi
 
-AC_SUBST([AUTOCONF_RUN], [Y])
+AC_SUBST([firehollibexecdir], ["\$(libexecdir)/firehol/\$(PACKAGE_VERSION)"])
 
 AC_CONFIG_FILES([
 	Makefile
 	sbin/Makefile
-	sbin/commands.sed
-	sbin/firehol.in
+	sbin/install.config.in
 	m4/Makefile
 	doc/Makefile
 	doc/firehol/Makefile

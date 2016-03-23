@@ -80,7 +80,7 @@ Since all components will go under `/usr/local`, you may prefer something
 like this:
 
 ~~~~
-./configure --prefix=/usr --sysconfdir=/etc --localstatedir=/var 
+./configure --prefix=/usr --sysconfdir=/etc --localstatedir=/var --libexecdir=/usr/lib
 make
 make install
 ~~~~

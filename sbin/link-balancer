@@ -25,31 +25,28 @@
 #       See the file COPYING for details.
 #
 
-VERSION='$Id$'
-PROGRAM_FILE="${0}"
-PROGRAM_DIR="${0%/*}"
-if [ "$PROGRAM_DIR" = "$0" ]; then PROGRAM_DIR="."; fi
+PROGRAM_FILE="$(/bin/readlink $0)"
+PROGRAM_FILE="${PROGRAM_FILE:-$0}"
+if [ -d "${FIREHOL_OVERRIDE_PROGRAM_DIR}" ]
+then
+	PROGRAM_DIR="${FIREHOL_OVERRIDE_PROGRAM_DIR}"
+else
+	PROGRAM_DIR="$(/usr/bin/dirname "$PROGRAM_FILE")"
+fi
 PROGRAM_PWD="${PWD}"
 declare -a PROGRAM_ORIGINAL_ARGS=("${@}")
 
-# Start defaults before configure
-prefix_POST=/usr
-sysconfdir_POST=/etc
-localstatedir_POST=/var
-libdir_POST=$PROGRAM_DIR
-# End defaults before configure
-for functions_file in $libdir_POST/functions.common.sh
+for functions_file in install.config functions.common
 do
-	if [ -r $functions_file ]
+	if [ -r "$PROGRAM_DIR/$functions_file" ]
 	then
-		source $functions_file
+		source "$PROGRAM_DIR/$functions_file"
 	else
-		1>&2 echo "Cannot access $functions_file"
+		1>&2 echo "Cannot access $PROGRAM_DIR/$functions_file"
 		exit 1
 	fi
 done
 
-FIREHOL_CONFIG_DIR="$sysconfdir_POST/firehol"
 common_disable_localization || exit
 common_private_umask || exit
 common_require_root || exit
@@ -63,7 +60,7 @@ if [ "$LB_DEBUGGING" ]; then set -v; set -x; fi
 # link-balancer temporary directory.
 # every instance of link-balancer creates a random directory
 # within this one.
-LB_RUN_DIR="/var/run/link-balancer"
+LB_RUN_DIR="$LOCALSTATEDIR/run/link-balancer"
 
 # If this is set to 1, no checks will be made if the gateways are available.
 # All gateways will be assumed active, if their interfaces are found
@@ -111,44 +108,6 @@ fi
 
 # temporary variable (default LB_DEFAULT_IPV=4)
 LB_IPV=
-
-# Load commands link-balancer will need.
-
-common_load_commands $PROGRAM_FILE @AUTOCONF_RUN@ <<-!
-Y|IP_CMD|@IP@|ip
-Y|DIFF_CMD|@DIFF@|diff
-Y|FLOCK_CMD|@FLOCK@|flock
-Y|GREP_CMD|@GREP@|grep
-Y|EGREP_CMD|@EGREP@|egrep 'grep -E'
-Y|CUT_CMD|@CUT@|cut
-Y|CAT_CMD|@CAT@|cat
-Y|SED_CMD|@SED@|sed
-Y|TR_CMD|@TR@|tr
-Y|LN_CMD|@LN@|ln
-Y|LS_CMD|@LS@|ls
-Y|SLEEP_CMD|@SLEEP@|sleep
-Y|TOUCH_CMD|@TOUCH@|touch
-Y|LOGGER_CMD|@LOGGER@|logger
-Y|MKDIR_CMD|@MKDIR@|mkdir
-Y|CHOWN_CMD|@CHOWN@|chown
-Y|CHMOD_CMD|@CHMOD@|chmod
-Y|RM_CMD|@RM@|rm
-Y|PING_CMD|@PING@|ping
-Y|PING6_CMD|@PING6@|ping6 'ping -6'
-Y|TRACEROUTE_CMD|@TRACEROUTE@|traceroute
-Y|SORT_CMD|@SORT@|sort
-Y|MKTEMP_CMD|@MKTEMP@|mktemp
-Y|ENV_CMD|@ENV@|env
-N|WHOIS_CMD|@WHOIS@|whois
-N|JQ_CMD|@JQ@|jq
-N|HEAD_CMD|@HEAD@|head
-N|TPUT_CMD|@TPUT@|tput
-N|WGET_CMD|@WGET@|wget
-N|SCREEN_CMD|@SCREEN@|screen
-Y|IPRANGE_CMD|@IPRANGE@|iprange
-!
-status=$?
-test $status -eq 0 || exit $status
 
 RUNNING_ON_TERMINAL=0
 if [ "z$1" = "z-nc" ]
@@ -209,7 +168,7 @@ declare -A MARKS_MASKS='([connmark]="0x0000003f" [usermark]="0x00001fc0" )'
 declare -A MARKS_MAX='([connmark]="63" [usermark]="127" )'
 declare -A MARKS_SHIFT='([connmark]="0" [usermark]="6" )'
 
-FIREHOL_SPOOL_DIR="${FIREHOL_SPOOL_DIR-/var/spool/firehol}"
+FIREHOL_SPOOL_DIR="${FIREHOL_SPOOL_DIR-$LOCALSTATEDIR/spool/firehol}"
 if [ -f "${FIREHOL_SPOOL_DIR}/marks.conf" ]
 then
 	source "${FIREHOL_SPOOL_DIR}/marks.conf" || exit 1
@@ -1888,7 +1847,7 @@ policy
 # You can also have all the IPs in separate files:
 # Run:
 #
-#  ${PROGRAM_FILE} asips ONE_IP_OF_YOUR_PROVIDER_1 >$sysconfdir_POST/firehol/PROVIDER1_IPS
+#  ${PROGRAM_FILE} asips ONE_IP_OF_YOUR_PROVIDER_1 >$SYSCONFDIR/firehol/PROVIDER1_IPS
 #
 # Then:
 	rules dst loadfile PROVIDER1_IPS table dsl1

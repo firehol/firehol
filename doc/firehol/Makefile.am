@@ -151,9 +151,7 @@ FORMATTABLE = ${top_srcdir}/doc/tools/format-table
 PANDOCPOST = ${top_srcdir}/doc/tools/pandoc-post
 CHECKLINKS = ${top_srcdir}/doc/tools/check-links
 
-FIREHOLIN = $(top_srcdir)/sbin/firehol.in
-
-firehol-services.5.md: $(FIREHOLIN) ../services-db.data ../service-links
+firehol-services.5.md: $(top_srcdir)/sbin/firehol ../services-db.data ../service-links
 	$(MKSERVICEMAN) firehol-services.5.md $+
 
 contents.md: *.1.md *.5.md contents.tpl

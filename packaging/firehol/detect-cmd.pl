@@ -12,7 +12,7 @@ use File::Basename;
 if (@ARGV == 0) {
   print "Usage: ./packaging/firehol/detect-cmd.pl configure.ac sbin/file.in ...\n";
   print "\n";
-  print "Finds usages of commands which should be converted to \$COMMAND_CMD format\n";
+  print "Finds usages of commands which should be converted to \@COMMAND\@ format\n";
   exit 0;
 }
 

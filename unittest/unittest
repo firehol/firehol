@@ -40,6 +40,14 @@ then
   haderror="Y"
 fi
 
+if [ ! -f ../sbin/install.config.in ]
+then
+  echo "../sbin/install.config.in missing: run configure"
+  echo ""
+  haderror="Y"
+fi
+
+
 if [ "$haderror" -o $# -lt 1 ]
 then
   if [ "$haderror" ]
@@ -51,23 +59,6 @@ then
   echo ""
   echo "Example use of strace: see all non-absolute path executions:"
   echo "  grep 'execve[^,]*, \[\"[^/]' strace.*.txt | less"
-  exit 1
-fi
-
-# First set up our namespace so we can write where we need to
-mount -t tmpfs tmpfs /etc/firehol || exit 1
-mkdir /var/run/firehol || exit 1
-mkdir /var/spool/firehol || exit 1
-mkdir /var/run/firehol/webdir || exit 1
-
-# Check the files are gone
-if [ -f /etc/firehol/firehol.conf \
-  -o -f /etc/firehol/firehol-defaults.conf \
-  -o -f /etc/firehol/fireqos.conf \
-  -o -f /etc/firehol/link-balancer.conf \
-  -o -d /etc/firehol/services ]
-then
-  echo "Namespace switch failed! Aborting!"
   exit 1
 fi
 
@@ -88,8 +79,7 @@ then
             echo >&2
             exit 1
 fi
-
-ETCSAVE=/etc/firehol.save$$
+export MYTMP
 
 myexit() {
   rm -f /var/run/firehol.lck
@@ -103,6 +93,12 @@ trap myexit 0
 
 TESTDIR=`pwd`/
 export TESTDIR
+
+# Force the programs to find our special configuration
+export FIREHOL_OVERRIDE_PROGRAM_DIR=$MYTMP/prog
+mkdir -p "$FIREHOL_OVERRIDE_PROGRAM_DIR"
+sed -e "s#[@].*POST[@]#$MYTMP#" ../sbin/install.config.in > "$FIREHOL_OVERRIDE_PROGRAM_DIR/install.config"
+cp ../sbin/functions.* "$FIREHOL_OVERRIDE_PROGRAM_DIR"
 
 kcov=`which kcov 2> /dev/null`
 if [ "$kcov" ]
@@ -256,7 +252,7 @@ do
   then
     echo "Cannot determine program for $conf"
   else
-    script=../sbin/${program}.in
+    script=../sbin/${program}
     export script
     total=$((total + 1))
 
@@ -266,8 +262,8 @@ do
     fi
 
     # Define our configuration directory exactly as we want it
-    # note: we are running in a namespace with /etc/firehol as a tmpfs
-    rm -rf /etc/firehol/*
+    rm -rf $MYTMP/firehol
+    mkdir $MYTMP/firehol
 
     # Default special cases:
     #  - egrep because /sbin/egrep makes use of PATH to find 'grep -E'
@@ -276,7 +272,7 @@ do
     #  - LB_RUN_DIR + FIREQOS_LOCK_FILE + FIREQOS_DIR + RUN_PARENT_DIR etc.
     #     keep within our mounts
     #  - PATH reset to ensure it is off (some programs reset it)
-    cat > /etc/firehol/firehol-defaults.conf <<-!
+    cat > $MYTMP/firehol/firehol-defaults.conf <<-!
 		EGREP_CMD='/bin/grep -E'
 		LOGGER_CMD='/bin/echo logger:'
 		LB_RUN_DIR=/var/run/firehol/link-balancer
@@ -296,7 +292,7 @@ do
       "$pre_sh" "$conf"
     else
       # Or just take the defaults
-      mkdir -p /etc/firehol/services
+      mkdir -p $MYTMP/firehol/services
     fi
 
     # Run the script
@@ -313,7 +309,7 @@ do
           status=$?
         ;;
         link-balancer|update-ipsets)
-          cp "$conf" /etc/firehol/${program}.conf
+          cp "$conf" $MYTMP/firehol/${program}.conf
           $kcov "$script" > "$runlog" 2>&1 < /dev/null
           status=$?
         ;;
@@ -332,7 +328,7 @@ do
     then
       errors=$((errors + 1))
       echo "Unexpected run error - check $runlog"
-    elif grep -q '\.in: line [0-9]*:' "$runlog"
+    elif grep -q ': line [0-9]*:' "$runlog"
     then
       errors=$((errors + 1))
       echo "Unexpected runtime errors - check $runlog"

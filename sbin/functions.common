@@ -1,0 +1,99 @@
+#
+#   Copyright
+#
+#       Copyright (C) 2003-2014 Costa Tsaousis <costa@tsaousis.gr>
+#       Copyright (C) 2012-2014 Phil Whineray <phil@sanewall.org>
+#
+#   See sbin/firehol.in for details
+#
+#   This file contains functions used by the firehol suite.
+#   To keep the namespace clean, functions defined in functions.x.sh
+#   should be of the form x_whatever() if they are intended for general
+#   use or int_x_whatever() if they are intended as helpers to the other
+#   functions in the file.
+#
+
+common_require_cmd() {
+	local progname="$1" var="$2" val=
+
+	eval val=\$\{${var}\}
+	if [ "${val}" ]
+	then
+		return 0
+	fi
+
+	$CAT_CMD  >&2 <<-__EOF__
+		ERROR: $progname feature requires $var
+
+		You have invoked the program requesting a feature which uses
+		a program which was not available when $progname was installed.
+
+		Please re-install $progname with a suitable command available.
+		__EOF__
+
+	exit 1
+}
+
+common_require_root() {
+	if [ "${UID}" != 0 ]
+	then
+		echo >&2
+		echo >&2 "ERROR:"
+		echo >&2 "Only user root can run ${1}"
+		echo >&2
+		return 1
+	fi
+	return 0
+}
+
+common_disable_localization() {
+	export LC_ALL=C
+}
+
+common_private_umask() {
+	# Make sure our generated files cannot be accessed by anyone else.
+	umask 077
+}
+
+common_public_umask() {
+	# let everyone read our status info
+	umask 022
+}
+
+common_setup_terminal() {
+	# Are stdout/stderr on the terminal? If not, then fail
+	test -t 2 || return 1
+	test -t 1 || return 1
+
+	if [ ! -z "$TPUT_CMD" ]
+	then
+		if [ $[$($TPUT_CMD colors 2>/dev/null)] -ge 8 ]
+		then
+			# Enable colors
+			COLOR_RESET="\e[0m"
+			COLOR_BLACK="\e[30m"
+			COLOR_RED="\e[31m"
+			COLOR_GREEN="\e[32m"
+			COLOR_YELLOW="\e[33m"
+			COLOR_BLUE="\e[34m"
+			COLOR_PURPLE="\e[35m"
+			COLOR_CYAN="\e[36m"
+			COLOR_WHITE="\e[37m"
+			COLOR_BGBLACK="\e[40m"
+			COLOR_BGRED="\e[41m"
+			COLOR_BGGREEN="\e[42m"
+			COLOR_BGYELLOW="\e[43m"
+			COLOR_BGBLUE="\e[44m"
+			COLOR_BGPURPLE="\e[45m"
+			COLOR_BGCYAN="\e[46m"
+			COLOR_BGWHITE="\e[47m"
+			COLOR_BOLD="\e[1m"
+			COLOR_DIM="\e[2m"
+			COLOR_UNDERLINED="\e[4m"
+			COLOR_BLINK="\e[5m"
+			COLOR_INVERTED="\e[7m"
+		fi
+	fi
+
+	return 0
+}

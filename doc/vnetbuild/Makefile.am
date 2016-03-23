@@ -62,8 +62,6 @@ COMBINEPANDOC = ${top_srcdir}/doc/tools/combine-pandoc
 PANDOCPOST = ${top_srcdir}/doc/tools/pandoc-post
 CHECKLINKS = ${top_srcdir}/doc/tools/check-links
 
-FIREHOLIN = $(top_srcdir)/sbin/firehol.in
-
 man/man1/%.1: %.1.md
 	$(MKDIR_P) man/man1
 	$(SED) -e '/^%/s/DATE/@PACKAGE_BUILT_DATE@/' -e '/^%/s/VERSION/@PACKAGE_VERSION@/' $< > tmp-manproc

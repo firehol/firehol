@@ -11,14 +11,15 @@ firehol_check_file() {
     sbin/Makefile.in)
       :
     ;;
-    configure.ac|sbin/commands.sed.in)
-      check_commands sbin/firehol.in || status=1
-      check_commands sbin/fireqos.in || status=1
-      check_commands sbin/link-balancer.in || status=1
-      check_commands sbin/update-ipsets.in || status=1
-      check_commands sbin/vnetbuild.in || status=1
+    configure.ac|sbin/install.config.in.in)
+      check_commands sbin/firehol || status=1
+      check_commands sbin/fireqos || status=1
+      check_commands sbin/link-balancer || status=1
+      check_commands sbin/update-ipsets || status=1
+      check_commands sbin/vnetbuild || status=1
+      check_detection_useful sbin/firehol sbin/fireqos sbin/link-balancer sbin/update-ipsets  sbin/vnetbuild || status=1
     ;;
-    sbin/*.in)
+    sbin/firehol|sbin/fireqos|sbin/link-balancer|sbin/update-ipsets|sbin/vnetbuild)
       check_commands $filename || status=1
     ;;
     doc/services-db.data)
@@ -50,8 +51,8 @@ check_commands() {
 
   get_staged_file $1
   get_staged_file configure.ac
-  get_staged_file sbin/commands.sed.in
-  get_staged_file sbin/functions.common.sh
+  get_staged_file sbin/install.config.in.in
+  get_staged_file sbin/functions.common
 
   # Find commands that have been enclosed in quotes and remove anything after
   #  if nothing matched the substitution, proceed to the next line
@@ -98,39 +99,24 @@ check_commands() {
     cat $MYTMP/errors
   fi
 
-  sed -n -e "s/^	*[YN]|//p" $MYTMP/files/$1 > $MYTMP/commands-defined
+  sed -n -e 's/\(.*_CMD\)="[@]\(.*\)[@]"/\1 \2/p' $MYTMP/files/sbin/install.config.in.in > $MYTMP/commands-defined
+
   for cmd in $(tr " " "\n" < $MYTMP/files/$1 |
-             sed -n -e 's/.*\(\<[A-Z0-9_]*\)_CMD.*/\1/p' | sort | uniq)
+             sed -n -e 's/.*\(\<[A-Z0-9_]*_CMD\).*/\1/p' | sort | uniq)
   do
-    if ! grep -q "^${cmd}_CMD|" $MYTMP/commands-defined
+    autocmd=`grep "^${cmd} " $MYTMP/commands-defined | cut -f2 -d' '`
+    if [ ! "$autocmd" ]
     then
       status=1
-      echo "Missing definition of $cmd in $1 detection table."
+      echo "sbin/install.config.in.in: missing definition of $cmd (for $1)"
     fi
 
-    # Hostname is a special case - configure will expand it to running host,
-    # overwriting the value we wanted to use.
-    if [ "$cmd" = "HOSTNAME" ]; then cmd="HOSTNAMECMD"; fi
-    if ! grep -q "_${cmd}(\|\[$cmd\]" $MYTMP/files/configure.ac
+    if ! grep -q "_${autocmd}(\|\[$autocmd\]" $MYTMP/files/configure.ac
     then
       status=1
-      echo "Missing detection of $cmd for $1 in configure.ac"
+      echo "configure.ac: missing detection of $autocmd (for $1)"
     fi
   done
-
-  while IFS="|" read cmd subst defaults
-  do
-    if ! grep -q "\${*$cmd" $MYTMP/files/$1 $MYTMP/files/sbin/*.sh
-    then
-      status=1
-      echo "$cmd detected but never used in $1 or function libraries"
-    fi
-    if ! grep -q "#$subst#" $MYTMP/files/sbin/commands.sed.in
-    then
-      status=1
-      echo "$cmd detected but $subst never substituted by sbin/commands.sed.in"
-    fi
-  done < $MYTMP/commands-defined
 
   (
    a=`pwd`
@@ -140,4 +126,38 @@ check_commands() {
   if [ -f $MYTMP/detect ]; then status=1; fi
 
   return $status
+}
+
+check_detection_useful() {
+  local status=0
+
+  touch $MYTMP/commands-checked
+  if grep -q -F -z "$1" $MYTMP/commands-checked
+  then
+    # Only check a file once - an edit to some files checks multiple
+    return 0
+  else
+    echo "$1" >> $MYTMP/commands-checked
+  fi
+
+  list=
+  for i in "$@"
+  do
+    get_staged_file $1
+    list="$list $MYTMP/files/$1"
+  done
+  get_staged_file configure.ac
+  get_staged_file sbin/install.config.in.in
+  get_staged_file sbin/functions.common
+
+  sed -n -e 's/\(.*_CMD\)="[@]\(.*\)[@]"/\1 \2/p' $MYTMP/files/sbin/install.config.in.in > $MYTMP/commands-defined
+
+  while read cmd subst
+  do
+    if ! grep -q "\${*$cmd" $list $MYTMP/files/sbin/functions.*
+    then
+      status=1
+      echo "$cmd detected but never used in $1 or function libraries"
+    fi
+  done < $MYTMP/commands-defined
 }

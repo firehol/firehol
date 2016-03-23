@@ -1,38 +1,11 @@
 # Process this file with automake to produce Makefile.in
 
-libarchinddir = $(prefix)/lib
 
-scriptsin = \
-	firehol.in \
-	fireqos.in \
-	link-balancer.in \
-	update-ipsets.in \
-	vnetbuild.in
+inclibdir = @firehollibexecdir@
 
-inclibdir = $(libarchinddir)/firehol
+include $(top_srcdir)/build/subst.inc
 
 SUFFIXES = .in
-.in:
-	if [ "$@" = "commands.sed.in" ]; then \
-		true; \
-	elif sed \
-		-e '/^# Start defaults before configure/,/^# End/d' \
-		-e 's#[$$]prefix_POST#$(prefix)#g' \
-		-e 's#[$$]bindir_POST#$(bindir)#g' \
-		-e 's#[$$]libdir_POST#$(inclibdir)#g' \
-		-e 's#[$$]localstatedir_POST#$(localstatedir)#g' \
-		-e 's#[$$]sysconfdir_POST#$(sysconfdir)#g' \
-		-f commands.sed \
-		$< > $@.tmp; then \
-		mv "$@.tmp" "$@"; \
-		chmod 755 "$@"; \
-        else \
-		rm -f "$@.tmp"; \
-		false; \
-	fi
-
-inclib_DATA = \
-	functions.common.sh
 
 scripts =
 if ENABLE_FIREHOL
@@ -55,12 +28,29 @@ if ENABLE_VNETBUILD
 scripts += vnetbuild
 endif
 
-sbin_SCRIPTS = $(scripts)
+CLEANFILES = install.config
+
+inclib_DATA = \
+	functions.common \
+	install.config \
+	$(NULL)
+
+inclib_SCRIPTS = $(scripts)
 
 EXTRA_DIST = \
-	commands.sed.in \
-	$(scriptsin) \
-	$(inclib_DATA)
+	functions.common \
+	install.config.in \
+	$(scripts) \
+	$(NULL)
 
-uninstall-local:
+install-exec-hook:
+	$(MKDIR_P) $(DESTDIR)$(sbindir)
+	for i in $(scripts); do \
+		$(RM) -f $(DESTDIR)$(sbindir)/$$i; \
+		$(LN_S) $(DESTDIR)$(inclibdir)/$$i $(DESTDIR)$(sbindir); done
+
+uninstall-hook:
+	for i in $(scripts); do \
+		$(RM) -f $(DESTDIR)$(sbindir)/$$i; done
 	@-rmdir --ignore-fail-on-non-empty $(DESTDIR)$(inclibdir)
+	@-rmdir --ignore-fail-on-non-empty $(DESTDIR)$(sbindir)
