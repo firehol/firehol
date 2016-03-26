@@ -4373,7 +4373,7 @@ update sslbl_aggressive 30 0 ipv4 ip \
 # by abuse.ch
 
 parse_ransomwaretracker_feed() {
-	sed -e 's/^[[:space:]]*#.*//g' \
+	$SED_CMD -e 's/^[[:space:]]*#.*//g' \
 		-e 's/"\(.*\)","\(.*\)","\(.*\)","\(.*\)","\(.*\)","\(.*\)","\(.*\)","\(.*\)","\(.*\)","\(.*\)"/\8/g' \
 		-e 's/|/\n/g'
 }
