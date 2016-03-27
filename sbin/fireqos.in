@@ -2440,17 +2440,17 @@ match() {
 	sport="$(expand_ports ${sport})"
 	dport="$(expand_ports ${dport})"
 
-	[ -z "${proto}" ]	&& error "Cannot accept empty protocol."		&& return 1
-	[ -z "${port}" ]	&& error "Cannot accept empty ports."			&& return 1
+	[ -z "${proto}" ]	&& error "Cannot accept empty protocol."			&& return 1
+	[ -z "${port}" ]	&& error "Cannot accept empty ports."				&& return 1
 	[ -z "${sport}" ]	&& error "Cannot accept empty source ports."		&& return 1
 	[ -z "${dport}" ]	&& error "Cannot accept empty destination ports."	&& return 1
-	[ -z "${src}" ]		&& error "Cannot accept empty source IPs."		&& return 1
+	[ -z "${src}" ]		&& error "Cannot accept empty source IPs."			&& return 1
 	[ -z "${dst}" ]		&& error "Cannot accept empty destination IPs."		&& return 1
-	[ -z "${ip}" ]		&& error "Cannot accept empty IPs."			&& return 1
-	[ -z "${tos}" ]		&& error "Cannot accept empty TOS."			&& return 1
-	[ -z "${dscp}" ]		&& error "Cannot accept empty DSCP."			&& return 1
-	[ -z "${mark}" ]	&& error "Cannot accept empty MARK."			&& return 1
-	[ -z "${srcmac}" ] 	&& error "Cannot accept empty source MAC."		&& return 1
+	[ -z "${ip}" ]		&& error "Cannot accept empty IPs."					&& return 1
+	[ -z "${tos}" ]		&& error "Cannot accept empty TOS."					&& return 1
+	[ -z "${dscp}" ]	&& error "Cannot accept empty DSCP."				&& return 1
+	[ -z "${mark}" ]	&& error "Cannot accept empty MARK."				&& return 1
+	[ -z "${srcmac}" ] 	&& error "Cannot accept empty source MAC."			&& return 1
 	[ -z "${dstmac}" ] 	&& error "Cannot accept empty destination MAC."		&& return 1
 
 	[ ! "${port}" = "any" -a ! "${sport}" = "any" ]	&& error "Cannot match 'port' and 'sport'." && exit 1
@@ -2918,7 +2918,7 @@ match() {
 				tos_value="0x38"
 				tos_mask="0x38"
 				;;
-         AF21)
+			AF21)
 				tos_value="0x48"
 				tos_mask="0x48"
 				;;
@@ -2930,7 +2930,7 @@ match() {
 				tos_value="0x58"
 				tos_mask="0x58"
 				;;
-         AF31)
+			AF31)
 				tos_value="0x68"
 				tos_mask="0x68"
 				;;
@@ -2942,7 +2942,7 @@ match() {
 				tos_value="0x78"
 				tos_mask="0x78"
 				;;
-         AF41)
+			AF41)
 				tos_value="0x88"
 				tos_mask="0x88"
 				;;
@@ -2954,7 +2954,7 @@ match() {
 				tos_value="0x98"
 				tos_mask="0x98"
 				;;
-         EF)
+			EF)
 				tos_value="0xB8"
 				tos_mask="0xB8"
 				;;
@@ -3052,10 +3052,23 @@ match() {
 	fi
 
 	tc filter add \
-		dev ${device} parent ${parent} protocol ${tcproto_arg} prio ${prio} \
+		dev ${device} \
+		parent ${parent} \
+		protocol ${tcproto_arg} \
+		prio ${prio} \
 		${estimator} \
 		${u32} \
-		${proto_arg} ${ip_arg} ${src_arg} ${dst_arg} ${port_arg} ${sport_arg} ${dport_arg} ${tos_arg} ${ack_arg} ${syn_arg} ${mark_arg} \
+		${proto_arg} \
+		${ip_arg} \
+		${src_arg} \
+		${dst_arg} \
+		${port_arg} \
+		${sport_arg} \
+		${dport_arg} \
+		${tos_arg} \
+		${ack_arg} \
+		${syn_arg} \
+		${mark_arg} \
 		${smac_arg} \
 		${dmac_arg} \
 		${custom} \
