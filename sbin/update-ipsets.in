@@ -5271,14 +5271,14 @@ update vxvault $[12 * 60] 0 ipv4 ip \
 update bitcoin_blockchain_info 10 "$[24*60] $[7*24*60] $[30*24*60]" ipv4 ip \
 	"https://blockchain.info/en/connected-nodes" \
 	extract_ipv4_from_any_file \
-	"reputation" \
+	"organizations" \
 	"[Blockchain.info](https://blockchain.info/en/connected-nodes) Bitcoin nodes connected to Blockchain.info." \
 	"Blockchain.info" "https://blockchain.info/en/connected-nodes"
 
 update bitcoin_nodes 10 "$[24*60] $[7*24*60] $[30*24*60]" ipv4 ip \
 	"https://getaddr.bitnodes.io/api/v1/snapshots/latest/" \
 	extract_ipv4_from_any_file \
-	"reputation" \
+	"organizations" \
 	"[BitNodes](https://getaddr.bitnodes.io/) Bitcoin connected nodes, globally." \
 	"BitNodes" "https://getaddr.bitnodes.io/"
 
@@ -5398,7 +5398,7 @@ update graphiclineweb $[24*60] 0 ipv4 both \
 	"https://graphiclineweb.wordpress.com/tech-notes/ip-blacklist/" \
 	parse_graphiclineweb \
 	"abuse" \
-	"[GraphiclineWeb](https://graphiclineweb.wordpress.com/tech-notes/ip-blacklist/) The IP’s, Hosts and Domains listed in this table are banned universally from accessing websites controlled by the maintainer. Some form of bad activity has been seen from the addresses listed. Bad activity includes: unwanted spiders, rule breakers, comment spammers, trackback spammers, spambots, hacker bots, registration bots and other scripting attackers, harvesters, nuisance spiders, spy bots and organisations spying on websites for commercial reasons." \
+	"[GraphiclineWeb](https://graphiclineweb.wordpress.com/tech-notes/ip-blacklist/) The IP’s, Hosts and Domains listed in this table are banned universally from accessing websites controlled by the maintainer. Some form of bad activity has been seen from the addresses listed. Bad activity includes: unwanted spiders, rule breakers, comment spammers, trackback spammers, spambots, hacker bots, registration bots and other scripting attackers, harvesters, nuisance spiders, spy bots and organizations spying on websites for commercial reasons." \
 	"GraphiclineWeb" "https://graphiclineweb.wordpress.com/tech-notes/ip-blacklist/"
 
 
@@ -5629,7 +5629,7 @@ update iblocklist_badpeers $[12*60] 0 ipv4 both \
 update iblocklist_hijacked $[12*60] 0 ipv4 both \
 	"http://list.iblocklist.com/?list=usrcshglbiilevmyfhse&fileformat=p2p&archiveformat=gz" \
 	p2p_gz \
-	"reputation" \
+	"attacks" \
 	"Hijacked IP-Blocks. Contains hijacked IP-Blocks and known IP-Blocks that are used to deliver Spam. This list is a combination of lists with hijacked IP-Blocks. Hijacked IP space are IP blocks that are being used without permission by organizations that have no relation to original organization (or its legal successor) that received the IP block. In essence it's stealing of somebody else's IP resources." \
 	"iBlocklist.com" "https://www.iblocklist.com/" \
 	dont_redistribute
@@ -5709,7 +5709,7 @@ update iblocklist_org_microsoft $[12*60] 0 ipv4 both \
 update iblocklist_spider $[12*60] 0 ipv4 both \
 	"http://list.iblocklist.com/?list=mcvxsnihddgutbjfbghy&fileformat=p2p&archiveformat=gz" \
 	p2p_gz \
-	"organizations" \
+	"reputation" \
 	"IP list intended to be used by webmasters to block hostile spiders from their web sites." \
 	"iBlocklist.com" "https://www.iblocklist.com/" \
 	dont_redistribute
@@ -5717,7 +5717,7 @@ update iblocklist_spider $[12*60] 0 ipv4 both \
 update iblocklist_dshield $[12*60] 0 ipv4 both \
 	"http://list.iblocklist.com/?list=xpbqleszmajjesnzddhv&fileformat=p2p&archiveformat=gz" \
 	p2p_gz \
-	"reputation" \
+	"attacks" \
 	"known Hackers and such people." \
 	"iBlocklist.com" "https://www.iblocklist.com/" \
 	dont_redistribute
@@ -5794,7 +5794,7 @@ update iblocklist_yoyo_adservers $[12*60] 0 ipv4 both \
 update iblocklist_spamhaus_drop $[12*60] 0 ipv4 both \
 	"http://list.iblocklist.com/?list=zbdlwrqkabxbcppvrnos&fileformat=p2p&archiveformat=gz" \
 	p2p_gz \
-	"reputation" \
+	"attacks" \
 	"Spamhaus.org DROP (Don't Route Or Peer) list." \
 	"iBlocklist.com" "https://www.iblocklist.com/"
 
@@ -6089,7 +6089,7 @@ update gpf_comics $[24*60] 0 ipv4 ip \
 	"https://www.gpf-comics.com/dnsbl/export.php" \
 	remove_comments \
 	"abuse" \
-	"The GPF DNS Block List is a list of IP addresses on the Internet that have attacked the [GPF Comics](http://www.gpf-comics.com/) family of Web sites. IPs on this block list have been banned from accessing all of our servers because they were caught in the act of spamming, attempting to exploit our scripts, scanning for vulnerabilities, or consuming resources to the detriment of our human visitors. For more information about this block list, please see the additional links at the bottom of this page." \
+	"The GPF DNS Block List is a list of IP addresses on the Internet that have attacked the [GPF Comics](http://www.gpf-comics.com/) family of Web sites. IPs on this block list have been banned from accessing all of our servers because they were caught in the act of spamming, attempting to exploit our scripts, scanning for vulnerabilities, or consuming resources to the detriment of our human visitors." \
 	"GPF Comics" "https://www.gpf-comics.com/dnsbl/" \
 	downloader_options "--data 'ipv6=0&export_type=text&submit=Export'"
 
