@@ -564,8 +564,8 @@
 						data-show-columns="true"
 						data-show-pagination-switch="true"
 						data-pagination="true"
-						data-page-size="100"
-						data-page-list="[100, 200, 300, 400, 500, 1000]">
+						data-page-size="150"
+						data-page-list="[150, 300, 500, 1000, 2000, 5000]">
 						<thead>
 						<tr>
 							<th class="col-xs-2 hidden-xs hidden-md" data-field="category" data-halign="left"  data-align="left"  data-sortable="true">Category</th>
@@ -1243,7 +1243,7 @@ function drawretention(ipset, container_age, container_retention) {
 		}
 
 		if(!data.past.total || !data.past.ips.length) {
-			$(container_retention).html(charterror('No IPs have been removed from <code>' + data.ipset + '</code> since we started monitoring it<br/>(we started at ' + new Date(data.started).toString() + ').<br/>We will report retention, once the list maintainers remove a few IPs from the list.'));
+			$(container_retention).html(charterror('No IPs have been added and removed from <code>' + data.ipset + '</code> since we started monitoring it<br/>(we started at ' + new Date(data.started).toString() + ').<br/>We will report retention, once the list maintainers remove a few IPs that have been added after we started monitoring it.'));
 		}
 		else {
 			var overheads = 0;
