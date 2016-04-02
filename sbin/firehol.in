@@ -6105,7 +6105,7 @@ then
 fi
 
 # Did we managed to find the kernel configuration?
-if [ ! -z "{$KERNEL_CONFIG}" -a -s "${FIREHOL_DIR}/kcfg" ]
+if [ ! -z "${KERNEL_CONFIG}" -a -s "${FIREHOL_DIR}/kcfg" ]
 then
 	# We found a kernel configuration
 	
