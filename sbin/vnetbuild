@@ -66,9 +66,26 @@ test $status -eq 0 || exit $status
 
 needroot=Y
 haderror=""
-#gvprog=dot
-#gvprog=sfdp
-gvprog=$NEATO_CMD
+#gvprog=$NEATO_CMD
+gvprog=$DOT_CMD
+
+gv_devices_left_right=
+if [ "$gv_devices_left_right" ]
+then
+  # Format graph as host | dev1 | dev2 | ...
+  gvdevdownopen=""
+  gvdevdownclose=""
+else
+  # Format graph as host
+  #                 dev1
+  #                 dev2
+  #                 ...
+  gvdevdownopen="{"
+  gvdevdownclose="}"
+fi
+
+gv_label_outside="Y"
+gv_label_outside=""
 
 setup="$1"
 mode="$2"
@@ -85,6 +102,7 @@ case "$mode" in
   ;;
   graphviz)
     common_require_cmd $PROGRAM_FILE NEATO_CMD
+    common_require_cmd $PROGRAM_FILE DOT_CMD
     needroot=
     case "$outfile" in
       *.gv|"")
@@ -100,6 +118,10 @@ case "$mode" in
       ;;
       *.png)
         format=png
+        graphviz="$gvprog -T$format"
+      ;;
+      *.svg)
+        format=svg
         graphviz="$gvprog -T$format"
       ;;
       *)
@@ -186,22 +208,40 @@ $SED_CMD = "$setup" > $MYTMP/withnum
 
 $MKDIR_CMD $MYTMP/ns
 $MKDIR_CMD $MYTMP/runtime-lines
+$MKDIR_CMD $MYTMP/clusters
+> $MYTMP/clusterlist
 
 current_name=
  
+declare_namespace() {
+  errline=$lineno
+  local current_name="$1"
+
+  local NSTMP=$MYTMP/ns/$current_name
+  if [ -d $NSTMP ]
+  then
+    return 0
+  fi
+  $MKDIR_CMD $NSTMP
+  echo $errline > $NSTMP/undefined
+
+  $MKDIR_CMD $NSTMP/devices
+  $MKDIR_CMD $NSTMP/devicepairs
+}
+
 create_namespace() {
   errline=$lineno
-  local type="$1"
-  current_name="$2"
+  current_name="$1"
+  local type="$2"
+
   NSTMP=$MYTMP/ns/$current_name
-  if [ -d $NSTMP ]
+  if [ ! -f $NSTMP/undefined ]
   then
     error="$current_name: $($CAT_CMD $NSTMP/type) already defined"
     return 1
   fi
-  $MKDIR_CMD $NSTMP
-  $MKDIR_CMD $NSTMP/devices
-  $MKDIR_CMD $NSTMP/devicepairs
+  $RM_CMD -f $NSTMP/undefined
+
   echo $type > $NSTMP/type
   echo 0 > $NSTMP/forward
   > $NSTMP/routes
@@ -214,12 +254,14 @@ create_namespace() {
 
 host() {
   errline=$lineno
-  create_namespace host "$1"
+  declare_namespace "$1"
+  create_namespace "$1" host
 }
 
 switch() {
   errline=$lineno
-  create_namespace switch "$1"
+  declare_namespace "$1"
+  create_namespace "$1" switch
 }
 
 dev() {
@@ -281,8 +323,7 @@ dev() {
   then
     if [ ! -d $MYTMP/ns/$otherns ]
     then
-      error="$otherns undefined"
-      return 1
+      declare_namespace "$otherns"
     fi
     echo "$current_name $device" > $MYTMP/ns/$otherns/devicepairs/$otherdev
     echo "n/a n/a" > $NSTMP/devicepairs/$device
@@ -395,6 +436,60 @@ pre_up() {
 
   echo "$*" >> $NSTMP/pre-up-$device
   echo $errline >> $MYTMP/runtime-lines/$current_name-pre-up-$device
+  return 0
+}
+
+gv_label() {
+  errline=$lineno
+
+  if [ ! "$current_name" ]
+  then
+    error="can only specify gv_label in a host or switch"
+    return 1
+  fi
+
+  if [ -f $NSTMP/gv_label ]
+  then
+    echo -n '\\n' >> $NSTMP/gv_label
+  fi
+  echo -n "$*" >> $NSTMP/gv_label
+  return 0
+}
+
+gv_omit() {
+  errline=$lineno
+
+  if [ ! "$current_name" ]
+  then
+    error="can only specify gv_omit in a host or switch"
+    return 1
+  fi
+
+  echo > $NSTMP/gv_omit
+  return 0
+}
+
+gv_cluster() {
+  errline=$lineno
+  local cluster="$1"
+  shift
+
+  if [ ! "$current_name" ]
+  then
+    error="can only specify gv_cluster in a host or switch"
+    return 1
+  fi
+
+  if [ ! -f $MYTMP/clusters/$cluster ]
+  then
+    echo "$cluster" >> $MYTMP/clusterlist
+    if [ "$*" ]
+    then
+      echo "$*" > $MYTMP/clusters/$cluster.label
+    fi
+  fi
+  local type="$($CAT_CMD $NSTMP/type)"
+  echo "${type}_$current_name" >> $MYTMP/clusters/$cluster
   return 0
 }
 
@@ -629,52 +724,85 @@ then
   then
     echo "size=7; /* Max size 7 inches */" >>$gv
   fi
-  echo "overlap=prism;" >>$gv
+  echo "overlap=scale;" >>$gv
+  #echo "splines=compound;" >>$gv
+  echo "node [sep=10];" >>$gv
   echo "edge [color=blue,style=dashed];" >>$gv
+
+  while read cluster
+  do
+    echo "subgraph cluster_$cluster{" >>$gv
+
+    if [ -s "$MYTMP/clusters/$cluster.label" ]
+    then
+      echo "label=\"`$CAT_CMD  $MYTMP/clusters/$cluster.label`\"" >>$gv
+    fi
+
+    while read ns
+    do
+      echo "$ns" >>$gv
+    done < $MYTMP/clusters/$cluster
+
+    echo "}" >>$gv
+  done < $MYTMP/clusterlist
+
   while read ns
   do
     type="$($CAT_CMD $MYTMP/ns/$ns/type)"
-    if [ "$type" = "switch" ]
+    if [ -f $MYTMP/ns/$ns/gv_label ]
     then
-      echo "switch_$ns [shape=polygon,sides=4,skew=.4,label=\"$ns\"];" >>$gv
+      read label < $MYTMP/ns/$ns/gv_label || true
     else
-      echo -n "host_$ns [shape=record,label=\"$ns" >>$gv
-      while read route
-      do
-        echo -n "\\n$route" >>$gv
-      done < $MYTMP/ns/$ns/routes
-      while read bridge
-      do
-        echo -n "|{<$bridge> $bridge" >>$gv
-        while read ip
+      label="$ns"
+    fi
+
+    if [ ! -f $MYTMP/ns/$ns/gv_omit ]
+    then
+      if [ "$type" = "switch" ]
+      then
+        echo "\"switch_$ns\" [shape=ellipse,label=\"$label\"];" >>$gv
+      else
+        echo -n "\"host_$ns\" [shape=record,label=\"$gvdevdownopen$label" >>$gv
+        while read route
         do
-          echo -n "\\n$ip" >>$gv
-        done < $MYTMP/ns/$ns/devices/$bridge
-        while read dev
+          echo -n "\\n$route" >>$gv
+        done < $MYTMP/ns/$ns/routes
+        while read bridge
         do
-          echo -n "|{" >>$gv
-          echo -n "<$dev> $dev" >>$gv
-          while read ip
-          do
-            echo -n "\n$ip" >>$gv
-          done < $MYTMP/ns/$ns/devices/$dev
-          echo -n "}" >>$gv
-          echo "$bridge" > $MYTMP/ns/$ns/suppress-$dev
-        done < $MYTMP/ns/$ns/devices/$bridge-bridged
-        echo -n "}" >>$gv
-      done < $MYTMP/ns/$ns/bridgelist
-      while read dev
-      do
-        if [ ! -f $MYTMP/ns/$ns/suppress-$dev ]
-        then
-          echo -n "|<$dev> $dev" >>$gv
+          echo -n "|{<$bridge> $bridge" >>$gv
           while read ip
           do
             echo -n "\\n$ip" >>$gv
-          done < $MYTMP/ns/$ns/devices/$dev
-        fi
-      done < $MYTMP/ns/$ns/devlist
-      echo "\"];" >>$gv
+          done < $MYTMP/ns/$ns/devices/$bridge
+          while read dev
+          do
+            echo -n "|{" >>$gv
+            echo -n "<$dev> $dev" >>$gv
+            if [ ! "$gv_label_outside" ]
+            then
+              while read ip
+              do
+                echo -n "\n$ip" >>$gv
+              done < $MYTMP/ns/$ns/devices/$dev
+            fi
+            echo -n "}" >>$gv
+            echo "$bridge" > $MYTMP/ns/$ns/suppress-$dev
+          done < $MYTMP/ns/$ns/devices/$bridge-bridged
+          echo -n "}" >>$gv
+        done < $MYTMP/ns/$ns/bridgelist
+        while read dev
+        do
+          if [ !  "$gv_label_outside" -a ! -f $MYTMP/ns/$ns/suppress-$dev ]
+          then
+            echo -n "|<$dev> $dev" >>$gv
+            while read ip
+            do
+              echo -n "\\n$ip" >>$gv
+            done < $MYTMP/ns/$ns/devices/$dev
+          fi
+        done < $MYTMP/ns/$ns/devlist
+        echo "$gvdevdownclose\"];" >>$gv
+      fi
     fi
   done < $MYTMP/nslist
   while read ns
@@ -686,19 +814,50 @@ then
       if [ "$ons" != "n/a" ]
       then
         otype="$($CAT_CMD $MYTMP/ns/$ons/type)"
+
         if [ "$type" = "switch" ]
         then
-          from="switch_$ns"
+          from="\"switch_$ns\""
+          fromlabel="taillabel=\"\\n\\n\""
         else
-          from="host_$ns:$dev"
+          from="\"host_$ns\":\"$dev\""
+          fromlabel="taillabel=\"$dev"
+          while read ip
+          do
+            fromlabel="$fromlabel\\n$ip"
+          done < $MYTMP/ns/$ns/devices/$dev
+          fromlabel="$fromlabel\""
         fi
         if [ "$otype" = "switch" ]
         then
-          to="switch_$ons"
+          to="\"switch_$ons\""
+          tolabel="headlabel=\"\\n\\n\""
         else
-          to="host_$ons:$odev"
+          to="\"host_$ons\":\"$odev\""
+          tolabel="headlabel=\"$odev"
+          while read ip
+          do
+            tolabel="$tolabel\\n$ip"
+          done < $MYTMP/ns/$ons/devices/$odev
+          tolabel="$tolabel\""
         fi
-        echo "$from -- $to;" >>$gv
+        alllabels=""
+        if [ "$gv_label_outside" ]
+        then
+          if [ "$fromlabel" -o "$tolabel" ]
+          then
+            if [  "$fromlabel" -a "$tolabel" ]
+            then
+              alllabels=" [labelfloat=false,$fromlabel,$tolabel]"
+            else
+              alllabels=" [labelfloat=false,$fromlabel$tolabel]"
+            fi
+          fi
+        fi
+        if [ ! -f $MYTMP/ns/$ns/gv_omit -a ! -f $MYTMP/ns/$ons/gv_omit ]
+        then
+          echo "$from -- $to$alllabels;" >>$gv
+        fi
       else
         : # gets set up from the other end
       fi
