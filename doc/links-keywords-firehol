@@ -17,6 +17,7 @@
 [keyword-firehol-client6]: firehol-client.5.md#firehol-client5
 [keyword-firehol-connmark]: firehol-connmark.5.md#firehol-connmark5
 [keyword-firehol-custom]: firehol-params.5.md#custom
+[keyword-firehol-cthelper]: firehol-cthelper.5.md#custom
 [keyword-firehol-deny]: firehol-actions.5.md#drop-deny
 [keyword-firehol-dnat]: firehol-nat.5.md#firehol-nat5
 [keyword-firehol-dport]: firehol-params.5.md#dport-sport
