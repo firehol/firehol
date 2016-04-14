@@ -31,22 +31,39 @@ download area](http://firehol.org/download/).
 
 Unpack and change directory with:
 
-    tar xfz firehol-version.tar.gz
-    cd firehol-version
-          
+~~~~
+tar xfz firehol-version.tar.gz
+cd firehol-version
+~~~~
+
+From version 3.0.0 it is no longer recommended to install firehol by
+copying files, since a function library is now used, in addition to
+the scripts.
 
 Options for the configure program can be seen in the INSTALL file and by
 running:
 
-    ./configure --help
-          
+~~~~
+./configure --help
+~~~~
 
 To build and install taking the default options:
 
-    ./configure && make && sudo make install
-          
+~~~~
+./configure && make && sudo make install
+~~~~
 
-Alternatively, just copy the `sbin/fireqos.in` file to where you want it.
+To not have files appear under /usr/local, try something like:
+
+~~~~
+./configure --prefix=/usr --sysconfdir=/etc --localstatedir=/var
+make
+make install
+~~~~
+
+If your O/S does not usually have a `/usr/libexec`, you may want
+to add `--libexecdir=/usr/lib` to the `configure`.
+
 All of the common SysVInit command line arguments are recognised which
 makes it easy to deploy the script as a startup service.
 
