@@ -255,7 +255,7 @@ FIREHOL_CONFIG_DIR="${FIREHOL_CONFIG_DIR}"
 FIREHOL_SERVICES_DIR="${FIREHOL_SERVICES_DIR}"
 
 # Where to permanently save state information?
-# Default: $LOCALSTATEDIR/spool/firehol
+# Default: /var/spool/firehol
 FIREHOL_SPOOL_DIR="${FIREHOL_SPOOL_DIR}"
 
 # Where temporary files should go?
@@ -12413,7 +12413,7 @@ then
 		then
 			# RedHat
 			FIREHOL_AUTOSAVE="/etc/sysconfig/iptables"
-		elif [ -d "$LOCALSTATEDIR/lib/iptables" ]
+		elif [ -d "/var/lib/iptables" ]
 		then
 			if [ -f /etc/conf.d/iptables ]
 			then
@@ -12427,7 +12427,7 @@ then
 			if [ -z "${FIREHOL_AUTOSAVE}" ]
 			then
 				# Debian
-				FIREHOL_AUTOSAVE="$LOCALSTATEDIR/lib/iptables/autosave"
+				FIREHOL_AUTOSAVE="/var/lib/iptables/autosave"
 			fi
 		else
 			error "Cannot find where to save iptables file. Please set FIREHOL_AUTOSAVE."
