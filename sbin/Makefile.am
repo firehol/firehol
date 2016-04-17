@@ -44,13 +44,13 @@ EXTRA_DIST = \
 	$(NULL)
 
 install-exec-hook:
-	$(MKDIR_P) $(DESTDIR)$(sbindir)
+	$(MKDIR_P) "$(DESTDIR)$(sbindir)"
+	$(CHMOD) 755 "$(DESTDIR)$(sbindir)"
 	for i in $(scripts); do \
-		$(RM) -f $(DESTDIR)$(sbindir)/$$i; \
-		$(LN_S) $(DESTDIR)$(inclibdir)/$$i $(DESTDIR)$(sbindir); done
+		$(RM) -f "$(DESTDIR)$(sbindir)/$$i"; \
+		$(LN_S) "$(DESTDIR)$(inclibdir)/$$i" "$(DESTDIR)$(sbindir)"; done
 
 uninstall-hook:
 	for i in $(scripts); do \
-		$(RM) -f $(DESTDIR)$(sbindir)/$$i; done
+		$(RM) -f "$(DESTDIR)$(sbindir)/$$i"; done
 	@-rmdir --ignore-fail-on-non-empty $(DESTDIR)$(inclibdir)
-	@-rmdir --ignore-fail-on-non-empty $(DESTDIR)$(sbindir)
