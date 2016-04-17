@@ -160,6 +160,7 @@ AX_NEED_GREP()
 AX_NEED_SED()
 AX_NEED_PROG([READLINK], [readlink], [])
 AX_NEED_PROG([DIRNAME], [dirname], [])
+AX_NEED_PROG([BASENAME], [basename], [])
 if test x"$enable_firehol" = xyes; then
 AC_MSG_NOTICE([Detecting commands for firehol])
 AX_NEED_PROG([CAT], [cat], [])
