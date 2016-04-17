@@ -19,7 +19,7 @@ AC_INIT([firehol],VERSION_NUMBER[]VERSION_SUFFIX,[firehol-devs@lists.firehol.org
 AC_CONFIG_MACRO_DIR([m4])
 AC_CONFIG_AUX_DIR([autotool])
 AC_CONFIG_SRCDIR([sbin/firehol])
-AM_INIT_AUTOMAKE([gnu])
+AM_INIT_AUTOMAKE([tar-ustar])
 AM_MAINTAINER_MODE([disable])
 
 dnl Checks for programs.
@@ -56,6 +56,12 @@ AC_ARG_ENABLE([firehol],
               ,
               [enable_firehol="yes"])
 AM_CONDITIONAL([ENABLE_FIREHOL], [test "${enable_firehol}" = "yes"])
+
+AC_ARG_ENABLE([firehol-wizard],
+              [AS_HELP_STRING([--disable-firehol-wizard], [disable firehol-wizard @<:@enabled@:>@])],
+              ,
+              [enable_firehol_wizard="yes"])
+AM_CONDITIONAL([ENABLE_FIREHOL_WIZARD], [test "${enable_firehol_wizard}" = "yes"])
 
 AC_ARG_ENABLE([fireqos],
               [AS_HELP_STRING([--disable-fireqos], [disable fireqos installation @<:@enabled@:>@])],
@@ -161,14 +167,20 @@ AX_NEED_PROG([CHMOD], [chmod], [])
 AX_NEED_PROG([CHOWN], [chown], [])
 AX_NEED_PROG([CP], [cp], [])
 AX_NEED_PROG([CUT], [cut], [])
+if test x"$enable_firehol_wizard" = xyes; then
 AX_NEED_PROG([DATE], [date], [])
+fi
 AX_NEED_PROG([EXPR], [expr], [])
 AX_NEED_PROG([FIND], [find], [])
 AX_NEED_PROG([FLOCK], [flock], [])
 AX_NEED_PROG([FOLD], [fold], [])
 AX_NEED_PROG([HEAD], [head], [])
+if test x"$enable_firehol_wizard" = xyes; then
 AX_NEED_PROG([HOSTNAMECMD], [hostname], [])
+fi
+if test x"$enable_firehol_wizard" = xyes; then
 AX_NEED_PROG([IP], [ip], [])
+fi
 if test x"$enable_ipv6" = xyes; then
 AX_CHECK_PROG([IP6TABLES], [ip6tables], [])
 fi
@@ -209,7 +221,9 @@ fi
 AX_NEED_PROG([RM], [rm], [])
 AX_NEED_PROG([SLEEP], [sleep], [])
 AX_NEED_PROG([SORT], [sort], [])
+if test x"$enable_firehol_wizard" = xyes; then
 AX_NEED_PROG([SS], [ss], [])
+fi
 AX_CHECK_PROG([STTY], [stty], [])
 if test x"$STTY" = x; then
 AC_SUBST([STTY], [:])
