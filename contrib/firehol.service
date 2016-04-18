@@ -1,11 +1,11 @@
 [Unit]
-Description=Firehol stateful packet filtering firewall builder
+Description=Firehol stateful packet filtering firewall for humans
 Documentation=man:firehol(1)
 
 [Service]
 Type=oneshot
-ExecStart=/usr/bin/firehol start
-ExecStop=/usr/bin/firehol stop
+ExecStart=/usr/sbin/firehol start
+ExecStop=/usr/sbin/firehol stop
 RemainAfterExit=yes
 
 [Install]
