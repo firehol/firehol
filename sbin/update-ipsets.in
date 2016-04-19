@@ -4147,6 +4147,25 @@ update darklist_de $[24 * 60] 0 ipv4 both \
 
 
 # -----------------------------------------------------------------------------
+# botvrij.eu
+
+update botvrij_dst $[24 * 60] 0 ipv4 ip \
+	"http://www.botvrij.eu/data/ioclist.ip-dst.raw" \
+	remove_comments \
+	"attacks" \
+	"[botvrij.eu](http://www.botvrij.eu/) Indicators of Compromise (IOCS) about malicious destination IPs, gathered via open source information feeds (blog pages and PDF documents) and then consolidated into different datasets. To ensure the quality of the data all entries older than approx. 6 months are removed." \
+	"botvrij.eu" "http://www.botvrij.eu/" \
+	can_be_empty
+
+update botvrij_src $[24 * 60] 0 ipv4 ip \
+	"http://www.botvrij.eu/data/ioclist.ip-src.raw" \
+	remove_comments \
+	"attacks" \
+	"[botvrij.eu](http://www.botvrij.eu/) Indicators of Compromise (IOCS) about malicious source IPs, gathered via open source information feeds (blog pages and PDF documents) and then consolidated into different datasets. To ensure the quality of the data all entries older than approx. 6 months are removed." \
+	"botvrij.eu" "http://www.botvrij.eu/" \
+	can_be_empty
+
+# -----------------------------------------------------------------------------
 # cruzit.com
 
 update cruzit_web_attacks $[12 * 60] 0 ipv4 ip \
