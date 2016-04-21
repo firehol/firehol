@@ -1,6 +1,6 @@
 #
 # This configuration file will allow all requests originating from the
-# local machine to be send through all network interfaces.
+# local machine to be sent through all network interfaces.
 #
 # No requests are allowed to come from the network. The host will be
 # completely stealthed! It will not respond to anything, and it will
