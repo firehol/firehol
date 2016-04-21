@@ -1,6 +1,6 @@
 [Unit]
 Description=FireQOS traffic shaping for humans
-Documentation=man:fireqos(1)
+Documentation=man:fireqos(1) man:fireqos.conf(5)
 
 [Service]
 Type=oneshot
