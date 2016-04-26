@@ -1,6 +1,6 @@
 [Unit]
 Description=Firehol stateful packet filtering firewall for humans
-Documentation=man:firehol(1)
+Documentation=man:firehol(1) man:firehol.conf(5)
 
 [Service]
 Type=oneshot
