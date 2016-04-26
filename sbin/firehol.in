@@ -6593,10 +6593,10 @@ close_master() {
 		postprocess -warn ${SYSCTL_CMD} -w "net.netfilter.nf_conntrack_helper=0" || return 1
 	fi
 
-	if [ ! -z "${FIREHOL_CONNTRACK_LOOSE_MATCHING}"	]; then postprocess -warn ${SYSCTL_CMD} -e "net.netfilter.nf_conntrack_tcp_loose=${FIREHOL_CONNTRACK_LOOSE_MATCHING}" || return 1; fi
-	if [ ! -z "${FIREHOL_TCP_SYN_COOKIES}"		]; then postprocess -warn ${SYSCTL_CMD} -e "net.ipv4.tcp_syncookies=${FIREHOL_TCP_SYN_COOKIES}" || return 1; fi
-	if [ ! -z "${FIREHOL_TCP_TIMESTAMPS}"		]; then postprocess -warn ${SYSCTL_CMD} -e "net.ipv4.tcp_timestamps=${FIREHOL_TCP_TIMESTAMPS}" || return 1; fi
-	if [ ! -z "${FIREHOL_CONNTRACK_MAX}" 		]; then postprocess -warn ${SYSCTL_CMD} -e "net.netfilter.nf_conntrack_max=${FIREHOL_CONNTRACK_MAX}" || return 1; fi
+	if [ ! -z "${FIREHOL_CONNTRACK_LOOSE_MATCHING}"	]; then postprocess -warn ${SYSCTL_CMD} -w "net.netfilter.nf_conntrack_tcp_loose=${FIREHOL_CONNTRACK_LOOSE_MATCHING}" || return 1; fi
+	if [ ! -z "${FIREHOL_TCP_SYN_COOKIES}"		]; then postprocess -warn ${SYSCTL_CMD} -w "net.ipv4.tcp_syncookies=${FIREHOL_TCP_SYN_COOKIES}" || return 1; fi
+	if [ ! -z "${FIREHOL_TCP_TIMESTAMPS}"		]; then postprocess -warn ${SYSCTL_CMD} -w "net.ipv4.tcp_timestamps=${FIREHOL_TCP_TIMESTAMPS}" || return 1; fi
+	if [ ! -z "${FIREHOL_CONNTRACK_MAX}" 		]; then postprocess -warn ${SYSCTL_CMD} -w "net.netfilter.nf_conntrack_max=${FIREHOL_CONNTRACK_MAX}" || return 1; fi
 	if [ ! -z "${FIREHOL_CONNTRACK_HASHSIZE}"	]; then postprocess -warn postprocess_echo_to ${FIREHOL_CONNTRACK_HASHSIZE} /sys/module/nf_conntrack/parameters/hashsize || return 1; fi
 
 	for m in "${!FIREHOL_NFACCT[@]}"
