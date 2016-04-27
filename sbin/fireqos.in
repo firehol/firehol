@@ -3096,6 +3096,121 @@ match() {
 	return 0
 }
 
+ematch4() { ipv4 ematch "${@}"; }
+ematch6() { ipv6 ematch "${@}"; }
+ematch46() { ipv46 ematch "${@}"; }
+ematch() {
+	[ ${FIREQOS_DEBUG_FLOW} -eq 1 ] && echo >&2 " >> ${FUNCNAME} ${@}"
+
+	(( match_count += 1 ))
+
+	if [ "z${1}" = "z-ns" ]
+	then
+		shift
+	else
+		[ ${interface_save} -eq 1 ] && save ${FUNCNAME} "$@"
+	fi
+
+	[ ${FIREQOS_DEBUG} -eq 1 -o ${FIREQOS_SHOW_MATCHES} -eq 1 ] && echo >&2 -e "${COLOR_GREEN}:		${FUNCNAME} $*${COLOR_RESET}"
+
+	local 	class=${class_name} flowid=${class_filters_flowid} \
+		ipv4=${class_ipv4} ipv6=${class_ipv6} \
+
+	case "${force_ipv}" in
+		4)
+			ipv4=1
+			ipv6=0
+			;;
+
+		6)
+			ipv4=0
+			ipv6=1
+			;;
+
+		46)
+			ipv4=1
+			ipv6=1
+			;;
+	esac
+
+	if [ -z "${prio}" ]
+	then
+		prio=$((class_matchid * FIREQOS_MATCHES_STEP))
+		(( class_matchid += 1 ))
+	fi
+
+	local device=${interface_realdev}
+	local parent="${parent_filters_to}"
+	if [ -z "${flowid}" ]
+	then
+		error "Please set 'flowid' for match statements above all classes."
+		exit 1
+	elif [ ! "${class}" = "${class_name}" ]
+	then
+		local c=
+		for c in ${interface_classes}
+		do
+			local cn="`echo $c | ${CUT_CMD} -d '|' -f 1`"
+			local cf="`echo $c | ${CUT_CMD} -d '|' -f 2`"
+
+			if [ "${class}" = "${cn}" ]
+			then
+				local flowid=${cf}
+				break
+			fi
+		done
+
+		if [ -z "${flowid}" ]
+		then
+			error "Cannot find class '${class}'"
+			exit 1
+		fi
+	fi
+
+	if [ ! -z "${at}" ]
+	then
+		case "${at}" in
+			root)
+				local parent="${interface_filters_to}"
+				;;
+
+			*)
+				local c=
+				for c in ${interface_classes}
+				do
+					local cn="`echo $c | ${CUT_CMD} -d '|' -f 1`"
+					local cf="`echo $c | ${CUT_CMD} -d '|' -f 2`"
+
+					if [ "${class}" = "${cn}" ]
+					then
+						local parent=${cf}
+						break
+					fi
+				done
+
+				if [ -z "${parent}" ]
+				then
+					error "Cannot find class '${class}'"
+					exit 1
+				fi
+				;;
+		esac
+	fi
+
+	tc filter add \
+		dev ${device} \
+		parent ${parent} \
+		prio ${prio} \
+		basic match "${@}" \
+		flowid ${flowid} \
+		${police}
+
+	# increase the counter between tc protocols
+	(( prio += 1 ))
+
+	return 0
+}
+
 clear_everything() {
 	[ ${FIREQOS_DEBUG_FLOW} -eq 1 ] && echo >&2 " >> ${FUNCNAME} ${@}"
 
