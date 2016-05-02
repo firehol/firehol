@@ -3823,6 +3823,60 @@ ip2location_country() {
 	return 0
 }
 
+eSentire() {
+	local base="https://raw.githubusercontent.com/eSentire/malfeed/master"
+
+	cd "${RUN_DIR}" || return 1
+
+	local ipset="esentire" limit="" hash="ip" ipv="ipv4" \
+		mins=$[24 * 60 * 1] history_mins=0 \
+		url="${base}/index.txt" \
+		info="[eSentire](https://github.com/eSentire/malfeed)" \
+		ret=
+
+	ipset_shall_be_run "${ipset}"
+	case "$?" in
+		0)	;;
+
+		1)	[ -d "${BASE_DIR}/.git" ] && echo >"${BASE_DIR}/${ipset}.setinfo" "${ipset}|${info}|${ipv} hash:${hash}|disabled|`if [ ! -z "${url}" ]; then echo "updated every $(mins_to_text ${mins}) from [this link](${url})"; fi`"
+			return 1
+			;;
+
+		*)	return 1
+			;;
+	esac
+
+	# download it
+	download_manager "${ipset}" "${mins}" "${url}"
+	ret=$?
+	if [ $ret -eq ${DOWNLOAD_FAILED} -o $ret -eq ${DOWNLOAD_NOT_UPDATED} ]
+		then
+		[ ! -s "${BASE_DIR}/${ipset}.source" ] && return 1
+		[ -d "${BASE_DIR}/${ipset}" -a ${REPROCESS_ALL} -eq 0 ] && return 1
+	fi
+
+	echo >"${RUN_DIR}/esentire.sh"
+	cat "${BASE_DIR}/${ipset}.source" |\
+		while IFS="," read file type description
+		do
+			name="$( echo "${file/_watch_ip.lst/}" | tr -c "[a-zA-Z0-9\n]" "_")"
+			
+			cat >>"${RUN_DIR}/esentire.sh" <<EOF_ESENTIRE
+update esentire_${name} "${mins}" 0 ipv4 ip \
+	"${base}/${file}" \
+	remove_comments \
+	"malware" \
+	"${description}" \
+	"eSentire" "https://github.com/eSentire/malfeed"
+EOF_ESENTIRE
+		done
+
+	source "${RUN_DIR}/esentire.sh"
+
+	return 0
+}
+
+
 
 # -----------------------------------------------------------------------------
 # Common source files for many ipsets
@@ -5368,6 +5422,29 @@ update trustedsec_atif $[24*60] 0 ipv4 ip \
 	"reputation" \
 	"Artillery Threat Intelligence Feed and Banlist Feed" \
 	"TrustedSec" "https://www.trustedsec.com/"
+
+
+# -----------------------------------------------------------------------------
+# bbcan177
+
+update bbcan177_ms1 $[24*60] 0 ipv4 both \
+	"https://gist.githubusercontent.com/BBcan177/bf29d47ea04391cb3eb0/raw/87056390d7fafc570ea9f3a9b33ca711a29c8438/MS-1" \
+	remove_comments \
+	"malware" \
+	"pfBlockerNG Malicious Threats" \
+	"BBcan177" "https://gist.github.com/BBcan177"
+
+update bbcan177_ms3 $[24*60] 0 ipv4 both \
+	"https://gist.githubusercontent.com/BBcan177/d7105c242f17f4498f81/raw/90eb2ac8bdc01af3008d728b7c0f10dc7b2506b4/MS-3" \
+	remove_comments \
+	"malware" \
+	"pfBlockerNG Malicious Threats" \
+	"BBcan177" "https://gist.github.com/BBcan177"
+
+# -----------------------------------------------------------------------------
+# eSentire
+
+eSentire
 
 
 # -----------------------------------------------------------------------------
