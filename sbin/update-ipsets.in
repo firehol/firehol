@@ -5428,14 +5428,14 @@ update trustedsec_atif $[24*60] 0 ipv4 ip \
 # bbcan177
 
 update bbcan177_ms1 $[24*60] 0 ipv4 both \
-	"https://gist.githubusercontent.com/BBcan177/bf29d47ea04391cb3eb0/raw/87056390d7fafc570ea9f3a9b33ca711a29c8438/MS-1" \
+	"https://gist.githubusercontent.com/BBcan177/bf29d47ea04391cb3eb0/raw" \
 	remove_comments \
 	"malware" \
 	"pfBlockerNG Malicious Threats" \
 	"BBcan177" "https://gist.github.com/BBcan177"
 
 update bbcan177_ms3 $[24*60] 0 ipv4 both \
-	"https://gist.githubusercontent.com/BBcan177/d7105c242f17f4498f81/raw/90eb2ac8bdc01af3008d728b7c0f10dc7b2506b4/MS-3" \
+	"https://gist.githubusercontent.com/BBcan177/d7105c242f17f4498f81/raw" \
 	remove_comments \
 	"malware" \
 	"pfBlockerNG Malicious Threats" \
