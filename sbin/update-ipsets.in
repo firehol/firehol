@@ -1029,7 +1029,7 @@ geturl() {
 	downloader_log verbose "curl ${doptions} '${url}'"
 	http_code=$( \
 		$CURL_CMD --connect-timeout ${MAX_CONNECT_TIME} --max-time ${MAX_DOWNLOAD_TIME} \
-			--retry 0 --fail --compressed --user-agent "FireHOL-Update-Ipsets/3.0" \
+			--retry 0 --fail --compressed --user-agent "FireHOL-Update-Ipsets/3.0 (linux-gnu)" \
 			--time-cond "${reference}" --output "${file}" --remote-time \
 			--location --referer "http://iplists.firehol.org/" \
 			${curl_opts} --write-out '%{http_code}' "${doptions[@]}" "${url}" \

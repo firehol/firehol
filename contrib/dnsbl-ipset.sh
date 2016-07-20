@@ -1,7 +1,7 @@
 #!/bin/bash
 #
 # Version
-# $Id$
+# $Id: 3468803a2dcaa0fd6de525779bdcb1ee87d4eb9e $
 #
 # FireHOL - A firewall for humans...
 #
