@@ -5245,6 +5245,37 @@ update lashback_ubl $[24*60] 0 ipv4 ip \
 	"[The LashBack UBL](http://blacklist.lashback.com/) The Unsubscribe Blacklist (UBL) is a real-time blacklist of IP addresses which are sending email to names harvested from suppression files (this is a big list, more than 500.000 IPs)" \
 	"The LashBack Unsubscribe Blacklist" "http://blacklist.lashback.com/"
 
+
+# -----------------------------------------------------------------------------
+# DataPlane.org
+# DataPlane.org is a community-powered Internet data, feeds and measurement resource for operators, by operators. We provide reliable and trustworthy service at no cost.
+
+dataplane_column3() { remove_comments | $CUT_CMD -d '|' -f 3 | trim; }
+
+update dataplane_sipquery 60 0 ipv4 ip \
+	"https://dataplane.org/sipquery.txt" \
+	dataplane_column3 \
+	"attacks" \
+	"[DataPlane.org](https://dataplane.org/) IP addresses that has been seen initiating a SIP OPTIONS query to a remote host. This report lists hosts that are suspicious of more than just port scanning. These hosts may be SIP server cataloging or conducting various forms of telephony abuse." \
+	"DataPlane.org" "https://dataplane.org/" \
+	dont_redistribute
+
+update dataplane_sshpwauth 60 0 ipv4 ip \
+	"https://dataplane.org/sshpwauth.txt" \
+	dataplane_column3 \
+	"attacks" \
+	"[DataPlane.org](https://dataplane.org/) IP addresses that has been seen attempting to remotely login to a host using SSH password authentication. This report lists hosts that are highly suspicious and are likely conducting malicious SSH password authentication attacks." \
+	"DataPlane.org" "https://dataplane.org/" \
+	dont_redistribute
+
+update dataplane_sshclient 60 0 ipv4 ip \
+	"https://dataplane.org/sshclient.txt" \
+	dataplane_column3 \
+	"attacks" \
+	"[DataPlane.org](https://dataplane.org/) IP addresses that has been seen initiating an SSH connection to a remote host. This report lists hosts that are suspicious of more than just port scanning.  These hosts may be SSH server cataloging or conducting authentication attack attempts." \
+	"DataPlane.org" "https://dataplane.org/" \
+	dont_redistribute
+
 # -----------------------------------------------------------------------------
 # Dragon Research Group (DRG)
 # HTTP report
