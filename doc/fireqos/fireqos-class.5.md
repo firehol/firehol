@@ -145,7 +145,7 @@ To create a nested class which emulates an ADSL modem:
 
 interface eth0 lan output rate 1Gbit ethernet
   class lan
-    match dst 192.168.0.0/24 # LAN traffic
+    match src 192.168.0.0/24 # LAN traffic
 
   class group adsl rate 10Mbit ceil 10Mbit adsl remote pppoe-llc
     match all # all non-lan traffic in this emulated hardware group

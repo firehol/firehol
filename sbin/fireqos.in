@@ -2286,7 +2286,7 @@ match() {
 				shift
 				;;
 
-         dscp)
+			dscp)
 				dscp="${2//,/ }"
 				shift
 				;;
