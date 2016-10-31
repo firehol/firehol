@@ -152,7 +152,7 @@ FireHOL can also setup balancing using a round-robin or weighted
 average distribution of requests. However `persistent` cannot be used
 (the Linux kernel applies persistence on a single NAT statement).
 
-## Round Robbin distribution
+## Round Robin distribution
 To enable round robin distribution, give multiple `to` values, space
 separated and enclosed in quotes, or comma separated.
 
