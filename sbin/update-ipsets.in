@@ -56,7 +56,7 @@
 #    - update a kernel ipset, having the same name
 #
 # 5. It can commit all successfully updated files to a git repository.
-#    Just do 'git init' in /etc/firehol/ipsets to enable it.
+#    Just do 'git init' in $sysconfdir_POST/firehol/ipsets to enable it.
 #    If it is called with -g it will also push the committed changes
 #    to a remote git server (to have this done by cron, please set
 #    git to automatically push changes without human action).
@@ -326,7 +326,7 @@ fi
 # CONFIGURATION
 
 FIREHOL_SHARE_DIR="${FIREHOL_SHARE_DIR-/usr/share/firehol}"
-FIREHOL_CONFIG_DIR="${FIREHOL_CONFIG_DIR-/etc/firehol}"
+FIREHOL_CONFIG_DIR="${FIREHOL_CONFIG_DIR-$sysconfdir_POST/firehol}"
 
 if [ "${UID}" = "0" -o -z "${UID}" ]
 	then
@@ -1006,6 +1006,19 @@ downloader_log() {
 		error)		ipset_warning "${DOWNLOADER_IPSET}" "${message}" ;;
 		*)			ipset_verbose "${DOWNLOADER_IPSET}" "${message}" ;;
 	esac
+}
+
+fileondisk() {
+	local file="${1}" reference="${2}" url="${3}"
+
+	if [ -f "${file}" ]
+		then
+		DOWNLOADER_MESSAGE="FILE ON DISK FOUND"
+		return 0
+	fi
+
+	DOWNLOADER_MESSAGE="FILE ${file} is not found"
+	return 1
 }
 
 geturl() {
@@ -4497,11 +4510,43 @@ parse_ransomwaretracker_feed() {
 		-e 's/|/\n/g'
 }
 
+parse_ransomwaretracker_online() {
+  $SED_CMD -n -e 's/^"\(.*\)","\(.*\)","\(.*\)","\(.*\)","\(.*\)","\(online\)","\(.*\)","\(.*\)","\(.*\)","\(.*\)"$/\8/p' | \
+  	$SED_CMD -e '/^[[:space:]]*$/d' -e 's/|/\n/g'
+}
+
 update ransomware_feed 5 0 ipv4 ip \
 	"https://ransomwaretracker.abuse.ch/feeds/csv/" \
 	parse_ransomwaretracker_feed \
 	"malware" \
 	"[Abuse.ch Ransomware Tracker](https://ransomwaretracker.abuse.ch) Ransomware Tracker tracks and monitors the status of domain names, IP addresses and URLs that are associated with Ransomware, such as Botnet C&C servers, distribution sites and payment sites. By using data provided by Ransomware Tracker, hosting- and internet service provider (ISPs), as well as national CERTs/CSIRTs, law enforcement agencies (LEA) and security researchers can receive an overview on infrastructure used by Ransomware and whether these are actively being used by miscreant to commit fraud. The IPs in this list have been extracted from the tracker data feed." \
+	"Abuse.ch" "https://ransomwaretracker.abuse.ch" \
+	can_be_empty
+
+if [ -f "${BASE_DIR}/ransomware_feed.source" -a -f "${BASE_DIR}/ransomware_online.source" ]
+	then
+	# both are enabled, do something to prevent downloading twice...
+	if [ "${BASE_DIR}/ransomware_feed.source" -nt "${BASE_DIR}/ransomware_online.source" ]
+		then
+		# ransomware_feed is newer than ransomware_online
+		# hard link the ransomware_feed.source to ransomware_online.source
+		$RM_CMD "${BASE_DIR}/ransomware_online.source"
+		$LN_CMD "${BASE_DIR}/ransomware_feed.source" "${BASE_DIR}/ransomware_online.source"
+		$TOUCH_CMD -r "${BASE_DIR}/ransomware_feed.source" "${BASE_DIR}/ransomware_online.source"
+	fi
+	# Do not attempt to download it again
+	IPSET_DOWNLOADER[ransomware_online]="fileondisk"
+else
+	# ransomware_feed is not enabled
+	# ransomware_online is standalone
+	IPSET_DOWNLOADER[ransomware_online]=""
+fi
+
+update ransomware_online 5 0 ipv4 ip \
+	"https://ransomwaretracker.abuse.ch/feeds/csv/" \
+	parse_ransomwaretracker_online \
+	"malware" \
+	"[Abuse.ch Ransomware Tracker](https://ransomwaretracker.abuse.ch) Ransomware Tracker tracks and monitors the status of domain names, IP addresses and URLs that are associated with Ransomware, such as Botnet C&C servers, distribution sites and payment sites. By using data provided by Ransomware Tracker, hosting- and internet service provider (ISPs), as well as national CERTs/CSIRTs, law enforcement agencies (LEA) and security researchers can receive an overview on infrastructure used by Ransomware and whether these are actively being used by miscreant to commit fraud. The IPs in this list have been extracted from the tracker data feed, filtering only online IPs." \
 	"Abuse.ch" "https://ransomwaretracker.abuse.ch" \
 	can_be_empty
 
@@ -6461,6 +6506,70 @@ else
 		downloader_options "-H 'Authorization: bearer ${BLUELIV_API_KEY}'"
 fi
 
+# -----------------------------------------------------------------------------
+# IBM X-Force
+# unfortunately a paid service
+
+cat >/dev/null <<"XFORCE_COMMENTED"
+declare -A xforce=(
+	[spam]="Spam"
+	[anonymous]="Anonymisation Services"
+	[scanners]="Scanning IPs"
+	[dynamic]="Dynamic IPs"
+	[malware]="Malware"
+	[bots]="Bots"
+	[c2]="Botnet Command and Control Server"
+)
+
+declare -A xforce_categories=(
+	[spam]="spam"
+	[anonymous]="anonymizers"
+	[scanners]="reputation"
+	[dynamic]="reputation"
+	[malware]="malware"
+	[bots]="malware"
+	[c2]="malware"
+)
+
+declare -a xforce_days=(1 2 7 30)
+
+xforce_parser() {
+	echo >&2 "ERROR: xforce is not implemented yet."
+	return 1
+}
+
+if [ ! -z "${XFORCE_API_KEY}" -a ! -z "${XFORCE_API_PASSWORD}" ]
+	then
+	for x in "${!xforce[@]}"
+	do
+		for d in "${xforce_days[@]}"
+		do
+			if [ -f "${BASE_DIR}/${x}_${d}d.source" ]
+				then
+				ipset_error ${x}_${d}d "Please set XFORCE_API_KEY='...' and XFORCE_API_PASSWORD='...' in ${CONFIG_FILE}"
+			else
+				ipset_disabled ${x}_${d}d
+			fi
+		done
+	done
+else
+	now=$(date +%s)
+	for x in "${!xforce[@]}"
+	do
+		for d in "${xforce_days[@]}"
+		do
+			update ${x}_${d}d $[60] "" ipv4 ip \
+				"https://api.xforce.ibmcloud.com/ipr?category=$(echo "${xforce[${x}]}" | sed "s| |%20|g")&startDate=$(date +"%Y-%m-%dT%H%%3A%M%%3A%SZ&limit=10000" --date=@$(( now - (d * 86400) )))" \
+				xforce_parser \
+				"${xforce_categories[${x}]}" "[IBM X-Force Exchange](https://exchange.xforce.ibmcloud.com/) - ${xforce[${x}]} detected in the last ${d} day(s)." \
+				"IBM X-Force Exchange" "https://exchange.xforce.ibmcloud.com/" \
+				dont_redistribute \
+				dont_enable_with_all \
+				downloader_options "-H 'Accept: application/json' -u '${XFORCE_API_KEY}:${XFORCE_API_PASSWORD}'"
+		done
+	done
+fi
+XFORCE_COMMENTED
 
 # -----------------------------------------------------------------------------
 # SORBS test
@@ -6797,6 +6906,18 @@ merge firehol_anonymous ipv4 both \
 	dm_tor \
 	firehol_proxies \
 	tor_exits \
+
+merge firehol_webclient ipv4 both \
+	"malware" \
+	"An IP blacklist made from blocklists that track IPs that a web client should never talk to. This list is to be used on top of firehol_level1." \
+	"FireHOL" "http://iplists.firehol.org/" \
+	ransomware_online \
+	sslbl_aggressive \
+	cybercrime \
+	atlas_phishing_2d \
+	atlas_fastflux_2d \
+	dyndns_ponmocup \
+	maxmind_proxy_fraud \
 
 
 # -----------------------------------------------------------------------------
