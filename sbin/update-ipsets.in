@@ -1010,15 +1010,18 @@ downloader_log() {
 
 fileondisk() {
 	local file="${1}" reference="${2}" url="${3}"
+	eval "local doptions=(${4})"
 
-	if [ -f "${file}" ]
+	if [ ! -z "${reference}" -a -f "${reference}" ]
 		then
-		DOWNLOADER_MESSAGE="FILE ON DISK FOUND"
-		return 0
+		cat "${reference}" >"${file}"
+		$TOUCH_CMD -r "${reference}" "${file}"
+		DOWNLOADER_MESSAGE="FILE ON DISK OK"
+		return ${DOWNLOADER_OK}
 	fi
 
-	DOWNLOADER_MESSAGE="FILE ${file} is not found"
-	return 1
+	DOWNLOADER_MESSAGE="FILE '${reference}' is not found"
+	return ${DOWNLOADER_FAILED}
 }
 
 geturl() {
@@ -4526,10 +4529,13 @@ update ransomware_feed 5 0 ipv4 ip \
 if [ -f "${BASE_DIR}/ransomware_feed.source" -a -f "${BASE_DIR}/ransomware_online.source" ]
 	then
 	# both are enabled, do something to prevent downloading twice...
-	# hard link the ransomware_feed.source to ransomware_online.source
-	$RM_CMD "${BASE_DIR}/ransomware_online.source"
-	$LN_CMD "${BASE_DIR}/ransomware_feed.source" "${BASE_DIR}/ransomware_online.source"
-	$TOUCH_CMD -r "${BASE_DIR}/ransomware_feed.source" "${BASE_DIR}/ransomware_online.source"
+	if [ "${BASE_DIR}/ransomware_feed.source" -nt "${BASE_DIR}/ransomware_online.source" ]
+		then
+		# hard link the ransomware_feed.source to ransomware_online.source
+		$RM_CMD "${BASE_DIR}/ransomware_online.source"
+		$LN_CMD "${BASE_DIR}/ransomware_feed.source" "${BASE_DIR}/ransomware_online.source"
+		$TOUCH_CMD -r "${BASE_DIR}/ransomware_feed.source" "${BASE_DIR}/ransomware_online.source"
+	fi
 	# Do not attempt to download it again
 	IPSET_DOWNLOADER[ransomware_online]="fileondisk"
 else
