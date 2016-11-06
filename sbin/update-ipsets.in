@@ -4526,14 +4526,10 @@ update ransomware_feed 5 0 ipv4 ip \
 if [ -f "${BASE_DIR}/ransomware_feed.source" -a -f "${BASE_DIR}/ransomware_online.source" ]
 	then
 	# both are enabled, do something to prevent downloading twice...
-	if [ "${BASE_DIR}/ransomware_feed.source" -nt "${BASE_DIR}/ransomware_online.source" ]
-		then
-		# ransomware_feed is newer than ransomware_online
-		# hard link the ransomware_feed.source to ransomware_online.source
-		$RM_CMD "${BASE_DIR}/ransomware_online.source"
-		$LN_CMD "${BASE_DIR}/ransomware_feed.source" "${BASE_DIR}/ransomware_online.source"
-		$TOUCH_CMD -r "${BASE_DIR}/ransomware_feed.source" "${BASE_DIR}/ransomware_online.source"
-	fi
+	# hard link the ransomware_feed.source to ransomware_online.source
+	$RM_CMD "${BASE_DIR}/ransomware_online.source"
+	$LN_CMD "${BASE_DIR}/ransomware_feed.source" "${BASE_DIR}/ransomware_online.source"
+	$TOUCH_CMD -r "${BASE_DIR}/ransomware_feed.source" "${BASE_DIR}/ransomware_online.source"
 	# Do not attempt to download it again
 	IPSET_DOWNLOADER[ransomware_online]="fileondisk"
 else
