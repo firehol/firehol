@@ -1888,7 +1888,7 @@ policy
 # You can also have all the IPs in separate files:
 # Run:
 #
-#  ${PROGRAM_FILE} asips ONE_IP_OF_YOUR_PROVIDER_1 >/etc/firehol/PROVIDER1_IPS
+#  ${PROGRAM_FILE} asips ONE_IP_OF_YOUR_PROVIDER_1 >$sysconfdir_POST/firehol/PROVIDER1_IPS
 #
 # Then:
 	rules dst loadfile PROVIDER1_IPS table dsl1
