@@ -1008,19 +1008,19 @@ downloader_log() {
 	esac
 }
 
-fileondisk() {
+copyfile() {
 	local file="${1}" reference="${2}" url="${3}"
 	eval "local doptions=(${4})"
 
-	if [ ! -z "${reference}" -a -f "${reference}" ]
+	if [ ! -z "${doptions[0]}" -a -f "${doptions[0]}" ]
 		then
-		cat "${reference}" >"${file}"
-		$TOUCH_CMD -r "${reference}" "${file}"
-		DOWNLOADER_MESSAGE="FILE ON DISK OK"
+		cat "${doptions[0]}" >"${file}"
+		$TOUCH_CMD -r "${doptions[0]}" "${file}"
+		DOWNLOADER_MESSAGE="copied file '${doptions[0]}'"
 		return ${DOWNLOADER_OK}
 	fi
 
-	DOWNLOADER_MESSAGE="FILE '${reference}' is not found"
+	DOWNLOADER_MESSAGE="file '${doptions[0]}' is not found"
 	return ${DOWNLOADER_FAILED}
 }
 
@@ -4528,20 +4528,14 @@ update ransomware_feed 5 0 ipv4 ip \
 
 if [ -f "${BASE_DIR}/ransomware_feed.source" -a -f "${BASE_DIR}/ransomware_online.source" ]
 	then
-	# both are enabled, do something to prevent downloading twice...
-	if [ "${BASE_DIR}/ransomware_feed.source" -nt "${BASE_DIR}/ransomware_online.source" ]
-		then
-		# hard link the ransomware_feed.source to ransomware_online.source
-		$RM_CMD "${BASE_DIR}/ransomware_online.source"
-		$LN_CMD "${BASE_DIR}/ransomware_feed.source" "${BASE_DIR}/ransomware_online.source"
-		$TOUCH_CMD -r "${BASE_DIR}/ransomware_feed.source" "${BASE_DIR}/ransomware_online.source"
-	fi
-	# Do not attempt to download it again
-	IPSET_DOWNLOADER[ransomware_online]="fileondisk"
+	# copy ransomware_feed.source
+	ransomware_online_downloader="copyfile"
+	ransomware_online_downloader_options="${BASE_DIR}/ransomware_feed.source"
 else
 	# ransomware_feed is not enabled
 	# ransomware_online is standalone
-	IPSET_DOWNLOADER[ransomware_online]=""
+	ransomware_online_downloader="geturl"
+	ransomware_online_downloader_options=""
 fi
 
 update ransomware_online 5 0 ipv4 ip \
@@ -4550,6 +4544,8 @@ update ransomware_online 5 0 ipv4 ip \
 	"malware" \
 	"[Abuse.ch Ransomware Tracker](https://ransomwaretracker.abuse.ch) Ransomware Tracker tracks and monitors the status of domain names, IP addresses and URLs that are associated with Ransomware, such as Botnet C&C servers, distribution sites and payment sites. By using data provided by Ransomware Tracker, hosting- and internet service provider (ISPs), as well as national CERTs/CSIRTs, law enforcement agencies (LEA) and security researchers can receive an overview on infrastructure used by Ransomware and whether these are actively being used by miscreant to commit fraud. The IPs in this list have been extracted from the tracker data feed, filtering only online IPs." \
 	"Abuse.ch" "https://ransomwaretracker.abuse.ch" \
+	downloader "${ransomware_online_downloader}" \
+	downloader_options "${ransomware_online_downloader_options}" \
 	can_be_empty
 
 update ransomware_rw 5 0 ipv4 ip \
