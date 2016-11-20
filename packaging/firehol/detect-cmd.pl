@@ -74,7 +74,7 @@ while (<>) {
   foreach my $present (@present) {
     if (/#.*\b$present\b/) {
       #printit "$present in a comment: $_";
-    } elsif (/\${?$present}?/) {
+    } elsif (/\$\{?$present}?/) {
       #printit "$present as a variable: $_";
     } elsif (/`[^`]*\b$present\b/ and /[|&;`][[:space:]]*$present/) {
       printit "$present in backtick substitution: $_";
