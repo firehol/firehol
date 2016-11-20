@@ -1014,7 +1014,7 @@ copyfile() {
 
 	if [ ! -z "${doptions[0]}" -a -f "${doptions[0]}" ]
 		then
-		cat "${doptions[0]}" >"${file}"
+		$CAT_CMD "${doptions[0]}" >"${file}"
 		$TOUCH_CMD -r "${doptions[0]}" "${file}"
 		DOWNLOADER_MESSAGE="copied file '${doptions[0]}'"
 		return ${DOWNLOADER_OK}
@@ -3872,12 +3872,12 @@ eSentire() {
 	fi
 
 	echo >"${RUN_DIR}/esentire.sh"
-	cat "${BASE_DIR}/${ipset}.source" |\
+	$CAT_CMD "${BASE_DIR}/${ipset}.source" |\
 		while IFS="," read file type description
 		do
-			name="$( echo "${file/_watch_ip.lst/}" | tr -c "[a-zA-Z0-9\n]" "_")"
+			name="$( echo "${file/_watch_ip.lst/}" | $TR_CMD -c "[a-zA-Z0-9\n]" "_")"
 			
-			cat >>"${RUN_DIR}/esentire.sh" <<EOF_ESENTIRE
+			$CAT_CMD >>"${RUN_DIR}/esentire.sh" <<EOF_ESENTIRE
 update esentire_${name} "${mins}" 0 ipv4 ip \
 	"${base}/${file}" \
 	remove_comments \
@@ -6508,7 +6508,7 @@ fi
 # IBM X-Force
 # unfortunately a paid service
 
-cat >/dev/null <<"XFORCE_COMMENTED"
+$CAT_CMD >/dev/null <<"XFORCE_COMMENTED"
 declare -A xforce=(
 	[spam]="Spam"
 	[anonymous]="Anonymisation Services"
@@ -6551,13 +6551,13 @@ if [ ! -z "${XFORCE_API_KEY}" -a ! -z "${XFORCE_API_PASSWORD}" ]
 		done
 	done
 else
-	now=$(date +%s)
+	now=$($DATE_CMD +%s)
 	for x in "${!xforce[@]}"
 	do
 		for d in "${xforce_days[@]}"
 		do
 			update ${x}_${d}d $[60] "" ipv4 ip \
-				"https://api.xforce.ibmcloud.com/ipr?category=$(echo "${xforce[${x}]}" | sed "s| |%20|g")&startDate=$(date +"%Y-%m-%dT%H%%3A%M%%3A%SZ&limit=10000" --date=@$(( now - (d * 86400) )))" \
+				"https://api.xforce.ibmcloud.com/ipr?category=$(echo "${xforce[${x}]}" | $SED_CMD "s| |%20|g")&startDate=$($DATE_CMD +"%Y-%m-%dT%H%%3A%M%%3A%SZ&limit=10000" --date=@$(( now - (d * 86400) )))" \
 				xforce_parser \
 				"${xforce_categories[${x}]}" "[IBM X-Force Exchange](https://exchange.xforce.ibmcloud.com/) - ${xforce[${x}]} detected in the last ${d} day(s)." \
 				"IBM X-Force Exchange" "https://exchange.xforce.ibmcloud.com/" \
