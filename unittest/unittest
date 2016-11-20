@@ -125,7 +125,7 @@ fi
 
 if [ $# -eq 1 -a "$1" = "all" ]
 then
-  find firehol fireqos link-balancer vnetbuild -type f -name '*.conf' | sort > $MYTMP/all-tests
+  find firehol fireqos link-balancer vnetbuild update-ipsets -type f -name '*.conf' | sort > $MYTMP/all-tests
 else
   find "$@" -type f -name '*.conf' | sort > $MYTMP/all-tests
 fi
@@ -273,7 +273,7 @@ do
     #  - egrep because /sbin/egrep makes use of PATH to find 'grep -E'
     #    the unit tests set PATH to empty so we must use the explicit one
     #  - logger so we get e.g. panics in our logs, not on the system console
-    #  - LB_RUN_DIR + FIREQOS_LOCK_FILE + FIREQOS_DIR + RUN_PARENT_DIR
+    #  - LB_RUN_DIR + FIREQOS_LOCK_FILE + FIREQOS_DIR + RUN_PARENT_DIR etc.
     #     keep within our mounts
     #  - PATH reset to ensure it is off (some programs reset it)
     cat > /etc/firehol/firehol-defaults.conf <<-!
@@ -284,6 +284,8 @@ do
 		FIREQOS_LOCK_FILE=/var/run/firehol/fireqos.lock
 		UPDATE_IPSETS_LOCK_FILE=/var/run/firehol/update-ipsets.lock
 		RUN_PARENT_DIR=/var/run/firehol
+		CACHE_DIR=/var/run/firehol/update-ipsets/cache
+		LIB_DIR=/var/run/firehol/update-ipsets/lib
 		WEB_DIR=/var/run/firehol/webdir
 		export PATH=
 	!
