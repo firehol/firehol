@@ -4,8 +4,8 @@ AC_PREREQ([2.63])
 
 dnl Package version
 define([VERSION_MAJOR], [3])
-define([VERSION_MINOR], [0])
-define([VERSION_FIX], [3])
+define([VERSION_MINOR], [1])
+define([VERSION_FIX], [0])
 define([VERSION_SUFFIX], [_master])
 
 dnl Required program versions
