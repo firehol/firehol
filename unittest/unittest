@@ -292,6 +292,8 @@ do
       "$pre_sh" "$conf"
     else
       # Or just take the defaults
+      mkdir -p /var/run/firehol
+      mkdir -p $MYTMP/run
       mkdir -p $MYTMP/firehol/services
     fi
 
