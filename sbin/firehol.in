@@ -4322,7 +4322,12 @@ transparent_proxy() {
 		
 		# do not catch traffic for localhost servers
 		# rule table nat chain "out_trproxy.${transparent_proxy_count}" dst "127.0.0.1" action RETURN || return 1
-		rule table nat chain "out_trproxy.${transparent_proxy_count}" proto tcp dst not "127.0.0.1" action REDIRECT to-port ${redirect} || return 1
+		if running_ipv4; then
+			ipv4 rule table nat chain "out_trproxy.${transparent_proxy_count}" proto tcp dst not "127.0.0.1" action REDIRECT to-port ${redirect} || return 1
+		fi
+		if running_ipv6; then
+			ipv6 rule table nat chain "out_trproxy.${transparent_proxy_count}" proto tcp dst not "::1" action REDIRECT to-port ${redirect} || return 1
+		fi
 	fi
 	
 	FIREHOL_NAT=1
