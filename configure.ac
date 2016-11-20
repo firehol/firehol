@@ -28,7 +28,7 @@ AC_PROG_MAKE_SET
 dnl Check for functioning symbolic links
 AC_PROG_LN_S
 
-AM_CONDITIONAL([GIT_TREE], [test -f README.md])
+AM_CONDITIONAL([GIT_TREE], [test -f "${srcdir}/README.md"])
 
 AX_FIREHOL_AUTOSAVE()
 AX_FIREHOL_AUTOSAVE6()
@@ -134,7 +134,7 @@ AC_SUBST(PANDOC_VERSION)
 AC_CONFIG_FILES([doc/tools/pandoc-post], [chmod +x doc/tools/pandoc-post])
 AC_MSG_NOTICE(***************************************************)
 else
-  if test ! -f doc/service-links; then
+  if test ! -f "$srcdir/doc/service-links"; then
     if test x"$enable_doc" = xyes -o x"$enable_man" = xyes; then
       AC_MSG_ERROR([docs not built, use '--disable-doc --disable-man' or --enable-maintainer-mode])
     fi

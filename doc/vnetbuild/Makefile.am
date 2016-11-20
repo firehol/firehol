@@ -1,5 +1,11 @@
 # Process this file with automake to produce Makefile.in
 
+if MAINTAINER_MODE
+gensrcdir=../..
+else
+gensrcdir=${top_srcdir}
+endif
+
 MANUAL_LINKS = \
 	${top_srcdir}/doc/links-internal-vnetbuild \
 	${top_srcdir}/doc/links-keywords-vnetbuild \
@@ -59,7 +65,7 @@ MKSERVICELINKS = ${top_srcdir}/doc/tools/mkservicelinks
 MKSERVICEMAN = ${top_srcdir}/doc/tools/mkserviceman
 MANSYNOS = ${top_srcdir}/doc/tools/man-synos
 COMBINEPANDOC = ${top_srcdir}/doc/tools/combine-pandoc
-PANDOCPOST = ${top_srcdir}/doc/tools/pandoc-post
+PANDOCPOST = $(gensrcdir)/doc/tools/pandoc-post
 CHECKLINKS = ${top_srcdir}/doc/tools/check-links
 
 man/man1/%.1: %.1.md
