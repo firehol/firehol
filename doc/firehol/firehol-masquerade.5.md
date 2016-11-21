@@ -46,7 +46,7 @@ FireHOL using the rules above).
 > interfaces.
 >
 > FIREHOL\_NAT will be turned on automatically (see
-> [firehol-variables(5)][] ) and FireHOL will
+> [firehol-defaults.conf(5)][] ) and FireHOL will
 > enable packet-forwarding in the kernel.
 
 # MASQUERADING AND SNAT

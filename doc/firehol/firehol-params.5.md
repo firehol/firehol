@@ -366,7 +366,7 @@ and the logging.
 
 Logging is controlled using the FIREHOL\_LOG\_OPTIONS and
 FIREHOL\_LOG\_LEVEL environment variables - see
-[firehol-variables(5)][]. `loglimit`
+[firehol-defaults.conf(5)][]. `loglimit`
 additionally honours the FIREHOL\_LOG\_FREQUENCY and FIREHOL\_LOG\_BURST
 variables.
 
@@ -519,7 +519,7 @@ hashlimit mylimit mode dstip above 512kb/s burst 1mb
 * [firehol-mark(5)][keyword-firehol-mark-helper] - mark config helper
 * [firehol-tos(5)][keyword-firehol-tos-helper] - tos config helper
 * [firehol-dscp(5)][keyword-firehol-dscp-helper] - dscp config helper
-* [firehol-variables(5)][] - control variables
+* [firehol-defaults.conf(5)][] - control variables
 * [iptables(8)](http://ipset.netfilter.org/iptables.man.html) - administration tool for IPv4 firewalls
 * [ip6tables(8)](http://ipset.netfilter.org/ip6tables.man.html) - administration tool for IPv6 firewalls
 * [FireHOL Website](http://firehol.org/)

@@ -63,7 +63,7 @@ invalid
     connection tracker.
 
     See also FIREHOL\_DROP\_INVALID in
-    [firehol-variables(5)][] which allows setting this
+    [firehol-defaults.conf(5)][] which allows setting this
     function globally.
 
 fragments

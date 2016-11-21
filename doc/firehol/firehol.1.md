@@ -89,7 +89,7 @@ status
 save
 :   Start the firewall and then save it using iptables-save(8) to
     the location given by FIREHOL\_AUTOSAVE. See
-    [firehol-variables(5)][] for more information.
+    [firehol-defaults.conf(5)][] for more information.
 
     The required kernel modules are saved to an executable shell script
     `/var/spool/firehol/last_save_modules.sh`, which can be called
@@ -150,7 +150,7 @@ save
 # SEE ALSO
 
 * [firehol.conf(5)][] - FireHOL configuration
-* [firehol-variables(5)][] - control variables
+* [firehol-defaults.conf(5)][] - control variables
 * [FireHOL Website](http://firehol.org/)
 * [FireHOL Online PDF Manual](http://firehol.org/firehol-manual.pdf)
 * [FireHOL Online Documentation](http://firehol.org/documentation/)

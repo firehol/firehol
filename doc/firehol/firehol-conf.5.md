@@ -80,7 +80,7 @@ The configuration file is parsed as a bash(1) script, allowing you to
 set up and use variables, flow control and external commands.
 
 Special control variables may be set up and used outside of any definition,
-see [firehol-variables(5)][] as can the functions in
+see [firehol-defaults.conf(5)][] as can the functions in
 [CONFIGURATION HELPER COMMANDS][] and
 [HELPER COMMANDS][].
 
@@ -147,7 +147,7 @@ within an `interface`) it resolves to sysctl(8) variable
 net.ipv4.ip\_local\_port\_range (or `/proc/sys/net/ipv4/ip_local_port_range`).
 For a remote machine (e.g. a client within an interface or anything
 in a router) it resolves to the variable DEFAULT\_CLIENT\_PORTS (see
-[firehol-variables(5)][]).
+[firehol-defaults.conf(5)][]).
 
 The following are optional:
 
@@ -157,7 +157,7 @@ The following are optional:
 
 The named kernel modules will be loaded when the definition is used. The
 NAT modules will only be loaded if FIREHOL\_NAT is non-zero (see
-[firehol-variables(5)][]).
+[firehol-defaults.conf(5)][]).
 
 For example, for a service named `daftnet` that listens at two ports,
 port 1234 TCP and 1234 UDP where the expected client ports are the
@@ -264,7 +264,7 @@ definitions (i.e. before the first interface is defined).
 # SEE ALSO
 
 * [firehol(1)][] - FireHOL program
-* [firehol-variables(5)][] - control variables
+* [firehol-defaults.conf(5)][] - control variables
 * [firehol-services(5)][] - services list
 * [firehol-actions(5)][] - actions for rules
 * [FireHOL Website](http://firehol.org/)

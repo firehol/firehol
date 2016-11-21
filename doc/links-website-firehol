@@ -8,7 +8,7 @@
   -->
 
 [keyword-manref-firehol-config-file]: firehol-conf.5.md#firehol.conf5
-[keyword-manref-firehol-variables-control]: firehol-variables.5.md#firehol-variables5
+[keyword-manref-firehol-variables-control]: firehol-defaults-conf.5.md#firehol-defaults.conf5
 [keyword-manref-firehol-variables-unroutable]: firehol-conf.5.md#variables-available
 [keyword-manref-firehol-variables-activation]: firehol-conf.5.md#variables-available
 [keyword-manref-firehol-helpme]: firehol.1.md#helpme-wizard

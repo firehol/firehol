@@ -47,7 +47,7 @@ MANUALMAN_GENERATED = \
 	man/man5/firehol-tcpmss.5 \
 	man/man5/firehol-tos.5 \
 	man/man5/firehol-tosfix.5 \
-	man/man5/firehol-variables.5 \
+	man/man5/firehol-defaults-conf.5 \
 	man/man5/firehol-version.5
 
 # Generate using:
@@ -60,6 +60,7 @@ MANUALMAN_GENERATED_INDIRECT = \
 	man/man5/firehol.conf.5 \
 	man/man5/firehol-custom.5 \
 	man/man5/firehol-deny.5 \
+	man/man5/firehol-defaults.conf.5 \
 	man/man5/firehol-dnat.5 \
 	man/man5/firehol-dport.5 \
 	man/man5/firehol-drop.5 \
@@ -111,7 +112,8 @@ MANUALMAN_GENERATED_INDIRECT = \
 	man/man5/firehol-tos-param.5 \
 	man/man5/firehol-transparent_proxy.5 \
 	man/man5/firehol-transparent_squid.5 \
-	man/man5/firehol-uid.5
+	man/man5/firehol-uid.5 \
+	man/man5/firehol-variables.5
 
 MANUALMARKDOWN_GENERATED = \
 	contents.md \
