@@ -4387,7 +4387,7 @@ update blocklist_de_bots 15 0 ipv4 ip \
 	"http://lists.blocklist.de/lists/bots.txt" \
 	remove_comments \
 	"attacks" \
-	"[Blocklist.de](https://www.blocklist.de/) All IP addresses which have been reported within the last 48 hours as having run attacks on the RFI-Attacks, REG-Bots, IRC-Bots or BadBots (BadBots = he has posted a Spam-Comment on a open Forum or Wiki)." \
+	"[Blocklist.de](https://www.blocklist.de/) All IP addresses which have been reported within the last 48 hours as having run attacks on the RFI-Attacks, REG-Bots, IRC-Bots or BadBots (BadBots = it has posted a Spam-Comment on a open Forum or Wiki)." \
 	"Blocklist.de" "https://www.blocklist.de/"
 
 update blocklist_de_strongips 15 0 ipv4 ip \
@@ -4410,7 +4410,7 @@ update blocklist_de_bruteforce 15 0 ipv4 ip \
 	"http://lists.blocklist.de/lists/bruteforcelogin.txt" \
 	remove_comments \
 	"attacks" \
-	"[Blocklist.de](https://www.blocklist.de/) All IPs which attacks Joomlas, Wordpress and other Web-Logins with Brute-Force Logins." \
+	"[Blocklist.de](https://www.blocklist.de/) All IPs which attacks Joomla, Wordpress and other Web-Logins with Brute-Force Logins." \
 	"Blocklist.de" "https://www.blocklist.de/"
 
 
@@ -4522,7 +4522,7 @@ update ransomware_feed 5 0 ipv4 ip \
 	"https://ransomwaretracker.abuse.ch/feeds/csv/" \
 	parse_ransomwaretracker_feed \
 	"malware" \
-	"[Abuse.ch Ransomware Tracker](https://ransomwaretracker.abuse.ch) Ransomware Tracker tracks and monitors the status of domain names, IP addresses and URLs that are associated with Ransomware, such as Botnet C&C servers, distribution sites and payment sites. By using data provided by Ransomware Tracker, hosting- and internet service provider (ISPs), as well as national CERTs/CSIRTs, law enforcement agencies (LEA) and security researchers can receive an overview on infrastructure used by Ransomware and whether these are actively being used by miscreant to commit fraud. The IPs in this list have been extracted from the tracker data feed." \
+	"[Abuse.ch Ransomware Tracker](https://ransomwaretracker.abuse.ch) Ransomware Tracker tracks and monitors the status of domain names, IP addresses and URLs that are associated with Ransomware, such as Botnet C&C servers, distribution sites and payment sites. By using data provided by Ransomware Tracker, hosting- and internet service provider (ISPs), as well as national CERTs/CSIRTs, law enforcement agencies (LEA) and security researchers can receive an overview on infrastructure used by Ransomware and whether these are actively being used by miscreants to commit fraud. The IPs in this list have been extracted from the tracker data feed." \
 	"Abuse.ch" "https://ransomwaretracker.abuse.ch" \
 	can_be_empty
 
@@ -4542,7 +4542,7 @@ update ransomware_online 5 0 ipv4 ip \
 	"https://ransomwaretracker.abuse.ch/feeds/csv/" \
 	parse_ransomwaretracker_online \
 	"malware" \
-	"[Abuse.ch Ransomware Tracker](https://ransomwaretracker.abuse.ch) Ransomware Tracker tracks and monitors the status of domain names, IP addresses and URLs that are associated with Ransomware, such as Botnet C&C servers, distribution sites and payment sites. By using data provided by Ransomware Tracker, hosting- and internet service provider (ISPs), as well as national CERTs/CSIRTs, law enforcement agencies (LEA) and security researchers can receive an overview on infrastructure used by Ransomware and whether these are actively being used by miscreant to commit fraud. The IPs in this list have been extracted from the tracker data feed, filtering only online IPs." \
+	"[Abuse.ch Ransomware Tracker](https://ransomwaretracker.abuse.ch) Ransomware Tracker tracks and monitors the status of domain names, IP addresses and URLs that are associated with Ransomware, such as Botnet C&C servers, distribution sites and payment sites. By using data provided by Ransomware Tracker, hosting- and internet service provider (ISPs), as well as national CERTs/CSIRTs, law enforcement agencies (LEA) and security researchers can receive an overview on infrastructure used by Ransomware and whether these are actively being used by miscreants to commit fraud. The IPs in this list have been extracted from the tracker data feed, filtering only online IPs." \
 	"Abuse.ch" "https://ransomwaretracker.abuse.ch" \
 	downloader "${ransomware_online_downloader}" \
 	downloader_options "${ransomware_online_downloader_options}" \
@@ -4552,7 +4552,7 @@ update ransomware_rw 5 0 ipv4 ip \
 	"https://ransomwaretracker.abuse.ch/downloads/RW_IPBL.txt" \
 	remove_comments \
 	"malware" \
-	"[Abuse.ch Ransomware Tracker](https://ransomwaretracker.abuse.ch) Ransomware Tracker tracks and monitors the status of domain names, IP addresses and URLs that are associated with Ransomware, such as Botnet C&C servers, distribution sites and payment sites. By using data provided by Ransomware Tracker, hosting- and internet service provider (ISPs), as well as national CERTs/CSIRTs, law enforcement agencies (LEA) and security researchers can receive an overview on infrastructure used by Ransomware and whether these are actively being used by miscreant to commit fraud. This list includes TC_PS_IPBL, LY_C2_IPBL, TL_C2_IPBL, TL_PS_IPBL and it is the recommended blocklist. It might not catch everything, but the false positive rate should be low. However, false positives are possible, especially with regards to RW_IPBL. IP addresses associated with Ransomware Payment Sites (*_PS_IPBL) or Locky botnet C&Cs (LY_C2_IPBL) stay listed on RW_IPBL for a time of 30 days after the last appearence. This means that an IP address stays listed on RW_IPBL even after the threat has been eliminated (e.g. the VPS / server has been suspended by the hosting provider) for another 30 days." \
+	"[Abuse.ch Ransomware Tracker](https://ransomwaretracker.abuse.ch) Ransomware Tracker tracks and monitors the status of domain names, IP addresses and URLs that are associated with Ransomware, such as Botnet C&C servers, distribution sites and payment sites. By using data provided by Ransomware Tracker, hosting- and internet service provider (ISPs), as well as national CERTs/CSIRTs, law enforcement agencies (LEA) and security researchers can receive an overview on infrastructure used by Ransomware and whether these are actively being used by miscreants to commit fraud. This list includes TC_PS_IPBL, LY_C2_IPBL, TL_C2_IPBL, TL_PS_IPBL and it is the recommended blocklist. It might not catch everything, but the false positive rate should be low. However, false positives are possible, especially with regards to RW_IPBL. IP addresses associated with Ransomware Payment Sites (*_PS_IPBL) or Locky botnet C&Cs (LY_C2_IPBL) stay listed on RW_IPBL for a time of 30 days after the last appearance. This means that an IP address stays listed on RW_IPBL even after the threat has been eliminated (e.g. the VPS / server has been suspended by the hosting provider) for another 30 days." \
 	"Abuse.ch" "https://ransomwaretracker.abuse.ch" \
 	can_be_empty
 
@@ -4560,7 +4560,7 @@ update ransomware_cryptowall_ps 5 0 ipv4 ip \
 	"https://ransomwaretracker.abuse.ch/downloads/CW_PS_IPBL.txt" \
 	remove_comments \
 	"malware" \
-	"[Abuse.ch Ransomware Tracker](https://ransomwaretracker.abuse.ch) Ransomware Tracker tracks and monitors the status of domain names, IP addresses and URLs that are associated with Ransomware, such as Botnet C&C servers, distribution sites and payment sites. By using data provided by Ransomware Tracker, hosting- and internet service provider (ISPs), as well as national CERTs/CSIRTs, law enforcement agencies (LEA) and security researchers can receive an overview on infrastructure used by Ransomware and whether these are actively being used by miscreant to commit fraud. This list is CW_PS_IPBL: CryptoWall Ransomware Payment Sites IP blocklist." \
+	"[Abuse.ch Ransomware Tracker](https://ransomwaretracker.abuse.ch) Ransomware Tracker tracks and monitors the status of domain names, IP addresses and URLs that are associated with Ransomware, such as Botnet C&C servers, distribution sites and payment sites. By using data provided by Ransomware Tracker, hosting- and internet service provider (ISPs), as well as national CERTs/CSIRTs, law enforcement agencies (LEA) and security researchers can receive an overview on infrastructure used by Ransomware and whether these are actively being used by miscreants to commit fraud. This list is CW_PS_IPBL: CryptoWall Ransomware Payment Sites IP blocklist." \
 	"Abuse.ch" "https://ransomwaretracker.abuse.ch" \
 	can_be_empty
 
@@ -4568,7 +4568,7 @@ update ransomware_teslacrypt_ps 5 0 ipv4 ip \
 	"https://ransomwaretracker.abuse.ch/downloads/TC_PS_IPBL.txt" \
 	remove_comments \
 	"malware" \
-	"[Abuse.ch Ransomware Tracker](https://ransomwaretracker.abuse.ch) Ransomware Tracker tracks and monitors the status of domain names, IP addresses and URLs that are associated with Ransomware, such as Botnet C&C servers, distribution sites and payment sites. By using data provided by Ransomware Tracker, hosting- and internet service provider (ISPs), as well as national CERTs/CSIRTs, law enforcement agencies (LEA) and security researchers can receive an overview on infrastructure used by Ransomware and whether these are actively being used by miscreant to commit fraud. This list is TC_PS_IPBL: TeslaCrypt Ransomware Payment Sites IP blocklist." \
+	"[Abuse.ch Ransomware Tracker](https://ransomwaretracker.abuse.ch) Ransomware Tracker tracks and monitors the status of domain names, IP addresses and URLs that are associated with Ransomware, such as Botnet C&C servers, distribution sites and payment sites. By using data provided by Ransomware Tracker, hosting- and internet service provider (ISPs), as well as national CERTs/CSIRTs, law enforcement agencies (LEA) and security researchers can receive an overview on infrastructure used by Ransomware and whether these are actively being used by miscreants to commit fraud. This list is TC_PS_IPBL: TeslaCrypt Ransomware Payment Sites IP blocklist." \
 	"Abuse.ch" "https://ransomwaretracker.abuse.ch" \
 	can_be_empty
 
@@ -4576,7 +4576,7 @@ update ransomware_locky_c2 5 0 ipv4 ip \
 	"https://ransomwaretracker.abuse.ch/downloads/LY_C2_IPBL.txt" \
 	remove_comments \
 	"malware" \
-	"[Abuse.ch Ransomware Tracker](https://ransomwaretracker.abuse.ch) Ransomware Tracker tracks and monitors the status of domain names, IP addresses and URLs that are associated with Ransomware, such as Botnet C&C servers, distribution sites and payment sites. By using data provided by Ransomware Tracker, hosting- and internet service provider (ISPs), as well as national CERTs/CSIRTs, law enforcement agencies (LEA) and security researchers can receive an overview on infrastructure used by Ransomware and whether these are actively being used by miscreant to commit fraud. This list is LY_C2_IPBL: Locky Ransomware C2 URL blocklist." \
+	"[Abuse.ch Ransomware Tracker](https://ransomwaretracker.abuse.ch) Ransomware Tracker tracks and monitors the status of domain names, IP addresses and URLs that are associated with Ransomware, such as Botnet C&C servers, distribution sites and payment sites. By using data provided by Ransomware Tracker, hosting- and internet service provider (ISPs), as well as national CERTs/CSIRTs, law enforcement agencies (LEA) and security researchers can receive an overview on infrastructure used by Ransomware and whether these are actively being used by miscreants to commit fraud. This list is LY_C2_IPBL: Locky Ransomware C2 URL blocklist." \
 	"Abuse.ch" "https://ransomwaretracker.abuse.ch" \
 	can_be_empty
 
@@ -4584,7 +4584,7 @@ update ransomware_locky_ps 5 0 ipv4 ip \
 	"https://ransomwaretracker.abuse.ch/downloads/LY_PS_IPBL.txt" \
 	remove_comments \
 	"malware" \
-	"[Abuse.ch Ransomware Tracker](https://ransomwaretracker.abuse.ch) Ransomware Tracker tracks and monitors the status of domain names, IP addresses and URLs that are associated with Ransomware, such as Botnet C&C servers, distribution sites and payment sites. By using data provided by Ransomware Tracker, hosting- and internet service provider (ISPs), as well as national CERTs/CSIRTs, law enforcement agencies (LEA) and security researchers can receive an overview on infrastructure used by Ransomware and whether these are actively being used by miscreant to commit fraud. This list is LY_PS_IPBL: Locky Ransomware Payment Sites IP blocklist." \
+	"[Abuse.ch Ransomware Tracker](https://ransomwaretracker.abuse.ch) Ransomware Tracker tracks and monitors the status of domain names, IP addresses and URLs that are associated with Ransomware, such as Botnet C&C servers, distribution sites and payment sites. By using data provided by Ransomware Tracker, hosting- and internet service provider (ISPs), as well as national CERTs/CSIRTs, law enforcement agencies (LEA) and security researchers can receive an overview on infrastructure used by Ransomware and whether these are actively being used by miscreants to commit fraud. This list is LY_PS_IPBL: Locky Ransomware Payment Sites IP blocklist." \
 	"Abuse.ch" "https://ransomwaretracker.abuse.ch" \
 	can_be_empty
 
@@ -4592,7 +4592,7 @@ update ransomware_torrentlocker_ps 5 0 ipv4 ip \
 	"https://ransomwaretracker.abuse.ch/downloads/TL_PS_IPBL.txt" \
 	remove_comments \
 	"malware" \
-	"[Abuse.ch Ransomware Tracker](https://ransomwaretracker.abuse.ch) Ransomware Tracker tracks and monitors the status of domain names, IP addresses and URLs that are associated with Ransomware, such as Botnet C&C servers, distribution sites and payment sites. By using data provided by Ransomware Tracker, hosting- and internet service provider (ISPs), as well as national CERTs/CSIRTs, law enforcement agencies (LEA) and security researchers can receive an overview on infrastructure used by Ransomware and whether these are actively being used by miscreant to commit fraud. This list is TL_PS_IPBL: TorrentLocker Ransomware Payment Sites IP blocklist." \
+	"[Abuse.ch Ransomware Tracker](https://ransomwaretracker.abuse.ch) Ransomware Tracker tracks and monitors the status of domain names, IP addresses and URLs that are associated with Ransomware, such as Botnet C&C servers, distribution sites and payment sites. By using data provided by Ransomware Tracker, hosting- and internet service provider (ISPs), as well as national CERTs/CSIRTs, law enforcement agencies (LEA) and security researchers can receive an overview on infrastructure used by Ransomware and whether these are actively being used by miscreants to commit fraud. This list is TL_PS_IPBL: TorrentLocker Ransomware Payment Sites IP blocklist." \
 	"Abuse.ch" "https://ransomwaretracker.abuse.ch" \
 	can_be_empty
 
@@ -4600,7 +4600,7 @@ update ransomware_torrentlocker_c2 5 0 ipv4 ip \
 	"https://ransomwaretracker.abuse.ch/downloads/TL_C2_IPBL.txt" \
 	remove_comments \
 	"malware" \
-	"[Abuse.ch Ransomware Tracker](https://ransomwaretracker.abuse.ch) Ransomware Tracker tracks and monitors the status of domain names, IP addresses and URLs that are associated with Ransomware, such as Botnet C&C servers, distribution sites and payment sites. By using data provided by Ransomware Tracker, hosting- and internet service provider (ISPs), as well as national CERTs/CSIRTs, law enforcement agencies (LEA) and security researchers can receive an overview on infrastructure used by Ransomware and whether these are actively being used by miscreant to commit fraud. This list is TL_C2_IPBL: TorrentLocker Ransomware C2 IP blocklist." \
+	"[Abuse.ch Ransomware Tracker](https://ransomwaretracker.abuse.ch) Ransomware Tracker tracks and monitors the status of domain names, IP addresses and URLs that are associated with Ransomware, such as Botnet C&C servers, distribution sites and payment sites. By using data provided by Ransomware Tracker, hosting- and internet service provider (ISPs), as well as national CERTs/CSIRTs, law enforcement agencies (LEA) and security researchers can receive an overview on infrastructure used by Ransomware and whether these are actively being used by miscreants to commit fraud. This list is TL_C2_IPBL: TorrentLocker Ransomware C2 IP blocklist." \
 	"Abuse.ch" "https://ransomwaretracker.abuse.ch" \
 	can_be_empty
 
@@ -4766,7 +4766,7 @@ update myip $[24*60] 0 ipv4 ip \
 update bogons $[24*60] 0 ipv4 both \
 	"http://www.team-cymru.org/Services/Bogons/bogon-bn-agg.txt" \
 	remove_comments \
-	"unroutable" \
+	"unrouteable" \
 	"[Team-Cymru.org](http://www.team-cymru.org) private and reserved addresses defined by RFC 1918, RFC 5735, and RFC 6598 and netblocks that have not been allocated to a regional internet registry" \
 	"Team Cymru" "http://www.team-cymru.org/" \
 	dont_redistribute
@@ -4779,7 +4779,7 @@ update bogons $[24*60] 0 ipv4 both \
 update fullbogons $[24*60] 0 ipv4 both \
 	"http://www.team-cymru.org/Services/Bogons/fullbogons-ipv4.txt" \
 	remove_comments \
-	"unroutable" \
+	"unrouteable" \
 	"[Team-Cymru.org](http://www.team-cymru.org) IP space that has been allocated to an RIR, but not assigned by that RIR to an actual ISP or other end-user" \
 	"Team Cymru" "http://www.team-cymru.org/" \
 	dont_redistribute
@@ -4787,7 +4787,7 @@ update fullbogons $[24*60] 0 ipv4 both \
 #update fullbogons6 $[24*60-10] ipv6 both \
 #	"http://www.team-cymru.org/Services/Bogons/fullbogons-ipv6.txt" \
 #	remove_comments \
-#	"unroutable" \
+#	"unrouteable" \
 #	"Team-Cymru.org provided" \
 #	"Team Cymru" "http://www.team-cymru.org/" \
 #	dont_redistribute
@@ -4798,7 +4798,7 @@ update fullbogons $[24*60] 0 ipv4 both \
 update cidr_report_bogons $[24*60] 0 ipv4 both \
 	"http://www.cidr-report.org/bogons/freespace-prefix.txt" \
 	remove_comments \
-	"unroutable" \
+	"unrouteable" \
 	"Unallocated (Free) Address Space, generated on a daily basis using the IANA registry files, the Regional Internet Registry stats files and the Regional Internet Registry whois data." \
 	"CIDR-Report.org" "http://www.cidr-report.org"
 
@@ -5052,7 +5052,7 @@ update turris_greylist $[7 * 24 * 60] 0 ipv4 ip \
 	"https://www.turris.cz/greylist-data/greylist-latest.csv" \
 	parse_turris_greylist \
 	"reputation" \
-	"[Turris Greylist](https://www.turris.cz/en/greylist) IPs that are blocked on the firewalls of Turris routers. The data are processed and clasified every week and behaviour of IP addresses that accessed a larger number of Turris routers is evaluated. The result is a list of addresses that have tried to obtain information about services on the router or tried to gain access to them. We do not recommend to use these data as a list of addresses that should be blocked but it can be used for example in analysis of the traffic in other networks." \
+	"[Turris Greylist](https://www.turris.cz/en/greylist) IPs that are blocked on the firewalls of Turris routers. The data is processed and clasified every week and behaviour of IP addresses that accessed a larger number of Turris routers is evaluated. The result is a list of addresses that have tried to obtain information about services on the router or tried to gain access to them. We do not recommend to use these data as a list of addresses that should be blocked but it can be used for example in analysis of the traffic in other networks." \
 	"Turris" "https://www.turris.cz/en/greylist"
 
 
@@ -5236,7 +5236,7 @@ update virbl 60 0 ipv4 ip \
 	"http://virbl.bit.nl/download/virbl.dnsbl.bit.nl.txt" \
 	remove_comments \
 	"spam" \
-	"[VirBL](http://virbl.bit.nl/) is a project of which the idea was born during the RIPE-48 meeting. The plan was to get reports of virusscanning mailservers, and put the IP-addresses that were reported to send viruses on a blacklist." \
+	"[VirBL](http://virbl.bit.nl/) is a project of which the idea was born during the RIPE-48 meeting. The plan was to get reports of virus scanning mailservers, and put the IP-addresses that were reported to send viruses on a blacklist." \
 	"VirBL.bit.nl" "http://virbl.bit.nl/"
 
 
@@ -5862,7 +5862,7 @@ update iblocklist_level1 $[12*60] 0 ipv4 both \
 	"http://list.iblocklist.com/?list=ydxerpxkpcfqjaybcssw&fileformat=p2p&archiveformat=gz" \
 	p2p_gz \
 	"reputation" \
-	"Level 1 (for use in p2p): Companies or organizations who are clearly involved with trying to stop filesharing (e.g. Baytsp, MediaDefender, Mediasentry a.o.). Companies which anti-p2p activity has been seen from. Companies that produce or have a strong financial interest in copyrighted material (e.g. music, movie, software industries a.o.). Government ranges or companies that have a strong financial interest in doing work for governments. Legal industry ranges. IPs or ranges of ISPs from which anti-p2p activity has been observed. Basically this list will block all kinds of internet connections that most people would rather not have during their internet travels." \
+	"Level 1 (for use in p2p): Companies or organizations who are clearly involved with trying to stop filesharing (e.g. Baytsp, MediaDefender, Mediasentry). Companies which anti-p2p activity has been seen from. Companies that produce or have a strong financial interest in copyrighted material (e.g. music, movie, software industries a.o.). Government ranges or companies that have a strong financial interest in doing work for governments. Legal industry ranges. IPs or ranges of ISPs from which anti-p2p activity has been observed. Basically this list will block all kinds of internet connections that most people would rather not have during their internet travels." \
 	"iBlocklist.com" "https://www.iblocklist.com/" \
 	dont_redistribute
 
@@ -5901,7 +5901,7 @@ update iblocklist_rangetest $[12*60] 0 ipv4 both \
 update iblocklist_bogons $[12*60] 0 ipv4 both \
 	"http://list.iblocklist.com/?list=gihxqmhyunbxhbmgqrla&fileformat=p2p&archiveformat=gz" \
 	p2p_gz \
-	"unroutable" \
+	"unrouteable" \
 	"Unallocated address space." \
 	"iBlocklist.com" "https://www.iblocklist.com/" \
 	dont_redistribute
@@ -5941,7 +5941,7 @@ update iblocklist_dshield $[12*60] 0 ipv4 both \
 update iblocklist_iana_reserved $[12*60] 0 ipv4 both \
 	"http://list.iblocklist.com/?list=bcoepfyewziejvcqyhqo&fileformat=p2p&archiveformat=gz" \
 	p2p_gz \
-	"unroutable" \
+	"unrouteable" \
 	"IANA Reserved IPs." \
 	"iBlocklist.com" "https://www.iblocklist.com/" \
 	dont_redistribute
@@ -5949,7 +5949,7 @@ update iblocklist_iana_reserved $[12*60] 0 ipv4 both \
 update iblocklist_iana_private $[12*60] 0 ipv4 both \
 	"http://list.iblocklist.com/?list=cslpybexmxyuacbyuvib&fileformat=p2p&archiveformat=gz" \
 	p2p_gz \
-	"unroutable" \
+	"unrouteable" \
 	"IANA Private IPs." \
 	"iBlocklist.com" "https://www.iblocklist.com/" \
 	dont_redistribute
@@ -5957,7 +5957,7 @@ update iblocklist_iana_private $[12*60] 0 ipv4 both \
 update iblocklist_iana_multicast $[12*60] 0 ipv4 both \
 	"http://list.iblocklist.com/?list=pwqnlynprfgtjbgqoizj&fileformat=p2p&archiveformat=gz" \
 	p2p_gz \
-	"unroutable" \
+	"unrouteable" \
 	"IANA Multicast IPs." \
 	"iBlocklist.com" "https://www.iblocklist.com/" \
 	dont_redistribute
@@ -6046,13 +6046,13 @@ update iblocklist_malc0de $[12*60] 0 ipv4 both \
 	"http://list.iblocklist.com/?list=pbqcylkejciyhmwttify&fileformat=p2p&archiveformat=gz" \
 	p2p_gz \
 	"malware" \
-	"malc0de.com IP blocklist. Addresses that have been indentified distributing malware during the past 30 days." \
+	"malc0de.com IP blocklist. Addresses that have been identified distributing malware during the past 30 days." \
 	"iBlocklist.com" "https://www.iblocklist.com/"
 
 update iblocklist_cidr_report_bogons $[12*60] 0 ipv4 both \
 	"http://list.iblocklist.com/?list=lujdnbasfaaixitgmxpp&fileformat=p2p&archiveformat=gz" \
 	p2p_gz \
-	"unroutable" \
+	"unrouteable" \
 	"cidr-report.org IP list of Unallocated address space." \
 	"iBlocklist.com" "https://www.iblocklist.com/"
 
@@ -6682,7 +6682,7 @@ update sorbs_escalations 1 0 ipv4 both "" \
 update sorbs_noserver 1 0 ipv4 both "" \
 	$CAT_CMD \
 	"spam" \
-	"[Sorbs.net](https://www.sorbs.net/) IP addresses and Netblocks of where system administrators and ISPs owning the network have indicated that servers should not be present." \
+	"[Sorbs.net](https://www.sorbs.net/) IP addresses and netblocks of where system administrators and ISPs owning the network have indicated that servers should not be present." \
 	"Sorbs.net" "https://www.sorbs.net/" \
 	dont_redistribute \
 	dont_enable_with_all
@@ -6867,7 +6867,7 @@ merge firehol_abusers_30d ipv4 both \
 
 merge firehol_webserver ipv4 both \
 	"attacks" \
-	"A web server IP blacklist made from blocklists that track IPs that should never be your web users. (This list includes IPs that are servers hosting malware, bots, etc or users having a long criminal history. This list is to be used on top of firehol_level1, firehol_level2, firehol_level3 and possibly firehol_proxies or firehol_anonymous)." \
+	"A web server IP blacklist made from blocklists that track IPs that should never be used by your web users. (This list includes IPs that are servers hosting malware, bots, etc or users having a long criminal history. This list is to be used on top of firehol_level1, firehol_level2, firehol_level3 and possibly firehol_proxies or firehol_anonymous)." \
 	"FireHOL" "http://iplists.firehol.org/" \
 	hphosts_emd \
 	hphosts_exp \
