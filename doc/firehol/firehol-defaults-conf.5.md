@@ -373,7 +373,7 @@ FIREHOL\_DROP\_ORPHAN\_TCP\_ACK
     without logging them.
 
     In busy environments the iptables(8) connection tracker removes
-    uneeded connection tracking list entries. This makes ACK packets
+    unneeded connection tracking list entries. This makes ACK packets
     appear as an invalid packet which will normally be logged by FireHOL.
 
     Example:
@@ -388,7 +388,7 @@ FIREHOL\_DROP\_ORPHAN\_TCP\_RST
     without logging them.
 
     In busy environments the iptables(8) connection tracker removes
-    uneeded connection tracking list entries. This makes RST packets
+    unneeded connection tracking list entries. This makes RST packets
     appear as an invalid packet which will normally be logged by FireHOL.
 
     Example:
@@ -403,7 +403,7 @@ FIREHOL\_DROP\_ORPHAN\_IPV4\_ICMP\_TYPE3
     unreachable packets without logging them.
 
     In busy environments the iptables(8) connection tracker removes
-    uneeded connection tracking list entries. This makes ICMP destination
+    unneeded connection tracking list entries. This makes ICMP destination
     unreachable appear as an invalid packet which will normally be logged
     by FireHOL.
 
