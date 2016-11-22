@@ -10215,13 +10215,15 @@ firehol_can_restore_saved_firewall() {
 		&& warning "${FIREHOL_CONFIG} is newer than saved firewall. Cannot restore saved firewall." \
 		&& return 3
 
-	test ! -z "`${FIND_CMD} "${FIREHOL_CONFIG_DIR}" -newer "${FIREHOL_LAST_SUCCESSFUL_COMMAND}"`" \
-		&& warning "${FIREHOL_CONFIG_DIR} has updated files. Cannot restore saved firewall." \
-		&& return 4
-
-	test ! -z "`${FIND_CMD} "${FIREHOL_SERVICES_DIR}" -newer "${FIREHOL_LAST_SUCCESSFUL_COMMAND}"`" \
-		&& warning "${FIREHOL_SERVICES_DIR} has updated files. Cannot restore saved firewall." \
-		&& return 5
+	${FIND_CMD} "${FIREHOL_CONFIG_DIR}" "${FIREHOL_SERVICES_DIR}" -type f > "${FIREHOL_DIR}/config-list"
+	local f
+	while read f
+	do
+		# Not all "$FIND_CMD" have -newer but bash always has -nt ...
+		test "${f}" -nt "${FIREHOL_LAST_SUCCESSFUL_COMMAND}" \
+                && warning "${f} is newer than saved firewall. Cannot restore saved firewall." \
+                && return 4
+	done < "${FIREHOL_DIR}/config-list"
 
 	if [ ${ENABLE_IPSET} -eq 1 ]
 	then
