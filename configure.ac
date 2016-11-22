@@ -177,7 +177,8 @@ AX_NEED_PROG([FLOCK], [flock], [])
 AX_NEED_PROG([FOLD], [fold], [])
 AX_NEED_PROG([HEAD], [head], [])
 if test x"$enable_firehol_wizard" = xyes; then
-AX_NEED_PROG([HOSTNAMECMD], [hostname], [])
+AX_CHECK_PROG([HOSTNAMECMD], [hostname], [])
+AX_NEED_PROG([HOSTNAMECMD], [uname], [-n])
 fi
 if test x"$enable_firehol_wizard" = xyes; then
 AX_NEED_PROG([IP], [ip], [])
