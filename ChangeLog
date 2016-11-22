@@ -1,3 +1,36 @@
+firehol (3.0.2) - 2016-11-22
+
+  * FireHOL
+    - Fix transparent_proxy IPV6 output #164
+    - sysctl commands for synproxy, did not specify read or write operation
+    - added manual page for cthelper
+    - added connlimit to blacklist and iptrap
+    - added stateful option to blacklist
+    - FIREHOL_DROP_ORPHAN_TCP_ACK_FIN fixed to match only ACK+FIN
+    - FIREHOL_DROP_ORPHAN_TCP_ACK_RST added
+    - FIREHOL_DROP_ORPHAN_TCP_ACK added
+    - FIREHOL_DROP_ORPHAN_TCP_RST added
+    - FIREHOL_DROP_ORPHAN_IPV4_ICMP_TYPE3 (orphan destination unreachable)
+    - added the word BLOCKED to the log messages of INVALID packets dropped
+
+  * FireQOS
+    - experimental ematch support #125
+    - new functions #113
+
+  * VNetBuild
+    - fix for not detecting running vhosts
+    - added command comments on status output
+
+  * Link-Balancer
+    - Detect if ping -6 should be used #126
+
+  * Update-IPsets
+    - Various feed additions and fixes
+
+  * Common
+    - Fix commit hook regex for newer perl
+    - Documentation fixes
+
 firehol (3.0.1) - 2016-01-10
 
   * FireHOL
