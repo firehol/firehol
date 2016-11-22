@@ -56,7 +56,7 @@
 #    - update a kernel ipset, having the same name
 #
 # 5. It can commit all successfully updated files to a git repository.
-#    Just do 'git init' in $sysconfdir_POST/firehol/ipsets to enable it.
+#    Just do 'git init' in $SYSCONFDIR/firehol/ipsets to enable it.
 #    If it is called with -g it will also push the committed changes
 #    to a remote git server (to have this done by cron, please set
 #    git to automatically push changes without human action).
@@ -80,31 +80,33 @@
 
 # -----------------------------------------------------------------------------
 
-VERSION='$Id$'
-PROGRAM_FILE="${0}"
-PROGRAM_DIR="${0%/*}"
-if [ "$PROGRAM_DIR" = "$0" ]; then PROGRAM_DIR="."; fi
+READLINK_CMD=${READLINK_CMD:-readlink}
+BASENAME_CMD=${BASENAME_CMD:-basename}
+DIRNAME_CMD=${DIRNAME_CMD:-dirname}
+function realdir {
+	local r="$1"; local t=$($READLINK_CMD "$r")
+	while [ "$t" ]; do
+		r=$(cd $($DIRNAME_CMD "$r") && cd $($DIRNAME_CMD "$t") && pwd -P)/$($BASENAME_CMD "$t")
+		t=$($READLINK_CMD "$r")
+	done
+	$DIRNAME_CMD "$r"
+}
+PROGRAM_FILE="$0"
+PROGRAM_DIR="${FIREHOL_OVERRIDE_PROGRAM_DIR:-$(realdir "$0")}"
 PROGRAM_PWD="${PWD}"
 declare -a PROGRAM_ORIGINAL_ARGS=("${@}")
 
-# Start defaults before configure
-prefix_POST=/usr
-sysconfdir_POST=/etc
-localstatedir_POST=/var
-libdir_POST=$PROGRAM_DIR
-# End defaults before configure
-for functions_file in $libdir_POST/functions.common.sh
+for functions_file in install.config functions.common
 do
-	if [ -r $functions_file ]
+	if [ -r "$PROGRAM_DIR/$functions_file" ]
 	then
-		source $functions_file
+		source "$PROGRAM_DIR/$functions_file"
 	else
-		1>&2 echo "Cannot access $functions_file"
+		1>&2 echo "Cannot access $PROGRAM_DIR/$functions_file"
 		exit 1
 	fi
 done
 
-FIREHOL_CONFIG_DIR="$sysconfdir_POST/firehol"
 common_disable_localization || exit
 common_private_umask || exit
 
@@ -114,49 +116,6 @@ if [ -r "${FIREHOL_CONFIG_DIR}/firehol-defaults.conf" ]
 then
 	source "${FIREHOL_CONFIG_DIR}/firehol-defaults.conf" || exit 1
 fi
-
-common_load_commands $PROGRAM_FILE @AUTOCONF_RUN@ <<-!
-Y|IPRANGE_CMD|@IPRANGE@|iprange
-Y|DIRNAME_CMD|@DIRNAME@|dirname
-Y|TAIL_CMD|@TAIL@|tail
-Y|RENICE_CMD|@RENICE@|renice :
-Y|ZCAT_CMD|@ZCAT@|zcat gzcat "gzip -dc"
-Y|DATE_CMD|@DATE@|date
-Y|DIFF_CMD|@DIFF@|diff
-Y|FLOCK_CMD|@FLOCK@|flock
-Y|GREP_CMD|@GREP@|grep
-Y|EGREP_CMD|@EGREP@|egrep 'grep -E'
-Y|CUT_CMD|@CUT@|cut
-Y|CAT_CMD|@CAT@|cat
-Y|SED_CMD|@SED@|sed
-Y|TR_CMD|@TR@|tr
-Y|LN_CMD|@LN@|ln
-Y|LS_CMD|@LS@|ls
-Y|TOUCH_CMD|@TOUCH@|touch
-Y|LOGGER_CMD|@LOGGER@|logger
-Y|MKDIR_CMD|@MKDIR@|mkdir
-Y|CHOWN_CMD|@CHOWN@|chown
-Y|CHMOD_CMD|@CHMOD@|chmod
-Y|RM_CMD|@RM@|rm
-Y|SORT_CMD|@SORT@|sort
-Y|GAWK_CMD|@GAWK@|gawk awk
-Y|MKTEMP_CMD|@MKTEMP@|mktemp
-N|TPUT_CMD|@TPUT@|tput
-Y|FOLD_CMD|@FOLD@|fold
-Y|CURL_CMD|@CURL@|curl
-Y|FIND_CMD|@FIND@|find
-Y|WC_CMD|@WC@|wc
-Y|MV_CMD|@MV@|mv
-Y|CP_CMD|@CP@|cp
-Y|TAR_CMD|@TAR@|tar
-Y|IPSET_CMD|@IPSET@|ipset
-N|UNZIP_CMD|@UNZIP@|unzip
-N|FUNZIP_CMD|@FUNZIP@|funzip
-N|JQ_CMD|@JQ@|jq
-N|GIT_CMD|@GIT@|git
-!
-status=$?
-test $status -eq 0 || exit $status
 
 RUNNING_ON_TERMINAL=0
 if [ "z$1" = "z-nc" ]
@@ -311,12 +270,13 @@ ipset_verbose() {
 # -----------------------------------------------------------------------------
 # find a working iprange command
 
+HAVE_IPRANGE=${IPRANGE_CMD}
 if [ ! -z "${IPRANGE_CMD}" ]
 then
-	${IPRANGE_CMD} --has-reduce 2>/dev/null || IPRANGE_CMD=
+	${IPRANGE_CMD} --has-reduce 2>/dev/null || HAVE_IPRANGE=
 fi
 
-if [ -z "${IPRANGE_CMD}" ]
+if [ -z "$HAVE_IPRANGE" ]
 then
 	error "Cannot find a working iprange command. It should be part of FireHOL but it is not installed."
 	exit 1
@@ -325,16 +285,13 @@ fi
 # -----------------------------------------------------------------------------
 # CONFIGURATION
 
-FIREHOL_SHARE_DIR="${FIREHOL_SHARE_DIR-/usr/share/firehol}"
-FIREHOL_CONFIG_DIR="${FIREHOL_CONFIG_DIR-$sysconfdir_POST/firehol}"
-
 if [ "${UID}" = "0" -o -z "${UID}" ]
 	then
 	BASE_DIR="${BASE_DIR-${FIREHOL_CONFIG_DIR}/ipsets}"
 	CONFIG_FILE="${CONFIG_FILE-${FIREHOL_CONFIG_DIR}/update-ipsets.conf}"
-	RUN_PARENT_DIR="${RUN_PARENT_DIR-/var/run}"
-	CACHE_DIR="${CACHE_DIR-/var/cache/update-ipsets}"
-	LIB_DIR="${LIB_DIR-/var/lib/update-ipsets}"
+	RUN_PARENT_DIR="${RUN_PARENT_DIR-$LOCALSTATEDIR/run}"
+	CACHE_DIR="${CACHE_DIR-$LOCALSTATEDIR/cache/update-ipsets}"
+	LIB_DIR="${LIB_DIR-$LOCALSTATEDIR/lib/update-ipsets}"
 	IPSETS_APPLY=1
 else
 	$MKDIR_CMD -p "${HOME}/.update-ipsets" || exit 1

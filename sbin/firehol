@@ -24,32 +24,33 @@
 #
 #       See the file COPYING for details.
 #
-
-VERSION='$Id$'
-PROGRAM_FILE="${0}"
-PROGRAM_DIR="${0%/*}"
-if [ "$PROGRAM_DIR" = "$0" ]; then PROGRAM_DIR="."; fi
+READLINK_CMD=${READLINK_CMD:-readlink}
+BASENAME_CMD=${BASENAME_CMD:-basename}
+DIRNAME_CMD=${DIRNAME_CMD:-dirname}
+function realdir {
+	local r="$1"; local t=$($READLINK_CMD "$r")
+	while [ "$t" ]; do
+		r=$(cd $($DIRNAME_CMD "$r") && cd $($DIRNAME_CMD "$t") && pwd -P)/$($BASENAME_CMD "$t")
+		t=$($READLINK_CMD "$r")
+	done
+	$DIRNAME_CMD "$r"
+}
+PROGRAM_FILE="$0"
+PROGRAM_DIR="${FIREHOL_OVERRIDE_PROGRAM_DIR:-$(realdir "$0")}"
 PROGRAM_PWD="${PWD}"
 declare -a PROGRAM_ORIGINAL_ARGS=("${@}")
 
-# Start defaults before configure
-prefix_POST=/usr
-sysconfdir_POST=/etc
-localstatedir_POST=/var
-libdir_POST=$PROGRAM_DIR
-# End defaults before configure
-for functions_file in $libdir_POST/functions.common.sh
+for functions_file in install.config functions.common
 do
-	if [ -r $functions_file ]
+	if [ -r "$PROGRAM_DIR/$functions_file" ]
 	then
-		source $functions_file
+		source "$PROGRAM_DIR/$functions_file"
 	else
-		1>&2 echo "Cannot access $functions_file"
+		1>&2 echo "Cannot access $PROGRAM_DIR/$functions_file"
 		exit 1
 	fi
 done
 
-FIREHOL_CONFIG_DIR="$sysconfdir_POST/firehol"
 common_disable_localization || exit
 common_private_umask || exit
 common_require_root || exit
@@ -232,17 +233,6 @@ markdef() {
 # XXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXX
 # ------------------------------------------------------------------------------
 
-if [ "@AUTOCONF_RUN@" = "Y" ]
-then
-	FIREHOL_AUTOSAVE="@FIREHOL_AUTOSAVE@"
-	FIREHOL_AUTOSAVE6="@FIREHOL_AUTOSAVE6@"
-	FIREHOL_CONFIG_DIR="@FIREHOL_CONFIG_DIR@"
-	ENABLE_IPV4="@IPV4_ENABLED@"
-	ENABLE_IPV6="@IPV6_ENABLED@"
-else
-	FIREHOL_CONFIG_DIR="/etc/firehol"
-fi
-
 # --- BEGIN OF FIREHOL DEFAULTS ---
 
 # These are the defaults for FireHOL.
@@ -253,26 +243,23 @@ fi
 
 # FireHOL config directory.
 # EVEN IF YOU CHANGE THIS, THE firehol-defaults.conf FILE
-# SHOULD STILL EXIST IN THE ORIGINAL $FIREHOL_CONFIG_DIR
-FIREHOL_CONFIG_DIR="$FIREHOL_CONFIG_DIR"
+# SHOULD STILL EXIST IN THE ORIGINAL $SYSCONFDIR/firehol
+FIREHOL_CONFIG_DIR="${FIREHOL_CONFIG_DIR}"
 
 # FireHOL services directory.
 # FireHOL will look into this directory for service
 # definition files (*.conf).
 # Package maintainers may install their service definitions
 # in this directory.
-# Default: /etc/firehol/services
-FIREHOL_SERVICES_DIR="${FIREHOL_CONFIG_DIR}/services"
+# Default: $SYSCONFDIR/firehol/services
+FIREHOL_SERVICES_DIR="${FIREHOL_SERVICES_DIR}"
 
 # Where to permanently save state information?
 # Default: /var/spool/firehol
-FIREHOL_SPOOL_DIR="/var/spool/firehol"
+FIREHOL_SPOOL_DIR="${FIREHOL_SPOOL_DIR}"
 
 # Where temporary files should go?
-# /var/run is usualy a ram drive, so we prefer to use
-# this for temporary files.
-# Default: /var/run/firehol
-FIREHOL_RUN_DIR="/var/run/firehol"
+FIREHOL_RUN_DIR="${FIREHOL_RUN_DIR}"
 
 # show a spinner during processing that shows
 # number of iptables statements generated
@@ -781,7 +768,7 @@ IPTRAP_DEFAULT_IPSET_COUNTERS_OPTIONS="timeout 3600 counters"
 # FireHOL will overwite these settings with the contents of the files with
 # the same names in ${FIREHOL_CONFIG_DIR}.
 #
-# For example, RESERVED_IPV4 will be set from /etc/firehol/RESERVED_IPV4
+# For example, RESERVED_IPV4 will be set from $SYSCONFDIR/firehol/RESERVED_IPV4
 
 # IANA reserved address space that should never appear
 RESERVED_IPV4="0.0.0.0/8 127.0.0.0/8 240.0.0.0/4 "
@@ -849,59 +836,6 @@ fi
 # XXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXX
 # ------------------------------------------------------------------------------
 
-common_load_commands $PROGRAM_FILE @AUTOCONF_RUN@ <<-!
-Y|CAT_CMD|@CAT@|cat
-Y|CUT_CMD|@CUT@|cut
-Y|CHOWN_CMD|@CHOWN@|chown
-Y|CHMOD_CMD|@CHMOD@|chmod
-Y|EGREP_CMD|@EGREP@|egrep 'grep -E'
-Y|EXPR_CMD|@EXPR@|expr
-Y|FIND_CMD|@FIND@|find
-Y|FOLD_CMD|@FOLD@|fold
-Y|GREP_CMD|@GREP@|grep
-Y|HEAD_CMD|@HEAD@|head
-Y|TAIL_CMD|@TAIL@|tail
-Y|LS_CMD|@LS@|ls
-Y|LSMOD_CMD|@LSMOD@|lsmod
-Y|MKDIR_CMD|@MKDIR@|mkdir
-Y|MKTEMP_CMD|@MKTEMP@|mktemp
-Y|MV_CMD|@MV@|mv
-Y|RM_CMD|@RM@|rm
-Y|SED_CMD|@SED@|sed
-Y|SORT_CMD|@SORT@|sort
-Y|SYSCTL_CMD|@SYSCTL@|sysctl
-Y|TOUCH_CMD|@TOUCH@|touch
-Y|TR_CMD|@TR@|tr
-Y|UNAME_CMD|@UNAME@|uname
-Y|UNIQ_CMD|@UNIQ@|uniq
-Y|LOGGER_CMD|@LOGGER@|logger
-Y|FLOCK_CMD|@FLOCK@|flock
-N|NFACCT_CMD|@NFACCT@|nfacct
-N|IPRANGE_CMD|@IPRANGE@|iprange
-N|IPSET_CMD|@IPSET@|ipset
-N|IPTABLES_CMD|@IPTABLES@|iptables
-N|IP6TABLES_CMD|@IP6TABLES@|ip6tables
-N|IPTABLES_SAVE_CMD|@IPTABLES_SAVE@|iptables-save
-N|IP6TABLES_SAVE_CMD|@IP6TABLES_SAVE@|ip6tables-save
-N|IPTABLES_RESTORE_CMD|@IPTABLES_RESTORE@|iptables-restore
-N|IP6TABLES_RESTORE_CMD|@IP6TABLES_RESTORE@|ip6tables-restore
-Y|MORE_CMD|@MORE@|pager less more cat
-Y|RENICE_CMD|@RENICE@|renice :
-Y|STTY_CMD|@STTY@|stty :
-N|ZCAT_CMD|@ZCAT@|zcat gzcat "gzip -dc"
-N|MODPROBE_CMD|@MODPROBE@|'modprobe -q' insmod
-N|IP_CMD|@IP@|ip
-N|SS_CMD|@SS@|ss
-N|DATE_CMD|@DATE@|date
-N|HOSTNAME_CMD|@HOSTNAMECMD@|hostname
-N|TPUT_CMD|@TPUT@|tput
-Y|WC_CMD|@WC@|wc
-Y|CP_CMD|@CP@|cp
-Y|SLEEP_CMD|@SLEEP@|sleep
-!
-status=$?
-test $status -eq 0 || exit $status
-
 emit_version() {
 	${CAT_CMD} <<EOF
 
@@ -932,16 +866,16 @@ test ${RUNNING_ON_TERMINAL} -eq 0 && FIREHOL_ENABLE_SPINNER=0
 
 FIREHOL_HAVE_IPRANGE=1
 IPRANGE_WARNING=0
+IPRANGE_REDUCE=Y
 if [ ! -z "${IPRANGE_CMD}" ]
 then
-	${IPRANGE_CMD} --has-reduce 2>/dev/null || IPRANGE_CMD=
+	${IPRANGE_CMD} --has-reduce 2>/dev/null || IPRANGE_REDUCE=
 fi
 
-if [ -z "${IPRANGE_CMD}" ]
+if [ -z "${IPRANGE_CMD}" -o -z "$IPRANGE_REDUCE" ]
 then
 	FIREHOL_HAVE_IPRANGE=0
 	IPRANGE_WARNING=1
-	IPRANGE_CMD=
 fi
 
 ENABLE_ACCOUNTING=1
@@ -1001,6 +935,15 @@ then
 	then
 		echo >&2 " WARNING: no ip6tables-restore command: IPv6 disabled"
 		ENABLE_IPV6=0
+	fi
+fi
+
+if [ ! ${FIREHOL_LOAD_KERNEL_MODULES} -eq 0 ]
+then
+	if [ -z "${MODPROBE_CMD}" ]
+	then
+		echo >&2 " WARNING: no modprobe command: module loading disabled"
+		FIREHOL_LOAD_KERNEL_MODULES=0
 	fi
 fi
 

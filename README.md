@@ -76,14 +76,16 @@ make
 make install
 ~~~~
 
-Since all components will go under `/usr/local`, you may prefer something
-like this:
+To not have files appear under /usr/local, try something like:
 
 ~~~~
-./configure --prefix=/usr --sysconfdir=/etc --localstatedir=/var 
+./configure --prefix=/usr --sysconfdir=/etc --localstatedir=/var
 make
 make install
 ~~~~
+
+If your O/S does not usually have a `/usr/libexec`, you may want
+to add `--libexecdir=/usr/lib` to the `configure`.
 
 You can get help on the options available (including disabling unwanted
 components) by running:
@@ -91,6 +93,7 @@ components) by running:
 ~~~~
 ./configure --help
 ~~~~
+
 From version 3.0.0 it is no longer recommended to install firehol by
 copying files, since a function library is now used, in addition to
 the scripts.

@@ -24,32 +24,33 @@
 #
 #       See the file COPYING for details.
 #
-
-VERSION='$Id$'
-PROGRAM_FILE="${0}"
-PROGRAM_DIR="${0%/*}"
-if [ "$PROGRAM_DIR" = "$0" ]; then PROGRAM_DIR="."; fi
+READLINK_CMD=${READLINK_CMD:-readlink}
+BASENAME_CMD=${BASENAME_CMD:-basename}
+DIRNAME_CMD=${DIRNAME_CMD:-dirname}
+function realdir {
+	local r="$1"; local t=$($READLINK_CMD "$r")
+	while [ "$t" ]; do
+		r=$(cd $($DIRNAME_CMD "$r") && cd $($DIRNAME_CMD "$t") && pwd -P)/$($BASENAME_CMD "$t")
+		t=$($READLINK_CMD "$r")
+	done
+	$DIRNAME_CMD "$r"
+}
+PROGRAM_FILE="$0"
+PROGRAM_DIR="${FIREHOL_OVERRIDE_PROGRAM_DIR:-$(realdir "$0")}"
 PROGRAM_PWD="${PWD}"
 declare -a PROGRAM_ORIGINAL_ARGS=("${@}")
 
-# Start defaults before configure
-prefix_POST=/usr
-sysconfdir_POST=/etc
-localstatedir_POST=/var
-libdir_POST=$PROGRAM_DIR
-# End defaults before configure
-for functions_file in $libdir_POST/functions.common.sh
+for functions_file in install.config functions.common
 do
-	if [ -r $functions_file ]
+	if [ -r "$PROGRAM_DIR/$functions_file" ]
 	then
-		source $functions_file
+		source "$PROGRAM_DIR/$functions_file"
 	else
-		1>&2 echo "Cannot access $functions_file"
+		1>&2 echo "Cannot access $PROGRAM_DIR/$functions_file"
 		exit 1
 	fi
 done
 
-FIREHOL_CONFIG_DIR="$sysconfdir_POST/firehol"
 common_disable_localization || exit
 common_public_umask || exit
 common_require_root || exit
@@ -63,9 +64,9 @@ shopt -s extglob
 
 FIREQOS_SYSLOG_FACILITY="daemon"
 FIREQOS_CONFIG="${FIREHOL_CONFIG_DIR}/fireqos.conf"
-FIREQOS_LOCK_FILE=/var/run/fireqos.lock
+FIREQOS_LOCK_FILE="$LOCALSTATEDIR/run/fireqos.lock"
 FIREQOS_LOCK_FILE_TIMEOUT=600
-FIREQOS_DIR=/var/run/fireqos
+FIREQOS_DIR="$LOCALSTATEDIR/run/fireqos"
 FIREQOS_SAVE="${FIREQOS_DIR}/.tmp.save.$$.$RANDOM"
 
 # Gets set to 1 if this system cannot handle sub-second resolution
@@ -110,35 +111,6 @@ if [ -r "${FIREHOL_CONFIG_DIR}/firehol-defaults.conf" ]
 then
 	source "${FIREHOL_CONFIG_DIR}/firehol-defaults.conf" || exit 1
 fi
-
-common_load_commands $PROGRAM_FILE @AUTOCONF_RUN@ <<-!
-N|TPUT_CMD|@TPUT@|tput
-Y|IP_CMD|@IP@|ip
-Y|MODPROBE_CMD|@MODPROBE@|'modprobe -q' insmod
-Y|RMMOD_CMD|@RMMOD@|rmmod
-Y|FLOCK_CMD|@FLOCK@|flock
-Y|GREP_CMD|@GREP@|grep
-Y|EGREP_CMD|@EGREP@|egrep 'grep -E'
-Y|CAT_CMD|@CAT@|cat
-Y|CUT_CMD|@CUT@|cut
-Y|SED_CMD|@SED@|sed
-Y|TOUCH_CMD|@TOUCH@|touch
-Y|TR_CMD|@TR@|tr
-Y|MV_CMD|@MV@|mv
-Y|LOGGER_CMD|@LOGGER@|logger
-Y|MKDIR_CMD|@MKDIR@|mkdir
-Y|SLEEP_CMD|@SLEEP@|sleep
-Y|RM_CMD|@RM@|rm
-Y|TC_CMD|@TC@|tc
-N|GAWK_CMD|@GAWK@|gawk awk
-N|TCPDUMP_CMD|@TCPDUMP@|tcpdump
-Y|SEQ_CMD|@SEQ@|seq
-Y|LS_CMD|@LS@|ls
-Y|DATE_CMD|@DATE@|date
-Y|TAIL_CMD|@TAIL@|tail
-!
-status=$?
-test $status -eq 0 || exit $status
 
 RUNNING_ON_TERMINAL=0
 if [ "z$1" = "z-nc" ]
@@ -277,7 +249,6 @@ declare -A MARKS_MASKS='([connmark]="0x0000003f" [usermark]="0x00001fc0" )'
 declare -A MARKS_MAX='([connmark]="63" [usermark]="127" )'
 declare -A MARKS_SHIFT='([connmark]="0" [usermark]="6" )'
 
-FIREHOL_SPOOL_DIR="${FIREHOL_SPOOL_DIR-/var/spool/firehol}"
 if [ -f "${FIREHOL_SPOOL_DIR}/marks.conf" ]
 then
 	source "${FIREHOL_SPOOL_DIR}/marks.conf" || exit 1

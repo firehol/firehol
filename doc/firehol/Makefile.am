@@ -1,7 +1,13 @@
 # Process this file with automake to produce Makefile.in
 
+if MAINTAINER_MODE
+gensrcdir=../..
+else
+gensrcdir=${top_srcdir}
+endif
+
 MANUAL_LINKS = \
-	${top_srcdir}/doc/service-links \
+	$(gensrcdir)/doc/service-links \
 	${top_srcdir}/doc/links-internal-firehol \
 	${top_srcdir}/doc/links-keywords-firehol \
 	${top_srcdir}/doc/links-website-firehol
@@ -148,12 +154,10 @@ MKSERVICEMAN = ${top_srcdir}/doc/tools/mkserviceman
 MANSYNOS = ${top_srcdir}/doc/tools/man-synos
 COMBINEPANDOC = ${top_srcdir}/doc/tools/combine-pandoc
 FORMATTABLE = ${top_srcdir}/doc/tools/format-table
-PANDOCPOST = ${top_srcdir}/doc/tools/pandoc-post
+PANDOCPOST = $(gensrcdir)/doc/tools/pandoc-post
 CHECKLINKS = ${top_srcdir}/doc/tools/check-links
 
-FIREHOLIN = $(top_srcdir)/sbin/firehol.in
-
-firehol-services.5.md: $(FIREHOLIN) ../services-db.data ../service-links
+firehol-services.5.md: $(top_srcdir)/sbin/firehol ../services-db.data ../service-links
 	$(MKSERVICEMAN) firehol-services.5.md $+
 
 contents.md: *.1.md *.5.md contents.tpl
