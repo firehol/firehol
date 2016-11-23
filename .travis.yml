@@ -19,6 +19,7 @@ language: c
 addons:
   apt:
     packages:
+    - gnupg
     - pandoc
     - texlive-base
     - texlive-latex-base
@@ -36,8 +37,25 @@ before_install:
  - export PATH=$PATH:/tmp/fake-tools
 #
 # Run
-script:
- # Run the commit hooks before building
+before_script:
+ - gpg --import packaging/gpg.keys
+ # Run the commit hooks in case the developer didn't
  - git diff 4b825dc642cb6eb9a060e54bf8d69288fbee4904 | ./packaging/check-files -
- # Build the packaged tar file, then the final files and run any tests we can
+script:
  - fakeroot ./packaging/git-build && ./configure && make check
+#
+# Deploy as required
+after_success:
+  - for i in *.tar.*; do md5sum -b $i > $i.md5; sha512sum -b $i > $i.sha; done
+  - echo "TODO: send results to firehol.org"
+deploy:
+  # Upload results to GitHub (tag only)
+  - provider: releases
+    api_key:
+      secure: ZzcEY83+1eL7OLXIGvmvB3LiDGjYXv2DVPxi4iFOuP8O+7wg9amQZShhwkH+3Sjc1bhzW4vpEtKXErSDmaSHMz9/fU7U/ztfGny1ulwmpPLwkDNUUsLJEuHI23gkKqGb7Dt0gfR0emqLt6Qitqvar680le/q1ruj/jk+1sJ1B6Jo3jfoW04F5dXdtDaZApXrHoA7gvvHccMrkk74b0guA4zjipaITjcvUsHuOW2UX6WI9I6+7B2ab3/Bg7WwgPcUHdspkAFPx3dCIOWRrRHQqtX3kHzOQvLIMcjbVSlCpKsOC8R+vO/kOmauBk8VCPZ78WKk/reIwYGfmqdU9yrhm0B8DviutP/V5nUoxAr26Y9ZCI1Jr3kbRPoKOjFCrzyC2xln5VP54NpJi40xtWvaMODsYvswHq3XeFbrFUlULuTFjbSgZKjh+K8mzJRrNvj/bzH9dwVAOEe0pU4G07Fy3LtcUkOh27euwisPvOffoqZgzMzixR3t5PwaB3PEn9H2lSt2cZhRJ9k4VXaCLV6DyzUvDXBI8+ST18zscN8e+AbQZ+573Vs2gOLMxQUqgimJxh6QzYun3+4lGaG13fKtIs/416dX6085GfEeRh7KngZOdsSAvn3NHdHn8ot4U6rdKBhWB3Cghk2Alz4WerCyWCYfUYp+zSyec7oJuoYlWE4=
+    skip_cleanup: true
+    file_glob: true
+    file: "firehol*.tar.*"
+    on:
+      repo: firehol/firehol
+      tags: true
