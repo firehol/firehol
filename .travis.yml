@@ -1,0 +1,43 @@
+# Use trusty (for recent pandoc)
+#   https://docs.travis-ci.com/user/trusty-ci-environment/
+dist: trusty
+#
+# Use full virtualisation
+sudo: true
+## Use docker image for speed
+## When pandoc whitelisted:
+##  https://github.com/travis-ci/apt-package-whitelist/blob/master/ubuntu-trusty
+## Issue here:
+##  https://github.com/travis-ci/apt-package-whitelist/issues/3762
+#sudo: false
+#group: beta
+#
+# C includes autotools and make by default
+language: c
+#
+# Extra packages
+addons:
+  apt:
+    packages:
+    - pandoc
+    - texlive-base
+    - texlive-latex-base
+    - texlive-latex-extra
+    - texlive-fonts-recommended
+    - texlive-latex-recommended
+    - lmodern
+#
+# Setup environment
+before_install:
+ # Run-time dependencies that we don't strictly need to build source package
+ # N.B. when we start running full testing, real tools will be needed
+ - mkdir /tmp/fake-tools
+ - for t in iprange traceroute ipset; do echo '#!/bin/sh' > /tmp/fake-tools/$t && echo 'echo 999.999.999' >> /tmp/fake-tools/$t && chmod +x /tmp/fake-tools/$t; done
+ - export PATH=$PATH:/tmp/fake-tools
+#
+# Run
+script:
+ # Run the commit hooks before building
+ - git diff 4b825dc642cb6eb9a060e54bf8d69288fbee4904 | ./packaging/check-files -
+ # Build the packaged tar file, then the final files and run any tests we can
+ - fakeroot ./packaging/git-build && ./configure && make check
