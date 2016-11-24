@@ -27,6 +27,7 @@ addons:
     - texlive-fonts-recommended
     - texlive-latex-recommended
     - lmodern
+    - libxml2-utils
 #
 # Setup environment
 before_install:
