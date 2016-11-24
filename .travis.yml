@@ -1,0 +1,70 @@
+# Use trusty (for recent pandoc)
+#   https://docs.travis-ci.com/user/trusty-ci-environment/
+dist: trusty
+#
+# Use full virtualisation
+sudo: true
+## Use docker image for speed
+## When pandoc whitelisted:
+##  https://github.com/travis-ci/apt-package-whitelist/blob/master/ubuntu-trusty
+## Issue here:
+##  https://github.com/travis-ci/apt-package-whitelist/issues/3762
+#sudo: false
+#group: beta
+#
+# C includes autotools and make by default
+language: c
+#
+# Extra packages
+addons:
+  apt:
+    packages:
+    - gnupg
+    - pandoc
+    - texlive-base
+    - texlive-latex-base
+    - texlive-latex-extra
+    - texlive-fonts-recommended
+    - texlive-latex-recommended
+    - lmodern
+#
+# Setup environment
+before_install:
+ # Decrypt our private files for CI use only
+ - openssl aes-256-cbc -K $encrypted_45263037bf08_key -iv $encrypted_45263037bf08_iv -in .travis/travis_rsa.enc -out .travis/travis_rsa -d
+ - eval "$(ssh-agent -s)"        # start the ssh agent
+ - chmod 600 .travis/travis_rsa  # add our key
+ - ssh-add .travis/travis_rsa    # add our key
+ - rm -f .travis/travis_rsa      # remove to prevent leaks
+ # WARNING: Any changes to the above 5 lines should be monitored closely
+ - ssh-keyscan -H firehol.org >> ~/.ssh/known_hosts
+ #
+ # Run-time dependencies that we don't strictly need to build source package
+ # N.B. when we start running full testing, real tools will be needed
+ - mkdir /tmp/fake-tools
+ - for t in iprange traceroute ipset; do echo '#!/bin/sh' > /tmp/fake-tools/$t && echo 'echo 999.999.999' >> /tmp/fake-tools/$t && chmod +x /tmp/fake-tools/$t; done
+ - export PATH=$PATH:/tmp/fake-tools
+#
+# Run
+before_script:
+ - gpg --import packaging/gpg.keys
+ # Run the commit hooks in case the developer didn't
+ - git diff 4b825dc642cb6eb9a060e54bf8d69288fbee4904 | ./packaging/check-files -
+script:
+ - fakeroot ./packaging/git-build && ./configure && make check
+#
+# Deploy as required
+after_success:
+  - for i in *.tar.*; do md5sum -b $i > $i.md5; sha512sum -b $i > $i.sha; done
+  - "case \"$TRAVIS_BRANCH\" in master|stable-*) if [ $TRAVIS_PULL_REQUEST = false -a \"$TRAVIS_TAG\" = \"\" ]; then ssh travis@firehol.org mkdir -p uploads/firehol/$TRAVIS_BRANCH/ && scp -p *.tar.* travis@firehol.org:uploads/firehol/$TRAVIS_BRANCH/ && ssh travis@firehol.org touch uploads/firehol/$TRAVIS_BRANCH/complete.txt; fi;; esac"
+deploy:
+  # Upload results to GitHub (tag only)
+  - provider: releases
+    api_key:
+      secure: ZzcEY83+1eL7OLXIGvmvB3LiDGjYXv2DVPxi4iFOuP8O+7wg9amQZShhwkH+3Sjc1bhzW4vpEtKXErSDmaSHMz9/fU7U/ztfGny1ulwmpPLwkDNUUsLJEuHI23gkKqGb7Dt0gfR0emqLt6Qitqvar680le/q1ruj/jk+1sJ1B6Jo3jfoW04F5dXdtDaZApXrHoA7gvvHccMrkk74b0guA4zjipaITjcvUsHuOW2UX6WI9I6+7B2ab3/Bg7WwgPcUHdspkAFPx3dCIOWRrRHQqtX3kHzOQvLIMcjbVSlCpKsOC8R+vO/kOmauBk8VCPZ78WKk/reIwYGfmqdU9yrhm0B8DviutP/V5nUoxAr26Y9ZCI1Jr3kbRPoKOjFCrzyC2xln5VP54NpJi40xtWvaMODsYvswHq3XeFbrFUlULuTFjbSgZKjh+K8mzJRrNvj/bzH9dwVAOEe0pU4G07Fy3LtcUkOh27euwisPvOffoqZgzMzixR3t5PwaB3PEn9H2lSt2cZhRJ9k4VXaCLV6DyzUvDXBI8+ST18zscN8e+AbQZ+573Vs2gOLMxQUqgimJxh6QzYun3+4lGaG13fKtIs/416dX6085GfEeRh7KngZOdsSAvn3NHdHn8ot4U6rdKBhWB3Cghk2Alz4WerCyWCYfUYp+zSyec7oJuoYlWE4=
+    skip_cleanup: true
+    file_glob: true
+    file: "firehol*.tar.*"
+    on:
+      repo: firehol/firehol
+      tags: true
