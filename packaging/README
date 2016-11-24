@@ -24,3 +24,7 @@ packver:
    and fireqos scripts - used by the autoconf system to determine
    the version number to put in documentation (and to check in NEWS
    when doing a make dist).
+
+gpg.keys:
+   File with a list of keys that can be expected to sign tags and
+   packages.

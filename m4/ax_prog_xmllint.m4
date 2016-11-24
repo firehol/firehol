@@ -96,4 +96,8 @@ else
         fi
     fi
 fi
+
+AS_IF([test "x$XMLLINT" = "x"],[
+  AC_MSG_ERROR([cannot find xmllint, bailing out])
+])
 ])

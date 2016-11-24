@@ -67,7 +67,7 @@ EOF
             echo "Trying '$PANDOC $PANDOC_PDF_FLAGS conftest.md -o conftest.pdf'" >&AS_MESSAGE_LOG_FD
             $PANDOC $PANDOC_PDF_FLAGS conftest.md -o conftest.pdf >conftest.out 2>&1
             if test "$?" = 0; then
-                if test -f conftest.pdf; then
+                if test -s conftest.pdf; then
                     ac_cv_pandoc_output_pdf=yes
                 fi
             fi
@@ -89,7 +89,7 @@ EOF
             echo "Trying '$PANDOC $PANDOC_HTML_FLAGS conftest.md -o conftest.html'" >&AS_MESSAGE_LOG_FD
             $PANDOC $PANDOC_HTML_FLAGS conftest.md -o conftest.html >conftest.out 2>&1
             if test "$?" = 0; then
-                if test -f conftest.html; then
+                if test -s conftest.html; then
                     ac_cv_pandoc_output_html=yes
                 fi
             fi
@@ -111,7 +111,7 @@ EOF
             echo "Trying '$PANDOC $PANDOC_MAN_FLAGS conftest.md -o conftest.man'" >&AS_MESSAGE_LOG_FD
             $PANDOC $PANDOC_MAN_FLAGS conftest.md -o conftest.man >conftest.out 2>&1
             if test "$?" = 0; then
-                if test -f conftest.man; then
+                if test -s conftest.man; then
                     ac_cv_pandoc_output_man=yes
                 fi
             fi
