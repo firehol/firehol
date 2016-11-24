@@ -1,6 +1,11 @@
 #!/bin/sh
 
 get_version() {
+	if [ "$TRAVIS_TAG" ]
+	then
+		echo "$TRAVIS_TAG" | sed -e 's/^v//'
+		return 0
+	fi
 	GIT_REF='$Format:%d,commit-%h$'
 	local IFS=":(), "
 	set -- "$GIT_REF"
