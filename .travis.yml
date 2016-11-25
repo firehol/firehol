@@ -57,7 +57,7 @@ script:
 # Deploy as required
 after_success:
   - for i in *.tar.*; do md5sum -b $i > $i.md5; sha512sum -b $i > $i.sha; done
-  - "case \"$TRAVIS_BRANCH\" in master|stable-*) if [ $TRAVIS_PULL_REQUEST = false -a \"$TRAVIS_TAG\" = \"\" ]; then ssh travis@firehol.org mkdir -p uploads/firehol/$TRAVIS_BRANCH/ && scp -p *.tar.* travis@firehol.org:uploads/firehol/$TRAVIS_BRANCH/ && ssh travis@firehol.org touch uploads/firehol/$TRAVIS_BRANCH/complete.txt; fi;; esac"
+  - "case \"$TRAVIS_BRANCH\" in master|stable-*) if [ $TRAVIS_PULL_REQUEST = false -a \"$TRAVIS_TAG\" = \"\" ]; then ssh travis@firehol.org mkdir -p uploads/firehol/$TRAVIS_BRANCH/ && scp -p *.tar.* travis@firehol.org:uploads/firehol/$TRAVIS_BRANCH/ && ssh travis@firehol.org touch uploads/firehol/$TRAVIS_BRANCH/complete.txt && echo \"Visit https://firehol.org/travis-project.log check deployment\" ; fi;; esac"
 deploy:
   # Upload results to GitHub (tag only)
   - provider: releases
