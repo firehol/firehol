@@ -12,7 +12,7 @@ then
     echo "Do not run as root. The unittest system uses user namespaces instead."
     exit 1
   fi
-  exec $dirname/../examples/newns.sh $0 "$@"
+  exec $dirname/tools/newns $0 "$@"
 fi
 
 haderror=""
@@ -33,9 +33,9 @@ do
   done
 done
 
-if [ ! -x tools/clean-iptables ]
+if [ ! -x $dirname/tools/clean-iptables ]
 then
-  echo "Executable tools/clean-iptables script not found"
+  echo "Executable $dirname/tools/clean-iptables script not found"
   echo ""
   haderror="Y"
 fi
@@ -65,7 +65,7 @@ fi
 if [ ! -r /proc/net/ip_tables_names ]
 then
   echo "Faking /proc/net/ip_tables_names"
-  $dirname/../examples/newns.sh --fake-proc || exit 1
+  $dirname/tools/newns --fake-proc || exit 1
 fi
 
 echo "Running in separate namespace"
@@ -98,7 +98,7 @@ export TESTDIR
 export FIREHOL_OVERRIDE_PROGRAM_DIR=$MYTMP/prog
 mkdir -p "$FIREHOL_OVERRIDE_PROGRAM_DIR"
 sed -e "s#[@].*POST[@]#$MYTMP#" ../sbin/install.config.in > "$FIREHOL_OVERRIDE_PROGRAM_DIR/install.config"
-cp ../sbin/functions.* "$FIREHOL_OVERRIDE_PROGRAM_DIR"
+cp $dirname/../sbin/functions.* "$FIREHOL_OVERRIDE_PROGRAM_DIR"
 
 kcov=`which kcov 2> /dev/null`
 if [ "$kcov" ]
@@ -227,20 +227,20 @@ do
   export audns=$(newext ns.aud $conf)
 
   case $conf in
-    firehol*)
+    *firehol/*/*.conf)
       clear_iptables
       program=firehol
     ;;
-    fireqos*)
+    *fireqos/*/*.conf)
       program=fireqos
     ;;
-    link-balancer*)
+    *link-balancer/*/*.conf)
       program=link-balancer
     ;;
-    vnetbuild*)
+    *vnetbuild/*/*.conf)
       program=vnetbuild
     ;;
-    update-ipsets*)
+    *update-ipsets/*/*.conf)
       program=update-ipsets
     ;;
     *)
@@ -252,7 +252,7 @@ do
   then
     echo "Cannot determine program for $conf"
   else
-    script=../sbin/${program}
+    script=$dirname/../sbin/${program}
     export script
     total=$((total + 1))
 
@@ -339,8 +339,8 @@ do
         firehol)
           iptables-save > "$out4".raw
           ip6tables-save > "$out6".raw
-          tools/clean-iptables "$out4".raw > "$out4"
-          tools/clean-iptables "$out6".raw > "$out6"
+          $dirname/tools/clean-iptables "$out4".raw > "$out4"
+          $dirname/tools/clean-iptables "$out6".raw > "$out6"
           if ! cmp "$aud4" "$out4"
           then
             errors=$((errors + 1))
@@ -353,7 +353,7 @@ do
           tc qdisc show dev veth0 > "$outqdisc"
           tc class show dev veth0 > "$outclass".raw
           tc filter show dev veth0 > "$outfilter"
-          tools/clean-class "$outclass".raw > "$outclass"
+          $dirname/tools/clean-class "$outclass".raw > "$outclass"
           if ! cmp "$audqdisc" "$outqdisc"
           then
             errors=$((errors + 1))

@@ -587,38 +587,12 @@ SERVICE ipv6error
 	EXAMPLE
 		server ipv6error accept
 	NOTES
-		Not all icmpv6 error types should be treated equally
-		inbound and outbound.
+		This service is not needed from 3.0.0. It will do nothing
+		but issue a warning from 3.1.0; it will be removed in 4.0.0.
 		-
-		The ipv6error rule wraps all of them in the following way:
-		* allow incoming messages only for existing sessions
-		* allow outgoing messages always
-		-
-		The following ICMPv6 messages are handled:
-		-
-		* destination-unreachable
-		* packet-too-big
-		* ttl-zero-during-transit
-		* ttl-zero-during-reassembly
-		* unknown-header-type
-		* unknown-option
-		-
-		Interfaces should always have this set:
-		-
-		    `server ipv6error accept`
-		-
-		In a router with inface being internal and outface being
-		external the following will meet the recommendations of
-		[RFC 4890](http://tools.ietf.org/html/rfc4890):
-		-
-		    `server ipv6error accept`
-		-
-		Do not use:
-		    `client ipv6error accept`
-		unless you are controlling traffic on a router interface
-		where outface is the internal destination.
-		-
-		This service implicitly sets its client or server to ipv6 mode.
+		The linux connection tracker ensures that ICMPv6 errors
+		are marked as RELATED. Since 3.0.0, these are automatially
+		accepted by FireHOL, making a separate command redundant.
 
 SERVICE ipv6neigh
 	NAME IPv6 Neighbour discovery

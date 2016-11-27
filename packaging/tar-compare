@@ -51,7 +51,7 @@ diff -r "$1" $MYTMP/unpack/* | grep "^Only" | sed \
 	-e '/: tmp-anchor-links$/d' \
 	-e '/: tmp-manproc$/d' \
 	-e '/: .*\.tar\.\(gz\|bz2\|xz\)$/d' \
-	-e '/: unittest$/d' > $MYTMP/out
+	> $MYTMP/out
 
 cat $MYTMP/out
 test -s $MYTMP/out && exit 1

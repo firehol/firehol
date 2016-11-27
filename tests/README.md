@@ -3,12 +3,13 @@ Unit Tests
 
 NOTE
 :   The `unittest` command uses namespaces to isolate itself and the
-    tests it runs from the running firewall.
+    tests it runs from the running firewall. It needs user namespaces
+    to be enabled.
 
 Run tests as:
 
 ~~~~
-sudo ./unittest directory-or-conffile...
+./unittest directory-or-conffile...
 ~~~~
 
 Any number of files and directories (in which case all .conf files found

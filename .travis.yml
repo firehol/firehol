@@ -2,15 +2,8 @@
 #   https://docs.travis-ci.com/user/trusty-ci-environment/
 dist: trusty
 #
-# Use full virtualisation
+# Use full virtualisation to allow use of user namespaces
 sudo: true
-## Use docker image for speed
-## When pandoc whitelisted:
-##  https://github.com/travis-ci/apt-package-whitelist/blob/master/ubuntu-trusty
-## Issue here:
-##  https://github.com/travis-ci/apt-package-whitelist/issues/3762
-#sudo: false
-#group: beta
 #
 # C includes autotools and make by default
 language: c
@@ -28,6 +21,8 @@ addons:
     - texlive-latex-recommended
     - lmodern
     - libxml2-utils
+    - traceroute
+    - ipset
 #
 # Setup environment
 before_install:
@@ -40,11 +35,18 @@ before_install:
  # WARNING: Any changes to the above 5 lines should be monitored closely
  - ssh-keyscan -H firehol.org >> ~/.ssh/known_hosts
  #
- # Run-time dependencies that we don't strictly need to build source package
- # N.B. when we start running full testing, real tools will be needed
- - mkdir /tmp/fake-tools
- - for t in iprange traceroute ipset; do echo '#!/bin/sh' > /tmp/fake-tools/$t && echo 'echo 999.999.999' >> /tmp/fake-tools/$t && chmod +x /tmp/fake-tools/$t; done
- - export PATH=$PATH:/tmp/fake-tools
+ # Set up to ensure tests run:
+ #  - Ensure unprivileged user namespaces enabled 
+ #  - Get latest version of iprange from firehol project
+ #  - Get a version of util-linux which has the user namespace options
+ #  - Install required kernel modules
+ - sudo sysctl kernel.unprivileged_userns_clone=1
+ - sudo .travis/install-iprange
+ - sudo .travis/replace-unshare
+ - sudo modprobe ip6table_mangle
+ - sudo modprobe iptable_raw
+ - sudo modprobe ip6table_raw
+ - sudo modprobe ip6table_nat
 #
 # Run
 before_script:
@@ -52,7 +54,8 @@ before_script:
  # Run the commit hooks in case the developer didn't
  - git diff 4b825dc642cb6eb9a060e54bf8d69288fbee4904 | ./packaging/check-files -
 script:
- - fakeroot ./packaging/git-build && ./configure && make check
+ - fakeroot ./packaging/git-build
+ - (test -f firehol*.tar.gz && mkdir -p build && tar xfzC firehol*.tar.gz build && cd build/firehol* && mkdir out-of-tree && cd out-of-tree && ../configure && make check)
 #
 # Deploy as required
 after_success:
