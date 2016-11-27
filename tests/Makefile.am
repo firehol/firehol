@@ -25,6 +25,9 @@ endif
 if USERNS_ENABLED
 check-local: unittest
 	$(srcdir)/unittest $(testargs)
+else
+check-local: unittest
+	echo "Unprivileged user namespaces not enabled - not running tests"
 endif
 
 TOOLS = \
