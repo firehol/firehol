@@ -8726,6 +8726,11 @@ then
 	echo
 	
 	syslog err "Activation of new firewall failed."
+	if [ $RUNNING_ON_TERMINAL -eq 0 ]
+	then
+		syslog err "To see errors, run manually: ${PROGRAM_FILE} ${PROGRAM_ORIGINAL_ARGS[@]}"
+	fi
+
 	# The trap will restore the firewall we saved above.
 	
 	exit 1
