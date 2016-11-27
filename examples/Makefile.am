@@ -7,8 +7,7 @@ conffiles =
 if ENABLE_FIREHOL
 
 examples_SCRIPTS = \
-	adblock.sh \
-	newns.sh
+	adblock.sh
 
 conffiles += \
 	server-dmz.conf \
