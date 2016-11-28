@@ -1,3 +1,22 @@
+firehol (3.1.0) - 2016-11-28
+
+  * Common
+    - Rework installation to make full use of autoconf results in all
+      programs
+    - Enabled unit tests on "make check", provided the user has
+      unprivileged user namespaces enabled.
+
+  * FireHOL
+    - Option to disable wizard (reduces required tools slightly) and
+      other fixes for small systems e.g. OpenWRT
+    - Emit help in syslog on failure if we are running with no terminal
+      since otherwise when running via systemd a user cannot see full error.
+    - Deprecated service ipv6error, not needed since 3.0.0. Moved ICMPv6
+      RELATED matching earlier to stop user accidentally preventing them.
+
+  * VNetBuild
+    - improve graphviz output
+
 firehol (3.0.2) - 2016-11-22
 
   * FireHOL
