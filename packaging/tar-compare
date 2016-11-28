@@ -40,6 +40,8 @@ diff -r "$1" $MYTMP/unpack/* | grep "^Only" | sed \
 	-e '/: \.git$/d' \
 	-e '/: \.gitattributes$/d' \
 	-e '/: \.gitignore$/d' \
+	-e '/: \.travis$/d' \
+	-e '/: \.travis.yml$/d' \
 	-e '/: config\.log$/d' \
 	-e '/: config\.status$/d' \
 	-e '/: config\.h.*$/d' \

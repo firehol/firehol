@@ -60,6 +60,10 @@ MANUALMAN_GENERATED = \
 # sed -ne 's;extra-manpage: \(.*\)\([0-9]\);\tman/man\2/\1\2 \\;p' *.md|sort -u
 MANUALMAN_GENERATED_INDIRECT = \
 	man/man5/firehol-accept.5 \
+	man/man5/firehol-action4.5 \
+	man/man5/firehol-action46.5 \
+	man/man5/firehol-action6.5 \
+	man/man5/firehol-both.5 \
 	man/man5/firehol-client4.5 \
 	man/man5/firehol-client46.5 \
 	man/man5/firehol-client6.5 \
@@ -114,6 +118,8 @@ MANUALMAN_GENERATED_INDIRECT = \
 	man/man5/firehol-src.5 \
 	man/man5/firehol-src6.5 \
 	man/man5/firehol-srctype.5 \
+	man/man5/firehol-synproxy4.5 \
+	man/man5/firehol-synproxy6.5 \
 	man/man5/firehol-tarpit.5 \
 	man/man5/firehol-tos-param.5 \
 	man/man5/firehol-transparent_proxy.5 \
