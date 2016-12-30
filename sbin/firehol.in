@@ -4863,7 +4863,7 @@ blacklist() {
 			shift
 			;;
 
-		statefull)
+		stateful|statefull)
 			mode=2
 			name="bs"
 			shift
