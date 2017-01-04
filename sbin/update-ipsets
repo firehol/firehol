@@ -5276,6 +5276,23 @@ update dataplane_sshclient 60 0 ipv4 ip \
 	"DataPlane.org" "https://dataplane.org/" \
 	dont_redistribute
 
+update dataplane_sipregistration 60 0 ipv4 ip \
+	"https://dataplane.org/sipregistration.txt" \
+	dataplane_column3 \
+	"attacks" \
+	"[DataPlane.org](https://dataplane.org/) IP addresses that have been seen initiating a SIP REGISTER operation to a remote host. This report lists hosts that are suspicious of more than just port scanning.  These hosts may be SIP client cataloging or conducting various forms of telephony abuse." \
+	"DataPlane.org" "https://dataplane.org/" \
+	dont_redistribute
+
+update dataplane_sipinvitation 60 0 ipv4 ip \
+	"https://dataplane.org/sipinvitation.txt" \
+	dataplane_column3 \
+	"attacks" \
+	"[DataPlane.org](https://dataplane.org/) IP addresses that have been seen initiating a SIP INVITE operation to a remote host. This report lists hosts that are suspicious of more than just port scanning.  These hosts may be SIP client cataloging or conducting various forms of telephony abuse." \
+	"DataPlane.org" "https://dataplane.org/" \
+	dont_redistribute
+
+
 # -----------------------------------------------------------------------------
 # Dragon Research Group (DRG)
 # HTTP report
