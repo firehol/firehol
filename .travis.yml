@@ -43,6 +43,7 @@ before_install:
  - sudo sysctl kernel.unprivileged_userns_clone=1
  - sudo .travis/install-iprange
  - sudo .travis/replace-unshare
+ - sudo modprobe iptable_mangle
  - sudo modprobe ip6table_mangle
  - sudo modprobe iptable_raw
  - sudo modprobe ip6table_raw
