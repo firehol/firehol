@@ -6,7 +6,7 @@ dnl Package version
 define([VERSION_MAJOR], [3])
 define([VERSION_MINOR], [1])
 define([VERSION_FIX], [1])
-define([VERSION_SUFFIX], [_master])
+define([VERSION_SUFFIX], [])
 
 dnl Required program versions
 define([MIN_IPRANGE_VERSION], [1.0.2])

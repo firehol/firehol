@@ -1,3 +1,19 @@
+firehol (3.1.1) - 2017-01-10
+
+  * FireHOL
+    - Accept correctly spelled keyword stateful as well as statefull
+      to match documentation
+
+  * VNetBuild
+    - drop ksh support (bash is preferred and required by other programs)
+
+  * Common
+    - drop ksh detection from configure script
+
+  * Update-Ipsets
+    - added urandom.us.to list
+    - added dataplane.org SIP Invitation and SIP Registration feeds
+
 firehol (3.1.0) - 2016-11-28
 
   * Common
