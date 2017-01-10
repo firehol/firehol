@@ -64,7 +64,7 @@ Y|IP_CMD|@IP@|ip
 Y|BRIDGE_CMD|@BRIDGE@|bridge
 Y|GREP_CMD|@GREP@|grep
 Y|FIND_CMD|@FIND@|find
-Y|SH_CMD|@SH@|sh bash ksh
+Y|SH_CMD|@SH@|sh bash
 Y|CUT_CMD|@CUT@|cut
 Y|CAT_CMD|@CAT@|cat
 Y|SED_CMD|@SED@|sed
