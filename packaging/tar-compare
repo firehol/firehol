@@ -36,6 +36,7 @@ mkdir $MYTMP/unpack
 tar xfzC "$2" $MYTMP/unpack
 diff -r "$1" $MYTMP/unpack/* | grep "^Only" | sed \
 	-e '/: autom4te\.cache$/d' \
+	-e '/: \.travis/d' \
 	-e '/: \.deps$/d' \
 	-e '/: \.git$/d' \
 	-e '/: \.gitattributes$/d' \

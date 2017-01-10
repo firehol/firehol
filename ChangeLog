@@ -1,3 +1,15 @@
+firehol (3.0.3) - 2017-01-10
+
+  * FireHOL
+    - Accept correctly spelled keyword stateful as well as statefull
+      to match documentation
+
+  * VNetBuild
+    - drop ksh support (bash is preferred and required by other programs)
+
+  * Common
+    - drop ksh detection from configure script
+
 firehol (3.0.2) - 2016-11-22
 
   * FireHOL
