@@ -361,7 +361,6 @@ AX_CHECK_PROG([DOT], [dot], [])
 AX_NEED_PROG([RM], [rm], [])
 AX_CHECK_PROG([SH], [sh], [])
 AX_CHECK_PROG([SH], [bash], [])
-AX_NEED_PROG([SH], [ksh], [])
 AX_NEED_PROG([SLEEP], [sleep], [])
 AX_NEED_PROG([TR], [tr], [])
 fi
