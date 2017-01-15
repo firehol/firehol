@@ -10103,6 +10103,9 @@ fixed_save() {
 	
 	${CAT_CMD} ${tmp} |\
 		${SED_CMD} \
+			-e "/#/s/ on .*/ on time removed by FireHOL/"	\
+			-e "s/^\[[0-9][0-9]*:[[0-9][0-9]*\]/[0:0]/"	\
+			-e "s/\[[0-9][0-9]*:[[0-9][0-9]*\]$/[0:0]/"	\
 			-e "s/--uid-owner !/! --uid-owner /g"	\
 			-e "s/--gid-owner !/! --gid-owner /g"
 	err=$?
