@@ -1,5 +1,5 @@
 % FireQOS Reference
-% Copyright (c) 2004,2013-2015 Costa Tsaousis <costa@firehol.org>; Copyright (c) 2012-2015 Phil Whineray <phil@firehol.org>
+% Copyright (c) 2004,2013-2017 Costa Tsaousis <costa@firehol.org>; Copyright (c) 2012-2017 Phil Whineray <phil@firehol.org>
 % Version VERSION (Built DATE)
 
 \newpage
