@@ -159,8 +159,8 @@ by FireHOL "out of the box" as well as information on adding new services.
 License
 =======
 
-    Copyright (C) 2012-2015 Phil Whineray <phil@firehol.org>
-    Copyright (C) 2003-2015 Costa Tsaousis <costa@tsaousis.gr>
+    Copyright (C) 2012-2017 Phil Whineray <phil@firehol.org>
+    Copyright (C) 2002-2017 Costa Tsaousis <costa@tsaousis.gr>
 
 This program is free software; you can redistribute it and/or modify
 it under the terms of the GNU General Public License as published by
