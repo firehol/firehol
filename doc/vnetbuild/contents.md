@@ -1,5 +1,5 @@
 % VNetBuild Reference
-% Copyright (c) Copyright (c) 2012-2015 Phil Whineray <phil@firehol.org>; 2015 Costa Tsaousis <costa@firehol.org>
+% Copyright (c) Copyright (c) 2012-2017 Phil Whineray <phil@firehol.org>; 2017 Costa Tsaousis <costa@firehol.org>
 % Version VERSION (Built DATE)
 
 \newpage
