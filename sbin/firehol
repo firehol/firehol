@@ -9793,7 +9793,7 @@ create_chain() {
 
 ALL_SHOULD_ALSO_RUN_WARNING=0
 smart_function() {
-	local type="${1}" services=(${2//,/ }) service= servname= suffix= mychain= ret= fn= dogroup=0 reverse=
+	local type="${1}" services=(${2//,/ }) service= servname= suffix= mychain= ret= fn= dogroup=0 reverse= added=0
 	# type = the current subcommand: server/client/route
 	# services = the services to implement
 	shift 2
@@ -9862,7 +9862,7 @@ smart_function() {
 		ret=$?
 		
 		# simple service completed succesfully.
-		test $ret -eq 0 && continue
+		test $ret -eq 0 && added=$((added + 1)) && continue
 		
 		# simple service exists but failed.
 		if [ $ret -ne 127 ]
@@ -9879,7 +9879,7 @@ smart_function() {
 		
 		"${fn}" "${mychain}" "${type}" "${@}" "${FIREHOL_RULESET_MODE}"
 		ret=$?
-		test $ret -eq 0 && continue
+		test $ret -eq 0 && added=$((added + 1)) && continue
 		
 		if [ $ret -eq 127 ]
 		then
@@ -9889,6 +9889,12 @@ smart_function() {
 		fi
 		return 1
 	done
+
+	if [ ${added} -eq 0 ]
+		then
+		error "No service added - probably a bad variable expansion."
+		return 1
+	fi
 
 	return 0
 }
