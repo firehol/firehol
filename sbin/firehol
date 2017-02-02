@@ -12008,7 +12008,7 @@ firewall_filtering_policy_common_late() {
 
 		# Silently drop orphan TCP/ACK RST packets
 		# before droping INVALID below, otherwise these will be logged as INVALID too
-		${iptables_cmd} -t filter -A ${iptables_chain} -p tcp --tcp-flags ACK,FIN ACK,FIN -m conntrack --ctstate NEW,INVALID -j DROP
+		${iptables_cmd} -t filter -A ${iptables_chain} -p tcp --tcp-flags ACK,RST ACK,RST -m conntrack --ctstate NEW,INVALID -j DROP
 
 	fi
 
