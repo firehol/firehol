@@ -11961,6 +11961,7 @@ firewall_filtering_policy_common() {
 		${iptables_cmd} -t filter -A INPUT -m conntrack --ctstate ESTABLISHED -j ACCEPT
 		${iptables_cmd} -t filter -A OUTPUT -m conntrack --ctstate ESTABLISHED -j ACCEPT
 		${iptables_cmd} -t filter -A FORWARD -m conntrack --ctstate ESTABLISHED -j ACCEPT
+	fi
 	if [ ! -z ${FIREHOL_GLOBAL_RPFILTER} ]
 	then
 		${iptables_cmd} -t raw -A PREROUTING -m rpfilter ${FIREHOL_GLOBAL_RPFILTER} -j DROP
@@ -11978,12 +11979,10 @@ firewall_filtering_policy_common_late() {
 	local oldns="${FIREHOL_NS_CURR}"
 
 	if [ "${iptables_cmd}" == "iptables" ]
-    then
+	then
 		FIREHOL_NS_CURR="ipv4"
 	else
 		FIREHOL_NS_CURR="ipv6"
-	fi
-
 	fi
 
 	# RELATED should not be needed
