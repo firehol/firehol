@@ -11973,6 +11973,10 @@ firewall_filtering_policy_common() {
 # so that its commands are prepended to the other iptables commands of the firewall
 
 firewall_filtering_policy_common_late() {
+	if [ ${FIREHOL_FILTERING_STARTED} -eq 0 ]
+	then
+		return
+	fi
 	local iptables_cmd="${1}"
 	local iptables_chain="${2}"
 
