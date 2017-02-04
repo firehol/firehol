@@ -6355,7 +6355,7 @@ close_interface() {
 			;;
 			
 		accept|ACCEPT)
-		    drop_noise=0
+			drop_noise=0
 			;;
 		
 		*)	
@@ -6365,14 +6365,14 @@ close_interface() {
 	esac
 
 	if [ $drop_noise -eq 1 ]; then
-	    if running_ipv4; then
-        	firewall_filtering_policy_common_late iptables "in_${work_name}"
-        	firewall_filtering_policy_common_late iptables "out_${work_name}"
-        fi
-	    if running_ipv6; then
-        	firewall_filtering_policy_common_late ip6tables "in_${work_name}"
-        	firewall_filtering_policy_common_late ip6tables "out_${work_name}"
-        fi
+		if running_ipv4; then
+			firewall_filtering_policy_common_late iptables "in_${work_name}"
+			firewall_filtering_policy_common_late iptables "out_${work_name}"
+		fi
+		if running_ipv6; then
+			firewall_filtering_policy_common_late ip6tables "in_${work_name}"
+			firewall_filtering_policy_common_late ip6tables "out_${work_name}"
+		fi
 	fi
 	
 	set_work_function "Applying default policy of ${work_policy} on interface '${work_name}'"
@@ -6486,7 +6486,7 @@ close_master() {
 
 
 	# Insert session cleanup rules here, after user rules are processed
-    if [ ${ENABLE_IPV4} -eq 1 ]
+	if [ ${ENABLE_IPV4} -eq 1 ]
 	then
 		firewall_filtering_policy_common_late iptables INPUT
 		firewall_filtering_policy_common_late iptables OUTPUT
@@ -6494,9 +6494,9 @@ close_master() {
 	fi
 	if [ ${ENABLE_IPV6} -eq 1 ]
 	then
-    	firewall_filtering_policy_common_late ip6tables INPUT
-    	firewall_filtering_policy_common_late ip6tables OUTPUT
-    	firewall_filtering_policy_common_late ip6tables FORWARD
+		firewall_filtering_policy_common_late ip6tables INPUT
+		firewall_filtering_policy_common_late ip6tables OUTPUT
+		firewall_filtering_policy_common_late ip6tables FORWARD
 	fi
 
 	set_work_function "Accepting TCP-RESET at the end of the firewall."
