@@ -82,9 +82,10 @@ fi
 export MYTMP
 
 myexit() {
+  status=$?
   rm -f /var/run/firehol.lck
   rm -rf $MYTMP
-  exit 0
+  exit $status
 }
 
 trap myexit INT
@@ -396,3 +397,13 @@ echo " Started: $started"
 echo "Finished: $(date)"
 echo "   Tests: ${total}"
 echo "  Errors: ${errors}"
+
+if [ $total -eq 0 ]
+then
+  exit 4
+fi
+if [ $errors -gt 0 ]
+then
+  exit 5
+fi
+exit 0
