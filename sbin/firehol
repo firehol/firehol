@@ -12050,7 +12050,7 @@ firewall_filtering_policy_common_late() {
 
 		if [ ${FIREHOL_LOG_DROP_INVALID} -eq 1 ]
 		then
-	        rule table filter chain ${iptables_chain} state INVALID action DROP loglimit "BLOCKED INVALID"
+			rule table filter chain ${iptables_chain} state INVALID action DROP loglimit "BLOCKED INVALID"
 		else
 			${iptables_cmd} -t filter -A ${iptables_chain} -m conntrack --ctstate INVALID -j DROP
 		fi
