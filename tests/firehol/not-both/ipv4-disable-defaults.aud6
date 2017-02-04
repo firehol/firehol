@@ -6,13 +6,13 @@
 :in_myeth0 - [0:0]
 :out_myeth0 - [0:0]
 -A INPUT -i lo -j ACCEPT
+-A INPUT -i eth0 -j in_myeth0
 -A INPUT -p tcp -m tcp --tcp-flags FIN,ACK FIN,ACK -m conntrack --ctstate INVALID,NEW -j DROP
 -A INPUT -p tcp -m tcp --tcp-flags RST,ACK RST,ACK -m conntrack --ctstate INVALID,NEW -j DROP
 -A INPUT -p tcp -m tcp --tcp-flags ACK ACK -m conntrack --ctstate INVALID,NEW -j DROP
 -A INPUT -p tcp -m tcp --tcp-flags RST RST -m conntrack --ctstate INVALID,NEW -j DROP
--A INPUT -m conntrack --ctstate INVALID -m limit --limit 1/sec -j LOG --log-prefix "BLOCKED INVALID IN:"
+-A INPUT -m conntrack --ctstate INVALID -m limit --limit 1/sec -j LOG --log-prefix "BLOCKED INVALID INPUT:"
 -A INPUT -m conntrack --ctstate INVALID -j DROP
--A INPUT -i eth0 -j in_myeth0
 -A INPUT -p icmp -m conntrack --ctstate RELATED -j ACCEPT
 -A INPUT -m limit --limit 1/sec -j LOG --log-prefix "IN-unknown:"
 -A INPUT -j DROP
@@ -20,29 +20,41 @@
 -A FORWARD -p tcp -m tcp --tcp-flags RST,ACK RST,ACK -m conntrack --ctstate INVALID,NEW -j DROP
 -A FORWARD -p tcp -m tcp --tcp-flags ACK ACK -m conntrack --ctstate INVALID,NEW -j DROP
 -A FORWARD -p tcp -m tcp --tcp-flags RST RST -m conntrack --ctstate INVALID,NEW -j DROP
--A FORWARD -m conntrack --ctstate INVALID -m limit --limit 1/sec -j LOG --log-prefix "BLOCKED INVALID PASS:"
+-A FORWARD -m conntrack --ctstate INVALID -m limit --limit 1/sec -j LOG --log-prefix "BLOCKED INVALID FORWARD:"
 -A FORWARD -m conntrack --ctstate INVALID -j DROP
 -A FORWARD -p icmp -m conntrack --ctstate RELATED -j ACCEPT
 -A FORWARD -p tcp -m conntrack --ctstate RELATED -m tcp --tcp-flags FIN,SYN,RST,PSH,ACK,URG RST,ACK -j ACCEPT
 -A FORWARD -m limit --limit 1/sec -j LOG --log-prefix "PASS-unknown:"
 -A FORWARD -j DROP
 -A OUTPUT -o lo -j ACCEPT
+-A OUTPUT -o eth0 -j out_myeth0
 -A OUTPUT -p tcp -m tcp --tcp-flags FIN,ACK FIN,ACK -m conntrack --ctstate INVALID,NEW -j DROP
 -A OUTPUT -p tcp -m tcp --tcp-flags RST,ACK RST,ACK -m conntrack --ctstate INVALID,NEW -j DROP
 -A OUTPUT -p tcp -m tcp --tcp-flags ACK ACK -m conntrack --ctstate INVALID,NEW -j DROP
 -A OUTPUT -p tcp -m tcp --tcp-flags RST RST -m conntrack --ctstate INVALID,NEW -j DROP
--A OUTPUT -m conntrack --ctstate INVALID -m limit --limit 1/sec -j LOG --log-prefix "BLOCKED INVALID OUT:"
+-A OUTPUT -m conntrack --ctstate INVALID -m limit --limit 1/sec -j LOG --log-prefix "BLOCKED INVALID OUTPUT:"
 -A OUTPUT -m conntrack --ctstate INVALID -j DROP
--A OUTPUT -o eth0 -j out_myeth0
 -A OUTPUT -p icmp -m conntrack --ctstate RELATED -j ACCEPT
 -A OUTPUT -p tcp -m conntrack --ctstate RELATED -m tcp --tcp-flags FIN,SYN,RST,PSH,ACK,URG RST,ACK -j ACCEPT
 -A OUTPUT -m limit --limit 1/sec -j LOG --log-prefix "OUT-unknown:"
 -A OUTPUT -j DROP
 -A in_myeth0 -p icmp -m conntrack --ctstate RELATED -j ACCEPT
+-A in_myeth0 -p tcp -m tcp --tcp-flags FIN,ACK FIN,ACK -m conntrack --ctstate INVALID,NEW -j DROP
+-A in_myeth0 -p tcp -m tcp --tcp-flags RST,ACK RST,ACK -m conntrack --ctstate INVALID,NEW -j DROP
+-A in_myeth0 -p tcp -m tcp --tcp-flags ACK ACK -m conntrack --ctstate INVALID,NEW -j DROP
+-A in_myeth0 -p tcp -m tcp --tcp-flags RST RST -m conntrack --ctstate INVALID,NEW -j DROP
+-A in_myeth0 -m conntrack --ctstate INVALID -m limit --limit 1/sec -j LOG --log-prefix "BLOCKED INVALID in_myeth0:"
+-A in_myeth0 -m conntrack --ctstate INVALID -j DROP
 -A in_myeth0 -m limit --limit 1/sec -j LOG --log-prefix "IN-myeth0:"
 -A in_myeth0 -j DROP
 -A out_myeth0 -p icmp -m conntrack --ctstate RELATED -j ACCEPT
 -A out_myeth0 -p tcp -m conntrack --ctstate RELATED -m tcp --tcp-flags FIN,SYN,RST,PSH,ACK,URG RST,ACK -j ACCEPT
+-A out_myeth0 -p tcp -m tcp --tcp-flags FIN,ACK FIN,ACK -m conntrack --ctstate INVALID,NEW -j DROP
+-A out_myeth0 -p tcp -m tcp --tcp-flags RST,ACK RST,ACK -m conntrack --ctstate INVALID,NEW -j DROP
+-A out_myeth0 -p tcp -m tcp --tcp-flags ACK ACK -m conntrack --ctstate INVALID,NEW -j DROP
+-A out_myeth0 -p tcp -m tcp --tcp-flags RST RST -m conntrack --ctstate INVALID,NEW -j DROP
+-A out_myeth0 -m conntrack --ctstate INVALID -m limit --limit 1/sec -j LOG --log-prefix "BLOCKED INVALID out_myeth0:"
+-A out_myeth0 -m conntrack --ctstate INVALID -j DROP
 -A out_myeth0 -m limit --limit 1/sec -j LOG --log-prefix "OUT-myeth0:"
 -A out_myeth0 -j DROP
 COMMIT

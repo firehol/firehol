@@ -6469,8 +6469,24 @@ close_master() {
 		iptables_both -t mangle -A POSTROUTING -j CONNMARK --save-mark --mask ${MARKS_SAVERESTORE_STATELESS_MASK}
 	fi
 
+	set_work_function "Apply polices to drop orphan or invalid packets on INPUT/OUTPUT"
+
+	# Insert session cleanup rules here, after user rules are processed
+	# NB that the forward chain is updated along with firewall_filtering_policy_common
+	# since they may not be applied in the policy chain
+	if [ ${ENABLE_IPV4} -eq 1 ]
+	then
+		firewall_filtering_policy_common_late iptables INPUT
+		firewall_filtering_policy_common_late iptables OUTPUT
+	fi
+	if [ ${ENABLE_IPV6} -eq 1 ]
+	then
+		firewall_filtering_policy_common_late ip6tables INPUT
+		firewall_filtering_policy_common_late ip6tables OUTPUT
+	fi
+
 	set_work_function "Matching all ICMP related packets to the ESTABLISHED connections"
-	
+
 	if [ ${ENABLE_IPV4} -eq 1 ]
 	then
 		iptables -A INPUT -m conntrack --ctstate RELATED -p icmp -j ACCEPT
@@ -6482,21 +6498,6 @@ close_master() {
 		ip6tables -A INPUT -m conntrack --ctstate RELATED -p icmpv6 -j ACCEPT
 		ip6tables -A OUTPUT -m conntrack --ctstate RELATED -p icmpv6 -j ACCEPT
 		ip6tables -A FORWARD -m conntrack --ctstate RELATED -p icmpv6 -j ACCEPT
-	fi
-
-
-	# Insert session cleanup rules here, after user rules are processed
-	if [ ${ENABLE_IPV4} -eq 1 ]
-	then
-		firewall_filtering_policy_common_late iptables INPUT
-		firewall_filtering_policy_common_late iptables OUTPUT
-		firewall_filtering_policy_common_late iptables FORWARD
-	fi
-	if [ ${ENABLE_IPV6} -eq 1 ]
-	then
-		firewall_filtering_policy_common_late ip6tables INPUT
-		firewall_filtering_policy_common_late ip6tables OUTPUT
-		firewall_filtering_policy_common_late ip6tables FORWARD
 	fi
 
 	set_work_function "Accepting TCP-RESET at the end of the firewall."
@@ -12050,7 +12051,7 @@ firewall_filtering_policy_common_late() {
 
 		if [ ${FIREHOL_LOG_DROP_INVALID} -eq 1 ]
 		then
-			rule table filter chain ${iptables_chain} state INVALID action DROP loglimit "BLOCKED INVALID"
+			rule table filter chain ${iptables_chain} state INVALID action DROP loglimit "BLOCKED INVALID ${iptables_chain}"
 		else
 			${iptables_cmd} -t filter -A ${iptables_chain} -m conntrack --ctstate INVALID -j DROP
 		fi
@@ -12066,12 +12067,14 @@ firewall_filtering_policy() {
 	then
 		FIREHOL_NS_CURR="ipv4"
 		firewall_filtering_policy_common iptables
+		firewall_filtering_policy_common_late iptables FORWARD
 	fi
 
 	if [ ${ENABLE_IPV6} -eq 1 ]
 	then
 		FIREHOL_NS_CURR="ipv6"
 		firewall_filtering_policy_common ip6tables
+		firewall_filtering_policy_common_late ip6tables FORWARD
 	fi
 
 	FIREHOL_NS_CURR="${oldns}"
