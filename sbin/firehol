@@ -6346,6 +6346,7 @@ close_interface() {
 	# make sure we have a policy
 	test -z "${work_policy}" && work_policy="${DEFAULT_INTERFACE_POLICY}"
 	local inlog=() outlog=()
+	local drop_noise=1
 	case "${work_policy}" in
 		return|RETURN)
 			set_work_function "Nothing to be done for policy RETURN of interface '${work_name}'"
@@ -6354,6 +6355,7 @@ close_interface() {
 			;;
 			
 		accept|ACCEPT)
+			drop_noise=0
 			;;
 		
 		*)	
@@ -6361,6 +6363,17 @@ close_interface() {
 			outlog=(loglimit "OUT-${work_name}")
 			;;
 	esac
+
+	if [ $drop_noise -eq 1 ]; then
+		if running_ipv4; then
+			firewall_filtering_policy_common_late iptables "in_${work_name}"
+			firewall_filtering_policy_common_late iptables "out_${work_name}"
+		fi
+		if running_ipv6; then
+			firewall_filtering_policy_common_late ip6tables "in_${work_name}"
+			firewall_filtering_policy_common_late ip6tables "out_${work_name}"
+		fi
+	fi
 	
 	set_work_function "Applying default policy of ${work_policy} on interface '${work_name}'"
 
@@ -6456,8 +6469,24 @@ close_master() {
 		iptables_both -t mangle -A POSTROUTING -j CONNMARK --save-mark --mask ${MARKS_SAVERESTORE_STATELESS_MASK}
 	fi
 
+	set_work_function "Apply polices to drop orphan or invalid packets on INPUT/OUTPUT"
+
+	# Insert session cleanup rules here, after user rules are processed
+	# NB that the forward chain is updated along with firewall_filtering_policy_common
+	# since they may not be applied in the policy chain
+	if [ ${ENABLE_IPV4} -eq 1 ]
+	then
+		firewall_filtering_policy_common_late iptables INPUT
+		firewall_filtering_policy_common_late iptables OUTPUT
+	fi
+	if [ ${ENABLE_IPV6} -eq 1 ]
+	then
+		firewall_filtering_policy_common_late ip6tables INPUT
+		firewall_filtering_policy_common_late ip6tables OUTPUT
+	fi
+
 	set_work_function "Matching all ICMP related packets to the ESTABLISHED connections"
-	
+
 	if [ ${ENABLE_IPV4} -eq 1 ]
 	then
 		iptables -A INPUT -m conntrack --ctstate RELATED -p icmp -j ACCEPT
@@ -11934,6 +11963,32 @@ firewall_filtering_policy_common() {
 		${iptables_cmd} -t filter -A OUTPUT -m conntrack --ctstate ESTABLISHED -j ACCEPT
 		${iptables_cmd} -t filter -A FORWARD -m conntrack --ctstate ESTABLISHED -j ACCEPT
 	fi
+	if [ ! -z ${FIREHOL_GLOBAL_RPFILTER} ]
+	then
+		${iptables_cmd} -t raw -A PREROUTING -m rpfilter ${FIREHOL_GLOBAL_RPFILTER} -j DROP
+	fi
+}
+
+
+# this will be run when the first iptables command get executed in pre-process mode.
+# so that its commands are prepended to the other iptables commands of the firewall
+
+firewall_filtering_policy_common_late() {
+	if [ ${FIREHOL_FILTERING_STARTED} -eq 0 ]
+	then
+		return
+	fi
+	local iptables_cmd="${1}"
+	local iptables_chain="${2}"
+
+	local oldns="${FIREHOL_NS_CURR}"
+
+	if [ "${iptables_cmd}" == "iptables" ]
+	then
+		FIREHOL_NS_CURR="ipv4"
+	else
+		FIREHOL_NS_CURR="ipv6"
+	fi
 
 	# RELATED should not be needed
 	# set_work_function "Accepting all RELATED connections at the beginning of the firewall"
@@ -11948,9 +12003,7 @@ firewall_filtering_policy_common() {
 
 		# Silently drop orphan TCP/ACK FIN packets
 		# before droping INVALID below, otherwise these will be logged as INVALID too
-		${iptables_cmd} -t filter -A INPUT -p tcp --tcp-flags ACK,FIN ACK,FIN -m conntrack --ctstate NEW,INVALID -j DROP
-		${iptables_cmd} -t filter -A OUTPUT -p tcp --tcp-flags ACK,FIN ACK,FIN -m conntrack --ctstate NEW,INVALID -j DROP
-		${iptables_cmd} -t filter -A FORWARD -p tcp --tcp-flags ACK,FIN ACK,FIN -m conntrack --ctstate NEW,INVALID -j DROP
+		${iptables_cmd} -t filter -A ${iptables_chain} -p tcp --tcp-flags ACK,FIN ACK,FIN -m conntrack --ctstate NEW,INVALID -j DROP
 	fi
 
 	if [ "${FIREHOL_DROP_ORPHAN_TCP_ACK_RST}" = "1" ]
@@ -11959,9 +12012,8 @@ firewall_filtering_policy_common() {
 
 		# Silently drop orphan TCP/ACK RST packets
 		# before droping INVALID below, otherwise these will be logged as INVALID too
-		${iptables_cmd} -t filter -A INPUT -p tcp --tcp-flags ACK,RST ACK,RST -m conntrack --ctstate NEW,INVALID -j DROP
-		${iptables_cmd} -t filter -A OUTPUT -p tcp --tcp-flags ACK,RST ACK,RST -m conntrack --ctstate NEW,INVALID -j DROP
-		${iptables_cmd} -t filter -A FORWARD -p tcp --tcp-flags ACK,RST ACK,RST -m conntrack --ctstate NEW,INVALID -j DROP
+		${iptables_cmd} -t filter -A ${iptables_chain} -p tcp --tcp-flags ACK,RST ACK,RST -m conntrack --ctstate NEW,INVALID -j DROP
+
 	fi
 
 	if [ "${FIREHOL_DROP_ORPHAN_TCP_ACK}" = "1" ]
@@ -11970,9 +12022,7 @@ firewall_filtering_policy_common() {
 
 		# Silently drop orphan TCP/ACK packets
 		# before droping INVALID below, otherwise these will be logged as INVALID too
-		${iptables_cmd} -t filter -A INPUT -p tcp --tcp-flags ACK ACK -m conntrack --ctstate NEW,INVALID -j DROP
-		${iptables_cmd} -t filter -A OUTPUT -p tcp --tcp-flags ACK ACK -m conntrack --ctstate NEW,INVALID -j DROP
-		${iptables_cmd} -t filter -A FORWARD -p tcp --tcp-flags ACK ACK -m conntrack --ctstate NEW,INVALID -j DROP
+		${iptables_cmd} -t filter -A ${iptables_chain} -p tcp --tcp-flags ACK ACK -m conntrack --ctstate NEW,INVALID -j DROP
 	fi
 
 	if [ "${FIREHOL_DROP_ORPHAN_TCP_RST}" = "1" ]
@@ -11981,9 +12031,7 @@ firewall_filtering_policy_common() {
 
 		# Silently drop orphan TCP/RST packets
 		# before droping INVALID below, otherwise these will be logged as INVALID too
-		${iptables_cmd} -t filter -A INPUT -p tcp --tcp-flags RST RST -m conntrack --ctstate NEW,INVALID -j DROP
-		${iptables_cmd} -t filter -A OUTPUT -p tcp --tcp-flags RST RST -m conntrack --ctstate NEW,INVALID -j DROP
-		${iptables_cmd} -t filter -A FORWARD -p tcp --tcp-flags RST RST -m conntrack --ctstate NEW,INVALID -j DROP
+		${iptables_cmd} -t filter -A ${iptables_chain} -p tcp --tcp-flags RST RST -m conntrack --ctstate NEW,INVALID -j DROP
 	fi
 
 	if [ "${iptables_cmd}" = "iptables" -a "${FIREHOL_DROP_ORPHAN_IPV4_ICMP_TYPE3}" = "1" ]
@@ -11992,9 +12040,7 @@ firewall_filtering_policy_common() {
 
 		# Silently drop orphan ICMP/TYPE3 packets
 		# before droping INVALID below, otherwise these will be logged as INVALID too
-		${iptables_cmd} -t filter -A INPUT -p icmp --icmp-type destination-unreachable -m conntrack --ctstate NEW,INVALID -j DROP
-		${iptables_cmd} -t filter -A OUTPUT -p icmp --icmp-type destination-unreachable -m conntrack --ctstate NEW,INVALID -j DROP
-		${iptables_cmd} -t filter -A FORWARD -p icmp --icmp-type destination-unreachable -m conntrack --ctstate NEW,INVALID -j DROP
+		${iptables_cmd} -t filter -A ${iptables_chain} -p icmp --icmp-type destination-unreachable -m conntrack --ctstate NEW,INVALID -j DROP
 	fi
 
 	# Drop all invalid packets.
@@ -12005,20 +12051,13 @@ firewall_filtering_policy_common() {
 
 		if [ ${FIREHOL_LOG_DROP_INVALID} -eq 1 ]
 		then
-			rule table filter chain INPUT state INVALID action DROP loglimit "BLOCKED INVALID IN"
-			rule table filter chain OUTPUT state INVALID action DROP loglimit "BLOCKED INVALID OUT"
-			rule table filter chain FORWARD state INVALID action DROP loglimit "BLOCKED INVALID PASS"
+			rule table filter chain ${iptables_chain} state INVALID action DROP loglimit "BLOCKED INVALID ${iptables_chain}"
 		else
-			${iptables_cmd} -t filter -A INPUT -m conntrack --ctstate INVALID -j DROP
-			${iptables_cmd} -t filter -A OUTPUT -m conntrack --ctstate INVALID -j DROP
-			${iptables_cmd} -t filter -A FORWARD -m conntrack --ctstate INVALID -j DROP
+			${iptables_cmd} -t filter -A ${iptables_chain} -m conntrack --ctstate INVALID -j DROP
 		fi
 	fi
 
-	if [ ! -z ${FIREHOL_GLOBAL_RPFILTER} ]
-	then
-		${iptables_cmd} -t raw -A PREROUTING -m rpfilter ${FIREHOL_GLOBAL_RPFILTER} -j DROP
-	fi
+	FIREHOL_NS_CURR="${oldns}"
 }
 
 firewall_filtering_policy() {
@@ -12028,12 +12067,14 @@ firewall_filtering_policy() {
 	then
 		FIREHOL_NS_CURR="ipv4"
 		firewall_filtering_policy_common iptables
+		firewall_filtering_policy_common_late iptables FORWARD
 	fi
 
 	if [ ${ENABLE_IPV6} -eq 1 ]
 	then
 		FIREHOL_NS_CURR="ipv6"
 		firewall_filtering_policy_common ip6tables
+		firewall_filtering_policy_common_late ip6tables FORWARD
 	fi
 
 	FIREHOL_NS_CURR="${oldns}"
