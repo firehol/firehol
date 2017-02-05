@@ -1,3 +1,28 @@
+firehol (3.1.2) - 2017-05-02
+
+  * FireHOL
+    - Include user policies in chains before handling orphans. Fixes NFS
+      client where FIREHOL_DROP_ORPHAN_TCP_* options are in force.
+
+    - Do not allow server/client statements without any effect on the
+      firewall; #193
+
+    - Saved firewall contents made reproducible by always zeroing counters
+      and removing the dates from comments
+
+  * FireQOS
+
+    - Example had an ambiguous shebang which has been removed
+
+  * Common
+
+    - Running "make check" now exits non-zero if a test failed or none ran
+
+    - Various copyright updates
+
+    - Fixed pull requests from external repositories; these would previously
+      fail to build on Travis
+
 firehol (3.1.1) - 2017-01-10
 
   * FireHOL
