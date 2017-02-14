@@ -8887,7 +8887,7 @@ rule() {
 							test -z "${FIREHOL_IPSETS_USED[$s]}" && FIREHOL_IPSETS_USED[$s]="USED"
 							${iptables} -t ${table} -A "${negative_chain}" -m set ${not} --match-set "${s}" src ${IPSET_SRC_DST_OPTIONS} -j RETURN
 							;;
-						*-*)
+						*:*-*|[0-9]*-*)
 							${iptables} -t ${table} -A "${negative_chain}" -m iprange ${not} --src-range "${s}" -j RETURN
 							;;
 						*)
@@ -8925,7 +8925,7 @@ rule() {
 							test -z "${FIREHOL_IPSETS_USED[$d]}" && FIREHOL_IPSETS_USED[$d]="USED"
 							${iptables} -t ${table} -A "${negative_chain}" -m set ${not} --match-set "${d}" dst ${IPSET_SRC_DST_OPTIONS} -j RETURN
 							;;
-						*-*)
+						*:*-*|[0-9]*-*)
 							${iptables} -t ${table} -A "${negative_chain}" -m iprange ${not} --dst-range "${d}" -j RETURN
 							;;
 						*)
@@ -9488,7 +9488,7 @@ rule() {
 				s_arg=("-m" "set" ${srcnot} "--match-set" "${s}" "src" ${IPSET_SRC_DST_OPTIONS})
 				;;
 
-			*-*)
+			*:*-*|[0-9]*-*)
 				s_arg=("-m" "iprange" ${srcnot} "--src-range" "${s}")
 				;;
 
@@ -9513,7 +9513,7 @@ rule() {
 				d_arg=("-m" "set" ${dstnot} "--match-set" "${d}" "dst" ${IPSET_SRC_DST_OPTIONS})
 				;;
 
-			*-*)
+			*:*-*|[0-9]*-*)
 				d_arg=("-m" "iprange" ${dstnot} "--dst-range" "${d}")
 				;;
 
