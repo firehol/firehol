@@ -29,7 +29,7 @@ dnl Check for functioning symbolic links
 AC_PROG_LN_S
 
 AM_CONDITIONAL([GIT_TREE], [test -f "${srcdir}/README.md"])
-AM_CONDITIONAL([USERNS_ENABLED], [test "`cat /proc/sys/kernel/unprivileged_userns_clone`" = "1"])
+AM_CONDITIONAL([USERNS_ENABLED], [test "`cat /proc/sys/kernel/unprivileged_userns_clone 2> /dev/null`" = "1"])
 
 AX_FIREHOL_AUTOSAVE()
 AX_FIREHOL_AUTOSAVE6()
