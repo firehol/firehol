@@ -48,7 +48,7 @@ install-exec-hook:
 	$(CHMOD) 755 "$(DESTDIR)$(sbindir)"
 	for i in $(scripts); do \
 		$(RM) -f "$(DESTDIR)$(sbindir)/$$i"; \
-		$(LN_S) "$(DESTDIR)$(inclibdir)/$$i" "$(DESTDIR)$(sbindir)"; done
+		$(LN_S_R) "$(DESTDIR)$(inclibdir)/$$i" "$(DESTDIR)$(sbindir)"; done
 
 uninstall-hook:
 	for i in $(scripts); do \

@@ -25,8 +25,8 @@ AM_MAINTAINER_MODE([disable])
 dnl Checks for programs.
 AC_PROG_MAKE_SET
 
-dnl Check for functioning symbolic links
-AC_PROG_LN_S
+dnl Check for functioning relative symbolic links
+AX_CHECK_LN_S_R
 
 AM_CONDITIONAL([GIT_TREE], [test -f "${srcdir}/README.md"])
 AM_CONDITIONAL([USERNS_ENABLED], [test "`cat /proc/sys/kernel/unprivileged_userns_clone 2> /dev/null`" = "1"])

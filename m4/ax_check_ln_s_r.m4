@@ -39,21 +39,26 @@ dnl   exception to the GPL to apply to your modified version as well.
 AC_DEFUN([AX_CHECK_LN_S_R],
 [
     AC_PROG_LN_S
-    AC_PATH_PROG([PING], [ping], [], [])
+
+    AS_IF([test "x$LN_S" = "x"],[
+      AC_MSG_ERROR([cannot make symbolic links, bailing out])
+    ])
 
     AC_CACHE_CHECK([whether ]LN_S[ has working -r option], [ac_cv_ln_s_r_opt],
     [
         ac_cv_ln_s_r_opt=no
         if test -n "$LN_S"; then
             echo "Trying '$LN_S -r a conftest.out" >&AS_MESSAGE_LOG_FD
-            $LN_S -r a conftest.out 2>&1
+            $LN_S -r a conftest.out >&AS_MESSAGE_LOG_FD 2>&1
             if test "$?" = 0; then
                 ac_cv_ln_s_r_opt=yes
             fi
-            ls -l conftest.out >&AS_MESSAGE_LOG_FD
+            ls -l conftest.out >&AS_MESSAGE_LOG_FD 2>&1
             rm -f conftest.out
         fi
     ])
 
-    AS_IF([test "x$ac_cv_ln_s_r" = "xyes"],[LN_S_R="$LN_S -r"],[LN_S_R="$LN_S"])
+    LN_S_R="$LN_S"
+    AS_IF([test "x$ac_cv_ln_s_r_opt" = "xyes"],[LN_S_R="$LN_S -r"],[LN_S_R="$LN_S"])
+    AC_SUBST(LN_S_R)
 ])
