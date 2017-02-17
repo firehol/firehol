@@ -49,11 +49,8 @@ make install
 
 Re-run `autogen.sh` whenever you change `configure.ac` or a `Makefile.am`
 
-You can run the `sbin/*.in` scripts in-situ but they will produce internal
-git versions e.g. `FireQOS $Id: def55bbc9c2a78aef580e88ad6d3f9ba689a6004 $`.
-
-The "compiled" scripts must be installed, along with their function
-libraries in order to work correctly.
+You can run the `sbin/*` scripts in-situ provided you have done the
+`configure` and `make` steps.
 
 
 Upgrade Notes
