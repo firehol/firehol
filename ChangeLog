@@ -1,4 +1,20 @@
-firehol (3.1.2) - 2017-05-02
+firehol (3.1.3) - 2017-02-17
+
+  * FireHOL
+
+    - Be more strict when detecting address ranges
+
+      Fixes #199 where hostnames such as x-2.example.com are incorrectly
+      identified as ranges.
+
+  * Common
+
+    - Create relative links to binaries, which prevents errors when
+      installing with DESTDIR other than /
+
+      Fix for #178 and #201 proposed by @kneeke
+
+firehol (3.1.2) - 2017-02-05
 
   * FireHOL
     - Include user policies in chains before handling orphans. Fixes NFS
