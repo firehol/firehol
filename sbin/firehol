@@ -7640,8 +7640,8 @@ rule() {
 				test ${softwarnings} -eq 1 -a ! -z "${not}" && softwarning "Cannot negate an accounting. 'not' ignored."
 				if [ ${ENABLE_ACCOUNTING} -eq 1 ]
 				then
-					accounting="$2"
-					FIREHOL_NFACCT[$accounting]="1"
+					accounting="${1}"
+					FIREHOL_NFACCT[${accounting}]="1"
 				elif [ ${ACCOUNTING_WARNING} -eq 1 ]
 				then
 					softwarning "Accounting is requested, but accounting is disabled. Is nfacct installed?"
