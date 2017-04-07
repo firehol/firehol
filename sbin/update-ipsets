@@ -6577,6 +6577,44 @@ fi
 XFORCE_COMMENTED
 
 # -----------------------------------------------------------------------------
+# X-Force public info
+
+xforce_taxii_parser() {
+	${GREP_CMD} -oP "${IP4_MATCH}"
+}
+
+if [ ! -z "${XFORCE_API_KEY}" -a ! -z "${XFORCE_API_PASSWORD}" ]
+	then
+
+	update xforce_bccs $[24 * 60] 0 ipv4 ip \
+		"https://api.xforce.ibmcloud.com/taxii" \
+		xforce_taxii_parser \
+		"malware" \
+		"[IBM X-Force Exchange](https://exchange.xforce.ibmcloud.com/) Botnet Command and Control Servers" \
+		"IBM X-Force Exchange" "https://exchange.xforce.ibmcloud.com/" \
+		downloader_options "-X POST -H 'Content-Type: application/xml' -H 'Accept: application/xml' -u '${XFORCE_API_KEY}:${XFORCE_API_PASSWORD}' -d '
+<taxii_11:Poll_Request xmlns:taxii_11=\"http://taxii.mitre.org/messages/taxii_xml_binding-1.1\" collection_name=\"xfe.collections.public\">
+  <taxii_11:Poll_Parameters allow_asynch=\"false\">
+    <taxii_11:Query format_id=\"urn:taxii.mitre.org:query:default:1.0\">
+      <tdq:Default_Query targeting_expression_id=\"urn:stix.mitre.org:xml:1.1.1\">
+        <tdq:Criteria operator=\"AND\">
+          <tdq:Criterion negate=\"false\">
+            <tdq:Target> **/@id</tdq:Target>
+            <tdq:Test capability_id=\"urn:taxii.mitre.org:query:capability:core-1\" relationshp=\"equals\">
+              <tdq:Parameter name=\"match_type\">case_insensitive_string</tdq:Parameter>
+              <tdq:Parameter name=\"value\">7ac6c4578facafa0de50b72e7bf8f8c4</tdq:Parameter>
+            </tdq:Test>
+          </tdq:Criterion>
+        </tdq:Criteria>
+      </tdq:Default_Query>
+    </taxii_11:Query>
+  </taxii_11:Poll_Parameters>
+</taxii_11:Poll_Request>
+'"
+fi
+
+
+# -----------------------------------------------------------------------------
 # SORBS test
 
 # this is a test - it does not work without another script that rsyncs files from sorbs.net
