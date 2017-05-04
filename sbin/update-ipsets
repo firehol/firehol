@@ -2943,6 +2943,55 @@ rename_ipset() {
 	return 0
 }
 
+delete_ipset() {
+
+	local ipset="${1}"
+
+	[ -z "${ipset}" ] && return 1
+
+	cd "${BASE_DIR}" || return 1
+
+	for x in ipset netset source split setinfo
+	do
+		if [ -f "${BASE_DIR}/${ipset}.${x}" ]
+			then
+			ipset_info "${ipset}" "deleting ${HISTORY_DIR}/${ipset}.${x}"
+			$RM_CMD "${BASE_DIR}/${ipset}.${x}" || exit 1
+		fi
+	done
+
+	if [ -d "${HISTORY_DIR}/${ipset}" ]
+		then
+		ipset_info "${ipset}" "deleting ${HISTORY_DIR}/${ipset}"
+		cd "${HISTORY_DIR}" && $RM_CMD -rf "${ipset}"
+		cd "${BASE_DIR}" || return 1
+	fi
+
+	if [ ! -z "${LIB_DIR}" -a -d "${LIB_DIR}" -a -d "${LIB_DIR}/${ipset}" ]
+		then
+		ipset_info "${ipset}" "deleting ${LIB_DIR}/${ipset}"
+		cd "${LIB_DIR}" && $RM_CMD -rf "${ipset}"
+		cd "${BASE_DIR}" || return 1
+	fi
+
+	if [ -d "${WEB_DIR}" ]
+		then
+		for x in _comparison.json _geolite2_country.json _ipdeny_country.json _ip2location_country.json _history.csv retention.json .json .html
+		do
+			if [ -f "${WEB_DIR}/${ipset}${x}" ]
+				then
+				$GIT_CMD -C "${WEB_DIR}" rm "${ipset}${x}"
+				$GIT_CMD -C "${WEB_DIR}" commit "${ipset}${x}" -m "deleted ${ipset}${x}"
+			fi
+		done
+	fi
+
+	cache_remove_ipset "${ipset}" # this also saves the cache
+
+	cd "${RUN_DIR}"
+	return 0
+}
+
 # rename the emerging threats ipsets to their right names
 rename_ipset tor et_tor
 rename_ipset compromised et_compromised
@@ -4039,6 +4088,7 @@ update atlas_scans $[24 * 60] "$[48*60] $[7*24*60] $[30*24*60]" ipv4 ip \
 # www.openbl.org
 # Unfortunately, openbl does not exist any more.
 #
+delete_ipset openbl
 #update openbl $[4*60] 0 ipv4 ip \
 #	"http://www.openbl.org/lists/base.txt" \
 #	remove_comments \
@@ -4047,6 +4097,7 @@ update atlas_scans $[24 * 60] "$[48*60] $[7*24*60] $[30*24*60]" ipv4 ip \
 #	"OpenBL.org" "http://www.openbl.org/" \
 #	dont_enable_with_all
 #
+delete_ipset openbl_1d
 #update openbl_1d $[1*60] 0 ipv4 ip \
 #	"http://www.openbl.org/lists/base_1days.txt" \
 #	remove_comments \
@@ -4054,6 +4105,7 @@ update atlas_scans $[24 * 60] "$[48*60] $[7*24*60] $[30*24*60]" ipv4 ip \
 #	"[OpenBL.org](http://www.openbl.org/) last 24 hours IPs.  OpenBL.org is detecting, logging and reporting various types of internet abuse. Currently they monitor ports 21 (FTP), 22 (SSH), 23 (TELNET), 25 (SMTP), 110 (POP3), 143 (IMAP), 587 (Submission), 993 (IMAPS) and 995 (POP3S) for bruteforce login attacks as well as scans on ports 80 (HTTP) and 443 (HTTPS) for vulnerable installations of phpMyAdmin and other web applications." \
 #	"OpenBL.org" "http://www.openbl.org/"
 #
+delete_ipset openbl_7d
 #update openbl_7d $[4*60] 0 ipv4 ip \
 #	"http://www.openbl.org/lists/base_7days.txt" \
 #	remove_comments \
@@ -4061,6 +4113,7 @@ update atlas_scans $[24 * 60] "$[48*60] $[7*24*60] $[30*24*60]" ipv4 ip \
 #	"[OpenBL.org](http://www.openbl.org/) last 7 days IPs.  OpenBL.org is detecting, logging and reporting various types of internet abuse. Currently they monitor ports 21 (FTP), 22 (SSH), 23 (TELNET), 25 (SMTP), 110 (POP3), 143 (IMAP), 587 (Submission), 993 (IMAPS) and 995 (POP3S) for bruteforce login attacks as well as scans on ports 80 (HTTP) and 443 (HTTPS) for vulnerable installations of phpMyAdmin and other web applications." \
 #	"OpenBL.org" "http://www.openbl.org/"
 #
+delete_ipset openbl_30d
 #update openbl_30d $[4*60] 0 ipv4 ip \
 #	"http://www.openbl.org/lists/base_30days.txt" \
 #	remove_comments \
@@ -4068,6 +4121,7 @@ update atlas_scans $[24 * 60] "$[48*60] $[7*24*60] $[30*24*60]" ipv4 ip \
 #	"[OpenBL.org](http://www.openbl.org/) last 30 days IPs.  OpenBL.org is detecting, logging and reporting various types of internet abuse. Currently they monitor ports 21 (FTP), 22 (SSH), 23 (TELNET), 25 (SMTP), 110 (POP3), 143 (IMAP), 587 (Submission), 993 (IMAPS) and 995 (POP3S) for bruteforce login attacks as well as scans on ports 80 (HTTP) and 443 (HTTPS) for vulnerable installations of phpMyAdmin and other web applications." \
 #	"OpenBL.org" "http://www.openbl.org/"
 #
+delete_ipset openbl_60d
 #update openbl_60d $[4*60] 0 ipv4 ip \
 #	"http://www.openbl.org/lists/base_60days.txt" \
 #	remove_comments \
@@ -4075,6 +4129,7 @@ update atlas_scans $[24 * 60] "$[48*60] $[7*24*60] $[30*24*60]" ipv4 ip \
 #	"[OpenBL.org](http://www.openbl.org/) last 60 days IPs.  OpenBL.org is detecting, logging and reporting various types of internet abuse. Currently they monitor ports 21 (FTP), 22 (SSH), 23 (TELNET), 25 (SMTP), 110 (POP3), 143 (IMAP), 587 (Submission), 993 (IMAPS) and 995 (POP3S) for bruteforce login attacks as well as scans on ports 80 (HTTP) and 443 (HTTPS) for vulnerable installations of phpMyAdmin and other web applications." \
 #	"OpenBL.org" "http://www.openbl.org/"
 #
+delete_ipset openbl_90d
 #update openbl_90d $[4*60] 0 ipv4 ip \
 #	"http://www.openbl.org/lists/base_90days.txt" \
 #	remove_comments \
@@ -4082,6 +4137,7 @@ update atlas_scans $[24 * 60] "$[48*60] $[7*24*60] $[30*24*60]" ipv4 ip \
 #	"[OpenBL.org](http://www.openbl.org/) last 90 days IPs.  OpenBL.org is detecting, logging and reporting various types of internet abuse. Currently they monitor ports 21 (FTP), 22 (SSH), 23 (TELNET), 25 (SMTP), 110 (POP3), 143 (IMAP), 587 (Submission), 993 (IMAPS) and 995 (POP3S) for bruteforce login attacks as well as scans on ports 80 (HTTP) and 443 (HTTPS) for vulnerable installations of phpMyAdmin and other web applications." \
 #	"OpenBL.org" "http://www.openbl.org/"
 #
+delete_ipset openbl_180d
 #update openbl_180d $[4*60] 0 ipv4 ip \
 #	"http://www.openbl.org/lists/base_180days.txt" \
 #	remove_comments \
@@ -4089,6 +4145,7 @@ update atlas_scans $[24 * 60] "$[48*60] $[7*24*60] $[30*24*60]" ipv4 ip \
 #	"[OpenBL.org](http://www.openbl.org/) last 180 days IPs.  OpenBL.org is detecting, logging and reporting various types of internet abuse. Currently they monitor ports 21 (FTP), 22 (SSH), 23 (TELNET), 25 (SMTP), 110 (POP3), 143 (IMAP), 587 (Submission), 993 (IMAPS) and 995 (POP3S) for bruteforce login attacks as well as scans on ports 80 (HTTP) and 443 (HTTPS) for vulnerable installations of phpMyAdmin and other web applications." \
 #	"OpenBL.org" "http://www.openbl.org/"
 #
+delete_ipset openbl_360d
 #update openbl_360d $[4*60] 0 ipv4 ip \
 #	"http://www.openbl.org/lists/base_360days.txt" \
 #	remove_comments \
@@ -4096,6 +4153,7 @@ update atlas_scans $[24 * 60] "$[48*60] $[7*24*60] $[30*24*60]" ipv4 ip \
 #	"[OpenBL.org](http://www.openbl.org/) last 360 days IPs.  OpenBL.org is detecting, logging and reporting various types of internet abuse. Currently they monitor ports 21 (FTP), 22 (SSH), 23 (TELNET), 25 (SMTP), 110 (POP3), 143 (IMAP), 587 (Submission), 993 (IMAPS) and 995 (POP3S) for bruteforce login attacks as well as scans on ports 80 (HTTP) and 443 (HTTPS) for vulnerable installations of phpMyAdmin and other web applications." \
 #	"OpenBL.org" "http://www.openbl.org/"
 #
+delete_ipset openbl_all
 #update openbl_all $[4*60] 0 ipv4 ip \
 #	"http://www.openbl.org/lists/base_all.txt" \
 #	remove_comments \
@@ -4356,6 +4414,7 @@ update blocklist_de_strongips 15 0 ipv4 ip \
 	"Blocklist.de" "https://www.blocklist.de/"
 
 # it seems this is not active any more
+delete_ipset blocklist_de_ircbot
 #update blocklist_de_ircbot 15 0 ipv4 ip \
 #	"http://lists.blocklist.de/lists/ircbot.txt" \
 #	remove_comments \
@@ -4568,7 +4627,7 @@ update ransomware_torrentlocker_c2 5 0 ipv4 ip \
 # http://www.infiltrated.net/blacklisted
 
 # it appears to be permanently down
-
+delete_ipset infiltrated
 #update infiltrated $[12*60] 0 ipv4 ip \
 #	"http://www.infiltrated.net/blacklisted" \
 #	remove_comments \
@@ -4829,7 +4888,7 @@ update proxz 60 "$[24*60] $[7*24*60] $[30*24*60]" ipv4 ip \
 # this seems abandoned
 #
 #parse_multiproxy() { remove_comments | $CUT_CMD -d ':' -f 1; }
-#
+delete_ipset multiproxy
 #update multiproxy 60 0 ipv4 ip \
 #	"http://multiproxy.org/txt_all/proxy.txt" \
 #	parse_multiproxy \
@@ -5190,7 +5249,7 @@ update nixspam 15 0 ipv4 ip \
 # VirBL
 # http://virbl.bit.nl/
 # DOES NOT EXIST ANYMORE
-#
+delete_ipset virbl
 #update virbl 60 0 ipv4 ip \
 #	"http://virbl.bit.nl/download/virbl.dnsbl.bit.nl.txt" \
 #	remove_comments \
@@ -6260,6 +6319,7 @@ update iblocklist_isp_sprint $[24*60] 0 ipv4 both \
 # -----------------------------------------------------------------------------
 # https://blocklist.sigmaprojects.org/
 # DOES NOT EXIST ANYMORE
+delete_ipset sp_atma
 #update sp_atma $[24*60] 0 ipv4 both \
 #	"https://blocklist.sigmaprojects.org/api.cfc?method=getList&lists=atma" \
 #	${ZCAT_CMD} \
@@ -6267,6 +6327,7 @@ update iblocklist_isp_sprint $[24*60] 0 ipv4 both \
 #	"Attackers who try to spy or remotely control others' computers by means such as Microsoft remote terminal, SSH, Telnet or shared desktops. Threats for email servers or users: spiders/bots, account hijacking, etc. Sites spreading virus, trojans, spyware, etc. or just being used by them to let their authors know that a new computer has been infected. Threats for servers: exploits, fake identities/agents, DDoS attackers, etc. Port scans, which are the first step towards more dangerous actions. Malicious P2P sharers or bad peers who spread malware, inject bad traffic or share fake archives. (The site states they re-distribute this IP List from iblocklist.com)." \
 #	"SigmaProjects.org" "https://blocklist.sigmaprojects.org/"
 #
+delete_ipset sp_anti_infringement
 #update sp_anti_infringement $[24*60] 0 ipv4 both \
 #	"https://blocklist.sigmaprojects.org/api.cfc?method=getList&lists=anti-infringement" \
 #	${ZCAT_CMD} \
@@ -6274,6 +6335,7 @@ update iblocklist_isp_sprint $[24*60] 0 ipv4 both \
 #	"IPs of Anti-Infringement organizations. (The site states they re-distribute this IP List from iblocklist.com)" \
 #	"SigmaProjects.org" "https://blocklist.sigmaprojects.org/"
 #
+delete_ipset sp_spammers
 #update sp_spammers $[24*60] 0 ipv4 both \
 #	"https://blocklist.sigmaprojects.org/api.cfc?method=getList&lists=spammers" \
 #	${ZCAT_CMD} \
