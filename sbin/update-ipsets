@@ -4037,72 +4037,73 @@ update atlas_scans $[24 * 60] "$[48*60] $[7*24*60] $[30*24*60]" ipv4 ip \
 
 # -----------------------------------------------------------------------------
 # www.openbl.org
-
-update openbl $[4*60] 0 ipv4 ip \
-	"http://www.openbl.org/lists/base.txt" \
-	remove_comments \
-	"attacks" \
-	"[OpenBL.org](http://www.openbl.org/) default blacklist (currently it is the same with 90 days). OpenBL.org is detecting, logging and reporting various types of internet abuse. Currently they monitor ports 21 (FTP), 22 (SSH), 23 (TELNET), 25 (SMTP), 110 (POP3), 143 (IMAP), 587 (Submission), 993 (IMAPS) and 995 (POP3S) for bruteforce login attacks as well as scans on ports 80 (HTTP) and 443 (HTTPS) for vulnerable installations of phpMyAdmin and other web applications" \
-	"OpenBL.org" "http://www.openbl.org/" \
-	dont_enable_with_all
-
-update openbl_1d $[1*60] 0 ipv4 ip \
-	"http://www.openbl.org/lists/base_1days.txt" \
-	remove_comments \
-	"attacks" \
-	"[OpenBL.org](http://www.openbl.org/) last 24 hours IPs.  OpenBL.org is detecting, logging and reporting various types of internet abuse. Currently they monitor ports 21 (FTP), 22 (SSH), 23 (TELNET), 25 (SMTP), 110 (POP3), 143 (IMAP), 587 (Submission), 993 (IMAPS) and 995 (POP3S) for bruteforce login attacks as well as scans on ports 80 (HTTP) and 443 (HTTPS) for vulnerable installations of phpMyAdmin and other web applications." \
-	"OpenBL.org" "http://www.openbl.org/"
-
-update openbl_7d $[4*60] 0 ipv4 ip \
-	"http://www.openbl.org/lists/base_7days.txt" \
-	remove_comments \
-	"attacks" \
-	"[OpenBL.org](http://www.openbl.org/) last 7 days IPs.  OpenBL.org is detecting, logging and reporting various types of internet abuse. Currently they monitor ports 21 (FTP), 22 (SSH), 23 (TELNET), 25 (SMTP), 110 (POP3), 143 (IMAP), 587 (Submission), 993 (IMAPS) and 995 (POP3S) for bruteforce login attacks as well as scans on ports 80 (HTTP) and 443 (HTTPS) for vulnerable installations of phpMyAdmin and other web applications." \
-	"OpenBL.org" "http://www.openbl.org/"
-
-update openbl_30d $[4*60] 0 ipv4 ip \
-	"http://www.openbl.org/lists/base_30days.txt" \
-	remove_comments \
-	"attacks" \
-	"[OpenBL.org](http://www.openbl.org/) last 30 days IPs.  OpenBL.org is detecting, logging and reporting various types of internet abuse. Currently they monitor ports 21 (FTP), 22 (SSH), 23 (TELNET), 25 (SMTP), 110 (POP3), 143 (IMAP), 587 (Submission), 993 (IMAPS) and 995 (POP3S) for bruteforce login attacks as well as scans on ports 80 (HTTP) and 443 (HTTPS) for vulnerable installations of phpMyAdmin and other web applications." \
-	"OpenBL.org" "http://www.openbl.org/"
-
-update openbl_60d $[4*60] 0 ipv4 ip \
-	"http://www.openbl.org/lists/base_60days.txt" \
-	remove_comments \
-	"attacks" \
-	"[OpenBL.org](http://www.openbl.org/) last 60 days IPs.  OpenBL.org is detecting, logging and reporting various types of internet abuse. Currently they monitor ports 21 (FTP), 22 (SSH), 23 (TELNET), 25 (SMTP), 110 (POP3), 143 (IMAP), 587 (Submission), 993 (IMAPS) and 995 (POP3S) for bruteforce login attacks as well as scans on ports 80 (HTTP) and 443 (HTTPS) for vulnerable installations of phpMyAdmin and other web applications." \
-	"OpenBL.org" "http://www.openbl.org/"
-
-update openbl_90d $[4*60] 0 ipv4 ip \
-	"http://www.openbl.org/lists/base_90days.txt" \
-	remove_comments \
-	"attacks" \
-	"[OpenBL.org](http://www.openbl.org/) last 90 days IPs.  OpenBL.org is detecting, logging and reporting various types of internet abuse. Currently they monitor ports 21 (FTP), 22 (SSH), 23 (TELNET), 25 (SMTP), 110 (POP3), 143 (IMAP), 587 (Submission), 993 (IMAPS) and 995 (POP3S) for bruteforce login attacks as well as scans on ports 80 (HTTP) and 443 (HTTPS) for vulnerable installations of phpMyAdmin and other web applications." \
-	"OpenBL.org" "http://www.openbl.org/"
-
-update openbl_180d $[4*60] 0 ipv4 ip \
-	"http://www.openbl.org/lists/base_180days.txt" \
-	remove_comments \
-	"attacks" \
-	"[OpenBL.org](http://www.openbl.org/) last 180 days IPs.  OpenBL.org is detecting, logging and reporting various types of internet abuse. Currently they monitor ports 21 (FTP), 22 (SSH), 23 (TELNET), 25 (SMTP), 110 (POP3), 143 (IMAP), 587 (Submission), 993 (IMAPS) and 995 (POP3S) for bruteforce login attacks as well as scans on ports 80 (HTTP) and 443 (HTTPS) for vulnerable installations of phpMyAdmin and other web applications." \
-	"OpenBL.org" "http://www.openbl.org/"
-
-update openbl_360d $[4*60] 0 ipv4 ip \
-	"http://www.openbl.org/lists/base_360days.txt" \
-	remove_comments \
-	"attacks" \
-	"[OpenBL.org](http://www.openbl.org/) last 360 days IPs.  OpenBL.org is detecting, logging and reporting various types of internet abuse. Currently they monitor ports 21 (FTP), 22 (SSH), 23 (TELNET), 25 (SMTP), 110 (POP3), 143 (IMAP), 587 (Submission), 993 (IMAPS) and 995 (POP3S) for bruteforce login attacks as well as scans on ports 80 (HTTP) and 443 (HTTPS) for vulnerable installations of phpMyAdmin and other web applications." \
-	"OpenBL.org" "http://www.openbl.org/"
-
-update openbl_all $[4*60] 0 ipv4 ip \
-	"http://www.openbl.org/lists/base_all.txt" \
-	remove_comments \
-	"attacks" \
-	"[OpenBL.org](http://www.openbl.org/) last all IPs.  OpenBL.org is detecting, logging and reporting various types of internet abuse. Currently they monitor ports 21 (FTP), 22 (SSH), 23 (TELNET), 25 (SMTP), 110 (POP3), 143 (IMAP), 587 (Submission), 993 (IMAPS) and 995 (POP3S) for bruteforce login attacks as well as scans on ports 80 (HTTP) and 443 (HTTPS) for vulnerable installations of phpMyAdmin and other web applications." \
-	"OpenBL.org" "http://www.openbl.org/"
-
-
+# Unfortunately, openbl does not exist any more.
+#
+#update openbl $[4*60] 0 ipv4 ip \
+#	"http://www.openbl.org/lists/base.txt" \
+#	remove_comments \
+#	"attacks" \
+#	"[OpenBL.org](http://www.openbl.org/) default blacklist (currently it is the same with 90 days). OpenBL.org is detecting, logging and reporting various types of internet abuse. Currently they monitor ports 21 (FTP), 22 (SSH), 23 (TELNET), 25 (SMTP), 110 (POP3), 143 (IMAP), 587 (Submission), 993 (IMAPS) and 995 (POP3S) for bruteforce login attacks as well as scans on ports 80 (HTTP) and 443 (HTTPS) for vulnerable installations of phpMyAdmin and other web applications" \
+#	"OpenBL.org" "http://www.openbl.org/" \
+#	dont_enable_with_all
+#
+#update openbl_1d $[1*60] 0 ipv4 ip \
+#	"http://www.openbl.org/lists/base_1days.txt" \
+#	remove_comments \
+#	"attacks" \
+#	"[OpenBL.org](http://www.openbl.org/) last 24 hours IPs.  OpenBL.org is detecting, logging and reporting various types of internet abuse. Currently they monitor ports 21 (FTP), 22 (SSH), 23 (TELNET), 25 (SMTP), 110 (POP3), 143 (IMAP), 587 (Submission), 993 (IMAPS) and 995 (POP3S) for bruteforce login attacks as well as scans on ports 80 (HTTP) and 443 (HTTPS) for vulnerable installations of phpMyAdmin and other web applications." \
+#	"OpenBL.org" "http://www.openbl.org/"
+#
+#update openbl_7d $[4*60] 0 ipv4 ip \
+#	"http://www.openbl.org/lists/base_7days.txt" \
+#	remove_comments \
+#	"attacks" \
+#	"[OpenBL.org](http://www.openbl.org/) last 7 days IPs.  OpenBL.org is detecting, logging and reporting various types of internet abuse. Currently they monitor ports 21 (FTP), 22 (SSH), 23 (TELNET), 25 (SMTP), 110 (POP3), 143 (IMAP), 587 (Submission), 993 (IMAPS) and 995 (POP3S) for bruteforce login attacks as well as scans on ports 80 (HTTP) and 443 (HTTPS) for vulnerable installations of phpMyAdmin and other web applications." \
+#	"OpenBL.org" "http://www.openbl.org/"
+#
+#update openbl_30d $[4*60] 0 ipv4 ip \
+#	"http://www.openbl.org/lists/base_30days.txt" \
+#	remove_comments \
+#	"attacks" \
+#	"[OpenBL.org](http://www.openbl.org/) last 30 days IPs.  OpenBL.org is detecting, logging and reporting various types of internet abuse. Currently they monitor ports 21 (FTP), 22 (SSH), 23 (TELNET), 25 (SMTP), 110 (POP3), 143 (IMAP), 587 (Submission), 993 (IMAPS) and 995 (POP3S) for bruteforce login attacks as well as scans on ports 80 (HTTP) and 443 (HTTPS) for vulnerable installations of phpMyAdmin and other web applications." \
+#	"OpenBL.org" "http://www.openbl.org/"
+#
+#update openbl_60d $[4*60] 0 ipv4 ip \
+#	"http://www.openbl.org/lists/base_60days.txt" \
+#	remove_comments \
+#	"attacks" \
+#	"[OpenBL.org](http://www.openbl.org/) last 60 days IPs.  OpenBL.org is detecting, logging and reporting various types of internet abuse. Currently they monitor ports 21 (FTP), 22 (SSH), 23 (TELNET), 25 (SMTP), 110 (POP3), 143 (IMAP), 587 (Submission), 993 (IMAPS) and 995 (POP3S) for bruteforce login attacks as well as scans on ports 80 (HTTP) and 443 (HTTPS) for vulnerable installations of phpMyAdmin and other web applications." \
+#	"OpenBL.org" "http://www.openbl.org/"
+#
+#update openbl_90d $[4*60] 0 ipv4 ip \
+#	"http://www.openbl.org/lists/base_90days.txt" \
+#	remove_comments \
+#	"attacks" \
+#	"[OpenBL.org](http://www.openbl.org/) last 90 days IPs.  OpenBL.org is detecting, logging and reporting various types of internet abuse. Currently they monitor ports 21 (FTP), 22 (SSH), 23 (TELNET), 25 (SMTP), 110 (POP3), 143 (IMAP), 587 (Submission), 993 (IMAPS) and 995 (POP3S) for bruteforce login attacks as well as scans on ports 80 (HTTP) and 443 (HTTPS) for vulnerable installations of phpMyAdmin and other web applications." \
+#	"OpenBL.org" "http://www.openbl.org/"
+#
+#update openbl_180d $[4*60] 0 ipv4 ip \
+#	"http://www.openbl.org/lists/base_180days.txt" \
+#	remove_comments \
+#	"attacks" \
+#	"[OpenBL.org](http://www.openbl.org/) last 180 days IPs.  OpenBL.org is detecting, logging and reporting various types of internet abuse. Currently they monitor ports 21 (FTP), 22 (SSH), 23 (TELNET), 25 (SMTP), 110 (POP3), 143 (IMAP), 587 (Submission), 993 (IMAPS) and 995 (POP3S) for bruteforce login attacks as well as scans on ports 80 (HTTP) and 443 (HTTPS) for vulnerable installations of phpMyAdmin and other web applications." \
+#	"OpenBL.org" "http://www.openbl.org/"
+#
+#update openbl_360d $[4*60] 0 ipv4 ip \
+#	"http://www.openbl.org/lists/base_360days.txt" \
+#	remove_comments \
+#	"attacks" \
+#	"[OpenBL.org](http://www.openbl.org/) last 360 days IPs.  OpenBL.org is detecting, logging and reporting various types of internet abuse. Currently they monitor ports 21 (FTP), 22 (SSH), 23 (TELNET), 25 (SMTP), 110 (POP3), 143 (IMAP), 587 (Submission), 993 (IMAPS) and 995 (POP3S) for bruteforce login attacks as well as scans on ports 80 (HTTP) and 443 (HTTPS) for vulnerable installations of phpMyAdmin and other web applications." \
+#	"OpenBL.org" "http://www.openbl.org/"
+#
+#update openbl_all $[4*60] 0 ipv4 ip \
+#	"http://www.openbl.org/lists/base_all.txt" \
+#	remove_comments \
+#	"attacks" \
+#	"[OpenBL.org](http://www.openbl.org/) last all IPs.  OpenBL.org is detecting, logging and reporting various types of internet abuse. Currently they monitor ports 21 (FTP), 22 (SSH), 23 (TELNET), 25 (SMTP), 110 (POP3), 143 (IMAP), 587 (Submission), 993 (IMAPS) and 995 (POP3S) for bruteforce login attacks as well as scans on ports 80 (HTTP) and 443 (HTTPS) for vulnerable installations of phpMyAdmin and other web applications." \
+#	"OpenBL.org" "http://www.openbl.org/"
+#
+#
 # -----------------------------------------------------------------------------
 # www.dshield.org
 # https://www.dshield.org/xml.html
@@ -5188,13 +5189,14 @@ update nixspam 15 0 ipv4 ip \
 # -----------------------------------------------------------------------------
 # VirBL
 # http://virbl.bit.nl/
-
-update virbl 60 0 ipv4 ip \
-	"http://virbl.bit.nl/download/virbl.dnsbl.bit.nl.txt" \
-	remove_comments \
-	"spam" \
-	"[VirBL](http://virbl.bit.nl/) is a project of which the idea was born during the RIPE-48 meeting. The plan was to get reports of virus scanning mailservers, and put the IP-addresses that were reported to send viruses on a blacklist." \
-	"VirBL.bit.nl" "http://virbl.bit.nl/"
+# DOES NOT EXIST ANYMORE
+#
+#update virbl 60 0 ipv4 ip \
+#	"http://virbl.bit.nl/download/virbl.dnsbl.bit.nl.txt" \
+#	remove_comments \
+#	"spam" \
+#	"[VirBL](http://virbl.bit.nl/) is a project of which the idea was born during the RIPE-48 meeting. The plan was to get reports of virus scanning mailservers, and put the IP-addresses that were reported to send viruses on a blacklist." \
+#	"VirBL.bit.nl" "http://virbl.bit.nl/"
 
 
 # -----------------------------------------------------------------------------
@@ -6257,27 +6259,27 @@ update iblocklist_isp_sprint $[24*60] 0 ipv4 both \
 
 # -----------------------------------------------------------------------------
 # https://blocklist.sigmaprojects.org/
-
-update sp_atma $[24*60] 0 ipv4 both \
-	"https://blocklist.sigmaprojects.org/api.cfc?method=getList&lists=atma" \
-	${ZCAT_CMD} \
-	"attacks" \
-	"Attackers who try to spy or remotely control others' computers by means such as Microsoft remote terminal, SSH, Telnet or shared desktops. Threats for email servers or users: spiders/bots, account hijacking, etc. Sites spreading virus, trojans, spyware, etc. or just being used by them to let their authors know that a new computer has been infected. Threats for servers: exploits, fake identities/agents, DDoS attackers, etc. Port scans, which are the first step towards more dangerous actions. Malicious P2P sharers or bad peers who spread malware, inject bad traffic or share fake archives. (The site states they re-distribute this IP List from iblocklist.com)." \
-	"SigmaProjects.org" "https://blocklist.sigmaprojects.org/"
-
-update sp_anti_infringement $[24*60] 0 ipv4 both \
-	"https://blocklist.sigmaprojects.org/api.cfc?method=getList&lists=anti-infringement" \
-	${ZCAT_CMD} \
-	"organizations" \
-	"IPs of Anti-Infringement organizations. (The site states they re-distribute this IP List from iblocklist.com)" \
-	"SigmaProjects.org" "https://blocklist.sigmaprojects.org/"
-
-update sp_spammers $[24*60] 0 ipv4 both \
-	"https://blocklist.sigmaprojects.org/api.cfc?method=getList&lists=spammers" \
-	${ZCAT_CMD} \
-	"spam" \
-	"Spammers. (The site states they re-distribute this IP List from iblocklist.com)" \
-	"SigmaProjects.org" "https://blocklist.sigmaprojects.org/"
+# DOES NOT EXIST ANYMORE
+#update sp_atma $[24*60] 0 ipv4 both \
+#	"https://blocklist.sigmaprojects.org/api.cfc?method=getList&lists=atma" \
+#	${ZCAT_CMD} \
+#	"attacks" \
+#	"Attackers who try to spy or remotely control others' computers by means such as Microsoft remote terminal, SSH, Telnet or shared desktops. Threats for email servers or users: spiders/bots, account hijacking, etc. Sites spreading virus, trojans, spyware, etc. or just being used by them to let their authors know that a new computer has been infected. Threats for servers: exploits, fake identities/agents, DDoS attackers, etc. Port scans, which are the first step towards more dangerous actions. Malicious P2P sharers or bad peers who spread malware, inject bad traffic or share fake archives. (The site states they re-distribute this IP List from iblocklist.com)." \
+#	"SigmaProjects.org" "https://blocklist.sigmaprojects.org/"
+#
+#update sp_anti_infringement $[24*60] 0 ipv4 both \
+#	"https://blocklist.sigmaprojects.org/api.cfc?method=getList&lists=anti-infringement" \
+#	${ZCAT_CMD} \
+#	"organizations" \
+#	"IPs of Anti-Infringement organizations. (The site states they re-distribute this IP List from iblocklist.com)" \
+#	"SigmaProjects.org" "https://blocklist.sigmaprojects.org/"
+#
+#update sp_spammers $[24*60] 0 ipv4 both \
+#	"https://blocklist.sigmaprojects.org/api.cfc?method=getList&lists=spammers" \
+#	${ZCAT_CMD} \
+#	"spam" \
+#	"Spammers. (The site states they re-distribute this IP List from iblocklist.com)" \
+#	"SigmaProjects.org" "https://blocklist.sigmaprojects.org/"
 
 
 # -----------------------------------------------------------------------------
@@ -6841,9 +6843,7 @@ merge firehol_level2 ipv4 both \
 	"FireHOL" "http://iplists.firehol.org/" \
 	blocklist_de \
 	dshield_1d \
-	greensnow \
-	openbl_1d \
-	virbl \
+	greensnow
 
 merge firehol_level3 ipv4 both \
 	"attacks" \
@@ -6859,7 +6859,6 @@ merge firehol_level3 ipv4 both \
 	malc0de \
 	maxmind_proxy_fraud \
 	myip \
-	openbl_30d \
 	shunlist \
 	snort_ipfilter \
 	sslbl_aggressive \
