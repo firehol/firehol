@@ -371,6 +371,7 @@ GITHUB_SETINFO="https://github.com/firehol/blocklist-ipsets/tree/master/"
 # -----------------------------------------------------------------------------
 # Command line parsing
 
+CLEANUP_OLD=0
 ENABLE_ALL=0
 IGNORE_LASTCHECKED=0
 FORCE_WEB_REBUILD=0
@@ -482,6 +483,7 @@ do
 			break
 			;;
 
+		--cleanup) CLEANUP_OLD=1;;
 		--rebuild|-r) FORCE_WEB_REBUILD=1;;
 		--reprocess|-p) REPROCESS_ALL=1;;
 		--silent|-s) SILENT=1;;
@@ -2951,10 +2953,10 @@ rename_ipset() {
 }
 
 delete_ipset() {
-
 	local ipset="${1}"
 
 	[ -z "${ipset}" ] && return 1
+	[ "${CLEANUP_OLD}" != "1" ] && return 0
 
 	cd "${BASE_DIR}" || return 1
 
