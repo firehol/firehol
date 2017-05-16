@@ -4480,15 +4480,16 @@ update zeus 30 0 ipv4 ip \
 # Palevo worm
 # https://palevotracker.abuse.ch/blocklists.php
 # by abuse.ch
-
+# DISCONTINUED
 # includes IP addresses which are being used as botnet C&C for the Palevo crimeware
-update palevo 30 0 ipv4 ip \
-	"https://palevotracker.abuse.ch/blocklists.php?download=ipblocklist" \
-	remove_comments \
-	"malware" \
-	"[Abuse.ch Palevo tracker](https://palevotracker.abuse.ch) worm includes IPs which are being used as botnet C&C for the Palevo crimeware" \
-	"Abuse.ch" "https://palevotracker.abuse.ch/" \
-	can_be_empty
+delete_ipset palevo
+#update palevo 30 0 ipv4 ip \
+#	"https://palevotracker.abuse.ch/blocklists.php?download=ipblocklist" \
+#	remove_comments \
+#	"malware" \
+#	"[Abuse.ch Palevo tracker](https://palevotracker.abuse.ch) worm includes IPs which are being used as botnet C&C for the Palevo crimeware" \
+#	"Abuse.ch" "https://palevotracker.abuse.ch/" \
+#	can_be_empty
 
 
 # -----------------------------------------------------------------------------
@@ -6911,7 +6912,6 @@ merge firehol_level1 ipv4 both \
 	dshield \
 	feodo \
 	fullbogons \
-	palevo \
 	spamhaus_drop \
 	spamhaus_edrop \
 	sslbl \
