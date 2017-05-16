@@ -2967,8 +2967,19 @@ delete_ipset() {
 	do
 		if [ -f "${BASE_DIR}/${ipset}.${x}" ]
 			then
-			ipset_info "${ipset}" "deleting ${HISTORY_DIR}/${ipset}.${x}"
-			$RM_CMD "${BASE_DIR}/${ipset}.${x}" || exit 1
+
+			if [ -d "${BASE_DIR}/.git" ]
+				then
+				ipset_info "${ipset}" "git deleting ${BASE_DIR}/${ipset}.${x}"
+				$GIT_CMD -C "${BASE_DIR}" rm "${ipset}.${x}"
+				$GIT_CMD -C "${BASE_DIR}" commit "${ipset}.${x}" -m "deleted ${ipset}.${x}"
+			fi
+
+			if [ -f "${BASE_DIR}/${ipset}.${x}" ]
+				then
+				ipset_info "${ipset}" "deleting ${BASE_DIR}/${ipset}.${x}"
+				$RM_CMD "${BASE_DIR}/${ipset}.${x}" || exit 1
+			fi
 		fi
 	done
 
@@ -2992,12 +3003,16 @@ delete_ipset() {
 		do
 			if [ -f "${WEB_DIR}/${ipset}${x}" ]
 				then
+
 				if [ -d "${WEB_DIR}/.git" ]
 					then
 					ipset_info "${ipset}" "git deleting ${LIB_DIR}/${ipset}${x}"
 					$GIT_CMD -C "${WEB_DIR}" rm "${ipset}${x}"
 					$GIT_CMD -C "${WEB_DIR}" commit "${ipset}${x}" -m "deleted ${ipset}${x}"
-				else
+				fi
+
+				if [ -f "${WEB_DIR}/${ipset}${x}" ]
+					then
 					ipset_info "${ipset}" "deleting ${LIB_DIR}/${ipset}${x}"
 					$RM_CMD -f "${WEB_DIR}/${ipset}${x}"
 				fi
