@@ -337,7 +337,7 @@ PUSH_TO_GIT=${PUSH_TO_GIT-0}
 MAX_CONNECT_TIME=${MAX_CONNECT_TIME-10}
 
 # agent string to use when performing downloads
-USER_AGENT="FireHOL-Update-Ipsets/3.0 (linux-gnu) https://www.firehol.org/"
+USER_AGENT="FireHOL-Update-Ipsets/3.0 (linux-gnu) https://iplists.firehol.org/"
 
 # the maximum time in seconds any download may take
 MAX_DOWNLOAD_TIME=${MAX_DOWNLOAD_TIME-300}
