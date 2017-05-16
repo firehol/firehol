@@ -336,6 +336,9 @@ PUSH_TO_GIT=${PUSH_TO_GIT-0}
 # the maximum time in seconds, to connect to the remote web server
 MAX_CONNECT_TIME=${MAX_CONNECT_TIME-10}
 
+# agent string to use when performing downloads
+USER_AGENT="FireHOL-Update-Ipsets/3.0 (linux-gnu) https://iplists.firehol.org/"
+
 # the maximum time in seconds any download may take
 MAX_DOWNLOAD_TIME=${MAX_DOWNLOAD_TIME-300}
 
@@ -1004,7 +1007,7 @@ geturl() {
 	downloader_log verbose "curl ${doptions} '${url}'"
 	http_code=$( \
 		$CURL_CMD --connect-timeout ${MAX_CONNECT_TIME} --max-time ${MAX_DOWNLOAD_TIME} \
-			--retry 0 --fail --compressed --user-agent "FireHOL-Update-Ipsets/3.0 (linux-gnu)" \
+			--retry 0 --fail --compressed --user-agent "${USER_AGENT}" \
 			--time-cond "${reference}" --output "${file}" --remote-time \
 			--location --referer "http://iplists.firehol.org/" \
 			${curl_opts} --write-out '%{http_code}' "${doptions[@]}" "${url}" \
