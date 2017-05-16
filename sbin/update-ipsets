@@ -3006,14 +3006,14 @@ delete_ipset() {
 
 				if [ -d "${WEB_DIR}/.git" ]
 					then
-					ipset_info "${ipset}" "git deleting ${LIB_DIR}/${ipset}${x}"
+					ipset_info "${ipset}" "git deleting ${WEB_DIR}/${ipset}${x}"
 					$GIT_CMD -C "${WEB_DIR}" rm "${ipset}${x}"
 					$GIT_CMD -C "${WEB_DIR}" commit "${ipset}${x}" -m "deleted ${ipset}${x}"
 				fi
 
 				if [ -f "${WEB_DIR}/${ipset}${x}" ]
 					then
-					ipset_info "${ipset}" "deleting ${LIB_DIR}/${ipset}${x}"
+					ipset_info "${ipset}" "deleting ${WEB_DIR}/${ipset}${x}"
 					$RM_CMD -f "${WEB_DIR}/${ipset}${x}"
 				fi
 			fi
