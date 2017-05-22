@@ -108,7 +108,7 @@ do
 done
 
 common_disable_localization || exit
-common_private_umask || exit
+common_public_umask || exit
 
 marksreset() { :; }
 markdef() { :; }
