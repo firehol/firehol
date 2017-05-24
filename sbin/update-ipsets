@@ -5392,7 +5392,31 @@ update dataplane_vncrfb 60 0 ipv4 ip \
 	"https://dataplane.org/vncrfb.txt" \
 	dataplane_column3 \
 	"attacks" \
-	"[DataPlane.org](https://dataplane.org/) IP address that has been seen initiating a VNC remote frame buffer (RFB) session to a remote host. This report lists hosts that are suspicious of more than just port scanning. These hosts may be VNC server cataloging or conducting various forms of remote access abuse." \
+	"[DataPlane.org](https://dataplane.org/) IP addresses that have been seen initiating a VNC remote frame buffer (RFB) session to a remote host. This report lists hosts that are suspicious of more than just port scanning. These hosts may be VNC server cataloging or conducting various forms of remote access abuse." \
+	"DataPlane.org" "https://dataplane.org/" \
+	dont_redistribute
+
+update dataplane_dnsrd 60 0 ipv4 ip \
+	"https://dataplane.org/dnsrd.txt" \
+	dataplane_column3 \
+	"attacks" \
+	"[DataPlane.org](https://dataplane.org/) IP addresses that have been identified as sending recursive DNS queries to a remote host. This report lists addresses that may be cataloging open DNS resolvers or evaluating cache entries." \
+	"DataPlane.org" "https://dataplane.org/" \
+	dont_redistribute
+
+update dataplane_dnsrdany 60 0 ipv4 ip \
+	"https://dataplane.org/dnsrdany.txt" \
+	dataplane_column3 \
+	"attacks" \
+	"[DataPlane.org](https://dataplane.org/) IP addresses that have been identified as sending recursive DNS IN ANY queries to a remote host. This report lists addresses that may be cataloging open DNS resolvers for the purpose of later using them to facilitate DNS amplification and reflection attacks." \
+	"DataPlane.org" "https://dataplane.org/" \
+	dont_redistribute
+
+update dataplane_dnsversion 60 0 ipv4 ip \
+	"https://dataplane.org/dnsversion.txt" \
+	dataplane_column3 \
+	"attacks" \
+	"[DataPlane.org](https://dataplane.org/) IP addresses that have been identified as sending DNS CH TXT VERSION.BIND queries to a remote host. This report lists addresses that may be cataloging DNS software." \
 	"DataPlane.org" "https://dataplane.org/" \
 	dont_redistribute
 
