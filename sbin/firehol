@@ -4811,8 +4811,14 @@ blacklist() {
 				;;
 
 			inface)
-				inface=(inface "${2}")
-				shift 2
+				if [ "${2}" = "not" ]
+				then
+					inface=(inface not "${3}")
+					shift 3
+				else
+					inface=(inface "${2}")
+					shift 2
+				fi
 				;;
 
 			*)	src=( "${src[@]}" "${1}" )
