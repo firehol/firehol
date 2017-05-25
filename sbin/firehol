@@ -8513,9 +8513,9 @@ rule() {
 		[ ! -z "${hashlimit_srcmask}"           ] && protected_args=("${protected_args[@]}" "--hashlimit-srcmask" "${hashlimit_srcmask}")
 		[ ! -z "${hashlimit_dstmask}"           ] && protected_args=("${protected_args[@]}" "--hashlimit-dstmask" "${hashlimit_dstmask}")
 		[ ! -z "${hashlimit_htable_size}"       ] && protected_args=("${protected_args[@]}" "--hashlimit-htable-size" "${hashlimit_htable_size}")
-		[ ! -z "${hashlimit_htable_max}"        ] && protected_args=("${protected_args[@]}" "--hashlimit_htable_max" "${hashlimit_htable_max}")
-		[ ! -z "${hashlimit_htable_expire}"     ] && protected_args=("${protected_args[@]}" "--hashlimit_htable_expire" "${hashlimit_htable_expire}")
-		[ ! -z "${hashlimit_htable_gcinterval}" ] && protected_args=("${protected_args[@]}" "--hashlimit_htable_gcinterval" "${hashlimit_htable_gcinterval}")
+		[ ! -z "${hashlimit_htable_max}"        ] && protected_args=("${protected_args[@]}" "--hashlimit-htable-max" "${hashlimit_htable_max}")
+		[ ! -z "${hashlimit_htable_expire}"     ] && protected_args=("${protected_args[@]}" "--hashlimit-htable-expire" "${hashlimit_htable_expire}")
+		[ ! -z "${hashlimit_htable_gcinterval}" ] && protected_args=("${protected_args[@]}" "--hashlimit-htable-gcinterval" "${hashlimit_htable_gcinterval}")
 	fi
 
 	# ipset
