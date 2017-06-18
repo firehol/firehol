@@ -6451,7 +6451,7 @@ update uscert_hidden_cobra $[24*60] 0 ipv4 ip \
 	"https://www.us-cert.gov/sites/default/files/publications/TA-17-164A_csv.csv" \
 	parse_uscert_csv \
 	"attacks" \
-	"Since 2009, HIDDEN COBRA actors have leveraged their capabilities to target and compromise a range of victims; some intrusions have resulted in the exfiltration of data while others have been disruptive in nature. Commercial reporting has referred to this activity as Lazarus Group[1] (link is external) and Guardians of Peace.[2] (link is external) DHS and FBI assess that HIDDEN COBRA actors will continue to use cyber operations to advance their government’s military and strategic objectives. Tools and capabilities used by HIDDEN COBRA actors include DDoS botnets, keyloggers, remote access tools (RATs), and wiper malware. Variants of malware and tools used by HIDDEN COBRA actors include Destover, Wild Positron/Duuzer and Hangman" \
+	"Since 2009, HIDDEN COBRA actors have leveraged their capabilities to target and compromise a range of victims; some intrusions have resulted in the exfiltration of data while others have been disruptive in nature. Commercial reporting has referred to this activity as Lazarus Group and Guardians of Peace. DHS and FBI assess that HIDDEN COBRA actors will continue to use cyber operations to advance their government’s military and strategic objectives. Tools and capabilities used by HIDDEN COBRA actors include DDoS botnets, keyloggers, remote access tools (RATs), and wiper malware. Variants of malware and tools used by HIDDEN COBRA actors include Destover, Wild Positron/Duuzer and Hangman." \
 	"US Cert" "https://www.us-cert.gov/ncas/alerts/TA17-164A"
 
 # -----------------------------------------------------------------------------
