@@ -23,6 +23,7 @@ addons:
     - libxml2-utils
     - traceroute
     - ipset
+    - fakeroot
 #
 # Setup environment
 before_install:
