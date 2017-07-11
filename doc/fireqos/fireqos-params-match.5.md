@@ -220,8 +220,19 @@ hooks to allow matching MARKs. If you try it, FireQOS will attempt
 to do it, but currently you will get an error from the tc(8) command
 executed or they will be silently ignored by it.
 
-On openwrt there is a module called `act_commark` that will enable
-this feature.
+On some Linux distributions (e.g. OpenWRT) there is a module called
+`act_commark` that will enable this feature. Set this within your
+`fireqos.conf` to enable it:
+
+~~~~
+FIREQOS_CONNMARK_RESTORE="act_connmark"
+~~~~
+
+Also note that matching marks requires a suitably configured kernel
+(with `CONFIG_CLS_U32_MARK=y`). There is no error if the kernel is
+not configured correctly; it just silently drops the rules. For details
+see [this error report](https://github.com/firehol/firehol/issues/231).
+
 
 ## ports, sports, dports
 
