@@ -38,6 +38,20 @@ firewall is activated.
 The `iptables` and `ip6tables` helpers are provided to allow you to hook
 in commands safely.
 
+When using the `-t` option to specify a table, ensure this is the first
+option to `iptables`, otherwise "fast activation" will fail with an error
+message such as:
+
+    iptables-restore: The -t option cannot be used in iptables-restore
+
+# EXAMPLES
+
+Fix LXC DHCP on same host:
+
+~~~~
+iptables -t mangle -A POSTROUTING -p udp --dport 68 -j CHECKSUM --checksum-fill
+~~~~
+
 # SEE ALSO
 
 * [firehol(1)][] - FireHOL program
