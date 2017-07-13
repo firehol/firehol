@@ -3921,7 +3921,7 @@ ${COLOR_BLUE}${COLOR_BOLD}action${COLOR_RESET} can be one of:
 
 	${COLOR_YELLOW}${COLOR_BOLD}status${COLOR_RESET} [${COLOR_BLUE}${COLOR_BOLD}name${COLOR_RESET} [ ${COLOR_YELLOW}${COLOR_BOLD}dump${COLOR_RESET} [${COLOR_BLUE}${COLOR_BOLD}class${COLOR_RESET}] ] ]
 		shows live class utilization for the interface ${COLOR_BLUE}${COLOR_BOLD}name${COLOR_RESET} the
-		name given mathes the name of an interface statement given
+		name given matches the name of an interface statement given
 		in the config
 
 		if ${COLOR_YELLOW}${COLOR_BOLD}dump' is specified, it tcpdumps the traffic in the
