@@ -233,7 +233,7 @@ server_xdmcp_ports="udp/177"
 # FireQOS only services
 server_torrents_ports="tcp/6881:6999 udp/6881:6999"
 server_facetime_ports="udp/3478:3497 udp/16384:16387 udp/16393:16402"
-server_hangouts_ports="udp/19305:19309 tcp/19305:19309"
+server_hangouts_ports="udp/19302:19309 tcp/19305:19309"
 server_gtalk_ports="tcp/5222 tcp/5228"
 server_teamviewer_ports="tcp/5938"
 server_ping_ports="icmp/any"
