@@ -4,31 +4,45 @@
 
 # NAME
 
-firehol-mark - mark traffic for traffic shaping tools
+firehol-mark - set a stateful mark from the usermark group
 
 # SYNOPSIS
 
-*Warning - this manual page is out of date for nightly build/v3 behaviour*
+{ mark | mark46 } *value* *chain* *rule-params*
 
-mark *value* *chain* *rule-params*
+mark4 *value* *chain* *rule-params*
+
+mark6 *value* *chain* *rule-params*
 
 <!--
 contents-table:helper:mark:keyword-firehol-mark-helper:Y:-:Set a stateful mark from the `usermark` group.
+extra-manpage: firehol-mark46.5
+extra-manpage: firehol-mark4.5
+extra-manpage: firehol-mark6.5
   -->
 
 # DESCRIPTION
 
-The `mark` helper command sets a mark on packets that can be matched by
-traffic shaping tools for controlling the traffic.
+Marks on packets can be matched by traffic shaping, routing, and
+firewall rules for controlling traffic.
 
 > **Note**
+> Behaviour changed significantly in FireHOL v3 compared to earlier versions
 >
-> To set a mark on whole connections, see
-> [firehol-connmark(5)][keyword-firehol-connmark]. There is also a `mark`
-> parameter which allows matching marks within individual rules (see 
-> [firehol-params(5)][keyword-firehol-mark-param]).
+> There is also a `mark` parameter which allows matching marks within
+> individual rules (see [firehol-params(5)][keyword-firehol-mark-param]).
 
-The *value* is the mark value to set (a 32 bit integer).
+FireHOL uses iptables `masks` to break the single 32-bit integer mark
+value into smaller groups and allows you to set and match them
+independently. The `markdef` group definitions to set this up are
+found in `firehol-defaults.conf`
+
+The `mark` helper command sets values within the `usermark` group. You
+can set *value* between 0 (no mark) and `size`-1. The default size for
+`usermark` is 128, so 127 is highest *value* possible. The default
+`usermark` types are `stateful`+`permanent`, meaning the initial
+match will only be done on `NEW` packets and the mark will be restored
+to all packets in the connection.
 
 The *chain* will be used to find traffic to mark. It can be any of the
 iptables(8) built in chains belonging to the `mangle` table. The chain
@@ -39,14 +53,18 @@ The *rule-params* define a set of rule parameters to match the traffic
 that is to be marked within the chosen chain. See
 [firehol-params(5)][] for more details.
 
-Any `mark` commands will affect all traffic matched. They must be
-declared before the first router or interface.
+Any `mark` commands must be declared before the first router or interface.
 
 > **Note**
 >
 > If you want to do policy based routing based on iptables(8) marks, you
 > will need to disable the Root Path Filtering on the interfaces
 > involved (rp\_filter in sysctl).
+>
+> FireQOS will read the FireHOL mark definitions and set up suitable
+> offsets and marks for the various groups. If you are using a different
+> tool, you should look at the emitted firewall to determine the final
+> masks and values to use.
 
 
 # EXAMPLES
@@ -68,7 +86,7 @@ declared before the first router or interface.
 * [firehol(1)][] - FireHOL program
 * [firehol.conf(5)][] - FireHOL configuration
 * [firehol-params(5)][] - optional rule parameters
-* [firehol-connmark(5)][keyword-firehol-connmark] - set a stateful mark on a connection
+* [firehol-connmark(5)][keyword-firehol-connmark] - set a stateful mark from the connmark group
 * [iptables(8)](http://ipset.netfilter.org/iptables.man.html) - administration tool for IPv4 firewalls
 * [ip6tables(8)](http://ipset.netfilter.org/ip6tables.man.html) - administration tool for IPv6 firewalls
 * ip(8) - show / manipulate routing, devices, policy routing and tunnels
