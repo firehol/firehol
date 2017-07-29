@@ -1375,11 +1375,12 @@ ipset_normalize_for_json() {
 }
 
 ipset_json() {
-	local ipset="${1}" geolite2= ipdeny= ip2location= comparison= info=
+	local ipset="${1}" geolite2= ipdeny= ip2location= ipip= comparison= info=
 
 	[ -f "${RUN_DIR}/${ipset}_geolite2_country.json"    ] && geolite2="${ipset}_geolite2_country.json"
 	[ -f "${RUN_DIR}/${ipset}_ipdeny_country.json"      ] && ipdeny="${ipset}_ipdeny_country.json"
 	[ -f "${RUN_DIR}/${ipset}_ip2location_country.json" ] && ip2location="${ipset}_ip2location_country.json"
+	[ -f "${RUN_DIR}/${ipset}_ipip_country.json"        ] && ipip="${ipset}_ipip_country.json"
 	[ -f "${RUN_DIR}/${ipset}_comparison.json"          ] && comparison="${ipset}_comparison.json"
 
 	info="${IPSET_INFO[${ipset}]}"
@@ -1426,6 +1427,7 @@ ipset_json() {
 	"geolite2": "${geolite2}",
 	"ipdeny": "${ipdeny}",
 	"ip2location": "${ip2location}",
+	"ipip": "${ipip}",
 	"comparison": "${comparison}",
 	"file_local": "${file_local}",
 	"commit_history": "${commit_history}",
@@ -1900,7 +1902,7 @@ update_web() {
 		return 1
 	fi
 
-	local all=() updated=() geolite2_country=() ipdeny_country=() ip2location_country=() \
+	local all=() updated=() geolite2_country=() ipdeny_country=() ip2location_country=() ipip_country=() \
 		x= i= to_all= all_count=0 \
 		sitemap_date="$($DATE_CMD -I)"
 
@@ -1992,6 +1994,17 @@ update_web() {
 				*)							i= ;;
 			esac
 			[ ! -z "${i}" ] && ip2location_country=("${ip2location_country[@]}" "${IPSET_FILE[$x]}" "as" "${i^^}")
+
+		elif [[ "${IPSET_FILE[$x]}" =~ ^ipip_country.* ]]
+			then
+			ipset_verbose "${x}" "is an IPIP file"
+			to_all=0
+			case "${x}" in
+				ipip_country_*)				i=${x/ipip_country_/} ;;
+				ipip_continent_*)			i= ;;
+				*)							i= ;;
+			esac
+			[ ! -z "${i}" ] && ipip_country=("${ipip_country[@]}" "${IPSET_FILE[$x]}" "as" "${i^^}")
 		fi
 
 		if [ ${to_all} -eq 1 ]
@@ -2149,6 +2162,34 @@ update_web() {
 		done
 	fi
 
+	if [ "${#updated[*]}" -ne 0 -a "${#ipip_country[*]}" -ne 0 ]
+		then
+		print_ipset_reset
+
+		echo >&2 "-------------------------------------------------------------------------------"
+		echo >&2 "Comparing updated ipsets with IPIP country..."
+
+		${IPRANGE_CMD} "${updated[@]}" --compare-next "${ipip_country[@]}" |\
+			${GREP_CMD} -v ",0$" |\
+			$SORT_CMD |\
+			while IFS="," read name1 name2 entries1 entries2 ips1 ips2 combined common
+			do
+				if [ ! -f "${RUN_DIR}/${name1}_ipip_country.json" ]
+					then
+					printf "[\n" >"${RUN_DIR}/${name1}_ipip_country.json"
+				else
+					printf ",\n" >>"${RUN_DIR}/${name1}_ipip_country.json"
+				fi
+
+				printf "	{\n		\"code\": \"${name2}\",\n		\"value\": ${common}\n	}" >>"${RUN_DIR}/${name1}_ipip_country.json"
+			done
+		echo >&2
+		for x in $($FIND_CMD "${RUN_DIR}" -name \*_ipip_country.json)
+		do
+			printf "\n]\n" >>${x}
+		done
+	fi
+
 	echo >&2 "-------------------------------------------------------------------------------"
 	echo >&2 "Generating updated ipsets JSON files..."
 
@@ -2170,6 +2211,7 @@ update_web() {
 		[[ "${IPSET_FILE[$x]}" =~ ^geolite2.* ]] && continue
 		[[ "${IPSET_FILE[$x]}" =~ ^ipdeny.* ]] && continue
 		[[ "${IPSET_FILE[$x]}" =~ ^ip2location.* ]] && continue
+		[[ "${IPSET_FILE[$x]}" =~ ^ipip.* ]] && continue
 
 		retention_detect "${x}" >"${RUN_DIR}/${x}_retention.json" || $RM_CMD "${RUN_DIR}/${x}_retention.json"
 
@@ -2895,7 +2937,7 @@ rename_ipset() {
 
 	if [ -d "${WEB_DIR}" ]
 		then
-		for x in _comparison.json _geolite2_country.json _ipdeny_country.json _ip2location_country.json _history.csv retention.json .json .html
+		for x in _comparison.json _geolite2_country.json _ipdeny_country.json _ip2location_country.json _ipip_country.json _history.csv retention.json .json .html
 		do
 			if [ -f "${WEB_DIR}/${old}${x}" -a ! -f "${WEB_DIR}/${new}${x}" ]
 				then
@@ -2999,7 +3041,7 @@ delete_ipset() {
 
 	if [ -d "${WEB_DIR}" ]
 		then
-		for x in _comparison.json _geolite2_country.json _ipdeny_country.json _ip2location_country.json _history.csv retention.json .json .html
+		for x in _comparison.json _geolite2_country.json _ipdeny_country.json _ip2location_country.json _ipip_country.json _history.csv retention.json .json .html
 		do
 			if [ -f "${WEB_DIR}/${ipset}${x}" ]
 				then
@@ -3602,8 +3644,8 @@ geolite2_country() {
 	return 0
 }
 
-declare -A IPDENY_COUNTRY_NAMES='([eu]="European Union" [ap]="African Regional Industrial Property Organization" [as]="American Samoa" [ge]="Georgia" [ar]="Argentina" [gd]="Grenada" [dm]="Dominica" [kp]="North Korea" [rw]="Rwanda" [gg]="Guernsey" [qa]="Qatar" [ni]="Nicaragua" [do]="Dominican Republic" [gf]="French Guiana" [ru]="Russia" [kr]="Republic of Korea" [aw]="Aruba" [ga]="Gabon" [rs]="Serbia" [no]="Norway" [nl]="Netherlands" [au]="Australia" [kw]="Kuwait" [dj]="Djibouti" [at]="Austria" [gb]="United Kingdom" [dk]="Denmark" [ky]="Cayman Islands" [gm]="Gambia" [ug]="Uganda" [gl]="Greenland" [de]="Germany" [nc]="New Caledonia" [az]="Azerbaijan" [hr]="Croatia" [na]="Namibia" [gn]="Guinea" [kz]="Kazakhstan" [et]="Ethiopia" [ht]="Haiti" [es]="Spain" [gi]="Gibraltar" [nf]="Norfolk Island" [ng]="Nigeria" [gh]="Ghana" [hu]="Hungary" [er]="Eritrea" [ua]="Ukraine" [ne]="Niger" [yt]="Mayotte" [gu]="Guam" [nz]="New Zealand" [om]="Oman" [gt]="Guatemala" [gw]="Guinea-Bissau" [hk]="Hong Kong" [re]="Réunion" [ag]="Antigua and Barbuda" [gq]="Equatorial Guinea" [ke]="Kenya" [gp]="Guadeloupe" [uz]="Uzbekistan" [af]="Afghanistan" [hn]="Honduras" [uy]="Uruguay" [dz]="Algeria" [kg]="Kyrgyzstan" [ae]="United Arab Emirates" [ad]="Andorra" [gr]="Greece" [ki]="Kiribati" [nr]="Nauru" [eg]="Egypt" [kh]="Cambodia" [ro]="Romania" [ai]="Anguilla" [np]="Nepal" [ee]="Estonia" [us]="United States" [ec]="Ecuador" [gy]="Guyana" [ao]="Angola" [km]="Comoros" [am]="Armenia" [ye]="Yemen" [nu]="Niue" [kn]="Saint Kitts and Nevis" [al]="Albania" [si]="Slovenia" [fr]="France" [bf]="Burkina Faso" [mw]="Malawi" [cy]="Cyprus" [vc]="Saint Vincent and the Grenadines" [mv]="Maldives" [bg]="Bulgaria" [pr]="Puerto Rico" [sk]="Slovak Republic" [bd]="Bangladesh" [mu]="Mauritius" [ps]="Palestine" [va]="Vatican City" [cz]="Czech Republic" [be]="Belgium" [mt]="Malta" [zm]="Zambia" [ms]="Montserrat" [bb]="Barbados" [sm]="San Marino" [pt]="Portugal" [io]="British Indian Ocean Territory" [vg]="British Virgin Islands" [sl]="Sierra Leone" [mr]="Mauritania" [la]="Laos" [in]="India" [ws]="Samoa" [mq]="Martinique" [im]="Isle of Man" [lb]="Lebanon" [tz]="Tanzania" [so]="Somalia" [mp]="Northern Mariana Islands" [ve]="Venezuela" [lc]="Saint Lucia" [ba]="Bosnia and Herzegovina" [sn]="Senegal" [pw]="Palau" [il]="Israel" [tt]="Trinidad and Tobago" [bn]="Brunei" [sa]="Saudi Arabia" [bo]="Bolivia" [py]="Paraguay" [bl]="Saint-Barthélemy" [tv]="Tuvalu" [sc]="Seychelles" [vi]="U.S. Virgin Islands" [cr]="Costa Rica" [bm]="Bermuda" [sb]="Solomon Islands" [tw]="Taiwan" [cu]="Cuba" [se]="Sweden" [bj]="Benin" [vn]="Vietnam" [li]="Liechtenstein" [mz]="Mozambique" [sd]="Sudan" [cw]="Curaçao" [ie]="Ireland" [sg]="Singapore" [jp]="Japan" [my]="Malaysia" [tr]="Turkey" [bh]="Bahrain" [mx]="Mexico" [cv]="Cape Verde" [id]="Indonesia" [lk]="Sri Lanka" [za]="South Africa" [bi]="Burundi" [ci]="Ivory Coast" [tl]="East Timor" [mg]="Madagascar" [lt]="Republic of Lithuania" [sy]="Syria" [sx]="Sint Maarten" [pa]="Panama" [mf]="Saint Martin" [lu]="Luxembourg" [ch]="Switzerland" [tm]="Turkmenistan" [bw]="Botswana" [jo]="Hashemite Kingdom of Jordan" [me]="Montenegro" [tn]="Tunisia" [ck]="Cook Islands" [bt]="Bhutan" [lv]="Latvia" [wf]="Wallis and Futuna" [to]="Tonga" [jm]="Jamaica" [sz]="Swaziland" [md]="Republic of Moldova" [br]="Brazil" [mc]="Monaco" [cm]="Cameroon" [th]="Thailand" [pe]="Peru" [cl]="Chile" [bs]="Bahamas" [pf]="French Polynesia" [co]="Colombia" [ma]="Morocco" [lr]="Liberia" [tj]="Tajikistan" [bq]="Bonaire, Sint Eustatius, and Saba" [tk]="Tokelau" [vu]="Vanuatu" [pg]="Papua New Guinea" [cn]="China" [ls]="Lesotho" [ca]="Canada" [is]="Iceland" [td]="Chad" [fj]="Fiji" [mo]="Macao" [ph]="Philippines" [mn]="Mongolia" [zw]="Zimbabwe" [ir]="Iran" [ss]="South Sudan" [mm]="Myanmar (Burma)" [iq]="Iraq" [sr]="Suriname" [je]="Jersey" [ml]="Mali" [tg]="Togo" [pk]="Pakistan" [fi]="Finland" [bz]="Belize" [pl]="Poland" [mk]="F.Y.R.O.M." [pm]="Saint Pierre and Miquelon" [fo]="Faroe Islands" [st]="São Tomé and Príncipe" [ly]="Libya" [cd]="Congo" [cg]="Republic of the Congo" [sv]="El Salvador" [tc]="Turks and Caicos Islands" [it]="Italy" [fm]="Federated States of Micronesia" [mh]="Marshall Islands" [by]="Belarus" [cf]="Central African Republic" )'
-declare -A IPDENY_COUNTRY_CONTINENTS='([eu]="eu" [ap]="af" [as]="oc" [ge]="as" [ar]="sa" [gd]="na" [dm]="na" [kp]="as" [rw]="af" [gg]="eu" [qa]="as" [ni]="na" [do]="na" [gf]="sa" [ru]="eu" [kr]="as" [aw]="na" [ga]="af" [rs]="eu" [no]="eu" [nl]="eu" [au]="oc" [kw]="as" [dj]="af" [at]="eu" [gb]="eu" [dk]="eu" [ky]="na" [gm]="af" [ug]="af" [gl]="na" [de]="eu" [nc]="oc" [az]="as" [hr]="eu" [na]="af" [gn]="af" [kz]="as" [et]="af" [ht]="na" [es]="eu" [gi]="eu" [nf]="oc" [ng]="af" [gh]="af" [hu]="eu" [er]="af" [ua]="eu" [ne]="af" [yt]="af" [gu]="oc" [nz]="oc" [om]="as" [gt]="na" [gw]="af" [hk]="as" [re]="af" [ag]="na" [gq]="af" [ke]="af" [gp]="na" [uz]="as" [af]="as" [hn]="na" [uy]="sa" [dz]="af" [kg]="as" [ae]="as" [ad]="eu" [gr]="eu" [ki]="oc" [nr]="oc" [eg]="af" [kh]="as" [ro]="eu" [ai]="na" [np]="as" [ee]="eu" [us]="na" [ec]="sa" [gy]="sa" [ao]="af" [km]="af" [am]="as" [ye]="as" [nu]="oc" [kn]="na" [al]="eu" [si]="eu" [fr]="eu" [bf]="af" [mw]="af" [cy]="eu" [vc]="na" [mv]="as" [bg]="eu" [pr]="na" [sk]="eu" [bd]="as" [mu]="af" [ps]="as" [va]="eu" [cz]="eu" [be]="eu" [mt]="eu" [zm]="af" [ms]="na" [bb]="na" [sm]="eu" [pt]="eu" [io]="as" [vg]="na" [sl]="af" [mr]="af" [la]="as" [in]="as" [ws]="oc" [mq]="na" [im]="eu" [lb]="as" [tz]="af" [so]="af" [mp]="oc" [ve]="sa" [lc]="na" [ba]="eu" [sn]="af" [pw]="oc" [il]="as" [tt]="na" [bn]="as" [sa]="as" [bo]="sa" [py]="sa" [bl]="na" [tv]="oc" [sc]="af" [vi]="na" [cr]="na" [bm]="na" [sb]="oc" [tw]="as" [cu]="na" [se]="eu" [bj]="af" [vn]="as" [li]="eu" [mz]="af" [sd]="af" [cw]="na" [ie]="eu" [sg]="as" [jp]="as" [my]="as" [tr]="as" [bh]="as" [mx]="na" [cv]="af" [id]="as" [lk]="as" [za]="af" [bi]="af" [ci]="af" [tl]="oc" [mg]="af" [lt]="eu" [sy]="as" [sx]="na" [pa]="na" [mf]="na" [lu]="eu" [ch]="eu" [tm]="as" [bw]="af" [jo]="as" [me]="eu" [tn]="af" [ck]="oc" [bt]="as" [lv]="eu" [wf]="oc" [to]="oc" [jm]="na" [sz]="af" [md]="eu" [br]="sa" [mc]="eu" [cm]="af" [th]="as" [pe]="sa" [cl]="sa" [bs]="na" [pf]="oc" [co]="sa" [ma]="af" [lr]="af" [tj]="as" [bq]="na" [tk]="oc" [vu]="oc" [pg]="oc" [cn]="as" [ls]="af" [ca]="na" [is]="eu" [td]="af" [fj]="oc" [mo]="as" [ph]="as" [mn]="as" [zw]="af" [ir]="as" [ss]="af" [mm]="as" [iq]="as" [sr]="sa" [je]="eu" [ml]="af" [tg]="af" [pk]="as" [fi]="eu" [bz]="na" [pl]="eu" [mk]="eu" [pm]="na" [fo]="eu" [st]="af" [ly]="af" [cd]="af" [cg]="af" [sv]="na" [tc]="na" [it]="eu" [fm]="oc" [mh]="oc" [by]="eu" [cf]="af" )'
+declare -A IPDENY_COUNTRY_NAMES='([eu]="European Union" [ap]="African Regional Industrial Property Organization" [as]="American Samoa" [ge]="Georgia" [ar]="Argentina" [gd]="Grenada" [dm]="Dominica" [kp]="North Korea" [rw]="Rwanda" [gg]="Guernsey" [qa]="Qatar" [ni]="Nicaragua" [do]="Dominican Republic" [gf]="French Guiana" [ru]="Russia" [kr]="Republic of Korea" [aw]="Aruba" [ga]="Gabon" [rs]="Serbia" [no]="Norway" [nl]="Netherlands" [au]="Australia" [kw]="Kuwait" [dj]="Djibouti" [at]="Austria" [gb]="United Kingdom" [dk]="Denmark" [ky]="Cayman Islands" [gm]="Gambia" [ug]="Uganda" [gl]="Greenland" [de]="Germany" [nc]="New Caledonia" [az]="Azerbaijan" [hr]="Croatia" [na]="Namibia" [gn]="Guinea" [kz]="Kazakhstan" [et]="Ethiopia" [ht]="Haiti" [es]="Spain" [gi]="Gibraltar" [nf]="Norfolk Island" [ng]="Nigeria" [gh]="Ghana" [hu]="Hungary" [er]="Eritrea" [ua]="Ukraine" [ne]="Niger" [yt]="Mayotte" [gu]="Guam" [nz]="New Zealand" [om]="Oman" [gt]="Guatemala" [gw]="Guinea-Bissau" [hk]="Hong Kong" [re]="Réunion" [ag]="Antigua and Barbuda" [gq]="Equatorial Guinea" [ke]="Kenya" [gp]="Guadeloupe" [uz]="Uzbekistan" [af]="Afghanistan" [hn]="Honduras" [uy]="Uruguay" [dz]="Algeria" [kg]="Kyrgyzstan" [ae]="United Arab Emirates" [ad]="Andorra" [gr]="Greece" [ki]="Kiribati" [nr]="Nauru" [eg]="Egypt" [kh]="Cambodia" [ro]="Romania" [ai]="Anguilla" [np]="Nepal" [ee]="Estonia" [us]="United States" [ec]="Ecuador" [gy]="Guyana" [ao]="Angola" [km]="Comoros" [am]="Armenia" [ye]="Yemen" [nu]="Niue" [kn]="Saint Kitts and Nevis" [al]="Albania" [si]="Slovenia" [fr]="France" [bf]="Burkina Faso" [mw]="Malawi" [cy]="Cyprus" [vc]="Saint Vincent and the Grenadines" [mv]="Maldives" [bg]="Bulgaria" [pr]="Puerto Rico" [sk]="Slovak Republic" [bd]="Bangladesh" [mu]="Mauritius" [ps]="Palestine" [va]="Vatican City" [cz]="Czech Republic" [be]="Belgium" [mt]="Malta" [zm]="Zambia" [ms]="Montserrat" [bb]="Barbados" [sm]="San Marino" [pt]="Portugal" [io]="British Indian Ocean Territory" [vg]="British Virgin Islands" [sl]="Sierra Leone" [mr]="Mauritania" [la]="Laos" [in]="India" [ws]="Samoa" [mq]="Martinique" [im]="Isle of Man" [lb]="Lebanon" [tz]="Tanzania" [so]="Somalia" [mp]="Northern Mariana Islands" [ve]="Venezuela" [lc]="Saint Lucia" [ba]="Bosnia and Herzegovina" [sn]="Senegal" [pw]="Palau" [il]="Israel" [tt]="Trinidad and Tobago" [bn]="Brunei" [sa]="Saudi Arabia" [bo]="Bolivia" [py]="Paraguay" [bl]="Saint-Barthélemy" [tv]="Tuvalu" [sc]="Seychelles" [vi]="U.S. Virgin Islands" [cr]="Costa Rica" [bm]="Bermuda" [sb]="Solomon Islands" [tw]="Taiwan" [cu]="Cuba" [se]="Sweden" [bj]="Benin" [vn]="Vietnam" [li]="Liechtenstein" [mz]="Mozambique" [sd]="Sudan" [cw]="Curaçao" [ie]="Ireland" [sg]="Singapore" [jp]="Japan" [my]="Malaysia" [tr]="Turkey" [bh]="Bahrain" [mx]="Mexico" [cv]="Cape Verde" [id]="Indonesia" [lk]="Sri Lanka" [za]="South Africa" [bi]="Burundi" [ci]="Ivory Coast" [tl]="East Timor" [mg]="Madagascar" [lt]="Republic of Lithuania" [sy]="Syria" [sx]="Sint Maarten" [pa]="Panama" [mf]="Saint Martin" [lu]="Luxembourg" [ch]="Switzerland" [tm]="Turkmenistan" [bw]="Botswana" [jo]="Hashemite Kingdom of Jordan" [me]="Montenegro" [tn]="Tunisia" [ck]="Cook Islands" [bt]="Bhutan" [lv]="Latvia" [wf]="Wallis and Futuna" [to]="Tonga" [jm]="Jamaica" [sz]="Swaziland" [md]="Republic of Moldova" [br]="Brazil" [mc]="Monaco" [cm]="Cameroon" [th]="Thailand" [pe]="Peru" [cl]="Chile" [bs]="Bahamas" [pf]="French Polynesia" [co]="Colombia" [ma]="Morocco" [lr]="Liberia" [tj]="Tajikistan" [bq]="Bonaire, Sint Eustatius, and Saba" [tk]="Tokelau" [vu]="Vanuatu" [pg]="Papua New Guinea" [cn]="China" [ls]="Lesotho" [ca]="Canada" [is]="Iceland" [td]="Chad" [fj]="Fiji" [mo]="Macao" [ph]="Philippines" [mn]="Mongolia" [zw]="Zimbabwe" [ir]="Iran" [ss]="South Sudan" [mm]="Myanmar (Burma)" [iq]="Iraq" [sr]="Suriname" [je]="Jersey" [ml]="Mali" [tg]="Togo" [pk]="Pakistan" [fi]="Finland" [bz]="Belize" [pl]="Poland" [mk]="F.Y.R.O.M." [pm]="Saint Pierre and Miquelon" [fo]="Faroe Islands" [st]="São Tomé and Príncipe" [ly]="Libya" [cd]="Congo" [cg]="Republic of the Congo" [sv]="El Salvador" [tc]="Turks and Caicos Islands" [it]="Italy" [fm]="Federated States of Micronesia" [mh]="Marshall Islands" [by]="Belarus" [cf]="Central African Republic" [cx]="Christmas Island" [xk]="Kosovo")'
+declare -A IPDENY_COUNTRY_CONTINENTS='([eu]="eu" [ap]="af" [as]="oc" [ge]="as" [ar]="sa" [gd]="na" [dm]="na" [kp]="as" [rw]="af" [gg]="eu" [qa]="as" [ni]="na" [do]="na" [gf]="sa" [ru]="eu" [kr]="as" [aw]="na" [ga]="af" [rs]="eu" [no]="eu" [nl]="eu" [au]="oc" [kw]="as" [dj]="af" [at]="eu" [gb]="eu" [dk]="eu" [ky]="na" [gm]="af" [ug]="af" [gl]="na" [de]="eu" [nc]="oc" [az]="as" [hr]="eu" [na]="af" [gn]="af" [kz]="as" [et]="af" [ht]="na" [es]="eu" [gi]="eu" [nf]="oc" [ng]="af" [gh]="af" [hu]="eu" [er]="af" [ua]="eu" [ne]="af" [yt]="af" [gu]="oc" [nz]="oc" [om]="as" [gt]="na" [gw]="af" [hk]="as" [re]="af" [ag]="na" [gq]="af" [ke]="af" [gp]="na" [uz]="as" [af]="as" [hn]="na" [uy]="sa" [dz]="af" [kg]="as" [ae]="as" [ad]="eu" [gr]="eu" [ki]="oc" [nr]="oc" [eg]="af" [kh]="as" [ro]="eu" [ai]="na" [np]="as" [ee]="eu" [us]="na" [ec]="sa" [gy]="sa" [ao]="af" [km]="af" [am]="as" [ye]="as" [nu]="oc" [kn]="na" [al]="eu" [si]="eu" [fr]="eu" [bf]="af" [mw]="af" [cy]="eu" [vc]="na" [mv]="as" [bg]="eu" [pr]="na" [sk]="eu" [bd]="as" [mu]="af" [ps]="as" [va]="eu" [cz]="eu" [be]="eu" [mt]="eu" [zm]="af" [ms]="na" [bb]="na" [sm]="eu" [pt]="eu" [io]="as" [vg]="na" [sl]="af" [mr]="af" [la]="as" [in]="as" [ws]="oc" [mq]="na" [im]="eu" [lb]="as" [tz]="af" [so]="af" [mp]="oc" [ve]="sa" [lc]="na" [ba]="eu" [sn]="af" [pw]="oc" [il]="as" [tt]="na" [bn]="as" [sa]="as" [bo]="sa" [py]="sa" [bl]="na" [tv]="oc" [sc]="af" [vi]="na" [cr]="na" [bm]="na" [sb]="oc" [tw]="as" [cu]="na" [se]="eu" [bj]="af" [vn]="as" [li]="eu" [mz]="af" [sd]="af" [cw]="na" [ie]="eu" [sg]="as" [jp]="as" [my]="as" [tr]="as" [bh]="as" [mx]="na" [cv]="af" [id]="as" [lk]="as" [za]="af" [bi]="af" [ci]="af" [tl]="oc" [mg]="af" [lt]="eu" [sy]="as" [sx]="na" [pa]="na" [mf]="na" [lu]="eu" [ch]="eu" [tm]="as" [bw]="af" [jo]="as" [me]="eu" [tn]="af" [ck]="oc" [bt]="as" [lv]="eu" [wf]="oc" [to]="oc" [jm]="na" [sz]="af" [md]="eu" [br]="sa" [mc]="eu" [cm]="af" [th]="as" [pe]="sa" [cl]="sa" [bs]="na" [pf]="oc" [co]="sa" [ma]="af" [lr]="af" [tj]="as" [bq]="na" [tk]="oc" [vu]="oc" [pg]="oc" [cn]="as" [ls]="af" [ca]="na" [is]="eu" [td]="af" [fj]="oc" [mo]="as" [ph]="as" [mn]="as" [zw]="af" [ir]="as" [ss]="af" [mm]="as" [iq]="as" [sr]="sa" [je]="eu" [ml]="af" [tg]="af" [pk]="as" [fi]="eu" [bz]="na" [pl]="eu" [mk]="eu" [pm]="na" [fo]="eu" [st]="af" [ly]="af" [cd]="af" [cg]="af" [sv]="na" [tc]="na" [it]="eu" [fm]="oc" [mh]="oc" [by]="eu" [cf]="af" [xk]="eu" [cx]="as")'
 declare -A IPDENY_COUNTRIES=()
 declare -A IPDENY_CONTINENTS=()
 ipdeny_country() {
@@ -3724,7 +3766,7 @@ ipdeny_country() {
 }
 
 declare -A IP2LOCATION_COUNTRY_NAMES=()
-declare -A IP2LOCATION_COUNTRY_CONTINENTS='([aq]="aq" [gs]="eu" [um]="na" [fk]="sa" [ax]="eu" [as]="oc" [ge]="as" [ar]="sa" [gd]="na" [dm]="na" [kp]="as" [rw]="af" [gg]="eu" [qa]="as" [ni]="na" [do]="na" [gf]="sa" [ru]="eu" [kr]="as" [aw]="na" [ga]="af" [rs]="eu" [no]="eu" [nl]="eu" [au]="oc" [kw]="as" [dj]="af" [at]="eu" [gb]="eu" [dk]="eu" [ky]="na" [gm]="af" [ug]="af" [gl]="na" [de]="eu" [nc]="oc" [az]="as" [hr]="eu" [na]="af" [gn]="af" [kz]="as" [et]="af" [ht]="na" [es]="eu" [gi]="eu" [nf]="oc" [ng]="af" [gh]="af" [hu]="eu" [er]="af" [ua]="eu" [ne]="af" [yt]="af" [gu]="oc" [nz]="oc" [om]="as" [gt]="na" [gw]="af" [hk]="as" [re]="af" [ag]="na" [gq]="af" [ke]="af" [gp]="na" [uz]="as" [af]="as" [hn]="na" [uy]="sa" [dz]="af" [kg]="as" [ae]="as" [ad]="eu" [gr]="eu" [ki]="oc" [nr]="oc" [eg]="af" [kh]="as" [ro]="eu" [ai]="na" [np]="as" [ee]="eu" [us]="na" [ec]="sa" [gy]="sa" [ao]="af" [km]="af" [am]="as" [ye]="as" [nu]="oc" [kn]="na" [al]="eu" [si]="eu" [fr]="eu" [bf]="af" [mw]="af" [cy]="eu" [vc]="na" [mv]="as" [bg]="eu" [pr]="na" [sk]="eu" [bd]="as" [mu]="af" [ps]="as" [va]="eu" [cz]="eu" [be]="eu" [mt]="eu" [zm]="af" [ms]="na" [bb]="na" [sm]="eu" [pt]="eu" [io]="as" [vg]="na" [sl]="af" [mr]="af" [la]="as" [in]="as" [ws]="oc" [mq]="na" [im]="eu" [lb]="as" [tz]="af" [so]="af" [mp]="oc" [ve]="sa" [lc]="na" [ba]="eu" [sn]="af" [pw]="oc" [il]="as" [tt]="na" [bn]="as" [sa]="as" [bo]="sa" [py]="sa" [bl]="na" [tv]="oc" [sc]="af" [vi]="na" [cr]="na" [bm]="na" [sb]="oc" [tw]="as" [cu]="na" [se]="eu" [bj]="af" [vn]="as" [li]="eu" [mz]="af" [sd]="af" [cw]="na" [ie]="eu" [sg]="as" [jp]="as" [my]="as" [tr]="as" [bh]="as" [mx]="na" [cv]="af" [id]="as" [lk]="as" [za]="af" [bi]="af" [ci]="af" [tl]="oc" [mg]="af" [lt]="eu" [sy]="as" [sx]="na" [pa]="na" [mf]="na" [lu]="eu" [ch]="eu" [tm]="as" [bw]="af" [jo]="as" [me]="eu" [tn]="af" [ck]="oc" [bt]="as" [lv]="eu" [wf]="oc" [to]="oc" [jm]="na" [sz]="af" [md]="eu" [br]="sa" [mc]="eu" [cm]="af" [th]="as" [pe]="sa" [cl]="sa" [bs]="na" [pf]="oc" [co]="sa" [ma]="af" [lr]="af" [tj]="as" [bq]="na" [tk]="oc" [vu]="oc" [pg]="oc" [cn]="as" [ls]="af" [ca]="na" [is]="eu" [td]="af" [fj]="oc" [mo]="as" [ph]="as" [mn]="as" [zw]="af" [ir]="as" [ss]="af" [mm]="as" [iq]="as" [sr]="sa" [je]="eu" [ml]="af" [tg]="af" [pk]="as" [fi]="eu" [bz]="na" [pl]="eu" [mk]="eu" [pm]="na" [fo]="eu" [st]="af" [ly]="af" [cd]="af" [cg]="af" [sv]="na" [tc]="na" [it]="eu" [fm]="oc" [mh]="oc" [by]="eu" [cf]="af" )'
+declare -A IP2LOCATION_COUNTRY_CONTINENTS='([aq]="aq" [gs]="eu" [um]="na" [fk]="sa" [ax]="eu" [as]="oc" [ge]="as" [ar]="sa" [gd]="na" [dm]="na" [kp]="as" [rw]="af" [gg]="eu" [qa]="as" [ni]="na" [do]="na" [gf]="sa" [ru]="eu" [kr]="as" [aw]="na" [ga]="af" [rs]="eu" [no]="eu" [nl]="eu" [au]="oc" [kw]="as" [dj]="af" [at]="eu" [gb]="eu" [dk]="eu" [ky]="na" [gm]="af" [ug]="af" [gl]="na" [de]="eu" [nc]="oc" [az]="as" [hr]="eu" [na]="af" [gn]="af" [kz]="as" [et]="af" [ht]="na" [es]="eu" [gi]="eu" [nf]="oc" [ng]="af" [gh]="af" [hu]="eu" [er]="af" [ua]="eu" [ne]="af" [yt]="af" [gu]="oc" [nz]="oc" [om]="as" [gt]="na" [gw]="af" [hk]="as" [re]="af" [ag]="na" [gq]="af" [ke]="af" [gp]="na" [uz]="as" [af]="as" [hn]="na" [uy]="sa" [dz]="af" [kg]="as" [ae]="as" [ad]="eu" [gr]="eu" [ki]="oc" [nr]="oc" [eg]="af" [kh]="as" [ro]="eu" [ai]="na" [np]="as" [ee]="eu" [us]="na" [ec]="sa" [gy]="sa" [ao]="af" [km]="af" [am]="as" [ye]="as" [nu]="oc" [kn]="na" [al]="eu" [si]="eu" [fr]="eu" [bf]="af" [mw]="af" [cy]="eu" [vc]="na" [mv]="as" [bg]="eu" [pr]="na" [sk]="eu" [bd]="as" [mu]="af" [ps]="as" [va]="eu" [cz]="eu" [be]="eu" [mt]="eu" [zm]="af" [ms]="na" [bb]="na" [sm]="eu" [pt]="eu" [io]="as" [vg]="na" [sl]="af" [mr]="af" [la]="as" [in]="as" [ws]="oc" [mq]="na" [im]="eu" [lb]="as" [tz]="af" [so]="af" [mp]="oc" [ve]="sa" [lc]="na" [ba]="eu" [sn]="af" [pw]="oc" [il]="as" [tt]="na" [bn]="as" [sa]="as" [bo]="sa" [py]="sa" [bl]="na" [tv]="oc" [sc]="af" [vi]="na" [cr]="na" [bm]="na" [sb]="oc" [tw]="as" [cu]="na" [se]="eu" [bj]="af" [vn]="as" [li]="eu" [mz]="af" [sd]="af" [cw]="na" [ie]="eu" [sg]="as" [jp]="as" [my]="as" [tr]="as" [bh]="as" [mx]="na" [cv]="af" [id]="as" [lk]="as" [za]="af" [bi]="af" [ci]="af" [tl]="oc" [mg]="af" [lt]="eu" [sy]="as" [sx]="na" [pa]="na" [mf]="na" [lu]="eu" [ch]="eu" [tm]="as" [bw]="af" [jo]="as" [me]="eu" [tn]="af" [ck]="oc" [bt]="as" [lv]="eu" [wf]="oc" [to]="oc" [jm]="na" [sz]="af" [md]="eu" [br]="sa" [mc]="eu" [cm]="af" [th]="as" [pe]="sa" [cl]="sa" [bs]="na" [pf]="oc" [co]="sa" [ma]="af" [lr]="af" [tj]="as" [bq]="na" [tk]="oc" [vu]="oc" [pg]="oc" [cn]="as" [ls]="af" [ca]="na" [is]="eu" [td]="af" [fj]="oc" [mo]="as" [ph]="as" [mn]="as" [zw]="af" [ir]="as" [ss]="af" [mm]="as" [iq]="as" [sr]="sa" [je]="eu" [ml]="af" [tg]="af" [pk]="as" [fi]="eu" [bz]="na" [pl]="eu" [mk]="eu" [pm]="na" [fo]="eu" [st]="af" [ly]="af" [cd]="af" [cg]="af" [sv]="na" [tc]="na" [it]="eu" [fm]="oc" [mh]="oc" [by]="eu" [cf]="af" [xk]="eu" [cx]="as" )'
 declare -A IP2LOCATION_COUNTRIES=()
 declare -A IP2LOCATION_CONTINENTS=()
 ip2location_country() {
@@ -3870,6 +3912,140 @@ ip2location_country() {
 	then
 		# generate a setinfo for the home page
 		echo >"${BASE_DIR}/${ipset}.setinfo" "[${ipset}](${GITHUB_SETINFO}ip2location_country)|[IP2Location.com](http://lite.ip2location.com/database-ip-country) geolocation database|ipv4 hash:net|All the world|updated every `mins_to_text ${mins}` from [this link](${url})"
+	fi
+
+	# remove the temporary dir
+	cd "${RUN_DIR}"
+	$RM_CMD -rf ${ipset}.tmp
+
+	return 0
+}
+
+declare -A IPIP_COUNTRY_NAMES='([eu]="European Union" [ap]="African Regional Industrial Property Organization" [as]="American Samoa" [ge]="Georgia" [ar]="Argentina" [gd]="Grenada" [dm]="Dominica" [kp]="North Korea" [rw]="Rwanda" [gg]="Guernsey" [qa]="Qatar" [ni]="Nicaragua" [do]="Dominican Republic" [gf]="French Guiana" [ru]="Russia" [kr]="Republic of Korea" [aw]="Aruba" [ga]="Gabon" [rs]="Serbia" [no]="Norway" [nl]="Netherlands" [au]="Australia" [kw]="Kuwait" [dj]="Djibouti" [at]="Austria" [gb]="United Kingdom" [dk]="Denmark" [ky]="Cayman Islands" [gm]="Gambia" [ug]="Uganda" [gl]="Greenland" [de]="Germany" [nc]="New Caledonia" [az]="Azerbaijan" [hr]="Croatia" [na]="Namibia" [gn]="Guinea" [kz]="Kazakhstan" [et]="Ethiopia" [ht]="Haiti" [es]="Spain" [gi]="Gibraltar" [nf]="Norfolk Island" [ng]="Nigeria" [gh]="Ghana" [hu]="Hungary" [er]="Eritrea" [ua]="Ukraine" [ne]="Niger" [yt]="Mayotte" [gu]="Guam" [nz]="New Zealand" [om]="Oman" [gt]="Guatemala" [gw]="Guinea-Bissau" [hk]="Hong Kong" [re]="Réunion" [ag]="Antigua and Barbuda" [gq]="Equatorial Guinea" [ke]="Kenya" [gp]="Guadeloupe" [uz]="Uzbekistan" [af]="Afghanistan" [hn]="Honduras" [uy]="Uruguay" [dz]="Algeria" [kg]="Kyrgyzstan" [ae]="United Arab Emirates" [ad]="Andorra" [gr]="Greece" [ki]="Kiribati" [nr]="Nauru" [eg]="Egypt" [kh]="Cambodia" [ro]="Romania" [ai]="Anguilla" [np]="Nepal" [ee]="Estonia" [us]="United States" [ec]="Ecuador" [gy]="Guyana" [ao]="Angola" [km]="Comoros" [am]="Armenia" [ye]="Yemen" [nu]="Niue" [kn]="Saint Kitts and Nevis" [al]="Albania" [si]="Slovenia" [fr]="France" [bf]="Burkina Faso" [mw]="Malawi" [cy]="Cyprus" [vc]="Saint Vincent and the Grenadines" [mv]="Maldives" [bg]="Bulgaria" [pr]="Puerto Rico" [sk]="Slovak Republic" [bd]="Bangladesh" [mu]="Mauritius" [ps]="Palestine" [va]="Vatican City" [cz]="Czech Republic" [be]="Belgium" [mt]="Malta" [zm]="Zambia" [ms]="Montserrat" [bb]="Barbados" [sm]="San Marino" [pt]="Portugal" [io]="British Indian Ocean Territory" [vg]="British Virgin Islands" [sl]="Sierra Leone" [mr]="Mauritania" [la]="Laos" [in]="India" [ws]="Samoa" [mq]="Martinique" [im]="Isle of Man" [lb]="Lebanon" [tz]="Tanzania" [so]="Somalia" [mp]="Northern Mariana Islands" [ve]="Venezuela" [lc]="Saint Lucia" [ba]="Bosnia and Herzegovina" [sn]="Senegal" [pw]="Palau" [il]="Israel" [tt]="Trinidad and Tobago" [bn]="Brunei" [sa]="Saudi Arabia" [bo]="Bolivia" [py]="Paraguay" [bl]="Saint-Barthélemy" [tv]="Tuvalu" [sc]="Seychelles" [vi]="U.S. Virgin Islands" [cr]="Costa Rica" [bm]="Bermuda" [sb]="Solomon Islands" [tw]="Taiwan" [cu]="Cuba" [se]="Sweden" [bj]="Benin" [vn]="Vietnam" [li]="Liechtenstein" [mz]="Mozambique" [sd]="Sudan" [cw]="Curaçao" [ie]="Ireland" [sg]="Singapore" [jp]="Japan" [my]="Malaysia" [tr]="Turkey" [bh]="Bahrain" [mx]="Mexico" [cv]="Cape Verde" [id]="Indonesia" [lk]="Sri Lanka" [za]="South Africa" [bi]="Burundi" [ci]="Ivory Coast" [tl]="East Timor" [mg]="Madagascar" [lt]="Republic of Lithuania" [sy]="Syria" [sx]="Sint Maarten" [pa]="Panama" [mf]="Saint Martin" [lu]="Luxembourg" [ch]="Switzerland" [tm]="Turkmenistan" [bw]="Botswana" [jo]="Hashemite Kingdom of Jordan" [me]="Montenegro" [tn]="Tunisia" [ck]="Cook Islands" [bt]="Bhutan" [lv]="Latvia" [wf]="Wallis and Futuna" [to]="Tonga" [jm]="Jamaica" [sz]="Swaziland" [md]="Republic of Moldova" [br]="Brazil" [mc]="Monaco" [cm]="Cameroon" [th]="Thailand" [pe]="Peru" [cl]="Chile" [bs]="Bahamas" [pf]="French Polynesia" [co]="Colombia" [ma]="Morocco" [lr]="Liberia" [tj]="Tajikistan" [bq]="Bonaire, Sint Eustatius, and Saba" [tk]="Tokelau" [vu]="Vanuatu" [pg]="Papua New Guinea" [cn]="China" [ls]="Lesotho" [ca]="Canada" [is]="Iceland" [td]="Chad" [fj]="Fiji" [mo]="Macao" [ph]="Philippines" [mn]="Mongolia" [zw]="Zimbabwe" [ir]="Iran" [ss]="South Sudan" [mm]="Myanmar (Burma)" [iq]="Iraq" [sr]="Suriname" [je]="Jersey" [ml]="Mali" [tg]="Togo" [pk]="Pakistan" [fi]="Finland" [bz]="Belize" [pl]="Poland" [mk]="F.Y.R.O.M." [pm]="Saint Pierre and Miquelon" [fo]="Faroe Islands" [st]="São Tomé and Príncipe" [ly]="Libya" [cd]="Congo" [cg]="Republic of the Congo" [sv]="El Salvador" [tc]="Turks and Caicos Islands" [it]="Italy" [fm]="Federated States of Micronesia" [mh]="Marshall Islands" [by]="Belarus" [cf]="Central African Republic" [cx]="Christmas Island" [xk]="Kosovo")'
+declare -A IPIP_COUNTRY_CONTINENTS='([aq]="aq" [gs]="eu" [um]="na" [fk]="sa" [ax]="eu" [as]="oc" [ge]="as" [ar]="sa" [gd]="na" [dm]="na" [kp]="as" [rw]="af" [gg]="eu" [qa]="as" [ni]="na" [do]="na" [gf]="sa" [ru]="eu" [kr]="as" [aw]="na" [ga]="af" [rs]="eu" [no]="eu" [nl]="eu" [au]="oc" [kw]="as" [dj]="af" [at]="eu" [gb]="eu" [dk]="eu" [ky]="na" [gm]="af" [ug]="af" [gl]="na" [de]="eu" [nc]="oc" [az]="as" [hr]="eu" [na]="af" [gn]="af" [kz]="as" [et]="af" [ht]="na" [es]="eu" [gi]="eu" [nf]="oc" [ng]="af" [gh]="af" [hu]="eu" [er]="af" [ua]="eu" [ne]="af" [yt]="af" [gu]="oc" [nz]="oc" [om]="as" [gt]="na" [gw]="af" [hk]="as" [re]="af" [ag]="na" [gq]="af" [ke]="af" [gp]="na" [uz]="as" [af]="as" [hn]="na" [uy]="sa" [dz]="af" [kg]="as" [ae]="as" [ad]="eu" [gr]="eu" [ki]="oc" [nr]="oc" [eg]="af" [kh]="as" [ro]="eu" [ai]="na" [np]="as" [ee]="eu" [us]="na" [ec]="sa" [gy]="sa" [ao]="af" [km]="af" [am]="as" [ye]="as" [nu]="oc" [kn]="na" [al]="eu" [si]="eu" [fr]="eu" [bf]="af" [mw]="af" [cy]="eu" [vc]="na" [mv]="as" [bg]="eu" [pr]="na" [sk]="eu" [bd]="as" [mu]="af" [ps]="as" [va]="eu" [cz]="eu" [be]="eu" [mt]="eu" [zm]="af" [ms]="na" [bb]="na" [sm]="eu" [pt]="eu" [io]="as" [vg]="na" [sl]="af" [mr]="af" [la]="as" [in]="as" [ws]="oc" [mq]="na" [im]="eu" [lb]="as" [tz]="af" [so]="af" [mp]="oc" [ve]="sa" [lc]="na" [ba]="eu" [sn]="af" [pw]="oc" [il]="as" [tt]="na" [bn]="as" [sa]="as" [bo]="sa" [py]="sa" [bl]="na" [tv]="oc" [sc]="af" [vi]="na" [cr]="na" [bm]="na" [sb]="oc" [tw]="as" [cu]="na" [se]="eu" [bj]="af" [vn]="as" [li]="eu" [mz]="af" [sd]="af" [cw]="na" [ie]="eu" [sg]="as" [jp]="as" [my]="as" [tr]="as" [bh]="as" [mx]="na" [cv]="af" [id]="as" [lk]="as" [za]="af" [bi]="af" [ci]="af" [tl]="oc" [mg]="af" [lt]="eu" [sy]="as" [sx]="na" [pa]="na" [mf]="na" [lu]="eu" [ch]="eu" [tm]="as" [bw]="af" [jo]="as" [me]="eu" [tn]="af" [ck]="oc" [bt]="as" [lv]="eu" [wf]="oc" [to]="oc" [jm]="na" [sz]="af" [md]="eu" [br]="sa" [mc]="eu" [cm]="af" [th]="as" [pe]="sa" [cl]="sa" [bs]="na" [pf]="oc" [co]="sa" [ma]="af" [lr]="af" [tj]="as" [bq]="na" [tk]="oc" [vu]="oc" [pg]="oc" [cn]="as" [ls]="af" [ca]="na" [is]="eu" [td]="af" [fj]="oc" [mo]="as" [ph]="as" [mn]="as" [zw]="af" [ir]="as" [ss]="af" [mm]="as" [iq]="as" [sr]="sa" [je]="eu" [ml]="af" [tg]="af" [pk]="as" [fi]="eu" [bz]="na" [pl]="eu" [mk]="eu" [pm]="na" [fo]="eu" [st]="af" [ly]="af" [cd]="af" [cg]="af" [sv]="na" [tc]="na" [it]="eu" [fm]="oc" [mh]="oc" [by]="eu" [cf]="af" [xk]="eu" [cx]="as" [eu]="eu" )'
+declare -A IPIP_COUNTRIES=()
+declare -A IPIP_CONTINENTS=()
+ipip_country() {
+	if [ -z "${UNZIP_CMD}" ]
+	then
+		ipset_error "ipip_country" "Command 'unzip' is not installed."
+		return 1
+	fi
+
+	cd "${RUN_DIR}" || return 1
+
+	local ipset="ipip_country" limit="" hash="net" ipv="ipv4" \
+		mins=$[24 * 60 * 1] history_mins=0 \
+		url="https://cdn.ipip.net/17mon/country.zip" \
+		info="[ipip.net](http://ipip.net)" \
+		ret=
+
+	ipset_shall_be_run "${ipset}"
+	case "$?" in
+		0)	;;
+
+		1)	[ -d "${BASE_DIR}/.git" ] && echo >"${BASE_DIR}/${ipset}.setinfo" "${ipset}|${info}|${ipv} hash:${hash}|disabled|`if [ ! -z "${url}" ]; then echo "updated every $(mins_to_text ${mins}) from [this link](${url})"; fi`"
+			return 1
+			;;
+
+		*)	return 1
+			;;
+	esac
+
+	# download it
+	download_manager "${ipset}" "${mins}" "${url}"
+	ret=$?
+	if [ $ret -eq ${DOWNLOAD_FAILED} -o $ret -eq ${DOWNLOAD_NOT_UPDATED} ]
+		then
+		[ ! -s "${BASE_DIR}/${ipset}.source" ] && return 1
+		[ -d "${BASE_DIR}/${ipset}" -a ${REPROCESS_ALL} -eq 0 ] && return 1
+	fi
+
+	# create a temp dir
+	[ -d "${ipset}.tmp" ] && $RM_CMD -rf "${ipset}.tmp"
+	$MKDIR_CMD "${ipset}.tmp" || return 1
+	cd "${ipset}.tmp" || return 1
+
+	# extract it - in a subshell to do it in the tmp dir
+	$UNZIP_CMD -x "${BASE_DIR}/${ipset}.source"
+	local file="country.txt"
+
+	if [ ! -f "${file}" ]
+		then
+		ipset_error "${ipset}" "failed to find file '${file}' in downloaded archive"
+		return 1
+	fi
+
+	# create the final dir
+	if [ ! -d "${BASE_DIR}/${ipset}" ]
+	then
+		$MKDIR_CMD "${BASE_DIR}/${ipset}" || return 1
+	fi
+
+	# get the old version of README-EDIT.md, if any
+	if [ -d "${BASE_DIR}/.git" -a ! -f "${BASE_DIR}/${ipset}/README-EDIT.md" ]
+		then
+		$GIT_CMD -C "${BASE_DIR}" checkout ${ipset}/README-EDIT.md >/dev/null 2>&1
+		if [ ! -f ${ipset}/README-EDIT.md ]
+			then
+			$TOUCH_CMD ${ipset}/README-EDIT.md
+			git_add_if_not_already_added ${ipset}/README-EDIT.md
+		fi
+	fi
+
+	# find all the countries in the file
+	ipset_info "${ipset}" "finding included countries..."
+	$CAT_CMD "${file}" |\
+		$CUT_CMD -f 2 |\
+		$SORT_CMD -u |\
+		trim >countries
+
+	local x= code= name=
+	while read x
+	do
+		code="${x,,}"
+		name="${IPIP_COUNTRY_NAMES[${code}]}"
+		[ -z "${name}" ] && name="${code}"
+
+		ipset_verbose "${ipset}" "extracting country '${x}' (code='${code}' name='${name}')..."
+		$CAT_CMD "${file}" 			|\
+			$GREP_CMD -E "[[:space:]]+${x}[[:space:]]*$" |\
+			$CUT_CMD -f 1 			|\
+			${IPRANGE_CMD} 			|\
+			filter_invalid4 >"ipip_country_${code}.source.tmp"
+
+		if [ ! -z "${IPIP_COUNTRY_CONTINENTS[${code}]}" ]
+			then
+			[ ! -f "id_continent_${IPIP_COUNTRY_CONTINENTS[${code}]}.source.tmp.info" ] && printf "%s" "Continent ${IPIP_COUNTRY_CONTINENTS[${code}]}, with countries: " >"id_continent_${IPIP_COUNTRY_CONTINENTS[${code}]}.source.tmp.info"
+			printf "%s" "${IPIP_COUNTRY_NAMES[${x}]} (${code^^}), " >>"ipip_continent_${IPIP_COUNTRY_CONTINENTS[${code}]}.source.tmp.info"
+			$CAT_CMD "ipip_country_${code}.source.tmp" >>"ipip_continent_${IPIP_COUNTRY_CONTINENTS[${code}]}.source.tmp"
+			IPIP_CONTINENTS[${IPIP_COUNTRY_CONTINENTS[${code}]}]="1"
+		else
+			ipset_warning "${ipset}" "I don't know the continent of country '${x}'' (code='${code}')."
+		fi
+
+		printf "%s" "${IPIP_COUNTRY_NAMES[${x}]} (${code^^})" >"ipip_country_${code}.source.tmp.info"
+	done <countries
+
+	ipset_info "${ipset}" "aggregating country and continent netsets..."
+	local i info tmp
+	for x in *.source.tmp
+	do
+		i=${x/.source.tmp/}
+		tmp="${i}.source"
+		local info2="$($CAT_CMD "${x}.info") -- ${info}"
+
+		$MV_CMD "${x}" "${tmp}"
+		$TOUCH_CMD -r "${BASE_DIR}/${ipset}.source" "${tmp}"
+
+		finalize "${i}" "${tmp}" "${ipset}.source" "${ipset}/${i}.netset" "${mins}" "${history_mins}" "${ipv}" "${limit}" "${hash}" "${url}" "geolocation" \
+			"${info2}" "ipip.net" "http://ipip.net" service "geolocation"
+	done
+
+	if [ -d .git ]
+	then
+		# generate a setinfo for the home page
+		echo >"${BASE_DIR}/${ipset}.setinfo" "[${ipset}](${GITHUB_SETINFO}ipip_country)|[ipip.net](http://ipip.net) geolocation database|ipv4 hash:net|All the world|updated every `mins_to_text ${mins}` from [this link](${url})"
 	fi
 
 	# remove the temporary dir
@@ -4080,6 +4256,12 @@ ipdeny_country
 # IP2Location.com
 
 ip2location_country
+
+
+# -----------------------------------------------------------------------------
+# ipip.net
+
+ipip_country
 
 
 # -----------------------------------------------------------------------------
