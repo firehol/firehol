@@ -4017,14 +4017,14 @@ ipip_country() {
 		if [ ! -z "${IPIP_COUNTRY_CONTINENTS[${code}]}" ]
 			then
 			[ ! -f "id_continent_${IPIP_COUNTRY_CONTINENTS[${code}]}.source.tmp.info" ] && printf "%s" "Continent ${IPIP_COUNTRY_CONTINENTS[${code}]}, with countries: " >"id_continent_${IPIP_COUNTRY_CONTINENTS[${code}]}.source.tmp.info"
-			printf "%s" "${IPIP_COUNTRY_NAMES[${x}]} (${code^^}), " >>"ipip_continent_${IPIP_COUNTRY_CONTINENTS[${code}]}.source.tmp.info"
+			printf "%s" "${IPIP_COUNTRY_NAMES[${code}]} (${code^^}), " >>"ipip_continent_${IPIP_COUNTRY_CONTINENTS[${code}]}.source.tmp.info"
 			$CAT_CMD "ipip_country_${code}.source.tmp" >>"ipip_continent_${IPIP_COUNTRY_CONTINENTS[${code}]}.source.tmp"
 			IPIP_CONTINENTS[${IPIP_COUNTRY_CONTINENTS[${code}]}]="1"
 		else
 			ipset_warning "${ipset}" "I don't know the continent of country '${x}'' (code='${code}')."
 		fi
 
-		printf "%s" "${IPIP_COUNTRY_NAMES[${x}]} (${code^^})" >"ipip_country_${code}.source.tmp.info"
+		printf "%s" "${IPIP_COUNTRY_NAMES[${code}]} (${code^^})" >"ipip_country_${code}.source.tmp.info"
 	done <countries
 
 	ipset_info "${ipset}" "aggregating country and continent netsets..."
