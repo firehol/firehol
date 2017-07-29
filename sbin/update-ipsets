@@ -3627,8 +3627,24 @@ geolite2_country() {
 
 		info2="`$CAT_CMD "${x}.info"` -- ${info}"
 
-		finalize "${i}" "${tmp}" "${ipset}.source" "${ipset}/${i}.netset" "${mins}" "${history_mins}" "${ipv}" "${limit}" "${hash}" "${url}" "geolocation" "${info2}" "MaxMind.com" "http://www.maxmind.com/" \
+		finalize "${i}" \
+			"${tmp}" \
+			"${ipset}.source" \
+			"${ipset}/${i}.netset" \
+			"${mins}" \
+			"${history_mins}" \
+			"${ipv}" \
+			"${limit}" \
+			"${hash}" \
+			"${url}" \
+			"geolocation" \
+			"${info2}" \
+			"MaxMind.com" \
+			"http://www.maxmind.com/" \
 			service "geolocation"
+
+		[ -f "${BASE_DIR}/${i}.setinfo" ] && mv -f "${BASE_DIR}/${i}.setinfo" "${BASE_DIR}/${ipset}/${i}.setinfo"
+
 	done
 
 	if [ -d "${BASE_DIR}/.git" ]
@@ -3748,8 +3764,24 @@ ipdeny_country() {
 		$TOUCH_CMD -r "${BASE_DIR}/${ipset}.source" "${tmp}"
 		$RM_CMD "${x}"
 
-		finalize "${i}" "${tmp}" "${ipset}.source" "${ipset}/${i}.netset" "${mins}" "${history_mins}" "${ipv}" "${limit}" "${hash}" "${url}" "geolocation" "${info2}" "IPDeny.com" "http://www.ipdeny.com/" \
+		finalize "${i}" \
+			"${tmp}" \
+			"${ipset}.source" \
+			"${ipset}/${i}.netset" \
+			"${mins}" \
+			"${history_mins}" \
+			"${ipv}" \
+			"${limit}" \
+			"${hash}" \
+			"${url}" \
+			"geolocation" \
+			"${info2}" \
+			"IPDeny.com" \
+			"http://www.ipdeny.com/" \
 			service "geolocation"
+
+		[ -f "${BASE_DIR}/${i}.setinfo" ] && mv -f "${BASE_DIR}/${i}.setinfo" "${BASE_DIR}/${ipset}/${i}.setinfo"
+
 	done
 
 	if [ -d "${BASE_DIR}/.git" ]
@@ -3904,8 +3936,24 @@ ip2location_country() {
 		$MV_CMD "${x}" "${tmp}"
 		$TOUCH_CMD -r "${BASE_DIR}/${ipset}.source" "${tmp}"
 
-		finalize "${i}" "${tmp}" "${ipset}.source" "${ipset}/${i}.netset" "${mins}" "${history_mins}" "${ipv}" "${limit}" "${hash}" "${url}" "geolocation" "${info2}" "IP2Location.com" "http://lite.ip2location.com/database-ip-country" \
+		finalize "${i}" \
+			"${tmp}" \
+			"${ipset}.source" \
+			"${ipset}/${i}.netset" \
+			"${mins}" \
+			"${history_mins}" \
+			"${ipv}" \
+			"${limit}" \
+			"${hash}" \
+			"${url}" \
+			"geolocation" \
+			"${info2}" \
+			"IP2Location.com" \
+			"http://lite.ip2location.com/database-ip-country" \
 			service "geolocation"
+
+		[ -f "${BASE_DIR}/${i}.setinfo" ] && mv -f "${BASE_DIR}/${i}.setinfo" "${BASE_DIR}/${ipset}/${i}.setinfo"
+
 	done
 
 	if [ -d .git ]
@@ -4038,8 +4086,24 @@ ipip_country() {
 		$MV_CMD "${x}" "${tmp}"
 		$TOUCH_CMD -r "${BASE_DIR}/${ipset}.source" "${tmp}"
 
-		finalize "${i}" "${tmp}" "${ipset}.source" "${ipset}/${i}.netset" "${mins}" "${history_mins}" "${ipv}" "${limit}" "${hash}" "${url}" "geolocation" \
-			"${info2}" "ipip.net" "http://ipip.net" service "geolocation"
+		finalize "${i}" \
+			"${tmp}" \
+			"${ipset}.source" \
+			"${ipset}/${i}.netset" \
+			"${mins}" \
+			"${history_mins}" \
+			"${ipv}" \
+			"${limit}" \
+			"${hash}" \
+			"${url}" \
+			"geolocation" \
+			"${info2}" \
+			"ipip.net" \
+			"http://ipip.net" \
+			service "geolocation"
+
+		[ -f "${BASE_DIR}/${i}.setinfo" ] && mv -f "${BASE_DIR}/${i}.setinfo" "${BASE_DIR}/${ipset}/${i}.setinfo"
+
 	done
 
 	if [ -d .git ]
