@@ -3643,7 +3643,7 @@ geolite2_country() {
 			"http://www.maxmind.com/" \
 			service "geolocation"
 
-		[ -f "${BASE_DIR}/${i}.setinfo" ] && mv -f "${BASE_DIR}/${i}.setinfo" "${BASE_DIR}/${ipset}/${i}.setinfo"
+		[ -f "${BASE_DIR}/${i}.setinfo" ] && $MV_CMD -f "${BASE_DIR}/${i}.setinfo" "${BASE_DIR}/${ipset}/${i}.setinfo"
 
 	done
 
@@ -3780,7 +3780,7 @@ ipdeny_country() {
 			"http://www.ipdeny.com/" \
 			service "geolocation"
 
-		[ -f "${BASE_DIR}/${i}.setinfo" ] && mv -f "${BASE_DIR}/${i}.setinfo" "${BASE_DIR}/${ipset}/${i}.setinfo"
+		[ -f "${BASE_DIR}/${i}.setinfo" ] && $MV_CMD -f "${BASE_DIR}/${i}.setinfo" "${BASE_DIR}/${ipset}/${i}.setinfo"
 
 	done
 
@@ -3952,7 +3952,7 @@ ip2location_country() {
 			"http://lite.ip2location.com/database-ip-country" \
 			service "geolocation"
 
-		[ -f "${BASE_DIR}/${i}.setinfo" ] && mv -f "${BASE_DIR}/${i}.setinfo" "${BASE_DIR}/${ipset}/${i}.setinfo"
+		[ -f "${BASE_DIR}/${i}.setinfo" ] && $MV_CMD -f "${BASE_DIR}/${i}.setinfo" "${BASE_DIR}/${ipset}/${i}.setinfo"
 
 	done
 
@@ -4102,7 +4102,7 @@ ipip_country() {
 			"http://ipip.net" \
 			service "geolocation"
 
-		[ -f "${BASE_DIR}/${i}.setinfo" ] && mv -f "${BASE_DIR}/${i}.setinfo" "${BASE_DIR}/${ipset}/${i}.setinfo"
+		[ -f "${BASE_DIR}/${i}.setinfo" ] && $MV_CMD -f "${BASE_DIR}/${i}.setinfo" "${BASE_DIR}/${ipset}/${i}.setinfo"
 
 	done
 
