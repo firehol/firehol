@@ -2851,83 +2851,83 @@ match() {
 
 			CS1)
 				tos_value="0x20"
-				tos_mask="0x20"
+				tos_mask="0xfc"
 				;;
 			CS2)
 				tos_value="0x40"
-				tos_mask="0x40"
+				tos_mask="0xfc"
 				;;
 			CS3)
 				tos_value="0x60"
-				tos_mask="0x60"
+				tos_mask="0xfc"
 				;;
 			CS4)
 				tos_value="0x80"
-				tos_mask="0x80"
+				tos_mask="0xfc"
 				;;
 			CS5)
 				tos_value="0xA0"
-				tos_mask="0xA0"
+				tos_mask="0xfc"
 				;;
 			CS6)
 				tos_value="0xC0"
-				tos_mask="0xC0"
+				tos_mask="0xfc"
 				;;
 			CS7)
 				tos_value="0xE0"
-				tos_mask="0xE0"
+				tos_mask="0xfc"
 				;;
 			AF11)
 				tos_value="0x28"
-				tos_mask="0x28"
+				tos_mask="0xfc"
 				;;
 			AF12)
 				tos_value="0x30"
-				tos_mask="0x30"
+				tos_mask="0xfc"
 				;;
 			AF13)
 				tos_value="0x38"
-				tos_mask="0x38"
+				tos_mask="0xfc"
 				;;
 			AF21)
 				tos_value="0x48"
-				tos_mask="0x48"
+				tos_mask="0xfc"
 				;;
 			AF22)
 				tos_value="0x50"
-				tos_mask="0x50"
+				tos_mask="0xfc"
 				;;
 			AF23)
 				tos_value="0x58"
-				tos_mask="0x58"
+				tos_mask="0xfc"
 				;;
 			AF31)
 				tos_value="0x68"
-				tos_mask="0x68"
+				tos_mask="0xfc"
 				;;
 			AF32)
 				tos_value="0x70"
-				tos_mask="0x70"
+				tos_mask="0xfc"
 				;;
 			AF33)
 				tos_value="0x78"
-				tos_mask="0x78"
+				tos_mask="0xfc"
 				;;
 			AF41)
 				tos_value="0x88"
-				tos_mask="0x88"
+				tos_mask="0xfc"
 				;;
 			AF42)
 				tos_value="0x90"
-				tos_mask="0x90"
+				tos_mask="0xfc"
 				;;
 			AF43)
 				tos_value="0x98"
-				tos_mask="0x98"
+				tos_mask="0xfc"
 				;;
 			EF)
 				tos_value="0xB8"
-				tos_mask="0xB8"
+				tos_mask="0xfc"
 				;;
 			*)
 				if [ -z "${tdscp}" ]
