@@ -394,8 +394,9 @@
 				<p>
 				Each time an ipset is updated we check it against
 				the <a href="http://dev.maxmind.com/geoip/geoip2/geolite2/">MaxMind GeoLite2 country</a>,
-				the <a href="http://www.ipdeny.com/">IPDeny.com country</a>
-				and the <a href="http://www.ip2location.com/">IP2Location.com Lite country</a>
+				the <a href="http://www.ipdeny.com/">IPDeny.com country</a>,
+				the <a href="http://www.ip2location.com/">IP2Location.com Lite country</a>
+				and the <a href="http://ipip.net/">IPIP.net country</a>
 				databases, to find the list's unique IPs per country.
 				</p>
 				<p>
@@ -420,6 +421,7 @@
 					<li role="presentation" class="active"><a href="#geolite2" aria-controls="geolite2" role="tab" data-toggle="tab">MaxMind.com GeoLite2</a></li>
 					<li role="presentation"><a href="#ipdeny" aria-controls="ipdeny" role="tab" data-toggle="tab">IPDeny.com</a></li>
 					<li role="presentation"><a href="#ip2location" aria-controls="ip2location" role="tab" data-toggle="tab">IP2Location.com Lite</a></li>
+					<li role="presentation"><a href="#ipip" aria-controls="ipip" role="tab" data-toggle="tab">IPIP.net</a></li>
 				</ul>
 				</p>
 				<div class="tab-content">
@@ -442,6 +444,13 @@
 						<tr><td height="50">&nbsp;</td>
 						</tr><tr><td align="center" valign="bottom" height="100"><span style="font-size:50px; color:#AA5555;" class="glyphicon glyphicon-refresh" aria-hidden="true"></span></td></tr>
 						<tr><td height="100" align="center" valign="top"><b>Loading ip2location map...</b><br/>&nbsp;<br/>&nbsp;</td></tr>
+						<tr><td height="100">&nbsp;</td></tr></table>						
+					</div>
+					<div role="tabpanel" class="tab-pane" id="ipip" style="height: 450px;">
+						<table width="100%" height="350px">
+						<tr><td height="50">&nbsp;</td>
+						</tr><tr><td align="center" valign="bottom" height="100"><span style="font-size:50px; color:#AA5555;" class="glyphicon glyphicon-refresh" aria-hidden="true"></span></td></tr>
+						<tr><td height="100" align="center" valign="top"><b>Loading ipip map...</b><br/>&nbsp;<br/>&nbsp;</td></tr>
 						<tr><td height="100">&nbsp;</td></tr></table>						
 					</div>
 				</div>
@@ -594,13 +603,13 @@
 	<div class="row clearfix">
 		<div class="col-md-12 column">
 			<div id="site_last_updated" class="pull-right" align="right"></div><br/>&nbsp;<br/>
-			<span class="glyphicon glyphicon-copyright-mark" aria-hidden="true"></span> 2015-2016 <a href="/cdn-cgi/l/email-protection#e2818d919683a29691838d97918b91cc8590">Costa Tsaousis</a>, for <a href="http://firehol.org">FireHOL</a> <i>a firewall for humans!</i>.
+			<span class="glyphicon glyphicon-copyright-mark" aria-hidden="true"></span> 2015-2017 <a href="/cdn-cgi/l/email-protection#83e0ecf0f7e2c3f7f0e2ecf6f0eaf0ade4f1">Costa Tsaousis</a>, for <a href="http://firehol.org">FireHOL</a> <i>a firewall for humans!</i>.
 			<br/>
 			The data on this page are automatically generated using FireHOL's <a href="https://github.com/firehol/firehol/blob/master/sbin/update-ipsets">update-ipsets.sh</a> (for downloading the lists from their sources and generating the data for this site), which utilizes <a href="https://github.com/firehol/firehol/wiki/iprange:-optimizing-ipsets-for-iptables">iprange</a> (for comparing and manipulating IP lists). Both are part of <a href="http://firehol.org">FireHOL</a>, which is provided under GPL v2, so you are free to get, use, adapt and re-distribute.
 			<br/>
 			This site is provided as-is, without any warranty. IP Lists are a property of their maintainers.
 			<br/>
-			<small>This site is a single <b>static</b> page, with all its data uploaded as static JSON and CSV files every time an IP List is updated. For the final result, it utilizes IP data and web services provided by third parties. It uses IP lists and related data provided and maintained by their respective owners (mentioned together with each IP list), IP-to-country geolocation data provided by <a href="http://www.maxmind.com" target="_blank">maxmind.com</a> (GeoLite2), <a href="http://www.ipdeny.com" target="_blank">ipdeny.com</a> and <a href="http://www.ip2location.com" target="_blank">ip2location.com</a> (Lite), javascript chart libraries provided by <a href="http://www.highcharts.com" target="_blank">highcharts.com</a>, comments engine provided by <a href="https://disqus.com" target="_blank">disqus.com</a>, social media sharing buttons provided by <a href="https://shareaholic.com" target="_blank">shareaholic.com</a>, the HTML, CSS and JS framework <a href="http://getbootstrap.com/" target="_blank">bootstrap</a>, the <a href="http://bootstrap-table.wenzhixin.net.cn/" target="_blank">bootstrap-table</a> component, icons provided by <a href="http://www.iconsdb.com/" target="_blank">iconsdb.com</a> and it uses several services provided by <a href="https://github.com">github</a>.</small>
+			<small>This site is a single <b>static</b> page, with all its data uploaded as static JSON and CSV files every time an IP List is updated. For the final result, it utilizes IP data and web services provided by third parties. It uses IP lists and related data provided and maintained by their respective owners (mentioned together with each IP list), IP-to-country geolocation data provided by <a href="http://www.maxmind.com" target="_blank">maxmind.com</a> (GeoLite2), <a href="http://www.ipdeny.com" target="_blank">ipdeny.com</a>, <a href="http://www.ip2location.com" target="_blank">ip2location.com</a> (Lite) and <a href="http://ipip.net" target="_blank">ipip.net</a>, javascript chart libraries provided by <a href="http://www.highcharts.com" target="_blank">highcharts.com</a>, comments engine provided by <a href="https://disqus.com" target="_blank">disqus.com</a>, social media sharing buttons provided by <a href="https://shareaholic.com" target="_blank">shareaholic.com</a>, the HTML, CSS and JS framework <a href="http://getbootstrap.com/" target="_blank">bootstrap</a>, the <a href="http://bootstrap-table.wenzhixin.net.cn/" target="_blank">bootstrap-table</a> component, icons provided by <a href="http://www.iconsdb.com/" target="_blank">iconsdb.com</a> and it uses several services provided by <a href="https://github.com">github</a>.</small>
 			<br/>&nbsp;
 		</div>
 	</div>
@@ -657,7 +666,7 @@
 		</div>
 	</div>
 </div>
-<script type="text/javascript">/* <![CDATA[ */(function(d,s,a,i,j,r,l,m,t){try{l=d.getElementsByTagName('a');t=d.createElement('textarea');for(i=0;l.length-i;i++){try{a=l[i].href;s=a.indexOf('/cdn-cgi/l/email-protection');m=a.length;if(a&&s>-1&&m>28){j=28+s;s='';if(j<m){r='0x'+a.substr(j,2)|0;for(j+=2;j<m&&a.charAt(j)!='X';j+=2)s+='%'+('0'+('0x'+a.substr(j,2)^r).toString(16)).slice(-2);j++;s=decodeURIComponent(s)+a.substr(j,m-j)}t.innerHTML=s.replace(/</g,'&lt;').replace(/>/g,'&gt;');l[i].href='mailto:'+t.value}}catch(e){}}}catch(e){}})(document);/* ]]> */</script></body>
+<script>/* <![CDATA[ */(function(d,s,a,i,j,r,l,m,t){try{l=d.getElementsByTagName('a');t=d.createElement('textarea');for(i=0;l.length-i;i++){try{a=l[i].href;s=a.indexOf('/cdn-cgi/l/email-protection');m=a.length;if(a&&s>-1&&m>28){j=28+s;s='';if(j<m){r='0x'+a.substr(j,2)|0;for(j+=2;j<m&&a.charAt(j)!='X';j+=2)s+='%'+('0'+('0x'+a.substr(j,2)^r).toString(16)).slice(-2);j++;s=decodeURIComponent(s)+a.substr(j,m-j)}t.innerHTML=s.replace(/</g,'&lt;').replace(/\>/g,'&gt;');l[i].href='mailto:'+t.value}}catch(e){}}}catch(e){}})(document);/* ]]> */</script></body>
 </html>
 
 	<script type="text/javascript" src="//cdnjs.cloudflare.com/ajax/libs/jquery/2.1.4/jquery.min.js"></script>
@@ -1499,6 +1508,9 @@ $(function () {
 		if(!ipset_data.ip2location)
 			$('#ip2location').html(charterror('<code>' + ipset + '</code> has not been compared, or does not overlap, with country data'));
 
+		if(!ipset_data.ipip)
+			$('#ipip').html(charterror('<code>' + ipset + '</code> has not been compared, or does not overlap, with country data'));
+
 		drawretention(ipset, '#age_chart', '#retention_chart');
 
 		if(data.comparison) {
@@ -1700,6 +1712,7 @@ $(function () {
 	// handle the map tab change
 	var ipdeny_rendered = 0;
 	var ip2location_rendered = 0;
+	var ipip_rendered = 0;
 	$('a[data-toggle="tab"]').on('shown.bs.tab', function (e) {
 		if(ipset && ipset_data && ipset_data.ipdeny && !ipdeny_rendered && $(e.target).attr('aria-controls') == "ipdeny") {
 			drawmap(ipset, $(e.target).attr('aria-controls'), '#' + $(e.target).attr('aria-controls'));
@@ -1708,6 +1721,10 @@ $(function () {
 		else if(ipset && ipset_data && ipset_data.ip2location && !ip2location_rendered && $(e.target).attr('aria-controls') == "ip2location") {
 			drawmap(ipset, $(e.target).attr('aria-controls'), '#' + $(e.target).attr('aria-controls'));
 			ip2location_rendered = 1;
+		}
+		else if(ipset && ipset_data && ipset_data.ipip && !ipip_rendered && $(e.target).attr('aria-controls') == "ipip") {
+			drawmap(ipset, $(e.target).attr('aria-controls'), '#' + $(e.target).attr('aria-controls'));
+			ipip_rendered = 1;
 		}
 		return(false);
 	});
