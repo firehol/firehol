@@ -15,7 +15,7 @@ connmark4 *value* *chain* *rule-params*
 connmark6 *value* *chain* *rule-params*
 
 <!--
-contents-table:helper:connmark:keyword-firehol-connmark-helper:Y:-:Set a stateful mark from the `connmark` group.
+contents-table:helper:connmark:keyword-firehol-connmark:Y:-:Set a stateful mark from the `connmark` group.
 extra-manpage: firehol-connmark46.5
 extra-manpage: firehol-connmark4.5
 extra-manpage: firehol-connmark6.5
