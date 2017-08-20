@@ -91,6 +91,7 @@ Any `mark` commands must be declared before the first router or interface.
 * [ip6tables(8)](http://ipset.netfilter.org/ip6tables.man.html) - administration tool for IPv6 firewalls
 * ip(8) - show / manipulate routing, devices, policy routing and tunnels
 * [FireHOL Website](http://firehol.org/)
+* [Working With Marks Wiki Page](https://github.com/firehol/firehol/wiki/Working-with-MARKs)
 * [FireHOL Online PDF Manual](http://firehol.org/firehol-manual.pdf)
 * [FireHOL Online Documentation](http://firehol.org/documentation/)
 * [Linux Advanced Routing & Traffic Control HOWTO](http://lartc.org/howto/)
