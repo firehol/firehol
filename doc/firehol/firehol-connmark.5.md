@@ -83,7 +83,7 @@ Any `connmark` commands must be declared before the first router or interface.
 * [firehol(1)][] - FireHOL program
 * [firehol.conf(5)][] - FireHOL configuration
 * [firehol-params(5)][] - optional rule parameters
-* [firehol-mark(5)][keyword-firehol-connmark] - set a stateful mark from the usermark group
+* [firehol-mark(5)][keyword-firehol-mark] - set a stateful mark from the usermark group
 * [iptables(8)](http://ipset.netfilter.org/iptables.man.html) - administration tool for IPv4 firewalls
 * [ip6tables(8)](http://ipset.netfilter.org/ip6tables.man.html) - administration tool for IPv6 firewalls
 * ip(8) - show / manipulate routing, devices, policy routing and tunnels
