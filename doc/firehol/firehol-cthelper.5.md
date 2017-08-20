@@ -8,6 +8,9 @@ firehol-cthelper - control connection tracking helpers
 
 <!--
 contents-table:helper:cthelper:keyword-firehol-cthelper:4/6:-:Control connection tracking helpers.
+extra-manpage: firehol-cthelper46.5
+extra-manpage: firehol-cthelper4.5
+extra-manpage: firehol-cthelper6.5
   -->
 
 # SYNOPSIS
