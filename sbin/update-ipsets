@@ -2245,17 +2245,23 @@ update_web() {
 	$MV_CMD -f "${RUN_DIR}"/*.{json,csv,xml} "${WEB_DIR}/"
 	[ ! -z "${WEB_OWNER}" ] && $CHOWN_CMD ${WEB_OWNER} "${WEB_DIR}"/*.{json,csv,xml}
 
-	if [ ${PUSH_TO_GIT_WEB} -eq 1 ]
+	if [ -d "${WEB_DIR}/.git" ]
 		then
 		print_ipset_reset
 
 		echo >&2 "-------------------------------------------------------------------------------"
-		echo >&2 "Pushing generated web files to git..."
+		echo >&2 "Adding generated web files to git..."
 
 		cd "${WEB_DIR}" || return 1
 		$GIT_CMD add *.json *.csv *.xml
 		$GIT_CMD commit -a -m "$($DATE_CMD -u) update"
-		$GIT_CMD push origin gh-pages
+
+		if [ ${PUSH_TO_GIT_WEB} -eq 1 ]
+			then
+			echo >&2 "Pushing generated web files to git..."
+			$GIT_CMD push origin gh-pages
+		fi
+
 		cd "${BASE_DIR}" || exit 1
 
 		echo >&2
