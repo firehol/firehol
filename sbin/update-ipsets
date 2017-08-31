@@ -333,6 +333,14 @@ WEB_CHARTS_ENTRIES=${WEB_CHARTS_ENTRIES-500}
 # if the .git directory is present, push it also
 PUSH_TO_GIT=${PUSH_TO_GIT-0}
 
+# when PUSH_TO_GIT is enabled, this controls if each
+# ipset will get its own commit, or all files will be
+# committed together
+PUSH_TO_GIT_MERGED=${PUSH_TO_GIT_MERGED-1}
+
+# if we will also push github gh-pages
+PUSH_TO_GIT_WEB=${PUSH_TO_GIT_WEB-${PUSH_TO_GIT}}
+
 # the maximum time in seconds, to connect to the remote web server
 MAX_CONNECT_TIME=${MAX_CONNECT_TIME-10}
 
@@ -829,12 +837,19 @@ commit_to_git() {
 		echo >&2
 		info "Committing ${to_be_pushed[@]} to git repository"
 		local date="$($DATE_CMD -u)"
-		# we commit each file alone, to have a clear history per file in github
-		for d in "${to_be_pushed[@]}" set_file_timestamps.sh
-		do
-			echo "${d}..."
-			$GIT_CMD commit "${d}" -m "${date} update"
-		done
+
+		if [ ${PUSH_TO_GIT_MERGED} -eq 0 ]
+			then
+			# we commit each file alone, to have a clear history per file in github
+			for d in "${to_be_pushed[@]}" set_file_timestamps.sh
+			do
+				echo "${d}..."
+				$GIT_CMD commit "${d}" -m "${date} update"
+			done
+		else
+			# we commit all files together
+			$GIT_CMD commit "${to_be_pushed[@]}" set_file_timestamps.sh -m "${date} update"
+		fi
 
 		if [ ${PUSH_TO_GIT} -ne 0 ]
 		then
@@ -2230,7 +2245,7 @@ update_web() {
 	$MV_CMD -f "${RUN_DIR}"/*.{json,csv,xml} "${WEB_DIR}/"
 	[ ! -z "${WEB_OWNER}" ] && $CHOWN_CMD ${WEB_OWNER} "${WEB_DIR}"/*.{json,csv,xml}
 
-	if [ ${PUSH_TO_GIT} -eq 1 ]
+	if [ ${PUSH_TO_GIT_WEB} -eq 1 ]
 		then
 		print_ipset_reset
 
