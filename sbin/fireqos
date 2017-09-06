@@ -245,9 +245,9 @@ server_surfing_ports="tcp/0:1023"
 # Default FireHOL marks
 
 declare -A MARKS_BITS='([connmark]="6" [usermark]="7" )'
-declare -A MARKS_MASKS='([connmark]="0x0000003f" [usermark]="0x00001fc0" )'
-declare -A MARKS_MAX='([connmark]="63" [usermark]="127" )'
-declare -A MARKS_SHIFT='([connmark]="0" [usermark]="6" )'
+declare -A MARKS_MASKS='([connmark]="0x0000003f" [usermark]="0x00001fc0" [rawmark]="0xffffffff" )'
+declare -A MARKS_MAX='([connmark]="63" [usermark]="127" [rawmark]="4294967295" )'
+declare -A MARKS_SHIFT='([connmark]="0" [usermark]="6" [rawmark]="0" )'
 
 if [ -f "${FIREHOL_SPOOL_DIR}/marks.conf" ]
 then
@@ -2278,7 +2278,7 @@ match() {
 				;;
 
 			rawmark|rawmarks)
-				mark="${mark} ${2//,/ }"
+				mark="${mark} $(mark_value rawmark ${2//,/ })"
 				shift
 				;;
 
