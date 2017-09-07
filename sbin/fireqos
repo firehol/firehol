@@ -2278,10 +2278,12 @@ match() {
 				;;
 
 			rawmark|rawmarks)
-				mark="${mark} ${2//,/ }"
-				if [[ ! ${mark} =~ '/' ]]; then
-					mark=$mark/0xffffffff
-				fi
+				local m
+				for m in ${2//,/ }
+				do
+					[[ ! ${m} =~ '/' ]] && m="${m}/0xffffffff"
+					mark="${mark} ${m}"
+				done
 				shift
 				;;
 
