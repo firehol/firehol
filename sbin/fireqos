@@ -2279,6 +2279,9 @@ match() {
 
 			rawmark|rawmarks)
 				mark="${mark} ${2//,/ }"
+				if [[ ! ${mark} =~ '/' ]]; then
+					mark=$mark/0xffffffff
+				fi
 				shift
 				;;
 
