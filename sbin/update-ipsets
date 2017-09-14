@@ -865,7 +865,7 @@ commit_to_git() {
 }
 
 copy_ipsets_to_web() {
-	[ -z "${WEB_DIR_FOR_IPSETS}" -o ! -d "${WEB_DIR_FOR_IPSETS}" ] && continue
+	[ -z "${WEB_DIR_FOR_IPSETS}" -o ! -d "${WEB_DIR_FOR_IPSETS}" ] && return 0
 
 	local ipset= f= d=
 	for ipset in "${!UPDATED_SETS[@]}"
