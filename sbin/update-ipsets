@@ -373,9 +373,13 @@ WEB_OWNER=""
 # the ipset name is appended to it
 WEB_URL="http://iplists.firehol.org/?ipset="
 
+# the path to copy downloaded files to, using ${WEB_OWNER} permissions
+# if empty, do not copy them
+WEB_DIR_FOR_IPSETS=""
+
 # options for the web site
 # the ipset name will be appended
-GITHUB_LOCAL_COPY_URL="https://raw.githubusercontent.com/firehol/blocklist-ipsets/master/"
+LOCAL_COPY_URL="https://iplists.firehol.org/files/"
 GITHUB_CHANGES_URL="https://github.com/firehol/blocklist-ipsets/commits/master/"
 GITHUB_SETINFO="https://github.com/firehol/blocklist-ipsets/tree/master/"
 
@@ -858,6 +862,34 @@ commit_to_git() {
 			$GIT_CMD push
 		fi
 	fi
+}
+
+copy_ipsets_to_web() {
+	[ -z "${WEB_DIR_FOR_IPSETS}" -o ! -d "${WEB_DIR_FOR_IPSETS}" ] && continue
+
+	local ipset= f= d=
+	for ipset in "${!UPDATED_SETS[@]}"
+	do
+		[ ! -z "${IPSET_TMP_DO_NOT_REDISTRIBUTE[${ipset}]}" ] && continue
+		[ ! -f "${UPDATED_SETS[${ipset}]}" ] && continue
+
+		# relative filename - may include a dir
+		f="${UPDATED_SETS[${ipset}]}"
+		d="${f/\/*/}"
+		[ "${d}" = "${f}" ] && d=
+
+		if [ ! -z "${d}" ]
+			then
+			echo >&2 "Creating directory ${WEB_DIR_FOR_IPSETS}/${d}"
+			${MKDIR_CMD} -p "${WEB_DIR_FOR_IPSETS}/${d}"
+			[ ! -z "${WEB_OWNER}" ] && ${CHOWN_CMD} "${WEB_OWNER}" "${WEB_DIR_FOR_IPSETS}/${d}"
+		fi
+
+		echo >&2 "Copying ${f} to ${WEB_DIR_FOR_IPSETS}/${f}"
+		cp "${f}" "${WEB_DIR_FOR_IPSETS}/${f}.new"
+		[ ! -z "${WEB_OWNER}" ] && ${CHOWN_CMD} "${WEB_OWNER}" "${WEB_DIR_FOR_IPSETS}/${f}.new"
+		mv "${WEB_DIR_FOR_IPSETS}/${f}.new" "${WEB_DIR_FOR_IPSETS}/${f}"
+	done
 }
 
 # touch a file to a relative date in the past
@@ -1406,7 +1438,7 @@ ipset_json() {
 	local commit_history=
 	if [ -z "${IPSET_TMP_DO_NOT_REDISTRIBUTE[${ipset}]}" ]
 		then
-		file_local="${GITHUB_LOCAL_COPY_URL}${IPSET_FILE[${ipset}]}"
+		file_local="${LOCAL_COPY_URL}${IPSET_FILE[${ipset}]}"
 		commit_history="${GITHUB_CHANGES_URL}${IPSET_FILE[${ipset}]}"
 	fi
 
@@ -7440,6 +7472,9 @@ update_web
 
 # commit changes to git (does nothing if not enabled)
 commit_to_git
+
+# copy the ipset files to web dir (does nothing if not enabled)
+copy_ipsets_to_web
 
 # let the cleanup function exit with success
 PROGRAM_COMPLETED=1
