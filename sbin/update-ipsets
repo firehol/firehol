@@ -373,9 +373,13 @@ WEB_OWNER=""
 # the ipset name is appended to it
 WEB_URL="http://iplists.firehol.org/?ipset="
 
+# the path to copy downloaded files to, using ${WEB_OWNER} permissions
+# if empty, do not copy them
+WEB_DIR_FOR_IPSETS=""
+
 # options for the web site
 # the ipset name will be appended
-GITHUB_LOCAL_COPY_URL="https://raw.githubusercontent.com/firehol/blocklist-ipsets/master/"
+LOCAL_COPY_URL="https://iplists.firehol.org/files/"
 GITHUB_CHANGES_URL="https://github.com/firehol/blocklist-ipsets/commits/master/"
 GITHUB_SETINFO="https://github.com/firehol/blocklist-ipsets/tree/master/"
 
@@ -465,6 +469,8 @@ options are:
 			need to trigger a full refresh of the generated
 			metadata (it only affects the web site).
 
+	--cleanup 	Will cleanup obsolete ipsets that are not
+			available anymore.
 
 	run ipset1 ipset2 ...
 			Will only process the given ipsets.
@@ -858,6 +864,34 @@ commit_to_git() {
 			$GIT_CMD push
 		fi
 	fi
+}
+
+copy_ipsets_to_web() {
+	[ -z "${WEB_DIR_FOR_IPSETS}" -o ! -d "${WEB_DIR_FOR_IPSETS}" ] && return 0
+
+	local ipset= f= d=
+	for ipset in "${!UPDATED_SETS[@]}"
+	do
+		[ ! -z "${IPSET_TMP_DO_NOT_REDISTRIBUTE[${ipset}]}" ] && continue
+		[ ! -f "${UPDATED_SETS[${ipset}]}" ] && continue
+
+		# relative filename - may include a dir
+		f="${UPDATED_SETS[${ipset}]}"
+		d="${f/\/*/}"
+		[ "${d}" = "${f}" ] && d=
+
+		if [ ! -z "${d}" ]
+			then
+			echo >&2 "Creating directory ${WEB_DIR_FOR_IPSETS}/${d}"
+			${MKDIR_CMD} -p "${WEB_DIR_FOR_IPSETS}/${d}"
+			[ ! -z "${WEB_OWNER}" ] && ${CHOWN_CMD} "${WEB_OWNER}" "${WEB_DIR_FOR_IPSETS}/${d}"
+		fi
+
+		echo >&2 "Copying ${f} to ${WEB_DIR_FOR_IPSETS}/${f}"
+		${CP_CMD} "${f}" "${WEB_DIR_FOR_IPSETS}/${f}.new"
+		[ ! -z "${WEB_OWNER}" ] && ${CHOWN_CMD} "${WEB_OWNER}" "${WEB_DIR_FOR_IPSETS}/${f}.new"
+		${MV_CMD} "${WEB_DIR_FOR_IPSETS}/${f}.new" "${WEB_DIR_FOR_IPSETS}/${f}"
+	done
 }
 
 # touch a file to a relative date in the past
@@ -1406,7 +1440,7 @@ ipset_json() {
 	local commit_history=
 	if [ -z "${IPSET_TMP_DO_NOT_REDISTRIBUTE[${ipset}]}" ]
 		then
-		file_local="${GITHUB_LOCAL_COPY_URL}${IPSET_FILE[${ipset}]}"
+		file_local="${LOCAL_COPY_URL}${IPSET_FILE[${ipset}]}"
 		commit_history="${GITHUB_CHANGES_URL}${IPSET_FILE[${ipset}]}"
 	fi
 
@@ -4352,37 +4386,42 @@ ipip_country
 # -----------------------------------------------------------------------------
 # atlas.arbor.net
 
-atlas_parser() { ${EGREP_CMD} "^${IP4_MATCH}, \"" | ${CUT_CMD} -d ',' -f 1; }
+#atlas_parser() { ${EGREP_CMD} "^${IP4_MATCH}, \"" | ${CUT_CMD} -d ',' -f 1; }
 
-update atlas_attacks $[24 * 60] "$[48*60] $[7*24*60] $[30*24*60]" ipv4 ip \
-	"https://atlas.arbor.net/summary/attacks.csv" \
-	atlas_parser \
-	"attacks" "[ATLAS Attacks](https://atlas.arbor.net/summary/attacks) - ATLAS uses lightweight honeypot sensors to detect and fingerprint the attacks launched by malicious sources on the Internet. In most cases the attacker is trying to take control of the target via a published exploit for a known vulnerability. A variety of exploit tools exist and are usually written specifically for each attack vector. Exploit attempts and attacks are most often launched from bots (hosts under an attacker's control), which will automatically try to exploit any possible host on the Internet. Attack origins are usually not spoofed, although the source host may be compromised or infected with malware." \
-	"Arbor Networks" "https://atlas.arbor.net/"
+delete_ipset atlas_attacks
+#update atlas_attacks $[24 * 60] "$[48*60] $[7*24*60] $[30*24*60]" ipv4 ip \
+#	"https://atlas.arbor.net/summary/attacks.csv" \
+#	atlas_parser \
+#	"attacks" "[ATLAS Attacks](https://atlas.arbor.net/summary/attacks) - ATLAS uses lightweight honeypot sensors to detect and fingerprint the attacks launched by malicious sources on the Internet. In most cases the attacker is trying to take control of the target via a published exploit for a known vulnerability. A variety of exploit tools exist and are usually written specifically for each attack vector. Exploit attempts and attacks are most often launched from bots (hosts under an attacker's control), which will automatically try to exploit any possible host on the Internet. Attack origins are usually not spoofed, although the source host may be compromised or infected with malware." \
+#	"Arbor Networks" "https://atlas.arbor.net/"
 
-update atlas_botnets $[24 * 60] "$[48*60] $[7*24*60] $[30*24*60]" ipv4 ip \
-	"https://atlas.arbor.net/summary/botnets.csv" \
-	atlas_parser \
-	"attacks" "[ATLAS Botnets](https://atlas.arbor.net/summary/botnets) - Botnets are collections of compromised hosts that attackers remotely control for their own nefarious purposes. Once installed and running, a malicious bot will attempt to connect to a remote server to receive instructions on what actions to take. The most common command and control (C&C) protocol used for this is Internet Relay Chat (IRC). While a legitimate protocol for online chat, IRC is often used by attackers due to the relative simplicity of the protocol along with the ready availability of bot software written to use it. After connecting, a bot-controlled host can be controlled by an attacker and commanded to conduct malicious actions such as sending spam, scanning the Internet for other potentially controllable hosts, or launching DoS attacks. ATLAS maintains a real-time database of malicious botnet command and control servers that is continuously updated. This information comes from malware analysis, botnet infiltration, and other sources of data." \
-	"Arbor Networks" "https://atlas.arbor.net/"
+delete_ipset atlas_botnets
+#update atlas_botnets $[24 * 60] "$[48*60] $[7*24*60] $[30*24*60]" ipv4 ip \
+#	"https://atlas.arbor.net/summary/botnets.csv" \
+#	atlas_parser \
+#	"attacks" "[ATLAS Botnets](https://atlas.arbor.net/summary/botnets) - Botnets are collections of compromised hosts that attackers remotely control for their own nefarious purposes. Once installed and running, a malicious bot will attempt to connect to a remote server to receive instructions on what actions to take. The most common command and control (C&C) protocol used for this is Internet Relay Chat (IRC). While a legitimate protocol for online chat, IRC is often used by attackers due to the relative simplicity of the protocol along with the ready availability of bot software written to use it. After connecting, a bot-controlled host can be controlled by an attacker and commanded to conduct malicious actions such as sending spam, scanning the Internet for other potentially controllable hosts, or launching DoS attacks. ATLAS maintains a real-time database of malicious botnet command and control servers that is continuously updated. This information comes from malware analysis, botnet infiltration, and other sources of data." \
+#	"Arbor Networks" "https://atlas.arbor.net/"
 
-update atlas_fastflux $[24 * 60] "$[48*60] $[7*24*60] $[30*24*60]" ipv4 ip \
-	"https://atlas.arbor.net/summary/fastflux.csv" \
-	atlas_parser \
-	"attacks" "[ATLAS Fastflux](https://atlas.arbor.net/summary/fastflux) - Fast flux hosting is a technique where the nodes in a botnet are used as the endpoints in a website hosting scheme. The DNS records change frequently, often every few minutes, to point to new bots. The actual nodes themselves simply proxy the request back to the central hosting location. This gives the botnet a robust hosting infrastructure. Many different kinds of botnets use fastflux DNS techniques, for malware hosting, for illegal content hosting, for phishing site hosting, and other such activities. These hosts are likely to be infected with some form of malware." \
-	"Arbor Networks" "https://atlas.arbor.net/"
+delete_ipset atlas_fastflux
+#update atlas_fastflux $[24 * 60] "$[48*60] $[7*24*60] $[30*24*60]" ipv4 ip \
+#	"https://atlas.arbor.net/summary/fastflux.csv" \
+#	atlas_parser \
+#	"attacks" "[ATLAS Fastflux](https://atlas.arbor.net/summary/fastflux) - Fast flux hosting is a technique where the nodes in a botnet are used as the endpoints in a website hosting scheme. The DNS records change frequently, often every few minutes, to point to new bots. The actual nodes themselves simply proxy the request back to the central hosting location. This gives the botnet a robust hosting infrastructure. Many different kinds of botnets use fastflux DNS techniques, for malware hosting, for illegal content hosting, for phishing site hosting, and other such activities. These hosts are likely to be infected with some form of malware." \
+#	"Arbor Networks" "https://atlas.arbor.net/"
 
-update atlas_phishing $[24 * 60] "$[48*60] $[7*24*60] $[30*24*60]" ipv4 ip \
-	"https://atlas.arbor.net/summary/phishing.csv" \
-	atlas_parser \
-	"attacks" "[ATLAS Phishing](https://atlas.arbor.net/summary/fastflux) - Phishing servers host content that is designed to socially engineer unsuspecting users into surrendering private information used for identity theft. These servers are installed on compromised web servers or botnets, at times. Phishing Web sites mimic legitimate Web sites, often of a financial institution, in order to steal logins, passwords, and personal information. Attackers trick users into using the fake Web site by sending the intended victim an e-mail claiming to be a legitimate institution requesting the information for valid reasons, such as account verification. They may then use the stolen credentials to withdraw large amounts of money from the victim's account or commit other fraudulent acts. Most targeted brands are usually in the financial sector, including banks and online commerce sites." \
-	"Arbor Networks" "https://atlas.arbor.net/"
+delete_ipset atlas_phishing
+#update atlas_phishing $[24 * 60] "$[48*60] $[7*24*60] $[30*24*60]" ipv4 ip \
+#	"https://atlas.arbor.net/summary/phishing.csv" \
+#	atlas_parser \
+#	"attacks" "[ATLAS Phishing](https://atlas.arbor.net/summary/fastflux) - Phishing servers host content that is designed to socially engineer unsuspecting users into surrendering private information used for identity theft. These servers are installed on compromised web servers or botnets, at times. Phishing Web sites mimic legitimate Web sites, often of a financial institution, in order to steal logins, passwords, and personal information. Attackers trick users into using the fake Web site by sending the intended victim an e-mail claiming to be a legitimate institution requesting the information for valid reasons, such as account verification. They may then use the stolen credentials to withdraw large amounts of money from the victim's account or commit other fraudulent acts. Most targeted brands are usually in the financial sector, including banks and online commerce sites." \
+#	"Arbor Networks" "https://atlas.arbor.net/"
 
-update atlas_scans $[24 * 60] "$[48*60] $[7*24*60] $[30*24*60]" ipv4 ip \
-	"https://atlas.arbor.net/summary/scans.csv" \
-	atlas_parser \
-	"attacks" "[ATLAS Scans](https://atlas.arbor.net/summary/scans) - Host scanning is a process whereby automated network sweeps are initiated in search of hosts running a particular service. This may be indicative of either legitimate host scanners (including network management systems and authorized vulnerability scanners) or an attacker (or automated malicious code, such as a worm) trying to enumerate potential hosts for subsequent compromise. Scans are often the prelude to an attack, and services scanned by attackers usually indicate known vulnerabilities for those services. Types of port scans include connect() scans, SYN scans, stealth scans, bounce scans, XMAS and Null scans. All reveal to the attacker which services on what hosts are listening for connections. Scans may be launched from compromised hosts, and their sources may be forged." \
-	"Arbor Networks" "https://atlas.arbor.net/"
+delete_ipset atlas_scans
+#update atlas_scans $[24 * 60] "$[48*60] $[7*24*60] $[30*24*60]" ipv4 ip \
+#	"https://atlas.arbor.net/summary/scans.csv" \
+#	atlas_parser \
+#	"attacks" "[ATLAS Scans](https://atlas.arbor.net/summary/scans) - Host scanning is a process whereby automated network sweeps are initiated in search of hosts running a particular service. This may be indicative of either legitimate host scanners (including network management systems and authorized vulnerability scanners) or an attacker (or automated malicious code, such as a worm) trying to enumerate potential hosts for subsequent compromise. Scans are often the prelude to an attack, and services scanned by attackers usually indicate known vulnerabilities for those services. Types of port scans include connect() scans, SYN scans, stealth scans, bounce scans, XMAS and Null scans. All reveal to the attacker which services on what hosts are listening for connections. Scans may be launched from compromised hosts, and their sources may be forged." \
+#	"Arbor Networks" "https://atlas.arbor.net/"
 
 
 # -----------------------------------------------------------------------------
@@ -5470,12 +5509,13 @@ update packetmail_ramnode $[4*60] 0 ipv4 ip \
 	"[PacketMail.net](https://www.packetmail.net/) IP addresses that have been detected performing TCP SYN to 81.4.103.251 to a non-listening service or daemon. No assertion is made, nor implied, that any of the below listed IP addresses are accurate, malicious, hostile, or engaged in nefarious acts. Use this list at your own risk." \
 	"PacketMail.net" "https://www.packetmail.net/"
 
-update packetmail_carisirt $[4*60] 0 ipv4 ip \
-	"https://www.packetmail.net/iprep_CARISIRT.txt" \
-	 parse_packetmail \
-	"reputation" \
-	"[PacketMail.net](https://www.packetmail.net/) IP addresses that have been detected performing TCP SYN to 66.240.206.5 to a non-listening service or daemon. No assertion is made, nor implied, that any of the below listed IP addresses are accurate, malicious, hostile, or engaged in nefarious acts. Use this list at your own risk." \
-	"PacketMail.net" "https://www.packetmail.net/"
+delete_ipset packetmail_carisirt
+#update packetmail_carisirt $[4*60] 0 ipv4 ip \
+#	"https://www.packetmail.net/iprep_CARISIRT.txt" \
+#	 parse_packetmail \
+#	"reputation" \
+#	"[PacketMail.net](https://www.packetmail.net/) IP addresses that have been detected performing TCP SYN to 66.240.206.5 to a non-listening service or daemon. No assertion is made, nor implied, that any of the below listed IP addresses are accurate, malicious, hostile, or engaged in nefarious acts. Use this list at your own risk." \
+#	"PacketMail.net" "https://www.packetmail.net/"
 
 update packetmail_mail $[4*60] 0 ipv4 ip \
 	"https://www.packetmail.net/iprep_mail.txt" \
@@ -6077,19 +6117,21 @@ merge cleantalk_30d ipv4 ip \
 # -----------------------------------------------------------------------------
 # http://www.jigsawsecurityenterprise.com/#!open-blacklist/kafsx
 
-update jigsaw_attacks $[24*60] 0 ipv4 ip \
-	"http://www.slcsecurity.com/feedspublic/IP/malicious-ip-src.txt" \
-	remove_comments \
-	"attacks" \
-	"[Jigsaw Security Enterprise](http://www.jigsawsecurityenterprise.com/#!open-blacklist/kafsx) IP Address Sources of Attack. Information on this blacklist is low fidelity meaning we do not update these indicators that often and there is no validation of the data. These are raw feeds that have not been processed. In order to get the most up to date data and to remove false positives you should consider subscribing to our Jigsaw Enterprise Solution." \
-	"Jigsaw Security Enterprise" "http://www.jigsawsecurityenterprise.com/#!open-blacklist/kafsx"
+delete_ipset jigsaw_attacks
+#update jigsaw_attacks $[24*60] 0 ipv4 ip \
+#	"http://www.slcsecurity.com/feedspublic/IP/malicious-ip-src.txt" \
+#	remove_comments \
+#	"attacks" \
+#	"[Jigsaw Security Enterprise](http://www.jigsawsecurityenterprise.com/#!open-blacklist/kafsx) IP Address Sources of Attack. Information on this blacklist is low fidelity meaning we do not update these indicators that often and there is no validation of the data. These are raw feeds that have not been processed. In order to get the most up to date data and to remove false positives you should consider subscribing to our Jigsaw Enterprise Solution." \
+#	"Jigsaw Security Enterprise" "http://www.jigsawsecurityenterprise.com/#!open-blacklist/kafsx"
 
-update jigsaw_malware $[24*60] 0 ipv4 ip \
-	"http://www.slcsecurity.com/feedspublic/IP/malicious-ip-dst.txt" \
-	remove_comments \
-	"malware" \
-	"[Jigsaw Security Enterprise](http://www.jigsawsecurityenterprise.com/#!open-blacklist/kafsx) Malicious IP Destinations usually C2 or botnet activity or malicious payloads. Information on this blacklist is low fidelity meaning we do not update these indicators that often and there is no validation of the data. These are raw feeds that have not been processed. In order to get the most up to date data and to remove false positives you should consider subscribing to our Jigsaw Enterprise Solution." \
-	"Jigsaw Security Enterprise" "http://www.jigsawsecurityenterprise.com/#!open-blacklist/kafsx"
+delete_ipset jigsaw_malware
+#update jigsaw_malware $[24*60] 0 ipv4 ip \
+#	"http://www.slcsecurity.com/feedspublic/IP/malicious-ip-dst.txt" \
+#	remove_comments \
+#	"malware" \
+#	"[Jigsaw Security Enterprise](http://www.jigsawsecurityenterprise.com/#!open-blacklist/kafsx) Malicious IP Destinations usually C2 or botnet activity or malicious payloads. Information on this blacklist is low fidelity meaning we do not update these indicators that often and there is no validation of the data. These are raw feeds that have not been processed. In order to get the most up to date data and to remove false positives you should consider subscribing to our Jigsaw Enterprise Solution." \
+#	"Jigsaw Security Enterprise" "http://www.jigsawsecurityenterprise.com/#!open-blacklist/kafsx"
 	
 
 # -----------------------------------------------------------------------------
@@ -7437,6 +7479,9 @@ done
 # -----------------------------------------------------------------------------
 # update the web site, if we have to (does nothing if not enabled)
 update_web
+
+# copy the ipset files to web dir (does nothing if not enabled)
+copy_ipsets_to_web
 
 # commit changes to git (does nothing if not enabled)
 commit_to_git
