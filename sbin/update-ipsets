@@ -4385,31 +4385,36 @@ ipip_country
 # atlas.arbor.net
 
 #atlas_parser() { ${EGREP_CMD} "^${IP4_MATCH}, \"" | ${CUT_CMD} -d ',' -f 1; }
-#
+
+delete_ipset atlas_attacks
 #update atlas_attacks $[24 * 60] "$[48*60] $[7*24*60] $[30*24*60]" ipv4 ip \
 #	"https://atlas.arbor.net/summary/attacks.csv" \
 #	atlas_parser \
 #	"attacks" "[ATLAS Attacks](https://atlas.arbor.net/summary/attacks) - ATLAS uses lightweight honeypot sensors to detect and fingerprint the attacks launched by malicious sources on the Internet. In most cases the attacker is trying to take control of the target via a published exploit for a known vulnerability. A variety of exploit tools exist and are usually written specifically for each attack vector. Exploit attempts and attacks are most often launched from bots (hosts under an attacker's control), which will automatically try to exploit any possible host on the Internet. Attack origins are usually not spoofed, although the source host may be compromised or infected with malware." \
 #	"Arbor Networks" "https://atlas.arbor.net/"
-#
+
+delete_ipset atlas_botnets
 #update atlas_botnets $[24 * 60] "$[48*60] $[7*24*60] $[30*24*60]" ipv4 ip \
 #	"https://atlas.arbor.net/summary/botnets.csv" \
 #	atlas_parser \
 #	"attacks" "[ATLAS Botnets](https://atlas.arbor.net/summary/botnets) - Botnets are collections of compromised hosts that attackers remotely control for their own nefarious purposes. Once installed and running, a malicious bot will attempt to connect to a remote server to receive instructions on what actions to take. The most common command and control (C&C) protocol used for this is Internet Relay Chat (IRC). While a legitimate protocol for online chat, IRC is often used by attackers due to the relative simplicity of the protocol along with the ready availability of bot software written to use it. After connecting, a bot-controlled host can be controlled by an attacker and commanded to conduct malicious actions such as sending spam, scanning the Internet for other potentially controllable hosts, or launching DoS attacks. ATLAS maintains a real-time database of malicious botnet command and control servers that is continuously updated. This information comes from malware analysis, botnet infiltration, and other sources of data." \
 #	"Arbor Networks" "https://atlas.arbor.net/"
-#
+
+delete_ipset atlas_fastflux
 #update atlas_fastflux $[24 * 60] "$[48*60] $[7*24*60] $[30*24*60]" ipv4 ip \
 #	"https://atlas.arbor.net/summary/fastflux.csv" \
 #	atlas_parser \
 #	"attacks" "[ATLAS Fastflux](https://atlas.arbor.net/summary/fastflux) - Fast flux hosting is a technique where the nodes in a botnet are used as the endpoints in a website hosting scheme. The DNS records change frequently, often every few minutes, to point to new bots. The actual nodes themselves simply proxy the request back to the central hosting location. This gives the botnet a robust hosting infrastructure. Many different kinds of botnets use fastflux DNS techniques, for malware hosting, for illegal content hosting, for phishing site hosting, and other such activities. These hosts are likely to be infected with some form of malware." \
 #	"Arbor Networks" "https://atlas.arbor.net/"
-#
+
+delete_ipset atlas_phishing
 #update atlas_phishing $[24 * 60] "$[48*60] $[7*24*60] $[30*24*60]" ipv4 ip \
 #	"https://atlas.arbor.net/summary/phishing.csv" \
 #	atlas_parser \
 #	"attacks" "[ATLAS Phishing](https://atlas.arbor.net/summary/fastflux) - Phishing servers host content that is designed to socially engineer unsuspecting users into surrendering private information used for identity theft. These servers are installed on compromised web servers or botnets, at times. Phishing Web sites mimic legitimate Web sites, often of a financial institution, in order to steal logins, passwords, and personal information. Attackers trick users into using the fake Web site by sending the intended victim an e-mail claiming to be a legitimate institution requesting the information for valid reasons, such as account verification. They may then use the stolen credentials to withdraw large amounts of money from the victim's account or commit other fraudulent acts. Most targeted brands are usually in the financial sector, including banks and online commerce sites." \
 #	"Arbor Networks" "https://atlas.arbor.net/"
-#
+
+delete_ipset atlas_scans
 #update atlas_scans $[24 * 60] "$[48*60] $[7*24*60] $[30*24*60]" ipv4 ip \
 #	"https://atlas.arbor.net/summary/scans.csv" \
 #	atlas_parser \
@@ -5502,6 +5507,7 @@ update packetmail_ramnode $[4*60] 0 ipv4 ip \
 	"[PacketMail.net](https://www.packetmail.net/) IP addresses that have been detected performing TCP SYN to 81.4.103.251 to a non-listening service or daemon. No assertion is made, nor implied, that any of the below listed IP addresses are accurate, malicious, hostile, or engaged in nefarious acts. Use this list at your own risk." \
 	"PacketMail.net" "https://www.packetmail.net/"
 
+delete_ipset packetmail_carisirt
 #update packetmail_carisirt $[4*60] 0 ipv4 ip \
 #	"https://www.packetmail.net/iprep_CARISIRT.txt" \
 #	 parse_packetmail \
@@ -6109,13 +6115,15 @@ merge cleantalk_30d ipv4 ip \
 # -----------------------------------------------------------------------------
 # http://www.jigsawsecurityenterprise.com/#!open-blacklist/kafsx
 
+delete_ipset jigsaw_attacks
 #update jigsaw_attacks $[24*60] 0 ipv4 ip \
 #	"http://www.slcsecurity.com/feedspublic/IP/malicious-ip-src.txt" \
 #	remove_comments \
 #	"attacks" \
 #	"[Jigsaw Security Enterprise](http://www.jigsawsecurityenterprise.com/#!open-blacklist/kafsx) IP Address Sources of Attack. Information on this blacklist is low fidelity meaning we do not update these indicators that often and there is no validation of the data. These are raw feeds that have not been processed. In order to get the most up to date data and to remove false positives you should consider subscribing to our Jigsaw Enterprise Solution." \
 #	"Jigsaw Security Enterprise" "http://www.jigsawsecurityenterprise.com/#!open-blacklist/kafsx"
-#
+
+delete_ipset jigsaw_malware
 #update jigsaw_malware $[24*60] 0 ipv4 ip \
 #	"http://www.slcsecurity.com/feedspublic/IP/malicious-ip-dst.txt" \
 #	remove_comments \
