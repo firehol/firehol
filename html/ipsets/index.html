@@ -603,7 +603,7 @@
 	<div class="row clearfix">
 		<div class="col-md-12 column">
 			<div id="site_last_updated" class="pull-right" align="right"></div><br/>&nbsp;<br/>
-			<span class="glyphicon glyphicon-copyright-mark" aria-hidden="true"></span> 2015-2017 <a href="/cdn-cgi/l/email-protection#83e0ecf0f7e2c3f7f0e2ecf6f0eaf0ade4f1">Costa Tsaousis</a>, for <a href="http://firehol.org">FireHOL</a> <i>a firewall for humans!</i>.
+			<span class="glyphicon glyphicon-copyright-mark" aria-hidden="true"></span> 2015-2017 <a href="mailto:costa@tsaousis.gr">Costa Tsaousis</a>, for <a href="http://firehol.org">FireHOL</a> <i>a firewall for humans!</i>.
 			<br/>
 			The data on this page are automatically generated using FireHOL's <a href="https://github.com/firehol/firehol/blob/master/sbin/update-ipsets">update-ipsets.sh</a> (for downloading the lists from their sources and generating the data for this site), which utilizes <a href="https://github.com/firehol/firehol/wiki/iprange:-optimizing-ipsets-for-iptables">iprange</a> (for comparing and manipulating IP lists). Both are part of <a href="http://firehol.org">FireHOL</a>, which is provided under GPL v2, so you are free to get, use, adapt and re-distribute.
 			<br/>
@@ -666,7 +666,7 @@
 		</div>
 	</div>
 </div>
-<script>/* <![CDATA[ */(function(d,s,a,i,j,r,l,m,t){try{l=d.getElementsByTagName('a');t=d.createElement('textarea');for(i=0;l.length-i;i++){try{a=l[i].href;s=a.indexOf('/cdn-cgi/l/email-protection');m=a.length;if(a&&s>-1&&m>28){j=28+s;s='';if(j<m){r='0x'+a.substr(j,2)|0;for(j+=2;j<m&&a.charAt(j)!='X';j+=2)s+='%'+('0'+('0x'+a.substr(j,2)^r).toString(16)).slice(-2);j++;s=decodeURIComponent(s)+a.substr(j,m-j)}t.innerHTML=s.replace(/</g,'&lt;').replace(/\>/g,'&gt;');l[i].href='mailto:'+t.value}}catch(e){}}}catch(e){}})(document);/* ]]> */</script></body>
+</body>
 </html>
 
 	<script type="text/javascript" src="//cdnjs.cloudflare.com/ajax/libs/jquery/2.1.4/jquery.min.js"></script>
@@ -1458,7 +1458,7 @@ $(function () {
 		$('#facts_average_update').html(millisecondsToStr(data.average_update * 60 * 1000));
 
 		if(data.file_local)
-			$('#file_local').html('<a href="' + data.file_local + '" target="_blank">download from github</a>');
+			$('#file_local').html('<a href="' + data.file_local + '" target="_blank">download a local copy</a>');
 		else
 			$('#file_local').html('(not available)');
 
