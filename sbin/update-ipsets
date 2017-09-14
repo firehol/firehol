@@ -469,6 +469,8 @@ options are:
 			need to trigger a full refresh of the generated
 			metadata (it only affects the web site).
 
+	--cleanup 	Will cleanup obsolete ipsets that are not
+			available anymore.
 
 	run ipset1 ipset2 ...
 			Will only process the given ipsets.
