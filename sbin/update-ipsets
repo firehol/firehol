@@ -886,9 +886,9 @@ copy_ipsets_to_web() {
 		fi
 
 		echo >&2 "Copying ${f} to ${WEB_DIR_FOR_IPSETS}/${f}"
-		cp "${f}" "${WEB_DIR_FOR_IPSETS}/${f}.new"
+		${CP_CMD} "${f}" "${WEB_DIR_FOR_IPSETS}/${f}.new"
 		[ ! -z "${WEB_OWNER}" ] && ${CHOWN_CMD} "${WEB_OWNER}" "${WEB_DIR_FOR_IPSETS}/${f}.new"
-		mv "${WEB_DIR_FOR_IPSETS}/${f}.new" "${WEB_DIR_FOR_IPSETS}/${f}"
+		${MV_CMD} "${WEB_DIR_FOR_IPSETS}/${f}.new" "${WEB_DIR_FOR_IPSETS}/${f}"
 	done
 }
 
