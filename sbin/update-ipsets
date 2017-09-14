@@ -7478,11 +7478,11 @@ done
 # update the web site, if we have to (does nothing if not enabled)
 update_web
 
-# commit changes to git (does nothing if not enabled)
-commit_to_git
-
 # copy the ipset files to web dir (does nothing if not enabled)
 copy_ipsets_to_web
+
+# commit changes to git (does nothing if not enabled)
+commit_to_git
 
 # let the cleanup function exit with success
 PROGRAM_COMPLETED=1
