@@ -1,3 +1,18 @@
+firehol (3.1.5-rc.1) - 2017-09-17
+
+  * FireHOL
+
+    - Fix some links in documentation
+
+  * FireQOS
+
+    - Insert a rawmark mask if none specified
+
+  * Update-Ipsets
+
+    - Support serving ipset files from local web server
+    - Lower pressure on github
+
 firehol (3.1.4) - 2017-08-20
 
   * FireHOL
