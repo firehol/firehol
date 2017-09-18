@@ -1387,7 +1387,6 @@ $CAT_CMD >&20 <<'EOFMTL'
 # a function to help us save a value to a file
 postprocess_echo_to() { echo "${1}" >"${2}"; }
 postprocess_wait_netfilter() {
-	echo >&2 "checking if netfilter is ready..."
 	maxwait=60
 	waiting=0
 	while [ ! -f /proc/sys/net/netfilter/nf_conntrack_max -a ${waiting} -le ${maxwait} ]
