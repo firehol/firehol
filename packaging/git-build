@@ -49,6 +49,6 @@ set -e
 ./autogen.sh
 ./configure --enable-maintainer-mode 
 set +e
-make dist
+make -j4 dist
 status=$?
 exit $status
