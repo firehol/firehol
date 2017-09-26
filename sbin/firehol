@@ -965,7 +965,12 @@ ${RENICE_CMD} 10 $$ >/dev/null 2>/dev/null
 # Initialize iptables
 if [ $ENABLE_IPV4 -eq 1 ]
 then
-	${IPTABLES_CMD} -wnxvL >/dev/null 2>&1
+	# there are 2 versions of iptables, regarding option -w
+	# -w       wait for xlock
+	# -w SECS  wait for xlock up to SECS seconds
+	# Unfortunately, they are mutually exclusive
+
+	${IPTABLES_CMD} -wnxvL >/dev/null 2>&1 || ${IPTABLES_CMD} -w 10 -nxvL >/dev/null 2>&1
 	if [ $? -ne 0 ]
 	then
 		echo >&2 " WARNING: error initializing iptables: IPv4 disabled"
@@ -975,7 +980,12 @@ fi
 
 if [ $ENABLE_IPV6 -eq 1 ]
 then
-	${IP6TABLES_CMD} -wnxvL >/dev/null 2>&1
+	# there are 2 versions of iptables, regarding option -w
+	# -w       wait for xlock
+	# -w SECS  wait for xlock up to SECS seconds
+	# Unfortunately, they are mutually exclusive
+
+	${IP6TABLES_CMD} -wnxvL >/dev/null 2>&1 || ${IP6TABLES_CMD} -w 10 -nxvL >/dev/null 2>&1
 	if [ $? -ne 0 ]
 	then
 		echo >&2 " WARNING: error initializing ip6tables: IPv6 disabled"
