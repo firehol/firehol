@@ -965,7 +965,12 @@ ${RENICE_CMD} 10 $$ >/dev/null 2>/dev/null
 # Initialize iptables
 if [ $ENABLE_IPV4 -eq 1 ]
 then
-	${IPTABLES_CMD} -wnxvL >/dev/null 2>&1
+	# there are 2 versions of iptables, regarding option -w
+	# -w       wait for xlock
+	# -w SECS  wait for xlock up to SECS seconds
+	# Unfortunately, they are mutually exclusive
+
+	${IPTABLES_CMD} -wnxvL >/dev/null 2>&1 || ${IPTABLES_CMD} -w 10 -nxvL >/dev/null 2>&1
 	if [ $? -ne 0 ]
 	then
 		echo >&2 " WARNING: error initializing iptables: IPv4 disabled"
@@ -975,7 +980,12 @@ fi
 
 if [ $ENABLE_IPV6 -eq 1 ]
 then
-	${IP6TABLES_CMD} -wnxvL >/dev/null 2>&1
+	# there are 2 versions of iptables, regarding option -w
+	# -w       wait for xlock
+	# -w SECS  wait for xlock up to SECS seconds
+	# Unfortunately, they are mutually exclusive
+
+	${IP6TABLES_CMD} -wnxvL >/dev/null 2>&1 || ${IP6TABLES_CMD} -w 10 -nxvL >/dev/null 2>&1
 	if [ $? -ne 0 ]
 	then
 		echo >&2 " WARNING: error initializing ip6tables: IPv6 disabled"
@@ -5474,6 +5484,75 @@ tcpmss() {
 	fi
 	
 	return 0
+}
+
+FIREHOL_DOCKER_SETUP_CHAINS=0
+docker_setup_chains() {
+	if [ ${FIREHOL_DOCKER_SETUP_CHAINS} -eq 0 ]
+		then
+		FIREHOL_DOCKER_SETUP_CHAINS=1
+
+		set_work_function "docker port mapping chain (port forwarding)"
+		iptables -t nat -N DOCKER
+
+		set_work_function "docker inspection of local traffic for port mapping"
+		iptables -t nat -A PREROUTING -m addrtype --dst-type LOCAL -j DOCKER
+		iptables -t nat -A OUTPUT ! -d 127.0.0.0/8 -m addrtype --dst-type LOCAL -j DOCKER
+
+		set_work_function "docker port mapping chain (filtering - accepts all ports mapped)"
+		iptables -t filter -N DOCKER
+
+		set_work_function "docker-user chain"
+		iptables -t filter -N DOCKER-USER
+		iptables -t filter -A DOCKER-USER -j RETURN
+		iptables -t filter -A FORWARD -j DOCKER-USER
+
+		set_work_function "docker-isolation chain"
+		iptables -t filter -N DOCKER-ISOLATION
+		iptables -t filter -A DOCKER-ISOLATION -j RETURN
+		iptables -t filter -A FORWARD -j DOCKER-ISOLATION
+	fi
+}
+
+declare -A DOCKER_SETUP_INTERFACES=()
+docker_setup_interface() {
+	local iface="${1}"
+	if [ -z "${DOCKER_SETUP_INTERFACES[${iface}]}" ]
+		then
+		DOCKER_SETUP_INTERFACES[${iface}]="1"
+
+		set_work_function "no port mapping between containers - the containers are accessing other containers on their native ports"
+		iptables -t nat -A DOCKER -i "${iface}" -j RETURN
+
+		set_work_function "accept the established docker sockets"
+		iptables -t filter -A FORWARD -o "${iface}" -m conntrack --ctstate RELATED,ESTABLISHED -j ACCEPT
+
+		set_work_function "send all forwarded traffic towards containers, to DOCKER chain (accepts all ports mapped)"
+		iptables -t filter -A FORWARD -o "${iface}" -j DOCKER
+
+		set_work_function "accept all traffic from containers to anywhere except containers"
+		iptables -t filter -A FORWARD -i "${iface}" ! -o "${iface}" -j ACCEPT
+
+		set_work_function "accept all traffic between containers"
+		iptables -t filter -A FORWARD -i "${iface}" -o "${iface}" -j ACCEPT
+	fi
+}
+
+docker_bridge() {
+	local interfaces="${1}" network="${2}" iface subnet
+
+	docker_setup_chains
+
+	for iface in ${interfaces//,/ }
+	do
+		docker_setup_interface "${iface}"
+
+		for subnet in ${network//,/ }
+		do
+			set_work_function "allow the docker containers to reach the world"
+			iptables -t nat -A POSTROUTING -s "${subnet}" ! -o "${iface}" -j MASQUERADE
+		done
+	done
 }
 
 # ------------------------------------------------------------------------------
