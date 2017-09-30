@@ -132,11 +132,11 @@ $RENICE_CMD 10 $$ >/dev/null 2>/dev/null
 
 error() {
 	echo >&2 -e "${COLOR_BGRED}${COLOR_WHITE}${COLOR_BOLD} ERROR ${COLOR_RESET}: ${@}"
-	$LOGGER_CMD -p daemon.info -t "update-ipsets.sh[$$]" "${@}"
+	$LOGGER_CMD -p daemon.err -t "update-ipsets.sh[$$]" "${@}"
 }
 warning() {
 	echo >&2 -e "${COLOR_BGYELLOW}${COLOR_BLACK}${COLOR_BOLD} WARNING ${COLOR_RESET}: ${@}"
-	$LOGGER_CMD -p daemon.info -t "update-ipsets.sh[$$]" "${@}"
+	$LOGGER_CMD -p daemon.warning -t "update-ipsets.sh[$$]" "${@}"
 }
 info() {
 	echo >&2 "${@}"
