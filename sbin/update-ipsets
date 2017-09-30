@@ -1048,22 +1048,23 @@ geturl() {
 		then
 		reference="${RUN_DIR}/geturl-reference"
 		$TOUCH_CMD -t 0001010000 "${reference}"
+	else
+		# copy the timestamp of the reference
+		# to our file - we need this to check it later
+		$TOUCH_CMD -r "${reference}" "${file}"
+		curl_opts="${curl_opts} --time-cond \"${reference}\""
 	fi
 
-	# copy the timestamp of the reference
-	# to our file
-	$TOUCH_CMD -r "${reference}" "${file}"
-
-	curl_opts="--silent"
-	[ ${VERBOSE} -eq 1 ] && curl_opts=
+	[ ${VERBOSE} -eq 0 ] && curl_opts="${curl_opts} --silent"
 
 	downloader_log verbose "curl ${doptions} '${url}'"
 	http_code=$( \
 		$CURL_CMD --connect-timeout ${MAX_CONNECT_TIME} --max-time ${MAX_DOWNLOAD_TIME} \
 			--retry 0 --fail --compressed --user-agent "${USER_AGENT}" \
-			--time-cond "${reference}" --output "${file}" --remote-time \
+			${curl_opts} \
+			--output "${file}" --remote-time \
 			--location --referer "http://iplists.firehol.org/" \
-			${curl_opts} --write-out '%{http_code}' "${doptions[@]}" "${url}" \
+			--write-out '%{http_code}' "${doptions[@]}" "${url}" \
 		)
 	ret=$?
 
