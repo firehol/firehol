@@ -338,6 +338,10 @@ PUSH_TO_GIT=${PUSH_TO_GIT-0}
 # committed together
 PUSH_TO_GIT_MERGED=${PUSH_TO_GIT_MERGED-1}
 
+# additional options to add as the git commit/push lines
+PUSH_TO_GIT_COMMIT_OPTIONS=""
+PUSH_TO_GIT_PUSH_OPTIONS=""
+
 # if we will also push github gh-pages
 PUSH_TO_GIT_WEB=${PUSH_TO_GIT_WEB-${PUSH_TO_GIT}}
 
@@ -850,18 +854,18 @@ commit_to_git() {
 			for d in "${to_be_pushed[@]}" set_file_timestamps.sh
 			do
 				echo "${d}..."
-				$GIT_CMD commit "${d}" -m "${date} update"
+				$GIT_CMD commit ${PUSH_TO_GIT_COMMIT_OPTIONS} "${d}" -m "${date} update"
 			done
 		else
 			# we commit all files together
-			$GIT_CMD commit "${to_be_pushed[@]}" set_file_timestamps.sh -m "${date} update"
+			$GIT_CMD commit ${PUSH_TO_GIT_COMMIT_OPTIONS} "${to_be_pushed[@]}" set_file_timestamps.sh -m "${date} update"
 		fi
 
 		if [ ${PUSH_TO_GIT} -ne 0 ]
 		then
 			echo >&2
 			info "Pushing git commits to remote server"
-			$GIT_CMD push
+			$GIT_CMD push ${PUSH_TO_GIT_PUSH_OPTIONS} 
 		fi
 	fi
 }
@@ -2288,12 +2292,12 @@ update_web() {
 
 		cd "${WEB_DIR}" || return 1
 		$GIT_CMD add *.json *.csv *.xml
-		$GIT_CMD commit -a -m "$($DATE_CMD -u) update"
+		$GIT_CMD commit ${PUSH_TO_GIT_COMMIT_OPTIONS} -a -m "$($DATE_CMD -u) update"
 
 		if [ ${PUSH_TO_GIT_WEB} -eq 1 ]
 			then
 			echo >&2 "Pushing generated web files to git..."
-			$GIT_CMD push origin gh-pages
+			$GIT_CMD push ${PUSH_TO_GIT_PUSH_OPTIONS} origin gh-pages
 		fi
 
 		cd "${BASE_DIR}" || exit 1
