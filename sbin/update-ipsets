@@ -5604,13 +5604,17 @@ delete_ipset virbl
 # AutoShun.org
 # http://www.autoshun.org/
 
-update shunlist $[4*60] 0 ipv4 ip \
-	"http://www.autoshun.org/files/shunlist.csv" \
-	csv_comma_first_column \
-	"attacks" \
-	"[AutoShun.org](http://autoshun.org/) IPs identified as hostile by correlating logs from distributed snort installations running the autoshun plugin" \
-	"AutoShun.org" "http://autoshun.org/"
-
+if [ ! -z "${AUTOSHUN_API_KEY}" ]
+	then
+	update shunlist $[4*60] 0 ipv4 ip \
+		"https://www.autoshun.org/download/?api_key=${AUTOSHUN_API_KEY}&format=csv" \
+		csv_comma_first_column \
+		"attacks" \
+		"[AutoShun.org](http://autoshun.org/) IPs identified as hostile by correlating logs from distributed snort installations running the autoshun plugin" \
+		"AutoShun.org" "http://autoshun.org/" \
+		license "Creative Commons Attribution-NonCommercial-NoDerivatives 4.0 International License" \
+		dont_redistribute
+fi
 
 # -----------------------------------------------------------------------------
 # VoIPBL.org
