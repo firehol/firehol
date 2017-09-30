@@ -1044,7 +1044,7 @@ geturl() {
 
 	eval "local doptions=(${4})"
 
-	if [ -z "${reference}" ]
+	if [ -z "${reference}" -o ! -f "${reference}" ]
 		then
 		reference="${RUN_DIR}/geturl-reference"
 		$TOUCH_CMD -t 0001010000 "${reference}"
@@ -1052,7 +1052,7 @@ geturl() {
 		# copy the timestamp of the reference
 		# to our file - we need this to check it later
 		$TOUCH_CMD -r "${reference}" "${file}"
-		curl_opts="${curl_opts} --time-cond '${reference}'"
+		curl_opts="${curl_opts} --time-cond ${reference}"
 	fi
 
 	[ ${VERBOSE} -eq 0 ] && curl_opts="${curl_opts} --silent"
