@@ -1040,7 +1040,7 @@ copyfile() {
 }
 
 geturl() {
-	local file="${1}" reference="${2}" url="${3}" doptions=() ret= http_code= curl_opts= message=
+	local file="${1}" reference="${2}" url="${3}" doptions=() ret= http_code= curl_opts=() message=
 
 	eval "local doptions=(${4})"
 
@@ -1052,16 +1052,16 @@ geturl() {
 		# copy the timestamp of the reference
 		# to our file - we need this to check it later
 		$TOUCH_CMD -r "${reference}" "${file}"
-		curl_opts="${curl_opts} --time-cond ${reference}"
+		curl_opts+=("--time-cond" "${reference}")
 	fi
 
-	[ ${VERBOSE} -eq 0 ] && curl_opts="${curl_opts} --silent"
+	[ ${VERBOSE} -eq 0 ] && curl_opts+=("--silent")
 
 	downloader_log verbose "curl ${doptions} '${url}'"
 	http_code=$( \
 		$CURL_CMD --connect-timeout ${MAX_CONNECT_TIME} --max-time ${MAX_DOWNLOAD_TIME} \
 			--retry 0 --fail --compressed --user-agent "${USER_AGENT}" \
-			${curl_opts} \
+			"${curl_opts[@]}" \
 			--output "${file}" --remote-time \
 			--location --referer "http://iplists.firehol.org/" \
 			--write-out '%{http_code}' "${doptions[@]}" "${url}" \
