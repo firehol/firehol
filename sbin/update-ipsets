@@ -4395,6 +4395,9 @@ ipip_country
 #atlas_parser() { ${EGREP_CMD} "^${IP4_MATCH}, \"" | ${CUT_CMD} -d ',' -f 1; }
 
 delete_ipset atlas_attacks
+delete_ipset atlas_attacks_2d
+delete_ipset atlas_attacks_7d
+delete_ipset atlas_attacks_30d
 #update atlas_attacks $[24 * 60] "$[48*60] $[7*24*60] $[30*24*60]" ipv4 ip \
 #	"https://atlas.arbor.net/summary/attacks.csv" \
 #	atlas_parser \
@@ -4402,6 +4405,9 @@ delete_ipset atlas_attacks
 #	"Arbor Networks" "https://atlas.arbor.net/"
 
 delete_ipset atlas_botnets
+delete_ipset atlas_botnets_2d
+delete_ipset atlas_botnets_7d
+delete_ipset atlas_botnets_30d
 #update atlas_botnets $[24 * 60] "$[48*60] $[7*24*60] $[30*24*60]" ipv4 ip \
 #	"https://atlas.arbor.net/summary/botnets.csv" \
 #	atlas_parser \
@@ -4409,6 +4415,9 @@ delete_ipset atlas_botnets
 #	"Arbor Networks" "https://atlas.arbor.net/"
 
 delete_ipset atlas_fastflux
+delete_ipset atlas_fastflux_2d
+delete_ipset atlas_fastflux_7d
+delete_ipset atlas_fastflux_30d
 #update atlas_fastflux $[24 * 60] "$[48*60] $[7*24*60] $[30*24*60]" ipv4 ip \
 #	"https://atlas.arbor.net/summary/fastflux.csv" \
 #	atlas_parser \
@@ -4416,6 +4425,9 @@ delete_ipset atlas_fastflux
 #	"Arbor Networks" "https://atlas.arbor.net/"
 
 delete_ipset atlas_phishing
+delete_ipset atlas_phishing_2d
+delete_ipset atlas_phishing_7d
+delete_ipset atlas_phishing_30d
 #update atlas_phishing $[24 * 60] "$[48*60] $[7*24*60] $[30*24*60]" ipv4 ip \
 #	"https://atlas.arbor.net/summary/phishing.csv" \
 #	atlas_parser \
@@ -4423,6 +4435,9 @@ delete_ipset atlas_phishing
 #	"Arbor Networks" "https://atlas.arbor.net/"
 
 delete_ipset atlas_scans
+delete_ipset atlas_scans_2d
+delete_ipset atlas_scans_7d
+delete_ipset atlas_scans_30d
 #update atlas_scans $[24 * 60] "$[48*60] $[7*24*60] $[30*24*60]" ipv4 ip \
 #	"https://atlas.arbor.net/summary/scans.csv" \
 #	atlas_parser \
