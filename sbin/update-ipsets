@@ -3503,7 +3503,7 @@ gz_proxyrss() {
 
 # extract IPs from the maxmind proxy fraud page
 parse_maxmind_proxy_fraud() {
-	$GREP_CMD "href=\"proxy" |\
+	$GREP_CMD "href=\"high-risk-ip-sample/" |\
 		$CUT_CMD -d '>' -f 2 |\
 		$CUT_CMD -d '<' -f 1
 }
@@ -5283,14 +5283,14 @@ update proxyrss $[4*60] "$[24*60] $[7*24*60] $[30*24*60]" ipv4 ip \
 
 # -----------------------------------------------------------------------------
 # Anonymous Proxies
-# https://www.maxmind.com/en/anonymous-proxy-fraudulent-ip-address-list
+# was: https://www.maxmind.com/en/anonymous-proxy-fraudulent-ip-address-list
 
 update maxmind_proxy_fraud $[4*60] 0 ipv4 ip \
-	"https://www.maxmind.com/en/anonymous-proxy-fraudulent-ip-address-list" \
+	"https://www.maxmind.com/en/high-risk-ip-sample-list" \
 	parse_maxmind_proxy_fraud \
 	"anonymizers" \
-	"[MaxMind.com](https://www.maxmind.com/en/anonymous-proxy-fraudulent-ip-address-list) list of anonymous proxy fraudelent IP addresses." \
-	"MaxMind.com" "https://www.maxmind.com/en/anonymous-proxy-fraudulent-ip-address-list"
+	"[MaxMind.com](https://www.maxmind.com/en/high-risk-ip-sample-list) sample list of high-risk IP addresses." \
+	"MaxMind.com" "https://www.maxmind.com/en/high-risk-ip-sample-list"
 
 
 # -----------------------------------------------------------------------------
