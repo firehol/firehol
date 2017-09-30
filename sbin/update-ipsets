@@ -132,11 +132,11 @@ $RENICE_CMD 10 $$ >/dev/null 2>/dev/null
 
 error() {
 	echo >&2 -e "${COLOR_BGRED}${COLOR_WHITE}${COLOR_BOLD} ERROR ${COLOR_RESET}: ${@}"
-	$LOGGER_CMD -p daemon.info -t "update-ipsets.sh[$$]" "${@}"
+	$LOGGER_CMD -p daemon.err -t "update-ipsets.sh[$$]" "${@}"
 }
 warning() {
 	echo >&2 -e "${COLOR_BGYELLOW}${COLOR_BLACK}${COLOR_BOLD} WARNING ${COLOR_RESET}: ${@}"
-	$LOGGER_CMD -p daemon.info -t "update-ipsets.sh[$$]" "${@}"
+	$LOGGER_CMD -p daemon.warning -t "update-ipsets.sh[$$]" "${@}"
 }
 info() {
 	echo >&2 "${@}"
@@ -337,6 +337,10 @@ PUSH_TO_GIT=${PUSH_TO_GIT-0}
 # ipset will get its own commit, or all files will be
 # committed together
 PUSH_TO_GIT_MERGED=${PUSH_TO_GIT_MERGED-1}
+
+# additional options to add as the git commit/push lines
+PUSH_TO_GIT_COMMIT_OPTIONS=""
+PUSH_TO_GIT_PUSH_OPTIONS=""
 
 # if we will also push github gh-pages
 PUSH_TO_GIT_WEB=${PUSH_TO_GIT_WEB-${PUSH_TO_GIT}}
@@ -850,18 +854,18 @@ commit_to_git() {
 			for d in "${to_be_pushed[@]}" set_file_timestamps.sh
 			do
 				echo "${d}..."
-				$GIT_CMD commit "${d}" -m "${date} update"
+				$GIT_CMD commit ${PUSH_TO_GIT_COMMIT_OPTIONS} "${d}" -m "${date} update"
 			done
 		else
 			# we commit all files together
-			$GIT_CMD commit "${to_be_pushed[@]}" set_file_timestamps.sh -m "${date} update"
+			$GIT_CMD commit ${PUSH_TO_GIT_COMMIT_OPTIONS} "${to_be_pushed[@]}" set_file_timestamps.sh -m "${date} update"
 		fi
 
 		if [ ${PUSH_TO_GIT} -ne 0 ]
 		then
 			echo >&2
 			info "Pushing git commits to remote server"
-			$GIT_CMD push
+			$GIT_CMD push ${PUSH_TO_GIT_PUSH_OPTIONS} 
 		fi
 	fi
 }
@@ -1036,30 +1040,31 @@ copyfile() {
 }
 
 geturl() {
-	local file="${1}" reference="${2}" url="${3}" doptions=() ret= http_code= curl_opts= message=
+	local file="${1}" reference="${2}" url="${3}" doptions=() ret= http_code= curl_opts=() message=
 
 	eval "local doptions=(${4})"
 
-	if [ -z "${reference}" ]
+	if [ -z "${reference}" -o ! -f "${reference}" ]
 		then
 		reference="${RUN_DIR}/geturl-reference"
 		$TOUCH_CMD -t 0001010000 "${reference}"
+	else
+		# copy the timestamp of the reference
+		# to our file - we need this to check it later
+		$TOUCH_CMD -r "${reference}" "${file}"
+		curl_opts+=("--time-cond" "${reference}")
 	fi
 
-	# copy the timestamp of the reference
-	# to our file
-	$TOUCH_CMD -r "${reference}" "${file}"
-
-	curl_opts="--silent"
-	[ ${VERBOSE} -eq 1 ] && curl_opts=
+	[ ${VERBOSE} -eq 0 ] && curl_opts+=("--silent")
 
 	downloader_log verbose "curl ${doptions} '${url}'"
 	http_code=$( \
 		$CURL_CMD --connect-timeout ${MAX_CONNECT_TIME} --max-time ${MAX_DOWNLOAD_TIME} \
 			--retry 0 --fail --compressed --user-agent "${USER_AGENT}" \
-			--time-cond "${reference}" --output "${file}" --remote-time \
+			"${curl_opts[@]}" \
+			--output "${file}" --remote-time \
 			--location --referer "http://iplists.firehol.org/" \
-			${curl_opts} --write-out '%{http_code}' "${doptions[@]}" "${url}" \
+			--write-out '%{http_code}' "${doptions[@]}" "${url}" \
 		)
 	ret=$?
 
@@ -1436,10 +1441,10 @@ ipset_json() {
 	info="$(echo "${info}" | $SED_CMD "s/)/)\n/g" | $SED_CMD "s|\[\(.*\)\](\(.*\))|<a href=\"\2\">\1</a>|g" | $TR_CMD "\n\t" "  ")"
 	info="${info//\"/\\\"}"
 
-	local file_local=
-	local commit_history=
+	local file_local= commit_history= url=
 	if [ -z "${IPSET_TMP_DO_NOT_REDISTRIBUTE[${ipset}]}" ]
 		then
+		url="${IPSET_URL[${ipset}]}"
 		file_local="${LOCAL_COPY_URL}${IPSET_FILE[${ipset}]}"
 		commit_history="${GITHUB_CHANGES_URL}${IPSET_FILE[${ipset}]}"
 	fi
@@ -1470,7 +1475,7 @@ ipset_json() {
 	"maintainer": "${IPSET_MAINTAINER[${ipset}]}",
 	"maintainer_url": "${IPSET_MAINTAINER_URL[${ipset}]}",
 	"info": "${info}",
-	"source": "${IPSET_URL[${ipset}]}",
+	"source": "${url}",
 	"file": "${IPSET_FILE[${ipset}]}",
 	"history": "${ipset}_history.csv",
 	"geolite2": "${geolite2}",
@@ -2288,12 +2293,12 @@ update_web() {
 
 		cd "${WEB_DIR}" || return 1
 		$GIT_CMD add *.json *.csv *.xml
-		$GIT_CMD commit -a -m "$($DATE_CMD -u) update"
+		$GIT_CMD commit ${PUSH_TO_GIT_COMMIT_OPTIONS} -a -m "$($DATE_CMD -u) update"
 
 		if [ ${PUSH_TO_GIT_WEB} -eq 1 ]
 			then
 			echo >&2 "Pushing generated web files to git..."
-			$GIT_CMD push origin gh-pages
+			$GIT_CMD push ${PUSH_TO_GIT_PUSH_OPTIONS} origin gh-pages
 		fi
 
 		cd "${BASE_DIR}" || exit 1
@@ -2660,11 +2665,12 @@ EOFHEADER
 		fi
 		# --- END: Fix bug with duplicate setinfo files ---
 
-		echo >"${BASE_DIR}/${ipset}.setinfo" "[${ipset}](${WEB_URL}${ipset})|${info}|${ipv} hash:${hash}|${quantity}|`if [ ! -z "${url}" ]; then echo "updated every $(mins_to_text ${mins}) from [this link](${url})"; fi`"
 		if [ -z "${IPSET_TMP_DO_NOT_REDISTRIBUTE[${ipset}]}" ]
 			then
+			echo >"${BASE_DIR}/${ipset}.setinfo" "[${ipset}](${WEB_URL}${ipset})|${info}|${ipv} hash:${hash}|${quantity}|updated every $(mins_to_text ${mins})`if [ ! -z "${url}" ]; then echo " from [this link](${url})"; fi`"
 			git_add_if_not_already_added "${dst}"
 		else
+			echo >"${BASE_DIR}/${ipset}.setinfo" "[${ipset}](${WEB_URL}${ipset})|${info}|${ipv} hash:${hash}|${quantity}|updated every $(mins_to_text ${mins})"
 			git_ignore_file "${dst}"
 		fi
 	fi
@@ -3498,7 +3504,7 @@ gz_proxyrss() {
 
 # extract IPs from the maxmind proxy fraud page
 parse_maxmind_proxy_fraud() {
-	$GREP_CMD "href=\"proxy" |\
+	$GREP_CMD "href=\"high-risk-ip-sample/" |\
 		$CUT_CMD -d '>' -f 2 |\
 		$CUT_CMD -d '<' -f 1
 }
@@ -5278,14 +5284,14 @@ update proxyrss $[4*60] "$[24*60] $[7*24*60] $[30*24*60]" ipv4 ip \
 
 # -----------------------------------------------------------------------------
 # Anonymous Proxies
-# https://www.maxmind.com/en/anonymous-proxy-fraudulent-ip-address-list
+# was: https://www.maxmind.com/en/anonymous-proxy-fraudulent-ip-address-list
 
 update maxmind_proxy_fraud $[4*60] 0 ipv4 ip \
-	"https://www.maxmind.com/en/anonymous-proxy-fraudulent-ip-address-list" \
+	"https://www.maxmind.com/en/high-risk-ip-sample-list" \
 	parse_maxmind_proxy_fraud \
 	"anonymizers" \
-	"[MaxMind.com](https://www.maxmind.com/en/anonymous-proxy-fraudulent-ip-address-list) list of anonymous proxy fraudelent IP addresses." \
-	"MaxMind.com" "https://www.maxmind.com/en/anonymous-proxy-fraudulent-ip-address-list"
+	"[MaxMind.com](https://www.maxmind.com/en/high-risk-ip-sample-list) sample list of high-risk IP addresses." \
+	"MaxMind.com" "https://www.maxmind.com/en/high-risk-ip-sample-list"
 
 
 # -----------------------------------------------------------------------------
@@ -5604,13 +5610,19 @@ delete_ipset virbl
 # AutoShun.org
 # http://www.autoshun.org/
 
-update shunlist $[4*60] 0 ipv4 ip \
-	"http://www.autoshun.org/files/shunlist.csv" \
-	csv_comma_first_column \
-	"attacks" \
-	"[AutoShun.org](http://autoshun.org/) IPs identified as hostile by correlating logs from distributed snort installations running the autoshun plugin" \
-	"AutoShun.org" "http://autoshun.org/"
-
+if [ ! -z "${AUTOSHUN_API_KEY}" ]
+	then
+	update shunlist $[4*60] 0 ipv4 ip \
+		"https://www.autoshun.org/download/?api_key=${AUTOSHUN_API_KEY}&format=csv" \
+		csv_comma_first_column \
+		"attacks" \
+		"[AutoShun.org](http://autoshun.org/) IPs identified as hostile by correlating logs from distributed snort installations running the autoshun plugin" \
+		"AutoShun.org" "http://autoshun.org/" \
+		license "Creative Commons Attribution-NonCommercial-NoDerivatives 4.0 International License" \
+		dont_redistribute \
+		dont_enable_with_all \
+		no_if_modified_since
+fi
 
 # -----------------------------------------------------------------------------
 # VoIPBL.org
