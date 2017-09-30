@@ -1441,10 +1441,10 @@ ipset_json() {
 	info="$(echo "${info}" | $SED_CMD "s/)/)\n/g" | $SED_CMD "s|\[\(.*\)\](\(.*\))|<a href=\"\2\">\1</a>|g" | $TR_CMD "\n\t" "  ")"
 	info="${info//\"/\\\"}"
 
-	local file_local=
-	local commit_history=
+	local file_local= commit_history= url=
 	if [ -z "${IPSET_TMP_DO_NOT_REDISTRIBUTE[${ipset}]}" ]
 		then
+		url="${IPSET_URL[${ipset}]}"
 		file_local="${LOCAL_COPY_URL}${IPSET_FILE[${ipset}]}"
 		commit_history="${GITHUB_CHANGES_URL}${IPSET_FILE[${ipset}]}"
 	fi
@@ -1475,7 +1475,7 @@ ipset_json() {
 	"maintainer": "${IPSET_MAINTAINER[${ipset}]}",
 	"maintainer_url": "${IPSET_MAINTAINER_URL[${ipset}]}",
 	"info": "${info}",
-	"source": "${IPSET_URL[${ipset}]}",
+	"source": "${url}",
 	"file": "${IPSET_FILE[${ipset}]}",
 	"history": "${ipset}_history.csv",
 	"geolite2": "${geolite2}",
@@ -2665,11 +2665,12 @@ EOFHEADER
 		fi
 		# --- END: Fix bug with duplicate setinfo files ---
 
-		echo >"${BASE_DIR}/${ipset}.setinfo" "[${ipset}](${WEB_URL}${ipset})|${info}|${ipv} hash:${hash}|${quantity}|`if [ ! -z "${url}" ]; then echo "updated every $(mins_to_text ${mins}) from [this link](${url})"; fi`"
 		if [ -z "${IPSET_TMP_DO_NOT_REDISTRIBUTE[${ipset}]}" ]
 			then
+			echo >"${BASE_DIR}/${ipset}.setinfo" "[${ipset}](${WEB_URL}${ipset})|${info}|${ipv} hash:${hash}|${quantity}|updated every $(mins_to_text ${mins})`if [ ! -z "${url}" ]; then echo " from [this link](${url})"; fi`"
 			git_add_if_not_already_added "${dst}"
 		else
+			echo >"${BASE_DIR}/${ipset}.setinfo" "[${ipset}](${WEB_URL}${ipset})|${info}|${ipv} hash:${hash}|${quantity}|updated every $(mins_to_text ${mins})"
 			git_ignore_file "${dst}"
 		fi
 	fi
@@ -5619,6 +5620,7 @@ if [ ! -z "${AUTOSHUN_API_KEY}" ]
 		"AutoShun.org" "http://autoshun.org/" \
 		license "Creative Commons Attribution-NonCommercial-NoDerivatives 4.0 International License" \
 		dont_redistribute \
+		dont_enable_with_all \
 		no_if_modified_since
 fi
 
