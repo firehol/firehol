@@ -5617,7 +5617,8 @@ if [ ! -z "${AUTOSHUN_API_KEY}" ]
 		"[AutoShun.org](http://autoshun.org/) IPs identified as hostile by correlating logs from distributed snort installations running the autoshun plugin" \
 		"AutoShun.org" "http://autoshun.org/" \
 		license "Creative Commons Attribution-NonCommercial-NoDerivatives 4.0 International License" \
-		dont_redistribute
+		dont_redistribute \
+		no_if_modified_since
 fi
 
 # -----------------------------------------------------------------------------
