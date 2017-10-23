@@ -7383,12 +7383,6 @@ merge firehol_webserver ipv4 both \
 	"attacks" \
 	"A web server IP blacklist made from blocklists that track IPs that should never be used by your web users. (This list includes IPs that are servers hosting malware, bots, etc or users having a long criminal history. This list is to be used on top of firehol_level1, firehol_level2, firehol_level3 and possibly firehol_proxies or firehol_anonymous)." \
 	"FireHOL" "http://iplists.firehol.org/" \
-	hphosts_emd \
-	hphosts_exp \
-	hphosts_fsa \
-	hphosts_hjk \
-	hphosts_psh \
-	hphosts_wrz \
 	maxmind_proxy_fraud \
 	myip \
 	pushing_inertia_blocklist \
