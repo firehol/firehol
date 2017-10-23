@@ -7420,8 +7420,6 @@ merge firehol_webclient ipv4 both \
 	ransomware_online \
 	sslbl_aggressive \
 	cybercrime \
-	atlas_phishing_2d \
-	atlas_fastflux_2d \
 	dyndns_ponmocup \
 	maxmind_proxy_fraud \
 
