@@ -3650,8 +3650,8 @@ finalize_synproxy() {
 		rule table nat chain SYNPROXY2SERVER_OUT action ACCEPT || return 1
 
 		set_work_function -ne "Orphan SYN packet from SYNPROXY"
-		rule table filter chain SYNPROXY2SERVER_IN  action DROP loglimit "ORPHAN SYNPROXY->SERVER filter.IN" || return 1
-		rule table filter chain SYNPROXY2SERVER_OUT action DROP loglimit "ORPHAN SYNPROXY->SERVER filter.OUT" || return 1
+		rule table filter chain SYNPROXY2SERVER_IN  action DROP loglimit "BLOCKED ORPHAN SYNPROXY->SERVER filter.IN" || return 1
+		rule table filter chain SYNPROXY2SERVER_OUT action DROP loglimit "BLOCKED ORPHAN SYNPROXY->SERVER filter.OUT" || return 1
 
 		FIREHOL_NS_CURR="${oldns}"
 	done
@@ -4703,7 +4703,7 @@ mac() {
 			set_work_function "Creating the MAC-MISSMATCH chain (only once)"
 		
 			iptables -t filter -N WRONGMAC
-			rule table filter chain WRONGMAC loglimit "MAC MISSMATCH" action DROP || return 1
+			rule table filter chain WRONGMAC loglimit "BLOCKED MAC MISSMATCH" action DROP || return 1
 		
 			wrongmac_chain=1
 		fi
@@ -4715,7 +4715,7 @@ mac() {
 			set_work_function "Creating the MAC-MISSMATCH chain (only once)"
 
 			ip6tables -t filter -N WRONGMAC
-			rule table filter chain WRONGMAC loglimit "MAC MISSMATCH" action DROP || return 1
+			rule table filter chain WRONGMAC loglimit "BLOCKED MAC MISSMATCH" action DROP || return 1
 
 			wrongmac6_chain=1
 		fi
@@ -5969,7 +5969,7 @@ protection() {
 				set_work_function "Rules for enforcing connection rate per client on '${prface}' for ${work_cmd} '${work_name}'"
 				
 				rule in chain "${mychain}" hashlimit "${pre}_${work_name}_connrate" upto "${rate}" mode srcip "${@}" action return || return 1
-				rule in chain "${mychain}" loglimit "CLIENT CONNECTION RATE REACHED" action drop		|| return 1
+				rule in chain "${mychain}" loglimit "BLOCKED CLIENT CONNECTION RATE REACHED" action drop		|| return 1
 				;;
 
 			connlimit)
@@ -5979,7 +5979,7 @@ protection() {
 				set_work_function "Rules for enforcing connection limit per client on '${prface}' for ${work_cmd} '${work_name}'"
 				
 				rule in chain "${mychain}" connlimit saddr upto "${@}" action return 				|| return 1
-				rule in chain "${mychain}" loglimit "CLIENT CONNECTION LIMIT REACHED" action drop		|| return 1
+				rule in chain "${mychain}" loglimit "BLOCKED CLIENT CONNECTION LIMIT REACHED" action drop		|| return 1
 				;;
 
 			fragments)
@@ -5991,7 +5991,7 @@ protection() {
 			#
 			# 		set_work_function "Rules for protection from packet fragments on '${prface}' for ${work_cmd} '${work_name}'"
 			#
-			# 		rule in chain "${mychain}" loglimit "PACKET FRAGMENTS" action drop || frag_status=$[frag_status+1]
+			# 		rule in chain "${mychain}" loglimit "BLOCKED PACKET FRAGMENTS" action drop || frag_status=$[frag_status+1]
 			# 		pop_namespace
 			# 		if [ $frag_status -gt 0 ]
 			# 		then
@@ -6011,7 +6011,7 @@ protection() {
 				
 				set_work_function "Rules for protection from new TCP connections without the SYN flag set on '${prface}' for ${work_cmd} '${work_name}'"
 				
-				rule in chain "${mychain}" loglimit "NEW TCP w/o SYN" action drop				|| return 1
+				rule in chain "${mychain}" loglimit "BLOCKED NEW TCP w/o SYN" action drop		|| return 1
 				;;
 				
 			icmp-floods)
@@ -6030,7 +6030,7 @@ protection() {
 				burst="${2-50}"
 
 				rule in chain "${mychain}" limit "${rate}" "${burst}" action return				|| return 1
-				rule in chain "${mychain}" loglimit "ICMP FLOOD" action drop					|| return 1
+				rule in chain "${mychain}" loglimit "BLOCKED ICMP FLOOD" action drop			|| return 1
 				;;
 				
 			syn-floods)
@@ -6043,7 +6043,7 @@ protection() {
 				burst="${2-50}"
 
 				rule in chain "${mychain}" limit "${rate}" "${burst}" action return				|| return 1
-				rule in chain "${mychain}" loglimit "SYN FLOOD" action drop					|| return 1
+				rule in chain "${mychain}" loglimit "BLOCKED SYN FLOOD" action drop				|| return 1
 				;;
 				
 			all-floods)
@@ -6056,7 +6056,7 @@ protection() {
 				burst="${2-50}"
 
 				rule in chain "${mychain}" limit "${rate}" "${burst}" action return				|| return 1
-				rule in chain "${mychain}" loglimit "ALL FLOOD" action drop					|| return 1
+				rule in chain "${mychain}" loglimit "BLOCKED ALL FLOOD" action drop				|| return 1
 				;;
 				
 			malformed-xmas)
@@ -6065,7 +6065,7 @@ protection() {
 				
 				set_work_function "Rules for protection from packets with all TCP flags set on '${prface}' for ${work_cmd} '${work_name}'"
 				
-				rule in chain "${mychain}" loglimit "MALFORMED XMAS" action drop				|| return 1
+				rule in chain "${mychain}" loglimit "BLOCKED MALFORMED XMAS" action drop		|| return 1
 				;;
 				
 			malformed-null)
@@ -6074,7 +6074,7 @@ protection() {
 				
 				set_work_function "Rules for protection from packets with all TCP flags unset on '${prface}' for ${work_cmd} '${work_name}'"
 				
-				rule in chain "${mychain}" loglimit "MALFORMED NULL" action drop				|| return 1
+				rule in chain "${mychain}" loglimit "BLOCKED MALFORMED NULL" action drop		|| return 1
 				;;
 				
 			malformed-bad)
@@ -6087,7 +6087,7 @@ protection() {
 				rule in chain "${in}_${work_name}" action "${mychain}"   proto tcp custom "--tcp-flags ALL     SYN,RST,ACK,FIN,URG"	|| return 1
 				rule in chain "${in}_${work_name}" action "${mychain}"   proto tcp custom "--tcp-flags ALL     FIN,URG,PSH"		|| return 1
 				
-				rule in chain "${mychain}" loglimit "MALFORMED BAD" action drop								|| return 1
+				rule in chain "${mychain}" loglimit "BLOCKED MALFORMED BAD" action drop			|| return 1
 				;;
 				
 			*)
@@ -6457,8 +6457,8 @@ close_interface() {
 			;;
 		
 		*)	
-			inlog=(loglimit "IN-${work_name}")
-			outlog=(loglimit "OUT-${work_name}")
+			inlog=(loglimit "UNMATCHED IN-${work_name}")
+			outlog=(loglimit "UNMATCHED OUT-${work_name}")
 			;;
 	esac
 
@@ -6511,8 +6511,8 @@ close_router() {
 			;;
 		
 		*)	
-			inlog=(loglimit "PASS-${work_name}")
-			outlog=(loglimit "PASS-${work_name}")
+			inlog=(loglimit "UNMATCHED PASS-${work_name}")
+			outlog=(loglimit "UNMATCHED PASS-${work_name}")
 			;;
 	esac
 	
@@ -6609,9 +6609,9 @@ close_master() {
 	#iptables -A FORWARD -m conntrack --ctstate RELATED -j ACCEPT
 
 	set_work_function "Setting default unmatched policy (options: UNMATCHED_INPUT_POLICY UNMATCHED_OUTPUT_POLICY UNMATCHED_ROUTER_POLICY)"
-	rule chain INPUT loglimit "IN-unknown" action ${UNMATCHED_INPUT_POLICY} || return 1
-	rule chain OUTPUT loglimit "OUT-unknown" action ${UNMATCHED_OUTPUT_POLICY} || return 1
-	rule chain FORWARD loglimit "PASS-unknown" action ${UNMATCHED_ROUTER_POLICY} || return 1
+	rule chain INPUT loglimit "UNMATCHED IN-unknown" action ${UNMATCHED_INPUT_POLICY} || return 1
+	rule chain OUTPUT loglimit "UNMATCHED OUT-unknown" action ${UNMATCHED_OUTPUT_POLICY} || return 1
+	rule chain FORWARD loglimit "UNMATCHED PASS-unknown" action ${UNMATCHED_ROUTER_POLICY} || return 1
 
 	# ---------------------------------------------------------------------
 	# execute all postprocessing commands for this firewall
