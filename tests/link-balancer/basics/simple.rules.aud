@@ -1,5 +1,5 @@
-0:	from all lookup local 
-1100:	from all fwmark 0x1/0x3f lookup 2 
-1200:	from all fwmark 0x2/0x3f lookup 3 
-32766:	from all lookup main 
-32767:	from all lookup default 
+0:	from all lookup local
+1100:	from all fwmark 0x1/0x3f lookup 2
+1200:	from all fwmark 0x2/0x3f lookup 3
+32766:	from all lookup main
+32767:	from all lookup default

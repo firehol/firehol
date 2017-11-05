@@ -1,0 +1,9 @@
+#!/usr/bin/perl -w
+
+my @lines;
+while (<>) {
+  s/ memory_limit [^ ]*//g;
+  push @lines, $_;
+}
+
+print sort @lines;
