@@ -1399,7 +1399,7 @@ postprocess_echo_to() { echo "\${1}" >"\${2}"; }
 postprocess_wait_netfilter() {
 	maxwait=60
 	waiting=0
-	while [ ! -f /proc/sys/net/netfilter/nf_conntrack_max -a \${waiting} -le \${maxwait} ]
+	while [ ! -f /proc/sys/net/netfilter/nf_conntrack_tcp_max_retrans -a \${waiting} -le \${maxwait} ]
 	do
 		echo >&2 "netfilter is not ready; waiting \${waiting} of \${maxwait}"
 		${SLEEP_CMD} 1

@@ -1,4 +1,4 @@
-qdisc htb 1: root refcnt 2 r2q 1 default 8000 direct_packets_stat 0 direct_qlen 1000
 qdisc fq_codel 11: parent 1:11 limit 10240p flows 1024 quantum 1514 target 5.0ms interval 100.0ms ecn 
 qdisc fq_codel 12: parent 1:8000 limit 10240p flows 1024 quantum 1514 target 5.0ms interval 100.0ms ecn 
+qdisc htb 1: root refcnt 2 r2q 1 default 8000 direct_packets_stat 0 direct_qlen 1000
 qdisc ingress ffff: parent ffff:fff1 ---------------- 
