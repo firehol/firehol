@@ -12522,7 +12522,7 @@ file close 22
 if [ -s "${FIREHOL_OUTPUT}.postprocess2" ]
 then
 	progress "Executing postprocess2 commands"
-	sh "${FIREHOL_OUTPUT}.postprocess2"
+	${SH_CMD} "${FIREHOL_OUTPUT}.postprocess2"
 	success
 fi
 
