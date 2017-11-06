@@ -12521,7 +12521,7 @@ success # "Activating new firewall (${FIREHOL_COMMAND_COUNTER} rules)"
 file close 22
 if [ -s "${FIREHOL_OUTPUT}.postprocess2" ]
 then
-	progress "Executing postprocess2 commands..."
+	progress "Executing postprocess2 commands"
 	sh "${FIREHOL_OUTPUT}.postprocess2"
 	success
 fi
