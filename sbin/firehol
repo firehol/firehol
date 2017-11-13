@@ -1419,6 +1419,9 @@ source "${FIREHOL_DIR}/firewall_restore_commands.sh"
 # when FAST_ACTIVATION is zero
 file open 21 "${FIREHOL_OUTPUT}" w || exit 1
 
+# prepare the file that will host postprocess2 commands
+file open 22 "${FIREHOL_OUTPUT}.postprocess2" w || exit 1
+
 # Make sure we have a directory for our data.
 if [ ! -d "${FIREHOL_SPOOL_DIR}" ]
 then
@@ -5783,6 +5786,53 @@ postprocess() {
 			printf " >${FIREHOL_OUTPUT}.log 2>&1 || runtime_error ${check} \$? '${LAST_CONFIG_LINE}' " >&21
 			printf "%q " "${@}" >&21
 			printf "\n" >&21
+			;;
+	esac
+	
+	test $save -eq 1 && save_for_restore ${check} "${@}"
+
+	return 0
+}
+
+postprocess2() {
+	# if the caller is not from the program file, get the config line calling us
+	[ ! "${BASH_SOURCE[1]}" = "${PROGRAM_FILE}" ] && work_realcmd_helper ${FUNCNAME} "${@}"
+	
+	local check="error" save=1
+	while [ ! "A${1}" = "A" ]
+	do
+		case "A${1}" in
+			A-ne) shift; check="none";;
+			A-warn) shift; check="warn";;
+			A-ns) shift; save=0;;
+			*) break;;
+		esac
+	done
+
+	if [ "${FIREHOL_MODE}" = "EXPLAIN" ]
+	then
+		printf "%q " "${@}"
+		printf "\n"
+		return 0
+	elif [ "${FIREHOL_MODE}" = "DEBUG" ]
+	then
+		check="debug"
+	fi
+	
+	printf "%q " "${@}" >&22
+	case "${check}" in
+		debug)	printf "\n" >&22
+			;;
+
+		none)	printf " >/dev/null 2>&1 || echo >/dev/null\n" >&22
+			;;
+
+		warn|error)
+			# do not run config_line here, it is very slow
+			# config_line -ne
+			printf " >${FIREHOL_OUTPUT}.log 2>&1 || runtime_error ${check} \$? '${LAST_CONFIG_LINE}' " >&22
+			printf "%q " "${@}" >&22
+			printf "\n" >&22
 			;;
 	esac
 	
@@ -12467,6 +12517,14 @@ then
 	exit 1
 fi
 success # "Activating new firewall (${FIREHOL_COMMAND_COUNTER} rules)"
+
+file close 22
+if [ -s "${FIREHOL_OUTPUT}.postprocess2" ]
+then
+	progress "Executing postprocess2 commands"
+	${SH_CMD} "${FIREHOL_OUTPUT}.postprocess2"
+	success
+fi
 
 if [ ${FIREHOL_TRY} -eq 1 ]
 then
