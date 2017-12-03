@@ -5929,13 +5929,15 @@ update bds_atif $[24*60] 0 ipv4 ip \
 
 # -----------------------------------------------------------------------------
 # TrustedSec.com
+# https://github.com/firehol/blocklist-ipsets/issues/47
 
-update trustedsec_atif $[24*60] 0 ipv4 ip \
-	"https://www.trustedsec.com/banlist.txt" \
-	remove_comments \
-	"reputation" \
-	"Artillery Threat Intelligence Feed and Banlist Feed" \
-	"TrustedSec" "https://www.trustedsec.com/"
+delete_ipset trustedsec_atif
+#update trustedsec_atif $[24*60] 0 ipv4 ip \
+#	"https://www.trustedsec.com/banlist.txt" \
+#	remove_comments \
+#	"reputation" \
+#	"Artillery Threat Intelligence Feed and Banlist Feed" \
+#	"TrustedSec" "https://www.trustedsec.com/"
 
 
 # -----------------------------------------------------------------------------
