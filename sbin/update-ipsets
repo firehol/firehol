@@ -5760,7 +5760,7 @@ update dataplane_dnsversion 60 0 ipv4 ip \
 # HTTP report
 # http://www.dragonresearchgroup.org/
 
-dragon_column3() { remove_comments | $CUT_CMD -d '|' -f 3 | trim; }
+#dragon_column3() { remove_comments | $CUT_CMD -d '|' -f 3 | trim; }
 
 delete_ipset dragon_http
 #update dragon_http 60 0 ipv4 both \
