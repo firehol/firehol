@@ -6846,6 +6846,8 @@ badipscom() {
 		then
 		for x in ${categories}
 		do
+			ipset_shall_be_run "bi_${x}_0_1d"
+			ipset_shall_be_run "bi_${x}_1_7d"
 			ipset_shall_be_run "bi_${x}_2_30d"
 		done
 	fi
@@ -6859,10 +6861,10 @@ badipscom() {
 		for file in $(cd "${BASE_DIR}"; $LS_CMD 2>/dev/null bi_${category}*.source)
 		do
 			count=$[count + 1]
-			if [[ "${file}" =~ ^bi_${category}_[0-9\.]+_[0-9]+[dwmy].source$ ]]
+			if [[ "${file}" =~ ^bi_.*_[0-9\.]+_[0-9]+[dwmy].source$ ]]
 				then
 				# score and age present
-				i="$(echo "${file}" | $SED_CMD "s|^bi_${category}_\([0-9\.]\+\)_\([0-9]\+[dwmy]\)\.source|\1;\2|g")"
+				i="$(echo "${file}" | $SED_CMD "s|^bi_.*_\([0-9\.]\+\)_\([0-9]\+[dwmy]\)\.source|\1;\2|g")"
 				score=${i/;*/}
 				age="${i/*;/}"
 				ipset="bi_${category}_${score}_${age}"
@@ -6874,10 +6876,10 @@ badipscom() {
 					continue
 				fi
 
-			elif [[ "${file}" =~ ^bi_${category}_[0-9]+[dwmy].source$ ]]
+			elif [[ "${file}" =~ ^bi_.*_[0-9]+[dwmy].source$ ]]
 				then
 				# age present
-				age="$(echo "${file}" | $SED_CMD "s|^bi_${category}_\([0-9]\+[dwmy]\)\.source|\1|g")"
+				age="$(echo "${file}" | $SED_CMD "s|^bi_.*_\([0-9]\+[dwmy]\)\.source|\1|g")"
 				score=0
 				ipset="bi_${category}_${age}"
 				url="https://www.badips.com/get/list/${category}/${score}?age=${age}"
@@ -6888,10 +6890,10 @@ badipscom() {
 					continue
 				fi
 
-			elif [[ "${file}" =~ ^bi_${category}_[0-9\.]+.source$ ]]
+			elif [[ "${file}" =~ ^bi_.*_[0-9\.]+.source$ ]]
 				then
 				# score present
-				score="$(echo "${file}" | $SED_CMD "s|^bi_${category}_\([0-9\.]\+\)\.source|\1|g")"
+				score="$(echo "${file}" | $SED_CMD "s|^bi_.*_\([0-9\.]\+\)\.source|\1|g")"
 				age=
 				ipset="bi_${category}_${score}"
 				url="https://www.badips.com/get/list/${category}/${score}"
