@@ -5900,12 +5900,13 @@ update vxvault $[12 * 60] 0 ipv4 ip \
 # -----------------------------------------------------------------------------
 # Bitcoin connected hosts
 
-update bitcoin_blockchain_info 10 "$[24*60] $[7*24*60] $[30*24*60]" ipv4 ip \
-	"https://blockchain.info/en/connected-nodes" \
-	extract_ipv4_from_any_file \
-	"organizations" \
-	"[Blockchain.info](https://blockchain.info/en/connected-nodes) Bitcoin nodes connected to Blockchain.info." \
-	"Blockchain.info" "https://blockchain.info/en/connected-nodes"
+delete_ipset bitcoin_blockchain_info
+#update bitcoin_blockchain_info 10 "$[24*60] $[7*24*60] $[30*24*60]" ipv4 ip \
+#	"https://blockchain.info/en/connected-nodes" \
+#	extract_ipv4_from_any_file \
+#	"organizations" \
+#	"[Blockchain.info](https://blockchain.info/en/connected-nodes) Bitcoin nodes connected to Blockchain.info." \
+#	"Blockchain.info" "https://blockchain.info/en/connected-nodes"
 
 update bitcoin_nodes 10 "$[24*60] $[7*24*60] $[30*24*60]" ipv4 ip \
 	"https://getaddr.bitnodes.io/api/v1/snapshots/latest/" \
