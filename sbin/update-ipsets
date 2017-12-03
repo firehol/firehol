@@ -7335,9 +7335,6 @@ merge firehol_level3 ipv4 both \
 	"FireHOL" "http://iplists.firehol.org/" \
 	bruteforceblocker \
 	ciarmy \
-	dragon_http \
-	dragon_sshpauth \
-	dragon_vncprobe \
 	dshield_30d \
 	dshield_top_1000 \
 	malc0de \
