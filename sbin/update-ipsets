@@ -5145,7 +5145,7 @@ update myip $[24*60] 0 ipv4 ip \
 update bogons $[24*60] 0 ipv4 both \
 	"http://www.team-cymru.org/Services/Bogons/bogon-bn-agg.txt" \
 	remove_comments \
-	"unrouteable" \
+	"unroutable" \
 	"[Team-Cymru.org](http://www.team-cymru.org) private and reserved addresses defined by RFC 1918, RFC 5735, and RFC 6598 and netblocks that have not been allocated to a regional internet registry" \
 	"Team Cymru" "http://www.team-cymru.org/" \
 	dont_redistribute
@@ -5158,7 +5158,7 @@ update bogons $[24*60] 0 ipv4 both \
 update fullbogons $[24*60] 0 ipv4 both \
 	"http://www.team-cymru.org/Services/Bogons/fullbogons-ipv4.txt" \
 	remove_comments \
-	"unrouteable" \
+	"unroutable" \
 	"[Team-Cymru.org](http://www.team-cymru.org) IP space that has been allocated to an RIR, but not assigned by that RIR to an actual ISP or other end-user" \
 	"Team Cymru" "http://www.team-cymru.org/" \
 	dont_redistribute
@@ -5166,7 +5166,7 @@ update fullbogons $[24*60] 0 ipv4 both \
 #update fullbogons6 $[24*60-10] ipv6 both \
 #	"http://www.team-cymru.org/Services/Bogons/fullbogons-ipv6.txt" \
 #	remove_comments \
-#	"unrouteable" \
+#	"unroutable" \
 #	"Team-Cymru.org provided" \
 #	"Team Cymru" "http://www.team-cymru.org/" \
 #	dont_redistribute
@@ -5177,7 +5177,7 @@ update fullbogons $[24*60] 0 ipv4 both \
 update cidr_report_bogons $[24*60] 0 ipv4 both \
 	"http://www.cidr-report.org/bogons/freespace-prefix.txt" \
 	remove_comments \
-	"unrouteable" \
+	"unroutable" \
 	"Unallocated (Free) Address Space, generated on a daily basis using the IANA registry files, the Regional Internet Registry stats files and the Regional Internet Registry whois data." \
 	"CIDR-Report.org" "http://www.cidr-report.org"
 
@@ -6339,7 +6339,7 @@ update iblocklist_rangetest $[12*60] 0 ipv4 both \
 update iblocklist_bogons $[12*60] 0 ipv4 both \
 	"http://list.iblocklist.com/?list=gihxqmhyunbxhbmgqrla&fileformat=p2p&archiveformat=gz" \
 	p2p_gz \
-	"unrouteable" \
+	"unroutable" \
 	"Unallocated address space." \
 	"iBlocklist.com" "https://www.iblocklist.com/" \
 	dont_redistribute
@@ -6379,7 +6379,7 @@ update iblocklist_dshield $[12*60] 0 ipv4 both \
 update iblocklist_iana_reserved $[12*60] 0 ipv4 both \
 	"http://list.iblocklist.com/?list=bcoepfyewziejvcqyhqo&fileformat=p2p&archiveformat=gz" \
 	p2p_gz \
-	"unrouteable" \
+	"unroutable" \
 	"IANA Reserved IPs." \
 	"iBlocklist.com" "https://www.iblocklist.com/" \
 	dont_redistribute
@@ -6387,7 +6387,7 @@ update iblocklist_iana_reserved $[12*60] 0 ipv4 both \
 update iblocklist_iana_private $[12*60] 0 ipv4 both \
 	"http://list.iblocklist.com/?list=cslpybexmxyuacbyuvib&fileformat=p2p&archiveformat=gz" \
 	p2p_gz \
-	"unrouteable" \
+	"unroutable" \
 	"IANA Private IPs." \
 	"iBlocklist.com" "https://www.iblocklist.com/" \
 	dont_redistribute
@@ -6395,7 +6395,7 @@ update iblocklist_iana_private $[12*60] 0 ipv4 both \
 update iblocklist_iana_multicast $[12*60] 0 ipv4 both \
 	"http://list.iblocklist.com/?list=pwqnlynprfgtjbgqoizj&fileformat=p2p&archiveformat=gz" \
 	p2p_gz \
-	"unrouteable" \
+	"unroutable" \
 	"IANA Multicast IPs." \
 	"iBlocklist.com" "https://www.iblocklist.com/" \
 	dont_redistribute
@@ -6490,7 +6490,7 @@ update iblocklist_malc0de $[12*60] 0 ipv4 both \
 update iblocklist_cidr_report_bogons $[12*60] 0 ipv4 both \
 	"http://list.iblocklist.com/?list=lujdnbasfaaixitgmxpp&fileformat=p2p&archiveformat=gz" \
 	p2p_gz \
-	"unrouteable" \
+	"unroutable" \
 	"cidr-report.org IP list of Unallocated address space." \
 	"iBlocklist.com" "https://www.iblocklist.com/"
 
