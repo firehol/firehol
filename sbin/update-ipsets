@@ -5275,14 +5275,15 @@ update proxylists 60 "$[24*60] $[7*24*60] $[30*24*60]" ipv4 ip \
 # Open Proxies from proxyspy.net
 # http://spys.ru/en/
 
-parse_proxyspy() { remove_comments | $CUT_CMD -d ':' -f 1; }
+#parse_proxyspy() { remove_comments | $CUT_CMD -d ':' -f 1; }
 
-update proxyspy 60 "$[24*60] $[7*24*60] $[30*24*60]" ipv4 ip \
-	"http://txt.proxyspy.net/proxy.txt" \
-	parse_proxyspy \
-	"anonymizers" \
-	"[ProxySpy](http://spys.ru/en/) open proxies (updated hourly)" \
-	"ProxySpy (spys.ru)" "http://spys.ru/en/"
+delete_ipset proxyspy
+#update proxyspy 60 "$[24*60] $[7*24*60] $[30*24*60]" ipv4 ip \
+#	"http://txt.proxyspy.net/proxy.txt" \
+#	parse_proxyspy \
+#	"anonymizers" \
+#	"[ProxySpy](http://spys.ru/en/) open proxies (updated hourly)" \
+#	"ProxySpy (spys.ru)" "http://spys.ru/en/"
 
 
 # -----------------------------------------------------------------------------
@@ -7407,7 +7408,6 @@ merge firehol_proxies ipv4 both \
 	maxmind_proxy_fraud \
 	proxylists_30d \
 	proxyrss_30d proxz_30d \
-	proxyspy_30d \
 	ri_connect_proxies_30d \
 	ri_web_proxies_30d \
 	socks_proxy_30d \
