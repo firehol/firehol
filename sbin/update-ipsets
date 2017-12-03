@@ -5469,14 +5469,16 @@ update iw_spamlist 60 0 ipv4 ip \
 	antispam_ips \
 	"spam" \
 	"[ImproWare Antispam](http://antispam.imp.ch/) IPs sending spam, in the last 3 days" \
-	"ImproWare Antispam" "http://antispam.imp.ch/"
+	"ImproWare Antispam" "http://antispam.imp.ch/" \
+	can_be_empty
 
 update iw_wormlist 60 0 ipv4 ip \
 	"http://antispam.imp.ch/wormlist" \
 	antispam_ips \
 	"spam" \
 	"[ImproWare Antispam](http://antispam.imp.ch/) IPs sending emails with viruses or worms, in the last 3 days" \
-	"ImproWare Antispam" "http://antispam.imp.ch/"
+	"ImproWare Antispam" "http://antispam.imp.ch/" \
+	can_be_empty
 
 
 # -----------------------------------------------------------------------------
@@ -6107,21 +6109,24 @@ update cleantalk_new $[15] "$[24*60] $[7*24*60] $[30*24*60]" ipv4 ip \
 	parse_cleantalk \
 	"abuse" \
 	"[CleanTalk](https://cleantalk.org/) Recent HTTP Spammers" \
-	"CleanTalk" "https://cleantalk.org/"
+	"CleanTalk" "https://cleantalk.org/" \
+	can_be_empty
 
 update cleantalk_updated $[15] "$[24*60] $[7*24*60] $[30*24*60]" ipv4 ip \
 	"https://cleantalk.org/blacklists/updated_today" \
 	parse_cleantalk \
 	"abuse" \
 	"[CleanTalk](https://cleantalk.org/) Recurring HTTP Spammers" \
-	"CleanTalk" "https://cleantalk.org/"
+	"CleanTalk" "https://cleantalk.org/" \
+	can_be_empty
 
 update cleantalk_top20 $[24*60] 0 ipv4 ip \
 	"https://cleantalk.org/blacklists/top20" \
 	parse_cleantalk \
 	"abuse" \
 	"[CleanTalk](https://cleantalk.org/) Top 20 HTTP Spammers" \
-	"CleanTalk" "https://cleantalk.org/"
+	"CleanTalk" "https://cleantalk.org/" \
+	can_be_empty
 
 merge cleantalk ipv4 ip \
 	"abuse" \
