@@ -5995,54 +5995,57 @@ update nullsecure $[8*60] 0 ipv4 ip \
 # -----------------------------------------------------------------------------
 # http://www.chaosreigns.com/
 
-parse_chaosreigns_once() {
-	local wanted="${1}"
+#parse_chaosreigns_once() {
+#	local wanted="${1}"
+#
+#	if [ ! -f "${RUN_DIR}/${wanted}.source" ]
+#		then
+#		# parse the source and split it to all files in RUN_DIR
+#		$GAWK_CMD	>&2 "
+#			/^[[:space:]]*[[:digit:]\./]+[[:space:]]+100[[:space:]]+[[:digit:]]+\$/          { print \$1 >\"${RUN_DIR}/chaosreigns_iprep100.source\"; next; }
+#			/^[[:space:]]*[[:digit:]\./]+[[:space:]]+0[[:space:]]+[[:digit:]]+\$/            { print \$1 >\"${RUN_DIR}/chaosreigns_iprep0.source\"; next; }
+#			/^[[:space:]]*[[:digit:]\./]+[[:space:]]+[[:digit:]]+[[:space:]]+[[:digit:]]+\$/ { print \$1 >\"${RUN_DIR}/chaosreigns_iprep50.source\"; next; }
+#			// { print \$1 >\"${RUN_DIR}/chaosreigns_iprep_invalid.source\"; next; }
+#			"
+#	else
+#		# ignore the source being fed to us
+#		$CAT_CMD >/dev/null
+#	fi
+#	
+#	# give the parsed output
+#	$CAT_CMD "${RUN_DIR}/${wanted}.source"
+#
+#	# make sure all the variations have the same source
+#	ipsets_with_common_source_file "chaosreigns_iprep100" "chaosreigns_iprep50" "chaosreigns_iprep0"
+#}
 
-	if [ ! -f "${RUN_DIR}/${wanted}.source" ]
-		then
-		# parse the source and split it to all files in RUN_DIR
-		$GAWK_CMD	>&2 "
-			/^[[:space:]]*[[:digit:]\./]+[[:space:]]+100[[:space:]]+[[:digit:]]+\$/          { print \$1 >\"${RUN_DIR}/chaosreigns_iprep100.source\"; next; }
-			/^[[:space:]]*[[:digit:]\./]+[[:space:]]+0[[:space:]]+[[:digit:]]+\$/            { print \$1 >\"${RUN_DIR}/chaosreigns_iprep0.source\"; next; }
-			/^[[:space:]]*[[:digit:]\./]+[[:space:]]+[[:digit:]]+[[:space:]]+[[:digit:]]+\$/ { print \$1 >\"${RUN_DIR}/chaosreigns_iprep50.source\"; next; }
-			// { print \$1 >\"${RUN_DIR}/chaosreigns_iprep_invalid.source\"; next; }
-			"
-	else
-		# ignore the source being fed to us
-		$CAT_CMD >/dev/null
-	fi
-	
-	# give the parsed output
-	$CAT_CMD "${RUN_DIR}/${wanted}.source"
+#parse_chaosreigns_iprep100() { parse_chaosreigns_once chaosreigns_iprep100; }
+#parse_chaosreigns_iprep50()  { parse_chaosreigns_once chaosreigns_iprep50;  }
+#parse_chaosreigns_iprep0()   { parse_chaosreigns_once chaosreigns_iprep0;   }
 
-	# make sure all the variations have the same source
-	ipsets_with_common_source_file "chaosreigns_iprep100" "chaosreigns_iprep50" "chaosreigns_iprep0"
-}
+delete_ipset chaosreigns_iprep100
+#update chaosreigns_iprep100 $[24*60] 0 ipv4 ip \
+#	"http://www.chaosreigns.com/iprep/iprep.txt" \
+#	parse_chaosreigns_iprep100 \
+#	"spam" \
+#	"[ChaosReigns.com](http://www.chaosreigns.com/iprep) The iprep100 list includes all IPs that sent 100% ham emails. This is an automated, free, public email IP reputation system. The primary goal is a whitelist. Other data is provided as a consequence." \
+#	"ChaosReigns.com" "http://www.chaosreigns.com/iprep"
 
-parse_chaosreigns_iprep100() { parse_chaosreigns_once chaosreigns_iprep100; }
-parse_chaosreigns_iprep50()  { parse_chaosreigns_once chaosreigns_iprep50;  }
-parse_chaosreigns_iprep0()   { parse_chaosreigns_once chaosreigns_iprep0;   }
+delete_ipset chaosreigns_iprep50
+#update chaosreigns_iprep50 $[24*60] 0 ipv4 ip \
+#	"http://www.chaosreigns.com/iprep/iprep.txt" \
+#	parse_chaosreigns_iprep50 \
+#	"spam" \
+#	"[ChaosReigns.com](http://www.chaosreigns.com/iprep) The iprep50 list includes all IPs that sent both ham and spam emails. This is an automated, free, public email IP reputation system. The primary goal is a whitelist. Other data is provided as a consequence." \
+#	"ChaosReigns.com" "http://www.chaosreigns.com/iprep"
 
-update chaosreigns_iprep100 $[24*60] 0 ipv4 ip \
-	"http://www.chaosreigns.com/iprep/iprep.txt" \
-	parse_chaosreigns_iprep100 \
-	"spam" \
-	"[ChaosReigns.com](http://www.chaosreigns.com/iprep) The iprep100 list includes all IPs that sent 100% ham emails. This is an automated, free, public email IP reputation system. The primary goal is a whitelist. Other data is provided as a consequence." \
-	"ChaosReigns.com" "http://www.chaosreigns.com/iprep"
-
-update chaosreigns_iprep50 $[24*60] 0 ipv4 ip \
-	"http://www.chaosreigns.com/iprep/iprep.txt" \
-	parse_chaosreigns_iprep50 \
-	"spam" \
-	"[ChaosReigns.com](http://www.chaosreigns.com/iprep) The iprep50 list includes all IPs that sent both ham and spam emails. This is an automated, free, public email IP reputation system. The primary goal is a whitelist. Other data is provided as a consequence." \
-	"ChaosReigns.com" "http://www.chaosreigns.com/iprep"
-
-update chaosreigns_iprep0 $[24*60] 0 ipv4 ip \
-	"http://www.chaosreigns.com/iprep/iprep.txt" \
-	parse_chaosreigns_iprep0 \
-	"spam" \
-	"[ChaosReigns.com](http://www.chaosreigns.com/iprep) The iprep0 list includes all IPs that sent only spam emails. This is an automated, free, public email IP reputation system. The primary goal is a whitelist. Other data is provided as a consequence." \
-	"ChaosReigns.com" "http://www.chaosreigns.com/iprep"
+delete_ipset chaosreigns_iprep0
+#update chaosreigns_iprep0 $[24*60] 0 ipv4 ip \
+#	"http://www.chaosreigns.com/iprep/iprep.txt" \
+#	parse_chaosreigns_iprep0 \
+#	"spam" \
+#	"[ChaosReigns.com](http://www.chaosreigns.com/iprep) The iprep0 list includes all IPs that sent only spam emails. This is an automated, free, public email IP reputation system. The primary goal is a whitelist. Other data is provided as a consequence." \
+#	"ChaosReigns.com" "http://www.chaosreigns.com/iprep"
 
 
 # -----------------------------------------------------------------------------
