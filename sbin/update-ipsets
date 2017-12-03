@@ -5145,7 +5145,7 @@ update myip $[24*60] 0 ipv4 ip \
 update bogons $[24*60] 0 ipv4 both \
 	"http://www.team-cymru.org/Services/Bogons/bogon-bn-agg.txt" \
 	remove_comments \
-	"unrouteable" \
+	"unroutable" \
 	"[Team-Cymru.org](http://www.team-cymru.org) private and reserved addresses defined by RFC 1918, RFC 5735, and RFC 6598 and netblocks that have not been allocated to a regional internet registry" \
 	"Team Cymru" "http://www.team-cymru.org/" \
 	dont_redistribute
@@ -5158,7 +5158,7 @@ update bogons $[24*60] 0 ipv4 both \
 update fullbogons $[24*60] 0 ipv4 both \
 	"http://www.team-cymru.org/Services/Bogons/fullbogons-ipv4.txt" \
 	remove_comments \
-	"unrouteable" \
+	"unroutable" \
 	"[Team-Cymru.org](http://www.team-cymru.org) IP space that has been allocated to an RIR, but not assigned by that RIR to an actual ISP or other end-user" \
 	"Team Cymru" "http://www.team-cymru.org/" \
 	dont_redistribute
@@ -5166,7 +5166,7 @@ update fullbogons $[24*60] 0 ipv4 both \
 #update fullbogons6 $[24*60-10] ipv6 both \
 #	"http://www.team-cymru.org/Services/Bogons/fullbogons-ipv6.txt" \
 #	remove_comments \
-#	"unrouteable" \
+#	"unroutable" \
 #	"Team-Cymru.org provided" \
 #	"Team Cymru" "http://www.team-cymru.org/" \
 #	dont_redistribute
@@ -5177,7 +5177,7 @@ update fullbogons $[24*60] 0 ipv4 both \
 update cidr_report_bogons $[24*60] 0 ipv4 both \
 	"http://www.cidr-report.org/bogons/freespace-prefix.txt" \
 	remove_comments \
-	"unrouteable" \
+	"unroutable" \
 	"Unallocated (Free) Address Space, generated on a daily basis using the IANA registry files, the Regional Internet Registry stats files and the Regional Internet Registry whois data." \
 	"CIDR-Report.org" "http://www.cidr-report.org"
 
@@ -5275,14 +5275,15 @@ update proxylists 60 "$[24*60] $[7*24*60] $[30*24*60]" ipv4 ip \
 # Open Proxies from proxyspy.net
 # http://spys.ru/en/
 
-parse_proxyspy() { remove_comments | $CUT_CMD -d ':' -f 1; }
+#parse_proxyspy() { remove_comments | $CUT_CMD -d ':' -f 1; }
 
-update proxyspy 60 "$[24*60] $[7*24*60] $[30*24*60]" ipv4 ip \
-	"http://txt.proxyspy.net/proxy.txt" \
-	parse_proxyspy \
-	"anonymizers" \
-	"[ProxySpy](http://spys.ru/en/) open proxies (updated hourly)" \
-	"ProxySpy (spys.ru)" "http://spys.ru/en/"
+delete_ipset proxyspy
+#update proxyspy 60 "$[24*60] $[7*24*60] $[30*24*60]" ipv4 ip \
+#	"http://txt.proxyspy.net/proxy.txt" \
+#	parse_proxyspy \
+#	"anonymizers" \
+#	"[ProxySpy](http://spys.ru/en/) open proxies (updated hourly)" \
+#	"ProxySpy (spys.ru)" "http://spys.ru/en/"
 
 
 # -----------------------------------------------------------------------------
@@ -5468,14 +5469,16 @@ update iw_spamlist 60 0 ipv4 ip \
 	antispam_ips \
 	"spam" \
 	"[ImproWare Antispam](http://antispam.imp.ch/) IPs sending spam, in the last 3 days" \
-	"ImproWare Antispam" "http://antispam.imp.ch/"
+	"ImproWare Antispam" "http://antispam.imp.ch/" \
+	can_be_empty
 
 update iw_wormlist 60 0 ipv4 ip \
 	"http://antispam.imp.ch/wormlist" \
 	antispam_ips \
 	"spam" \
 	"[ImproWare Antispam](http://antispam.imp.ch/) IPs sending emails with viruses or worms, in the last 3 days" \
-	"ImproWare Antispam" "http://antispam.imp.ch/"
+	"ImproWare Antispam" "http://antispam.imp.ch/" \
+	can_be_empty
 
 
 # -----------------------------------------------------------------------------
@@ -5760,31 +5763,34 @@ update dataplane_dnsversion 60 0 ipv4 ip \
 # HTTP report
 # http://www.dragonresearchgroup.org/
 
-dragon_column3() { remove_comments | $CUT_CMD -d '|' -f 3 | trim; }
+#dragon_column3() { remove_comments | $CUT_CMD -d '|' -f 3 | trim; }
 
-update dragon_http 60 0 ipv4 both \
-	"http://www.dragonresearchgroup.org/insight/http-report.txt" \
-	dragon_column3 \
-	"attacks" \
-	"[Dragon Research Group](http://www.dragonresearchgroup.org/) IPs that have been seen sending HTTP requests to Dragon Research Pods in the last 7 days. This report lists hosts that are highly suspicious and are likely conducting malicious HTTP attacks. LEGITIMATE SEARCH ENGINE BOTS MAY BE IN THIS LIST. This report is informational.  It is not a blacklist, but some operators may choose to use it to help protect their networks and hosts in the forms of automated reporting and mitigation services." \
-	"Dragon Research Group (DRG)" "http://www.dragonresearchgroup.org/" \
-	dont_redistribute
+delete_ipset dragon_http
+#update dragon_http 60 0 ipv4 both \
+#	"http://www.dragonresearchgroup.org/insight/http-report.txt" \
+#	dragon_column3 \
+#	"attacks" \
+#	"[Dragon Research Group](http://www.dragonresearchgroup.org/) IPs that have been seen sending HTTP requests to Dragon Research Pods in the last 7 days. This report lists hosts that are highly suspicious and are likely conducting malicious HTTP attacks. LEGITIMATE SEARCH ENGINE BOTS MAY BE IN THIS LIST. This report is informational.  It is not a blacklist, but some operators may choose to use it to help protect their networks and hosts in the forms of automated reporting and mitigation services." \
+#	"Dragon Research Group (DRG)" "http://www.dragonresearchgroup.org/" \
+#	dont_redistribute
 
-update dragon_sshpauth 60 0 ipv4 both \
-	"https://www.dragonresearchgroup.org/insight/sshpwauth.txt" \
-	dragon_column3 \
-	"attacks" \
-	"[Dragon Research Group](http://www.dragonresearchgroup.org/) IP address that has been seen attempting to remotely login to a host using SSH password authentication, in the last 7 days. This report lists hosts that are highly suspicious and are likely conducting malicious SSH password authentication attacks." \
-	"Dragon Research Group (DRG)" "http://www.dragonresearchgroup.org/" \
-	dont_redistribute
+delete_ipset dragon_sshpauth
+#update dragon_sshpauth 60 0 ipv4 both \
+#	"https://www.dragonresearchgroup.org/insight/sshpwauth.txt" \
+#	dragon_column3 \
+#	"attacks" \
+#	"[Dragon Research Group](http://www.dragonresearchgroup.org/) IP address that has been seen attempting to remotely login to a host using SSH password authentication, in the last 7 days. This report lists hosts that are highly suspicious and are likely conducting malicious SSH password authentication attacks." \
+#	"Dragon Research Group (DRG)" "http://www.dragonresearchgroup.org/" \
+#	dont_redistribute
 
-update dragon_vncprobe 60 0 ipv4 both \
-	"https://www.dragonresearchgroup.org/insight/vncprobe.txt" \
-	dragon_column3 \
-	"attacks" \
-	"[Dragon Research Group](http://www.dragonresearchgroup.org/) IP address that has been seen attempting to remotely connect to a host running the VNC application service, in the last 7 days. This report lists hosts that are highly suspicious and are likely conducting malicious VNC probes or VNC brute force attacks." \
-	"Dragon Research Group (DRG)" "http://www.dragonresearchgroup.org/" \
-	dont_redistribute
+delete_ipset dragon_vncprobe
+#update dragon_vncprobe 60 0 ipv4 both \
+#	"https://www.dragonresearchgroup.org/insight/vncprobe.txt" \
+#	dragon_column3 \
+#	"attacks" \
+#	"[Dragon Research Group](http://www.dragonresearchgroup.org/) IP address that has been seen attempting to remotely connect to a host running the VNC application service, in the last 7 days. This report lists hosts that are highly suspicious and are likely conducting malicious VNC probes or VNC brute force attacks." \
+#	"Dragon Research Group (DRG)" "http://www.dragonresearchgroup.org/" \
+#	dont_redistribute
 
 
 # -----------------------------------------------------------------------------
@@ -5897,12 +5903,13 @@ update vxvault $[12 * 60] 0 ipv4 ip \
 # -----------------------------------------------------------------------------
 # Bitcoin connected hosts
 
-update bitcoin_blockchain_info 10 "$[24*60] $[7*24*60] $[30*24*60]" ipv4 ip \
-	"https://blockchain.info/en/connected-nodes" \
-	extract_ipv4_from_any_file \
-	"organizations" \
-	"[Blockchain.info](https://blockchain.info/en/connected-nodes) Bitcoin nodes connected to Blockchain.info." \
-	"Blockchain.info" "https://blockchain.info/en/connected-nodes"
+delete_ipset bitcoin_blockchain_info
+#update bitcoin_blockchain_info 10 "$[24*60] $[7*24*60] $[30*24*60]" ipv4 ip \
+#	"https://blockchain.info/en/connected-nodes" \
+#	extract_ipv4_from_any_file \
+#	"organizations" \
+#	"[Blockchain.info](https://blockchain.info/en/connected-nodes) Bitcoin nodes connected to Blockchain.info." \
+#	"Blockchain.info" "https://blockchain.info/en/connected-nodes"
 
 update bitcoin_nodes 10 "$[24*60] $[7*24*60] $[30*24*60]" ipv4 ip \
 	"https://getaddr.bitnodes.io/api/v1/snapshots/latest/" \
@@ -5925,13 +5932,15 @@ update bds_atif $[24*60] 0 ipv4 ip \
 
 # -----------------------------------------------------------------------------
 # TrustedSec.com
+# https://github.com/firehol/blocklist-ipsets/issues/47
 
-update trustedsec_atif $[24*60] 0 ipv4 ip \
-	"https://www.trustedsec.com/banlist.txt" \
-	remove_comments \
-	"reputation" \
-	"Artillery Threat Intelligence Feed and Banlist Feed" \
-	"TrustedSec" "https://www.trustedsec.com/"
+delete_ipset trustedsec_atif
+#update trustedsec_atif $[24*60] 0 ipv4 ip \
+#	"https://www.trustedsec.com/banlist.txt" \
+#	remove_comments \
+#	"reputation" \
+#	"Artillery Threat Intelligence Feed and Banlist Feed" \
+#	"TrustedSec" "https://www.trustedsec.com/"
 
 
 # -----------------------------------------------------------------------------
@@ -5991,54 +6000,57 @@ update nullsecure $[8*60] 0 ipv4 ip \
 # -----------------------------------------------------------------------------
 # http://www.chaosreigns.com/
 
-parse_chaosreigns_once() {
-	local wanted="${1}"
+#parse_chaosreigns_once() {
+#	local wanted="${1}"
+#
+#	if [ ! -f "${RUN_DIR}/${wanted}.source" ]
+#		then
+#		# parse the source and split it to all files in RUN_DIR
+#		$GAWK_CMD	>&2 "
+#			/^[[:space:]]*[[:digit:]\./]+[[:space:]]+100[[:space:]]+[[:digit:]]+\$/          { print \$1 >\"${RUN_DIR}/chaosreigns_iprep100.source\"; next; }
+#			/^[[:space:]]*[[:digit:]\./]+[[:space:]]+0[[:space:]]+[[:digit:]]+\$/            { print \$1 >\"${RUN_DIR}/chaosreigns_iprep0.source\"; next; }
+#			/^[[:space:]]*[[:digit:]\./]+[[:space:]]+[[:digit:]]+[[:space:]]+[[:digit:]]+\$/ { print \$1 >\"${RUN_DIR}/chaosreigns_iprep50.source\"; next; }
+#			// { print \$1 >\"${RUN_DIR}/chaosreigns_iprep_invalid.source\"; next; }
+#			"
+#	else
+#		# ignore the source being fed to us
+#		$CAT_CMD >/dev/null
+#	fi
+#	
+#	# give the parsed output
+#	$CAT_CMD "${RUN_DIR}/${wanted}.source"
+#
+#	# make sure all the variations have the same source
+#	ipsets_with_common_source_file "chaosreigns_iprep100" "chaosreigns_iprep50" "chaosreigns_iprep0"
+#}
 
-	if [ ! -f "${RUN_DIR}/${wanted}.source" ]
-		then
-		# parse the source and split it to all files in RUN_DIR
-		$GAWK_CMD	>&2 "
-			/^[[:space:]]*[[:digit:]\./]+[[:space:]]+100[[:space:]]+[[:digit:]]+\$/          { print \$1 >\"${RUN_DIR}/chaosreigns_iprep100.source\"; next; }
-			/^[[:space:]]*[[:digit:]\./]+[[:space:]]+0[[:space:]]+[[:digit:]]+\$/            { print \$1 >\"${RUN_DIR}/chaosreigns_iprep0.source\"; next; }
-			/^[[:space:]]*[[:digit:]\./]+[[:space:]]+[[:digit:]]+[[:space:]]+[[:digit:]]+\$/ { print \$1 >\"${RUN_DIR}/chaosreigns_iprep50.source\"; next; }
-			// { print \$1 >\"${RUN_DIR}/chaosreigns_iprep_invalid.source\"; next; }
-			"
-	else
-		# ignore the source being fed to us
-		$CAT_CMD >/dev/null
-	fi
-	
-	# give the parsed output
-	$CAT_CMD "${RUN_DIR}/${wanted}.source"
+#parse_chaosreigns_iprep100() { parse_chaosreigns_once chaosreigns_iprep100; }
+#parse_chaosreigns_iprep50()  { parse_chaosreigns_once chaosreigns_iprep50;  }
+#parse_chaosreigns_iprep0()   { parse_chaosreigns_once chaosreigns_iprep0;   }
 
-	# make sure all the variations have the same source
-	ipsets_with_common_source_file "chaosreigns_iprep100" "chaosreigns_iprep50" "chaosreigns_iprep0"
-}
+delete_ipset chaosreigns_iprep100
+#update chaosreigns_iprep100 $[24*60] 0 ipv4 ip \
+#	"http://www.chaosreigns.com/iprep/iprep.txt" \
+#	parse_chaosreigns_iprep100 \
+#	"spam" \
+#	"[ChaosReigns.com](http://www.chaosreigns.com/iprep) The iprep100 list includes all IPs that sent 100% ham emails. This is an automated, free, public email IP reputation system. The primary goal is a whitelist. Other data is provided as a consequence." \
+#	"ChaosReigns.com" "http://www.chaosreigns.com/iprep"
 
-parse_chaosreigns_iprep100() { parse_chaosreigns_once chaosreigns_iprep100; }
-parse_chaosreigns_iprep50()  { parse_chaosreigns_once chaosreigns_iprep50;  }
-parse_chaosreigns_iprep0()   { parse_chaosreigns_once chaosreigns_iprep0;   }
+delete_ipset chaosreigns_iprep50
+#update chaosreigns_iprep50 $[24*60] 0 ipv4 ip \
+#	"http://www.chaosreigns.com/iprep/iprep.txt" \
+#	parse_chaosreigns_iprep50 \
+#	"spam" \
+#	"[ChaosReigns.com](http://www.chaosreigns.com/iprep) The iprep50 list includes all IPs that sent both ham and spam emails. This is an automated, free, public email IP reputation system. The primary goal is a whitelist. Other data is provided as a consequence." \
+#	"ChaosReigns.com" "http://www.chaosreigns.com/iprep"
 
-update chaosreigns_iprep100 $[24*60] 0 ipv4 ip \
-	"http://www.chaosreigns.com/iprep/iprep.txt" \
-	parse_chaosreigns_iprep100 \
-	"spam" \
-	"[ChaosReigns.com](http://www.chaosreigns.com/iprep) The iprep100 list includes all IPs that sent 100% ham emails. This is an automated, free, public email IP reputation system. The primary goal is a whitelist. Other data is provided as a consequence." \
-	"ChaosReigns.com" "http://www.chaosreigns.com/iprep"
-
-update chaosreigns_iprep50 $[24*60] 0 ipv4 ip \
-	"http://www.chaosreigns.com/iprep/iprep.txt" \
-	parse_chaosreigns_iprep50 \
-	"spam" \
-	"[ChaosReigns.com](http://www.chaosreigns.com/iprep) The iprep50 list includes all IPs that sent both ham and spam emails. This is an automated, free, public email IP reputation system. The primary goal is a whitelist. Other data is provided as a consequence." \
-	"ChaosReigns.com" "http://www.chaosreigns.com/iprep"
-
-update chaosreigns_iprep0 $[24*60] 0 ipv4 ip \
-	"http://www.chaosreigns.com/iprep/iprep.txt" \
-	parse_chaosreigns_iprep0 \
-	"spam" \
-	"[ChaosReigns.com](http://www.chaosreigns.com/iprep) The iprep0 list includes all IPs that sent only spam emails. This is an automated, free, public email IP reputation system. The primary goal is a whitelist. Other data is provided as a consequence." \
-	"ChaosReigns.com" "http://www.chaosreigns.com/iprep"
+delete_ipset chaosreigns_iprep0
+#update chaosreigns_iprep0 $[24*60] 0 ipv4 ip \
+#	"http://www.chaosreigns.com/iprep/iprep.txt" \
+#	parse_chaosreigns_iprep0 \
+#	"spam" \
+#	"[ChaosReigns.com](http://www.chaosreigns.com/iprep) The iprep0 list includes all IPs that sent only spam emails. This is an automated, free, public email IP reputation system. The primary goal is a whitelist. Other data is provided as a consequence." \
+#	"ChaosReigns.com" "http://www.chaosreigns.com/iprep"
 
 
 # -----------------------------------------------------------------------------
@@ -6097,21 +6109,24 @@ update cleantalk_new $[15] "$[24*60] $[7*24*60] $[30*24*60]" ipv4 ip \
 	parse_cleantalk \
 	"abuse" \
 	"[CleanTalk](https://cleantalk.org/) Recent HTTP Spammers" \
-	"CleanTalk" "https://cleantalk.org/"
+	"CleanTalk" "https://cleantalk.org/" \
+	can_be_empty
 
 update cleantalk_updated $[15] "$[24*60] $[7*24*60] $[30*24*60]" ipv4 ip \
 	"https://cleantalk.org/blacklists/updated_today" \
 	parse_cleantalk \
 	"abuse" \
 	"[CleanTalk](https://cleantalk.org/) Recurring HTTP Spammers" \
-	"CleanTalk" "https://cleantalk.org/"
+	"CleanTalk" "https://cleantalk.org/" \
+	can_be_empty
 
 update cleantalk_top20 $[24*60] 0 ipv4 ip \
 	"https://cleantalk.org/blacklists/top20" \
 	parse_cleantalk \
 	"abuse" \
 	"[CleanTalk](https://cleantalk.org/) Top 20 HTTP Spammers" \
-	"CleanTalk" "https://cleantalk.org/"
+	"CleanTalk" "https://cleantalk.org/" \
+	can_be_empty
 
 merge cleantalk ipv4 ip \
 	"abuse" \
@@ -6339,7 +6354,7 @@ update iblocklist_rangetest $[12*60] 0 ipv4 both \
 update iblocklist_bogons $[12*60] 0 ipv4 both \
 	"http://list.iblocklist.com/?list=gihxqmhyunbxhbmgqrla&fileformat=p2p&archiveformat=gz" \
 	p2p_gz \
-	"unrouteable" \
+	"unroutable" \
 	"Unallocated address space." \
 	"iBlocklist.com" "https://www.iblocklist.com/" \
 	dont_redistribute
@@ -6379,7 +6394,7 @@ update iblocklist_dshield $[12*60] 0 ipv4 both \
 update iblocklist_iana_reserved $[12*60] 0 ipv4 both \
 	"http://list.iblocklist.com/?list=bcoepfyewziejvcqyhqo&fileformat=p2p&archiveformat=gz" \
 	p2p_gz \
-	"unrouteable" \
+	"unroutable" \
 	"IANA Reserved IPs." \
 	"iBlocklist.com" "https://www.iblocklist.com/" \
 	dont_redistribute
@@ -6387,7 +6402,7 @@ update iblocklist_iana_reserved $[12*60] 0 ipv4 both \
 update iblocklist_iana_private $[12*60] 0 ipv4 both \
 	"http://list.iblocklist.com/?list=cslpybexmxyuacbyuvib&fileformat=p2p&archiveformat=gz" \
 	p2p_gz \
-	"unrouteable" \
+	"unroutable" \
 	"IANA Private IPs." \
 	"iBlocklist.com" "https://www.iblocklist.com/" \
 	dont_redistribute
@@ -6395,7 +6410,7 @@ update iblocklist_iana_private $[12*60] 0 ipv4 both \
 update iblocklist_iana_multicast $[12*60] 0 ipv4 both \
 	"http://list.iblocklist.com/?list=pwqnlynprfgtjbgqoizj&fileformat=p2p&archiveformat=gz" \
 	p2p_gz \
-	"unrouteable" \
+	"unroutable" \
 	"IANA Multicast IPs." \
 	"iBlocklist.com" "https://www.iblocklist.com/" \
 	dont_redistribute
@@ -6490,7 +6505,7 @@ update iblocklist_malc0de $[12*60] 0 ipv4 both \
 update iblocklist_cidr_report_bogons $[12*60] 0 ipv4 both \
 	"http://list.iblocklist.com/?list=lujdnbasfaaixitgmxpp&fileformat=p2p&archiveformat=gz" \
 	p2p_gz \
-	"unrouteable" \
+	"unroutable" \
 	"cidr-report.org IP list of Unallocated address space." \
 	"iBlocklist.com" "https://www.iblocklist.com/"
 
@@ -6810,11 +6825,7 @@ badipscom() {
 
 	if [ ${ENABLE_ALL} -eq 1 ]
 		then
-		local x=
-		for x in badips bi_bruteforce_2_30d bi_ftp_2_30d bi_http_2_30d bi_mail_2_30d bi_proxy_2_30d bi_sql_2_30d bi_ssh_2_30d bi_voip_2_30d
-		do
-			ipset_shall_be_run "${x}"
-		done
+		ipset_shall_be_run badips
 	fi
 
 	download_manager "badips" $[24*60] "https://www.badips.com/get/categories"
@@ -6830,6 +6841,17 @@ badipscom() {
 			$SORT_CMD -u
 		)"
 
+
+	if [ ${ENABLE_ALL} -eq 1 ]
+		then
+		for x in ${categories}
+		do
+			ipset_shall_be_run "bi_${x}_0_1d"
+			ipset_shall_be_run "bi_${x}_1_7d"
+			ipset_shall_be_run "bi_${x}_2_30d"
+		done
+	fi
+
 	local category= file= score= age= i= ipset= url= info= count=0
 	for category in ${categories}
 	do
@@ -6839,10 +6861,10 @@ badipscom() {
 		for file in $(cd "${BASE_DIR}"; $LS_CMD 2>/dev/null bi_${category}*.source)
 		do
 			count=$[count + 1]
-			if [[ "${file}" =~ ^bi_${category}_[0-9\.]+_[0-9]+[dwmy].source$ ]]
+			if [[ "${file}" =~ ^bi_.*_[0-9\.]+_[0-9]+[dwmy].source$ ]]
 				then
 				# score and age present
-				i="$(echo "${file}" | $SED_CMD "s|^bi_${category}_\([0-9\.]\+\)_\([0-9]\+[dwmy]\)\.source|\1;\2|g")"
+				i="$(echo "${file}" | $SED_CMD "s|^bi_.*_\([0-9\.]\+\)_\([0-9]\+[dwmy]\)\.source|\1;\2|g")"
 				score=${i/;*/}
 				age="${i/*;/}"
 				ipset="bi_${category}_${score}_${age}"
@@ -6854,10 +6876,10 @@ badipscom() {
 					continue
 				fi
 
-			elif [[ "${file}" =~ ^bi_${category}_[0-9]+[dwmy].source$ ]]
+			elif [[ "${file}" =~ ^bi_.*_[0-9]+[dwmy].source$ ]]
 				then
 				# age present
-				age="$(echo "${file}" | $SED_CMD "s|^bi_${category}_\([0-9]\+[dwmy]\)\.source|\1|g")"
+				age="$(echo "${file}" | $SED_CMD "s|^bi_.*_\([0-9]\+[dwmy]\)\.source|\1|g")"
 				score=0
 				ipset="bi_${category}_${age}"
 				url="https://www.badips.com/get/list/${category}/${score}?age=${age}"
@@ -6868,10 +6890,10 @@ badipscom() {
 					continue
 				fi
 
-			elif [[ "${file}" =~ ^bi_${category}_[0-9\.]+.source$ ]]
+			elif [[ "${file}" =~ ^bi_.*_[0-9\.]+.source$ ]]
 				then
 				# score present
-				score="$(echo "${file}" | $SED_CMD "s|^bi_${category}_\([0-9\.]\+\)\.source|\1|g")"
+				score="$(echo "${file}" | $SED_CMD "s|^bi_.*_\([0-9\.]\+\)\.source|\1|g")"
 				age=
 				ipset="bi_${category}_${score}"
 				url="https://www.badips.com/get/list/${category}/${score}"
@@ -7321,9 +7343,6 @@ merge firehol_level3 ipv4 both \
 	"FireHOL" "http://iplists.firehol.org/" \
 	bruteforceblocker \
 	ciarmy \
-	dragon_http \
-	dragon_sshpauth \
-	dragon_vncprobe \
 	dshield_30d \
 	dshield_top_1000 \
 	malc0de \
@@ -7396,7 +7415,6 @@ merge firehol_proxies ipv4 both \
 	maxmind_proxy_fraud \
 	proxylists_30d \
 	proxyrss_30d proxz_30d \
-	proxyspy_30d \
 	ri_connect_proxies_30d \
 	ri_web_proxies_30d \
 	socks_proxy_30d \
