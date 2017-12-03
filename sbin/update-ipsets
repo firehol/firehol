@@ -6819,11 +6819,7 @@ badipscom() {
 
 	if [ ${ENABLE_ALL} -eq 1 ]
 		then
-		local x=
-		for x in badips bi_bruteforce_2_30d bi_ftp_2_30d bi_http_2_30d bi_mail_2_30d bi_proxy_2_30d bi_sql_2_30d bi_ssh_2_30d bi_voip_2_30d
-		do
-			ipset_shall_be_run "${x}"
-		done
+		ipset_shall_be_run badips
 	fi
 
 	download_manager "badips" $[24*60] "https://www.badips.com/get/categories"
@@ -6838,6 +6834,15 @@ badipscom() {
 			$CUT_CMD -d '"' -f 2 |\
 			$SORT_CMD -u
 		)"
+
+
+	if [ ${ENABLE_ALL} -eq 1 ]
+		then
+		for x in ${categories}
+		do
+			ipset_shall_be_run "bi_${x}_2_30d"
+		done
+	fi
 
 	local category= file= score= age= i= ipset= url= info= count=0
 	for category in ${categories}
