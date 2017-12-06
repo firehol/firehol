@@ -6969,7 +6969,7 @@ normshield() {
 			;;
 	esac
 
-	url="https://services.normshield.com/api/v1/threatfeed/downloadintel?date=$(date --date=@$(( $(date +%s) - 86400 )) +%m%d%Y)&format=csv&category=honeypotfeeds"
+	url="https://services.normshield.com/api/v1/threatfeed/downloadintel?date=$(${DATE_CMD} --date=@$(( $(${DATE_CMD} +%s) - 86400 )) +%m%d%Y)&format=csv&category=honeypotfeeds"
 	download_manager "normshield" $[24*60] "${url}"
 	ret=$?
 	[ ! -s "${BASE_DIR}/normshield.source" ] && return 0
