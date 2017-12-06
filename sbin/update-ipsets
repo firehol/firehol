@@ -6809,7 +6809,7 @@ update uscert_hidden_cobra $[24*60] 0 ipv4 ip \
 # BadIPs.com
 
 badipscom() {
-	local ret=
+	local ret= x= i=
 
 	ipset_shall_be_run "badips"
 	case "$?" in
@@ -6822,11 +6822,6 @@ badipscom() {
 		*)	return 1
 			;;
 	esac
-
-	if [ ${ENABLE_ALL} -eq 1 ]
-		then
-		ipset_shall_be_run badips
-	fi
 
 	download_manager "badips" $[24*60] "https://www.badips.com/get/categories"
 	ret=$?
@@ -6844,22 +6839,29 @@ badipscom() {
 
 	if [ ${ENABLE_ALL} -eq 1 ]
 		then
+		declare -A badips_excluded='([bi_dovecot-pop3_0_1d]="1" [bi_sql-injection_0_1d]="1" [bi_dovecot-pop3imap_1_7d]="1" [bi_courierpop3_2_30d]="1" [bi_bruteforce_2_30d]="1" [bi_Php-url-fopen_0_1d]="1" [bi_nginxpost_0_1d]="1" [bi_vnc_0_1d]="1" [bi_smtp_1_7d]="1" [bi_apache-w00tw00t_0_1d]="1" [bi_apache-dokuwiki_1_7d]="1" [bi_nginxpost_2_30d]="1" [bi_courierauth_1_7d]="1" [bi_w00t_0_1d]="1" [bi_ssh-auth_2_30d]="1" [bi_sql-injection_2_30d]="1" [bi_xmlrpc_1_7d]="1" [bi_pureftp_1_7d]="1" [bi_local-exim_2_30d]="1" [bi_php-cgi_0_1d]="1" [bi_cyrusauth_0_1d]="1" [bi_asterisk-sec_0_1d]="1" [bi_wp_2_30d]="1" [bi_apache-spamtrap_2_30d]="1" [bi_username-notfound_2_30d]="1" [bi_imap_1_7d]="1" [bi_assp_1_7d]="1" [bi_apacheddos_2_30d]="1" [bi_apache-wordpress_2_30d]="1" [bi_apache-overflows_2_30d]="1" [bi_nginx_1_7d]="1" [bi_dovecot-pop3_2_30d]="1" [bi_apache-php-url-fopen_1_7d]="1" [bi_apache-defensible_1_7d]="1" [bi_vsftpd_1_7d]="1" [bi_apache-wordpress_0_1d]="1" [bi_apache-overflows_0_1d]="1" [bi_ssh-auth_0_1d]="1" [bi_w00t_1_7d]="1" [bi_proxy_2_30d]="1" [bi_username-notfound_1_7d]="1" [bi_apacheddos_1_7d]="1" [bi_apache-wordpress_1_7d]="1" [bi_apache-overflows_1_7d]="1" [bi_rdp_2_30d]="1" [bi_nginx_0_1d]="1" [bi_apache-php-url-fopen_0_1d]="1" [bi_apache-defensible_0_1d]="1" [bi_Php-url-fopen_2_30d]="1" [bi_phpids_0_1d]="1" [bi_courierpop3_1_7d]="1" [bi_apache-phpmyadmin_2_30d]="1" [bi_sql_1_7d]="1" [bi_screensharingd_1_7d]="1" [bi_pop3_1_7d]="1" [bi_plesk-postfix_2_30d]="1" [bi_ssh-blocklist_2_30d]="1" [bi_phpids_2_30d]="1" [bi_nginxproxy_0_1d]="1" [bi_apache-nohome_1_7d]="1" [bi_spamdyke_1_7d]="1" [bi_sql-attack_1_7d]="1" [bi_qmail-smtp_1_7d]="1" [bi_nginx_2_30d]="1" [bi_apache-php-url-fopen_2_30d]="1" [bi_apache-defensible_2_30d]="1" [bi_vnc_2_30d]="1" [bi_apache-w00tw00t_2_30d]="1" [bi_spamdyke_2_30d]="1" [bi_proxy_0_1d]="1" [bi_local-exim_1_7d]="1" [bi_exim_2_30d]="1" [bi_apache-404_1_7d]="1" [bi_rdp_1_7d]="1" [bi_spamdyke_0_1d]="1" [bi_smtp_2_30d]="1" [bi_apache-dokuwiki_2_30d]="1" [bi_named_2_30d]="1" [bi_apache-scriddies_2_30d]="1" [bi_named_1_7d]="1" [bi_apache-scriddies_1_7d]="1" [bi_nginxpost_1_7d]="1" [bi_dns_2_30d]="1" [bi_nginxproxy_2_30d]="1" [bi_apache-modsec_2_30d]="1" [bi_Php-url-fopen_1_7d]="1" [bi_php-cgi_1_7d]="1" [bi_cyrusauth_1_7d]="1" [bi_asterisk-sec_1_7d]="1" [bi_xmlrpc_0_1d]="1" [bi_pureftp_0_1d]="1" [bi_sql-attack_2_30d]="1" [bi_qmail-smtp_2_30d]="1" [bi_squid_0_1d]="1" [bi_ddos_0_1d]="1" [bi_spam_2_30d]="1" [bi_owncloud_2_30d]="1" [bi_apache-phpmyadmin_1_7d]="1" [bi_vnc_1_7d]="1" [bi_apache-w00tw00t_1_7d]="1" [bi_apache-dokuwiki_0_1d]="1" [bi_wp_0_1d]="1" [bi_imap_2_30d]="1" [bi_assp_2_30d]="1" [bi_apache-spamtrap_0_1d]="1" [bi_wp_1_7d]="1" [bi_sshddos_2_30d]="1" [bi_apache-spamtrap_1_7d]="1" [bi_sshddos_0_1d]="1" [bi_rfi-attack_2_30d]="1" [bi_drupal_2_30d]="1" [bi_w00t_2_30d]="1" [bi_sql_2_30d]="1" [bi_screensharingd_2_30d]="1" [bi_pop3_2_30d]="1" [bi_sshddos_1_7d]="1" [bi_squid_2_30d]="1" [bi_ddos_2_30d]="1" [bi_apache-noscript_1_7d]="1" [bi_ssh-blocklist_1_7d]="1" [bi_phpids_1_7d]="1" [bi_courierpop3_0_1d]="1" [bi_xmlrpc_2_30d]="1" [bi_pureftp_2_30d]="1" [bi_dns_1_7d]="1" [bi_proxy_1_7d]="1" [bi_local-exim_0_1d]="1" [bi_apache-nohome_2_30d]="1" [bi_plesk-postfix_1_7d]="1" [bi_ssh-auth_1_7d]="1" [bi_nginxproxy_1_7d]="1" [bi_badbots_2_30d]="1" [bi_apache-nohome_0_1d]="1" [bi_apache-modsec_1_7d]="1" [bi_screensharingd_0_1d]="1" [bi_pop3_0_1d]="1" [bi_owncloud_1_7d]="1" [bi_rfi-attack_1_7d]="1" [bi_drupal_1_7d]="1" [bi_apache-404_2_30d]="1" [bi_rfi-attack_0_1d]="1" [bi_sql-injection_1_7d]="1" [bi_asterisk_1_7d]="1" [bi_dovecot-pop3_1_7d]="1" [bi_squid_1_7d]="1" [bi_ddos_1_7d]="1" [bi_ssh-ddos_1_7d]="1" [bi_php-cgi_2_30d]="1" [bi_cyrusauth_2_30d]="1" [bi_asterisk-sec_2_30d]="1" )'
 		for x in ${categories}
 		do
-			ipset_shall_be_run "bi_${x}_0_1d"
-			ipset_shall_be_run "bi_${x}_1_7d"
-			ipset_shall_be_run "bi_${x}_2_30d"
+			for i in 0_1d 1_7d 2_30d
+			do
+				if [ -z "${badips_excluded[bi_${x}_${i}]}" ]
+					then
+					ipset_shall_be_run "bi_${x}_${i}"
+				fi
+			done
 		done
 	fi
 
-	local category= file= score= age= i= ipset= url= info= count=0
+	local category= file= score= age= ipset= url= info= count=0
 	for category in ${categories}
 	do
+		#echo >&2 "CATEGORY: '${category}'"
 		count=0
 		# info "bi_${category}"
 
-		for file in $(cd "${BASE_DIR}"; $LS_CMD 2>/dev/null bi_${category}*.source)
+		for file in $(cd "${BASE_DIR}"; $LS_CMD 2>/dev/null bi_${category}_*.source)
 		do
+			#echo >&2 "FILE: '${file}'"
 			count=$[count + 1]
 			if [[ "${file}" =~ ^bi_.*_[0-9\.]+_[0-9]+[dwmy].source$ ]]
 				then
@@ -6870,9 +6872,9 @@ badipscom() {
 				ipset="bi_${category}_${score}_${age}"
 				url="https://www.badips.com/get/list/${category}/${score}?age=${age}"
 				info="[BadIPs.com](https://www.badips.com/) Bad IPs in category ${category} with score above ${score} and age less than ${age}"
-				if [ ! -f "${BASE_DIR}/${ipset}.source" ]
+				if [ "${file}" != "${ipset}.source" ]
 					then
-					ipset_warning "${file}" "parsed as '${ipset}' seems invalid"
+					ipset_warning "${file}" "parsed as '${ipset}' with category '${category}', score '${score}', age '${age}' seems invalid"
 					continue
 				fi
 
@@ -6884,9 +6886,9 @@ badipscom() {
 				ipset="bi_${category}_${age}"
 				url="https://www.badips.com/get/list/${category}/${score}?age=${age}"
 				info="[BadIPs.com](https://www.badips.com/) Bad IPs in category ${category} with age less than ${age}"
-				if [ ! -f "${BASE_DIR}/${ipset}.source" ]
+				if [ "${file}" != "${ipset}.source" ]
 					then
-					ipset_warning "${file}" "parsed as '${ipset}' seems invalid"
+					ipset_warning "${file}" "parsed as '${ipset}' with category '${category}', score '${score}', age '${age}' seems invalid"
 					continue
 				fi
 
@@ -6898,9 +6900,9 @@ badipscom() {
 				ipset="bi_${category}_${score}"
 				url="https://www.badips.com/get/list/${category}/${score}"
 				info="[BadIPs.com](https://www.badips.com/) Bad IPs in category ${category} with score above ${score}"
-				if [ ! -f "${BASE_DIR}/${ipset}.source" ]
+				if [ "${file}" != "${ipset}.source" ]
 					then
-					ipset_warning "${file}" "parsed as '${ipset}' seems invalid"
+					ipset_warning "${file}" "parsed as '${ipset}' with category '${category}', score '${score}', age '${age}' seems invalid"
 					continue
 				fi
 			else
@@ -6948,6 +6950,97 @@ badipscom() {
 }
 
 badipscom
+
+# -----------------------------------------------------------------------------
+# normshield
+
+normshield() {
+	local ret= url= x= severity=
+
+	ipset_shall_be_run "normshield"
+	case "$?" in
+		0)	;;
+
+		1)	[ -d "${BASE_DIR}/.git" ] && echo >"${BASE_DIR}/normshield.setinfo" "normshield.com|[NormShield](https://services.normshield.com/threatfeed) has a number of servers spread around the world to collect threat data with honeypot system. They are collecting, consolidating and grouping hundreds of suspicious ip addresses every day.|ipv4 hash:ip|disabled|disabled"
+			return 1
+			;;
+
+		*)	return 1
+			;;
+	esac
+
+	url="https://services.normshield.com/api/v1/threatfeed/downloadintel?date=$(date --date=@$(( $(date +%s) - 86400 )) +%m%d%Y)&format=csv&category=honeypotfeeds"
+	download_manager "normshield" $[24*60] "${url}"
+	ret=$?
+	[ ! -s "${BASE_DIR}/normshield.source" ] && return 0
+
+	local categories="$( \
+		$CAT_CMD ${BASE_DIR}/normshield.source |\
+			$TR_CMD -d '\r' |\
+			$CUT_CMD -d ',' -f 9 |\
+			$GREP_CMD -v "^category$" |\
+			$SORT_CMD -u
+		)"
+
+	if [ ${ENABLE_ALL} -eq 1 ]
+		then
+		for x in ${categories}
+		do
+			for severity in all high
+			do
+				ipset_shall_be_run "normshield_${severity}_${x}"
+			done
+		done
+	fi
+
+	local category= ipset= info=
+	for x in ${categories}
+	do
+		for severity in all high
+		do
+			ipset="normshield_${severity}_${x}"
+			info="[NormShield.com](https://services.normshield.com/threatfeed) IPs in category ${x} with severity ${severity}"
+			if [ ! -f "${BASE_DIR}/${ipset}.source" ]
+				then
+				ipset_disabled "${ipset}"
+				continue
+			fi
+
+			if [ "${severity}" = "high" ]
+				then
+				${CAT_CMD} "${BASE_DIR}/normshield.source" |\
+					${TR_CMD} -d '\r' |\
+					${CUT_CMD} -d ',' -f 2,5,9 |\
+					${GREP_CMD} ",${severity},${x}$" |\
+					${CUT_CMD} -d ',' -f 1 >"${BASE_DIR}/${ipset}.source"
+			else
+				${CAT_CMD} "${BASE_DIR}/normshield.source" |\
+					${TR_CMD} -d '\r' |\
+					${CUT_CMD} -d ',' -f 2,9 |\
+					${GREP_CMD} ",${x}$" |\
+					${CUT_CMD} -d ',' -f 1 >"${BASE_DIR}/${ipset}.source"
+			fi
+
+			case "${x}" in
+				suspicious) category="abuse" ;;
+				wannacry|wormscan) category="malware" ;;
+				spam) category="spam" ;;
+				*) category="attacks" ;;
+			esac
+
+			update "${ipset}" "$[12*60]" 0 ipv4 ip \
+				"" \
+				${CAT_CMD} \
+				"${category}" \
+				"${info}" \
+				"NormShield.com" "https://services.normshield.com/threatfeed" \
+				can_be_empty
+		done
+	done
+}
+
+normshield
+
 
 # -----------------------------------------------------------------------------
 # blueliv
