@@ -2859,6 +2859,10 @@ match() {
 		case "${tdscp^^}" in
 			any)	;;
 
+			CS0)
+				tos_value="0x00"
+				tos_mask="0xfc"
+				;;
 			CS1)
 				tos_value="0x20"
 				tos_mask="0xfc"
