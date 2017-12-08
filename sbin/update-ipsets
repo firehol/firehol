@@ -6174,7 +6174,42 @@ delete_ipset jigsaw_malware
 #	"malware" \
 #	"[Jigsaw Security Enterprise](http://www.jigsawsecurityenterprise.com/#!open-blacklist/kafsx) Malicious IP Destinations usually C2 or botnet activity or malicious payloads. Information on this blacklist is low fidelity meaning we do not update these indicators that often and there is no validation of the data. These are raw feeds that have not been processed. In order to get the most up to date data and to remove false positives you should consider subscribing to our Jigsaw Enterprise Solution." \
 #	"Jigsaw Security Enterprise" "http://www.jigsawsecurityenterprise.com/#!open-blacklist/kafsx"
-	
+
+# -----------------------------------------------------------------------------
+# CoinBlockerLists
+# https://github.com/ZeroDot1/CoinBlockerLists
+
+update coinbl_hosts $[24*60] 0 ipv4 ip \
+	"https://raw.githubusercontent.com/ZeroDot1/CoinBlockerLists/master/hosts" \
+	hphosts2ips \
+	"organizations" \
+	"[CoinBlockerLists](https://github.com/ZeroDot1/CoinBlockerLists) Simple lists that can help prevent cryptomining in the browser or other applications. This list contains all domains - A list for administrators to prevent mining in networks. The maintainer's file contains hostnames, which have been DNS resolved to IP addresses." \
+	"CoinBlockerLists" "https://github.com/ZeroDot1/CoinBlockerLists" \
+	dont_enable_with_all
+
+update coinbl_hosts_optional $[24*60] 0 ipv4 ip \
+	"https://raw.githubusercontent.com/ZeroDot1/CoinBlockerLists/master/hosts_optional" \
+	hphosts2ips \
+	"organizations" \
+	"[CoinBlockerLists](https://github.com/ZeroDot1/CoinBlockerLists) Simple lists that can help prevent cryptomining in the browser or other applications. This list contains additional domains, for administrators to prevent mining in networks. The maintainer's file contains hostnames, which have been DNS resolved to IP addresses." \
+	"CoinBlockerLists" "https://github.com/ZeroDot1/CoinBlockerLists" \
+	dont_enable_with_all
+
+update coinbl_hosts_browser $[24*60] 0 ipv4 ip \
+	"https://raw.githubusercontent.com/ZeroDot1/CoinBlockerLists/master/hosts_browser" \
+	hphosts2ips \
+	"organizations" \
+	"[CoinBlockerLists](https://github.com/ZeroDot1/CoinBlockerLists) Simple lists that can help prevent cryptomining in the browser or other applications. A hosts list to prevent browser mining only. The maintainer's file contains hostnames, which have been DNS resolved to IP addresses." \
+	"CoinBlockerLists" "https://github.com/ZeroDot1/CoinBlockerLists" \
+	dont_enable_with_all
+
+update coinbl_ips $[24*60] 0 ipv4 ip \
+	"https://raw.githubusercontent.com/ZeroDot1/CoinBlockerLists/master/MiningServerIPList.txt" \
+	remove_comments \
+	"organizations" \
+	"[CoinBlockerLists](https://github.com/ZeroDot1/CoinBlockerLists) Simple lists that can help prevent cryptomining in the browser or other applications. This list contains all IPs - An additional list for administrators to prevent mining in networks. The maintainer's file contains hostnames, which have been DNS resolved to IP addresses." \
+	"CoinBlockerLists" "https://github.com/ZeroDot1/CoinBlockerLists" \
+
 
 # -----------------------------------------------------------------------------
 # http://hosts-file.net/
