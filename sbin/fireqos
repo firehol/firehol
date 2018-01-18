@@ -3546,25 +3546,34 @@ EOF
 		echo "${s}${n}"
 	}
 
-	starttime() {
+	initmstimer() {
 		startedms=`getms`
-	}
-
-	endtime() {
-		endedms=`getms`
+		sleptms=0
 	}
 
 	sleepms() {
+		# Uncomment the following line for testing
+		# overload randomly (1:5 times, 1s or 2s).
+		# [ $(($RANDOM * 5 / 32768)) -eq 0 ] && sleep $((1 + ($RANDOM * 2 / 32768))) && echo "--- Overload! ---"
+
 		local timetosleep="$1"
 
-		local diffms=$((endedms - startedms))
-		[ $diffms -gt $timetosleep ] && return 0
+		sleptms=$((sleptms + timetosleep))
+		local targettime=$((startedms + sleptms))
+		local now=`getms`
+		local diffms=$((timetosleep + now - targettime))
+		if [ $diffms -gt $timetosleep ]
+		then
+			sleptms=$((sleptms + (((diffms / timetosleep) - 1) * timetosleep)))
+			echo "Overload: diffms ${diffms} > timetosleep ${timetosleep}, sleptms ${sleptms}"
+			return
+		fi
 
 		local sleepms=$((timetosleep - diffms))
 		local secs=$((sleepms / 1000))
 		local ms=$((sleepms - (secs * 1000)))
 
-		# echo "Sleeping for ${secs}.${ms} (started ${startedms}, ended ${endedms}, diffms ${diffms})"
+		# echo "Sleeping for ${secs}.${ms} (targettime ${targettime}, sleptms ${sleptms}, diffms ${diffms})"
 		if [ ${FIREQOS_LOWRES_TIMER} -eq 1 ]
 		then
 			$SLEEP_CMD "${secs}"
@@ -3579,7 +3588,7 @@ EOF
 	echo "Values in $unit"
 	echo
 
-	starttime
+	initmstimer
 	getdata $interface_realdev
 
 	# render the configuration
@@ -3641,9 +3650,7 @@ EOF
 	echo
 
 	# the main loop
-	endtime
 	sleepms 1000
-	starttime
 	local c=$((banner_every_lines - 1))
 	while [ 1 = 1 ]
 	do
@@ -3705,9 +3712,7 @@ EOF
 		done
 		echo
 
-		endtime
 		sleepms 1000
-		starttime
 	done
 }
 
