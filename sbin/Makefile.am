@@ -49,7 +49,7 @@ EXTRA_DIST = \
 AWK_STRIP_SH_HEADER = 'BEGIN {strip=1} {if (strip==1 && (/^\#/)) {next} else {strip=0; print $$0}}'
 
 firehol: simple_services.sh firehol.sh
-	$(CAT) firehol_header.sh >$@ && \
+	($(CAT) firehol_header.sh >$@ && \
 	(echo "#---------------------------------------------" && \
 	 echo "#--- Start excerpt from simple_services.sh ---" && \
 	 echo "#---------------------------------------------") >>$@ && \
@@ -57,10 +57,11 @@ firehol: simple_services.sh firehol.sh
 	(echo "#-------------------------------------------" && \
 	 echo "#--- End excerpt from simple_services.sh ---" && \
 	 echo "#-------------------------------------------") >>$@ && \
-	$(GAWK) $(AWK_STRIP_SH_HEADER) firehol.sh >>$@ || (rm -f $@; false)
+	$(GAWK) $(AWK_STRIP_SH_HEADER) firehol.sh >>$@ && \
+	$(CHMOD) +x $@) || (rm -f $@; false)
 
 fireqos: simple_services.sh fireqos.sh
-	$(CAT) fireqos_header.sh >$@ && \
+	($(CAT) fireqos_header.sh >$@ && \
 	(echo "#---------------------------------------------" && \
 	 echo "#--- Start excerpt from simple_services.sh ---" && \
 	 echo "#---------------------------------------------") >>$@ && \
@@ -68,7 +69,8 @@ fireqos: simple_services.sh fireqos.sh
 	(echo "#-------------------------------------------" && \
 	 echo "#--- End excerpt from simple_services.sh ---" && \
 	 echo "#-------------------------------------------") >>$@ && \
-	$(GAWK) $(AWK_STRIP_SH_HEADER) fireqos.sh >>$@ || (rm -f $@; false)
+	$(GAWK) $(AWK_STRIP_SH_HEADER) fireqos.sh >>$@ && \
+	$(CHMOD) +x $@) || (rm -f $@; false)
 
 install-exec-hook:
 	$(MKDIR_P) "$(DESTDIR)$(sbindir)"
