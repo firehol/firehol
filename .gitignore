@@ -33,6 +33,10 @@ sbin/install.config
 sbin/install.config.in
 sbin/*.o
 sbin/.deps
+sbin/firehol
+sbin/firehol_header.sh
+sbin/fireqos
+sbin/fireqos_header.sh
 unittest/coverage
 *.xz
 *.gz
