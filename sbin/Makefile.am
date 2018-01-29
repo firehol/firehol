@@ -46,6 +46,7 @@ inclib_SCRIPTS = $(scripts)
 EXTRA_DIST = \
 	functions.common \
 	install.config.in \
+	$(helper_scripts) \
 	$(scripts) \
 	$(NULL)
 
