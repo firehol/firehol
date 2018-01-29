@@ -18,7 +18,7 @@ AC_INIT([firehol],VERSION_NUMBER[]VERSION_SUFFIX,[firehol-devs@lists.firehol.org
 
 AC_CONFIG_MACRO_DIR([m4])
 AC_CONFIG_AUX_DIR([autotool])
-AC_CONFIG_SRCDIR([sbin/firehol.sh])
+AC_CONFIG_SRCDIR([sbin/firehol])
 AM_INIT_AUTOMAKE([tar-ustar])
 AM_MAINTAINER_MODE([disable])
 
@@ -56,6 +56,9 @@ AC_ARG_ENABLE([firehol],
               [AS_HELP_STRING([--disable-firehol], [disable firehol installation @<:@enabled@:>@])],
               ,
               [enable_firehol="yes"])
+
+AM_CONDITIONAL([ENABLE_FIREHOL_OR_FIREQOS], [test "${enable_firehol}" = "yes" || test "${enable_fireqos}" = "yes"])
+
 AM_CONDITIONAL([ENABLE_FIREHOL], [test "${enable_firehol}" = "yes"])
 
 AC_ARG_ENABLE([firehol-wizard],
@@ -377,14 +380,9 @@ fi
 
 AC_SUBST([firehollibexecdir], ["\$(libexecdir)/firehol/\$(PACKAGE_VERSION)"])
 
-AC_SUBST_FILE([license])
-license=./License
-
 AC_CONFIG_FILES([
 	Makefile
 	sbin/Makefile
-	sbin/firehol_header.sh
-	sbin/fireqos_header.sh
 	sbin/install.config.in
 	m4/Makefile
 	doc/Makefile

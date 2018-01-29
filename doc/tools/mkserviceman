@@ -9,13 +9,19 @@ use File::Basename qw( dirname );
 use lib dirname($0);
 use servicedb;
 
-if (@ARGV != 4) {
-  print STDERR "Usage: mkserviceman output firehol-script services-db.data service-links\n";
+if (@ARGV < 4) {
+  print STDERR "Usage: mkserviceman output services-db.data service-links script [..script]\n";
   exit 1;
 }
 
-my ($services, $all_run) = servicedb::read_script($ARGV[1]);
-my ($dbinfo, $dbalias) = servicedb::read_db($ARGV[2]);
+my ($dbinfo, $dbalias) = servicedb::read_db($ARGV[1]);
+# NOTE: It seems as if service-links ($ARGV[2]) is never used.
+my ($services, $all_run) = ({}, {});
+for (my $i=3; $i<=$#ARGV; $i++) {
+  my ($found_services, $found_all_run) = servicedb::read_script($ARGV[$i]);
+  $services = {%$services, %$found_services};
+  $all_run = {%$all_run, %$found_all_run};
+}
 my @service_keywords = servicedb::validate($services, $dbinfo, $dbalias);
 
 sub coalesce {
