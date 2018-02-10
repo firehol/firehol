@@ -30,23 +30,22 @@ endif
 
 CLEANFILES = install.config
 
-helper_scripts =
-if ENABLE_FIREHOL_OR_FIREQOS
-helper_scripts += simple_services.sh
-endif
-
 inclib_DATA = \
 	functions.common \
+	services.common \
+	services.fireqos \
+	services.firehol \
 	install.config \
-	$(helper_scripts) \
 	$(NULL)
 
 inclib_SCRIPTS = $(scripts)
 
 EXTRA_DIST = \
 	functions.common \
+	services.common \
+	services.fireqos \
+	services.firehol \
 	install.config.in \
-	$(helper_scripts) \
 	$(scripts) \
 	$(NULL)
 

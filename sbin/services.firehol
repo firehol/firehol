@@ -1,0 +1,39 @@
+client_all_ports="any"
+server_all_ports="any/any"
+helper_all="ftp irc sip pptp proto_gre"
+
+client_any_ports="any"
+server_any_ports="any/any"
+helper_any=""
+
+client_h323_ports="default"
+server_h323_ports="udp/1720 tcp/1720"
+helper_h323="h323"
+
+client_httpalt_ports="default"
+server_httpalt_ports="tcp/8080"
+
+client_ICMPV6_ports="any"
+server_ICMPV6_ports="icmpv6/any"
+
+client_icmpv6_ports="any"
+server_icmpv6_ports="icmpv6/any"
+
+client_msn_ports="default"
+server_msn_ports="tcp/1863 udp/1863"
+
+client_msnp_ports="default"
+server_msnp_ports="tcp/6891"
+
+client_nrpe_ports="default"
+server_nrpe_ports="tcp/5666"
+
+client_openvpn_ports="default"
+server_openvpn_ports="tcp/1194 udp/1194"
+
+client_sip_ports="5060 default"
+server_sip_ports="tcp/5060 udp/5060"
+helper_sip="sip"
+
+client_tomcat_ports="default"
+server_tomcat_ports="tcp/8080"

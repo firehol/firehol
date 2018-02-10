@@ -42,7 +42,7 @@ all-local: service-links
 
 MKSERVICELINKS = ${top_srcdir}/doc/tools/mkservicelinks
 
-service-links: services-db.data $(top_srcdir)/sbin/firehol $(top_srcdir)/sbin/simple_services.sh
+service-links: $(top_srcdir)/sbin/firehol services-db.data
 	$(MKSERVICELINKS) service-links $+
 
 endif

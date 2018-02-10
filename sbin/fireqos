@@ -40,7 +40,7 @@ PROGRAM_DIR="${FIREHOL_OVERRIDE_PROGRAM_DIR:-$(realdir "$0")}"
 PROGRAM_PWD="${PWD}"
 declare -a PROGRAM_ORIGINAL_ARGS=("${@}")
 
-for functions_file in install.config functions.common simple_services.sh
+for functions_file in install.config functions.common services.common services.fireqos
 do
 	if [ -r "$PROGRAM_DIR/$functions_file" ]
 	then

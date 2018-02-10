@@ -40,7 +40,10 @@ PROGRAM_DIR="${FIREHOL_OVERRIDE_PROGRAM_DIR:-$(realdir "$0")}"
 PROGRAM_PWD="${PWD}"
 declare -a PROGRAM_ORIGINAL_ARGS=("${@}")
 
-for functions_file in install.config functions.common simple_services.sh
+# Services API version
+FIREHOL_SERVICES_API="1"
+
+for functions_file in install.config functions.common services.common services.firehol
 do
 	if [ -r "$PROGRAM_DIR/$functions_file" ]
 	then

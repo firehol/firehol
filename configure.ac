@@ -56,9 +56,6 @@ AC_ARG_ENABLE([firehol],
               [AS_HELP_STRING([--disable-firehol], [disable firehol installation @<:@enabled@:>@])],
               ,
               [enable_firehol="yes"])
-
-AM_CONDITIONAL([ENABLE_FIREHOL_OR_FIREQOS], [test "${enable_firehol}" = "yes" || test "${enable_fireqos}" = "yes"])
-
 AM_CONDITIONAL([ENABLE_FIREHOL], [test "${enable_firehol}" = "yes"])
 
 AC_ARG_ENABLE([firehol-wizard],

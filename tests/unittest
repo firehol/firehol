@@ -100,7 +100,7 @@ export FIREHOL_OVERRIDE_PROGRAM_DIR=$MYTMP/prog
 mkdir -p "$FIREHOL_OVERRIDE_PROGRAM_DIR"
 sed -e "s#[@].*POST[@]#$MYTMP#" ../sbin/install.config.in > "$FIREHOL_OVERRIDE_PROGRAM_DIR/install.config"
 cp $dirname/../sbin/functions.* "$FIREHOL_OVERRIDE_PROGRAM_DIR"
-cp $dirname/../sbin/simple_services.sh "$FIREHOL_OVERRIDE_PROGRAM_DIR/"
+cp $dirname/../sbin/services.* "$FIREHOL_OVERRIDE_PROGRAM_DIR/"
 
 verbose=0
 if [ "$1" = "-v" ]
