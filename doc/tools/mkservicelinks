@@ -9,13 +9,18 @@ use File::Basename qw( dirname );
 use lib dirname($0);
 use servicedb;
 
-if (@ARGV != 3) {
-  print STDERR "Usage: mkservicelist output.md firehol-script services-db.data\n";
+if (@ARGV < 3) {
+  print STDERR "Usage: mkservicelist output.md services-db.data firehol-script [..firehol-script]\n";
   exit 1;
 }
 
-my ($services, $all_run) = servicedb::read_script($ARGV[1]);
-my ($dbinfo, $dbalias) = servicedb::read_db($ARGV[2]);
+my ($dbinfo, $dbalias) = servicedb::read_db($ARGV[1]);
+my ($services, $all_run) = ({}, {});
+for (my $i=2; $i<=$#ARGV; $i++) {
+  my ($found_services, $found_all_run) = servicedb::read_script($ARGV[$i]);
+  $services = {%$services, %$found_services};
+  $all_run = {%$all_run, %$found_all_run};
+}
 my @service_keywords = servicedb::validate($services, $dbinfo, $dbalias);
 
 open my $o, ">$ARGV[0]" or die;
