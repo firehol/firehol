@@ -32,6 +32,9 @@ CLEANFILES = install.config
 
 inclib_DATA = \
 	functions.common \
+	services.common \
+	services.fireqos \
+	services.firehol \
 	install.config \
 	$(NULL)
 
@@ -39,6 +42,9 @@ inclib_SCRIPTS = $(scripts)
 
 EXTRA_DIST = \
 	functions.common \
+	services.common \
+	services.fireqos \
+	services.firehol \
 	install.config.in \
 	$(scripts) \
 	$(NULL)
