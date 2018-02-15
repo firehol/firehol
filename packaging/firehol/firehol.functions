@@ -23,7 +23,7 @@ firehol_check_file() {
       check_commands $filename || status=1
     ;;
     doc/services-db.data)
-      doc/tools/mkservicelinks /dev/null sbin/firehol doc/services-db.data || status=1
+      doc/tools/mkservicelinks /dev/null doc/services-db.data sbin/firehol sbin/services.common sbin/services.firehol || status=1
     ;;
     *)
       #echo "No checks found for $filename"
