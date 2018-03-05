@@ -5652,7 +5652,7 @@ protection() {
 				
 				set_work_function "Rules for enforcing connection rate per client on '${prface}' for ${work_cmd} '${work_name}'"
 				
-				rule in chain "${mychain}" hashlimit "${pre}_${work_name}_connrate" upto "${rate}" mode srcip "${@}" action return || return 1
+				rule in chain "${mychain}" hashlimit "${pre}_${work_name}_connrate" mode srcip upto "${@}" action return || return 1
 				rule in chain "${mychain}" loglimit "BLOCKED CLIENT CONNECTION RATE REACHED" action drop		|| return 1
 				;;
 
