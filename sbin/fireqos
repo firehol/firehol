@@ -3357,7 +3357,7 @@ htb_stats() {
 		drops = \$18;
 		overs = \$20;
 		requeues = \$22;
-		backlog = \$28;
+		backlog = \$25;
 
 		print "TCSTATS_" \$2 "_" \$3 "=\$(( (" value "*8) - OLD_TCSTATS_" \$2 "_" \$3 "));"
 		print "OLD_TCSTATS_" \$2 "_" \$3 "=\$((" value "*8));"
@@ -3395,22 +3395,25 @@ EOF
 
 	getdata() {
 		eval "`${TC_CMD} -s class show dev ${1} | ${TR_CMD} "\n,()" "|   " | ${SED_CMD} \
-			-e "s/[^|]|class /||class /g"		\
-			-e "s/ \+/ /g"				\
-			-e "s/ *| */|/g"			\
-			-e "s/||/\n/g"				\
-			-e "s/|/ /g"				\
-			-e "s/\([0-9]\+\)Mbit /\1000000 /g"	\
-			-e "s/\([0-9]\+\)Kbit /\1000 /g"	\
-			-e "s/\([0-9]\+\)bit /\1 /g"		\
-			-e "s/\([0-9]\+\)pps /\1 /g"		\
-			-e "s/\([0-9]\+\)b /\1 /g"		\
-			-e "s/\([0-9]\+\)p /\1 /g" 		\
-			-e "s/:/_/g" 				\
-			-e "s/ prio [0-9]\+ / /g"		\
-			-e "s/ root / /g"			\
-			-e "s/ parent [0-9]*_[0-9]* / /g"	\
-			-e "s/ leaf [0-9]*_[0-9]* / /g"	|\
+			-e "s/[^|]|class /||class /g"          \
+			-e "s/ \+/ /g"                         \
+			-e "s/ *| */|/g"                       \
+			-e "s/||/\n/g"                         \
+			-e "s/|/ /g"                           \
+			-e "s/\([0-9]\+\)Gbit /\1000000000 /g" \
+			-e "s/\([0-9]\+\)Mbit /\1000000 /g"    \
+			-e "s/\([0-9]\+\)Kbit /\1000 /g"       \
+			-e "s/\([0-9]\+\)bit /\1 /g"           \
+			-e "s/\([0-9]\+\)pps /\1 /g"           \
+			-e "s/\([0-9]\+\)b /\1 /g"             \
+			-e "s/\([0-9]\+\)p /\1 /g"             \
+			-e "s/:/_/g"                           \
+			-e "s/ prio [0-9]\+ / /g"              \
+			-e "s/ root / /g"                      \
+			-e "s/ parent [0-9]*_[0-9]* / /g"      \
+			-e "s/ leaf [0-9]*_[0-9]* / /g"        \
+			-e "s/ prio rate / rate /g"            \
+			-e "s/ rate [^ ]* [^ ]* backlog / backlog /g" |\
 			${GAWK_CMD} "${awk_script}"`"
 	}
 
