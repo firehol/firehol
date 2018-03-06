@@ -711,7 +711,7 @@ get_existing_routing_table() {
 	else
 		run $IP_CMD -4 -o route show table "${table}" |\
 			$GREP_CMD -v " via 127.0.0.1 dev lo" |\
-			sed -e 's/linkdown//' |\
+			$SED_CMD -e 's/linkdown//' |\
 			trim_spaces |\
 			$SORT_CMD
 	fi
