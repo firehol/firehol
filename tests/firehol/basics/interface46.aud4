@@ -18,7 +18,7 @@
 -A INPUT -p tcp -m tcp --tcp-flags ACK ACK -m conntrack --ctstate INVALID,NEW -j DROP
 -A INPUT -p tcp -m tcp --tcp-flags RST RST -m conntrack --ctstate INVALID,NEW -j DROP
 -A INPUT -p icmp -m icmp --icmp-type 3 -m conntrack --ctstate INVALID,NEW -j DROP
--A INPUT -m conntrack --ctstate INVALID -m limit --limit 1/sec -j LOG --log-prefix "BLOCKED INVALID INPUT:"
+-A INPUT -m conntrack --ctstate INVALID -m limit --limit 1/sec -j LOG --log-prefix "DROP INVALID INPUT:"
 -A INPUT -m conntrack --ctstate INVALID -j DROP
 -A INPUT -p icmp -m conntrack --ctstate RELATED -j ACCEPT
 -A INPUT -m limit --limit 1/sec -j LOG --log-prefix "UNMATCHED IN-unknown:"
@@ -28,7 +28,7 @@
 -A FORWARD -p tcp -m tcp --tcp-flags ACK ACK -m conntrack --ctstate INVALID,NEW -j DROP
 -A FORWARD -p tcp -m tcp --tcp-flags RST RST -m conntrack --ctstate INVALID,NEW -j DROP
 -A FORWARD -p icmp -m icmp --icmp-type 3 -m conntrack --ctstate INVALID,NEW -j DROP
--A FORWARD -m conntrack --ctstate INVALID -m limit --limit 1/sec -j LOG --log-prefix "BLOCKED INVALID FORWARD:"
+-A FORWARD -m conntrack --ctstate INVALID -m limit --limit 1/sec -j LOG --log-prefix "DROP INVALID FORWARD:"
 -A FORWARD -m conntrack --ctstate INVALID -j DROP
 -A FORWARD -p icmp -m conntrack --ctstate RELATED -j ACCEPT
 -A FORWARD -p tcp -m conntrack --ctstate RELATED -m tcp --tcp-flags FIN,SYN,RST,PSH,ACK,URG RST,ACK -j ACCEPT
@@ -43,7 +43,7 @@
 -A OUTPUT -p tcp -m tcp --tcp-flags ACK ACK -m conntrack --ctstate INVALID,NEW -j DROP
 -A OUTPUT -p tcp -m tcp --tcp-flags RST RST -m conntrack --ctstate INVALID,NEW -j DROP
 -A OUTPUT -p icmp -m icmp --icmp-type 3 -m conntrack --ctstate INVALID,NEW -j DROP
--A OUTPUT -m conntrack --ctstate INVALID -m limit --limit 1/sec -j LOG --log-prefix "BLOCKED INVALID OUTPUT:"
+-A OUTPUT -m conntrack --ctstate INVALID -m limit --limit 1/sec -j LOG --log-prefix "DROP INVALID OUTPUT:"
 -A OUTPUT -m conntrack --ctstate INVALID -j DROP
 -A OUTPUT -p icmp -m conntrack --ctstate RELATED -j ACCEPT
 -A OUTPUT -p tcp -m conntrack --ctstate RELATED -m tcp --tcp-flags FIN,SYN,RST,PSH,ACK,URG RST,ACK -j ACCEPT
@@ -55,7 +55,7 @@
 -A in_myeth0 -p tcp -m tcp --tcp-flags ACK ACK -m conntrack --ctstate INVALID,NEW -j DROP
 -A in_myeth0 -p tcp -m tcp --tcp-flags RST RST -m conntrack --ctstate INVALID,NEW -j DROP
 -A in_myeth0 -p icmp -m icmp --icmp-type 3 -m conntrack --ctstate INVALID,NEW -j DROP
--A in_myeth0 -m conntrack --ctstate INVALID -m limit --limit 1/sec -j LOG --log-prefix "BLOCKED INVALID in_myeth0:"
+-A in_myeth0 -m conntrack --ctstate INVALID -m limit --limit 1/sec -j LOG --log-prefix "DROP INVALID in_myeth0:"
 -A in_myeth0 -m conntrack --ctstate INVALID -j DROP
 -A in_myeth0 -m limit --limit 1/sec -j LOG --log-prefix "UNMATCHED IN-myeth0:"
 -A in_myeth0 -j DROP
@@ -65,7 +65,7 @@
 -A in_myeth1 -p tcp -m tcp --tcp-flags ACK ACK -m conntrack --ctstate INVALID,NEW -j DROP
 -A in_myeth1 -p tcp -m tcp --tcp-flags RST RST -m conntrack --ctstate INVALID,NEW -j DROP
 -A in_myeth1 -p icmp -m icmp --icmp-type 3 -m conntrack --ctstate INVALID,NEW -j DROP
--A in_myeth1 -m conntrack --ctstate INVALID -m limit --limit 1/sec -j LOG --log-prefix "BLOCKED INVALID in_myeth1:"
+-A in_myeth1 -m conntrack --ctstate INVALID -m limit --limit 1/sec -j LOG --log-prefix "DROP INVALID in_myeth1:"
 -A in_myeth1 -m conntrack --ctstate INVALID -j DROP
 -A in_myeth1 -m limit --limit 1/sec -j LOG --log-prefix "UNMATCHED IN-myeth1:"
 -A in_myeth1 -j DROP
@@ -75,7 +75,7 @@
 -A in_myeth2 -p tcp -m tcp --tcp-flags ACK ACK -m conntrack --ctstate INVALID,NEW -j DROP
 -A in_myeth2 -p tcp -m tcp --tcp-flags RST RST -m conntrack --ctstate INVALID,NEW -j DROP
 -A in_myeth2 -p icmp -m icmp --icmp-type 3 -m conntrack --ctstate INVALID,NEW -j DROP
--A in_myeth2 -m conntrack --ctstate INVALID -m limit --limit 1/sec -j LOG --log-prefix "BLOCKED INVALID in_myeth2:"
+-A in_myeth2 -m conntrack --ctstate INVALID -m limit --limit 1/sec -j LOG --log-prefix "DROP INVALID in_myeth2:"
 -A in_myeth2 -m conntrack --ctstate INVALID -j DROP
 -A in_myeth2 -m limit --limit 1/sec -j LOG --log-prefix "UNMATCHED IN-myeth2:"
 -A in_myeth2 -j DROP
@@ -86,7 +86,7 @@
 -A out_myeth0 -p tcp -m tcp --tcp-flags ACK ACK -m conntrack --ctstate INVALID,NEW -j DROP
 -A out_myeth0 -p tcp -m tcp --tcp-flags RST RST -m conntrack --ctstate INVALID,NEW -j DROP
 -A out_myeth0 -p icmp -m icmp --icmp-type 3 -m conntrack --ctstate INVALID,NEW -j DROP
--A out_myeth0 -m conntrack --ctstate INVALID -m limit --limit 1/sec -j LOG --log-prefix "BLOCKED INVALID out_myeth0:"
+-A out_myeth0 -m conntrack --ctstate INVALID -m limit --limit 1/sec -j LOG --log-prefix "DROP INVALID out_myeth0:"
 -A out_myeth0 -m conntrack --ctstate INVALID -j DROP
 -A out_myeth0 -m limit --limit 1/sec -j LOG --log-prefix "UNMATCHED OUT-myeth0:"
 -A out_myeth0 -j DROP
@@ -97,7 +97,7 @@
 -A out_myeth1 -p tcp -m tcp --tcp-flags ACK ACK -m conntrack --ctstate INVALID,NEW -j DROP
 -A out_myeth1 -p tcp -m tcp --tcp-flags RST RST -m conntrack --ctstate INVALID,NEW -j DROP
 -A out_myeth1 -p icmp -m icmp --icmp-type 3 -m conntrack --ctstate INVALID,NEW -j DROP
--A out_myeth1 -m conntrack --ctstate INVALID -m limit --limit 1/sec -j LOG --log-prefix "BLOCKED INVALID out_myeth1:"
+-A out_myeth1 -m conntrack --ctstate INVALID -m limit --limit 1/sec -j LOG --log-prefix "DROP INVALID out_myeth1:"
 -A out_myeth1 -m conntrack --ctstate INVALID -j DROP
 -A out_myeth1 -m limit --limit 1/sec -j LOG --log-prefix "UNMATCHED OUT-myeth1:"
 -A out_myeth1 -j DROP
@@ -108,7 +108,7 @@
 -A out_myeth2 -p tcp -m tcp --tcp-flags ACK ACK -m conntrack --ctstate INVALID,NEW -j DROP
 -A out_myeth2 -p tcp -m tcp --tcp-flags RST RST -m conntrack --ctstate INVALID,NEW -j DROP
 -A out_myeth2 -p icmp -m icmp --icmp-type 3 -m conntrack --ctstate INVALID,NEW -j DROP
--A out_myeth2 -m conntrack --ctstate INVALID -m limit --limit 1/sec -j LOG --log-prefix "BLOCKED INVALID out_myeth2:"
+-A out_myeth2 -m conntrack --ctstate INVALID -m limit --limit 1/sec -j LOG --log-prefix "DROP INVALID out_myeth2:"
 -A out_myeth2 -m conntrack --ctstate INVALID -j DROP
 -A out_myeth2 -m limit --limit 1/sec -j LOG --log-prefix "UNMATCHED OUT-myeth2:"
 -A out_myeth2 -j DROP
