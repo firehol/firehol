@@ -13,7 +13,7 @@
 -A INPUT -p tcp -m tcp --tcp-flags ACK ACK -m conntrack --ctstate INVALID,NEW -j DROP
 -A INPUT -p tcp -m tcp --tcp-flags RST RST -m conntrack --ctstate INVALID,NEW -j DROP
 -A INPUT -p icmp -m icmp --icmp-type 3 -m conntrack --ctstate INVALID,NEW -j DROP
--A INPUT -m conntrack --ctstate INVALID -m limit --limit 1/sec -j LOG --log-prefix "BLOCKED INVALID INPUT:"
+-A INPUT -m conntrack --ctstate INVALID -m limit --limit 1/sec -j LOG --log-prefix "DROP INVALID INPUT:"
 -A INPUT -m conntrack --ctstate INVALID -j DROP
 -A INPUT -p icmp -m conntrack --ctstate RELATED -j ACCEPT
 -A INPUT -m limit --limit 1/sec -j LOG --log-prefix "UNMATCHED IN-unknown:"
@@ -23,7 +23,7 @@
 -A FORWARD -p tcp -m tcp --tcp-flags ACK ACK -m conntrack --ctstate INVALID,NEW -j DROP
 -A FORWARD -p tcp -m tcp --tcp-flags RST RST -m conntrack --ctstate INVALID,NEW -j DROP
 -A FORWARD -p icmp -m icmp --icmp-type 3 -m conntrack --ctstate INVALID,NEW -j DROP
--A FORWARD -m conntrack --ctstate INVALID -m limit --limit 1/sec -j LOG --log-prefix "BLOCKED INVALID FORWARD:"
+-A FORWARD -m conntrack --ctstate INVALID -m limit --limit 1/sec -j LOG --log-prefix "DROP INVALID FORWARD:"
 -A FORWARD -m conntrack --ctstate INVALID -j DROP
 -A FORWARD -s 0.0.0.0/8 -j in_routera
 -A FORWARD -s 127.0.0.0/8 -j in_routera
@@ -55,7 +55,7 @@
 -A OUTPUT -p tcp -m tcp --tcp-flags ACK ACK -m conntrack --ctstate INVALID,NEW -j DROP
 -A OUTPUT -p tcp -m tcp --tcp-flags RST RST -m conntrack --ctstate INVALID,NEW -j DROP
 -A OUTPUT -p icmp -m icmp --icmp-type 3 -m conntrack --ctstate INVALID,NEW -j DROP
--A OUTPUT -m conntrack --ctstate INVALID -m limit --limit 1/sec -j LOG --log-prefix "BLOCKED INVALID OUTPUT:"
+-A OUTPUT -m conntrack --ctstate INVALID -m limit --limit 1/sec -j LOG --log-prefix "DROP INVALID OUTPUT:"
 -A OUTPUT -m conntrack --ctstate INVALID -j DROP
 -A OUTPUT -p icmp -m conntrack --ctstate RELATED -j ACCEPT
 -A OUTPUT -p tcp -m conntrack --ctstate RELATED -m tcp --tcp-flags FIN,SYN,RST,PSH,ACK,URG RST,ACK -j ACCEPT
