@@ -2416,6 +2416,7 @@ ipset_apply() {
 	return 0
 }
 
+IPSET_PUBLIC_URL=
 ipset_attributes() {
 	local ipset="${1}"
 	shift
@@ -2446,6 +2447,10 @@ ipset_attributes() {
 			false_positives)		IPSET_FALSE_POSITIVES[${ipset}]="${2}" ;;
 			poisoning)				IPSET_POISONING[${ipset}]="${2}" ;;
 			service|services)		IPSET_SERVICES[${ipset}]="${2}" ;;
+
+			# we use IPSET_PUBLIC_URL to replace / hide the actual URL we use
+			public_url)				IPSET_URL[${ipset}]="${2}"; IPSET_PUBLIC_URL="${2}" ;;
+
 			*)						ipset_warning "${ipset}" "unknown ipset option '${1}' with value '${2}'." ;;
 		esac
 
@@ -2701,6 +2706,7 @@ update() {
 	shift 11
 
 	# read it attributes
+	IPSET_PUBLIC_URL=
 	ipset_attributes "${ipset}" "${@}"
 
 	local	tmp= error=0 now= date= ret= \
@@ -2798,6 +2804,8 @@ update() {
 			check_file_too_old "${ipset}" "${BASE_DIR}/${dst}"
 			return 1
 		fi
+
+		[ ! -z "${IPSET_PUBLIC_URL}" ] && url="${IPSET_PUBLIC_URL}"
 	fi
 
 	if [ -f "${BASE_DIR}/${dst}" ]
@@ -5793,6 +5801,34 @@ if [ ! -z "${AUTOSHUN_API_KEY}" ]
 		dont_enable_with_all \
 		no_if_modified_since
 fi
+
+
+# -----------------------------------------------------------------------------
+# ip2proxy lite
+# https://lite.ip2location.com/
+
+ip2location_ip2proxy_px1lite() {
+	$CAT_CMD >"${RUN_DIR}/ip2location_ip2proxy_px1lite.zip"
+	$UNZIP_CMD -jpx "${RUN_DIR}/ip2location_ip2proxy_px1lite.zip" "IP2PROXY-LITE-PX1.CSV" |\
+		$CUT_CMD -d ',' -f 1,2 |\
+		$TR_CMD '",' ' -' |\
+		$IPRANGE_CMD
+}
+
+if [ ! -z "${IP2LOCATION_API_KEY}" ]
+	then
+	update ip2proxy_px1lite $[24*60] 0 ipv4 net \
+		"http://www.ip2location.com/download/?token=${IP2LOCATION_API_KEY}&file=PX1LITE" \
+		ip2location_ip2proxy_px1lite \
+		"anonymizers" \
+		"[IP2Location.com](https://lite.ip2location.com/database/px1-ip-country) IP2Proxy LITE IP-COUNTRY Database contains IP addresses which are used as public proxies. The LITE edition is a free version of database that is limited to public proxies IP address." \
+		"IP2Location.com" "https://lite.ip2location.com/database/px1-ip-country" \
+		license "Creative Commons Attribution 4.0 International Public License" \
+		public_url "http://www.ip2location.com/download/?token=APIKEY&file=PX1LITE" \
+		dont_enable_with_all \
+		dont_redistribute
+fi
+
 
 # -----------------------------------------------------------------------------
 # VoIPBL.org
