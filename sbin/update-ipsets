@@ -7748,6 +7748,7 @@ merge firehol_proxies ipv4 both \
 	"FireHOL" "http://iplists.firehol.org/" \
 	iblocklist_proxies \
 	maxmind_proxy_fraud \
+	ip2proxy_px1lite \
 	proxylists_30d \
 	proxyrss_30d proxz_30d \
 	ri_connect_proxies_30d \
