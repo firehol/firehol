@@ -670,6 +670,10 @@ cd "${RUN_DIR}"
 
 PROGRAM_COMPLETED=0
 cleanup() {
+	# make sure the cache is saved
+	CACHE_SAVE_ENABLED=1
+	cache_save
+
 	cd "${TMP_DIR}"
 
 	if [ ! -z "${RUN_DIR}" -a -d "${RUN_DIR}" ]
@@ -1299,7 +1303,10 @@ declare -A IPSET_DOWNLOADER_OPTIONS=()
 # TODO - FIXME
 #declare -A IPSET_PREFIXES=()
 
+CACHE_SAVE_ENABLED=1
 cache_save() {
+	[ ${CACHE_SAVE_ENABLED} -eq 0 ] && return 0
+
 	#info "Saving cache"
 
 	declare -p \
@@ -3542,6 +3549,146 @@ hphosts2ips() {
 		hostname_resolver
 }
 
+geolite2_asn() {
+	if [ -z "${UNZIP_CMD}" ]
+	then
+		ipset_error "geolite2_asn" "Command 'unzip' is not installed."
+		return 1
+	fi
+
+	cd "${RUN_DIR}" || return 1
+
+	local ipset="geolite2_asn" limit="" hash="net" ipv="ipv4" \
+		mins=$[24 * 60 * 7] history_mins=0 \
+		url="http://geolite.maxmind.com/download/geoip/database/GeoLite2-ASN-CSV.zip" \
+		info="[MaxMind GeoLite2 ASN](https://dev.maxmind.com/geoip/geoip2/geolite2/)" \
+		ret=
+
+	ipset_shall_be_run "${ipset}"
+	case "$?" in
+		0)	;;
+
+		1)	[ -d "${BASE_DIR}/.git" ] && echo >"${BASE_DIR}/${ipset}.setinfo" "${ipset}|${info}|${ipv} hash:${hash}|disabled|`if [ ! -z "${url}" ]; then echo "updated every $(mins_to_text ${mins}) from [this link](${url})"; fi`"
+			return 1
+			;;
+
+		*)	return 1
+			;;
+	esac
+
+	# download it
+	download_manager "${ipset}" "${mins}" "${url}"
+	ret=$?
+	if [ $ret -eq ${DOWNLOAD_FAILED} -o $ret -eq ${DOWNLOAD_NOT_UPDATED} ]
+		then
+		[ ! -s "${BASE_DIR}/${ipset}.source" ] && return 1
+		[ -d "${BASE_DIR}/${ipset}" -a ${REPROCESS_ALL} -eq 0 ] && return 1
+	fi
+
+	# create a temp dir
+	[ -d "${ipset}.tmp" ] && $RM_CMD -rf "${ipset}.tmp"
+	$MKDIR_CMD "${ipset}.tmp" || return 1
+	cd "${ipset}.tmp" || return 1
+
+	# create the final dir
+	if [ ! -d "${BASE_DIR}/${ipset}" ]
+	then
+		$MKDIR_CMD "${BASE_DIR}/${ipset}" || return 1
+	fi
+
+	# get the old version of README-EDIT.md, if any
+	if [ -d "${BASE_DIR}/.git" -a ! -f "${BASE_DIR}/${ipset}/README-EDIT.md" ]
+		then
+		$GIT_CMD -C "${BASE_DIR}" checkout ${ipset}/README-EDIT.md >/dev/null 2>&1
+		if [ ! -f ${ipset}/README-EDIT.md ]
+			then
+			$TOUCH_CMD ${ipset}/README-EDIT.md
+			git_add_if_not_already_added ${ipset}/README-EDIT.md
+		fi
+	fi
+
+	# extract it
+
+	# The ASN db has the following columns:
+	# 1. network 				the subnet
+	# 2. autonomous_system_number 			the ASN
+	# 3. autonomous_system_organization 	the name of the company that owns this ASN
+
+	ipset_info "${ipset}" "extracting ASN netsets..."
+	$UNZIP_CMD -jpx "${BASE_DIR}/${ipset}.source" "*/GeoLite2-ASN-Blocks-IPv4.csv" |\
+		$GAWK_CMD -F, '{ print $1 >>$2".source.tmp"; close($2".source.tmp"); }'
+
+	# remove the files created of the header line
+	[ -f "ASautonomous_system_number.source.tmp"         ] && $RM_CMD "ASautonomous_system_number.source.tmp"
+
+	ipset_info "${ipset}" "extracting ASN names..."
+	$UNZIP_CMD -jpx "${BASE_DIR}/${ipset}.source" "*/GeoLite2-ASN-Blocks-IPv4.csv" |\
+		$CUT_CMD -d ',' -f 2,3- |\
+		$SORT_CMD -u |\
+		$TR_CMD '`$' "'_" |\
+		$SED_CMD -e 's|"||g' -e "s|^\([0-9]\+\),\(.*\)$|geolite2_asn_names[\1]=\"\2\"|g" |\
+		$GREP_CMD "^geolite2_asn_names" >names.sh
+
+	ipset_info "${ipset}" "reading ASN names..."
+	declare -A geolite2_asn_names=()
+	source names.sh
+	$RM_CMD names.sh
+
+	CACHE_SAVE_ENABLED=0
+	ipset_info "${ipset}" "generating ASN netsets..."
+	local x i info2 tmp
+	for x in *.source.tmp
+	do
+		i="AS${x/.source.tmp/}"
+		tmp="${i}.source"
+
+		ipset_verbose "${i}" "Generating file '${tmp}'"
+
+		$CAT_CMD "${x}" |\
+			filter_all4 |\
+			${IPRANGE_CMD} |\
+			filter_invalid4 >"${tmp}"
+
+		$TOUCH_CMD -r "${BASE_DIR}/${ipset}.source" "${tmp}"
+		$RM_CMD "${x}"
+
+		info2="${geolite2_asn_names[${i/AS/}]} -- ${info}"
+
+		finalize "${i}" \
+			"${tmp}" \
+			"${ipset}.source" \
+			"${ipset}/${i}.netset" \
+			"${mins}" \
+			"${history_mins}" \
+			"${ipv}" \
+			"${limit}" \
+			"${hash}" \
+			"${url}" \
+			"geolocation" \
+			"${info2}" \
+			"MaxMind.com" \
+			"http://www.maxmind.com/" \
+			service "geolocation"
+
+		[ -f "${BASE_DIR}/${i}.setinfo" ] && $MV_CMD -f "${BASE_DIR}/${i}.setinfo" "${BASE_DIR}/${ipset}/${i}.setinfo"
+
+	done
+	CACHE_SAVE_ENABLED=1
+	cache_save
+
+	if [ -d "${BASE_DIR}/.git" ]
+	then
+		# generate a setinfo for the home page
+		echo >"${BASE_DIR}/${ipset}.setinfo" "[${ipset}](${GITHUB_SETINFO}geolite2_asn)|[MaxMind GeoLite2](http://dev.maxmind.com/geoip/geoip2/geolite2/) databases are free IP to ASN (Autonomous System Number) databases.|ipv4 hash:net|All the world|`if [ ! -z "${url}" ]; then echo "updated every $(mins_to_text ${mins}) from [this link](${url})"; fi`"
+	fi
+
+	# remove the temporary dir
+	cd "${RUN_DIR}"
+	$RM_CMD -rf "${ipset}.tmp"
+
+	return 0
+}
+
 geolite2_country() {
 	if [ -z "${UNZIP_CMD}" ]
 	then
@@ -3669,6 +3816,7 @@ geolite2_country() {
 	printf "%s" "Anonymous Service Providers" >"anonymous.source.tmp.info"
 	printf "%s" "Satellite Service Providers" >"satellite.source.tmp.info"
 
+	CACHE_SAVE_ENABLED=0
 	ipset_info "${ipset}" "aggregating country and continent netsets..."
 	local x i info2 tmp
 	for x in *.source.tmp
@@ -3707,6 +3855,8 @@ geolite2_country() {
 		[ -f "${BASE_DIR}/${i}.setinfo" ] && $MV_CMD -f "${BASE_DIR}/${i}.setinfo" "${BASE_DIR}/${ipset}/${i}.setinfo"
 
 	done
+	CACHE_SAVE_ENABLED=1
+	cache_save
 
 	if [ -d "${BASE_DIR}/.git" ]
 	then
@@ -4369,6 +4519,8 @@ echo >&2
 # MaxMind
 
 geolite2_country
+
+geolite2_asn
 
 
 # -----------------------------------------------------------------------------
@@ -6097,6 +6249,25 @@ update cta_cryptowall $[24*60] 0 ipv4 ip \
 	"malware" \
 	"[Cyber Threat Alliance](http://www.cyberthreatalliance.org/cryptowall-dashboard.html)  CryptoWall is one of the most lucrative and broad-reaching ransomware campaigns affecting Internet users today. Sharing intelligence and analysis resources, the CTA profiled the latest version of CryptoWall, which impacted hundreds of thousands of users, resulting in over US \$325 million in damages worldwide." \
 	"Cyber Threat Alliance" "http://www.cyberthreatalliance.org/cryptowall-dashboard.html"
+
+
+# -----------------------------------------------------------------------------
+# https://github.com/client9/ipcat
+
+parse_client9_ipcat_datacenters() {
+	 $CUT_CMD -d ',' -f 1,2 |\
+	 	$TR_CMD "," "-" |\
+	 	$IPRANGE_CMD
+}
+
+update datacenters $[24*60] 0 ipv4 net \
+	"https://raw.githubusercontent.com/client9/ipcat/master/datacenters.csv" \
+	parse_client9_ipcat_datacenters \
+	"organizations" \
+	"[Nick Galbreath](https://github.com/client9/ipcat) This is a list of IPv4 address that correspond to datacenters, co-location centers, shared and virtual webhosting providers. In other words, ip addresses that end web consumers should not be using." \
+	"Nick Galbreath" "https://github.com/client9/ipcat" \
+	license "GPLv3" \
+	never_empty
 
 
 # -----------------------------------------------------------------------------
