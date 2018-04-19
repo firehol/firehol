@@ -3241,7 +3241,7 @@ rename_ipset ib_isp_sprint iblocklist_isp_sprint
 IP4_MATCH="(((25[0-5]|2[0-4][0-9]|1[0-9][0-9]|[1-9][0-9]|[0-9])\.){3}(25[0-5]|2[0-4][0-9]|1[0-9][0-9]|[1-9][0-9]|[0-9]))"
 
 # match a single IPv4 net mask (/32 allowed, /0 not allowed)
-MK4_MATCH="(3[12]|[12][0-9]|[1-9])"
+MK4_MATCH="(3[0-2]|[12][0-9]|[1-9])"
 
 # strict checking of IPv4 IPs - all subnets excluded
 # we remove /32 before matching
