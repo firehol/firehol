@@ -5817,7 +5817,7 @@ ip2location_ip2proxy_px1lite() {
 
 if [ ! -z "${IP2LOCATION_API_KEY}" ]
 	then
-	update ip2proxy_px1lite $[24*60] 0 ipv4 net \
+	update ip2proxy_px1lite $[24*60] 0 ipv4 both \
 		"http://www.ip2location.com/download/?token=${IP2LOCATION_API_KEY}&file=PX1LITE" \
 		ip2location_ip2proxy_px1lite \
 		"anonymizers" \
@@ -6296,7 +6296,7 @@ parse_client9_ipcat_datacenters() {
 	 	$IPRANGE_CMD
 }
 
-update datacenters $[24*60] 0 ipv4 net \
+update datacenters $[24*60] 0 ipv4 both \
 	"https://raw.githubusercontent.com/client9/ipcat/master/datacenters.csv" \
 	parse_client9_ipcat_datacenters \
 	"organizations" \
