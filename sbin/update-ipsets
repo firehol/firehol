@@ -1358,6 +1358,88 @@ if [ -f "${BASE_DIR}/.cache" ]
 	source "${BASE_DIR}/.cache"
 fi
 
+cache_save_metadata_backup() {
+	local ipset="${1}"
+
+	ipset_verbose "${ipset}" "saving metadata backup"
+
+	printf >"${LIB_DIR}/${ipset}/metadata" "\
+IPSET_INFO[${ipset}]=%q\n\
+IPSET_SOURCE[${ipset}]=%q\n\
+IPSET_URL[${ipset}]=%q\n\
+IPSET_FILE[${ipset}]=%q\n\
+IPSET_IPV[${ipset}]=%q\n\
+IPSET_HASH[${ipset}]=%q\n\
+IPSET_MINS[${ipset}]=%q\n\
+IPSET_HISTORY_MINS[${ipset}]=%q\n\
+IPSET_ENTRIES[${ipset}]=%q\n\
+IPSET_IPS[${ipset}]=%q\n\
+IPSET_SOURCE_DATE[${ipset}]=%q\n\
+IPSET_CHECKED_DATE[${ipset}]=%q\n\
+IPSET_PROCESSED_DATE[${ipset}]=%q\n\
+IPSET_CATEGORY[${ipset}]=%q\n\
+IPSET_MAINTAINER[${ipset}]=%q\n\
+IPSET_MAINTAINER_URL[${ipset}]=%q\n\
+IPSET_LICENSE[${ipset}]=%q\n\
+IPSET_GRADE[${ipset}]=%q\n\
+IPSET_PROTECTION[${ipset}]=%q\n\
+IPSET_INTENDED_USE[${ipset}]=%q\n\
+IPSET_FALSE_POSITIVES[${ipset}]=%q\n\
+IPSET_POISONING[${ipset}]=%q\n\
+IPSET_SERVICES[${ipset}]=%q\n\
+IPSET_ENTRIES_MIN[${ipset}]=%q\n\
+IPSET_ENTRIES_MAX[${ipset}]=%q\n\
+IPSET_IPS_MIN[${ipset}]=%q\n\
+IPSET_IPS_MAX[${ipset}]=%q\n\
+IPSET_STARTED_DATE[${ipset}]=%q\n\
+IPSET_CLOCK_SKEW[${ipset}]=%q\n\
+IPSET_DOWNLOAD_FAILURES[${ipset}]=%q\n\
+IPSET_VERSION[${ipset}]=%q\n\
+IPSET_AVERAGE_UPDATE_TIME[${ipset}]=%q\n\
+IPSET_MIN_UPDATE_TIME[${ipset}]=%q\n\
+IPSET_MAX_UPDATE_TIME[${ipset}]=%q\n\
+IPSET_DOWNLOADER[${ipset}]=%q\n\
+IPSET_DOWNLOADER_OPTIONS[${ipset}]=%q\n\
+		" \
+		"${IPSET_INFO[${ipset}]}" \
+		"${IPSET_SOURCE[${ipset}]}" \
+		"${IPSET_URL[${ipset}]}" \
+		"${IPSET_FILE[${ipset}]}" \
+		"${IPSET_IPV[${ipset}]}" \
+		"${IPSET_HASH[${ipset}]}" \
+		"${IPSET_MINS[${ipset}]}" \
+		"${IPSET_HISTORY_MINS[${ipset}]}" \
+		"${IPSET_ENTRIES[${ipset}]}" \
+		"${IPSET_IPS[${ipset}]}" \
+		"${IPSET_SOURCE_DATE[${ipset}]}" \
+		"${IPSET_CHECKED_DATE[${ipset}]}" \
+		"${IPSET_PROCESSED_DATE[${ipset}]}" \
+		"${IPSET_CATEGORY[${ipset}]}" \
+		"${IPSET_MAINTAINER[${ipset}]}" \
+		"${IPSET_MAINTAINER_URL[${ipset}]}" \
+		"${IPSET_LICENSE[${ipset}]}" \
+		"${IPSET_GRADE[${ipset}]}" \
+		"${IPSET_PROTECTION[${ipset}]}" \
+		"${IPSET_INTENDED_USE[${ipset}]}" \
+		"${IPSET_FALSE_POSITIVES[${ipset}]}" \
+		"${IPSET_POISONING[${ipset}]}" \
+		"${IPSET_SERVICES[${ipset}]}" \
+		"${IPSET_ENTRIES_MIN[${ipset}]}" \
+		"${IPSET_ENTRIES_MAX[${ipset}]}" \
+		"${IPSET_IPS_MIN[${ipset}]}" \
+		"${IPSET_IPS_MAX[${ipset}]}" \
+		"${IPSET_STARTED_DATE[${ipset}]}" \
+		"${IPSET_CLOCK_SKEW[${ipset}]}" \
+		"${IPSET_DOWNLOAD_FAILURES[${ipset}]}" \
+		"${IPSET_VERSION[${ipset}]}" \
+		"${IPSET_AVERAGE_UPDATE_TIME[${ipset}]}" \
+		"${IPSET_MIN_UPDATE_TIME[${ipset}]}" \
+		"${IPSET_MAX_UPDATE_TIME[${ipset}]}" \
+		"${IPSET_DOWNLOADER[${ipset}]}" \
+		"${IPSET_DOWNLOADER_OPTIONS[${ipset}]}" \
+		${NULL}
+}
+
 cache_remove_ipset() {
 	local ipset="${1}"
 
@@ -1975,6 +2057,12 @@ update_web() {
 
 	for x in $(params_sort "${!IPSET_FILE[@]}")
 	do
+		if [ -z "${IPSET_FILE[$x]}" ]
+			then
+			ipset_warning "${x}" "empty filename - skipping it"
+			continue
+		fi
+
 		# remove deleted files
 		if [ ! -f "${IPSET_FILE[$x]}" ]
 			then
@@ -2070,6 +2158,8 @@ update_web() {
 
 		if [ ${to_all} -eq 1 ]
 			then
+			cache_save_metadata_backup "${x}"
+
 			ipset_verbose "${x}" "ipset will be compared with all others"
 			all=("${all[@]}" "${IPSET_FILE[$x]}" "as" "${x}")
 			all_count=$[ all_count + 1 ]
