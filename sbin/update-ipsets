@@ -2881,7 +2881,7 @@ update() {
 
 		if [ \( -z "${IPSET_FILE[${ipset}]}" -o ! -f "${IPSET_FILE[${ipset}]}" -o ! -s "${BASE_DIR}/${dst}" \) -a -s  "${BASE_DIR}/${src}" ]
 			then
-			ipset_silent "${ipset}" "forced reprocessing due to incocistency in files"
+			ipset_silent "${ipset}" "forced reprocessing due to incocistency in files IPSET_FILE='${IPSET_FILE[${ipset}]}', src='${BASE_DIR}/${src}', dst='${BASE_DIR}/${dst}'"
 
 		elif [ $ret -eq ${DOWNLOAD_FAILED} ]
 			then
