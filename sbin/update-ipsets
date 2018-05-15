@@ -2792,7 +2792,7 @@ update() {
 			processor="${7-$CAT_CMD}" \
 			category="${8}" \
 			info="${9}" \
-			maintainer="${10}" maintainer_url="${11}"
+			maintainer="${10}" maintainer_url="${11}" force=${REPROCESS_ALL}
 	shift 11
 
 	# read it attributes
@@ -2881,19 +2881,21 @@ update() {
 
 		if [ \( -z "${IPSET_FILE[${ipset}]}" -o ! -f "${BASE_DIR}/${dst}" \) -a -s  "${BASE_DIR}/${src}" ]
 			then
+			force=1
 			ipset_silent "${ipset}" "forced reprocessing (ignoring download status)"
 
-		elif [ $ret -eq ${DOWNLOAD_FAILED} ]
+		elif [ ${ret} -eq ${DOWNLOAD_FAILED} ]
 			then
 			ipset_silent "${ipset}" "download manager reports failure"
 			check_file_too_old "${ipset}" "${BASE_DIR}/${dst}"
 			return 1
 
-		elif [ $ret -eq ${DOWNLOAD_NOT_UPDATED} -a ! -f "${BASE_DIR}/${dst}" ]
+		elif [ ${ret} -eq ${DOWNLOAD_NOT_UPDATED} -a ! -f "${BASE_DIR}/${dst}" ]
 			then
+			force=1
 			ipset_silent "${ipset}" "download is the same, but we need to re-process it"
 
-		elif [ $ret -eq ${DOWNLOAD_NOT_UPDATED} -a ${REPROCESS_ALL} -eq 0 ]
+		elif [ ${ret} -eq ${DOWNLOAD_NOT_UPDATED} -a ${force} -eq 0 ]
 			then
 			ipset_silent "${ipset}" "download manager reports not updated source"
 			check_file_too_old "${ipset}" "${BASE_DIR}/${dst}"
@@ -2906,7 +2908,7 @@ update() {
 	if [ -f "${BASE_DIR}/${dst}" ]
 		then
 		# check if the source file has been updated
-		if [ ${REPROCESS_ALL} -eq 0 -a ! "${BASE_DIR}/${src}" -nt "${BASE_DIR}/${dst}" ]
+		if [ ${force} -eq 0 -a ! "${BASE_DIR}/${src}" -nt "${BASE_DIR}/${dst}" ]
 		then
 			ipset_notupdated "${ipset}" "source file has not been updated"
 			check_file_too_old "${ipset}" "${BASE_DIR}/${dst}"
