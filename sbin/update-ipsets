@@ -2596,7 +2596,7 @@ finalize() {
 		info="${category}"
 	fi
 
-	if [ -f "${BASE_DIR}/${dst}" -a ${REPROCESS_ALL} -eq 0 ]
+	if [ -f "${BASE_DIR}/${dst}" -a ! -z "${IPSET_FILE[${ipset}]}" -a ${REPROCESS_ALL} -eq 0 ]
 		then
 		${IPRANGE_CMD} "${BASE_DIR}/${dst}" --diff "${tmp}" --quiet
 		if [ $? -eq 0 ]
