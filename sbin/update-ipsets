@@ -2878,7 +2878,12 @@ update() {
 		# download it
 		download_manager "${ipset}" "${mins}" "${url}"
 		ret=$?
-		if [ $ret -eq ${DOWNLOAD_FAILED} ]
+
+		if [ \( -z "${IPSET_FILE[${ipset}]}" -o ! -f -z "${IPSET_FILE[${ipset}]}" -o ! -s "${BASE_DIR}/${dst}" \) -a -s  "${BASE_DIR}/${src}" ]
+			then
+			ipset_silent "${ipset}" "forced reprocessing due to incocistency in files"
+
+		elif [ $ret -eq ${DOWNLOAD_FAILED} ]
 			then
 			ipset_silent "${ipset}" "download manager reports failure"
 			check_file_too_old "${ipset}" "${BASE_DIR}/${dst}"
