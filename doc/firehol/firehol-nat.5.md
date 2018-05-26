@@ -273,7 +273,7 @@ The *recent* module has a few limitations:
     *recent* module, `rmmod xt_recent`, change the parameter,
     re-apply a firewall that uses the *recent* module).
 
-    Normaly, you will need a line in `/etc/modprobe.d/netfitler.conf`
+    Normally, you will need a line in `/etc/modprobe.d/netfitler.conf`
     like this:
 
     ~~~~
