@@ -1670,7 +1670,7 @@ retention_detect() {
 	# load the ipset retention histogram
 	RETENTION_HISTOGRAM=()
 	RETENTION_HISTOGRAM_REST=()
-	RETENTION_HISTOGRAM_STARTED=
+	RETENTION_HISTOGRAM_STARTED="${IPSET_SOURCE_DATE[${ipset}]}"
 	RETENTION_HISTOGRAM_INCOMPLETE=1
 
 	if [ -f "${LIB_DIR}/${ipset}/histogram" ]
@@ -6484,35 +6484,35 @@ delete_ipset jigsaw_malware
 # https://github.com/ZeroDot1/CoinBlockerLists
 
 update coinbl_hosts $[24*60] 0 ipv4 ip \
-	"https://raw.githubusercontent.com/ZeroDot1/CoinBlockerLists/master/hosts" \
+	"https://zerodot1.gitlab.io/CoinBlockerLists/hosts" \
 	hphosts2ips \
 	"organizations" \
-	"[CoinBlockerLists](https://github.com/ZeroDot1/CoinBlockerLists) Simple lists that can help prevent cryptomining in the browser or other applications. This list contains all domains - A list for administrators to prevent mining in networks. The maintainer's file contains hostnames, which have been DNS resolved to IP addresses." \
-	"CoinBlockerLists" "https://github.com/ZeroDot1/CoinBlockerLists" \
+	"[CoinBlockerLists](https://gitlab.com/ZeroDot1/CoinBlockerLists) Simple lists that can help prevent cryptomining in the browser or other applications. This list contains all domains - A list for administrators to prevent mining in networks. The maintainer's file contains hostnames, which have been DNS resolved to IP addresses." \
+	"CoinBlockerLists" "https://gitlab.com/ZeroDot1/CoinBlockerLists" \
 	dont_enable_with_all
 
 update coinbl_hosts_optional $[24*60] 0 ipv4 ip \
-	"https://raw.githubusercontent.com/ZeroDot1/CoinBlockerLists/master/hosts_optional" \
+	"https://zerodot1.gitlab.io/CoinBlockerLists/hosts_optional" \
 	hphosts2ips \
 	"organizations" \
-	"[CoinBlockerLists](https://github.com/ZeroDot1/CoinBlockerLists) Simple lists that can help prevent cryptomining in the browser or other applications. This list contains additional domains, for administrators to prevent mining in networks. The maintainer's file contains hostnames, which have been DNS resolved to IP addresses." \
-	"CoinBlockerLists" "https://github.com/ZeroDot1/CoinBlockerLists" \
+	"[CoinBlockerLists](https://gitlab.com/ZeroDot1/CoinBlockerLists) Simple lists that can help prevent cryptomining in the browser or other applications. This list contains additional domains, for administrators to prevent mining in networks. The maintainer's file contains hostnames, which have been DNS resolved to IP addresses." \
+	"CoinBlockerLists" "https://gitlab.com/ZeroDot1/CoinBlockerLists" \
 	dont_enable_with_all
 
 update coinbl_hosts_browser $[24*60] 0 ipv4 ip \
-	"https://raw.githubusercontent.com/ZeroDot1/CoinBlockerLists/master/hosts_browser" \
+	"https://zerodot1.gitlab.io/CoinBlockerLists/hosts_browser" \
 	hphosts2ips \
 	"organizations" \
-	"[CoinBlockerLists](https://github.com/ZeroDot1/CoinBlockerLists) Simple lists that can help prevent cryptomining in the browser or other applications. A hosts list to prevent browser mining only. The maintainer's file contains hostnames, which have been DNS resolved to IP addresses." \
-	"CoinBlockerLists" "https://github.com/ZeroDot1/CoinBlockerLists" \
+	"[CoinBlockerLists](https://gitlab.com/ZeroDot1/CoinBlockerLists) Simple lists that can help prevent cryptomining in the browser or other applications. A hosts list to prevent browser mining only. The maintainer's file contains hostnames, which have been DNS resolved to IP addresses." \
+	"CoinBlockerLists" "https://gitlab.com/ZeroDot1/CoinBlockerLists" \
 	dont_enable_with_all
 
 update coinbl_ips $[24*60] 0 ipv4 ip \
-	"https://raw.githubusercontent.com/ZeroDot1/CoinBlockerLists/master/MiningServerIPList.txt" \
+	"https://zerodot1.gitlab.io/CoinBlockerLists/MiningServerIPList.txt" \
 	remove_comments \
 	"organizations" \
-	"[CoinBlockerLists](https://github.com/ZeroDot1/CoinBlockerLists) Simple lists that can help prevent cryptomining in the browser or other applications. This list contains all IPs - An additional list for administrators to prevent mining in networks. The maintainer's file contains hostnames, which have been DNS resolved to IP addresses." \
-	"CoinBlockerLists" "https://github.com/ZeroDot1/CoinBlockerLists" \
+	"[CoinBlockerLists](https://gitlab.com/ZeroDot1/CoinBlockerLists) Simple lists that can help prevent cryptomining in the browser or other applications. This list contains all IPs - An additional list for administrators to prevent mining in networks. The maintainer's file contains hostnames, which have been DNS resolved to IP addresses." \
+	"CoinBlockerLists" "https://gitlab.com/ZeroDot1/CoinBlockerLists" \
 
 
 # -----------------------------------------------------------------------------
