@@ -28,7 +28,7 @@ set -e
 
 curl -s -o json https://api.github.com/repos/firehol/iprange/releases/latest
 dl=$(sed -ne '/"browser_download_url":.*.tar.gz"/{s/.*"browser_download_url": *//;s/{.*//;s/",*//g;p;q}' json)
-dl=https://github.com/firehol/iprange/releases/download/v1.0.3/iprange-1.0.3.tar.gz
+dl=https://github.com/firehol/iprange/releases/download/v1.0.4/iprange-1.0.4.tar.gz
 
 if [ "$dl" = "" ]
 then
@@ -36,8 +36,14 @@ then
   exit 1
 fi
 
-echo $dl
 curl -s -L -o iprange.tar.gz "$dl"
+if [ $? -ne 0 ]
+then
+  echo "Could not download $dl"
+  exit 1
+else
+  echo "Building $dl"
+fi
 
 mkdir build
 tar xfzC iprange.tar.gz build
