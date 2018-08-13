@@ -1,3 +1,38 @@
+firehol (3.1.6) - 2018-08-13
+
+  * FireHOL
+
+    - Boot startup fix #260
+    - docker_bridge helper #114
+    - Allow newer iptables #264
+    - Log blocked/dropped packets in synproxy, mac, connlimit, fragments, ...
+    - Fix wait for netfilter ready when using namespaces
+    - Fast activation fixes #272
+    - Allow matching DSCP CS0; fixes #288
+    - Moved service definitions out of firehol / fireqos into separate files
+    - Allow DROP_INVALID with any action (e.g. REJECT)
+    - Add option FIREHOL_ACCEPT_OUTPUT_UNMATCHED_TCP_RST
+
+  * FireQOS
+
+    - Fix status to works with newer iproute; fixes #317
+    - Update sample service definition to start after network #315
+
+  * Link-Balancer
+
+    - linkdown: routes cannot be added or deleted whilst marked invalid #211
+
+  * Update-Ipsets
+
+    - Various fixes, including #266 #265
+    - List additions, updates and removals
+    - Minor enhancements
+
+ * Common
+
+    - Fix parallel builds #255
+    - Harden unit tests against tool output changes
+
 firehol (3.1.5) - 2017-09-17
 
   * FireHOL
