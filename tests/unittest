@@ -301,6 +301,7 @@ do
 		CACHE_DIR=/var/run/firehol/update-ipsets/cache
 		LIB_DIR=/var/run/firehol/update-ipsets/lib
 		WEB_DIR=/var/run/firehol/webdir
+		FIREQOS_INTERFACE_DEFAULT_CLASSID=8000
 		export PATH=
 	!
 
@@ -385,9 +386,10 @@ do
         fireqos)
           tc qdisc show dev veth0 > "$outqdisc.raw"
           tc class show dev veth0 > "$outclass".raw
-          tc filter show dev veth0 > "$outfilter"
+          tc filter show dev veth0 > "$outfilter".raw
           $dirname/tools/clean-qdisc "$outqdisc".raw > "$outqdisc"
           $dirname/tools/clean-class "$outclass".raw > "$outclass"
+          $dirname/tools/clean-filter "$outfilter".raw > "$outfilter"
           if ! cmp "$audqdisc" "$outqdisc"
           then
             errors=$((errors + 1))

@@ -1,0 +1,7 @@
+#!/usr/bin/perl -w
+
+while (<>) {
+  s/chain 0 //;
+  s/ not_in_hw//;
+  print;
+}

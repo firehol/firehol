@@ -2,5 +2,6 @@
 
 while (<>) {
   s/Kbit/000bit/g;
+  if (/8000/) { s/ prio r/ prio 1 r/g; } else { s/ prio r/ prio 0 r/g; }
   print;
 }
