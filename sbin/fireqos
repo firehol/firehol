@@ -3278,7 +3278,7 @@ htb_stats() {
 	trap cleanup_stats EXIT
 	trap cleanup_stats SIGHUP
 
-	if [ `$DATE_CMD +%N` = "%N" ]
+	if [ "`$DATE_CMD +%N`" = "%N" -o "`$DATE_CMD +%N`" = "" ]
 	then
 		warning "System has low-res time, stats may be inaccurate"
 		FIREQOS_LOWRES_TIMER=1
