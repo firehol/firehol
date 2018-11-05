@@ -8028,7 +8028,7 @@ rule() {
 	# In FIREHOL_RULESET_MODE="optimal" (given as the parameter optimal=1) to us,
 	# we just create the state=NEW rules.
 	# We will work normaly though if a helper is required.
-	if [ ${optimal} -eq 1 -a "${table}" = "filter" -a -z "${helper[*]}" ]
+	if [ ${optimal} -eq 1 -a "${table}" = "filter" -a -z "${helper[*]}" -a "${proto[0]}" != "icmpv6" ]
 	then
 		if [[ "${state}" =~ 'NEW' ]]
 		then
