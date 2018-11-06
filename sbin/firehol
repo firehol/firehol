@@ -4456,6 +4456,12 @@ blacklist() {
 				break
 				;;
 
+			nolog)
+				logopts_in_arg=()
+				logopts_out_arg=()
+				shift
+				;;
+
 			log)
 				logopts_in_arg=(log "${2}-IN")
 				logopts_out_arg=(log "${2}-OUT")
