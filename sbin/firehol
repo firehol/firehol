@@ -4559,6 +4559,7 @@ blacklist() {
 		if running_ipv4
 		then
 			push_namespace ipv4
+			rule table filter chain "${chain}.out" out "${logopts_out_arg[@]}" proto tcp action REJECT with tcp-reset
 			rule table filter chain "${chain}.out" out "${logopts_out_arg[@]}" action REJECT with icmp-host-unreachable
 			pop_namespace
 		fi
@@ -4566,6 +4567,7 @@ blacklist() {
 		if running_ipv6
 		then
 			push_namespace ipv6
+			rule table filter chain "${chain}.out" out "${logopts_out_arg[@]}" proto tcp action REJECT with tcp-reset
 			rule table filter chain "${chain}.out" out "${logopts_out_arg[@]}" action REJECT with icmp6-addr-unreachable
 			pop_namespace
 		fi
