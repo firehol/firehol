@@ -45,7 +45,7 @@
 #    - XML files (like RSS feeds)
 #    - CSV files
 #    - compressed files (zip, gz, etc)
-#    - generaly, anything that can be converted using shell commands
+#    - generally, anything that can be converted using shell commands
 #
 # 3. For all file types it can keep a history of the processed sets
 #    that can be merged with the new downloaded one, so that it can
