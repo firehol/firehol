@@ -18,6 +18,7 @@ Type=oneshot
 RemainAfterExit=yes
 ExecStart=/usr/sbin/firehol start
 ExecStop=/usr/sbin/firehol stop
+ExecReload=/usr/sbin/firehol start
 
 [Install]
 WantedBy=multi-user.target
