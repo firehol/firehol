@@ -12,7 +12,7 @@ contents-table:helper:blacklist:keyword-firehol-blacklist:Y:-:Drop matching pack
 
 # SYNOPSIS
 
-{ blacklist | blacklist4 | blacklist6 } [ *type* ] [ inface *device* ] [ log *"text"* ] [ connlog *"text"* ] [ loglimit *"text"* ] [ accounting *accounting_name* ] *ip*... [ except *rule-params* [or *rule-params* [or ... ]]]
+{ blacklist | blacklist4 | blacklist6 } [ *type* ] [ inface *device* ] [ log *"text"* ] [ nolog ] [ connlog *"text"* ] [ loglimit *"text"* ] [ accounting *accounting_name* ] *ip*... [ except *rule-params* [or *rule-params* [or ... ]]]
 
 
 # DESCRIPTION
@@ -44,6 +44,8 @@ connect to the firewall or hosts protected by it.
 Using `log` (log every packet), `connlog` (log connections once),
 or `loglimit` (log packets according to global throttling settings),
 the `text` will be logged when matching packets are found.
+
+Using `nolog` will disable logging for this rule.
 
 Using `inface`, the blacklist will be created on the interface `device` only
 (this includes forwarded traffic).
