@@ -11838,7 +11838,7 @@ firewall_filtering_policy_common_late() {
 
 	if [ "${FIREHOL_DROP_ORPHAN_TCP_RST}" = "1" ]
 	then
-		set_work_function "Silently droping TCP ACK packets (option: FIREHOL_DROP_ORPHAN_TCP_RST)"
+		set_work_function "Silently droping TCP RST packets (option: FIREHOL_DROP_ORPHAN_TCP_RST)"
 
 		# Silently drop orphan TCP/RST packets
 		# before droping INVALID below, otherwise these will be logged as INVALID too
