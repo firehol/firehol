@@ -1336,8 +1336,7 @@ interface() {
 	then
 		ifb_interfaces=$((ifb_interfaces + 1))
 
-		interface_realdev=${interface_dev}-ifb
-		interface_realdev=${interface_realdev:0:15}
+		interface_realdev=${interface_dev:0:11}-ifb
 
 		runcmd $IP_CMD link add dev ${interface_realdev} name ${interface_realdev} type ifb 2>/dev/null
 		if [ $? -ne 0 -a $? -ne 2 ]
