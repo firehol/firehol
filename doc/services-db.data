@@ -320,8 +320,8 @@ SERVICE dhcpv6
 	CPORT udp/546
 	SPORT udp/547
 	EXAMPLE
-		server dhcp accept
-		client dhcp accept
+		server dhcpv6 accept
+		client dhcpv6 accept
 	NOTES
 		The dhcp service is implemented as stateless rules.
 		It cannot be stateful as the connection tracker will not
