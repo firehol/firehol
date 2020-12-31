@@ -1,3 +1,22 @@
+firehol (3.1.7) - 2020-12-31
+
+  * FireHOL
+    - Fix dhcpv6 example to say dhcpv6 #438
+    - blacklist - add "nolog" option
+    - blacklist - reject with tcp-reset for outbound TCP connections
+    - firehol.service - Use `firehol start` for  ExecReload=
+    - Don't drop icmpv6 rules with FIREHOL_RULESET_MODE optimal #372
+
+  * FireQos
+    - workaround for cases where "-ifb" name gets truncated
+    - Fix for low-res timer check on openwrt
+
+  * Common
+    - Replace Travis with Github actions
+    - Various typo fixes
+    - Print unit test names as we run them
+    - Unit test fixes for Ubuntu 20.20 output differences
+
 firehol (3.1.6) - 2018-08-13
 
   * FireHOL
