@@ -1,0 +1,169 @@
+on: [ push, pull_request, workflow_dispatch ]
+
+jobs:
+   prep:
+      runs-on: ubuntu-latest
+      name: Prepare build
+      steps:
+      - name: Extract tag/branch variables
+        shell: bash
+        run: |
+           echo "##[set-output name=tag;]$(echo ${GITHUB_REF#refs/tags/}|grep -v '/')"
+           echo "##[set-output name=branch;]$(echo ${GITHUB_REF#refs/heads/}|grep -v '/')"
+        id: extract
+      outputs:
+         tag: ${{ steps.extract.outputs.tag }}
+         branch: ${{ steps.extract.outputs.branch }}
+
+   build:
+      runs-on: ubuntu-latest
+      name: Build package
+      needs: prep
+      steps:
+      - uses: actions/checkout@v2
+      - name: Set up build tools
+        run: ./.github/workflows/setup.sh
+      - name: Server-side run of commit hooks in case developer skipped them
+        run: git diff 4b825dc642cb6eb9a060e54bf8d69288fbee4904 | ./packaging/check-files -
+        env:
+           TRAVIS_TAG: ${{ needs.prep.outputs.tag }}
+      - name: Obtain GPG keys to validate tag signature
+        if: ${{ needs.prep.outputs.tag != '' }}
+        run: |
+            ./packaging/gpg-recv-key phil@firehol.org "0762 9FF7 89EA 6156 012F  9F50 C406 9602 1359 9237"
+            ./packaging/gpg-recv-key costa@tsaousis.gr "4DFF 624A E564 3B51 2872  1F40 29CA 3358 89B9 A863"
+            git fetch --tags -f
+        env:
+           KEYSERVER: pool.sks-keyservers.net
+      - name: Run build
+        run: |
+           fakeroot ./packaging/git-build
+           test -f firehol*.tar.gz && mkdir -p build && tar xfzC firehol*.tar.gz build && cd build/firehol* && mkdir out-of-tree && cd out-of-tree && ../configure && make check
+        env:
+           TRAVIS_TAG: ${{ needs.prep.outputs.tag }}
+      - name: Create checksums
+        run: |
+           for i in *.tar.*
+           do
+              md5sum -b $i > $i.md5
+              sha512sum -b $i > $i.sha
+           done
+      - name: Upload build artifacts
+        uses: actions/upload-artifact@v2
+        with:
+           name: build-artifacts
+           path: |
+              *.tar.*
+
+   publish_branch:
+      runs-on: ubuntu-latest
+      name: Publish to website if branch
+      needs: [ prep, build ]
+      env:
+         DEPLOY_ARTIFACTS: "*.tar.*"
+         DEPLOY_SERVER: travis@firehol.org
+         DEPLOY_DIR: uploads/firehol/${{needs.prep.outputs.branch}}
+         SERVER_DEPLOY_LOG: https://firehol.org/travis-project.log
+         SERVER_DEPLOY_TIMEOUT: 300
+      if: >-
+         ${{ ( needs.prep.outputs.branch == 'main'
+            || needs.prep.outputs.branch == 'master'
+            || startsWith( needs.prep.outputs.branch, 'stable-' ) ) }}
+      steps:
+      - name: Download artifacts
+        uses: actions/download-artifact@v2
+        with:
+           name: build-artifacts
+      - name: Setup SSH
+        id: ssh
+        run: |
+           echo "$FIREHOL_ORG_PUBLISH_SSH" > firehol_org_publish_key
+           chmod 600 firehol_org_publish_key
+           eval "$(ssh-agent)"
+           if ssh-add firehol_org_publish_key; then
+              echo "Key added: setting agent environment"
+              echo "##[set-output name=ssh_agent_pid;]$SSH_AGENT_PID"
+              echo "##[set-output name=ssh_auth_sock;]$SSH_AUTH_SOCK"
+              mkdir -p $HOME/.ssh
+              chmod 700 $HOME/.ssh
+              echo PasswordAuthentication=no >> $HOME/.ssh/config
+              chmod 644 $HOME/.ssh/config
+           else
+              echo "Key not added: skipping ssh-agent environment"
+           fi
+           rm -f firehol_org_publish_key
+        env:
+           FIREHOL_ORG_PUBLISH_SSH: ${{secrets.FIREHOL_ORG_PUBLISH_SSH}}
+      - name: Prepare deployment check
+        if: ${{ steps.ssh.outputs.ssh_agent_pid != '' }}
+        run: curl -s -oresult.orig $SERVER_DEPLOY_LOG
+      - name: Deploy to website ${{needs.prep.outputs.branch}}
+        if: ${{ steps.ssh.outputs.ssh_agent_pid != '' }}
+        run: |
+           ssh-keyscan -H firehol.org >> ~/.ssh/known_hosts
+           ssh $DEPLOY_SERVER mkdir -p "$DEPLOY_DIR"
+           rsync -a $DEPLOY_ARTIFACTS "$DEPLOY_SERVER:$DEPLOY_DIR/"
+           ssh $DEPLOY_SERVER touch "$DEPLOY_DIR/complete.txt"
+        env:
+           SSH_AGENT_PID: ${{ steps.ssh.outputs.ssh_agent_pid }}
+           SSH_AUTH_SOCK: ${{ steps.ssh.outputs.ssh_auth_sock }}
+      - name: Check deployment
+        if: ${{ steps.ssh.outputs.ssh_agent_pid != '' }}
+        run: |
+           pause=10
+           attempts=$(( $SERVER_DEPLOY_TIMEOUT / $pause ))
+           while [ $attempts -gt 0 ]
+           do
+              sleep $pause
+              attempts=$((attempts - 1))
+              curl -s -o result $SERVER_DEPLOY_LOG
+              if ! cmp -s result result.orig
+              then
+                 cat result
+                 if grep -q "not deploying" result
+                 then
+                    exit 2
+                 else
+                    exit 0
+                 fi
+              fi
+           done
+           exit 1
+
+   publish_tag:
+      runs-on: ubuntu-latest
+      name: Publish to github if tag
+      needs: [ prep, build ]
+      if: ${{ needs.prep.outputs.tag != '' }}
+      steps:
+      - name: Download artifacts
+        uses: actions/download-artifact@v2
+        with:
+           name: build-artifacts
+      - name: Create Release
+        id: create_release
+        uses: actions/create-release@v1
+        env:
+           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        with:
+           tag_name: ${{ github.ref }}
+           release_name: Release ${{ github.ref }}
+           draft: true
+      - name: Upload
+        uses: actions/github-script@v3
+        with:
+           github-token: ${{secrets.GITHUB_TOKEN}}
+           script: |
+              const path = require('path');
+              const fs = require('fs');
+              const release_id = '${{ steps.create_release.outputs.id }}';
+              for (let file of await fs.readdirSync('./')) {
+                 console.log('uploadReleaseAsset', file);
+                 await github.repos.uploadReleaseAsset({
+                    owner: context.repo.owner,
+                    repo: context.repo.repo,
+                    release_id: release_id,
+                    name: file,
+                    data: await fs.readFileSync(`./${file}`)
+                 });
+              }

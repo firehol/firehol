@@ -39,6 +39,7 @@ diff -r "$1" $MYTMP/unpack/* | grep "^Only" | sed \
 	-e '/: \.deps$/d' \
 	-e '/: \.git$/d' \
 	-e '/: \.gitattributes$/d' \
+	-e '/: \.github$/d' \
 	-e '/: \.gitignore$/d' \
 	-e '/: \.travis$/d' \
 	-e '/: \.travis.yml$/d' \
