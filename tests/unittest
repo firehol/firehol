@@ -308,6 +308,8 @@ do
     if [ $verbose -eq 1 ]
     then
       echo "$conf: setup"
+    else
+      echo "Test: $conf"
     fi
     if [ -x "$pre_sh" ]
     then
