@@ -4,6 +4,7 @@ my @lines;
 while (<>) {
   s/ memory_limit [^ ]*//g;
   s/ default 32768 / default 8000 /g;
+  s/ default 0x8000 / default 8000 /g;
   push @lines, $_;
 }
 
