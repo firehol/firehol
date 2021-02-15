@@ -5780,14 +5780,33 @@ protection() {
 
 			malformed-bad)
 				local mychain="${pre}_${work_name}_mbd${FIREHOL_PROTECTION_COUNT}"
-				create_chain filter "${mychain}" "${in}_${work_name}" in proto tcp custom "--tcp-flags SYN,FIN SYN,FIN"			|| return 1
+				# PSACAN2-FIN (SYN,FIN SYN,FIN) (FIN after SYN)
+				create_chain filter "${mychain}" "${in}_${work_name}" in proto tcp custom "--tcp-flags SYN,FIN SYN,FIN" || return 1
+
 				set_work_function "Rules for protection from packets with illegal TCP flags on '${prface}' for ${work_cmd} '${work_name}'"
 
-				rule in chain "${in}_${work_name}" action "${mychain}"   proto tcp custom "--tcp-flags SYN,RST SYN,RST"			|| return 1
-				rule in chain "${in}_${work_name}" action "${mychain}"   proto tcp custom "--tcp-flags ALL     SYN,RST,ACK,FIN,URG"	|| return 1
-				rule in chain "${in}_${work_name}" action "${mychain}"   proto tcp custom "--tcp-flags ALL     FIN,URG,PSH"		|| return 1
+				# SYN-RST (SYN,RST SYN,RST) (RST after SYN)
+				rule in chain "${in}_${work_name}" action "${mychain}"   proto tcp custom "--tcp-flags SYN,RST SYN,RST" || return 1
+				# PSCAN (ALL SYN,RST,ACK,FIN,URG)
+				rule in chain "${in}_${work_name}" action "${mychain}"   proto tcp custom "--tcp-flags ALL SYN,RST,ACK,FIN,URG" || return 1
+				# NAME-XMAS-SCAN (ALL FIN,URG,PSH)
+				rule in chain "${in}_${work_name}" action "${mychain}"   proto tcp custom "--tcp-flags ALL FIN,URG,PSH" || return 1
+				# SYNFIN-SCAN (ALL SYN,FIN)
+				rule in chain "${in}_${work_name}" action "${mychain}"   proto tcp custom "--tcp-flags ALL SYN,FIN" || return 1
+				# FIN-SCAN (ALL FIN)
+				rule in chain "${in}_${work_name}" action "${mychain}"   proto tcp custom "--tcp-flags ALL FIN" || return 1
+				# NMAP-ID (ALL URG,PSH,SYN,FIN)
+				rule in chain "${in}_${work_name}" action "${mychain}"   proto tcp custom "--tcp-flags ALL URG,PSH,SYN,FIN"	|| return 1
+				# FIN (ACK,FIN FIN) (FIN without ACK)
+				rule in chain "${in}_${work_name}" action "${mychain}"   proto tcp custom "--tcp-flags ACK,FIN FIN"	|| return 1
+				# PSH (ACK,PSH, PSH) (PSH without ACK)
+				rule in chain "${in}_${work_name}" action "${mychain}"   proto tcp custom "--tcp-flags ACK,PSH PSH"	|| return 1
+				# URG (ACK,URG URG) (URG without ACK)
+				rule in chain "${in}_${work_name}" action "${mychain}"   proto tcp custom "--tcp-flags ACK,URG URG"	|| return 1
+				# PSCAN2-RST (FIN,RST FIN,RST) (RST after FIN)
+				rule in chain "${in}_${work_name}" action "${mychain}"   proto tcp custom "--tcp-flags FIN,RST FIN,RST"	|| return 1
 
-				rule in chain "${mychain}" loglimit "BLOCKED MALFORMED BAD" action drop			|| return 1
+				rule in chain "${mychain}" loglimit "BLOCKED MALFORMED BAD" action drop || return 1
 				;;
 
 			*)
