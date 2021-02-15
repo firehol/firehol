@@ -137,7 +137,7 @@ markdef() {
 				saverestore=0
 				stateful=0
 				;;
-				
+
 			save|restore|permanent)
 				saverestore=1
 				;;
@@ -499,7 +499,7 @@ FIREHOL_PROTECTED_MATCHES=1
 # 'manual'  = You configure conntrack helper assignement manually using
 #             the 'cthelper' firehol helper.
 #             In this case, neither the kernel nor FireHOL will do anything
-#             about conntrack helpers assignement. 
+#             about conntrack helpers assignement.
 #
 # Default: kernel
 FIREHOL_CONNTRACK_HELPERS_ASSIGNMENT="kernel"
@@ -538,7 +538,7 @@ FIREHOL_TRUST_LOOPBACK="loose"
 FIREHOL_GLOBAL_RPFILTER=
 
 # The default policy for the interfaces of the firewall. This can be
-# controlled on a per interface basis using the policy interface subcommand. 
+# controlled on a per interface basis using the policy interface subcommand.
 # Default: DROP
 # Possible Values: DROP REJECT RETURN or custom action
 DEFAULT_INTERFACE_POLICY="DROP"
@@ -631,7 +631,7 @@ FIREHOL_TCP_TIMESTAMPS=
 #  VALUES    = max number of marks to support (0 to VALUES - 1)
 #              VALUES must be a power of two.
 #
-#  stateful  = all statements that assign this mark should 
+#  stateful  = all statements that assign this mark should
 #              only apply it on NEW packets.
 #
 #  stateless = all statements that assign this mark type should
@@ -1064,7 +1064,7 @@ FIREHOL_ACTIVATED_SUCCESSFULLY=0
 
 syslog() {
 	local p="$1"; shift
-	
+
 	${LOGGER_CMD} -p ${FIREHOL_SYSLOG_FACILITY}.$p -t "FireHOL[$$]" -- "${@}"
 	return 0
 }
@@ -1153,7 +1153,7 @@ firehol_exit() {
 			failure # "Restoring old firewall"
 		fi
 	fi
-	
+
 	# remove the temporary directory created for this session
 	if [ ${FIREHOL_ACTIVATED_SUCCESSFULLY} -eq 0 -a ${FIREHOL_CLEAN_TMP} -eq 0 ]
 	then
@@ -1161,7 +1161,7 @@ firehol_exit() {
 	else
 		test -d "${FIREHOL_DIR}" && ${RM_CMD} -rf "${FIREHOL_DIR}"
 	fi
-	
+
 	# syslog
 	local result=
 	local notify=0
@@ -1179,20 +1179,20 @@ firehol_exit() {
 			fi
 			notify=1
 			;;
-		
+
 		STOP)	syslog emerg "Firewall has been stopped. Policy is ACCEPT EVERYTHING!"
 			notify=1
 			;;
-			
+
 		PANIC)	syslog emerg "PANIC! Machine has been locked. Policy is DROP EVERYTHING!"
 			notify=1
 			;;
-		
+
 		*)	# do nothing for the rest
 			notify=0
 			;;
 	esac
-	
+
 	# do we have to run a program?
 	if [ ${notify} -eq 1 ]
 	then
@@ -1360,11 +1360,11 @@ then
 	${MKDIR_CMD} "${FIREHOL_CONFIG_DIR}"			|| exit 1
 	${CHOWN_CMD} root:root "${FIREHOL_CONFIG_DIR}"	|| exit 1
 	${CHMOD_CMD} 700 "${FIREHOL_CONFIG_DIR}"		|| exit 1
-	
+
 	if [ -f /etc/firehol.conf ]
 	then
 		${MV_CMD} /etc/firehol.conf "${FIREHOL_CONFIG}"	|| exit 1
-		
+
 		echo >&2
 		echo >&2
 		echo >&2 "NOTICE: Your config file /etc/firehol.conf has been moved to ${FIREHOL_CONFIG}"
@@ -1487,18 +1487,18 @@ load_ips() {
 			echo >&2 "Cannot find file '${FIREHOL_CONFIG_DIR}/${v}'."
 			echo >&2 "Using internal default values for variable '${v}' and all inherited ones."
 			echo >&2
-			
+
 			if [ ! -z "${m}" ]
 			then
 				echo >&2 "${m}"
 				echo >&2
 			fi
 		fi
-		
+
 		eval "export ${v}=\"${d}\""
 		return 0
 	fi
-	
+
 	if [ ${dt} -gt 0 ]
 	then
 		local t=`${FIND_CMD} "${FIREHOL_CONFIG_DIR}/${f}" -mtime +${dt}`
@@ -1510,7 +1510,7 @@ load_ips() {
 			echo >&2 "File '${FIREHOL_CONFIG_DIR}/${f}' is more than ${dt} days old."
 			echo >&2 "You should update it to ensure proper operation of your firewall."
 			echo >&2
-			
+
 			if [ ! -z "${m}" ]
 			then
 				echo >&2 "${m}"
@@ -1518,7 +1518,7 @@ load_ips() {
 			fi
 		fi
 	fi
-	
+
 	local t=`${CAT_CMD} "${FIREHOL_CONFIG_DIR}/${f}" | ${EGREP_CMD} "^ *[0-9]+\.[0-9]+\.[0-9]+\.[0-9]+/[0-9]+ *$"`
 	local t2=
 	local i=0
@@ -1527,14 +1527,14 @@ load_ips() {
 		i=$[i + 1]
 		t2="${t2} ${x}"
 	done
-	
+
 	local t6=`${CAT_CMD} "${FIREHOL_CONFIG_DIR}/${f}" | ${EGREP_CMD} "^ *((([0-9A-Fa-f]{1,4}:){7}(([0-9A-Fa-f]{1,4})|:))|(([0-9A-Fa-f]{1,4}:){6}(:|((25[0-5]|2[0-4]\d|[01]?\d{1,2})(\.(25[0-5]|2[0-4]\d|[01]?\d{1,2})){3})|(:[0-9A-Fa-f]{1,4})))|(([0-9A-Fa-f]{1,4}:){5}((:((25[0-5]|2[0-4]\d|[01]?\d{1,2})(\.(25[0-5]|2[0-4]\d|[01]?\d{1,2})){3})?)|((:[0-9A-Fa-f]{1,4}){1,2})))|(([0-9A-Fa-f]{1,4}:){4}(:[0-9A-Fa-f]{1,4}){0,1}((:((25[0-5]|2[0-4]\d|[01]?\d{1,2})(\.(25[0-5]|2[0-4]\d|[01]?\d{1,2})){3})?)|((:[0-9A-Fa-f]{1,4}){1,2})))|(([0-9A-Fa-f]{1,4}:){3}(:[0-9A-Fa-f]{1,4}){0,2}((:((25[0-5]|2[0-4]\d|[01]?\d{1,2})(\.(25[0-5]|2[0-4]\d|[01]?\d{1,2})){3})?)|((:[0-9A-Fa-f]{1,4}){1,2})))|(([0-9A-Fa-f]{1,4}:){2}(:[0-9A-Fa-f]{1,4}){0,3}((:((25[0-5]|2[0-4]\d|[01]?\d{1,2})(\.(25[0-5]|2[0-4]\d|[01]?\d{1,2})){3})?)|((:[0-9A-Fa-f]{1,4}){1,2})))|(([0-9A-Fa-f]{1,4}:)(:[0-9A-Fa-f]{1,4}){0,4}((:((25[0-5]|2[0-4]\d|[01]?\d{1,2})(\.(25[0-5]|2[0-4]\d|[01]?\d{1,2})){3})?)|((:[0-9A-Fa-f]{1,4}){1,2})))|(:(:[0-9A-Fa-f]{1,4}){0,5}((:((25[0-5]|2[0-4]\d|[01]?\d{1,2})(\.(25[0-5]|2[0-4]\d|[01]?\d{1,2})){3})?)|((:[0-9A-Fa-f]{1,4}){1,2})))|(((25[0-5]|2[0-4]\d|[01]?\d{1,2})(\.(25[0-5]|2[0-4]\d|[01]?\d{1,2})){3})))(%.+)?/[0-9]+ *$"`
 	for x in ${t6}
 	do
 		i=$[i + 1]
 		t2="${t2} ${x}"
 	done
-	
+
 	if [ ${i} -eq 0 -o -z "${t2}" ]
 	then
 		echo >&2
@@ -1543,17 +1543,17 @@ load_ips() {
 		echo >&2 "The file '${FIREHOL_CONFIG_DIR}/${f}' contains zero IP definitions."
 		echo >&2 "Using internal default values for variable '${v}' and all inherited ones."
 		echo >&2
-		
+
 		if [ ! -z "${m}" ]
 		then
 			echo >&2 "${m}"
 			echo >&2
 		fi
-		
+
 		eval "export ${v}=\"${d}\""
 		return 0
 	fi
-	
+
 	eval "export ${v}=\"${t2}\""
 	return 0
 }
@@ -1672,7 +1672,7 @@ declare -A FIREHOL_KERNEL_MODULES=()
 # In the configuration file you can write:
 #
 #                     require_kernel_module <module_name>
-# 
+#
 # to have FireHOL require a specific module for the configurarion.
 
 # ------------------------------------------------------------------------------
@@ -1783,7 +1783,7 @@ force_namespace() {
 
 		# all the others complete in just one step
 		# so, we push/pop for them
-		*)	
+		*)
 			if ! push_namespace ${ipv}; then return 1; fi
 			$command "${@}"
 			ret=$?
@@ -1982,31 +1982,31 @@ rules_xbox() {
 		mychain="${1}" \
 		type="${2}"
 	shift 2
-	
+
 	if [ "${type}" = "client" ]
 	then
 		in=out
 		out=in
 	fi
-	
+
 	if [ "${type}" = "client" -a "${work_cmd}" = "interface" ]
 	then
 		client_ports="${LOCAL_CLIENT_PORTS}"
 	fi
-	
+
 	# ----------------------------------------------------------------------
-	
+
 	set_work_function "Rules for Xbox live"
-	
+
 	rule ${in}          action "${@}" chain "${in}_${mychain}"  proto udp dport "88 3074" sport "${client_ports}" state NEW,ESTABLISHED || return 1
 	rule ${out} reverse action "${@}" chain "${out}_${mychain}" proto udp dport "88 3074" sport "${client_ports}" state     ESTABLISHED || return 1
-	
+
 	rule ${in}          action "${@}" chain "${in}_${mychain}"  proto tcp dport 3074 sport "${client_ports}" state NEW,ESTABLISHED || return 1
 	rule ${out} reverse action "${@}" chain "${out}_${mychain}" proto tcp dport 3074 sport "${client_ports}" state     ESTABLISHED || return 1
-	
+
 	rule ${in}          action "${@}" chain "${in}_${mychain}"  proto udp sport 3074 dport "${client_ports}" state NEW,ESTABLISHED || return 1
 	rule ${out} reverse action "${@}" chain "${out}_${mychain}" proto udp sport 3074 dport "${client_ports}" state     ESTABLISHED || return 1
-	
+
 	return 0
 }
 
@@ -2021,24 +2021,24 @@ rules_dhcp() {
 	shift 2
 
 	if ! push_namespace ipv4; then return 1; fi
-	
+
 	if [ "${type}" = "client" ]
 	then
 		in=out
 		out=in
 	fi
-	
+
 	if [ "${type}" = "client" -a "${work_cmd}" = "interface" ]
 	then
 		client_ports="${LOCAL_CLIENT_PORTS}"
 	fi
-	
+
 	# ----------------------------------------------------------------------
-	
+
 	set_work_function "Rules for DHCP (${type})"
 	rule ${in}          action "${@}" chain "${in}_${mychain}"  proto "udp" sport "68" dport "67" || return 1
 	rule ${out} reverse action "${@}" chain "${out}_${mychain}" proto "udp" sport "68" dport "67" || return 1
-	
+
 	pop_namespace
 	return 0
 }
@@ -2082,50 +2082,50 @@ rules_emule() {
 		mychain="${1}" \
 		type="${2}"
 	shift 2
-	
+
 	if [ "${type}" = "client" ]
 	then
 		in=out
 		out=in
 	fi
-	
+
 	if [ "${type}" = "client" -a "${work_cmd}" = "interface" ]
 	then
 		client_ports="${LOCAL_CLIENT_PORTS}"
 	fi
-	
+
 	# ----------------------------------------------------------------------
-	
+
 	# allow incomming to server tcp/4662
 	set_work_function "Rules for EMULE/client-to-server tcp/4662 (${type})"
 	rule ${in}          action "${@}" chain "${in}_${mychain}"  proto "tcp" sport any dport 4662 state NEW,ESTABLISHED || return 1
 	rule ${out} reverse action "${@}" chain "${out}_${mychain}" proto "tcp" sport any dport 4662 state ESTABLISHED     || return 1
-	
+
 	# allow outgoing to client tcp/4662
 	set_work_function "Rules for EMULE/server-to-client tcp/4662 (${type})"
 	rule ${out} reverse action "${@}" chain "${out}_${mychain}" proto "tcp" dport any sport 4662 state NEW,ESTABLISHED || return 1
 	rule ${in}          action "${@}" chain "${in}_${mychain}"  proto "tcp" dport any sport 4662 state ESTABLISHED     || return 1
-	
+
 	# allow incomming to server udp/4672
 	set_work_function "Rules for EMULE/client-to-server udp/4672 (${type})"
 	rule ${in}          action "${@}" chain "${in}_${mychain}"  proto "udp" sport any dport 4672 state NEW,ESTABLISHED || return 1
 	rule ${out} reverse action "${@}" chain "${out}_${mychain}" proto "udp" sport any dport 4672 state ESTABLISHED     || return 1
-	
+
 	# allow outgoing to client udp/4672
 	set_work_function "Rules for EMULE/server-to-client udp/4672 (${type})"
 	rule ${out} reverse action "${@}" chain "${out}_${mychain}" proto "udp" dport any sport 4672 state NEW,ESTABLISHED || return 1
 	rule ${in}          action "${@}" chain "${in}_${mychain}"  proto "udp" dport any sport 4672 state ESTABLISHED     || return 1
-	
+
 	# allow incomming to server tcp/4661
 	set_work_function "Rules for EMULE/client-to-server tcp/4661 (${type})"
 	rule ${in}          action "${@}" chain "${in}_${mychain}"  proto "tcp" sport any dport 4661 state NEW,ESTABLISHED || return 1
 	rule ${out} reverse action "${@}" chain "${out}_${mychain}" proto "tcp" sport any dport 4661 state ESTABLISHED     || return 1
-	
+
 	# allow incomming to server udp/4665
 	set_work_function "Rules for EMULE/client-to-server udp/4665 (${type})"
 	rule ${in}          action "${@}" chain "${in}_${mychain}"  proto "udp" sport any dport 4665 state NEW,ESTABLISHED || return 1
 	rule ${out} reverse action "${@}" chain "${out}_${mychain}" proto "udp" sport any dport 4665 state ESTABLISHED     || return 1
-	
+
 	return 0
 }
 
@@ -2139,30 +2139,30 @@ rules_hylafax() {
 		mychain="${1}" \
 		type="${2}"
 	shift 2
-	
+
 	if [ "${type}" = "client" ]
 	then
 		in=out
 		out=in
 	fi
-	
+
 	if [ "${type}" = "client" -a "${work_cmd}" = "interface" ]
 	then
 		client_ports="${LOCAL_CLIENT_PORTS}"
 	fi
-	
+
 	# ----------------------------------------------------------------------
-	
+
 	# allow incomming to server tcp/4559
 	set_work_function "Rules for HYLAFAX/client-to-server tcp/4559 (${type})"
 	rule ${in}          action "${@}" chain "${in}_${mychain}"  proto "tcp" sport any dport 4559 state NEW,ESTABLISHED || return 1
 	rule ${out} reverse action "${@}" chain "${out}_${mychain}" proto "tcp" sport any dport 4559 state ESTABLISHED     || return 1
-	
+
 	# allow outgoing to client from server tcp/4558
 	set_work_function "Rules for HYLAFAX/server-to-client from server tcp/4558 (${type})"
 	rule ${out}        action "${@}" chain "${out}_${mychain}" proto "tcp" sport 4558 dport any state NEW,ESTABLISHED || return 1
         rule ${in} reverse action "${@}" chain "${in}_${mychain}"  proto "tcp" sport 4558 dport any state ESTABLISHED     || return 1
-	
+
 	return 0
 }
 
@@ -2181,17 +2181,17 @@ rules_samba() {
 		in=out
 		out=in
 	fi
-	
+
 	if [ "${type}" = "client" -a "${work_cmd}" = "interface" ]
 	then
 		client_ports="${LOCAL_CLIENT_PORTS}"
 	fi
-	
+
 	# ----------------------------------------------------------------------
-	
+
 	set_work_function "Rules for SAMBA/NETBIOS-NS (${type})"
 	rule ${in}          action "${@}" chain "${in}_${mychain}"  proto "udp" sport "137 ${client_ports}"  dport 137 state NEW,ESTABLISHED || return 1
-	
+
 	# NETBIOS initiates based on the broadcast address of an interface
 	# (request goes to broadcast address) but the server responds from
 	# its own IP address. This makes the server samba accept statement
@@ -2207,19 +2207,19 @@ rules_samba() {
 	else
 		rule ${out} reverse action "${@}" chain "${out}_${mychain}" proto "udp" sport "137 ${client_ports}"  dport 137 state ESTABLISHED     || return 1
 	fi
-	
+
 	set_work_function "Rules for SAMBA/NETBIOS-DGM (${type})"
 	rule ${in}          action "${@}" chain "${in}_${mychain}"  proto "udp" sport "138 ${client_ports}" dport 138 state NEW,ESTABLISHED || return 1
 	rule ${out} reverse action "${@}" chain "${out}_${mychain}" proto "udp" sport "138 ${client_ports}" dport 138 state ESTABLISHED     || return 1
-	
+
 	set_work_function "Rules for SAMBA/NETBIOS-SSN (${type})"
 	rule ${in}          action "${@}" chain "${in}_${mychain}"  proto "tcp" sport "${client_ports}" dport 139 state NEW,ESTABLISHED || return 1
 	rule ${out} reverse action "${@}" chain "${out}_${mychain}" proto "tcp" sport "${client_ports}" dport 139 state ESTABLISHED     || return 1
-	
+
 	set_work_function "Rules for SAMBA/MICROSOFT_DS (${type})"
 	rule ${in}          action "${@}" chain "${in}_${mychain}"  proto "tcp" sport "${client_ports}" dport 445 state NEW,ESTABLISHED || return 1
 	rule ${out} reverse action "${@}" chain "${out}_${mychain}" proto "tcp" sport "${client_ports}" dport 445 state ESTABLISHED     || return 1
-	
+
 	return 0
 }
 
@@ -2238,21 +2238,21 @@ rules_nfs() {
 		in=out
 		out=in
 	fi
-	
+
 	if [ "${type}" = "client" -a "${work_cmd}" = "interface" ]
 	then
 		client_ports="${LOCAL_CLIENT_PORTS}"
 	fi
-	
+
 	# ----------------------------------------------------------------------
-	
+
 	# This command requires in the client or route subcommands,
 	# the first argument after the policy/action is a dst.
-	
+
 	local 	servers="localhost" \
 		action="${1}"
 	shift
-	
+
 	if [ "${type}" = "client" -o ! "${work_cmd}" = "interface" ]
 	then
 		case "${1}" in
@@ -2261,21 +2261,21 @@ rules_nfs() {
 				servers="${1}"
 				shift
 				;;
-				
+
 			*)
 				error "Please re-phrase to: ${type} nfs ${action} dst <NFS_SERVER> [other rules]"
 				return 1
 				;;
 		esac
 	fi
-	
+
 	local x=
 	for x in ${servers}
 	do
 		local tmp="`${MKTEMP_CMD} ${FIREHOL_DIR}/firehol-rpcinfo-XXXXXXXXXX`"
-		
+
 		set_work_function "Getting RPC information from server '${x}'"
-		
+
 		rpcinfo -p ${x} >"${tmp}"
 		if [ $? -gt 0 -o ! -s "${tmp}" ]
 		then
@@ -2283,50 +2283,50 @@ rules_nfs() {
 			${RM_CMD} -f "${tmp}"
 			return 1
 		fi
-		
+
 		local server_rquotad_ports="`${CAT_CMD} "${tmp}" | ${GREP_CMD} " rquotad$"  | ( while read a b proto port s; do echo "$proto/$port"; done ) | ${SORT_CMD} | ${UNIQ_CMD}`"
 		local server_mountd_ports="`${CAT_CMD} "${tmp}" | ${GREP_CMD} " mountd$"  | ( while read a b proto port s; do echo "$proto/$port"; done ) | ${SORT_CMD} | ${UNIQ_CMD}`"
 		local server_lockd_ports="`${CAT_CMD} "${tmp}" | ${GREP_CMD} " nlockmgr$" | ( while read a b proto port s; do echo "$proto/$port"; done ) | ${SORT_CMD} | ${UNIQ_CMD}`"
 		local server_statd_ports="`${CAT_CMD} "${tmp}" | ${GREP_CMD} " status$" | ( while read a b proto port s; do echo "$proto/$port"; done ) | ${SORT_CMD} | ${UNIQ_CMD}`"
 		local server_nfsd_ports="`${CAT_CMD} "${tmp}" | ${GREP_CMD} " nfs$"       | ( while read a b proto port s; do echo "$proto/$port"; done ) | ${SORT_CMD} | ${UNIQ_CMD}`"
-		
+
 		test -z "${server_mountd_ports}" && error "Cannot find mountd ports for nfs server '${x}'" && return 1
 		test -z "${server_lockd_ports}"  && error "Cannot find lockd ports for nfs server '${x}'" && return 1
 		test -z "${server_statd_ports}"  && error "Cannot find statd ports for nfs server '${x}'" && return 1
 		test -z "${server_nfsd_ports}"   && error "Cannot find nfsd ports for nfs server '${x}'" && return 1
-		
+
 		local dst=
 		if [ ! "${x}" = "localhost" ]
 		then
 			dst="dst ${x}"
 		fi
-		
+
 		if [ ! -z "${server_rquotad_ports}" ]
 		then
 			set_work_function "Rules for rquotad on server '${x}'"
 			rules_custom "${mychain}" "${type}" nfs-rquotad "${server_rquotad_ports}" "500:65535" "${action}" $dst "${@}"
 		fi
-		
+
 		set_work_function "Rules for mountd on server '${x}'"
 		rules_custom "${mychain}" "${type}" nfs-mountd "${server_mountd_ports}" "500:65535" "${action}" $dst "${@}"
-		
+
 		set_work_function "Rules for lockd on server '${x}'"
 		rules_custom "${mychain}" "${type}" nfs-lockd "${server_lockd_ports}" "500:65535" "${action}" $dst "${@}"
 
 		set_work_function "Rules for statd on server '${x}'"
 		rules_custom "${mychain}" "${type}" nfs-statd "${server_statd_ports}" "500:65535" "${action}" $dst "${@}"
-		
+
 		set_work_function "Rules for nfsd on server '${x}'"
 		rules_custom "${mychain}" "${type}" nfs-nfsd   "${server_nfsd_ports}"   "500:65535" "${action}" $dst "${@}"
-		
+
 		${RM_CMD} -f "${tmp}"
-		
+
 		echo >&2 ""
 		echo >&2 "WARNING:"
 		echo >&2 "This firewall must be restarted if NFS server ${x} is restarted!"
 		echo >&2 ""
 	done
-	
+
 	return 0
 }
 
@@ -2352,27 +2352,27 @@ rules_nis() {
 		mychain="${1}" \
 		type="${2}"
 	shift 2
-	
+
 	if [ "${type}" = "client" ]
 	then
 		in=out
 		out=in
 	fi
-	
+
 	if [ "${type}" = "client" -a "${work_cmd}" = "interface" ]
 	then
 		client_ports="${LOCAL_CLIENT_PORTS}"
 	fi
-	
+
 	# ----------------------------------------------------------------------
-	
+
 	# This command requires in the client or route subcommands,
 	# the first argument after the policy/action is a dst.
-	
+
 	local 	servers="localhost" \
 		action="${1}"
 	shift
-	
+
 	if [ "${type}" = "client" -o ! "${work_cmd}" = "interface" ]
 	then
 		case "${1}" in
@@ -2381,21 +2381,21 @@ rules_nis() {
 				servers="${1}"
 				shift
 				;;
-				
+
 			*)
 				error "Please re-phrase to: ${type} nis ${action} dst <NIS_SERVER> [other rules]"
 				return 1
 				;;
 		esac
 	fi
-	
+
 	local x=
 	for x in ${servers}
 	do
 		local tmp="`${MKTEMP_CMD} ${FIREHOL_DIR}/firehol-rpcinfo-XXXXXXXXXX)`"
-		
+
 		set_work_function "Getting RPC information from server '${x}'"
-		
+
 		rpcinfo -p ${x} >"${tmp}"
 		if [ $? -gt 0 -o ! -s "${tmp}" ]
 		then
@@ -2403,35 +2403,35 @@ rules_nis() {
 			${RM_CMD} -f "${tmp}"
 			return 1
 		fi
-		
+
 		local server_ypserv_ports="`${CAT_CMD} "${tmp}" | ${GREP_CMD} " ypserv$"  | ( while read a b proto port s; do echo "$proto/$port"; done ) | ${SORT_CMD} | ${UNIQ_CMD}`"
 		local server_yppasswdd_ports="`${CAT_CMD} "${tmp}" | ${GREP_CMD} " yppasswdd$"  | ( while read a b proto port s; do echo "$proto/$port"; done ) | ${SORT_CMD} | ${UNIQ_CMD}`"
-		
+
 		test -z "${server_ypserv_ports}" && error "Cannot find ypserv ports for nis server '${x}'" && return 1
-		
+
 		local dst=
 		if [ ! "${x}" = "localhost" ]
 		then
 			dst="dst ${x}"
 		fi
-		
+
 		if [ ! -z "${server_yppasswdd_ports}" ]
 		then
 			set_work_function "Rules for yppasswd on server '${x}'"
 			rules_custom "${mychain}" "${type}" nis-yppasswd "${server_yppasswdd_ports}" "500:65535" "${action}" $dst "${@}"
 		fi
-		
+
 		set_work_function "Rules for ypserv on server '${x}'"
 		rules_custom "${mychain}" "${type}" nis-ypserv "${server_ypserv_ports}" "500:65535" "${action}" $dst "${@}"
-		
+
 		${RM_CMD} -f "${tmp}"
-		
+
 		echo >&2 ""
 		echo >&2 "WARNING:"
 		echo >&2 "This firewall must be restarted if NIS server ${x} is restarted!"
 		echo >&2 ""
 	done
-	
+
 	return 0
 }
 
@@ -2442,14 +2442,14 @@ rules_ping() {
 	local 	mychain="${1}" \
 		type="${2}"
 	shift 2
-	
+
 	if running_ipv4; then
 		ipv4 add_icmp_rule_pair $mychain $type echo-request echo-reply "${@}" || return 1
 	fi
 	if running_ipv6; then
 		ipv6 add_icmpv6_rule_pair $mychain $type echo-request echo-reply "${@}" || return 1
 	fi
-	
+
 	return 0
 }
 
@@ -2464,7 +2464,7 @@ rules_timestamp() {
 	if ! push_namespace ipv4; then return 1; fi
 
 	add_icmp_rule_pair $mychain $type timestamp-request timestamp-reply "${@}" || status=1
-	
+
 	pop_namespace
 	return $status
 }
@@ -2542,7 +2542,7 @@ rules_anystateless() {
 		type="${2}" \
 		name="${3}"
 	shift 3
-	
+
 	if [ "${FIREHOL_RULESET_MODE}" = "optimal" ]
 	then
 		# FIXME
@@ -2556,20 +2556,20 @@ rules_anystateless() {
 		in=out
 		out=in
 	fi
-	
+
 	if [ "${type}" = "client" -a "${work_cmd}" = "interface" ]
 	then
 		client_ports="${LOCAL_CLIENT_PORTS}"
 	fi
-	
+
 	# ----------------------------------------------------------------------
-	
+
 	# allow new and established incoming packets
 	rule ${in}          action "${@}" chain "${in}_${mychain}"  || return 1
-	
+
 	# allow outgoing established packets
 	rule ${out} reverse action "${@}" chain "${out}_${mychain}" || return 1
-	
+
 	return 0
 }
 
@@ -2582,27 +2582,27 @@ rules_multicast() {
 		mychain="${1}" \
 		type="${2}"
 	shift 2
-	
+
 	if [ "${type}" = "client" ]
 	then
 		in=out
 		out=in
 	fi
-	
+
 	if [ "${type}" = "client" -a "${work_cmd}" = "interface" ]
 	then
 		client_ports="${LOCAL_CLIENT_PORTS}"
 	fi
-	
+
 	# ----------------------------------------------------------------------
-	
+
 	# match multicast packets in both directions
 	rule ${out}        action "${@}" chain "${out}_${mychain}" dst "${MULTICAST_IPS}" proto 2 || return 1
 	rule ${in} reverse action "${@}" chain "${in}_${mychain}"  src "${MULTICAST_IPS}" proto 2 || return 1
-	
+
 	rule ${out}        action "${@}" chain "${out}_${mychain}" dst "${MULTICAST_IPS}" proto udp || return 1
 	rule ${in} reverse action "${@}" chain "${in}_${mychain}"  src "${MULTICAST_IPS}" proto udp || return 1
-	
+
 	return 0
 }
 
@@ -2620,24 +2620,24 @@ rules_custom() {
 		helpers= x= proto= protocols= sp= sport= cport= \
 		require_ct=0
 	shift 5
-	
+
 	if [ "$1" = "helpers" ]
 	then
 		helpers="$2"
 		shift 2
 	fi
-	
+
 	if [ "${type}" = "client" ]
 	then
 		in=out
 		out=in
 	fi
-	
+
 	if [ "${type}" = "client" -a "${work_cmd}" = "interface" ]
 	then
 		client_ports="${LOCAL_CLIENT_PORTS}"
 	fi
-	
+
 	# ----------------------------------------------------------------------
 
 	# do we have to create CT entries?
@@ -2675,7 +2675,7 @@ rules_custom() {
 			fi
 		fi
 	fi
-	
+
 	# find all protocols used by the service
 	for x in ${my_server_ports}
 	do
@@ -2697,10 +2697,10 @@ rules_custom() {
 		done
 
 		set_work_function "Rules for ${server} ${type}, with server port(s) '${proto}/${sport}' and client port(s) '${cport}'"
-		
+
 		# allow new and established incoming packets
 		rule ${in}          action "${@}" chain "${in}_${mychain}"  proto "${proto}" sport "${cport}" dport "${sport}" state NEW,ESTABLISHED || return 1
-		
+
 		# allow outgoing established packets
 		rule ${out} reverse action "${@}" chain "${out}_${mychain}" proto "${proto}" sport "${cport}" dport "${sport}" state ESTABLISHED     || return 1
 
@@ -2710,7 +2710,7 @@ rules_custom() {
 			do
 				# configure the helper
 				# this is the same with the request and the reply, but with action CT.
-				
+
 				set_work_function "Rules for configuring helper '${x}'"
 
 				# FIXME
@@ -2730,7 +2730,7 @@ rules_custom() {
 		set_work_function "Rules for RELATED packets to ${server} ${type}, using helper '${x}'"
 
 		# match RELATED packets
-		# we do not match server and client ports here, because the RELATED packet we are trying 
+		# we do not match server and client ports here, because the RELATED packet we are trying
 		# to match may not be on these ports
 
 		# FIXME
@@ -2769,13 +2769,13 @@ cd "${FIREHOL_SERVICES_DIR}" || exit 1
 for f in `$LS_CMD *.conf 2>/dev/null`
 do
 	cd "${FIREHOL_SERVICES_DIR}" || exit 1
-	
+
 	if [ ! -O "${f}" ]
 	then
 		echo >&2 " WARNING >>> Ignoring service in '${FIREHOL_SERVICES_DIR}/${f}' because it is not owned by root."
 		continue
 	fi
-	
+
 	n=`${HEAD_CMD} -n 1 "${f}" | ${CUT_CMD} -d ':' -f 2`
 	${EXPR_CMD} ${n} + 0 >/dev/null 2>&1
 	if [ $? -ne 0 ]
@@ -2837,7 +2837,7 @@ iptables() {
 		postprocess -ns ${IPTABLES_CMD} "${@}"
 	fi
 	FIREHOL_COMMAND_COUNTER=$[FIREHOL_COMMAND_COUNTER + 1]
-	
+
 	return 0
 }
 
@@ -2852,7 +2852,7 @@ ip6tables() {
 		postprocess -ns ${IP6TABLES_CMD} "${@}"
 	fi
 	FIREHOL_COMMAND_COUNTER=$[FIREHOL_COMMAND_COUNTER + 1]
-	
+
 	return 0
 }
 
@@ -2947,7 +2947,7 @@ ipset_list_active_names() {
 
 ipset_save_active_to_spool() {
 	# this is extremely slow when there are big ipsets in memory
-	# 
+	#
 	# ${IPSET_CMD} ${IPSET_SAVE_OPTION} >"${FIREHOL_SPOOL_DIR}/last.ipset.save"
 	:
 }
@@ -3222,7 +3222,7 @@ ipsets_apply_all() {
 
 		# restore the flag
 		FIREHOL_IPSETS_USED[$x]="CREATED"
-		
+
 		# apply it
 		ipset_apply "${x}" "${base}/ipset.${x}.rules" ${swap}
 		if [ $? -ne 0 ]
@@ -3318,7 +3318,7 @@ synproxy() {
 	shift
 
 	set_work_function -ne "Initializing ${FUNCNAME}"
-	
+
 	require_work clear || ( error "${FUNCNAME} cannot be used in '${work_cmd}'. Put it before any '${work_cmd}' definition."; return 1 )
 
 	while [ ! -z "${1}" ]
@@ -3337,7 +3337,7 @@ synproxy() {
 				;;
 
 			*)	match=("${match[@]}" "${1}")
-				
+
 				# collect things we need later
 				case "${1,,}" in
 					inface)		inface=("${inface[@]}" ${2//,/ }) ;;
@@ -3484,7 +3484,7 @@ synproxy() {
 		set_work_function "SYNPROXY->CLIENT SYN+ACK packet at filter.OUTPUT"
 		test ${FIREHOL_SYNPROXY_LOG} -eq 1 && log=(loglimit "SYNPROXY->CLIENT SYN,ACK")
 		rule table filter chain OUTPUT reverse custom '-m tcp --tcp-flags SYN,RST,ACK SYN,ACK' "${match[@]}" ${overwrite_in[@]} proto tcp state INVALID,UNTRACKED "${log[@]}" action ACCEPT nosoftwarnings outface any physout any "${owner[@]}" || return 1
-		
+
 		# Once the client receives the ACK from SYNPROXY, it will send an ACK back.
 		# This ACK will be routed again to SYNPROXY (it will be UNTRACKED too).
 		# Once SYNPROXY receives this ACK packet from the client, it will send a SYN to the real server.
@@ -3610,7 +3610,7 @@ cthelper() {
 	shift 2
 
 	set_work_function -ne "Initializing ${FUNCNAME}"
-	
+
 	require_work clear || ( error "${FUNCNAME} cannot be used in '${work_cmd}'. Put it before any '${work_cmd}' definition."; return 1 )
 
 	if [ ! "${FIREHOL_CONNTRACK_HELPERS_ASSIGNMENT}" = "manual" -a ${FIREHOL_CTHELPER_WARNING} -eq 0 ]
@@ -3621,12 +3621,12 @@ cthelper() {
 
 	case "${helper}" in
 		amanda) ;;
-			
+
 		ftp)	;;
-			
+
 		tftp)	error "${FUNCNAME}: helper '${helper}' cannot be configured"
 			;;
-		
+
 		h323)	error "${FUNCNAME}: H.323 cannot be configured."
 			return 1
 			;;
@@ -3642,20 +3642,20 @@ cthelper() {
 			helper="netbions_ns"
 			error "${FUNCNAME}: helper '${helper}' cannot be configured"
 			;;
-			
+
 		pptp)	if running_ipv6
 			then
 				error "${FUNCNAME}: helper '${helper}' does not support IPv6."
 				return 1
 			fi
 			;;
-			
+
 		proto_gre|gre)
 			error "${FUNCNAME}: helper '${helper}' cannot be configured"
 			;;
 
 		sane)	;;
-			
+
 		sip)	# Should include a 'dst' towards the media servers
 			# https://home.regit.org/netfilter-en/secure-use-of-helpers/
 			;;
@@ -3678,7 +3678,7 @@ cthelper() {
 			rule table raw chain PREROUTING     "${@}" action CT helper "${helper}" || return 1
 			rule table raw chain OUTPUT reverse "${@}" action CT helper "${helper}" || return 1
 			;;
-		
+
 		*)
 			rule table raw chain "${where}" "${@}" action CT helper "${helper}" || return 1
 			;;
@@ -3699,11 +3699,11 @@ action6() { ipv6 action "${@}"; }
 action46() { both action "${@}"; }
 action() {
 	work_realcmd_helper ${FUNCNAME} "${@}"
-	
+
 	set_work_function -ne "Initializing ${FUNCNAME}"
-	
+
 	require_work clear || ( error "${FUNCNAME} cannot be used in '${work_cmd}'. Put it before any '${work_cmd}' definition."; return 1 )
-	
+
 	local name="${1}" type= tables="filter" t=
 	local -a args=()
 	shift
@@ -3819,9 +3819,9 @@ masquerade6() { ipv6 masquerade "${@}"; }
 masquerade46() { both masquerade "${@}"; }
 masquerade() {
 	work_realcmd_helper ${FUNCNAME} "${@}"
-	
+
 	set_work_function -ne "Initializing ${FUNCNAME}"
-	
+
 	local f="${work_outface}" ports= random=
 
 	while [ ! -z "${1}" ]
@@ -3848,16 +3848,16 @@ masquerade() {
 				;;
 		esac
 	done
-	
+
 	test -z "${f}" && error "masquerade requires an interface set or as argument" && return 1
-	
+
 	set_work_function "Masquerade on interface '${f}'"
-	
+
 	rule noowner table nat chain POSTROUTING "${@}" inface any outface "${f}" state NEW action MASQUERADE ${ports} ${random} || return 1
-	
+
 	FIREHOL_NAT=1
 	FIREHOL_ROUTING=1
-	
+
 	return 0
 }
 
@@ -3867,31 +3867,31 @@ transparent_proxy6() { ipv6 transparent_proxy "${@}"; }
 transparent_proxy46() { both transparent_proxy "${@}"; }
 transparent_proxy() {
 	work_realcmd_helper ${FUNCNAME} "${@}"
-	
+
 	set_work_function -ne "Initializing ${FUNCNAME}"
-	
+
 	require_work clear || ( error "${FUNCNAME} cannot be used in '${work_cmd}'. Put it before any '${work_cmd}' definition."; return 1 )
-	
+
 	local 	ports="${1}" \
 		redirect="${2}" \
 		user="${3}"
 	shift 3
-	
+
 	test -z "${redirect}" && error "Proxy listening port is empty" && return 1
-	
+
 	transparent_proxy_count=$[transparent_proxy_count + 1]
-	
+
 	set_work_function "Rules for catching routed tcp/${ports} traffic"
-	
+
 	#create_chain nat "in_trproxy.${transparent_proxy_count}" PREROUTING noowner "${@}" outface any proto tcp sport "${DEFAULT_CLIENT_PORTS}" dport "${ports}" || return 1
 	#rule table nat chain "in_trproxy.${transparent_proxy_count}" proto tcp action REDIRECT to-port ${redirect} || return 1
 	rule table nat chain PREROUTING noowner "${@}" outface any proto tcp sport "${DEFAULT_CLIENT_PORTS}" dport "${ports}" action REDIRECT to-port ${redirect} || return 1
-	
+
 	if [ ! -z "${user}" ]
 	then
 		set_work_function "Rules for catching outgoing tcp/${ports} traffic"
 		create_chain nat "out_trproxy.${transparent_proxy_count}" OUTPUT "${@}" uid not "${user}" nosoftwarnings inface any outface any src any proto tcp sport "${LOCAL_CLIENT_PORTS}" dport "${ports}" || return 1
-		
+
 		# do not catch traffic for localhost servers
 		# rule table nat chain "out_trproxy.${transparent_proxy_count}" dst "127.0.0.1" action RETURN || return 1
 		if running_ipv4; then
@@ -3901,10 +3901,10 @@ transparent_proxy() {
 			ipv6 rule table nat chain "out_trproxy.${transparent_proxy_count}" proto tcp dst not "::1" action REDIRECT to-port ${redirect} || return 1
 		fi
 	fi
-	
+
 	FIREHOL_NAT=1
 	FIREHOL_ROUTING=1
-	
+
 	return 0
 }
 
@@ -3951,13 +3951,13 @@ tproxy6() { ipv6 tproxy "${@}"; }
 tproxy46() { both tproxy "${@}"; }
 tproxy() {
 	work_realcmd_helper ${FUNCNAME} "${@}"
-	
+
 	set_work_function -ne "Initializing ${FUNCNAME}"
-	
+
 	require_work clear || ( error "${FUNCNAME} cannot be used in '${work_cmd}'. Put it before any '${work_cmd}' definition."; return 1 )
-	
+
 	local ports="${1}"; shift
-	
+
 	if [ -z "${FIREHOL_TPROXY_MARK}" ]
 	then
 		markdef tproxymark 2 temporary stateless || return 1
@@ -3984,11 +3984,11 @@ tproxy() {
 		tip="${2}"
 		shift 2
 	fi
-	
+
 	tproxy_count=$[tproxy_count + 1]
-	
+
 	set_work_function "Rules for catching routed tcp/${ports} traffic"
-	
+
 	create_chain mangle "in_tproxy.${tproxy_count}" PREROUTING "${@}" outface any proto tcp dport "${ports}" || return 1
 
 	create_chain mangle "in_tproxy.${tproxy_count}.divert" "in_tproxy.${tproxy_count}" proto tcp custom '-m socket' || return 1
@@ -3996,10 +3996,10 @@ tproxy() {
 	rule table mangle chain "in_tproxy.${tproxy_count}.divert" action ACCEPT
 
 	rule table mangle chain "in_tproxy.${tproxy_count}" proto tcp action TPROXY ${tproxy_action_options} || return 1
-	
+
 	FIREHOL_NAT=1
 	FIREHOL_ROUTING=1
-	
+
 	if [ $tproxy_count -eq 1 ]
 	then
 		tproxy_setup_ip_route
@@ -4012,17 +4012,17 @@ declare -A FIREHOL_LAST_NAT_MAP=()
 nat_count=0
 nat_helper() {
 #	work_realcmd_helper ${FUNCNAME} "${@}"
-	
+
 	set_work_function -ne "Initializing ${FUNCNAME}"
-	
+
 	require_work clear || ( error "NAT cannot be used in '${work_cmd}'. Put all NAT related commands before any '${work_cmd}' definition."; return 1 )
-	
+
 	local 	type="${1}" to="${2}" tos=() name= persistent=0 \
 		chain= chains=() action= options= requirements= overwrite= \
 		id= x= w= total= balance=() args=() proto=(any) total_weight=0 without_weight=0 mode="nth" do_recent=0 \
 		nat_log=()
 	shift 2
-	
+
 	nat_count=$[nat_count + 1]
 	FIREHOL_LAST_NAT_MAP=()
 
@@ -4035,7 +4035,7 @@ nat_helper() {
 			overwrite="inface any"
 			tos=(${to//,/ })
 			;;
-		
+
 		to-destination)
 			chains=(PREROUTING)
 			#possible_chains="PREROUTING OUTPUT"
@@ -4044,7 +4044,7 @@ nat_helper() {
 			overwrite="outface any"
 			tos=(${to//,/ })
 			;;
-			
+
 		redirect-to)
 			chains=(PREROUTING)
 			#possible_chains="PREROUTING OUTPUT"
@@ -4053,13 +4053,13 @@ nat_helper() {
 			overwrite="outface any"
 			tos=(${to//,/ })
 			;;
-			
+
 		*)
 			error "${FUNCNAME} requires a type (i.e. to-source, to-destination, redirect-to, etc) as its first argument. '${type}' is not understood."
 			return 1
 			;;
 	esac
-	
+
 	args=(${requirements})
 	while [ ! -z "${1}" ]
 	do
@@ -4093,7 +4093,7 @@ nat_helper() {
 				done
 				shift
 				;;
-				
+
 			name)	name="${2}"
 				shift
 				;;
@@ -4195,7 +4195,7 @@ nat_helper() {
 			[ ${FIREHOL_NAT_HELPER_LOG} -eq 1 ] && nat_log=(log "NAT_HELPER ${id}: UPDATED PERSISTENCE FOR ${to/\/*}")
 
 			set_work_function "Creating chain '${rname}' to update persistence for '${to/\/*}'..."
-			
+
 			create_chain nat "${rname}"
 			rule table nat chain "${rname}" custom "-m recent --set --name ${rname} --rsource" action NOOP
 			rule table nat chain "${rname}" custom "-m recent --update --name ${rname} --rsource --seconds ${FIREHOL_NAT_PERSISTENCE_SECONDS} --reap" action NOOP
@@ -4271,10 +4271,10 @@ nat_helper() {
 			rule table nat chain "${chain}" proto "${proto[*]}" "${args[@]}" "${balance[@]}" "${nat_log[@]}" action "${laction[@]}" || return 1
 		done
 	done
-	
+
 	FIREHOL_NAT=1
 	[ ! "${action}" = "redirect" ] && FIREHOL_ROUTING=1
-	
+
 	return 0
 }
 
@@ -4283,9 +4283,9 @@ nat6() { ipv6 nat "${@}"; }
 nat46() { both nat "${@}"; }
 nat() {
 	work_realcmd_helper ${FUNCNAME} "${@}"
-	
+
 	set_work_function -ne "Initializing ${FUNCNAME}"
-	
+
 	nat_helper "${@}"
 }
 
@@ -4294,12 +4294,12 @@ snat6() { ipv6 snat "${@}"; }
 snat46() { both snat "${@}"; }
 snat() {
 	work_realcmd_helper ${FUNCNAME} "${@}"
-	
+
 	set_work_function -ne "Initializing ${FUNCNAME}"
-	
+
 	local to="${1}"; shift
 	test "${to}" = "to" && to="${1}" && shift
-	
+
 	nat_helper "to-source" "${to}" "${@}"
 }
 
@@ -4308,12 +4308,12 @@ dnat6() { ipv6 dnat "${@}"; }
 dnat46() { both dnat "${@}"; }
 dnat() {
 	work_realcmd_helper ${FUNCNAME} "${@}"
-	
+
 	set_work_function -ne "Initializing ${FUNCNAME}"
-	
+
 	local to="${1}"; shift
 	test "${to}" = "to" && to="${1}" && shift
-	
+
 	nat_helper "to-destination" "${to}" "${@}"
 }
 
@@ -4322,12 +4322,12 @@ redirect6() { ipv6 redirect "${@}"; }
 redirect46() { both redirect "${@}"; }
 redirect() {
 	work_realcmd_helper ${FUNCNAME} "${@}"
-	
+
 	set_work_function -ne "Initializing ${FUNCNAME}"
-	
+
 	local to="${1}"; shift
 	test "${to}" = "to" -o "${to}" = "to-port" && to="${1}" && shift
-	
+
 	nat_helper "redirect-to" "${to}" "${@}"
 }
 
@@ -4338,19 +4338,19 @@ mac6() { ipv6 mac "${@}"; }
 mac46() { both mac "${@}"; }
 mac() {
 	work_realcmd_helper ${FUNCNAME} "${@}"
-	
+
 	set_work_function -ne "Initializing ${FUNCNAME}"
-	
+
 	require_work clear || ( error "${FUNCNAME} cannot be used in '${work_cmd}'. Put it before any '${work_cmd}' definition."; return 1 )
-	
+
 	if running_ipv4; then
 		if [ ${wrongmac_chain} -eq 0 ]
 		then
 			set_work_function "Creating the MAC-MISSMATCH chain (only once)"
-		
+
 			iptables -t filter -N WRONGMAC
 			rule table filter chain WRONGMAC loglimit "BLOCKED MAC MISSMATCH" action DROP || return 1
-		
+
 			wrongmac_chain=1
 		fi
 	fi
@@ -4385,9 +4385,9 @@ loglimit6() { ipv6 log_helper loglimit "${@}"; }
 loglimit46() { ipv46 log_helper loglimit "${@}"; }
 log_helper() {
 	work_realcmd_helper ${FUNCNAME} "${@}"
-	
+
 	set_work_function -ne "Initializing ${FUNCNAME}"
-	
+
 	require_work clear || ( error "${FUNCNAME} cannot be used in '${work_cmd}'. Put it before any '${work_cmd}' definition."; return 1 )
 
 	local log="${1}" msg="${2}" x=
@@ -4413,11 +4413,11 @@ blacklist6() { ipv6 blacklist "${@}"; }
 blacklist46() { both blacklist "${@}"; }
 blacklist() {
 	work_realcmd_helper ${FUNCNAME} "${@}"
-	
+
 	set_work_function -ne "Initializing ${FUNCNAME}"
-	
+
 	require_work clear || ( error "${FUNCNAME} cannot be used in '${work_cmd}'. Put it before any '${work_cmd}' definition."; return 1 )
-	
+
 	FIREHOL_BLACKLIST_COUNTER=$[ FIREHOL_BLACKLIST_COUNTER + 1 ]
 	local mode=1 chain= name="bi" accounting= x=
 	local -a inface=() src=() logopts_in_arg=(log "BLACKLIST-IN") logopts_out_arg=(log "BLACKLIST-OUT")
@@ -4443,7 +4443,7 @@ blacklist() {
 
 		*)	;;
 	esac
-	
+
 	while [ ! -z "${1}" ]
 	do
 		case "${1,,}" in
@@ -4608,9 +4608,9 @@ iptrap6() { ipv6 iptrap "${@}"; }
 iptrap46() { both iptrap "${@}"; }
 iptrap() {
 	work_realcmd_helper ${FUNCNAME} "${@}"
-	
+
 	set_work_function -ne "Initializing ${FUNCNAME}"
-	
+
 	require_work clear || ( error "${FUNCNAME} cannot be used in '${work_cmd}'. Put it before any '${work_cmd}' definition."; return 1 )
 	running_both       && error "${FUNCNAME} cannot be used in both IPv4 and IPv6. Please give use either iptrap4 or iptrap6." && return 1
 
@@ -4798,19 +4798,19 @@ classify6() { ipv6 classify "${@}"; }
 classify46() { both classify "${@}"; }
 classify() {
 	work_realcmd_helper ${FUNCNAME} "${@}"
-	
+
 	set_work_function -ne "Initializing ${FUNCNAME}"
-	
+
 	require_work clear || ( error "${FUNCNAME} cannot be used in '${work_cmd}'. Put it before any '${work_cmd}' definition."; return 1 )
-	
+
 	local class="${1}"; shift
 	classify_count=$[classify_count + 1]
-	
+
 	set_work_function "Rules for CLASSIFY"
-	
+
 	create_chain mangle "classify.${classify_count}" POSTROUTING "${@}" || return 1
 	iptables_both -t mangle -A "classify.${classify_count}" -j CLASSIFY --set-class ${class}
-	
+
 	return 0
 }
 
@@ -4819,11 +4819,11 @@ connmark6() { ipv6 connmark "${@}"; }
 connmark46() { both connmark "${@}"; }
 connmark() {
 	work_realcmd_helper ${FUNCNAME} "${@}"
-	
+
 	set_work_function -ne "Initializing ${FUNCNAME}"
-	
+
 	require_work clear || ( error "${FUNCNAME} cannot be used in '${work_cmd}'. Put it before any '${work_cmd}' definition."; return 1 )
-	
+
 	local 	num="${1}" where="${2}" chain=
 	shift 2
 
@@ -4888,11 +4888,11 @@ custommark6() { ipv6 custommark "${@}"; }
 custommark46() { both custommark "${@}"; }
 custommark() {
 	work_realcmd_helper ${FUNCNAME} "${@}"
-	
+
 	set_work_function -ne "Initializing ${FUNCNAME}"
-	
+
 	require_work clear || ( error "${FUNCNAME} cannot be used in '${work_cmd}'. Put it before any '${work_cmd}' definition."; return 1 )
-	
+
 	local 	name="${1}" num="${2}" where="${3}" chain=
 	shift 3
 
@@ -4919,7 +4919,7 @@ custommark() {
 			rule table mangle chain "${chain}" "${@}" action MARK to "${mark}" || return 1
 		fi
 	done
-	
+
 	return 0
 }
 
@@ -4935,11 +4935,11 @@ tos6() { ipv6 tos "${@}"; }
 tos46() { both tos "${@}"; }
 tos() {
 	work_realcmd_helper ${FUNCNAME} "${@}"
-	
+
 	set_work_function -ne "Initializing ${FUNCNAME}"
-	
+
 	require_work clear || ( error "${FUNCNAME} cannot be used in '${work_cmd}'. Put it before any '${work_cmd}' definition."; return 1 )
-	
+
 	local num="${1}" where="${2}" chain=
 	shift
 
@@ -4957,7 +4957,7 @@ tos() {
 		set_work_function "Rules for TOS on chain '${chain}'"
 		rule table mangle chain ${chain} "${@}" action TOS to "${num}"
 	done
-	
+
 	return 0
 }
 
@@ -4969,11 +4969,11 @@ tosfix6() { ipv6 tosfix "${@}"; }
 tosfix46() { both tosfix "${@}"; }
 tosfix() {
 	work_realcmd_helper ${FUNCNAME} "${@}"
-	
+
 	set_work_function -ne "Initializing ${FUNCNAME}"
-	
+
 	require_work clear || ( error "${FUNCNAME} cannot be used in '${work_cmd}'. Put it before any '${work_cmd}' definition."; return 1 )
-	
+
 	local where="${1}" x= chain=
 	shift
 
@@ -5036,21 +5036,21 @@ dscp6() { ipv6 dscp "${@}"; }
 dscp46() { both dscp "${@}"; }
 dscp() {
 	work_realcmd_helper ${FUNCNAME} "${@}"
-	
+
 	set_work_function -ne "Initializing ${FUNCNAME}"
-	
+
 	require_work clear || ( error "${FUNCNAME} cannot be used in '${work_cmd}'. Put it before any '${work_cmd}' definition."; return 1 )
-	
+
 	local 	value="${1}" class= where=
 	shift
-	
+
 	if [ "${value}" = "class" ]
 	then
 		value=
 		class="${1}"
 		shift
 	fi
-	
+
 	where="${1}"
 	shift
 
@@ -5074,7 +5074,7 @@ dscp() {
 			rule table mangle chain ${chain} "${@}" action DSCP to ${value}
 		fi
 	done
-	
+
 	return 0
 }
 
@@ -5083,11 +5083,11 @@ tcpmss6() { ipv6 tcpmss "${@}"; }
 tcpmss46() { both tcpmss "${@}"; }
 tcpmss() {
 	work_realcmd_helper ${FUNCNAME} "${@}"
-	
+
 	set_work_function -ne "Initializing ${FUNCNAME}"
-	
+
 	local value="${1}" iface="$2" target=
-	
+
 	if [ -z "$iface" ]
 	then
 		if [ ! -z "${work_cmd}" ]
@@ -5098,35 +5098,35 @@ tcpmss() {
 				error "${FUNCNAME} cannot find the interfaces to setup. Did you set an outface?"
 				return 1
 			fi
-			
+
 		else
 			iface="all"
 		fi
 	fi
-	
+
 	case "$value" in
 		auto)
 			target="-j TCPMSS --clamp-mss-to-pmtu"
 			;;
-		
+
 		[0-9]*)
 			target="-j TCPMSS --set-mss $value"
 			;;
-	
+
 		*)
 			;;
 	esac
-	
+
 	if [ -z "$target" ]
 	then
 		error "${FUNCNAME} requires either the word 'auto' or a numeric argument for mss."
 		return 1
 	fi
-	
+
 	if [ "${iface}" = "all" ]
 	then
 		set_work_function "TCPMSS for all interfaces"
-		
+
 		iptables_both -t mangle -A POSTROUTING -p tcp -m tcp --tcp-flags SYN,RST SYN $target
 	else
 		local f=
@@ -5136,7 +5136,7 @@ tcpmss() {
 			iptables_both -t mangle -A POSTROUTING -o ${f} -p tcp -m tcp --tcp-flags SYN,RST SYN $target
 		done
 	fi
-	
+
 	return 0
 }
 
@@ -5229,7 +5229,7 @@ docker_bridge() {
 
 version() {
         work_realcmd_helper ${FUNCNAME} "${@}"
-	
+
 	if [ ${1} -gt ${FIREHOL_VERSION} ]
 	then
 		error "Wrong version. FireHOL is v${FIREHOL_VERSION}, your script requires v${1}. See http://firehol.org/upgrade/#config-version-${FIREHOL_VERSION}"
@@ -5255,13 +5255,13 @@ interface6() { ipv6 interface "${@}"; }
 interface46() { both interface "${@}"; }
 interface() {
         work_realcmd_primary ${FUNCNAME} "${@}"
-	
+
 	# --- close any open command ---
-	
+
 	close_cmd || return 1
 
 	# --- test prerequisites ---
-	
+
 	require_work clear || return 1
 	set_work_function -ne "Initializing ${FUNCNAME}"
 
@@ -5274,7 +5274,7 @@ interface() {
 	push_namespace "${ipv}"
 
 	# --- get paramaters and validate them ---
-	
+
 	# Get the interface
 	local 	inface="${1}" \
 		name="${2}"
@@ -5282,15 +5282,15 @@ interface() {
 
 	test -z "${inface}" && error "real interface is not set" && return 1
 	test -z "${name}"   && error "${FUNCNAME} name is not set" && return 1
-	
+
 	# --- do the job ---
-	
+
 	work_cmd="${FUNCNAME}"
 	work_name="${name}"
 	work_realcmd=("(unset)")
-	
+
 	set_work_function -ne "Rules for ${FUNCNAME} '${work_name}'"
-	
+
 	create_chain filter "in_${work_name}"  INPUT  push_flow_inheritance in  in  set_work_inface          "${@}" inface "${inface}" outface any || return 1
 	create_chain filter "out_${work_name}" OUTPUT push_flow_inheritance out out set_work_outface reverse "${@}" inface "${inface}" outface any || return 1
 
@@ -5323,16 +5323,16 @@ router6() { ipv6 router "${@}"; }
 router46() { both router "${@}"; }
 router() {
 	work_realcmd_primary ${FUNCNAME} "${@}"
-	
+
 	# --- close any open command ---
-	
+
 	close_cmd || return 1
-	
+
 	# --- test prerequisites ---
-	
+
 	require_work clear || return 1
 	set_work_function -ne "Initializing ${FUNCNAME}"
-	
+
 	local ipv="${FIREHOL_NS_CURR}"
 	if [ "z${1}" = "z-ns" ]
 	then
@@ -5343,23 +5343,23 @@ router() {
 
 
 	# --- get paramaters and validate them ---
-	
+
 	# Get the name for this router
 	local name="${1}"; shift
 	test -z "${name}" && error "${FUNCNAME} name is not set" && return 1
-	
-	
+
+
 	# --- do the job ---
-	
+
 	work_cmd="${FUNCNAME}"
 	work_name="${name}"
 	work_realcmd=("(unset)")
-	
+
 	set_work_function -ne "Rules for ${FUNCNAME} '${work_name}'"
-	
+
 	create_chain filter "in_${work_name}"  FORWARD push_flow_inheritance in  in  set_work_inface set_work_outface "${@}" || return 1
 	create_chain filter "out_${work_name}" FORWARD push_flow_inheritance out out reverse "${@}" || return 1
-	
+
 	set_work_function "Accepting all ICMP RELATED sockets in router '${work_name}'"
 
 	if running_ipv4
@@ -5401,7 +5401,7 @@ save_for_restore() {
 postprocess() {
 	# if the caller is not from the program file, get the config line calling us
 	[ ! "${BASH_SOURCE[1]}" = "${PROGRAM_FILE}" ] && work_realcmd_helper ${FUNCNAME} "${@}"
-	
+
 	local check="error" save=1
 	while [ ! "A${1}" = "A" ]
 	do
@@ -5422,7 +5422,7 @@ postprocess() {
 	then
 		check="debug"
 	fi
-	
+
 	printf "%q " "${@}" >&21
 	case "${check}" in
 		debug)	printf "\n" >&21
@@ -5439,7 +5439,7 @@ postprocess() {
 			printf "\n" >&21
 			;;
 	esac
-	
+
 	test $save -eq 1 && save_for_restore ${check} "${@}"
 
 	return 0
@@ -5448,7 +5448,7 @@ postprocess() {
 postprocess2() {
 	# if the caller is not from the program file, get the config line calling us
 	[ ! "${BASH_SOURCE[1]}" = "${PROGRAM_FILE}" ] && work_realcmd_helper ${FUNCNAME} "${@}"
-	
+
 	local check="error" save=1
 	while [ ! "A${1}" = "A" ]
 	do
@@ -5469,7 +5469,7 @@ postprocess2() {
 	then
 		check="debug"
 	fi
-	
+
 	printf "%q " "${@}" >&22
 	case "${check}" in
 		debug)	printf "\n" >&22
@@ -5486,7 +5486,7 @@ postprocess2() {
 			printf "\n" >&22
 			;;
 	esac
-	
+
 	test $save -eq 1 && save_for_restore ${check} "${@}"
 
 	return 0
@@ -5506,7 +5506,7 @@ run_fast() {
 	shift
 
 	[ "${cmd}" = "ip6tables" ] && n=table6
-	
+
 	if [ "z${1}" = "z-t" ]
 	then
 		t="${2}"
@@ -5517,23 +5517,23 @@ run_fast() {
 	case "$1" in
 		-P)	echo ":$2 $3 [0:0]" >>"${FIREHOL_DIR}/fast/${n}.${t}.policy"
 			;;
-		
+
 		-N)	echo ":$2 - [0:0]" >>"${FIREHOL_DIR}/fast/${n}.${t}.chains"
 			;;
-		
+
 		-A)	#[ "${FIREHOL_FAST_ACTIVATION_TRACE}" = "1" ] && echo "${log/ -j */ -j NFLOG --nflog-prefix=\"${t}.${2} ${work_function}\"}" >>"${FIREHOL_DIR}/fast/${n}.${t}.rules"
 			echo "${*}" >>"${FIREHOL_DIR}/fast/${n}.${t}.rules"
 			;;
-			
+
 		-I)	echo "${*}" >>"${FIREHOL_DIR}/fast/${n}.${t}.rules"
 			#[ "${FIREHOL_FAST_ACTIVATION_TRACE}" = "1" ] && echo "${log/ -j */ -j NFLOG --nflog-prefix=\"${t}.${2} ${work_function}\"}" >>"${FIREHOL_DIR}/fast/${n}.${t}.rules"
 			;;
-			
+
 		# if it is none of the above, we execute it normally.
 		*)	echo >&2 "WARNING: Ignoring command '${cmd} -t ${t} ${@}'"
 			;;
 	esac
-	
+
 	test ! -f "${FIREHOL_DIR}/fast/${n}s/${t}" && ${TOUCH_CMD} "${FIREHOL_DIR}/fast/${n}s/${t}"
 	return 0
 }
@@ -5559,9 +5559,9 @@ run_fast() {
 
 policy() {
 	work_realcmd_secondary ${FUNCNAME} "${@}"
-	
+
 	require_work set any || return 1
-	
+
 	set_work_function "Policy of ${work_name} to ${1}"
 	work_policy="$*"
 
@@ -5573,7 +5573,7 @@ server6() { ipv6 server "${@}"; }
 server46() { both server "${@}"; }
 server() {
 	work_realcmd_secondary ${FUNCNAME} "${@}"
-	
+
 	require_work set any || return 1
 	smart_function server "${@}"
 	return $?
@@ -5584,7 +5584,7 @@ client6() { ipv6 client "${@}"; }
 client46() { both client "${@}"; }
 client() {
 	work_realcmd_secondary ${FUNCNAME} "${@}"
-	
+
 	require_work set any || return 1
 	smart_function client "${@}"
 	return $?
@@ -5595,7 +5595,7 @@ route6() { ipv6 route "${@}"; }
 route46() { both route "${@}"; }
 route() {
 	work_realcmd_secondary ${FUNCNAME} "${@}"
-	
+
 	require_work set router || return 1
 	smart_function server "${@}"
 	return $?
@@ -5608,9 +5608,9 @@ FIREHOL_PROTECTION_COUNT=0
 
 protection() {
 	work_realcmd_secondary ${FUNCNAME} "${@}"
-	
+
 	require_work set any || return 1
-	
+
 	local 	in="in" \
 		prface="${work_inface}" \
 		pre="pr" \
@@ -5623,18 +5623,18 @@ protection() {
 		pre="prr"		# in case a router has protections
 					# both ways, the second needs to
 					# have different chain names
-					
+
 		in="out"		# reverse the interface
-		
+
 		prface="${work_outface}"
 		shift
 	fi
-	
+
 	local 	type="${1}" rate= burst=
 	shift
 
 	set_work_function -ne "Rules for rotections on '${prface}' for ${work_cmd} '${work_name}'"
-	
+
 	for x in ${type//,/ }
 	do
 		FIREHOL_PROTECTION_COUNT=$[FIREHOL_PROTECTION_COUNT + 1]
@@ -5643,32 +5643,32 @@ protection() {
 			none)
 				return 0
 				;;
-			
+
 			bad-packets)
 				protection ${reverse} "fragments new-tcp-w/o-syn malformed-xmas malformed-null malformed-bad invalid" "${@}"
 				return $?
 				;;
-			
+
 			strong|full|all)
 				protection ${reverse} "fragments new-tcp-w/o-syn icmp-floods syn-floods malformed-xmas malformed-null malformed-bad invalid" "${@}"
 				return $?
 				;;
-				
+
 			invalid)
 				if [ "${FIREHOL_DROP_INVALID}" -eq 0 ]
 				then
 					set_work_function "Rules to ${FIREHOL_DROP_INVALID_ACTION} invalid packets on '${prface}' for ${work_cmd} '${work_name}'"
-					
+
 					rule in chain "${in}_${work_name}" state INVALID action ${FIREHOL_DROP_INVALID_ACTION} || return 1
 				fi
 				;;
-			
+
 			connrate)
 				local mychain="${pre}_${work_name}_crt${FIREHOL_PROTECTION_COUNT}"
 				create_chain filter "${mychain}" "${in}_${work_name}" in state NEW 				|| return 1
-				
+
 				set_work_function "Rules for enforcing connection rate per client on '${prface}' for ${work_cmd} '${work_name}'"
-				
+
 				rule in chain "${mychain}" hashlimit "${pre}_${work_name}_connrate" upto "${rate}" mode srcip "${@}" action return || return 1
 				rule in chain "${mychain}" loglimit "BLOCKED CLIENT CONNECTION RATE REACHED" action drop		|| return 1
 				;;
@@ -5676,15 +5676,15 @@ protection() {
 			connlimit)
 				local mychain="${pre}_${work_name}_clm${FIREHOL_PROTECTION_COUNT}"
 				create_chain filter "${mychain}" "${in}_${work_name}" in state NEW 				|| return 1
-				
+
 				set_work_function "Rules for enforcing connection limit per client on '${prface}' for ${work_cmd} '${work_name}'"
-				
+
 				rule in chain "${mychain}" connlimit saddr upto "${@}" action return 				|| return 1
 				rule in chain "${mychain}" loglimit "BLOCKED CLIENT CONNECTION LIMIT REACHED" action drop		|| return 1
 				;;
 
 			fragments)
-			# not needed - no use with connection tracking	
+			# not needed - no use with connection tracking
 			# 	if running_ipv4; then
 			# 		push_namespace ipv4
 			# 		local frag_status=0 mychain="${pre}_${work_name}_fragments"
@@ -5705,16 +5705,16 @@ protection() {
 			# 	# tracking, so fragments will be reassembled
 			# 	# before checking.
 			 	;;
-				
+
 			new-tcp-w/o-syn)
 				local mychain="${pre}_${work_name}_nsn${FIREHOL_PROTECTION_COUNT}"
 				create_chain filter "${mychain}" "${in}_${work_name}" in proto tcp state NEW custom "! --syn"	|| return 1
-				
+
 				set_work_function "Rules for protection from new TCP connections without the SYN flag set on '${prface}' for ${work_cmd} '${work_name}'"
-				
+
 				rule in chain "${mychain}" loglimit "BLOCKED NEW TCP w/o SYN" action drop		|| return 1
 				;;
-				
+
 			icmp-floods)
 				local mychain="${pre}_${work_name}_ifl${FIREHOL_PROTECTION_COUNT}"
 
@@ -5724,80 +5724,79 @@ protection() {
 				if running_ipv6; then
 					ipv6 create_chain filter "${mychain}" "${in}_${work_name}" in proto icmpv6 custom "--icmpv6-type echo-request"	|| return 1
 				fi
-				
+
 				set_work_function "Rules for protection from ICMP floods on '${prface}' for ${work_cmd} '${work_name}'"
-				
+
 				rate="${1-100/s}"
 				burst="${2-50}"
 
 				rule in chain "${mychain}" limit "${rate}" "${burst}" action return				|| return 1
 				rule in chain "${mychain}" loglimit "BLOCKED ICMP FLOOD" action drop			|| return 1
 				;;
-				
+
 			syn-floods)
 				local mychain="${pre}_${work_name}_sfl${FIREHOL_PROTECTION_COUNT}"
 				create_chain filter "${mychain}" "${in}_${work_name}" in proto tcp custom "--syn"		|| return 1
-				
+
 				set_work_function "Rules for protection from TCP SYN floods on '${prface}' for ${work_cmd} '${work_name}'"
-				
+
 				rate="${1-100/s}"
 				burst="${2-50}"
 
 				rule in chain "${mychain}" limit "${rate}" "${burst}" action return				|| return 1
 				rule in chain "${mychain}" loglimit "BLOCKED SYN FLOOD" action drop				|| return 1
 				;;
-				
+
 			all-floods)
 				local mychain="${pre}_${work_name}_afl${FIREHOL_PROTECTION_COUNT}"
 				create_chain filter "${mychain}" "${in}_${work_name}" in state NEW				|| return 1
-				
+
 				set_work_function "Rules for protection from ALL floods on '${prface}' for ${work_cmd} '${work_name}'"
-				
+
 				rate="${1-100/s}"
 				burst="${2-50}"
 
 				rule in chain "${mychain}" limit "${rate}" "${burst}" action return				|| return 1
 				rule in chain "${mychain}" loglimit "BLOCKED ALL FLOOD" action drop				|| return 1
 				;;
-				
+
 			malformed-xmas)
 				local mychain="${pre}_${work_name}_mxs${FIREHOL_PROTECTION_COUNT}"
 				create_chain filter "${mychain}" "${in}_${work_name}" in proto tcp custom "--tcp-flags ALL ALL"	|| return 1
-				
+
 				set_work_function "Rules for protection from packets with all TCP flags set on '${prface}' for ${work_cmd} '${work_name}'"
-				
+
 				rule in chain "${mychain}" loglimit "BLOCKED MALFORMED XMAS" action drop		|| return 1
 				;;
-				
+
 			malformed-null)
 				local mychain="${pre}_${work_name}_mnl${FIREHOL_PROTECTION_COUNT}"
 				create_chain filter "${mychain}" "${in}_${work_name}" in proto tcp custom "--tcp-flags ALL NONE" || return 1
-				
+
 				set_work_function "Rules for protection from packets with all TCP flags unset on '${prface}' for ${work_cmd} '${work_name}'"
-				
+
 				rule in chain "${mychain}" loglimit "BLOCKED MALFORMED NULL" action drop		|| return 1
 				;;
-				
+
 			malformed-bad)
 				local mychain="${pre}_${work_name}_mbd${FIREHOL_PROTECTION_COUNT}"
 				create_chain filter "${mychain}" "${in}_${work_name}" in proto tcp custom "--tcp-flags SYN,FIN SYN,FIN"			|| return 1
-				
 				set_work_function "Rules for protection from packets with illegal TCP flags on '${prface}' for ${work_cmd} '${work_name}'"
-				
+
 				rule in chain "${in}_${work_name}" action "${mychain}"   proto tcp custom "--tcp-flags SYN,RST SYN,RST"			|| return 1
 				rule in chain "${in}_${work_name}" action "${mychain}"   proto tcp custom "--tcp-flags ALL     SYN,RST,ACK,FIN,URG"	|| return 1
 				rule in chain "${in}_${work_name}" action "${mychain}"   proto tcp custom "--tcp-flags ALL     FIN,URG,PSH"		|| return 1
-				
+
 				rule in chain "${mychain}" loglimit "BLOCKED MALFORMED BAD" action drop			|| return 1
 				;;
-				
+
 			*)
 				error "Protection '${x}' does not exists."
 				return 1
 				;;
 		esac
 	done
-	
+
 	return 0
 }
 
@@ -5857,17 +5856,17 @@ fi
 if [ ! -z "${KERNEL_CONFIG}" -a -s "${FIREHOL_DIR}/kcfg" ]
 then
 	# We found a kernel configuration
-	
+
 	# Load all the definitions for CONFIG_*_NF_* variables
 	# We grep what we care for, to make sure there is no garbage or malicious code
 	# in the file we will run.
 	${CAT_CMD} "${FIREHOL_DIR}/kcfg" | ${GREP_CMD} -e "^CONFIG_[A-Z0-9_]\+_NF_[A-Z0-9_]\+=[ynm]$" >"${FIREHOL_DIR}/kcfg.nf"
-	
+
 	# run it to get the variables
 	source "${FIREHOL_DIR}/kcfg.nf"
 else
 	# We could not find a kernel configuration
-	
+
 	KERNEL_CONFIG=
 
 	if [ ! ${FIREHOL_LOAD_KERNEL_MODULES} -eq 0 ]
@@ -5898,41 +5897,41 @@ check_kernel_config() {
 	# In kernels 2.6.20+ _IP_ was removed from kernel iptables config names.
 	# A few kernels have _CONNTRACT_ replaced with _CT_ for certain modules.
 	# Try all versions.
-	
+
 	# the original way
 	eval local kcfg1="\$${1}"
-	
+
 	# without _IP_
 	local t=`echo ${1} | ${SED_CMD} "s/_IP_//g"`
 	eval local kcfg2="\$${t}"
-	
+
 	# _CONNTRACK_ as _CT_
 	local t=`echo ${1} | ${SED_CMD} "s/_CONNTRACK_/_CT_/g"`
 	eval local kcfg3="\$${t}"
-	
+
 	# prefer the kernel 2.6.20+ way
 	if [ ! -z "${kcfg2}" ]
 	then
 		kcfg="${kcfg2}"
-	
+
 	elif [ ! -z "${kcfg3}" ]
 	then
 		kcfg="${kcfg3}"
 	else
 		kcfg="${kcfg1}"
 	fi
-	
+
 	case ${kcfg} in
 		y)	return 0
 			;;
-		
+
 		m)	return 1
 			;;
-		
+
 		*)	return 2
 			;;
 	esac
-	
+
 	return 2
 }
 
@@ -5943,7 +5942,7 @@ check_kernel_config() {
 # 2 = no info about this module in the kernel
 check_kernel_module() {
 	local mod="${1}"
-	
+
 	case ${mod} in
 		ip_tables)
 			test -f /proc/net/ip_tables_names && return 0
@@ -5957,31 +5956,31 @@ check_kernel_module() {
 			check_kernel_config CONFIG_NF_TABLES_IPV6
 			return $?
 			;;
-		
+
 		ip_conntrack|nf_conntrack)
 			test -f /proc/net/ip_conntrack -o -f /proc/net/nf_conntrack && return 0
 			check_kernel_config CONFIG_IP_NF_CONNTRACK
 			test $? -ne 0 && check_kernel_config CONFIG_NF_CONNTRACK_IPV4
 			return $?
 			;;
-			
+
 		ip_conntrack_*|nf_conntrack_*)
 			local mnam="CONFIG_IP_NF_`echo ${mod} | ${CUT_CMD} -d '_' -f 3- | ${TR_CMD} a-z A-Z`"
 			check_kernel_config ${mnam}
 			return $?
 			;;
-			
+
 		ip_nat_*|nf_nat_*)
 			local mnam="CONFIG_IP_NF_NAT_`echo ${mod} | ${CUT_CMD} -d '_' -f 3- | ${TR_CMD} a-z A-Z`"
 			check_kernel_config ${mnam}
 			return $?
 			;;
-			
+
 		*)
 			return 2
 			;;
 	esac
-	
+
 	return 2
 }
 
@@ -5989,7 +5988,7 @@ check_kernel_module() {
 LOADED_KERNEL_MODULES=
 load_kernel_module() {
 	local mod="${1}"
-	
+
 	if [ ! ${FIREHOL_LOAD_KERNEL_MODULES} -eq 0 ]
 	then
 		local m=
@@ -6021,7 +6020,7 @@ require_kernel_module() {
 		set_work_function "Adding kernel module '${new}' in the list of kernel modules to load"
 		FIREHOL_KERNEL_MODULES[$new]="1"
 	fi
-	
+
 	return 0
 }
 
@@ -6040,9 +6039,9 @@ require_kernel_module() {
 set_work_function() {
 	local show_explain=1
 	test "$1" = "-ne" && shift && show_explain=0
-	
+
 	work_function="$*"
-	
+
 	if [ "${FIREHOL_MODE}" = "EXPLAIN" ]
 	then
 		test ${show_explain} -eq 1 && printf "\n# %s\n" "$*"
@@ -6064,23 +6063,23 @@ set_work_function() {
 require_work() {
 	local 	type="${1}" \
 		cmd="${2}"
-	
+
 	case "${type}" in
 		clear)
 			test ! -z "${work_cmd}" && error "Previous work was not applied." && return 1
 			;;
-		
+
 		set)
 			test -z "${work_cmd}" && error "The command used requires that a primary command is set." && return 1
 			test ! "${work_cmd}" = "${cmd}" -a ! "${cmd}" = "any"  && error "Primary command is '${work_cmd}' but '${cmd}' is required." && return 1
 			;;
-			
+
 		*)
 			error "Unknown work status '${type}'."
 			return 1
 			;;
 	esac
-	
+
 	return 0
 }
 
@@ -6095,25 +6094,25 @@ require_work() {
 
 close_cmd() {
 	set_work_function -ne "Closing last open primary command (${work_cmd}/${work_name})"
-	
+
 	case "${work_cmd}" in
 		interface)
 			close_interface || return 1
 			;;
-		
+
 		router)
 			close_router || return 1
 			;;
-		
+
 		'')
 			;;
-		
+
 		*)
 			error "Unknown work '${work_cmd}'."
 			return 1
 			;;
 	esac
-	
+
 	# Reset the current status variables to empty/default
 	work_counter4=0
 	work_counter6=0
@@ -6123,7 +6122,7 @@ close_cmd() {
 	work_inface=
 	work_outface=
 	work_policy=
-	
+
 	return 0
 }
 
@@ -6135,9 +6134,9 @@ close_cmd() {
 
 close_interface() {
 	require_work set interface || return 1
-	
+
 	close_all_groups
-	
+
 	set_work_function "Finilizing interface '${work_name}'"
 
 	pop_flow_inheritance
@@ -6152,12 +6151,12 @@ close_interface() {
 			pop_namespace
 			return 0
 			;;
-			
+
 		accept|ACCEPT)
 			drop_noise=0
 			;;
-		
-		*)	
+
+		*)
 			inlog=(loglimit "${work_policy/ */} UNMATCHED IN-${work_name}")
 			outlog=(loglimit "${work_policy/ */} UNMATCHED OUT-${work_name}")
 			;;
@@ -6173,12 +6172,12 @@ close_interface() {
 			firewall_filtering_policy_common_late ip6tables OUTPUT "out_${work_name}"
 		fi
 	fi
-	
+
 	set_work_function "Applying default policy of ${work_policy} on interface '${work_name}'"
 
 	rule chain "in_${work_name}" "${inlog[@]}" action ${work_policy} || return 1
 	rule reverse chain "out_${work_name}" "${outlog[@]}" action ${work_policy} || return 1
-	
+
 	pop_namespace
 	return 0
 }
@@ -6189,11 +6188,11 @@ close_interface() {
 # WHY:
 # Finalizes the rules for the last router().
 
-close_router() {	
+close_router() {
 	require_work set router || return 1
-	
+
 	close_all_groups
-	
+
 	set_work_function "Finilizing router '${work_name}'"
 
 	pop_flow_inheritance
@@ -6207,21 +6206,21 @@ close_router() {
 			pop_namespace
 			return 0
 			;;
-			
+
 		accept|ACCEPT)
 			;;
-		
-		*)	
+
+		*)
 			inlog=(loglimit "${work_policy/ */} UNMATCHED PASS-${work_name}")
 			outlog=(loglimit "${work_policy/ */} UNMATCHED PASS-${work_name}")
 			;;
 	esac
-	
+
 	set_work_function "Applying default policy of ${work_policy} on router '${work_name}'"
 
 	rule chain "in_${work_name}" "${inlog[@]}" action ${work_policy} || return 1
 	rule reverse chain "out_${work_name}" "${outlog[@]}" action ${work_policy} || return 1
-	
+
 	pop_namespace
 	return 0
 }
@@ -6453,9 +6452,9 @@ group6() { ipv6 group "${@}"; }
 group46() { both group "${@}"; }
 group() {
 	work_realcmd_primary ${FUNCNAME} "${@}"
-	
+
 	require_work set any || return 1
-	
+
 	local ipv="${FIREHOL_NS_CURR}"
 	if [ "z${1}" = "z-ns" ]
 	then
@@ -6464,54 +6463,54 @@ group() {
 	fi
 
 	local type="${1}"; shift
-	
+
 	case $type in
 		with|start|begin)
 			push_namespace "${ipv}"
 			# increase the counter
 			FIREHOL_GROUP_COUNTER=$[FIREHOL_GROUP_COUNTER + 1]
-			
+
 			set_work_function "Rules for new group No ${FIREHOL_GROUP_COUNTER}, under '${work_name}'"
-			
+
 			# put the current name in the stack
 			FIREHOL_GROUP_STACK[$FIREHOL_GROUP_DEPTH]=${work_name}
 			FIREHOL_GROUP_DEPTH=$[FIREHOL_GROUP_DEPTH + 1]
-			
+
 			# name for the new chain
 			mychain="group${FIREHOL_GROUP_COUNTER}"
-			
+
 			# create the new chain in filter
 			create_chain filter "in_${mychain}" "in_${work_name}" push_flow_inheritance in in "${@}" || return 1
 			create_chain filter "out_${mychain}" "out_${work_name}" push_flow_inheritance out out reverse "${@}" || return 1
-			
+
 			# set a new name for new rules
 			work_name=${mychain}
 			;;
-		
+
 		end|stop|close)
 			if [ ${FIREHOL_GROUP_DEPTH} -eq 0 ]
 			then
 				error "There is no group open to close."
 				return 1
 			fi
-			
+
 			# pop one name from the stack
 			FIREHOL_GROUP_DEPTH=$[FIREHOL_GROUP_DEPTH - 1]
-			
+
 			pop_flow_inheritance
 
 			set_work_function "Closing group '${work_name}'. Now working under '${FIREHOL_GROUP_STACK[$FIREHOL_GROUP_DEPTH]}'"
-			
+
 			work_name=${FIREHOL_GROUP_STACK[$FIREHOL_GROUP_DEPTH]}
 			pop_namespace
 			;;
-		
+
 		*)
 			error "Statement 'group' requires the first argument to be one of with, start, begin, end, stop, close."
 			return 1
 			;;
 	esac
-	
+
 	return 0
 }
 
@@ -6520,7 +6519,7 @@ close_all_groups() {
 	do
 		group close || return 1
 	done
-	
+
 	return 0
 }
 
@@ -6534,7 +6533,7 @@ FIREHOL_AUTO_ACTION_LAST=
 declare -A FIREHOL_AUTO_ACTIONS=()
 
 create_auto_state_new_action() {
-	local table="${1}" action="${2}" 
+	local table="${1}" action="${2}"
 	shift 2
 	local name="${action} ${*}" chain
 
@@ -6563,7 +6562,7 @@ create_auto_state_new_action() {
 	# the chain does not exist. create it.
 	# echo >&2 "CREATING CHAIN: ${chain}"
 	create_chain ${table} "${FIREHOL_AUTO_ACTION_LAST}" || return 1
-	
+
 	# echo >&2 "ADDING NOT-NEW MATCH: ${chain}"
 	rule table ${table} chain "${FIREHOL_AUTO_ACTION_LAST}" state not NEW action "${action}"
 	# echo >&2 "ADDING NEW MATCH: ${chain}"
@@ -6602,12 +6601,12 @@ rule_action_param() {
 		count=0 val=
 	shift 6
 	local -a action_param=()
-	
+
 	# All arguments until the separator are the parameters of the action
 	for val in "${@}"
 	do
 		[ "A${val}" = "A--" ] && break
-		
+
 		action_param[$count]="${val}"
 		((count += 1))
 	done
@@ -6619,7 +6618,7 @@ rule_action_param() {
 		error "Internal Error, in parsing action_param parameters (${FUNCNAME} '${action}' '${statenot}' '${state}' '${table}' '${action_param[@]}' '${@}')."
 		return 1
 	fi
-	
+
 	# prepare the actions
 	case "${action}" in
 		NOOP)
@@ -6627,12 +6626,12 @@ rule_action_param() {
 			$iptables_cmd "${@}"
 			return 0
 			;;
-			
+
 		NONE)
 			# don't run any statements
 			return 0
 			;;
-			
+
 		SMART_REJECT)
 			local key="${iptables_cmd}.${table}"
 			key=${key// /_}; key=${key//-/_}; key=${key//\//_}
@@ -6665,7 +6664,7 @@ rule_action_param() {
 		rule table ${table} chain ${connlog_chain} action ${action}
 		action="${connlog_chain}"
 	fi
-	
+
 	# do we have any options?
 	if [ ! -z "${action_param[0]}" ]
 	then
@@ -6703,14 +6702,14 @@ rule_action_param() {
 				local 	freq="${action_param[1]}" \
 					burst="${action_param[2]}" \
 					overflow="REJECT"
-				
+
 				# if we have a custom overflow action, parse it.
 				test "${action_param[3]}" = "overflow" && overflow="`echo "${action_param[4]}" | $TR_CMD "a-z" "A-Z"`"
-				
+
 				# unset the action_param, so that if this rule does not include NEW connections,
 				# we will not append anything to the generated iptables statements.
 				action_param=()
-				
+
 				# find is this rule matches NEW connections
 				local has_new=`echo "${state}" | $GREP_CMD -i NEW`
 				local do_accept_limit=0
@@ -6720,7 +6719,7 @@ rule_action_param() {
 				else
 					test -z "${has_new}" && do_accept_limit=1
 				fi
-				
+
 				# we have a match for NEW connections.
 				# redirect the traffic to a new chain, which will control
 				# the NEW connections while allowing all the other traffic
@@ -6728,7 +6727,7 @@ rule_action_param() {
 				if [ "${do_accept_limit}" = "1" ]
 				then
 					local accept_limit_chain="`echo "ACC LIM ${freq} ${burst} ${overflow}" | $TR_CMD " /." "___"`"
-					
+
 					# does the chain we need already exist?
 					#if [ ! -f "${FIREHOL_CHAINS_DIR}/${accept_limit_chain}.${iptables_cmd}" ]
 					if [ -z "${FIREHOL_CHAINS[${accept_limit_chain}.${iptables_cmd}]}" ]
@@ -6737,43 +6736,43 @@ rule_action_param() {
 						$iptables_cmd -t ${table} -N "${accept_limit_chain}"
 						FIREHOL_CHAINS[${accept_limit_chain}.${iptables_cmd}]="1"
 						#$TOUCH_CMD "${FIREHOL_CHAINS_DIR}/${accept_limit_chain}.${iptables_cmd}"
-						
+
 						# first, if the traffic is not a NEW connection, allow it.
 						# doing this first will speed up normal traffic.
 						$iptables_cmd -t ${table} -A "${accept_limit_chain}" -m conntrack ! --ctstate NEW -j ${action}
-						
+
 						# accept NEW connections within the given limits.
 						$iptables_cmd -t ${table} -A "${accept_limit_chain}" -m limit --limit "${freq}" --limit-burst "${burst}" -j ${action}
-						
+
 						# log the overflow NEW connections reaching this step within the new chain
 						prepare_iptables_log_arg "LIMIT OVERFLOW" || return 1
 						$iptables_cmd -t ${table} -A "${accept_limit_chain}" -m limit --limit "${FIREHOL_LOG_FREQUENCY}" --limit-burst "${FIREHOL_LOG_BURST}" -j ${FIREHOL_LOG_MODE} ${FIREHOL_LOG_OPTIONS} "${FIREHOL_LOG_IPTABLES_ARG[@]}"
-						
+
 						# if the overflow is to be rejected is tcp, reject it with TCP-RESET
 						if [ "${overflow}" = "REJECT" ]
 						then
 							$iptables_cmd -t ${table} -A "${accept_limit_chain}" -p tcp -j REJECT --reject-with tcp-reset
 						fi
-						
+
 						# do the specified action on the overflow
 						$iptables_cmd -t ${table} -A "${accept_limit_chain}" -j ${overflow}
 					fi
-					
+
 					# send the rule to be generated to this chain
 					action=${accept_limit_chain}
 				fi
 				;;
-				
+
 			"recent")
 				# limit NEW connections to the specified rate
 				local 	name="${action_param[1]}" \
 					seconds="${action_param[2]}" \
 					hits="${action_param[3]}"
-				
+
 				# unset the action_param, so that if this rule does not include NEW connections,
 				# we will not append anything to the generated iptables statements.
 				action_param=()
-				
+
 				# find is this rule matches NEW connections
 				local has_new=`echo "${state}" | $GREP_CMD -i NEW`
 				local do_accept_recent=0
@@ -6783,7 +6782,7 @@ rule_action_param() {
 				else
 					test -z "${has_new}" && do_accept_recent=1
 				fi
-				
+
 				# we have a match for NEW connections.
 				# redirect the traffic to a new chain, which will control
 				# the NEW connections while allowing all the other traffic
@@ -6791,7 +6790,7 @@ rule_action_param() {
 				if [ "${do_accept_recent}" = "1" ]
 				then
 					local accept_recent_chain="`echo "ACC REC $name $seconds $hits" | $TR_CMD " /." "___"`"
-					
+
 					# does the chain we need already exist?
 					#if [ ! -f "${FIREHOL_CHAINS_DIR}/${accept_recent_chain}.${iptables_cmd}" ]
 					if [ -z "${FIREHOL_CHAINS[${accept_recent_chain}.${iptables_cmd}]}" ]
@@ -6800,35 +6799,35 @@ rule_action_param() {
 						$iptables_cmd -t ${table} -N "${accept_recent_chain}"
 						FIREHOL_CHAINS[${accept_recent_chain}.${iptables_cmd}]="1"
 						#$TOUCH_CMD "${FIREHOL_CHAINS_DIR}/${accept_recent_chain}.${iptables_cmd}"
-						
+
 						# first, if the traffic is not a NEW connection, allow it.
 						# doing this first will speed up normal traffic.
 						$iptables_cmd -t ${table} -A "${accept_recent_chain}" -m conntrack ! --ctstate NEW -j ${action}
-						
+
 						# accept NEW connections within the given limits.
 						$iptables_cmd -t ${table} -A "${accept_recent_chain}" -m recent --set --name "${name}"
-						
+
 						local t1= t2=
 						test ! -z $seconds && t1="--seconds ${seconds}"
 						test ! -z $hits && t2="--hitcount ${hits}"
-						
+
 						$iptables_cmd -t ${table} -A "${accept_recent_chain}" -m recent --update ${t1} ${t2} --name "${name}" -j RETURN
 						$iptables_cmd -t ${table} -A "${accept_recent_chain}" -j ${action}
 					fi
-					
+
 					# send the rule to be generated to this chain
 					action=${accept_recent_chain}
 				fi
 				;;
-				
+
 			'knock')
 				# the name of the knock
 				local name="knock_${action_param[1]}"
-				
+
 				# unset the action_param, so that if this rule does not include NEW connections,
 				# we will not append anything to the generated iptables statements.
 				action_param=()
-				
+
 				# does the knock chain exists?
 				#if [ ! -f "${FIREHOL_CHAINS_DIR}/${name}.${iptables_cmd}" ]
 				if [ -z "${FIREHOL_CHAINS[${name}.${iptables_cmd}]}" ]
@@ -6837,13 +6836,13 @@ rule_action_param() {
 					$iptables_cmd -t ${table} -N "${name}"
 					FIREHOL_CHAINS[${name}.${iptables_cmd}]="1"
 					#$TOUCH_CMD "${FIREHOL_CHAINS_DIR}/${name}.${iptables_cmd}"
-					
+
 					$iptables_cmd -A "${name}" -m conntrack --ctstate ESTABLISHED -j ${action}
-					
+
 					# knockd (http://www.zeroflux.org/knock/)
 					# will create more rules inside this chain to match NEW packets.
 				fi
-				
+
 				# send the rule to be generated to this knock chain
 				action=${name}
 				;;
@@ -6924,23 +6923,23 @@ rule() {
 		accounting= connlog= \
 		ipsetnot= ipsetname= ipsetflags= ipsetopts= \
 		inout= x= param= not= helper=() helpernot= opt_args=
-	
+
 	# if set to 1, all owner module options will be ignored
 	local noowner=0
-	
+
 	# if set to 1, all mac options will be ignored
 	local nomac=0
-	
+
 	# if set to 1, MIRROR will be converted to REJECT
 	local nomirror=0
-	
+
 	# if set to 1, log and loglimit are ignored.
 	local nolog=0
-	
+
 	# if set to 1, detection algorithm about overwriting optional rule
 	# parameters will take place.
 	local softwarnings=1
-	
+
 	# if set to 1, rule() will may use the main chain
 	# for returning back
 	local return_if_not_matched=0
@@ -6954,7 +6953,7 @@ rule() {
 
 	# if set to 1, we will only process state NEW rules
 	local optimal=0
-	
+
 	local push_flow_inheritance_type= positive_rule_number=
 
 	while [ ! -z "${1}" ]
@@ -6998,7 +6997,7 @@ rule() {
 				nomirror=0
 				nomac=0
 				;;
-				
+
 			out)	# this is outgoing traffic - ignore packet ownership if not in an interface
 				opt_args="${opt_args} ${param}"
 				inout="out"
@@ -7010,17 +7009,17 @@ rule() {
 				fi
 				nomac=1
 				;;
-				
+
 			table)	test ${softwarnings} -eq 1 -a ! -z "${table}" && softwarning "Overwriting param: ${1} '${chain}' becomes '${1}'"
 				table="${1}"
 				shift
 				;;
-				
+
 			chain)	test ${softwarnings} -eq 1 -a ! -z "${chain}" && softwarning "Overwriting param: ${1} '${chain}' becomes '${1}'"
 				chain="${1}"
 				shift
 				;;
-				
+
 			inface|outface)
 				if [ \( "${param}" = "inface" -a ${reverse} -eq 0 \) -o \( "${param}" = "outface" -a ${reverse} -eq 1 \) ]
 				then
@@ -7038,7 +7037,7 @@ rule() {
 				fi
 				shift
 				;;
-				
+
 			physin|physout)
 				if [ \( "${param}" = "physin" -a ${reverse} -eq 0 \) -o \( "${param}" = "physout" -a ${reverse} -eq 1 \) ]
 				then
@@ -7054,7 +7053,7 @@ rule() {
 				fi
 				shift
 				;;
-				
+
 			mac)
 				macnot="${not}"
 				test ${softwarnings} -eq 1 -a ! "${mac[*]}" = "any" && softwarning "Overwriting param: mac '${mac[*]}' becomes '${1}'"
@@ -7062,7 +7061,7 @@ rule() {
 				shift
 				test -z "${mac[*]}"	&& error "Cannot accept an empty 'mac'."	&& return 1
 				;;
-				
+
 			src|src4|src6|dst|dst4|dst6)
 				if [ "${param/*4/4}" = "4" ]; then push_namespace ipv4 || return 1;
 				elif [ "${param/*6/6}" = "6" ]; then push_namespace ipv6 || return 1;
@@ -7103,7 +7102,7 @@ rule() {
 				shift
 				pop_namespace
 				;;
-				
+
 			srctype|dsttype)
 				if [ \( "${param}" = "srctype" -a ${reverse} -eq 0 \) -o \( "${param}" = "dsttype" -a ${reverse} -eq 1 \) ]
 				then
@@ -7117,7 +7116,7 @@ rule() {
 				fi
 				shift
 				;;
-				
+
 			sport|dport)
 				if [ \( "${param}" = "sport" -a ${reverse} -eq 0 \) -o \( "${param}" = "dport" -a ${reverse} -eq 1 \) ]
 				then
@@ -7141,7 +7140,7 @@ rule() {
 				shift
 				test -z "${proto[*]}"	&& error "Cannot accept an empty 'proto'."	&& return 1
 				;;
-				
+
 			custommark)
 				marknot="${not}"
 				markname="${1}"; shift
@@ -7154,7 +7153,7 @@ rule() {
 				test -z "${mark[*]}"	&& error "Cannot accept an empty 'mark'."	&& return 1
 				shift
 				;;
-				
+
 			mark)
 				marknot="${not}"
 				test ${softwarnings} -eq 1 -a ! "${mark[*]}" = "any" && softwarning "Overwriting param: mark '${mark[*]}' becomes usermark '${1}'"
@@ -7166,7 +7165,7 @@ rule() {
 				test -z "${mark[*]}"	&& error "Cannot accept an empty 'mark'."	&& return 1
 				shift
 				;;
-				
+
 			connmark)
 				marknot="${not}"
 				test ${softwarnings} -eq 1 -a ! "${mark[*]}" = "any" && softwarning "Overwriting param: mark '${mark[*]}' becomes connmark '${1}'"
@@ -7178,7 +7177,7 @@ rule() {
 				test -z "${mark[*]}"	&& error "Cannot accept an empty 'mark'."	&& return 1
 				shift
 				;;
-				
+
 			rawmark)
 				marknot="${not}"
 				test ${softwarnings} -eq 1 -a ! "${mark[*]}" = "any" && softwarning "Overwriting param: mark '${mark[*]}' becomes '${1}'"
@@ -7186,7 +7185,7 @@ rule() {
 				test -z "${mark[*]}"	&& error "Cannot accept an empty 'mark'."	&& return 1
 				shift
 				;;
-				
+
 			tos)
 				tosnot="${not}"
 				test ${softwarnings} -eq 1 -a ! "${tos[*]}" = "any" && softwarning "Overwriting param: tos '${tos[*]}' becomes '${1}'"
@@ -7194,7 +7193,7 @@ rule() {
 				test -z "${tos[*]}"	&& error "Cannot accept an empty 'tos'."	&& return 1
 				shift
 				;;
-				
+
 			dscp)
 				dscpnot="${not}"
 				test ${softwarnings} -eq 1 -a ! "${dscp[*]}" = "any" && softwarning "Overwriting param: dscp '${dscp[*]}' becomes '${1}'"
@@ -7215,7 +7214,7 @@ rule() {
 				state="${1^^}"
 				shift
 				;;
-				
+
 			user|uid)
 				uidnot="${not}"
 				test ${softwarnings} -eq 1 -a ! "${uid[*]}" = "any" && softwarning "Overwriting param: uid '${uid[*]}' becomes '${1}'"
@@ -7223,7 +7222,7 @@ rule() {
 				test -z "${uid[*]}"	&& error "Cannot accept an empty 'uid'."	&& return 1
 				shift
 				;;
-				
+
 			group|gid)
 				gidnot="${not}"
 				test ${softwarnings} -eq 1 -a ! "${gid[*]}" = "any" && softwarning "Overwriting param: gid '${gid[*]}' becomes '${1}'"
@@ -7238,7 +7237,7 @@ rule() {
 				custom="${1}"
 				shift
 				;;
-				
+
 			customin|custom-in)
 				test ${softwarnings} -eq 1 -a ! -z "${not}" && softwarning "Cannot negate a custom match. 'not' ignored."
 				if [ "${inout}" = "in" ]
@@ -7248,7 +7247,7 @@ rule() {
 				fi
 				shift
 				;;
-				
+
 			customout|custom-out)
 				test ${softwarnings} -eq 1 -a ! -z "${not}" && softwarning "Cannot negate a custom match. 'not' ignored."
 				if [ "${inout}" = "out" ]
@@ -7265,7 +7264,7 @@ rule() {
 				helper=(${1//,/ })
 				shift
 				;;
-				
+
 			connlog)
 				test ${softwarnings} -eq 1 -a ! -z "${not}" && softwarning "Cannot negate a connlog. 'not' ignored."
 				connlog="${1}"
@@ -7289,7 +7288,7 @@ rule() {
 					loglevel="${FIREHOL_LOG_LEVEL}"
 				fi
 				;;
-				
+
 			loglimit)
 				test ${softwarnings} -eq 1 -a ! -z "${not}" && softwarning "Cannot negate a log. 'not' ignored."
 				if [ ${nolog} -eq 0 ]
@@ -7307,7 +7306,7 @@ rule() {
 					loglevel="${FIREHOL_LOG_LEVEL}"
 				fi
 				;;
-				
+
 			limit)
 				test ${softwarnings} -eq 1 -a ! -z "${not}" && softwarning "Cannot negate a limit. 'not' ignored."
 				test ${softwarnings} -eq 1 -a ! -z "${limit}" && softwarning "Overwriting param: limit '${limit}' becomes '${1}'"
@@ -7315,7 +7314,7 @@ rule() {
 				burst="${2}"
 				shift 2
 				;;
-				
+
 			connlimit|iplimit)
 				test ${softwarnings} -eq 1 -a ! -z "${not}" && softwarning "Cannot negate a connlimit. 'not' ignored."
 				test ${softwarnings} -eq 1 -a ! -z "${connlimit}" && softwarning "Overwriting param: connlimit '${connlimit}' becomes '${1}'"
@@ -7361,7 +7360,7 @@ rule() {
 					return 1
 				fi
 				;;
-				
+
 			hashlimit)
 				test ${softwarnings} -eq 1 -a ! -z "${not}" && softwarning "Cannot negate a hashlimit. 'not' ignored."
 				test ${softwarnings} -eq 1 -a ! -z "${hashlimit}" && softwarning "Overwriting param: hashlimit '${hashlimit}' becomes '${1}'"
@@ -7439,7 +7438,7 @@ rule() {
 					return 1
 				fi
 				;;
-				
+
 			acct|accounting)
 				test ${softwarnings} -eq 1 -a ! -z "${not}" && softwarning "Cannot negate an accounting. 'not' ignored."
 				if [ ${ENABLE_ACCOUNTING} -eq 1 ]
@@ -7453,7 +7452,7 @@ rule() {
 				fi
 				shift
 				;;
-				
+
 			ipset)
 				ipsetnot="${not}"
 				ipsetname="${1}"
@@ -7472,7 +7471,7 @@ rule() {
 							ipsetopts="${ipsetopts} ! --update-counters ! --update-subcounters"
 							shift
 							;;
-							
+
 						bytes-above|bytes-gt)
 							ipsetopts="${ipsetopts} --bytes-gt ${2}"
 							shift 2
@@ -7518,13 +7517,13 @@ rule() {
 					esac
 				done
 				;;
-				
+
 			action)
 				test ${softwarnings} -eq 1 -a ! -z "${action}" && softwarning "Overwriting param: action '${action}' becomes '${2}'"
 				test ${softwarnings} -eq 1 -a ! -z "${not}" && softwarning "Cannot negate an action. 'not' ignored."
 				action="${1}"
 				shift
-				
+
 				action_param=()
 				local action_is_chain=0
 				case "${action^^}" in
@@ -7598,12 +7597,12 @@ rule() {
 							action_param=("--reject-with" "auto")
 						fi
 						;;
-						
-						
+
+
 					MIRROR)	action="MIRROR"
 						test $nomirror -eq 1 && action="REJECT"
 						;;
-						
+
 					MASQUERADE)
 						action="MASQUERADE"
 						if [ ! "${table}" = "nat" ]
@@ -7675,7 +7674,7 @@ rule() {
 							return 1
 						fi
 						;;
-						
+
 					DNAT)	action="DNAT"
 						if [ ! "${table}" = "nat" ]
 						then
@@ -7718,7 +7717,7 @@ rule() {
 							return 1
 						fi
 						;;
-						
+
 					REDIRECT)
 						action="REDIRECT"
 						require_protocol_with_action=("${proto[@]}")
@@ -7755,7 +7754,7 @@ rule() {
 							return 1
 						fi
 						;;
-						
+
 					TPROXY)	action="TPROXY"
 						action_param=()
 						if [ "${1}" = "mark" -o "${1}" = "tproxy-mark" -o "${1}" = "--tproxy-mark" ]
@@ -7785,7 +7784,7 @@ rule() {
 							return 1
 						fi
 						;;
-						
+
 					TOS)	action="TOS"
 						if [ "${1}" = "to" -o "${1}" = "--set-tos" ]
 						then
@@ -7801,7 +7800,7 @@ rule() {
 							return 1
 						fi
 						;;
-						
+
 					MARK)	action="MARK"
 						if [ "${1}" = "to" -o "${1}" = "--set-mark" ]
 						then
@@ -7817,7 +7816,7 @@ rule() {
 							return 1
 						fi
 						;;
-						
+
 					CONNMARK)
 						action="CONNMARK"
 						case "${1}" in
@@ -7856,7 +7855,7 @@ rule() {
 							return 1
 						fi
 						;;
-						
+
 					DSCP)	action="DSCP"
 						if [ "${1}" = "to" ]
 						then
@@ -7886,7 +7885,7 @@ rule() {
 							return 1
 						fi
 						;;
-						
+
 					SET)	action="SET"
 						local hasadd=0 hasdel=0
 						while [ ! -z "${1}" ]
@@ -7987,7 +7986,7 @@ rule() {
 						limit|LIMIT)
 							action_param=("limit" "${2}" "${3}")
 							shift 3
-							
+
 							if [ "${1}" = "overflow" ]
 							then
 								action_param[3]="overflow"
@@ -7995,17 +7994,17 @@ rule() {
 								shift 2
 							fi
 							;;
-						
+
 						recent|RECENT)
 							action_param=("recent" "${2}" "${3}" "${4}")
 							shift 4
 							;;
-						
+
 						knock|KNOCK)
 							action_param=("knock" "${2}")
 							shift 2
 							;;
-						
+
 						*)
 							error "Cannot understand action's '${action}' directive '${1}'"
 							return 1
@@ -8013,14 +8012,14 @@ rule() {
 					esac
 				fi
 				;;
-			
+
 			*)
 				error "Cannot understand directive '${param}'."
 				return 1
 				;;
 		esac
 	done
-	
+
 	# ----------------------------------------------------------------------------------
 	# Validations
 
@@ -8054,12 +8053,12 @@ rule() {
 	# if there are custom arguments, keep the procol with it
 	[ ! -z "${custom}" -a "${require_protocol_with_action[*]}" = "any" ] && require_protocol_with_action=("${proto[@]}")
 
-	
+
 	# If the user did not specify a rejection message,
 	# we have to be smart and produce a tcp-reset if the protocol
 	# is TCP and an ICMP port unreachable in all other cases.
 	# we will change the action to SMART_REJECT
-	
+
 	if [ "${action}" = "REJECT" -a "${action_param[1]}" = "auto" ]
 	then
 		action="SMART_REJECT"
@@ -8207,7 +8206,7 @@ rule() {
 			error "Unknown log value '${log}'."
 			;;
 	esac
-	
+
 	# keep a list of all ip versions we need
 	running_ipv4 && ipvall="ipv4"
 	running_ipv6 && ipvall="${ipvall} ipv6"
@@ -8215,7 +8214,7 @@ rule() {
 
 	# ---------------------------------------------------------------------
 	# BRANCH OPTIMIZATION
-	# 
+	#
 	# Facts: - the caller expects us to add statements to a chain and
 	#          perform the action only if all conditions are met - AND'd
 	#          (multiple options to the same condition which are OR'd).
@@ -8243,10 +8242,10 @@ rule() {
 	#          multiple times (I call these features: protected
 	#          parameters, because we should protect them from multiple
 	#          executions - a branch is cheaper than 2 of these)
-	# 
+	#
 	#        These require branching always:
 	#        (we can only avoid it if we have a negative branch)
-	# 
+	#
 	#            * log
 	#            * loglimit
 	#            * accounting
@@ -8275,7 +8274,7 @@ rule() {
 	# action_is_our_branch          - is set when we create our branch
 	# placed_protected_in_a_branch  - is set if we place the log, loglimit, accounting, limit, connlimit, ipset in our branch
 	# have_protected                - is set when there are protected parameters
-	
+
 
 	# ---------------------------------------------------------------------
 	# prepare the protected parameters
@@ -8430,7 +8429,7 @@ rule() {
 					dp_arg=("${dp_arg[@]}" "${dst}")
 				fi
 			fi
-			
+
 			dport=("${dp_arg[@]}")
 			dp_arg=()
 			dst=
@@ -8438,7 +8437,7 @@ rule() {
 		fi
 		dp=
 	fi
-	
+
 
 	# ---------------------------------------------------------------------
 	# make the calculations
@@ -8562,7 +8561,7 @@ rule() {
 	# double branching for protected matches and logging
 	#   mark4 10 OUTPUT src "1.1.1.1 2.2.2.2" dst "3.3.3.3 4.4.4.4" connlimit 10 32 log "double branch for connlimit and log"
 	#
-	# 
+	#
 
 	# ---------------------------------------------------------------------
 	# process the negative rules
@@ -8591,7 +8590,7 @@ rule() {
 		then
 			# if the action is a chain name, then just add the negative
 			# expressions to this chain. Nothing more.
-			
+
 			negative_chain="${action}"
 			negative_action=
 			not=
@@ -8601,12 +8600,12 @@ rule() {
 			# if the action is a native iptables action, then create
 			# an intermidiate chain to store the negative expression,
 			# and change the action of the rule to point to this action.
-			
+
 			# In this case, bellow we add after all negatives, the original
 			# action of the rule.
 			get_next_dynamic_counter DYNAMIC_CHAIN_COUNTER
 			negative_chain="${chain}.${DYNAMIC_CHAIN_COUNTER}"
-			
+
 			iptables_both -t ${table} -N "${negative_chain}"
 			negative_action="${action}"
 			action="${negative_chain}"
@@ -8616,7 +8615,7 @@ rule() {
 			action_is_our_branch=1
 			# echo >&2 "    >>> ${FUNCNAME}: NEGATIVES: BRANCHING TO NEW CHAIN ${negative_action}"
 		fi
-		
+
 		if [ ! -z "${infacenot}" -a "${#inface[*]}" -gt 1 ]
 		then
 			for inf in ${inface[*]}
@@ -8626,7 +8625,7 @@ rule() {
 			infacenot=
 			inface=(any)
 		fi
-	
+
 		if [ ! -z "${outfacenot}" -a "${#outface[*]}" -gt 1 ]
 		then
 			for outf in ${outface[*]}
@@ -8636,7 +8635,7 @@ rule() {
 			outfacenot=
 			outface=(any)
 		fi
-		
+
 		if [ ! -z "${physinnot}" -a "${#physin[*]}" -gt 1 ]
 		then
 			for inph in ${physin[*]}
@@ -8646,7 +8645,7 @@ rule() {
 			physinnot=
 			physin=(any)
 		fi
-	
+
 		if [ ! -z "${physoutnot}" -a "${#physout[*]}" -gt 1 ]
 		then
 			for outph in ${physout[*]}
@@ -8656,7 +8655,7 @@ rule() {
 			physoutnot=
 			physout=(any)
 		fi
-		
+
 		if [ ! -z "${macnot}" -a "${#mac[*]}" -gt 1 ]
 		then
 			for mc in ${mac[*]}
@@ -8666,7 +8665,7 @@ rule() {
 			macnot=
 			mac=(any)
 		fi
-		
+
 		if [ ! -z "${srcnot}" -a \( ${src_has_ipset} -eq 1 -o "${#src4[*]}" -gt 1 -o "${#src6[*]}" -gt 1 \) ]
 		then
 			for ipv in ${ipvall}
@@ -8704,7 +8703,7 @@ rule() {
 			src4=(any)
 			src6=(any)
 		fi
-		
+
 		if [ ! -z "${dstnot}" -a \( ${dst_has_ipset} -eq 1 -o "${#dst4[*]}" -gt 1 -o "${#dst6[*]}" -gt 1 \) ]
 		then
 			for ipv in ${ipvall}
@@ -8742,7 +8741,7 @@ rule() {
 			dst4=(any)
 			dst6=(any)
 		fi
-		
+
 		if [ ! -z "${protonot}" -a "${#proto[*]}" -gt 1 ]
 		then
 			if [ ! -z "${sportnot}" -o ! -z "${dportnot}" ]
@@ -8750,7 +8749,7 @@ rule() {
 				error "Cannot have negative protocol(s) and positive source/destination port(s)."
 				return 1
 			fi
-			
+
 			for pr in ${proto[*]}
 			do
 				iptables_both -t ${table} -A "${negative_chain}" ${not} -p "${pr}" -j RETURN
@@ -8758,7 +8757,7 @@ rule() {
 			protonot=
 			proto=(any)
 		fi
-		
+
 		if [ ! -z "${sportnot}" -a "${#sport[*]}" -gt 1 ]
 		then
 			if [ "${proto}" = "any" ]
@@ -8766,7 +8765,7 @@ rule() {
 				error "Cannot have negative source port without a protocol."
 				return 1
 			fi
-			
+
 			for pr in ${proto[*]}
 			do
 				for sp in ${sport[*]}
@@ -8776,7 +8775,7 @@ rule() {
 							sp="${sp/multiport:/}"
 							iptables_both -t ${table} -A "${negative_chain}" -p "${pr}" -m multiport ${not} --source-ports "${sp//-/:}" -j RETURN
 							;;
-							
+
 						*)
 							iptables_both -t ${table} -A "${negative_chain}" -p "${pr}" ${not} --sport "${sp//-/:}" -j RETURN
 							;;
@@ -8786,7 +8785,7 @@ rule() {
 			sportnot=
 			sport=(any)
 		fi
-		
+
 		if [ ! -z "${dportnot}" -a "${#dport[*]}" -gt 1 ]
 		then
 			if [ "${proto}" = "any" ]
@@ -8794,7 +8793,7 @@ rule() {
 				error "Cannot have negative destination port without a protocol."
 				return 1
 			fi
-			
+
 			for pr in ${proto[*]}
 			do
 				for dp in ${dport[*]}
@@ -8814,7 +8813,7 @@ rule() {
 			dportnot=
 			dport=(any)
 		fi
-		
+
 		if [ ! -z "${uidnot}" -a "${#uid[*]}" -gt 1 ]
 		then
 			for tuid in ${uid[*]}
@@ -8824,7 +8823,7 @@ rule() {
 			uidnot=
 			uid=(any)
 		fi
-		
+
 		if [ ! -z "${gidnot}" -a "${#gid[*]}" -gt 1 ]
 		then
 			for tgid in ${gid[*]}
@@ -8834,7 +8833,7 @@ rule() {
 			gidnot=
 			gid=(any)
 		fi
-		
+
 		if [ ! -z "${marknot}" -a "${#mark[*]}" -gt 1 ]
 		then
 			for tmark in ${mark[*]}
@@ -8844,7 +8843,7 @@ rule() {
 			marknot=
 			mark=(any)
 		fi
-		
+
 		if [ ! -z "${tosnot}" -a "${#tos[*]}" -gt 1 ]
 		then
 			for ttos in ${tos[*]}
@@ -8854,7 +8853,7 @@ rule() {
 			tosnot=
 			tos=(any)
 		fi
-		
+
 		if [ ! -z "${dscpnot}" -a "${#dscp[*]}" -gt 1 ]
 		then
 			for tdscp in ${dscp[*]}
@@ -8864,7 +8863,7 @@ rule() {
 			dscpnot=
 			dscp=(any)
 		fi
-		
+
 		if [ ! -z "${negative_action}" ]
 		then
 			# in case this is temporary chain we created for the negative expression,
@@ -8875,7 +8874,7 @@ rule() {
 				error "Cannot create an infinite loop chain."
 				return 1
 			fi
-			
+
 			for ipv in ${ipvall}
 			do
 				case "${ipv}" in
@@ -8884,7 +8883,7 @@ rule() {
 				esac
 
 				# since this is the target of the positive rules,
-				# logging and accounting can be attached here				
+				# logging and accounting can be attached here
 				if [ "$logrule" = "limit"  ]; then ${iptables} -t ${table} -A "${negative_chain}" -m limit --limit "${FIREHOL_LOG_FREQUENCY}" --limit-burst "${FIREHOL_LOG_BURST}" -j ${FIREHOL_LOG_MODE} ${FIREHOL_LOG_OPTIONS} "${logopts_arg[@]}" || failed=$[failed + 1]; fi
 				if [ "$logrule" = "normal" ]; then ${iptables} -t ${table} -A "${negative_chain}" -j ${FIREHOL_LOG_MODE} ${FIREHOL_LOG_OPTIONS} "${logopts_arg[@]}" || failed=$[failed + 1]; fi
 				if [ ! -z "${accounting}"  ]; then ${iptables} -t ${table} -A "${negative_chain}" -m nfacct --nfacct-name "${accounting}" || failed=$[failed + 1]; fi
@@ -8929,7 +8928,7 @@ rule() {
 
 		get_next_dynamic_counter DYNAMIC_CHAIN_COUNTER
 		logging_chain="${chain}.${DYNAMIC_CHAIN_COUNTER}"
-		
+
 		iptables_both -t ${table} -N "${logging_chain}"
 		logging_action="${action}"
 		action="${logging_chain}"
@@ -8942,7 +8941,7 @@ rule() {
 			error "Cannot create an infinite loop chain."
 			return 1
 		fi
-		
+
 		if [ -z "${logging_action}" ]
 		then
 			error "Cannot create iptables commands without an action."
@@ -9001,7 +9000,7 @@ rule() {
 
 			get_next_dynamic_counter DYNAMIC_CHAIN_COUNTER
 			protected_chain="${chain}.${DYNAMIC_CHAIN_COUNTER}"
-			
+
 			iptables_both -t ${table} -N "${protected_chain}"
 			protected_action="${action}"
 			action="${protected_chain}"
@@ -9014,13 +9013,13 @@ rule() {
 				error "Cannot create an infinite loop chain."
 				return 1
 			fi
-			
+
 			if [ -z "${protected_action}" ]
 			then
 				error "Cannot create iptables commands without an action."
 				return 1
 			fi
-	
+
 			for ipv in ${ipvall}
 			do
 				case "${ipv}" in
@@ -9069,13 +9068,13 @@ rule() {
 		error "Cannot create iptables commands without an action."
 		return 1
 	fi
-	
+
 	if [ -z "${chain}" ]
 	then
 		error "Cannot create iptables commands without a chain to attach them to."
 		return 1
 	fi
-	
+
 	# addrtype (srctype, dsttype)
 	# this accepts a comma separated list of type, so no need to loop
 	if [ ! -z "${srctype}${dsttype}" ]
@@ -9108,7 +9107,7 @@ rule() {
 		fi
 	fi
 
-	# ipvall	
+	# ipvall
 	for ipv in ${ipvall}
 	do
 		case "${ipv}" in
@@ -9133,13 +9132,13 @@ rule() {
 				uid_arg=()
 				owner_arg=()
 				;;
-			
+
 			*)
 				owner_arg=("-m" "owner")
 				uid_arg=(${uidnot} "--uid-owner" "${tuid}")
 				;;
 		esac
-	
+
 	# gid
 	for tgid in ${gid[*]}
 	do
@@ -9148,13 +9147,13 @@ rule() {
 				gid_arg=()
 				# do not reset owner_arg=() here
 				;;
-			
+
 			*)
 				owner_arg=("-m" "owner")
 				gid_arg=(${gidnot} "--gid-owner" "${tgid}")
 				;;
 		esac
-	
+
 	# mark
 	for tmark in ${mark[*]}
 	do
@@ -9162,12 +9161,12 @@ rule() {
 			any|ANY)
 				mark_arg=()
 				;;
-			
+
 			*)
 				mark_arg=("-m" "mark" ${marknot} "--mark" "${tmark}")
 				;;
 		esac
-	
+
 	# tos
 	for ttos in ${tos[*]}
 	do
@@ -9175,12 +9174,12 @@ rule() {
 			any|ANY)
 				tos_arg=()
 				;;
-			
+
 			*)
 				tos_arg=("-m" "tos" ${tosnot} "--tos" "${ttos}")
 				;;
 		esac
-	
+
 	# dscp
 	for tdscp in ${dscp[*]}
 	do
@@ -9188,12 +9187,12 @@ rule() {
 			any|ANY)
 				dscp_arg=()
 				;;
-			
+
 			*)
 				dscp_arg=("-m" "dscp" ${dscpnot} "--dscp${dscptype}" "${tdscp}")
 				;;
 		esac
-	
+
 	# proto
 	for pr in ${proto[*]}
 	do
@@ -9201,12 +9200,12 @@ rule() {
 			any|ANY)
 				proto_arg=()
 				;;
-			
+
 			*)
 				proto_arg=(${protonot} "-p" "${pr}")
 				;;
 		esac
-	
+
 	# inface
 	for inf in ${inface[*]}
 	do
@@ -9214,12 +9213,12 @@ rule() {
 			any|ANY)
 				inf_arg=()
 				;;
-			
+
 			*)
 				inf_arg=(${infacenot} "-i" "${inf}")
 				;;
 		esac
-	
+
 	# outface
 	for outf in ${outface[*]}
 	do
@@ -9227,12 +9226,12 @@ rule() {
 			any|ANY)
 				outf_arg=()
 				;;
-			
+
 			*)
 				outf_arg=(${outfacenot} "-o" "${outf}")
 				;;
 		esac
-	
+
 	# physin
 	for inph in ${physin[*]}
 	do
@@ -9241,13 +9240,13 @@ rule() {
 				inph_arg=()
 				physdev_arg=()
 				;;
-			
+
 			*)
 				physdev_arg=("-m" "physdev" ${physbridge})
 				inph_arg=(${physinnot} "--physdev-in" "${inph}")
 				;;
 		esac
-	
+
 	# physout
 	for outph in ${physout[*]}
 	do
@@ -9256,13 +9255,13 @@ rule() {
 				outph_arg=()
 				# do not reset physdev_arg=() here
 				;;
-			
+
 			*)
 				physdev_arg=("-m" "physdev" ${physbridge})
 				outph_arg=(${physoutnot} "--physdev-out" "${outph}")
 				;;
 		esac
-	
+
 	# mac
 	for mc in ${mac[*]}
 	do
@@ -9270,7 +9269,7 @@ rule() {
 			any|ANY)
 				mc_arg=()
 				;;
-			
+
 			*)
 				mc_arg=("-m" "mac" ${macnot} "--mac-source" "${mc}")
 				;;
@@ -9333,7 +9332,7 @@ rule() {
 			any|ANY)
 				sp_arg=()
 				;;
-			
+
 			multiport:*)
 				sp="${sp/multiport:/}"
 				sp_arg=("-m" "multiport" ${sportnot} "--source-ports" "${sp//-/:}")
@@ -9343,7 +9342,7 @@ rule() {
 				sp_arg=(${sportnot} "--sport" "${sp//-/:}")
 				;;
 		esac
-	
+
 	# dport
 	for dp in ${dport[*]}
 	do
@@ -9351,17 +9350,17 @@ rule() {
 			any|ANY)
 				dp_arg=()
 				;;
-			
+
 			multiport:*)
 				dp="${dp/multiport:/}"
 				dp_arg=("-m" "multiport" ${dportnot} "--destination-ports" "${dp//-/:}")
 				;;
-				
+
 			*)
 				dp_arg=(${dportnot} "--dport" "${dp//-/:}")
 				;;
 		esac
-	
+
 	# if there is sport or dport with multiport
 	# we have to give the multiport second
 	if [ "${sp_arg[1]}" = "multiport" ]
@@ -9419,7 +9418,7 @@ rule() {
 	done # gid
 	done # uid
 	done # ipvall
-	
+
 	test ${failed} -gt 0 && error "There are ${failed} failed commands." && return 1
 	return 0
 }
@@ -9430,7 +9429,7 @@ warning() {
 	echo >&2
 	echo >&2 -e "${COLOR_YELLOW}WARNING${COLOR_RESET} ${COLOR_CYAN}${LAST_CONFIG_LINE}${COLOR_RESET}: " "${@}"
 	echo >&2
-	
+
 	return 0
 }
 
@@ -9445,7 +9444,7 @@ softwarning() {
 	echo >&2 -e "${COLOR_RESET}MODE   :" "${FIREHOL_NS_CURR}"
 	echo >&2 -e "SOURCE : $(config_line)"
 	echo >&2
-	
+
 	return 0
 }
 
@@ -9459,7 +9458,7 @@ softwarning() {
 error() {
 	test ${PROGRAM_SPINNER_RUNNING} -eq 1 && spinner_end
 	test "${FIREHOL_MODE}" = "START" && syslog err "Error '${@}' when '${work_function}' $(config_line)"
-	
+
 	work_error=$[work_error + 1]
 	echo >&2
 	echo >&2 -e "--------------------------------------------------------------------------------"
@@ -9470,7 +9469,7 @@ error() {
 	echo >&2 -e "${COLOR_RESET}MODE   :" "${FIREHOL_NS_CURR}"
 	echo >&2 -e "SOURCE : $(config_line)"
 	echo >&2
-	
+
 	return 0
 }
 
@@ -9484,23 +9483,23 @@ error() {
 
 runtime_error() {
 	local type="ERROR" id=
-	
+
 	case "${1}" in
 		error)
 			type="ERROR  "
 			work_runtime_error=$[work_runtime_error + 1]
 			id="# ${work_runtime_error}."
 			;;
-			
+
 		warn)
 			type="WARNING"
 			id="This might or might not affect the operation of your firewall."
 			;;
-		
+
 		*)
 			work_runtime_error=$[work_runtime_error + 1]
 			id="# ${work_runtime_error}."
-			
+
 			echo >&2
 			echo >&2
 			echo >&2 "WARNING: unsupported final status type '${1}'. Assuming it is 'ERROR'"
@@ -9509,12 +9508,12 @@ runtime_error() {
 			;;
 	esac
 	shift
-	
+
 	local ret="${1}" line="${2}"
 	shift 2
-	
+
 	syslog err "Runtime ${type} '${id}'. Source ${line}"
-	
+
 	echo >&2
 	echo >&2
 	echo >&2 "--------------------------------------------------------------------------------"
@@ -9528,7 +9527,7 @@ runtime_error() {
 	echo >&2
 	${CAT_CMD} ${FIREHOL_OUTPUT}.log >&2
 	echo >&2
-	
+
 	return 0
 }
 
@@ -9553,7 +9552,7 @@ chain_exists() {
 		test ! -z "${FIREHOL_CHAINS[${table}.${chain}.6]}" && return 1
 		# test -f "${FIREHOL_CHAINS_DIR}/${chain}.6" && return 1
 	fi
-	
+
 	return 0
 }
 
@@ -9585,16 +9584,16 @@ create_chain() {
 	newchain="${2}"
 	oldchain="${3}"
 	shift 3
-	
+
 	# we have to jump to the new chain
 	# cannot do it with an alias
 	test ! -z "${*}" && doalias=0
 
 	set_work_function "Creating chain '${newchain}' under '${oldchain}' in table '${table}'"
-	
+
 	chain_exists "${table}" "${newchain}"
 	test $? -eq 1 && error "Chain '${newchain}' already exists." && return 1
-	
+
 	if [ ${doalias} -eq 1 ]
 	then
 		FIREHOL_CHAIN_ALIASES[$table.$newchain]="${oldchain}"
@@ -9609,7 +9608,7 @@ create_chain() {
 			rule table ${table} chain "${oldchain}" action "${newchain}" "${@}" || return 1
 		fi
 	fi
-	
+
 	return 0
 }
 
@@ -9645,7 +9644,7 @@ smart_function() {
 	do
 		servname="${service}"
 		test "${service}" = "custom" && servname="${1}"
-		
+
 		if [ "${service}" = "all" -a ! -z "${ALL_SHOULD_ALSO_RUN}" -a ${ALL_SHOULD_ALSO_RUN_WARNING} -eq 0 ]
 		then
 			ALL_SHOULD_ALSO_RUN_WARNING=1
@@ -9653,67 +9652,67 @@ smart_function() {
 		fi
 
 		set_work_function "Preparing for service '${service}' of type '${type}' under interface '${work_name}'"
-		
+
 		# Increase the command counter, to make all chains within a primary
 		# command, unique.
 		local work_counter
 		get_next_work_counter work_counter
-		
+
 		suffix="u${work_counter}"
 		case "${type}" in
 			client)
 				suffix="c${work_counter}"
 				;;
-			
+
 			server)
 				suffix="s${work_counter}"
 				;;
-			
+
 			route)
 				suffix="r${work_counter}"
 				;;
-			
+
 			*)	error "Cannot understand type '${type}'."
 				return 1
 				;;
 		esac
-		
+
 		mychain="${work_name}_${servname}_${suffix}"
-		
+
 		create_chain alias filter "in_${mychain}" "in_${work_name}" || return 1
 		create_chain alias filter "out_${mychain}" "out_${work_name}" || return 1
-		
+
 		# Create it in the raw table for the reconstruction to work
 		if [ "${FIREHOL_CONNTRACK_HELPERS_ASSIGNMENT}" = "firehol" ]
 		then
 			create_chain alias raw "in_${mychain}" "in_${work_name}" || return 1
 			create_chain alias raw "out_${mychain}" "out_${work_name}" || return 1
 		fi
-		
+
 		# Try the simple services first
 		simple_service "${mychain}" "${type}" "${service}" "${@}" "${FIREHOL_RULESET_MODE}"
 		ret=$?
-		
+
 		# simple service completed succesfully.
 		test $ret -eq 0 && added=$((added + 1)) && continue
-		
+
 		# simple service exists but failed.
 		if [ $ret -ne 127 ]
 		then
 			error "Simple service '${service}' returned an error ($ret)."
 			return 1
 		fi
-		
-		
+
+
 		# Try the custom services
 		fn="rules_${service}"
-		
+
 		set_work_function "Complex rules for ${fn}() for ${type} '${service}'"
-		
+
 		"${fn}" "${mychain}" "${type}" "${@}" "${FIREHOL_RULESET_MODE}"
 		ret=$?
 		test $ret -eq 0 && added=$((added + 1)) && continue
-		
+
 		if [ $ret -eq 127 ]
 		then
 			error "There is no service '${service}' defined."
@@ -9754,7 +9753,7 @@ simple_service() {
 		modules= modules_nat= \
 		x=
 	shift 3
-	
+
 	server_ports="${FIREHOL_SERVER_PORTS_CACHE[$server]}"
 	if [ ! -z "${server_ports}" ]
 	then
@@ -9764,10 +9763,10 @@ simple_service() {
 		helpers="${FIREHOL_SERVER_HELPERS_CACHE[$server]}"
 		modules="${FIREHOL_SERVER_MODS_CACHE[$server]}"
 		modules_nat="${FIREHOL_SERVER_MODS_NAT_CACHE[$server]}"
-	else 
+	else
 		server_varname="server_${server}_ports"
 		eval server_ports="\$${server_varname}"
-		
+
 		client_varname="client_${server}_ports"
 		eval client_ports="\$${client_varname}"
 
@@ -9805,7 +9804,7 @@ simple_service() {
 		do
 			require_kernel_module $x || return 1
 		done
-		
+
 		if [ ${FIREHOL_NAT} -eq 1 ]
 		then
 			for x in ${modules_nat}
@@ -9820,46 +9819,46 @@ simple_service() {
 			case "${x}" in
 				snmp_basic)	# this does not exist in conntrack
 						;;
-						
+
 				*)		require_kernel_module nf_conntrack_$x
 						;;
 			esac
-			
+
 			if [ ${FIREHOL_NAT} -eq 1 ]
 			then
 				case "${x}" in
 					netbios_ns|netlink|sane)
 						# these do not exist in nat
 						;;
-						
+
 					*)	require_kernel_module nf_nat_$x
 						;;
 				esac
 			fi
 		done
 	fi
-	
+
 	set_work_function "Simple rules for  ${type} '${service}'"
 	rules_custom "${mychain}" "${type}" "${server}" "${server_ports}" "${client_ports}" helpers "${helpers}" "${@}"
-	
+
 	return $?
 }
 
 show_work_realcmd() {
 	test "${FIREHOL_MODE}" = "EXPLAIN" && return 0
-	
+
 	(
 		printf "\n\n"
 		printf "# === CONFIGURATION STATEMENT =================================================\n"
 		printf "# $(config_line)\n"
 		printf "# >>>	"
-		
+
 		case $1 in
 			2)	printf "	"
 				;;
 			*)	;;
 		esac
-		
+
 		printf "%q " "${work_realcmd[@]}"
 		printf "\n\n"
 	) >&21
@@ -9869,7 +9868,7 @@ FIREHOL_FILTERING_STARTED=0
 work_realcmd_primary() {
 	test -z "${FIREHOL_DEFAULT_NAMESPACE}" && init_namespace
 	test ${FIREHOL_ENABLE_SPINNER} -eq 1 && spinner ${FIREHOL_COMMAND_COUNTER}
-	
+
 	if [ ${FIREHOL_FILTERING_STARTED} -eq 0 ]
 	then
 		FIREHOL_FILTERING_STARTED=1
@@ -9886,22 +9885,22 @@ work_realcmd_primary() {
 work_realcmd_secondary() {
 	test -z "${FIREHOL_DEFAULT_NAMESPACE}" && init_namespace
 	test ${FIREHOL_ENABLE_SPINNER} -eq 1 && spinner ${FIREHOL_COMMAND_COUNTER}
-	
+
 	config_line -ne
 	work_realcmd=("${@}")
 	test ${FIREHOL_CONF_SHOW} -eq 1 && show_work_realcmd 2
-	
+
 	# echo >&2 "CMD: ${@}: NS STACK: ${FIREHOL_NS_STACK[@]}"
 }
 
-work_realcmd_helper() {	
+work_realcmd_helper() {
 	test -z "${FIREHOL_DEFAULT_NAMESPACE}" && init_namespace
 	test ${FIREHOL_ENABLE_SPINNER} -eq 1 && spinner ${FIREHOL_COMMAND_COUNTER}
-	
+
 	config_line -ne
 	work_realcmd=("${@}")
 	test ${FIREHOL_CONF_SHOW} -eq 1 && show_work_realcmd 3
-	
+
 	# echo >&2 "CMD: ${@}: NS STACK: ${FIREHOL_NS_STACK[@]}"
 }
 
@@ -9930,7 +9929,7 @@ wait_for_interface() {
 
 fixed_save() {
 	local command="$1" tmp="${FIREHOL_DIR}/iptables-save-$$" err=
-	
+
 	load_kernel_module ip_tables
 	${command} -c >$tmp
 	err=$?
@@ -9939,7 +9938,7 @@ fixed_save() {
 		${RM_CMD} -f $tmp >/dev/null 2>&1
 		return $err
 	fi
-	
+
 	${CAT_CMD} ${tmp} |\
 		${SED_CMD} \
 			-e "/#/s/ on .*/ on time removed by FireHOL/"	\
@@ -9948,7 +9947,7 @@ fixed_save() {
 			-e "s/--uid-owner !/! --uid-owner /g"	\
 			-e "s/--gid-owner !/! --gid-owner /g"
 	err=$?
-	
+
 	${RM_CMD} -f $tmp >/dev/null 2>&1
 	return $err
 }
@@ -9956,7 +9955,7 @@ fixed_save() {
 FIREHOL_LAST_SUCCESSFUL_COMMAND="${FIREHOL_SPOOL_DIR}/firehol-last-ok-command"
 firehol_save_activated_firewall() {
 	progress "Saving activated firewall to '${FIREHOL_SPOOL_DIR}'"
-	
+
 	if [ -f "${FIREHOL_SPOOL_DIR}/ipv4.enable" ]
 	then
 		fixed_save ${IPTABLES_SAVE_CMD} >"${FIREHOL_SPOOL_DIR}/ipv4.rules"
@@ -9965,13 +9964,13 @@ firehol_save_activated_firewall() {
 			failure # "Saving activated firewall to '${FIREHOL_SPOOL_DIR}'"
 			return 1
 		fi
-		
+
 		${CHOWN_CMD} root:root "${FIREHOL_SPOOL_DIR}/ipv4.rules"
 		${CHMOD_CMD} 600 "${FIREHOL_SPOOL_DIR}/ipv4.rules"
 	else
 		test -f "${FIREHOL_SPOOL_DIR}/ipv4.rules" && $RM_CMD "${FIREHOL_SPOOL_DIR}/ipv4.rules"
 	fi
-	
+
 	if [ -f "${FIREHOL_SPOOL_DIR}/ipv6.enable" ]
 	then
 		fixed_save ${IP6TABLES_SAVE_CMD} >"${FIREHOL_SPOOL_DIR}/ipv6.rules"
@@ -9980,7 +9979,7 @@ firehol_save_activated_firewall() {
 			failure # "Saving activated firewall to '${FIREHOL_SPOOL_DIR}'"
 			return 1
 		fi
-		
+
 		${CHOWN_CMD} root:root "${FIREHOL_SPOOL_DIR}/ipv6.rules"
 		${CHMOD_CMD} 600 "${FIREHOL_SPOOL_DIR}/ipv6.rules"
 	else
@@ -9991,7 +9990,7 @@ firehol_save_activated_firewall() {
 	printf "\n" >>"${FIREHOL_LAST_SUCCESSFUL_COMMAND}"
 
 	success # "Saving activated firewall to '${FIREHOL_SPOOL_DIR}'"
-	
+
 	return 0
 }
 
@@ -10145,7 +10144,7 @@ do
 		reset-ipsets|reset_ipsets)
 			FIREHOL_IPSETS_RESPECT_KEEP=0
 			;;
-			
+
 		*) 	break;;
 	esac
 	shift
@@ -10161,22 +10160,22 @@ case "${arg}" in
 		FIREHOL_FAST_ACTIVATION=0
 		FIREHOL_MODE="EXPLAIN"
 		;;
-	
+
 	helpme|wizard)
 		test ! -z "${1}" && warning "Arguments after parameter '${arg}' are ignored."
 		FIREHOL_MODE="WIZARD"
 		;;
-	
+
 	try)
 		FIREHOL_MODE="START"
 		FIREHOL_TRY=1
 		;;
-	
+
 	start)
 		FIREHOL_MODE="START"
 		FIREHOL_TRY=0
 		;;
-	
+
 	stop)
 		FIREHOL_MODE="STOP"
 		test ! -z "${1}" && warning "Arguments after parameter '${arg}' are ignored."
@@ -10223,7 +10222,7 @@ case "${arg}" in
 		FIREHOL_ACTIVATED_SUCCESSFULLY=1
 		exit 0
 		;;
-	
+
 	restore|condrestart)
 		FIREHOL_RESTORE_INSTEAD_OF_START=1
 		FIREHOL_MODE="START"
@@ -10234,7 +10233,7 @@ case "${arg}" in
 		FIREHOL_MODE="START"
 		FIREHOL_TRY=0
 		;;
-	
+
 	cstatus|conntrack_status)
 		lnstat -c -1 -f nf_conntrack
 		exit $?
@@ -10328,7 +10327,7 @@ case "${arg}" in
 		${MORE_CMD} <"${FIREHOL_DIR}/status"
 		exit $?
 		;;
-	
+
 	panic)
 		FIREHOL_MODE="PANIC"
 		ssh_src=
@@ -10344,7 +10343,7 @@ case "${arg}" in
 		then
 			ssh_src="${1}"
 		fi
-		
+
 		syslog info "Starting PANIC mode (SSH SOURCE_IP=${ssh_src} SOURCE_PORTS=${ssh_sport} DESTINATION_PORTS=${ssh_dport})"
 		progress "Blocking all communications"
 		if [ $ENABLE_IPV4 -eq 1 ]; then
@@ -10402,13 +10401,13 @@ case "${arg}" in
 		success # "Blocking all communications"
 		exit 0
 		;;
-	
+
 	save)
 		test ! -z "${1}" && test ${1} != "--" && softwarning "Arguments after parameter '${arg}' are ignored."
 		FIREHOL_MODE="START"
 		FIREHOL_SAVE=1
 		;;
-		
+
 	debug)
 		test ! -z "${1}" && test ${1} != "--" && softwarning "Arguments after parameter '${arg}' are ignored."
 		FIREHOL_MODE="DEBUG"
@@ -10454,7 +10453,7 @@ case "${arg}" in
 		progress "Updating ipset ${name} with options: ${*}"
 
 		tmp=$(${MKTEMP_CMD} "${FIREHOL_DIR}/ipset-XXXXXXXXXX") || exit 1
-		
+
 		# add the IPs from the file
 		ipset_addfile "${name}" "${@}" >>${tmp}
 		if [ $? -ne 0 ]
@@ -10565,54 +10564,54 @@ FireHOL supports the following commands (only one of them):
 	start		to activate the firewall configuration.
 			The configuration is expected to be found in
 			${FIREHOL_CONFIG_DIR}/firehol.conf
-			
+
 	try		to activate the firewall, but wait until
 			the user types the word "commit". If this word
 			is not typed within 30 seconds, the previous
 			firewall is restored.
-			
+
 	stop		to stop a running iptables firewall.
 			This will allow all traffic to pass unchecked.
-		
+
 	restart		this is an alias for start and is given for
 			compatibility with /etc/init.d/iptables.
-			
+
 	status		will show the running firewall, as in:
 				${IPTABLES_CMD} -nxvL
 			and
 				${IP6TABLES_CMD} -nxvL
-	
+
 	cstatus		show connection tracker status
 
 	panic		will block all IP communication.
-	
+
 	restore		will restore the last activated firewall.
 			Useful for quickly restoring at boot the last
 			successfully activated FireHOL firewall.
 
 	save		to start the firewall and then save it to the
 			place where /etc/init.d/iptables looks for it.
-			
+
 			Note that not all firewalls will work if
 			restored with:
 			/etc/init.d/iptables start
-			
+
 			The fastest way to restore a FireHOL firewall
 			at boot is the 'restore' feature.
 
 	debug		to parse the configuration file but instead of
 			activating it, to show the generated iptables
 			statements.
-	
+
 	explain		to enter interactive mode and accept configuration
 			directives. It also gives the iptables commands
 			for each directive together with reasoning.
-			
+
 	helpme	or	to enter a wizard mode where FireHOL will try
 	wizard		to figure out the configuration you need.
 			You can redirect the standard output of FireHOL to
 			a file to get the config to this file.
-			
+
 	<a filename>	a different configuration file.
 			If not other argument is given, the configuration
 			will be "tried" (default = try).
@@ -10633,7 +10632,7 @@ EOF
 				${CUT_CMD} -d '=' -f 1			|\
 				${SED_CMD} "s/^server_//"		|\
 				${SED_CMD} "s/_ports\$//"
-			
+
 			# The complex services
 			${CAT_CMD} "${PROGRAM_FILE}"				|\
 				${GREP_CMD} -e "^rules_.*()"		|\
@@ -10654,38 +10653,38 @@ EOF
 			done
 			printf "\n\n"
 		)
-		
+
 		${CAT_CMD} <<EOF
 
 Services marked with (*) are "smart" or complex services.
 All the others are simple single socket services.
 
 Please note that the service:
-	
+
 	all	matches all packets and all protocols, while ensuring that
 		required kernel modules are loaded. Packets "untracked" by
 		iptables (e.g. ICMPv6 neighbour discovery packets) are not
 		included in "all" and must be handled separately.
-	
+
 	any	allows the matching of packets with unusual rules, like
 		only protocol but no ports. If service any is used
 		without other parameters, it does what service all does
 		but it does not handle kernel modules.
 		For example, to match GRE traffic use:
-		
+
 		server any mygre accept proto 47
-		
+
 		Service any does not handle kernel modules.
-		
+
 	custom	allows the definition of a custom service.
 		The template is:
-		
+
 		server custom name protocol/sport cport accept
-		
+
 		where name is just a name, protocol is the protocol the
 		service uses (tcp, udp, etc), sport is server port,
 		cport is the client port. For example, IMAP4 is:
-		
+
 		server custom imap tcp/143 default accept
 
 YOU DO NOT KNOW WHAT TO DO? FireHOL can help you! Just run it with the
@@ -10699,7 +10698,7 @@ and you will get the configuration written to /tmp/firehol.conf
 
 EOF
 		exit 1
-		
+
 		fi
 		;;
 esac
@@ -10776,12 +10775,12 @@ EOF
 		history -w
 
 		set_work_function -ne "Executing user input"
-		
+
 		while [ 1 = 1 ]
 		do
-		
+
 		set -- ${REPLY}
-		
+
 		case "${1}" in
 			help)
 				${CAT_CMD} <<EOF
@@ -10789,14 +10788,14 @@ You can use anything a FireHOL configuration file accepts, including variables,
 loops, etc. Take only care to write loops in one row.
 
 Additionaly, you can use the following commands:
-	
+
 	help	to print this text on your screen.
-	
+
 	show	to show all the successfull commands so far.
-	
+
 	quit	to show the interactively given configuration file
 		and quit.
-	
+
 	in|in4|in6
 		same as typing: interface(4|6) eth0 world
 		This is used as a shortcut to get into the server/client
@@ -10806,36 +10805,36 @@ Additionaly, you can use the following commands:
 EOF
 				break
 				;;
-				
+
 			show)
 				echo
 				${CAT_CMD} "${FIREHOL_TEMP_CONFIG}"
 				echo
 				break
 				;;
-				
+
 			quit|exit)
 				echo
 				${CAT_CMD} "${FIREHOL_TEMP_CONFIG}"
 				echo
 				exit 1
 				;;
-				
+
 			in)
 				REPLY="interface eth0 world"
 				continue
 				;;
-				
+
 			in4)
 				REPLY="interface4 eth0 world"
 				continue
 				;;
-				
+
 			in6)
 				REPLY="interface6 eth0 world"
 				continue
 				;;
-				
+
 			*)
 				echo -e "# \/\/\/\/\/\/\/\/\/\/\/\/\/\/\/\/\/\/\/\/\/\/\/\/\/\/\/\/\/\/\/\/\/\/\/\/\/\/\/"
 				echo -e "# Cmd Line : ${FORCE_CONFIG_LINEID}"
@@ -10852,22 +10851,22 @@ EOF
 					else
 						printf "	" >>"${FIREHOL_TEMP_CONFIG}"
 					fi
-					
+
 					printf "%s\n" "${REPLY}" >>"${FIREHOL_TEMP_CONFIG}"
-					
+
 					lineid=$[lineid + 1]
 					FORCE_CONFIG_LINEID="${lineid}@${FIREHOL_CONFIG}"
-					
+
 					printf "\n# > OK <\n"
 				fi
 				break
 				;;
 		esac
-		
+
 		break
 		done
 	done
-	
+
 	exit 0
 fi
 
@@ -10889,7 +10888,7 @@ then
 	common_require_cmd $PROGRAM_FILE SS_CMD
 	common_require_cmd $PROGRAM_FILE DATE_CMD
 	common_require_cmd $PROGRAM_FILE HOSTNAME_CMD
-	
+
 	wizard_ask() {
 		local prompt="${1}" def="${2}" ans= c= t=
 		shift 2
@@ -10900,65 +10899,65 @@ then
 		do
 			printf >&2 "%s [%s] > " "${prompt}" "${def}"
 			read
-			
+
 			ans="${REPLY}"
-			
+
 			test -z "${ans}" && ans="${def}"
-			
+
 			c=0
 			while [ $c -le $# ]
 			do
 				eval t="\${${c}}"
-				
+
 				test "${ans}" = "${t}" && break
 				c=$[c + 1]
 			done
-			
+
 			test $c -le $# && return $c
-			
+
 			printf >&2 "*** '${ans}' is not a valid answer. Pick one of "
 			printf >&2 "%s " "${@}"
-			echo >&2 
-			echo >&2 
+			echo >&2
+			echo >&2
 		done
-		
+
 		return 0
 	}
-	
+
 	ip_in_net() {
 		local ip="${1}" net="${2}"
 		shift 2
-		
+
 		if [ -z "${ip}" -o -z "${net}" ]
 		then
 			return 1
 		fi
-		
+
 		test "${net}" = "default" && net="0.0.0.0/0"
-		
+
 		set -- `echo ${ip} | ${TR_CMD} './' '  '`
 		local i1=${1} i2=${2} i3=${3} i4=${4}
-		
+
 		set -- `echo ${net} | ${TR_CMD} './' '  '`
 		local n1=${1} n2=${2} n3=${3} n4=${4} n5=${5:-32}
 
 		local i=$[i1*256*256*256 + i2*256*256 + i3*256 + i4]
 		local n=$[n1*256*256*256 + n2*256*256 + n3*256 + n4]
-		
+
 #		echo "IP : '${i1}' . '${i2}' . '${i3}' . '${i4}'"
 #		echo "NET: '${n1}' . '${n2}' . '${n3}' . '${n4}' / '${n5}'"
-		
+
 		local d=1 c=${n5}
 		while [ $c -lt 32 ]
 		do
 			c=$[c + 1]
 			d=$[d * 2]
 		done
-		
+
 		local nm=$[n + d - 1]
-		
+
 		printf "# INFO: Is ${ip} part of network ${net}? "
-		
+
 		if [ ${i} -ge ${n} -a ${i} -le ${nm} ]
 		then
 			echo "yes"
@@ -10968,27 +10967,27 @@ then
 			return 1
 		fi
 	}
-	
+
 	ip_is_net() {
 		local ip="${1}" net="${2}"
 		shift 2
-		
+
 		if [ -z "${ip}" -o -z "${net}" ]
 		then
 			return 1
 		fi
-		
+
 		test "${net}" = "default" && net="0.0.0.0/0"
-		
+
 		set -- `echo ${ip} | ${TR_CMD} './' '  '`
 		local i1=${1} i2=${2} i3=${3} i4=${4} i5=${5:-32}
-		
+
 		set -- `echo ${net} | ${TR_CMD} './' '  '`
 		local n1=${1} n2=${2} n3=${3} n4=${4} n5=${5:-32}
-		
+
 		local i=$[i1*256*256*256 + i2*256*256 + i3*256 + i4]
 		local n=$[n1*256*256*256 + n2*256*256 + n3*256 + n4]
-		
+
 		if [ ${i} -eq ${n} -a ${i5} -eq ${n5} ]
 		then
 			return 0
@@ -10996,24 +10995,24 @@ then
 			return 1
 		fi
 	}
-	
+
 	ip2net() {
 		local ip="${1}"; shift
-		
+
 		if [ -z "${ip}" ]
 		then
 			return 0
 		fi
-		
+
 		if [ "${ip}" = "default" ]
 		then
 			echo "default"
 			return 0
 		fi
-		
+
 		set -- `echo ${ip} | ${TR_CMD} './' '  '`
 		local i1=${1} i2=${2} i3=${3} i4=${4} i5=${5:-32}
-		
+
 		if [ "${i5}" = "32" ]
 		then
 			echo ${i1}.${i2}.${i3}.${i4}
@@ -11021,9 +11020,9 @@ then
 			echo ${i1}.${i2}.${i3}.${i4}/${i5}
 		fi
 	}
-	
+
 	ips2net() {
-		
+
 		(
 			if [ "A${1}" = "A-" ]
 			then
@@ -11035,12 +11034,12 @@ then
 				while [ ! -z "${1}" ]
 				do
 					ip2net ${1}
-					shift 
+					shift
 				done
 			fi
 		) | ${SORT_CMD} | ${UNIQ_CMD} | ${TR_CMD} "\n" " "
 	}
-	
+
 	cd "${FIREHOL_DIR}"
 	${MKDIR_CMD} ports
 	${MKDIR_CMD} keys
@@ -11061,62 +11060,62 @@ to a file. Example:
 
 EOF
 	echo >&2 "${PROGRAM_FILE} helpme >/tmp/firehol.conf"
-	echo >&2 
-	echo >&2 
-		
-	echo >&2 
+	echo >&2
+	echo >&2
+
+	echo >&2
 	echo >&2 "Building list of known services."
 	echo >&2 "Please wait..."
-	
+
 	${CAT_CMD} /etc/services	|\
 		${TR_CMD} '\t' ' '	|\
 		${SED_CMD} "s/ \+/ /g"	>services
-	
+
 	for c in `echo ${!server_*} | ${TR_CMD} ' ' '\n' | ${GREP_CMD} "_ports$"`
 	do
 		serv=`echo $c | ${SED_CMD} "s/server_//" | ${SED_CMD} "s/_ports//"`
-		
+
 		eval "ret=\${$c}"
 		for x in ${ret}
 		do
 			proto=`echo $x | ${CUT_CMD} -d '/' -f 1`
 			port=`echo $x | ${CUT_CMD} -d '/' -f 2`
-			
+
 			test ! -d "${proto}" && continue
-			
+
 			nport=`${EGREP_CMD} "^${port}[[:space:]][0-9]+/${proto}" services | ${CUT_CMD} -d ' ' -f 2 | ${CUT_CMD} -d '/' -f 1`
 			test -z "${nport}" && nport="${port}"
-			
+
 			echo "server ${serv}" >"${proto}/${nport}"
 		done
 	done
-	
+
 	echo "server ftp" >tcp/21
 	echo "server nfs" >udp/2049
-	
+
 	echo "client amanda" >udp/10080
-	
+
 	echo "server dhcp" >udp/67
 	echo "server dhcp" >tcp/67
-	
+
 	echo "client dhcp" >udp/68
 	echo "client dhcp" >tcp/68
-	
+
 	echo "server emule" >tcp/4662
-	
+
 	echo "server pptp" >tcp/1723
-	
+
 	echo "server samba" >udp/137
 	echo "server samba" >udp/138
 	echo "server samba" >tcp/139
-	
-	
+
+
 	wizard_ask "Press RETURN to start." "continue" "continue"
-	
-	echo >&2 
+
+	echo >&2
 	echo >&2 "--- snip --- snip --- snip --- snip ---"
-	echo >&2 
-	
+	echo >&2
+
 	${CAT_CMD} <<EOF
 #
 # FireHOL configuration (autogenerated)
@@ -11124,21 +11123,21 @@ EOF
 # This config will have the same effect as NO PROTECTION!
 # Everything that found to be running, is allowed.
 # YOU SHOULD NEVER USE THIS CONFIG AS-IS.
-# 
+#
 # Date: `${DATE_CMD}` on host `${HOSTNAME_CMD}`
-# 
+#
 # IMPORTANT:
 # The TODOs bellow, are *YOUR* to-dos!
 #
 
 EOF
-	
+
 	# globals for routing
 	set -a found_interfaces=
 	set -a found_ips=
 	set -a found_nets=
 	set -a found_excludes=
-	
+
 	helpme_iface() {
 		local route="${1}"; shift
 		local i="${1}"; shift
@@ -11146,9 +11145,9 @@ EOF
 		local ifip="${1}"; shift
 		local ifnets="${1}"; shift
 		local ifreason="${1}"; shift
-		
+
 		# one argument left: ifnets_excluded
-		
+
 		if [ "${route}" = "route" ]
 		then
 			found_interfaces[$i]="${iface}"
@@ -11156,14 +11155,14 @@ EOF
 			found_nets[$i]="${ifnets}"
 			found_excludes[$i]="${1}"
 		fi
-		
+
 		if [ "${ifnets}" = "default" ]
 		then
 			ifnets="not \"\${UNROUTABLE_IPS} ${1}\""
 		else
 			ifnets="\"${ifnets}\""
 		fi
-		
+
 		# output the interface
 		echo
 		echo "# Interface No $i."
@@ -11174,7 +11173,7 @@ EOF
 		else
 			echo "# on the ${iface} interface with IP ${ifip} (net: ${ifnets})."
 		fi
-		
+
 		echo "# TODO: Change \"if${i}\" to something with meaning to you."
 		echo "# TODO: Check the optional rule parameters (src/dst)."
 		echo "#       Remove 'dst ${ifip}' if this is dynamically assigned."
@@ -11191,7 +11190,7 @@ EOF
 		echo
 		echo "	# Here are the services listening on ${iface}."
 		echo "	# TODO: Normally, you will have to remove those not needed."
-		
+
 		(
 			local x=
 			local ports=
@@ -11204,7 +11203,7 @@ EOF
 					ports="${ports} tcp/${x}"
 				fi
 			done
-			
+
 			for x in `${SS_CMD} -uln | ${SED_CMD} "s|:::|\*:|g" | ${SED_CMD} "s|::ffff:||g" | ${EGREP_CMD} " (${ifip}|\*):[0-9]+" | ${CUT_CMD} -d ':' -f 2 | ${CUT_CMD} -d ' ' -f 1 | ${SORT_CMD} -n | ${UNIQ_CMD}`
 			do
 				if [ -f "udp/${x}" ]
@@ -11214,17 +11213,17 @@ EOF
 					ports="${ports} udp/${x}"
 				fi
 			done
-			
+
 			echo "	server ICMP accept"
-			
+
 			echo "${ports}" | ${TR_CMD} " " "\n" | ${SORT_CMD} -n | ${UNIQ_CMD} | ${TR_CMD} "\n" " " >unknown.ports
 		) | ${SORT_CMD} | ${UNIQ_CMD}
-		
+
 		echo
 		echo "	# The following ${iface} services are not known by FireHOL:"
 		${CAT_CMD} unknown.ports | ${FOLD_CMD} -s -w 65 | ${SED_CMD} "s|^ *|\t# |"
 		echo
-		
+
 		echo
 		echo "	# Custom service definitions for the above unknown services."
 		local ts=
@@ -11234,7 +11233,7 @@ EOF
 			local tscount=$[tscount + 1]
 			echo "	server custom if${i}_${tscount} ${ts} any accept"
 		done
-		
+
 		echo
 		echo "	# The following means that this machine can REQUEST anything via ${iface}."
 		echo "	# TODO: On production servers, avoid this and allow only the"
@@ -11242,11 +11241,11 @@ EOF
 		echo "	client all accept"
 		echo
 	}
-	
+
 	interfaces=`${IP_CMD} link show | ${EGREP_CMD} "^[0-9A-Za-z]+:" | ${CUT_CMD} -d ':' -f 2 | ${SED_CMD} "s/^ //" | ${SED_CMD} "s/@[A-Za-z0-9]*//" | ${GREP_CMD} -v "^lo$" | ${SORT_CMD} | ${UNIQ_CMD} | ${TR_CMD} "\n" " "`
 	gw_if=`${IP_CMD} route show | ${GREP_CMD} "^default" | ${SED_CMD} "s/dev /dev:/g" | ${TR_CMD} " " "\n" | ${GREP_CMD} "^dev:" | ${CUT_CMD} -d ':' -f 2`
 	gw_ip=`${IP_CMD} route show | ${GREP_CMD} "^default" | ${SED_CMD} "s/via /via:/g" | ${TR_CMD} " " "\n" | ${GREP_CMD} "^via:" | ${CUT_CMD} -d ':' -f 2 | ips2net -`
-	
+
 	i=0
 	for iface in ${interfaces}
 	do
@@ -11254,7 +11253,7 @@ EOF
 		ips=`${IP_CMD} addr show dev ${iface} | ${SED_CMD} "s/ \+/ /g" | ${GREP_CMD} "^ inet " | ${CUT_CMD} -d ' ' -f 3 | ${CUT_CMD} -d '/' -f 1 | ips2net -`
 		peer=`${IP_CMD} addr show dev ${iface} | ${SED_CMD} "s/ \+/ /g" | ${SED_CMD} "s/peer /peer:/g" | ${TR_CMD} " " "\n" | ${GREP_CMD} "^peer:" | ${CUT_CMD} -d ':' -f 2 | ips2net -`
 		nets=`${IP_CMD} route show dev ${iface} | ${CUT_CMD} -d ' ' -f 1 | ips2net -`
-		
+
 		if [ -z "${ips}" -o -z "${nets}" ]
 		then
 			echo
@@ -11263,13 +11262,13 @@ EOF
 			echo
 			continue
 		fi
-		
+
 		for ip in ${ips}
 		do
 			echo "# INFO: Processing IP ${ip} of interface '${iface}'"
-			
+
 			ifreason=""
-			
+
 			# find all the networks this IP can access directly
 			# or through its peer
 			netcount=0
@@ -11278,17 +11277,17 @@ EOF
 			for net in ${nets}
 			do
 				test "${net}" = "default" && continue
-				
+
 				found=1
 				ip_in_net ${ip} ${net}
 				found=$?
-				
+
 				if [ ${found} -gt 0 -a ! -z "${peer}" ]
 				then
 					ip_in_net ${peer} ${net}
 					found=$?
 				fi
-				
+
 				if [ ${found} -eq 0 ]
 				then
 					# Add it to ifnets
@@ -11305,10 +11304,10 @@ EOF
 							ff=1
 							ifnets[$f]=${net}
 						fi
-						
+
 						f=$[f + 1]
 					done
-					
+
 					if [ $ff -eq 0 ]
 					then
 						# Add it
@@ -11319,26 +11318,26 @@ EOF
 					ofnets=(${net} "${ofnets[@]}")
 				fi
 			done
-			
+
 			# find all the networks this IP can access through gateways
 			if [ ! -z "${ofnets[*]}" ]
 			then
 				for net in "${ofnets[@]}"
 				do
 					test "${net}" = "default" && continue
-					
+
 					nn=`echo "${net}" | ${CUT_CMD} -d "/" -f 1`
 					gw=`${IP_CMD} route show ${nn} dev ${iface} | ${EGREP_CMD} "^${nn}[[:space:]]+via[[:space:]][0-9\.]+" | ${CUT_CMD} -d ' ' -f 3 | ips2net -`
 					test -z "${gw}" && continue
-					
+
 					for nn in "${ifnets[@]}"
 					do
 						test "${nn}" = "default" && continue
-						
+
 						if ip_in_net ${gw} ${nn}
 						then
 							echo "# INFO: Route ${net} is accessed through ${gw}"
-							
+
 							# Add it to ifnets
 							f=0; ff=0
 							while [ $f -lt $netcount ]
@@ -11353,10 +11352,10 @@ EOF
 									ff=1
 									ifnets[$f]=${net}
 								fi
-								
+
 								f=$[f + 1]
 							done
-							
+
 							if [ $ff -eq 0 ]
 							then
 								# Add it
@@ -11368,7 +11367,7 @@ EOF
 					done
 				done
 			fi
-			
+
 			# Don't produce an interface if this is just a peer that is also the default gw
 			def_ignore_ifnets=0
 			if (test ${netcount} -eq 1 -a "${gw_if}" = "${iface}" && ip_is_net "${peer}" "${ifnets[*]}" && ip_is_net "${gw_ip}" "${peer}")
@@ -11380,7 +11379,7 @@ EOF
 				i=$[i + 1]
 				helpme_iface route $i "${iface}" "${ip}" "${ifnets[*]}" "${ifreason}"
 			fi
-			
+
 			# Is this interface the default gateway too?
 			if [ "${gw_if}" = "${iface}" ]
 			then
@@ -11389,17 +11388,17 @@ EOF
 					if ip_in_net "${gw_ip}" ${nn}
 					then
 						echo "# INFO: Default gateway ${gw_ip} is part of network ${nn}"
-						
+
 						i=$[i + 1]
 						helpme_iface route $i "${iface}" "${ip}" "default" "from/to unknown networks behind the default gateway ${gw_ip}" "`test ${def_ignore_ifnets} -eq 0 && echo "${ifnets[*]}"`"
-						
+
 						break
 					fi
 				done
 			fi
 		done
 	done
-	
+
 	echo
 	echo "# The above $i interfaces were found active at this moment."
 	echo "# Add more interfaces that can potentially be activated in the future."
@@ -11410,7 +11409,7 @@ EOF
 	echo "# Also, if an interface name dynamically changes (i.e. ppp0 may become ppp1)"
 	echo "# you can use the plus (+) character to match all of them (i.e. ppp+)."
 	echo
-	
+
 	if [ "1" = "`${CAT_CMD} /proc/sys/net/ipv4/ip_forward`" ]
 	then
 		x=0
@@ -11418,49 +11417,49 @@ EOF
 		while [ $i -lt ${#found_interfaces[*]} ]
 		do
 			i=$[i + 1]
-			
+
 			inface="${found_interfaces[$i]}"
 			src="${found_nets[$i]}"
-			
+
 			case "${src}" in
 				"default")
 					src="not \"\${UNROUTABLE_IPS} ${found_excludes[$i]}\""
 					;;
-					
+
 					*)
 					src="\"${src}\""
 					;;
 			esac
-			
+
 			j=0
 			while [ $j -lt ${#found_interfaces[*]} ]
 			do
 				j=$[j + 1]
-				
+
 				test $j -eq $i && continue
-				
+
 				outface="${found_interfaces[$j]}"
 				dst="${found_nets[$j]}"
 				dst_ip="${found_ips[$j]}"
-				
+
 				case "${dst}" in
 					"default")
 						dst="not \"\${UNROUTABLE_IPS} ${found_excludes[$j]}\""
 						;;
-						
+
 						*)
 						dst="\"${dst}\""
 						;;
 				esac
-				
+
 				# Make sure we are not routing to the same subnet
 				test "${inface}" = "${outface}" -a "${src}" = "${dst}" && continue
-				
+
 				# Make sure this is not a duplicate router
 				key="`echo ${inface}/${src}-${outface}/${dst} | ${TR_CMD} "/ \\\$\\\"{}" "______"`"
 				test -f "${FIREHOL_DIR}/keys/${key}" && continue
 				${TOUCH_CMD} "${FIREHOL_DIR}/keys/${key}"
-				
+
 				x=$[x + 1]
 				if [ $x -lt 10 ]
 				then
@@ -11468,7 +11467,7 @@ EOF
 				else
 					lx="$x"
 				fi
-				
+
 				echo
 				echo "# Router No ${x}."
 				echo "# Clients on ${inface} (from ${src}) accessing servers on ${outface} (to ${dst})."
@@ -11476,7 +11475,7 @@ EOF
 				echo "# TODO: Check the optional rule parameters (src/dst)."
 				echo "#       To add IPv6, read http://firehol.org/upgrade/#config-version-6"
 				echo "router4 router${lx} inface ${inface} outface ${outface} src ${src} dst ${dst}"
-				echo 
+				echo
 				echo "	# If you don't trust the clients on ${inface} (from ${src}), or"
 				echo "	# if you want to protect the servers on ${outface} (to ${dst}),"
 				echo "	# uncomment the following line."
@@ -11484,7 +11483,7 @@ EOF
 				echo
 				echo "	# To NAT client requests on the output of ${outface}, add this."
 				echo "	# > masquerade"
-				
+
 				echo "	# Alternatively, you can SNAT them by placing this at the top of this config:"
 				echo "	# > snat to ${dst_ip} outface ${outface} src ${src} dst ${dst}"
 				echo "	# SNAT commands can be enhanced using 'proto', 'sport', 'dport', etc in order to"
@@ -11496,7 +11495,7 @@ EOF
 				echo
 			done
 		done
-		
+
 		if [ ${x} -eq 0 ]
 		then
 			echo
@@ -11512,7 +11511,7 @@ EOF
 		echo "# is not configured for forwarding traffic."
 		echo
 	fi
-	
+
 	exit 0
 fi
 
@@ -11590,12 +11589,12 @@ prepare_firewall_for_activation() {
 	then
 		load_kernel_module ip6_tables
 	fi
-	
+
 	for m in ${!FIREHOL_KERNEL_MODULES[*]}
 	do
 		postprocess -ne -ns load_kernel_module $m
 	done
-	
+
 	# Find all tables supported
 	local t= tables= tables6= chains= c= policy=
 	if [ $ENABLE_IPV4 -eq 1 ]; then
@@ -11606,14 +11605,14 @@ prepare_firewall_for_activation() {
 			${IPTABLES_CMD} -t "${t}" -F || exit 1
 			${IPTABLES_CMD} -t "${t}" -X || exit 1
 			${IPTABLES_CMD} -t "${t}" -Z || exit 1
-		
+
 			# Find all default chains in this table.
 			chains=`${IPTABLES_CMD} -t "${t}" -nL | ${GREP_CMD} "^Chain " | ${CUT_CMD} -d ' ' -f 2`
-		
+
 			# If this is the 'filter' table, remember the default chains.
 			# This will be used at the end to make it DROP all packets.
 			test "${t}" = "filter" && firehol_filter_chains="${chains}"
-		
+
 			# Set the policy to ACCEPT on all default chains.
 			for c in ${chains}
 			do
@@ -11731,7 +11730,7 @@ finalize_activated_firewall() {
 
 firewall_filtering_policy_common() {
 	local iptables_cmd="${1}"
-	
+
 	set_work_function "Applying ${iptables_cmd} firewall activation policy (options: FIREHOL_INPUT_ACTIVATION_POLICY FIREHOL_OUTPUT_ACTIVATION_POLICY FIREHOL_FORWARD_ACTIVATION_POLICY)"
 
 	${iptables_cmd} -t filter -P INPUT "${FIREHOL_INPUT_ACTIVATION_POLICY}"
@@ -12046,7 +12045,7 @@ then
 		${CAT_CMD} ${FIREHOL_OUTPUT} | ${SED_CMD} -e "s|#.*$||g" | ${EGREP_CMD} -v "^ *$"
 		exit 1
 	fi
-	
+
 	# apply the new ipsets
 	if [ ${ENABLE_IPSET} -eq 1 ]
 	then
@@ -12054,9 +12053,9 @@ then
 	fi
 
 	progress "Fast activating new firewall"
-	
+
 	prepare_firewall_for_activation
-	
+
 	# execute any postprocessing commands
 	# in FAST_ACTIVATION the output file does not have any iptables commands
 	# it might have kernel modules management, activation of routing, etc.
@@ -12081,7 +12080,7 @@ then
 			runtime_error error "CANNOT APPLY IN FAST MODE" FIN ${IPTABLES_RESTORE_CMD} "<${FIREHOL_OUTPUT}.fast"
 
 			work_runtime_error=$[work_runtime_error+1]
-			
+
 			# find the line
 			echo >&2 "Offending line:"
 			line=`$CAT_CMD "${FIREHOL_OUTPUT}.log" | $GREP_CMD "Error occurred at line: " | $CUT_CMD -d ':' -f 2`
@@ -12119,14 +12118,14 @@ then
 		fi
 	fi
 else
-	
+
 	if [ "${FIREHOL_MODE}" = "DEBUG" ]
 	then
 		file close 21
 		${CAT_CMD} ${FIREHOL_OUTPUT}
 		exit 1
 	fi
-	
+
 	# apply the new ipsets
 	if [ ${ENABLE_IPSET} -eq 1 ]
 	then
@@ -12135,9 +12134,9 @@ else
 
 	syslog info "Activating new firewall from ${FIREHOL_CONFIG} (translated to ${FIREHOL_COMMAND_COUNTER} iptables rules)."
 	progress "Activating new firewall (${FIREHOL_COMMAND_COUNTER} rules)"
-	
+
 	prepare_firewall_for_activation
-	
+
 	file close 21
 	source "${FIREHOL_OUTPUT}" "${@}"
 	if [ $? -ne 0 ]
@@ -12159,7 +12158,7 @@ then
 	fi
 
 	# The trap will restore the firewall we saved above.
-	
+
 	if [ ${FIREHOL_FAST_ACTIVATION} -eq 1 ]
 	then
 		echo >&2
@@ -12194,7 +12193,7 @@ then
 	then
 		syslog err "User did not confirm the new firewall."
 		# The trap will restore the firewall.
-		
+
 		exit 1
 	else
 		echo >&2 "Successfull activation of FireHOL firewall."
@@ -12255,11 +12254,11 @@ then
 			then
 				# Gentoo
 				IPTABLES_SAVE=
-				
+
 				. /etc/conf.d/iptables
 				FIREHOL_AUTOSAVE="${IPTABLES_SAVE}"
 			fi
-			
+
 			if [ -z "${FIREHOL_AUTOSAVE}" ]
 			then
 				# Debian
@@ -12277,11 +12276,11 @@ then
 		echo >&2
 		exit 1
 	fi
-	
+
 	if [ $ENABLE_IPV4 -eq 1 ]
 	then
 		progress "Saving firewall to '${FIREHOL_AUTOSAVE}'"
-	
+
 		$CAT_CMD "${FIREHOL_SPOOL_DIR}/ipv4.rules" >${FIREHOL_AUTOSAVE}
 		if [ ! $? -eq 0 ]
 		then
@@ -12297,7 +12296,7 @@ then
 	if [ $ENABLE_IPV6 -eq 1 ]
 	then
 		progress "Saving IPv6 firewall to '${FIREHOL_AUTOSAVE6}'"
-	
+
 		$CAT_CMD "${FIREHOL_SPOOL_DIR}/ipv6.rules" >${FIREHOL_AUTOSAVE6}
 		if [ ! $? -eq 0 ]
 		then
@@ -12309,6 +12308,6 @@ then
 		syslog info "New IPv6 firewall saved to '${FIREHOL_AUTOSAVE6}'."
 		success # "Saving IPv6 firewall to '${FIREHOL_AUTOSAVE6}'"
 	fi
-	
+
 	exit 0
 fi
