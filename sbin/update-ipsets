@@ -7770,7 +7770,6 @@ merge firehol_level3 ipv4 both \
 	bruteforceblocker \
 	ciarmy \
 	dshield_30d \
-	dshield_top_1000 \
 	malc0de \
 	maxmind_proxy_fraud \
 	myip \
