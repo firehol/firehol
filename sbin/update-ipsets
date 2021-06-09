@@ -4792,12 +4792,6 @@ update dshield 10 "$[24*60] $[7*24*60] $[30*24*60]" ipv4 both \
 	"[DShield.org](https://dshield.org/) top 20 attacking class C (/24) subnets over the last three days" \
 	"DShield.org" "https://dshield.org/"
 
-update dshield_top_1000 60 0 ipv4 ip \
-	"https://isc.sans.edu/api/sources/attacks/1000/" \
-	parse_dshield_api \
-	"attacks" \
-	"[DShield.org](https://dshield.org/) top 1000 attacking hosts in the last 30 days" \
-	"DShield.org" "https://dshield.org/"
 
 # -----------------------------------------------------------------------------
 # TOR lists
