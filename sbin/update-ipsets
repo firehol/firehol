@@ -4803,13 +4803,13 @@ update dshield_top_1000 60 0 ipv4 ip \
 # TOR is not necessary hostile, you may need this just for sensitive services.
 
 # https://www.dan.me.uk/tornodes
-# This contains a full TOR nodelist (no more than 30 minutes old).
+# This contains an exit TOR nodelist (no more than 30 minutes old).
 # The page has download limit that does not allow download in less than 30 min.
 update dm_tor 30 0 ipv4 ip \
-	"https://www.dan.me.uk/torlist/" \
+	"https://www.dan.me.uk/torlist/?exit" \
 	remove_comments \
 	"anonymizers" \
-	"[dan.me.uk](https://www.dan.me.uk) dynamic list of TOR nodes" \
+	"[dan.me.uk](https://www.dan.me.uk) dynamic list of TOR exit nodes" \
 	"dan.me.uk" "https://www.dan.me.uk/"
 
 et_tor_exit_nodes_only() { $GREP_CMD "Known Tor Exit Node" | snort_alert_rules_to_ipv4; }
