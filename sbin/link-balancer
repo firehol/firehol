@@ -364,7 +364,7 @@ action() {
 		then
 			warning "Command: '${@}' exited with code $ret."
 		else
-			syslog "Successfuly run: '${@}'."
+			syslog "Successfully run: '${@}'."
 		fi
 
 		return $ret
@@ -844,7 +844,7 @@ default() {
 	LB_IPV=${work_ipv}
 	if [ ! "${LB_TABLES_IPV[${work_table}]}" = "${LB_IPV}" -a ! "${LB_TABLES_IPV[${work_table}]}" = "46" ]
 	then
-		error "${FUNCNAME} INTERNAL ERROR: Inheritted IPv${LB_IPV} but table is IPv${LB_TABLES_IPV[${work_table}]}."
+		error "${FUNCNAME} INTERNAL ERROR: Inherited IPv${LB_IPV} but table is IPv${LB_TABLES_IPV[${work_table}]}."
 		exit 1
 	fi
 
@@ -957,7 +957,7 @@ update_table() {
 	# check IPvX is as it should
 	if [ ! "${LB_TABLES_IPV[${table}]}" = "${LB_IPV}" -a ! "${LB_TABLES_IPV[${table}]}" = "46" ]
 	then
-		error "${FUNCNAME} INTERNAL ERROR: Inheritted IPv${LB_IPV} but table is IPv${LB_TABLES_IPV[${work_table}]}."
+		error "${FUNCNAME} INTERNAL ERROR: Inherited IPv${LB_IPV} but table is IPv${LB_TABLES_IPV[${work_table}]}."
 		exit 1
 	fi
 
@@ -1785,7 +1785,7 @@ table dsl3
 
 # this is the main system routing table
 table main
-	default via dsl1 weigth 250
+	default via dsl1 weight 250
 	default via dsl2 weight 150
 	default via dsl3 weight 50
 
@@ -1872,7 +1872,7 @@ policy
 
 EOFCONFIG
 
-echo >&2 "Saved ${LB_CONFIG}.example for your convinience..."
+echo >&2 "Saved ${LB_CONFIG}.example for your convenience..."
 
 }
 

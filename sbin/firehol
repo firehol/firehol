@@ -272,7 +272,7 @@ FIREHOL_ENABLE_SPINNER=${FIREHOL_ENABLE_SPINNER-0}
 # If set to 1, FireHOL will actually do a 'restore' when a
 # 'start' is requested.
 # If enabled and the config files have not changed since
-# the last successful activation, the last successfuly
+# the last successful activation, the last successfully
 # activated firewall will be restored.
 # THIS OPTION SHOULD NOT BE ENABLED IF THE FIREWALL CONFIG
 # IS USING DYNAMIC DETECTION OF SERVER PORTS OR OTHER DATA
@@ -301,7 +301,7 @@ FIREHOL_SYSLOG_FACILITY="daemon"
 # Default: check the environment variable, if any
 WAIT_FOR_IFACE="${WAIT_FOR_IFACE}"
 
-# External program to call on 'start' (successfull or
+# External program to call on 'start' (successful or
 # failed), 'stop' and 'panic'
 # It will be run like this:
 # "${FIREHOL_NOTIFICATION_PROGRAM}" "${FIREHOL_CONFIG}" "${result}" "${restored}" "${work_error}" "${work_runtime_error}"
@@ -388,7 +388,7 @@ FIREHOL_AUTOSAVE6="${FIREHOL_AUTOSAVE6}"
 # 'accurate' generates a firewall that precisely matches all packets in both
 # directions: client->server and server->client
 # This setting affects logging, accounting and stateless rules.
-# When it is set to 'optimal', logginng will only log the first packet of NEW
+# When it is set to 'optimal', logging will only log the first packet of NEW
 # sockets, accounting will only account the first packet of NEW sockets and
 # stateless rules are disabled.
 # When it is set to 'accurate', logging and accounting will be done for all
@@ -405,7 +405,7 @@ FIREHOL_RULESET_MODE="accurate"
 # Default: 1
 FIREHOL_DROP_INVALID=1
 
-# When FIREHOL_DROP_INVALID=1 shall we also log the droped packets?
+# When FIREHOL_DROP_INVALID=1 shall we also log the dropped packets?
 # Default: 1
 FIREHOL_LOG_DROP_INVALID=1
 
@@ -460,7 +460,7 @@ FIREHOL_DROP_ORPHAN_TCP_RST=1
 FIREHOL_DROP_ORPHAN_IPV4_ICMP_TYPE3=1
 
 # If enabled FireHOL will create a chain per server/client statement and jump
-# to it from the main flow. Normaly this jump is only required for clarity.
+# to it from the main flow. Normally this jump is only required for clarity.
 # So it is advised to leave this setting to 0, for a more efficient firewall.
 # Default: 0
 FIREHOL_CHAIN_PER_SERVICE=0
@@ -482,7 +482,7 @@ FIREHOL_SUPPORT_MULTIPORT=1
 # Default: 1
 FIREHOL_PROTECTED_MATCHES=1
 
-# How to configure conntrack helper assignement?
+# How to configure conntrack helper assignment?
 #
 # 'kernel'  = the kernel will attempt to match RELATED sockets for all
 #             conntrack helpers and all traffic matching its predefined rules.
@@ -496,10 +496,10 @@ FIREHOL_PROTECTED_MATCHES=1
 #             You should only use this, if you don't NAT traffic that have to
 #             be seen by conntrack helpers to detect RELATED ports.
 #
-# 'manual'  = You configure conntrack helper assignement manually using
+# 'manual'  = You configure conntrack helper assignment manually using
 #             the 'cthelper' firehol helper.
 #             In this case, neither the kernel nor FireHOL will do anything
-#             about conntrack helpers assignement.
+#             about conntrack helpers assignment.
 #
 # Default: kernel
 FIREHOL_CONNTRACK_HELPERS_ASSIGNMENT="kernel"
@@ -777,7 +777,7 @@ IPTRAP_DEFAULT_IPSET_COUNTERS_OPTIONS="timeout 3600 counters"
 # ----------------------------------------------------------------------
 # DEFAULT IP SETS
 
-# FireHOL will overwite these settings with the contents of the files with
+# FireHOL will overwrite these settings with the contents of the files with
 # the same names in ${FIREHOL_CONFIG_DIR}.
 #
 # For example, RESERVED_IPV4 will be set from $SYSCONFDIR/firehol/RESERVED_IPV4
@@ -1884,7 +1884,7 @@ get_next_dynamic_counter() {
 # The following are definitions for complex services.
 # We define as "complex" the services that are implemented using multiple sockets.
 
-# Each function bellow is organized in three parts:
+# Each function below is organized in three parts:
 # 1) A Header, common to each and every function
 # 2) The rules required for the INPUT of the server
 # 3) The rules required for the OUTPUT of the server
@@ -2096,7 +2096,7 @@ rules_emule() {
 
 	# ----------------------------------------------------------------------
 
-	# allow incomming to server tcp/4662
+	# allow incoming to server tcp/4662
 	set_work_function "Rules for EMULE/client-to-server tcp/4662 (${type})"
 	rule ${in}          action "${@}" chain "${in}_${mychain}"  proto "tcp" sport any dport 4662 state NEW,ESTABLISHED || return 1
 	rule ${out} reverse action "${@}" chain "${out}_${mychain}" proto "tcp" sport any dport 4662 state ESTABLISHED     || return 1
@@ -2106,7 +2106,7 @@ rules_emule() {
 	rule ${out} reverse action "${@}" chain "${out}_${mychain}" proto "tcp" dport any sport 4662 state NEW,ESTABLISHED || return 1
 	rule ${in}          action "${@}" chain "${in}_${mychain}"  proto "tcp" dport any sport 4662 state ESTABLISHED     || return 1
 
-	# allow incomming to server udp/4672
+	# allow incoming to server udp/4672
 	set_work_function "Rules for EMULE/client-to-server udp/4672 (${type})"
 	rule ${in}          action "${@}" chain "${in}_${mychain}"  proto "udp" sport any dport 4672 state NEW,ESTABLISHED || return 1
 	rule ${out} reverse action "${@}" chain "${out}_${mychain}" proto "udp" sport any dport 4672 state ESTABLISHED     || return 1
@@ -2116,12 +2116,12 @@ rules_emule() {
 	rule ${out} reverse action "${@}" chain "${out}_${mychain}" proto "udp" dport any sport 4672 state NEW,ESTABLISHED || return 1
 	rule ${in}          action "${@}" chain "${in}_${mychain}"  proto "udp" dport any sport 4672 state ESTABLISHED     || return 1
 
-	# allow incomming to server tcp/4661
+	# allow incoming to server tcp/4661
 	set_work_function "Rules for EMULE/client-to-server tcp/4661 (${type})"
 	rule ${in}          action "${@}" chain "${in}_${mychain}"  proto "tcp" sport any dport 4661 state NEW,ESTABLISHED || return 1
 	rule ${out} reverse action "${@}" chain "${out}_${mychain}" proto "tcp" sport any dport 4661 state ESTABLISHED     || return 1
 
-	# allow incomming to server udp/4665
+	# allow incoming to server udp/4665
 	set_work_function "Rules for EMULE/client-to-server udp/4665 (${type})"
 	rule ${in}          action "${@}" chain "${in}_${mychain}"  proto "udp" sport any dport 4665 state NEW,ESTABLISHED || return 1
 	rule ${out} reverse action "${@}" chain "${out}_${mychain}" proto "udp" sport any dport 4665 state ESTABLISHED     || return 1
@@ -2153,7 +2153,7 @@ rules_hylafax() {
 
 	# ----------------------------------------------------------------------
 
-	# allow incomming to server tcp/4559
+	# allow incoming to server tcp/4559
 	set_work_function "Rules for HYLAFAX/client-to-server tcp/4559 (${type})"
 	rule ${in}          action "${@}" chain "${in}_${mychain}"  proto "tcp" sport any dport 4559 state NEW,ESTABLISHED || return 1
 	rule ${out} reverse action "${@}" chain "${out}_${mychain}" proto "tcp" sport any dport 4559 state ESTABLISHED     || return 1
@@ -2196,7 +2196,7 @@ rules_samba() {
 	# (request goes to broadcast address) but the server responds from
 	# its own IP address. This makes the server samba accept statement
 	# drop the server reply.
-	# Bellow is a hack, that allows a linux samba server to respond
+	# Below is a hack, that allows a linux samba server to respond
 	# correctly, as it allows new outgoing connections from the well
 	# known netbios-ns port to the clients high ports.
 	# For clients and routers this hack is not applied because it
@@ -2818,7 +2818,7 @@ fi
 # XXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXX
 # ------------------------------------------------------------------------------
 #
-# HELPER FUNCTIONS BELLOW THIS POINT
+# HELPER FUNCTIONS BELOW THIS POINT
 #
 # ------------------------------------------------------------------------------
 # XXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXX
@@ -3520,7 +3520,7 @@ synproxy() {
 					test ${FIREHOL_SYNPROXY_LOG} -eq 1 && log=(loglimit "SYNPROXY->SERVER DNAT'd OUT")
 					rule table filter chain SYNPROXY2SERVER_OUT "${match[@]}" proto tcp "${log[@]}" action ACCEPT nosoftwarnings inface any physin any ${ip} ${port} || return 1
 
-					set_work_function "SERVER->CLIENT droping INVALID ACK"
+					set_work_function "SERVER->CLIENT dropping INVALID ACK"
 					test ${FIREHOL_SYNPROXY_LOG} -eq 1 && log=(loglimit "SERVER->CLIENT INVALID ACK")
 					rule table filter chain FORWARD reverse "${match[@]}" custom '-m tcp --tcp-flags RST,ACK ACK' proto tcp state INVALID "${log[@]}" nosoftwarnings ${ip} ${port} action DROP || return 1
 				done
@@ -3545,7 +3545,7 @@ synproxy() {
 				test ${FIREHOL_SYNPROXY_LOG} -eq 1 && log=(loglimit "SYNPROXY->SERVER lo IN")
 				rule table filter chain SYNPROXY2SERVER_IN "${match[@]}" proto tcp "${log[@]}" action ACCEPT nosoftwarnings inface lo physin any outface any physout any dst "${localhost}"  dport "${!FIREHOL_LAST_NAT_MAP[*]}" || return 1
 
-				set_work_function "SERVER->CLIENT droping INVALID ACK"
+				set_work_function "SERVER->CLIENT dropping INVALID ACK"
 				test ${FIREHOL_SYNPROXY_LOG} -eq 1 && log=(loglimit "SERVER->CLIENT INVALID ACK")
 				rule table filter chain OUTPUT reverse "${match[@]}" custom '-m tcp --tcp-flags RST,ACK ACK' proto tcp state INVALID "${log[@]}" nosoftwarnings action DROP outface any physout any dport "${!FIREHOL_LAST_NAT_MAP[*]}" || return 1
 
@@ -3572,7 +3572,7 @@ synproxy() {
 					test ${FIREHOL_SYNPROXY_LOG} -eq 1 && log=(loglimit "SYNPROXY->SERVER ACTION ${action^^} IN")
 					rule table filter chain SYNPROXY2SERVER_IN "${match[@]}" proto tcp "${log[@]}" nosoftwarnings action "${action}" "${action_args[@]}" inface lo physin any outface any physout any || return 1
 
-					set_work_function "SERVER->CLIENT droping INVALID ACK"
+					set_work_function "SERVER->CLIENT dropping INVALID ACK"
 					test ${FIREHOL_SYNPROXY_LOG} -eq 1 && log=(loglimit "SERVER->CLIENT INVALID ACK")
 					rule table filter chain OUTPUT reverse "${match[@]}" custom '-m tcp --tcp-flags RST,ACK ACK' proto tcp state INVALID "${log[@]}" nosoftwarnings action DROP outface any physout any || return 1
 
@@ -3584,7 +3584,7 @@ synproxy() {
 					test ${FIREHOL_SYNPROXY_LOG} -eq 1 && log=(loglimit "SYNPROXY->SERVER ACTION ${action^^} OUT")
 					rule table filter chain SYNPROXY2SERVER_OUT "${match[@]}" proto tcp "${log[@]}" nosoftwarnings action "${action}" "${action_args[@]}" inface any physin any || return 1
 
-					set_work_function "SERVER->CLIENT droping INVALID ACK"
+					set_work_function "SERVER->CLIENT dropping INVALID ACK"
 					test ${FIREHOL_SYNPROXY_LOG} -eq 1 && log=(loglimit "SERVER->CLIENT INVALID ACK")
 					rule table filter chain FORWARD reverse "${match[@]}" custom '-m tcp --tcp-flags RST,ACK ACK' proto tcp state INVALID "${log[@]}" nosoftwarnings action DROP || return 1
 
@@ -5213,7 +5213,7 @@ docker_bridge() {
 # XXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXX
 # ------------------------------------------------------------------------------
 #
-# INTERNAL FUNCTIONS BELLOW THIS POINT - Primary commands
+# INTERNAL FUNCTIONS BELOW THIS POINT - Primary commands
 #
 # ------------------------------------------------------------------------------
 # XXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXX
@@ -5273,7 +5273,7 @@ interface() {
 	fi
 	push_namespace "${ipv}"
 
-	# --- get paramaters and validate them ---
+	# --- get parameters and validate them ---
 
 	# Get the interface
 	local 	inface="${1}" \
@@ -5342,7 +5342,7 @@ router() {
 	push_namespace "${ipv}"
 
 
-	# --- get paramaters and validate them ---
+	# --- get parameters and validate them ---
 
 	# Get the name for this router
 	local name="${1}"; shift
@@ -5543,7 +5543,7 @@ run_fast() {
 # XXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXX
 # ------------------------------------------------------------------------------
 #
-# INTERNAL FUNCTIONS BELLOW THIS POINT - Sub-commands
+# INTERNAL FUNCTIONS BELOW THIS POINT - Sub-commands
 #
 # ------------------------------------------------------------------------------
 # XXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXX
@@ -5907,7 +5907,7 @@ else
 
 fi
 
-# activation-phase command to check for the existance of
+# activation-phase command to check for the existence of
 # a kernel configuration directive. It returns:
 # 0 = module is already in the kernel
 # 1 = module can be loaded with modprobe
@@ -5954,7 +5954,7 @@ check_kernel_config() {
 	return 2
 }
 
-# activation-phase command to check for the existance of
+# activation-phase command to check for the existence of
 # a kernel module. It returns:
 # 0 = module is already in the kernel
 # 1 = module can be loaded with modprobe
@@ -6048,7 +6048,7 @@ require_kernel_module() {
 # XXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXX
 # ------------------------------------------------------------------------------
 #
-# INTERNAL FUNCTIONS BELLOW THIS POINT - FireHOL internals
+# INTERNAL FUNCTIONS BELOW THIS POINT - FireHOL internals
 #
 # ------------------------------------------------------------------------------
 # XXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXX
@@ -6108,7 +6108,7 @@ require_work() {
 # WHY:
 # At the end of an interface or router we need to add some code to apply its
 # policy, etc.
-# Finalization occures automatically when a new primary command is executed and
+# Finalization occurs automatically when a new primary command is executed and
 # when the configuration file finishes.
 
 close_cmd() {
@@ -6249,7 +6249,7 @@ close_router() {
 # close_master
 # WHY:
 # Finalizes the rules for the whole firewall.
-# It assummes there is not primary command open.
+# It assumms there is not primary command open.
 
 close_master() {
 	set_work_function "Finilizing firewall policies"
@@ -6631,7 +6631,7 @@ rule_action_param() {
 	done
 	shift $[count + 1]
 
-	# If we don't have a seperator, generate an error
+	# If we don't have a separator, generate an error
 	if [ ! "A${val}" = "A--" ]
 	then
 		error "Internal Error, in parsing action_param parameters (${FUNCNAME} '${action}' '${statenot}' '${state}' '${table}' '${action_param[@]}' '${@}')."
@@ -8053,7 +8053,7 @@ rule() {
 
 	# In FIREHOL_RULESET_MODE="optimal" (given as the parameter optimal=1) to us,
 	# we just create the state=NEW rules.
-	# We will work normaly though if a helper is required.
+	# We will work normally though if a helper is required.
 	if [ ${optimal} -eq 1 -a "${table}" = "filter" -a -z "${helper[*]}" -a "${proto[0]}" != "icmpv6" ]
 	then
 		if [[ "${state}" =~ 'NEW' ]]
@@ -8201,7 +8201,7 @@ rule() {
 		inf= outf= inph= outph= \
 		mc= ipv= iptables= src= dst= s= d= sp= dp= \
 		not= src_has_ipset=0 dst_has_ipset=0 \
-		DYNAMIC_CHAIN_COUNTER attachement=
+		DYNAMIC_CHAIN_COUNTER attachment=
 
 	# log / loglimit
 	case "${log}" in
@@ -8617,10 +8617,10 @@ rule() {
 			# echo >&2 "    >>> ${FUNCNAME}: NEGATIVES: TARGET ACTION IS CHAIN"
 		else
 			# if the action is a native iptables action, then create
-			# an intermidiate chain to store the negative expression,
+			# an intermediate chain to store the negative expression,
 			# and change the action of the rule to point to this action.
 
-			# In this case, bellow we add after all negatives, the original
+			# In this case, below we add after all negatives, the original
 			# action of the rule.
 			get_next_dynamic_counter DYNAMIC_CHAIN_COUNTER
 			negative_chain="${chain}.${DYNAMIC_CHAIN_COUNTER}"
@@ -8630,7 +8630,7 @@ rule() {
 			action="${negative_chain}"
 			not=
 
-			# notify the positive rules that the action is our banch
+			# notify the positive rules that the action is our branch
 			action_is_our_branch=1
 			# echo >&2 "    >>> ${FUNCNAME}: NEGATIVES: BRANCHING TO NEW CHAIN ${negative_action}"
 		fi
@@ -8952,7 +8952,7 @@ rule() {
 		logging_action="${action}"
 		action="${logging_chain}"
 
-		# notify the positive rules that the action is our banch
+		# notify the positive rules that the action is our branch
 		action_is_our_branch=1
 
 		if [ "${logging_action}" = "${logging_chain}" ]
@@ -9024,7 +9024,7 @@ rule() {
 			protected_action="${action}"
 			action="${protected_chain}"
 
-			# notify the positive rules that the action is our banch
+			# notify the positive rules that the action is our branch
 			action_is_our_branch=1
 
 			if [ "${protected_action}" = "${protected_chain}" ]
@@ -9059,7 +9059,7 @@ rule() {
 			# notify the positive rules that we have placed all protected in the branch
 			placed_protected_in_a_branch=1
 
-			# empty the contrained parameters
+			# empty the constrained parameters
 			# so that the positive rules do not add them again
 			protected_args=()
 			have_protected=0
@@ -9116,13 +9116,13 @@ rule() {
 
 	if [ -z "${positive_rule_number}" ]
 	then
-		attachement="-A ${chain}"
+		attachment="-A ${chain}"
 	else
 		if [ ${positive_rule_number} -gt 1 ]
 		then
-			attachement="-I ${chain} ${positive_rule_number}"
+			attachment="-I ${chain} ${positive_rule_number}"
 		else
-			attachement="-I ${chain}"
+			attachment="-I ${chain}"
 		fi
 	fi
 
@@ -9402,13 +9402,13 @@ rule() {
 	# if we append rules
 	if [ -z "${positive_rule_number}" ]
 	then
-		if [ "$logrule" = "limit"  ]; then ${iptables} -t ${table} ${attachement} "${basecmd[@]}" -m limit --limit "${FIREHOL_LOG_FREQUENCY}" --limit-burst "${FIREHOL_LOG_BURST}" -j ${FIREHOL_LOG_MODE} ${FIREHOL_LOG_OPTIONS} "${logopts_arg[@]}" || failed=$[failed + 1]; fi
-		if [ "$logrule" = "normal" ]; then ${iptables} -t ${table} ${attachement} "${basecmd[@]}" -j ${FIREHOL_LOG_MODE} ${FIREHOL_LOG_OPTIONS} "${logopts_arg[@]}" || failed=$[failed + 1]; fi
-		if [ ! -z "${accounting}"  ]; then ${iptables} -t ${table} ${attachement} "${basecmd[@]}" -m nfacct --nfacct-name "${accounting}" || failed=$[failed + 1]; fi
+		if [ "$logrule" = "limit"  ]; then ${iptables} -t ${table} ${attachment} "${basecmd[@]}" -m limit --limit "${FIREHOL_LOG_FREQUENCY}" --limit-burst "${FIREHOL_LOG_BURST}" -j ${FIREHOL_LOG_MODE} ${FIREHOL_LOG_OPTIONS} "${logopts_arg[@]}" || failed=$[failed + 1]; fi
+		if [ "$logrule" = "normal" ]; then ${iptables} -t ${table} ${attachment} "${basecmd[@]}" -j ${FIREHOL_LOG_MODE} ${FIREHOL_LOG_OPTIONS} "${logopts_arg[@]}" || failed=$[failed + 1]; fi
+		if [ ! -z "${accounting}"  ]; then ${iptables} -t ${table} ${attachment} "${basecmd[@]}" -m nfacct --nfacct-name "${accounting}" || failed=$[failed + 1]; fi
 	fi
 
 	# do it!
-	rule_action_param ${iptables} "${action}" "${statenot}" "${state}" "${table}" "${connlog}" "${action_param[@]}" -- -t ${table} ${attachement} "${basecmd[@]}" || failed=$[failed + 1]
+	rule_action_param ${iptables} "${action}" "${statenot}" "${state}" "${table}" "${connlog}" "${action_param[@]}" -- -t ${table} ${attachment} "${basecmd[@]}" || failed=$[failed + 1]
 	(( FIREHOL_RULE_POSITIVE_STATEMENTS_GENERATED += 1 ))
 
 	# if we insert rules
@@ -9416,9 +9416,9 @@ rule() {
 	# so it will be inserted before the actual rule
 	if [ ! -z "${positive_rule_number}" ]
 	then
-		if [ "$logrule" = "limit"  ]; then ${iptables} -t ${table} ${attachement} "${basecmd[@]}" -m limit --limit "${FIREHOL_LOG_FREQUENCY}" --limit-burst "${FIREHOL_LOG_BURST}" -j ${FIREHOL_LOG_MODE} ${FIREHOL_LOG_OPTIONS} "${logopts_arg[@]}" || failed=$[failed + 1]; fi
-		if [ "$logrule" = "normal" ]; then ${iptables} -t ${table} ${attachement} "${basecmd[@]}" -j ${FIREHOL_LOG_MODE} ${FIREHOL_LOG_OPTIONS} "${logopts_arg[@]}" || failed=$[failed + 1]; fi
-		if [ ! -z "${accounting}"  ]; then ${iptables} -t ${table} ${attachement} "${basecmd[@]}" -m nfacct --nfacct-name "${accounting}" || failed=$[failed + 1]; fi
+		if [ "$logrule" = "limit"  ]; then ${iptables} -t ${table} ${attachment} "${basecmd[@]}" -m limit --limit "${FIREHOL_LOG_FREQUENCY}" --limit-burst "${FIREHOL_LOG_BURST}" -j ${FIREHOL_LOG_MODE} ${FIREHOL_LOG_OPTIONS} "${logopts_arg[@]}" || failed=$[failed + 1]; fi
+		if [ "$logrule" = "normal" ]; then ${iptables} -t ${table} ${attachment} "${basecmd[@]}" -j ${FIREHOL_LOG_MODE} ${FIREHOL_LOG_OPTIONS} "${logopts_arg[@]}" || failed=$[failed + 1]; fi
+		if [ ! -z "${accounting}"  ]; then ${iptables} -t ${table} ${attachment} "${basecmd[@]}" -m nfacct --nfacct-name "${accounting}" || failed=$[failed + 1]; fi
 	fi
 
 	done # dport
@@ -9498,7 +9498,7 @@ error() {
 # WHY:
 # The generated iptables commands must be checked for errors in case they fail.
 # This command is executed after every postprocessing command to find out
-# if it has been successfull or failed.
+# if it has been successful or failed.
 
 runtime_error() {
 	local type="ERROR" id=
@@ -9580,11 +9580,11 @@ chain_exists() {
 # create_chain - create a chain and link it to the firewall
 # WHY:
 # When a chain is created it must somehow to be linked to the rest of the
-# firewall apropriately. This function first creates the chain and then
+# firewall appropriately. This function first creates the chain and then
 # it links it to its final position within the generated firewall.
 
 # An associative array to hold chain aliases
-# it is used to prevent creating unecessary chain, while allowing
+# it is used to prevent creating unnecessary chain, while allowing
 # simple and complex services to create virtual chains.
 declare -A FIREHOL_CHAIN_ALIASES=()
 
@@ -10806,11 +10806,11 @@ EOF
 You can use anything a FireHOL configuration file accepts, including variables,
 loops, etc. Take only care to write loops in one row.
 
-Additionaly, you can use the following commands:
+Additionally, you can use the following commands:
 
 	help	to print this text on your screen.
 
-	show	to show all the successfull commands so far.
+	show	to show all the successful commands so far.
 
 	quit	to show the interactively given configuration file
 		and quit.
@@ -11146,7 +11146,7 @@ EOF
 # Date: `${DATE_CMD}` on host `${HOSTNAME_CMD}`
 #
 # IMPORTANT:
-# The TODOs bellow, are *YOUR* to-dos!
+# The TODOs below, are *YOUR* to-dos!
 #
 
 EOF
@@ -11828,47 +11828,47 @@ firewall_filtering_policy_common_late() {
 
 	if [ "${FIREHOL_DROP_ORPHAN_TCP_ACK_FIN}" = "1" ]
 	then
-		set_work_function "Silently droping TCP ACK+FIN packets (option: FIREHOL_DROP_ORPHAN_TCP_ACK_FIN)"
+		set_work_function "Silently dropping TCP ACK+FIN packets (option: FIREHOL_DROP_ORPHAN_TCP_ACK_FIN)"
 
 		# Silently drop orphan TCP/ACK FIN packets
-		# before droping INVALID below, otherwise these will be logged as INVALID too
+		# before dropping INVALID below, otherwise these will be logged as INVALID too
 		${iptables_cmd} -t filter -A ${iptables_chain} -p tcp --tcp-flags ACK,FIN ACK,FIN -m conntrack --ctstate NEW,INVALID -j DROP
 	fi
 
 	if [ "${FIREHOL_DROP_ORPHAN_TCP_ACK_RST}" = "1" ]
 	then
-		set_work_function "Silently droping TCP ACK+RST packets (option: FIREHOL_DROP_ORPHAN_TCP_ACK_RST)"
+		set_work_function "Silently dropping TCP ACK+RST packets (option: FIREHOL_DROP_ORPHAN_TCP_ACK_RST)"
 
 		# Silently drop orphan TCP/ACK RST packets
-		# before droping INVALID below, otherwise these will be logged as INVALID too
+		# before dropping INVALID below, otherwise these will be logged as INVALID too
 		${iptables_cmd} -t filter -A ${iptables_chain} -p tcp --tcp-flags ACK,RST ACK,RST -m conntrack --ctstate NEW,INVALID -j DROP
 
 	fi
 
 	if [ "${FIREHOL_DROP_ORPHAN_TCP_ACK}" = "1" ]
 	then
-		set_work_function "Silently droping TCP ACK packets (option: FIREHOL_DROP_ORPHAN_TCP_ACK)"
+		set_work_function "Silently dropping TCP ACK packets (option: FIREHOL_DROP_ORPHAN_TCP_ACK)"
 
 		# Silently drop orphan TCP/ACK packets
-		# before droping INVALID below, otherwise these will be logged as INVALID too
+		# before dropping INVALID below, otherwise these will be logged as INVALID too
 		${iptables_cmd} -t filter -A ${iptables_chain} -p tcp --tcp-flags ACK ACK -m conntrack --ctstate NEW,INVALID -j DROP
 	fi
 
 	if [ "${FIREHOL_DROP_ORPHAN_TCP_RST}" = "1" ]
 	then
-		set_work_function "Silently droping TCP RST packets (option: FIREHOL_DROP_ORPHAN_TCP_RST)"
+		set_work_function "Silently dropping TCP RST packets (option: FIREHOL_DROP_ORPHAN_TCP_RST)"
 
 		# Silently drop orphan TCP/RST packets
-		# before droping INVALID below, otherwise these will be logged as INVALID too
+		# before dropping INVALID below, otherwise these will be logged as INVALID too
 		${iptables_cmd} -t filter -A ${iptables_chain} -p tcp --tcp-flags RST RST -m conntrack --ctstate NEW,INVALID -j DROP
 	fi
 
 	if [ "${iptables_cmd}" = "iptables" -a "${FIREHOL_DROP_ORPHAN_IPV4_ICMP_TYPE3}" = "1" ]
 	then
-		set_work_function "Silently droping ICMP destination-unreachable packets (option: FIREHOL_DROP_ORPHAN_IPV4_ICMP_TYPE3)"
+		set_work_function "Silently dropping ICMP destination-unreachable packets (option: FIREHOL_DROP_ORPHAN_IPV4_ICMP_TYPE3)"
 
 		# Silently drop orphan ICMP/TYPE3 packets
-		# before droping INVALID below, otherwise these will be logged as INVALID too
+		# before dropping INVALID below, otherwise these will be logged as INVALID too
 		${iptables_cmd} -t filter -A ${iptables_chain} -p icmp --icmp-type destination-unreachable -m conntrack --ctstate NEW,INVALID -j DROP
 	fi
 
@@ -11876,7 +11876,7 @@ firewall_filtering_policy_common_late() {
 	# Netfilter HOWTO suggests to DROP all INVALID packets.
 	if [ "${FIREHOL_DROP_INVALID}" = "1" -o "${FIREHOL_RULESET_MODE}" = "optimal" ]
 	then
-		set_work_function "Droping ${iptables_cmd} connection tracker INVALID packets (option: FIREHOL_DROP_INVALID)"
+		set_work_function "Dropping ${iptables_cmd} connection tracker INVALID packets (option: FIREHOL_DROP_INVALID)"
 
 		if [ ${FIREHOL_LOG_DROP_INVALID} -eq 1 ]
 		then
@@ -11997,7 +11997,7 @@ then
 		echo >&2
 	fi
 
-	# construct the iptables-restore file from the splitted ones.
+	# construct the iptables-restore file from the split ones.
 	for n in table table6
 	do
 		case "${n}" in
@@ -12215,7 +12215,7 @@ then
 
 		exit 1
 	else
-		echo >&2 "Successfull activation of FireHOL firewall."
+		echo >&2 "Successful activation of FireHOL firewall."
 		syslog info "User committed new firewall."
 	fi
 fi

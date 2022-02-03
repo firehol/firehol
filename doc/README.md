@@ -39,7 +39,7 @@ Titles
 Use #, ##, ### rather than underlining titles, since some of the scripts
 rely on them when combining files. The exception is introduction.md which
 should use ==== etc. These conventions are relied on whilst combining
-files to ensure sections wind up at the correct heirachy in the output.
+files to ensure sections wind up at the correct hierarchy in the output.
 
 
 Linking

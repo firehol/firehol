@@ -103,7 +103,7 @@ case "$format" in
         # Validate tags
 	$XMLLINT $XMLLINT_FLAGS --html "$filename" > $MYTMP/verify.html
 
-        # Reformat so we can indentify internal  sections
+        # Reformat so we can identify internal sections
 	$XMLLINT $XMLLINT_FLAGS --format "$filename" > $MYTMP/format.html
 
         # Fixup some whitespace formatting damage done by xmllint
@@ -123,7 +123,7 @@ case "$format" in
 	$SED -i -e '1a.nh' "$filename"
         if version_ge "$version" 1.9.4.2
         then
-          # supress any internal links, since pandoc just leaves them
+          # suppress any internal links, since pandoc just leaves them
           # verbatim in manpage output
 	  $SED -i -e 's/ (#[a-z.0-9_-]*)//g' "$filename"
         fi

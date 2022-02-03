@@ -84,7 +84,7 @@
 #    The default scoring is suitable for servers servicing users, it favours
 #    dynamic IPs and penalizes server IPs.
 #
-# 10. The score of each successfull DNS lookup is added to the total score
+# 10. The score of each successful DNS lookup is added to the total score
 #     for each IP.
 #
 # 11. When the DNS resolution for an IP completes for all DNSBLs configured,
