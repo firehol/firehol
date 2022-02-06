@@ -1085,7 +1085,7 @@ check_constrains() {
 	then
 		if [ $ceil -gt $parent_ceil ]
 		then
-			warning "ceil ($((ceil * 8 / 1000))kbit) is higher than its parent's ceil ($((parent_ceil * 8 / 1000))kbit). Fixed it by settting ceil to parent's ceil."
+			warning "ceil ($((ceil * 8 / 1000))kbit) is higher than its parent's ceil ($((parent_ceil * 8 / 1000))kbit). Fixed it by setting ceil to parent's ceil."
 			eval "${prefix}_ceil=$parent_ceil"
 		fi
 	fi
@@ -1731,14 +1731,14 @@ class() {
 	then
 		if [ ${class_group} -eq 0 ]
 		then
-			( [ ! -z "${class_hashfilter_prefix}" ] || [ ! -z "${class_hashfilter_direction}" ] || [ ! -z "${class_hashfilter_mask}" ] ) && error "Class group '${class_name}' has hashfilter group parameters set, but class is not definied as a group!"
+			( [ ! -z "${class_hashfilter_prefix}" ] || [ ! -z "${class_hashfilter_direction}" ] || [ ! -z "${class_hashfilter_mask}" ] ) && error "Class group '${class_name}' has hashfilter group parameters set, but class is not defined as a group!"
 			if ! [[ "${class_hashfilter_key}" =~ ^[[:digit:]]{1,3}$ ]]
 			then
 				error "Class group '${class_name}' has hashfilter key parameter set in incorrect notation!"
 			fi
          class_hashfilter_key=$(printf '%x' ${class_hashfilter_key})
 		else
-			[ ! -z "${class_hashfilter_key}" ]  && error "Class group '${class_name}' has hashfilter key parameters set, but class is definied as a group!"
+			[ ! -z "${class_hashfilter_key}" ]  && error "Class group '${class_name}' has hashfilter key parameters set, but class is defined as a group!"
 
 			if ! [[ "${class_hashfilter_prefix}" =~ ^([[:graph:]]+)/([[:graph:]]+)$ ]]
 			then
@@ -1770,7 +1770,7 @@ class() {
 	   fi
    fi
 
-	# class rate cannot go bellow 1/100 of the interface rate
+	# class rate cannot go below 1/100 of the interface rate
 	if [ ${class_rate} -lt ${interface_minrate} ]
 	then
 		warning "class rate ($((class_rate * 8 /1000))kbit) was less than the interface minrate ($((interface_minrate * 8 /1000))kbit). Fixed it by setting class rate to minrate."
@@ -1786,7 +1786,7 @@ class() {
 	[ ! -z "$class_quantum" ]	&& local quantum="quantum $class_quantum"
 
 	# construct the stab for group class
-	# later we will check if this is accidentaly used in leaf classes
+	# later we will check if this is accidentally used in leaf classes
 	local stab=
 	if [ ! -z "${class_linklayer}" ]
 	then
@@ -1827,11 +1827,11 @@ class() {
 		# the default class that all unmatched traffic will be sent to
 		class_default_class="$((interface_default_class + interface_default_counter))"
 
-		# if the user added a stab, we need a qdisc and a slave class bellow the qdisc
+		# if the user added a stab, we need a qdisc and a slave class below the qdisc
 		if [ ! -z "${stab}" ]
 		then
 			# this is a group class with a linklayer
-			# we add a qdisc with the stab, and an HTB class bellow it
+			# we add a qdisc with the stab, and an HTB class below it
 
 			# add the class
 			tc class add dev ${interface_realdev} parent ${parent_classid} classid ${class_classid} htb ${rate} ${ceil} ${burst} ${cburst} prio ${class_prio} ${quantum}
@@ -1839,7 +1839,7 @@ class() {
 			# attach a qdisc
 			tc qdisc add dev ${interface_realdev} parent ${class_classid} handle ${class_major}: ${stab} htb default ${class_default_class}
 
-			# attach a class bellow the qdisc
+			# attach a class below the qdisc
 			tc class add dev ${interface_realdev} parent ${class_major}: classid ${class_major}:1 htb ${rate} ${ceil} ${burst} ${cburst} ${quantum}
 
 			# the parent of the child classes
@@ -3984,7 +3984,7 @@ if [ ${FIREQOS_MARKS_ON_INPUT_USED} -gt 0 ]
 then
 	echo >&2
 	echo >&2 -e "${COLOR_BGRED}${COLOR_WHITE} WARNING ${COLOR_RESET}"
-	echo >&2 -e "There have been encounted ${FIREQOS_MARKS_ON_INPUT_USED} rule(s) than match MARKs in incoming traffic."
+	echo >&2 -e "There have been encountered ${FIREQOS_MARKS_ON_INPUT_USED} rule(s) than match MARKs in incoming traffic."
 	echo >&2 -e "These statements will not match incoming packets without adding:${COLOR_BOLD}"
 	echo >&2 -e "FIREQOS_CONNMARK_RESTORE=\"act_connmark\""
 	echo >&2 -e "${COLOR_RESET}in your config. This however requires the act_connmark kernel module."

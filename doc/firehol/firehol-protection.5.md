@@ -161,7 +161,7 @@ protection connlimit 100 mask 24 src not 1.2.3.4
 protection connlimit 200 src 1.2.3.4
 ~~~~
 
-Limit all clients to 10 concurrect connections and 60 connections/minute
+Limit all clients to 10 concurrent connections and 60 connections/minute
 
 ~~~~
 protection connlimit 10

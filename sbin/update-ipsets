@@ -1139,7 +1139,7 @@ download_manager() {
 	[ -z "${IPSET_CHECKED_DATE[${ipset}]}"      ] && IPSET_CHECKED_DATE[${ipset}]=0
 	[ -z "${IPSET_DOWNLOAD_FAILURES[${ipset}]}" ] && IPSET_DOWNLOAD_FAILURES[${ipset}]=0
 
-	# nunber of consecutive failures so far
+	# number of consecutive failures so far
 	fails=${IPSET_DOWNLOAD_FAILURES[${ipset}]}
 	base=${IPSET_CHECKED_DATE[${ipset}]}
 	if [ ${IGNORE_LASTCHECKED} -eq 1 ]
@@ -2559,7 +2559,7 @@ ipset_attributes() {
 }
 
 # -----------------------------------------------------------------------------
-# finalize() is called when a successful download and convertion completes
+# finalize() is called when a successful download and conversion completes
 # to update the ipset in the kernel and possibly commit it to git
 finalize() {
 	local 	ipset="${1}" tmp="${2}" \
@@ -2925,7 +2925,7 @@ update() {
 	# if the .split file exists, create 2 ipsets, one for IPs and one for subnets
 	if [ "${limit}" = "split" -o \( -z "${limit}" -a -f "${BASE_DIR}/${ipset}.split" \) ]
 	then
-		ipset_info "${ipset}" "spliting IPs and subnets..."
+		ipset_info "${ipset}" "splitting IPs and subnets..."
 		test -f "${BASE_DIR}/${ipset}_ip.source" && $RM_CMD "${BASE_DIR}/${ipset}_ip.source"
 		test -f "${BASE_DIR}/${ipset}_net.source" && $RM_CMD "${BASE_DIR}/${ipset}_net.source"
 		(
@@ -5059,7 +5059,7 @@ update zeus_badips 30 0 ipv4 ip \
 	"https://zeustracker.abuse.ch/blocklist.php?download=badips" \
 	remove_comments \
 	"malware" \
-	"[Abuse.ch Zeus tracker](https://zeustracker.abuse.ch) badips includes IPv4 addresses that are used by the ZeuS trojan. It is the recommened blocklist if you want to block only ZeuS IPs. It excludes IP addresses that ZeuS Tracker believes to be hijacked (level 2) or belong to a free web hosting provider (level 3). Hence the false postive rate should be much lower compared to the standard ZeuS IP blocklist." \
+	"[Abuse.ch Zeus tracker](https://zeustracker.abuse.ch) badips includes IPv4 addresses that are used by the ZeuS trojan. It is the recommended blocklist if you want to block only ZeuS IPs. It excludes IP addresses that ZeuS Tracker believes to be hijacked (level 2) or belong to a free web hosting provider (level 3). Hence the false positive rate should be much lower compared to the standard ZeuS IP blocklist." \
 	"Abuse.ch" "https://zeustracker.abuse.ch/" \
 	can_be_empty
 
@@ -5689,7 +5689,7 @@ update turris_greylist $[7 * 24 * 60] 0 ipv4 ip \
 	"https://www.turris.cz/greylist-data/greylist-latest.csv" \
 	parse_turris_greylist \
 	"reputation" \
-	"[Turris Greylist](https://www.turris.cz/en/greylist) IPs that are blocked on the firewalls of Turris routers. The data is processed and clasified every week and behaviour of IP addresses that accessed a larger number of Turris routers is evaluated. The result is a list of addresses that have tried to obtain information about services on the router or tried to gain access to them. We do not recommend to use these data as a list of addresses that should be blocked but it can be used for example in analysis of the traffic in other networks." \
+	"[Turris Greylist](https://www.turris.cz/en/greylist) IPs that are blocked on the firewalls of Turris routers. The data is processed and classified every week and behaviour of IP addresses that accessed a larger number of Turris routers is evaluated. The result is a list of addresses that have tried to obtain information about services on the router or tried to gain access to them. We do not recommend to use these data as a list of addresses that should be blocked but it can be used for example in analysis of the traffic in other networks." \
 	"Turris" "https://www.turris.cz/en/greylist"
 
 
@@ -6646,7 +6646,7 @@ update iblocklist_webexploit $[12*60] 0 ipv4 ip \
 	"http://list.iblocklist.com/?list=ghlzqtqxnzctvvajwwag&fileformat=p2p&archiveformat=gz" \
 	p2p_gz_ips \
 	"reputation" \
-	"Web server hack and exploit attempts. IP addresses related to current web server hack and exploit attempts that have been logged or can be found in and cross referenced with other related IP databases. Malicious and other non search engine bots will also be listed here, along with anything found that can have a negative impact on a website or webserver such as proxies being used for negative SEO hijacks, unauthorised site mirroring, harvesting, scraping, snooping and data mining / spy bot / security & copyright enforcement companies that target and continuosly scan webservers." \
+	"Web server hack and exploit attempts. IP addresses related to current web server hack and exploit attempts that have been logged or can be found in and cross referenced with other related IP databases. Malicious and other non search engine bots will also be listed here, along with anything found that can have a negative impact on a website or webserver such as proxies being used for negative SEO hijacks, unauthorised site mirroring, harvesting, scraping, snooping and data mining / spy bot / security & copyright enforcement companies that target and continuously scan webservers." \
 	"iBlocklist.com" "https://www.iblocklist.com/" \
 	dont_redistribute
 
@@ -6810,7 +6810,7 @@ update iblocklist_abuse_zeus $[12*60] 0 ipv4 both \
 	"http://list.iblocklist.com/?list=ynkdjqsjyfmilsgbogqf&fileformat=p2p&archiveformat=gz" \
 	p2p_gz \
 	"malware" \
-	"zeustracker.abuse.ch IP blocklist that contains IP addresses which are currently beeing tracked on the abuse.ch ZeuS Tracker." \
+	"zeustracker.abuse.ch IP blocklist that contains IP addresses which are currently being tracked on the abuse.ch ZeuS Tracker." \
 	"iBlocklist.com" "https://www.iblocklist.com/"
 
 update iblocklist_abuse_spyeye $[12*60] 0 ipv4 both \

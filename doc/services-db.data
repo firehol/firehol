@@ -591,7 +591,7 @@ SERVICE ipv6error
 		but issue a warning from 3.1.0; it will be removed in 4.0.0.
 		-
 		The linux connection tracker ensures that ICMPv6 errors
-		are marked as RELATED. Since 3.0.0, these are automatially
+		are marked as RELATED. Since 3.0.0, these are automatically
 		accepted by FireHOL, making a separate command redundant.
 
 SERVICE ipv6neigh
@@ -670,7 +670,7 @@ SERVICE ipv6mld
 		These rules are stateless since reports can happen
 		automatically as well as on query.
 		-
-		Unless muticast snooping is disabled across the network, MLD
+		Unless multicast snooping is disabled across the network, MLD
 		should be enabled for any clients:
 		-
 		    `client ipv6mld accept`
