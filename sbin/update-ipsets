@@ -5861,7 +5861,7 @@ update talosintel_ipfilter 15 0 ipv4 ip \
 # http://www.heise.de/ix/NiX-Spam-DNSBL-and-blacklist-for-download-499637.html
 
 update nixspam 15 0 ipv4 ip \
-	"http://www.dnsbl.manitu.net/download/nixspam-ip.dump.gz" \
+	"https://www.nixspam.net/download/nixspam-ip.dump.gz" \
 	gz_second_word \
 	"spam" \
 	"[NiX Spam](http://www.heise.de/ix/NiX-Spam-DNSBL-and-blacklist-for-download-499637.html) IP addresses that sent spam in the last hour - automatically generated entries without distinguishing open proxies from relays, dialup gateways, and so on. All IPs are removed after 12 hours if there is no spam from there." \
