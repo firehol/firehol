@@ -5050,6 +5050,30 @@ update blocklist_de_bruteforce 15 0 ipv4 ip \
 
 
 # -----------------------------------------------------------------------------
+# IP lists that attacked mail services
+# https://github.com/datacenters-network/security
+# by datacenters.network
+
+# This blocklists only includes IPv4 addresses that attack mail servers
+update datacenters_network_mailserver_attacks $[24*60] 0 ipv4 ips \
+	"https://raw.githubusercontent.com/datacenters-network/security/main/bad-ips.txt" \
+	remove_comments \
+	"attacks" \
+	"[datacenters.network](https://github.com/datacenters-network/security) IPs that attacked mail services" \
+	"datacenters.network" "https://github.com/datacenters-network/security" \
+	redistribute \
+	never_empty \
+	maintainer "Wdes SAS" \
+	maintainer_url "https://wdes.fr/en" \
+	license "MPL-2.0" \
+	intended_use "firewall_block_service inbound mail blacklist" \
+	protection "inbound" \
+	services "mail" \
+	grade "service_provider" \
+	false_positives "none" \
+	poisoning "not_possible"
+
+# -----------------------------------------------------------------------------
 # Zeus trojan
 # https://zeustracker.abuse.ch/blocklist.php
 # by abuse.ch
