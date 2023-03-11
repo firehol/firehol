@@ -4786,7 +4786,7 @@ delete_ipset openbl_all
 
 # Top 20 attackers (networks) by www.dshield.org
 update dshield 10 "$[24*60] $[7*24*60] $[30*24*60]" ipv4 both \
-	"http://feeds.dshield.org/block.txt" \
+	"https://feeds.dshield.org/block.txt" \
 	dshield_parser \
 	"attacks" \
 	"[DShield.org](https://dshield.org/) top 20 attacking class C (/24) subnets over the last three days" \
