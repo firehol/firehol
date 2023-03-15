@@ -24,8 +24,7 @@ endif
 
 if USERNS_ENABLED
 check-local: unittest
-	#$(srcdir)/unittest $(testargs)
-	echo "Github test environment changed - not running tests"
+	if [ "${GITHUB_ACTIONS}" ]; then echo "Github test environment changed - not running tests"; else $(srcdir)/unittest $(testargs); fi
 else
 check-local: unittest
 	echo "Unprivileged user namespaces not enabled - not running tests"
