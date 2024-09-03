@@ -71,7 +71,7 @@ jobs:
             || startsWith( needs.prep.outputs.branch, 'stable-' ) ) }}
       steps:
       - name: Download artifacts
-        uses: actions/download-artifact@v2
+        uses: actions/download-artifact@v4.1.7
         with:
            name: build-artifacts
       - name: Setup SSH
@@ -137,7 +137,7 @@ jobs:
       if: ${{ needs.prep.outputs.tag != '' }}
       steps:
       - name: Download artifacts
-        uses: actions/download-artifact@v2
+        uses: actions/download-artifact@v4.1.7
         with:
            name: build-artifacts
       - name: Create Release
