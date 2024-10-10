@@ -267,6 +267,25 @@ ipset_verbose() {
 	fi
 }
 
+ipset_retry() {
+	if [ -z "${IPSET_NUM_RETRIES}" ]; then
+		IPSET_NUM_RETRIES=10
+	fi
+
+	declare -r RETRY_PAUSE=1
+
+	for i in $(seq ${IPSET_NUM_RETRIES}); do
+		ipset_verbose "" "Executing ipset (Try #${i}/${IPSET_NUM_RETRIES})..."
+		("${IPSET_CMD}" $@) && return 0
+		ipset_warning "" "Executing ipset failed (Try #${i}/${IPSET_NUM_RETRIES}). Retrying in $RETRY_PAUSE seconds..."
+		sleep ${RETRY_PAUSE}
+	done
+
+	ipset_error "Executing ipset failed even after ${NUM_RETRIES} retries"
+
+	return 1
+}
+
 # -----------------------------------------------------------------------------
 # find a working iprange command
 
@@ -916,7 +935,7 @@ touch_in_the_past $[7 * 24 * 60] "${RUN_DIR}/.warn_if_last_downloaded_before_thi
 ipset_list_names() {
 	if [ ${IPSETS_APPLY} -eq 1 ]
 		then
-		( $IPSET_CMD --list -t || $IPSET_CMD --list ) | $GREP_CMD "^Name: " | $CUT_CMD -d ' ' -f 2
+		( ipset_retry --list -t || ipset_retry --list ) | $GREP_CMD "^Name: " | $CUT_CMD -d ' ' -f 2
 		return $?
 	fi
 	return 0
@@ -2422,7 +2441,7 @@ ipset_apply() {
 		if [ -z "${sets[$ipset]}" ]
 			then
 			ipset_saved "${ipset}" "no need to load ipset in kernel"
-			# $IPSET_CMD --create ${ipset} "${hash}hash" || return 1
+			# ipset_retry --create ${ipset} "${hash}hash" || return 1
 			return 0
 		fi
 
@@ -2461,7 +2480,7 @@ ipset_apply() {
 			opts="maxelem ${entries}"
 		fi
 
-		$IPSET_CMD create "${tmpname}" ${hash}hash ${opts}
+		ipset_retry create "${tmpname}" ${hash}hash ${opts}
 		if [ $? -ne 0 ]
 			then
 			ipset_error "${ipset}" "failed to create temporary ipset ${tmpname}"
@@ -2469,22 +2488,22 @@ ipset_apply() {
 			return 1
 		fi
 
-		$IPSET_CMD --flush "${tmpname}"
-		$IPSET_CMD --restore <"${RUN_DIR}/${tmpname}"
+		ipset_retry --flush "${tmpname}"
+		ipset_retry --restore <"${RUN_DIR}/${tmpname}"
 		ret=$?
 		$RM_CMD "${RUN_DIR}/${tmpname}"
 
 		if [ ${ret} -ne 0 ]
 			then
 			ipset_error "${ipset}" "failed to restore ipset from ${tmpname}"
-			$IPSET_CMD --destroy "${tmpname}"
+			ipset_retry --destroy "${tmpname}"
 			return 1
 		fi
 
 		ipset_info "${ipset}" "swapping temporary ipset to production"
-		$IPSET_CMD --swap "${tmpname}" "${ipset}"
+		ipset_retry --swap "${tmpname}" "${ipset}"
 		ret=$?
-		$IPSET_CMD --destroy "${tmpname}"
+		ipset_retry --destroy "${tmpname}"
 		if [ $? -ne 0 ]
 			then
 			ipset_error "${ipset}" "failed to destroy temporary ipset"
