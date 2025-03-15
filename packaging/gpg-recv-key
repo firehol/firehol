@@ -32,7 +32,8 @@ fingerprint="$2"
 # check it matches manually
 key=`echo $fingerprint | tr -d ' '`
 
-curl -o- "${KEYURL}0x$key" | gpg --import || exit 1
+curl -o/tmp/keydata.asc "${KEYURL}0x$key" || exit 1
+gpg --import /tmp/keydata.asc || exit 1
 gpg --fingerprint "$key" > /tmp/keystatus.$$
 status=$?
 
