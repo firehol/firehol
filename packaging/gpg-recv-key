@@ -1,9 +1,9 @@
 #!/bin/sh
 
-if [ ! "$KEYSERVER" ]
+if [ ! "$KEYURL" ]
 then
-  echo "No KEYSERVER environment set, e.g.:"
-  echo "  export KEYSERVER=hkps://hkps.pool.sks-keyservers.net"
+  echo "No KEYURL environment set, e.g.:"
+  echo "  export KEYURL='https://keyserver.ubuntu.com/pks/lookup?exact=on&op=get&search='"
   exit 1
 fi
 
@@ -30,9 +30,9 @@ fingerprint="$2"
 # Modern GPG can import key by fingerprint but the version available
 # within travis currently does not, so we extract the short version and
 # check it matches manually
-key=`echo $fingerprint | cut -f7-10 -d' ' | tr -d ' '`
+key=`echo $fingerprint | tr -d ' '`
 
-gpg --keyserver "$KEYSERVER" --recv-key "$key" || exit 1
+curl -o- "${KEYURL}0x$key" | gpg --import || exit 1
 gpg --fingerprint "$key" > /tmp/keystatus.$$
 status=$?
 

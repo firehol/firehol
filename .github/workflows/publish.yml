@@ -34,7 +34,7 @@ jobs:
             ./packaging/gpg-recv-key costa@tsaousis.gr "4DFF 624A E564 3B51 2872  1F40 29CA 3358 89B9 A863"
             git fetch --tags -f
         env:
-           KEYSERVER: pool.sks-keyservers.net
+           KEYURL: https://keyserver.ubuntu.com/pks/lookup?exact=on&op=get&search='
       - name: Run build
         run: |
            fakeroot ./packaging/git-build
