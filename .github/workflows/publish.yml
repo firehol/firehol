@@ -8,8 +8,8 @@ jobs:
       - name: Extract tag/branch variables
         shell: bash
         run: |
-           echo "##[set-output name=tag;]$(echo ${GITHUB_REF#refs/tags/}|grep -v '/')"
-           echo "##[set-output name=branch;]$(echo ${GITHUB_REF#refs/heads/}|grep -v '/')"
+           echo "tag=$(echo ${GITHUB_REF#refs/tags/}|grep -v '/')" >> $GITHUB_OUTPUT
+           echo "branch=$(echo ${GITHUB_REF#refs/heads/}|grep -v '/')" >> $GITHUB_OUTPUT
         id: extract
       outputs:
          tag: ${{ steps.extract.outputs.tag }}
@@ -82,8 +82,8 @@ jobs:
            eval "$(ssh-agent)"
            if ssh-add firehol_org_publish_key; then
               echo "Key added: setting agent environment"
-              echo "##[set-output name=ssh_agent_pid;]$SSH_AGENT_PID"
-              echo "##[set-output name=ssh_auth_sock;]$SSH_AUTH_SOCK"
+              echo "ssh_agent_pid=$SSH_AGENT_PID" >> $GITHUB_OUTPUT
+              echo "ssh_auth_sock=$SSH_AUTH_SOCK" >> $GITHUB_OUTPUT
               mkdir -p $HOME/.ssh
               chmod 700 $HOME/.ssh
               echo PasswordAuthentication=no >> $HOME/.ssh/config
