@@ -274,14 +274,14 @@ ipset_retry() {
 
 	declare -r RETRY_PAUSE=1
 
-	for i in $(seq ${IPSET_NUM_RETRIES}); do
-		ipset_verbose "" "Executing ipset (Try #${i}/${IPSET_NUM_RETRIES})..."
-		("${IPSET_CMD}" $@) && return 0
-		ipset_warning "" "Executing ipset failed (Try #${i}/${IPSET_NUM_RETRIES}). Retrying in $RETRY_PAUSE seconds..."
-		sleep ${RETRY_PAUSE}
+	for i in $(${SEQ_CMD} ${IPSET_NUM_RETRIES}); do
+		ipset_verbose "" "Executing ${IPSET_CMD} (Try #${i}/${IPSET_NUM_RETRIES})..."
+		(${IPSET_CMD} $@) && return 0
+		ipset_warning "" "Executing ${IPSET_CMD} failed (Try #${i}/${IPSET_NUM_RETRIES}). Retrying in $RETRY_PAUSE seconds..."
+		${SLEEP_CMD} ${RETRY_PAUSE}
 	done
 
-	ipset_error "Executing ipset failed even after ${NUM_RETRIES} retries"
+	ipset_error "Executing ${IPSET_CMD} failed even after ${NUM_RETRIES} retries"
 
 	return 1
 }
