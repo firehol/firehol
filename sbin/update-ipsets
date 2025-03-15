@@ -3305,7 +3305,6 @@ rename_ipset ib_pedophiles iblocklist_pedophiles
 rename_ipset ib_cruzit_web_attacks iblocklist_cruzit_web_attacks
 rename_ipset ib_yoyo_adservers iblocklist_yoyo_adservers
 rename_ipset ib_spamhaus_drop iblocklist_spamhaus_drop
-rename_ipset ib_abuse_zeus iblocklist_abuse_zeus
 rename_ipset ib_abuse_spyeye iblocklist_abuse_spyeye
 rename_ipset ib_abuse_palevo iblocklist_abuse_palevo
 rename_ipset ib_ciarmy_malicious iblocklist_ciarmy_malicious
@@ -5063,32 +5062,6 @@ update blocklist_de_bruteforce 15 0 ipv4 ip \
 
 
 # -----------------------------------------------------------------------------
-# Zeus trojan
-# https://zeustracker.abuse.ch/blocklist.php
-# by abuse.ch
-
-# This blocklists only includes IPv4 addresses that are used by the ZeuS trojan.
-update zeus_badips 30 0 ipv4 ip \
-	"https://zeustracker.abuse.ch/blocklist.php?download=badips" \
-	remove_comments \
-	"malware" \
-	"[Abuse.ch Zeus tracker](https://zeustracker.abuse.ch) badips includes IPv4 addresses that are used by the ZeuS trojan. It is the recommended blocklist if you want to block only ZeuS IPs. It excludes IP addresses that ZeuS Tracker believes to be hijacked (level 2) or belong to a free web hosting provider (level 3). Hence the false positive rate should be much lower compared to the standard ZeuS IP blocklist." \
-	"Abuse.ch" "https://zeustracker.abuse.ch/" \
-	can_be_empty
-
-# This blocklist contains the same data as the ZeuS IP blocklist (BadIPs)
-# but with the slight difference that it doesn't exclude hijacked websites
-# (level 2) and free web hosting providers (level 3).
-update zeus 30 0 ipv4 ip \
-	"https://zeustracker.abuse.ch/blocklist.php?download=ipblocklist" \
-	remove_comments \
-	"malware" \
-	"[Abuse.ch Zeus tracker](https://zeustracker.abuse.ch) standard, contains the same data as the ZeuS IP blocklist (zeus_badips) but with the slight difference that it doesn't exclude hijacked websites (level 2) and free web hosting providers (level 3). This means that this blocklist contains all IPv4 addresses associated with ZeuS C&Cs which are currently being tracked by ZeuS Tracker. Hence this blocklist will likely cause some false positives." \
-	"Abuse.ch" "https://zeustracker.abuse.ch/" \
-	can_be_empty
-
-
-# -----------------------------------------------------------------------------
 # Palevo worm
 # https://palevotracker.abuse.ch/blocklists.php
 # by abuse.ch
@@ -5868,18 +5841,6 @@ update talosintel_ipfilter 15 0 ipv4 ip \
 	"attacks" \
 	"[TalosIntel.com](http://talosintel.com/additional-resources/) List of known malicious network threats" \
 	"TalosIntel.com" "http://talosintel.com/"
-
-# -----------------------------------------------------------------------------
-# NiX Spam
-# http://www.heise.de/ix/NiX-Spam-DNSBL-and-blacklist-for-download-499637.html
-
-update nixspam 15 0 ipv4 ip \
-	"https://www.nixspam.net/download/nixspam-ip.dump.gz" \
-	gz_second_word \
-	"spam" \
-	"[NiX Spam](http://www.heise.de/ix/NiX-Spam-DNSBL-and-blacklist-for-download-499637.html) IP addresses that sent spam in the last hour - automatically generated entries without distinguishing open proxies from relays, dialup gateways, and so on. All IPs are removed after 12 hours if there is no spam from there." \
-	"NiX Spam" "http://www.heise.de/ix/NiX-Spam-DNSBL-and-blacklist-for-download-499637.html"
-
 
 # -----------------------------------------------------------------------------
 # VirBL
@@ -6817,13 +6778,6 @@ update iblocklist_spamhaus_drop $[12*60] 0 ipv4 both \
 	p2p_gz \
 	"attacks" \
 	"Spamhaus.org DROP (Don't Route Or Peer) list." \
-	"iBlocklist.com" "https://www.iblocklist.com/"
-
-update iblocklist_abuse_zeus $[12*60] 0 ipv4 both \
-	"http://list.iblocklist.com/?list=ynkdjqsjyfmilsgbogqf&fileformat=p2p&archiveformat=gz" \
-	p2p_gz \
-	"malware" \
-	"zeustracker.abuse.ch IP blocklist that contains IP addresses which are currently being tracked on the abuse.ch ZeuS Tracker." \
 	"iBlocklist.com" "https://www.iblocklist.com/"
 
 update iblocklist_abuse_spyeye $[12*60] 0 ipv4 both \
@@ -7771,7 +7725,6 @@ merge firehol_level1 ipv4 both \
 	spamhaus_drop \
 	spamhaus_edrop \
 	sslbl \
-	zeus_badips \
 	ransomware_rw \
 
 merge firehol_level2 ipv4 both \
@@ -7796,7 +7749,6 @@ merge firehol_level3 ipv4 both \
 	snort_ipfilter \
 	sslbl_aggressive \
 	talosintel_ipfilter \
-	zeus \
 	vxvault \
 
 merge firehol_level4 ipv4 both \
