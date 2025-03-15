@@ -1,3 +1,15 @@
+firehol (3.1.8) - 2025-03-15
+
+  * Update-Ipsets
+
+    - Remove some dead lists
+    - Handle ipsets temporarily locked by another process with retrys
+
+  * Common
+
+    - Update github actions to latest versions
+    - Fix deprecated environment use
+
 firehol (3.1.7) - 2020-12-31
 
   * FireHOL
