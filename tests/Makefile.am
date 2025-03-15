@@ -23,8 +23,9 @@ testargs += $(srcdir)/vnetbuild
 endif
 
 if USERNS_ENABLED
+#if [ "${GITHUB_ACTIONS}" ]; then echo "Github test environment changed - not running tests"; else $(srcdir)/unittest $(testargs); fi
 check-local: unittest
-	if [ "${GITHUB_ACTIONS}" ]; then echo "Github test environment changed - not running tests"; else $(srcdir)/unittest $(testargs); fi
+	echo "User namespaces setup changed - not running tests"
 else
 check-local: unittest
 	echo "Unprivileged user namespaces not enabled - not running tests"
