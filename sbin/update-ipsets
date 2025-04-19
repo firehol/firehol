@@ -84,17 +84,17 @@ READLINK_CMD=${READLINK_CMD:-readlink}
 BASENAME_CMD=${BASENAME_CMD:-basename}
 DIRNAME_CMD=${DIRNAME_CMD:-dirname}
 function realdir {
-	local r="$1"; local t=$($READLINK_CMD "$r")
+	local r="$1" t=""
+	t=$($READLINK_CMD "$r")
+
 	while [ "$t" ]; do
-		r=$(cd $($DIRNAME_CMD "$r") && cd $($DIRNAME_CMD "$t") && pwd -P)/$($BASENAME_CMD "$t")
+		r=$(cd "$($DIRNAME_CMD "$r")" && cd "$($DIRNAME_CMD "$t")" && pwd -P)/$($BASENAME_CMD "$t")
 		t=$($READLINK_CMD "$r")
 	done
 	$DIRNAME_CMD "$r"
 }
 PROGRAM_FILE="$0"
 PROGRAM_DIR="${FIREHOL_OVERRIDE_PROGRAM_DIR:-$(realdir "$0")}"
-PROGRAM_PWD="${PWD}"
-declare -a PROGRAM_ORIGINAL_ARGS=("${@}")
 
 for functions_file in install.config functions.common
 do
@@ -117,12 +117,11 @@ then
 	source "${FIREHOL_CONFIG_DIR}/firehol-defaults.conf" || exit 1
 fi
 
-RUNNING_ON_TERMINAL=0
 if [ "z$1" = "z-nc" ]
 then
 	shift
 else
-	common_setup_terminal && RUNNING_ON_TERMINAL=1
+	common_setup_terminal
 fi
 
 $RENICE_CMD 10 $$ >/dev/null 2>/dev/null
@@ -131,11 +130,11 @@ $RENICE_CMD 10 $$ >/dev/null 2>/dev/null
 # logging
 
 error() {
-	echo >&2 -e "${COLOR_BGRED}${COLOR_WHITE}${COLOR_BOLD} ERROR ${COLOR_RESET}: ${@}"
+	echo >&2 -e "${COLOR_BGRED}${COLOR_WHITE}${COLOR_BOLD} ERROR ${COLOR_RESET}: ${*}"
 	$LOGGER_CMD -p daemon.err -t "update-ipsets.sh[$$]" "${@}"
 }
 warning() {
-	echo >&2 -e "${COLOR_BGYELLOW}${COLOR_BLACK}${COLOR_BOLD} WARNING ${COLOR_RESET}: ${@}"
+	echo >&2 -e "${COLOR_BGYELLOW}${COLOR_BLACK}${COLOR_BOLD} WARNING ${COLOR_RESET}: ${*}"
 	$LOGGER_CMD -p daemon.warning -t "update-ipsets.sh[$$]" "${@}"
 }
 info() {
@@ -175,16 +174,16 @@ ipset_error() {
 	shift
 
 	print_ipset_header "${ipset}"
-	echo >&2 -e "${COLOR_BGRED}${COLOR_WHITE}${COLOR_BOLD} ERROR ${COLOR_RESET} ${@}"
-	$LOGGER_CMD -p daemon.info -t "update-ipsets.sh[$$]" "ERROR: ${ipset}: ${@}"
+	echo >&2 -e "${COLOR_BGRED}${COLOR_WHITE}${COLOR_BOLD} ERROR ${COLOR_RESET} ${*}"
+	$LOGGER_CMD -p daemon.info -t "update-ipsets.sh[$$]" "ERROR: ${ipset}: ${*}"
 }
 ipset_warning() {
 	local ipset="${1}"
 	shift
 
 	print_ipset_header "${ipset}"
-	echo >&2 -e "${COLOR_BGYELLOW}${COLOR_BLACK}${COLOR_BOLD} WARNING ${COLOR_RESET} ${@}"
-	$LOGGER_CMD -p daemon.info -t "update-ipsets.sh[$$]" "WARNING: ${ipset}: ${@}"
+	echo >&2 -e "${COLOR_BGYELLOW}${COLOR_BLACK}${COLOR_BOLD} WARNING ${COLOR_RESET} ${*}"
+	$LOGGER_CMD -p daemon.info -t "update-ipsets.sh[$$]" "WARNING: ${ipset}: ${*}"
 }
 ipset_info() {
 	local ipset="${1}"
@@ -192,47 +191,47 @@ ipset_info() {
 
 	print_ipset_header "${ipset}"
 	echo >&2 "${@}"
-	$LOGGER_CMD -p daemon.info -t "update-ipsets.sh[$$]" "INFO: ${ipset}: ${@}"
+	$LOGGER_CMD -p daemon.info -t "update-ipsets.sh[$$]" "INFO: ${ipset}: ${*}"
 }
 ipset_saved() {
 	local ipset="${1}"
 	shift
 
 	print_ipset_header "${ipset}"
-	echo >&2 -e "${COLOR_BGGREEN}${COLOR_RED}${COLOR_BOLD} SAVED ${COLOR_RESET} ${@}"
-	$LOGGER_CMD -p daemon.info -t "update-ipsets.sh[$$]" "SAVED: ${ipset}: ${@}"
+	echo >&2 -e "${COLOR_BGGREEN}${COLOR_RED}${COLOR_BOLD} SAVED ${COLOR_RESET} ${*}"
+	$LOGGER_CMD -p daemon.info -t "update-ipsets.sh[$$]" "SAVED: ${ipset}: ${*}"
 }
 ipset_loaded() {
 	local ipset="${1}"
 	shift
 
 	print_ipset_header "${ipset}"
-	echo >&2 -e "${COLOR_BGGREEN}${COLOR_BLACK}${COLOR_BOLD} LOADED ${COLOR_RESET} ${@}"
-	$LOGGER_CMD -p daemon.info -t "update-ipsets.sh[$$]" "LOADED: ${ipset}: ${@}"
+	echo >&2 -e "${COLOR_BGGREEN}${COLOR_BLACK}${COLOR_BOLD} LOADED ${COLOR_RESET} ${*}"
+	$LOGGER_CMD -p daemon.info -t "update-ipsets.sh[$$]" "LOADED: ${ipset}: ${*}"
 }
 ipset_same() {
 	local ipset="${1}"
 	shift
 
 	print_ipset_header "${ipset}"
-	echo >&2 -e "${COLOR_BGWHITE}${COLOR_BLACK}${COLOR_BOLD} SAME ${COLOR_RESET} ${@}"
-	$LOGGER_CMD -p daemon.info -t "update-ipsets.sh[$$]" "DOWNLOADED SAME: ${ipset}: ${@}"
+	echo >&2 -e "${COLOR_BGWHITE}${COLOR_BLACK}${COLOR_BOLD} SAME ${COLOR_RESET} ${*}"
+	$LOGGER_CMD -p daemon.info -t "update-ipsets.sh[$$]" "DOWNLOADED SAME: ${ipset}: ${*}"
 }
 ipset_notupdated() {
 	local ipset="${1}"
 	shift
 
 	print_ipset_header "${ipset}"
-	echo >&2 -e "${COLOR_BGWHITE}${COLOR_BLACK}${COLOR_BOLD} NOT UPDATED ${COLOR_RESET} ${@}"
-	# $LOGGER_CMD -p daemon.info -t "update-ipsets.sh[$$]" "NOT UPDATED: ${ipset}: ${@}"
+	echo >&2 -e "${COLOR_BGWHITE}${COLOR_BLACK}${COLOR_BOLD} NOT UPDATED ${COLOR_RESET} ${*}"
+	# $LOGGER_CMD -p daemon.info -t "update-ipsets.sh[$$]" "NOT UPDATED: ${ipset}: ${*}"
 }
 ipset_notyet() {
 	local ipset="${1}"
 	shift
 
 	print_ipset_header "${ipset}"
-	echo >&2 -e "${COLOR_BGWHITE}${COLOR_BLACK}${COLOR_BOLD} LATER ${COLOR_RESET} ${@}"
-	# $LOGGER_CMD -p daemon.info -t "update-ipsets.sh[$$]" "LATER: ${ipset}: ${@}"
+	echo >&2 -e "${COLOR_BGWHITE}${COLOR_BLACK}${COLOR_BOLD} LATER ${COLOR_RESET} ${*}"
+	# $LOGGER_CMD -p daemon.info -t "update-ipsets.sh[$$]" "LATER: ${ipset}: ${*}"
 }
 ipset_disabled() {
 	local ipset="${1}"
@@ -241,7 +240,7 @@ ipset_disabled() {
 	if [ ${SILENT} -eq 0 ]
 		then
 		print_ipset_header "${ipset}"
-		echo >&2 -e "${COLOR_BGWHITE}${COLOR_BLACK}${COLOR_BOLD} DISABLED ${COLOR_RESET} ${@}"
+		echo >&2 -e "${COLOR_BGWHITE}${COLOR_BLACK}${COLOR_BOLD} DISABLED ${COLOR_RESET} ${*}"
 		print_ipset_header "${ipset}"
 		echo >&2    "To enable run: update-ipsets enable ${ipset}"
 	fi
@@ -276,7 +275,7 @@ ipset_retry() {
 
 	for i in $(${SEQ_CMD} ${IPSET_NUM_RETRIES}); do
 		ipset_verbose "" "Executing ${IPSET_CMD} (Try #${i}/${IPSET_NUM_RETRIES})..."
-		(${IPSET_CMD} $@) && return 0
+		(${IPSET_CMD} "${@}") && return 0
 		ipset_warning "" "Executing ${IPSET_CMD} failed (Try #${i}/${IPSET_NUM_RETRIES}). Retrying in $RETRY_PAUSE seconds..."
 		${SLEEP_CMD} ${RETRY_PAUSE}
 	done
@@ -743,7 +742,7 @@ params_sort() {
 
 # convert a number of minutes to a human readable text
 mins_to_text() {
-	local days= hours= mins="${1}"
+	local days="" hours="" mins="${1}"
 
 	if [ -z "${mins}" -o $[mins + 0] -eq 0 ]
 		then
@@ -868,7 +867,7 @@ commit_to_git() {
 		git_add_if_not_already_added set_file_timestamps.sh
 
 		echo >&2
-		info "Committing ${to_be_pushed[@]} to git repository"
+		info "Committing ${to_be_pushed[*]} to git repository"
 		local date="$($DATE_CMD -u)"
 
 		if [ ${PUSH_TO_GIT_MERGED} -eq 0 ]
@@ -896,7 +895,7 @@ commit_to_git() {
 copy_ipsets_to_web() {
 	[ -z "${WEB_DIR_FOR_IPSETS}" -o ! -d "${WEB_DIR_FOR_IPSETS}" ] && return 0
 
-	local ipset= f= d=
+	local ipset="" f="" d=""
 	for ipset in "${!UPDATED_SETS[@]}"
 	do
 		[ ! -z "${IPSET_TMP_DO_NOT_REDISTRIBUTE[${ipset}]}" ] && continue
@@ -905,7 +904,7 @@ copy_ipsets_to_web() {
 		# relative filename - may include a dir
 		f="${UPDATED_SETS[${ipset}]}"
 		d="${f/\/*/}"
-		[ "${d}" = "${f}" ] && d=
+		[ "${d}" = "${f}" ] && d=""
 
 		if [ ! -z "${d}" ]
 			then
@@ -954,7 +953,7 @@ if [ ${IPSETS_APPLY} -eq 1 ]
 	do
 		sets[$x]=1
 	done
-	silent "Found these ipsets active: ${!sets[@]}"
+	silent "Found these ipsets active: ${!sets[*]}"
 fi
 
 # -----------------------------------------------------------------------------
@@ -1006,7 +1005,7 @@ history_cleanup() {
 
 history_get() {
 	local ipset="${1}" mins="${2}" \
-		tmp= x=
+		tmp="" x=""
 
 	# touch a reference file
 	touch_in_the_past ${mins} "${RUN_DIR}/history.reference" || return 3
@@ -1063,7 +1062,7 @@ copyfile() {
 }
 
 geturl() {
-	local file="${1}" reference="${2}" url="${3}" doptions=() ret= http_code= curl_opts=() message=
+	local file="${1}" reference="${2}" url="${3}" doptions=() ret="" http_code="" curl_opts=() message=""
 
 	eval "local doptions=(${4})"
 
@@ -1133,8 +1132,8 @@ DOWNLOAD_FAILED=1
 DOWNLOAD_NOT_UPDATED=2
 download_manager() {
 	local 	ipset="${1}" mins="${2}" url="${3}" \
-			st= ret= \
-			tmp= now="$($DATE_CMD +%s)" base= omins= detail= inc= fails= dt=
+			st="" ret="" \
+			tmp="" now="$($DATE_CMD +%s)" base="" omins="" detail="" inc="" fails="" dt=""
 
 	# make sure it is numeric
 	[ "$[mins + 0]" -lt 1 ] && mins=1
@@ -1464,48 +1463,48 @@ cache_remove_ipset() {
 
 	ipset_verbose "${ipset}" "removing from cache"
 
-	unset IPSET_INFO[${ipset}]
-	unset IPSET_SOURCE[${ipset}]
-	unset IPSET_URL[${ipset}]
-	unset IPSET_FILE[${ipset}]
-	unset IPSET_IPV[${ipset}]
-	unset IPSET_HASH[${ipset}]
-	unset IPSET_MINS[${ipset}]
-	unset IPSET_HISTORY_MINS[${ipset}]
-	unset IPSET_ENTRIES[${ipset}]
-	unset IPSET_IPS[${ipset}]
-	unset IPSET_SOURCE_DATE[${ipset}]
-	unset IPSET_CHECKED_DATE[${ipset}]
-	unset IPSET_PROCESSED_DATE[${ipset}]
-	unset IPSET_CATEGORY[${ipset}]
-	unset IPSET_MAINTAINER[${ipset}]
-	unset IPSET_MAINTAINER_URL[${ipset}]
-	unset IPSET_LICENSE[${ipset}]
-	unset IPSET_GRADE[${ipset}]
-	unset IPSET_PROTECTION[${ipset}]
-	unset IPSET_INTENDED_USE[${ipset}]
-	unset IPSET_FALSE_POSITIVES[${ipset}]
-	unset IPSET_POISONING[${ipset}]
-	unset IPSET_SERVICES[${ipset}]
-	unset IPSET_ENTRIES_MIN[${ipset}]
-	unset IPSET_ENTRIES_MAX[${ipset}]
-	unset IPSET_IPS_MIN[${ipset}]
-	unset IPSET_IPS_MAX[${ipset}]
-	unset IPSET_STARTED_DATE[${ipset}]
-	unset IPSET_CLOCK_SKEW[${ipset}]
-	unset IPSET_DOWNLOAD_FAILURES[${ipset}]
-	unset IPSET_VERSION[${ipset}]
-	unset IPSET_AVERAGE_UPDATE_TIME[${ipset}]
-	unset IPSET_MIN_UPDATE_TIME[${ipset}]
-	unset IPSET_MAX_UPDATE_TIME[${ipset}]
-	unset IPSET_DOWNLOADER[${ipset}]
-	unset IPSET_DOWNLOADER_OPTIONS[${ipset}]
+	unset "IPSET_INFO[${ipset}]"
+	unset "IPSET_SOURCE[${ipset}]"
+	unset "IPSET_URL[${ipset}]"
+	unset "IPSET_FILE[${ipset}]"
+	unset "IPSET_IPV[${ipset}]"
+	unset "IPSET_HASH[${ipset}]"
+	unset "IPSET_MINS[${ipset}]"
+	unset "IPSET_HISTORY_MINS[${ipset}]"
+	unset "IPSET_ENTRIES[${ipset}]"
+	unset "IPSET_IPS[${ipset}]"
+	unset "IPSET_SOURCE_DATE[${ipset}]"
+	unset "IPSET_CHECKED_DATE[${ipset}]"
+	unset "IPSET_PROCESSED_DATE[${ipset}]"
+	unset "IPSET_CATEGORY[${ipset}]"
+	unset "IPSET_MAINTAINER[${ipset}]"
+	unset "IPSET_MAINTAINER_URL[${ipset}]"
+	unset "IPSET_LICENSE[${ipset}]"
+	unset "IPSET_GRADE[${ipset}]"
+	unset "IPSET_PROTECTION[${ipset}]"
+	unset "IPSET_INTENDED_USE[${ipset}]"
+	unset "IPSET_FALSE_POSITIVES[${ipset}]"
+	unset "IPSET_POISONING[${ipset}]"
+	unset "IPSET_SERVICES[${ipset}]"
+	unset "IPSET_ENTRIES_MIN[${ipset}]"
+	unset "IPSET_ENTRIES_MAX[${ipset}]"
+	unset "IPSET_IPS_MIN[${ipset}]"
+	unset "IPSET_IPS_MAX[${ipset}]"
+	unset "IPSET_STARTED_DATE[${ipset}]"
+	unset "IPSET_CLOCK_SKEW[${ipset}]"
+	unset "IPSET_DOWNLOAD_FAILURES[${ipset}]"
+	unset "IPSET_VERSION[${ipset}]"
+	unset "IPSET_AVERAGE_UPDATE_TIME[${ipset}]"
+	unset "IPSET_MIN_UPDATE_TIME[${ipset}]"
+	unset "IPSET_MAX_UPDATE_TIME[${ipset}]"
+	unset "IPSET_DOWNLOADER[${ipset}]"
+	unset "IPSET_DOWNLOADER_OPTIONS[${ipset}]"
 
 	cache_save
 }
 
 ipset_services_to_json_array() {
-	local x= i=0
+	local x="" i=0
 	for x in "${@}"
 	do
 		i=$[i + 1]
@@ -1537,7 +1536,7 @@ ipset_normalize_for_json() {
 }
 
 ipset_json() {
-	local ipset="${1}" geolite2= ipdeny= ip2location= ipip= comparison= info=
+	local ipset="${1}" geolite2="" ipdeny="" ip2location="" ipip="" comparison="" info=""
 
 	[ -f "${RUN_DIR}/${ipset}_geolite2_country.json"    ] && geolite2="${ipset}_geolite2_country.json"
 	[ -f "${RUN_DIR}/${ipset}_ipdeny_country.json"      ] && ipdeny="${ipset}_ipdeny_country.json"
@@ -1549,7 +1548,7 @@ ipset_json() {
 	info="$(echo "${info}" | $SED_CMD "s/)/)\n/g" | $SED_CMD "s|\[\(.*\)\](\(.*\))|<a href=\"\2\">\1</a>|g" | $TR_CMD "\n\t" "  ")"
 	info="${info//\"/\\\"}"
 
-	local file_local= commit_history= url=
+	local file_local="" commit_history="" url=""
 	if [ -z "${IPSET_TMP_DO_NOT_REDISTRIBUTE[${ipset}]}" ]
 		then
 		url="${IPSET_URL[${ipset}]}"
@@ -1656,7 +1655,7 @@ retention_print() {
 	printf "{\n	\"ipset\": \"${ipset}\",\n	\"started\": ${RETENTION_HISTOGRAM_STARTED}000,\n	\"updated\": ${IPSET_SOURCE_DATE[${ipset}]}000,\n	\"incomplete\": ${RETENTION_HISTOGRAM_INCOMPLETE},\n"
 
 	ipset_verbose "${ipset}" "calculating retention hours..."
-	local x= hours= ips= sum=0 pad="\n\t\t\t"
+	local x="" hours="" ips="" sum=0 pad="\n\t\t\t"
 	for x in "${!RETENTION_HISTOGRAM[@]}"
 	do
 		(( sum += ${RETENTION_HISTOGRAM[${x}]} ))
@@ -1667,7 +1666,7 @@ retention_print() {
 	printf "	\"past\": {\n		\"hours\": [ ${hours} ],\n		\"ips\": [ ${ips} ],\n		\"total\": ${sum}\n	},\n"
 
 	ipset_verbose "${ipset}" "calculating current hours..."
-	local x= hours= ips= sum=0 pad="\n\t\t\t"
+	local x="" hours="" ips="" sum=0 pad="\n\t\t\t"
 	for x in "${!RETENTION_HISTOGRAM_REST[@]}"
 	do
 		(( sum += ${RETENTION_HISTOGRAM_REST[${x}]} ))
@@ -1676,6 +1675,44 @@ retention_print() {
 		pad=",\n\t\t\t"
 	done
 	printf "	\"current\": {\n		\"hours\": [ ${hours} ],\n		\"ips\": [ ${ips} ],\n		\"total\": ${sum}\n	}\n}\n"
+}
+
+is_dir_with_contents() {
+    local dir="${1}"
+
+    if [ ! -d "${dir}" ]; then
+        return 2  # Not a directory
+    fi
+
+    if find "${dir}" -mindepth 1 -maxdepth 1 -print -quit | ${GREP_CMD} -q .; then
+        return 0  # Directory has contents
+    else
+        return 1  # Directory is empty
+    fi
+}
+
+iprange_compare_with_retention_files() {
+  local ipset="${1}"
+
+  ${IPRANGE_CMD} --has-directory-loading 2>/dev/null
+  if [ $? -eq 0 ]; then
+    ${IPRANGE_CMD} "${LIB_DIR}/${ipset}/latest" --compare-next "@${LIB_DIR}/${ipset}/new"
+  else
+    local -a new_files=("${LIB_DIR}/${ipset}/new"/*)
+    ${IPRANGE_CMD} "${LIB_DIR}/${ipset}/latest" --compare-next "${new_files[@]}"
+  fi
+}
+
+iprange_count_unique_retention_files() {
+  local ipset="${1}"
+
+  ${IPRANGE_CMD} --has-directory-loading 2>/dev/null
+  if [ $? -eq 0 ]; then
+    ${IPRANGE_CMD} --count-unique-all "@${LIB_DIR}/${ipset}/new"
+  else
+    local -a new_files=("${LIB_DIR}/${ipset}/new"/*)
+    ${IPRANGE_CMD} --count-unique-all "${new_files[@]}"
+  fi
 }
 
 retention_detect() {
@@ -1780,10 +1817,8 @@ retention_detect() {
 	ipset_silent "${ipset}" "comparing this update against all past"
 
 	# find the new/* files that are affected
-	local -a new_files=("${LIB_DIR}/${ipset}/new"/*)
-	local name1= name2= entries1= entries2= ips1= ips2= combined= common= odate= hours= removed=
-	if [ ${#new_files[@]} -gt 0 ]
-		then
+	local name1="" name2="" entries1="" entries2="" ips1="" ips2="" combined="" common="" odate="" hours="" removed=""
+	if is_dir_with_contents "${LIB_DIR}/${ipset}/new"; then
 		# we are searching for the affected files
 		# to find them we compare:
 		#
@@ -1795,7 +1830,7 @@ retention_detect() {
 		# > common (the IPs common in latest and the history file in question)
 		#   when ips2 = common, all IPs in the history file in question are still in the latest
 		#
-		${IPRANGE_CMD} "${LIB_DIR}/${ipset}/latest" --compare-next "${new_files[@]}" |\
+		iprange_compare_with_retention_files "${ipset}" |\
 			while IFS="," read name1 name2 entries1 entries2 ips1 ips2 combined common
 			do
 				[ $[ combined - ips1 ] -ne 0 -o $[ ips2 - common ] -ne 0 ] && echo "${name2}"
@@ -1877,16 +1912,14 @@ retention_detect() {
 	RETENTION_HISTOGRAM_INCOMPLETE=0
 
 	# find the IPs in all new/*
-	local -a new_files=("${LIB_DIR}/${ipset}/new"/*)
-	if [ "${#new_files[@]}" -gt 0 ]
-		then
-		${IPRANGE_CMD} --count-unique-all "${new_files[@]}" >"${RUN_DIR}/retention_rest" 2>/dev/null
+	if is_dir_with_contents "${LIB_DIR}/${ipset}/new"; then
+		iprange_count_unique_retention_files "${ipset}" >"${RUN_DIR}/retention_rest" 2>/dev/null
 	else
 		[ -f "${RUN_DIR}/retention_rest" ] && ${RM_CMD} "${RUN_DIR}/retention_rest"
 		${TOUCH_CMD} "${RUN_DIR}/retention_rest"
 	fi
 
-	local entries= ips=
+	local entries="" ips=""
 	while IFS="," read x entries ips
 	do
 		odate="${x/*\//}"
@@ -2065,7 +2098,7 @@ update_web() {
 	fi
 
 	local all=() updated=() geolite2_country=() ipdeny_country=() ip2location_country=() ipip_country=() \
-		x= i= to_all= all_count=0 \
+		x="" i="" to_all="" all_count=0 \
 		sitemap_date="$($DATE_CMD -I)"
 
 	# the sitemap is re-generated on each run
@@ -2134,10 +2167,10 @@ update_web() {
 			to_all=0
 			case "${x}" in
 				country_*)		i=${x/country_/} ;;
-				continent_*)	i= ;;
-				anonymous)		to_all=1; i= ;;
-				satellite)		to_all=1; i= ;;
-				*)				i= ;;
+				continent_*)	i="" ;;
+				anonymous)		to_all=1; i="" ;;
+				satellite)		to_all=1; i="" ;;
+				*)				    i="" ;;
 			esac
 			[ ! -z "${i}" ] && geolite2_country=("${geolite2_country[@]}" "${IPSET_FILE[$x]}" "as" "${i^^}")
 
@@ -2146,9 +2179,9 @@ update_web() {
 			ipset_verbose "${x}" "is an IPDeny file"
 			to_all=0
 			case "${x}" in
-				id_country_*)	i=${x/id_country_/} ;;
-				id_continent_*)	i= ;;
-				*)				i= ;;
+				id_country_*)	  i=${x/id_country_/} ;;
+				id_continent_*)	i="" ;;
+				*)				      i="" ;;
 			esac
 			[ ! -z "${i}" ] && ipdeny_country=("${ipdeny_country[@]}" "${IPSET_FILE[$x]}" "as" "${i^^}")
 
@@ -2158,8 +2191,8 @@ update_web() {
 			to_all=0
 			case "${x}" in
 				ip2location_country_*)		i=${x/ip2location_country_/} ;;
-				ip2location_continent_*)	i= ;;
-				*)							i= ;;
+				ip2location_continent_*)	i="" ;;
+				*)							          i="" ;;
 			esac
 			[ ! -z "${i}" ] && ip2location_country=("${ip2location_country[@]}" "${IPSET_FILE[$x]}" "as" "${i^^}")
 
@@ -2169,8 +2202,8 @@ update_web() {
 			to_all=0
 			case "${x}" in
 				ipip_country_*)				i=${x/ipip_country_/} ;;
-				ipip_continent_*)			i= ;;
-				*)							i= ;;
+				ipip_continent_*)			i="" ;;
+				*)							      i="" ;;
 			esac
 			[ ! -z "${i}" ] && ipip_country=("${ipip_country[@]}" "${IPSET_FILE[$x]}" "as" "${i^^}")
 		fi
@@ -2425,7 +2458,7 @@ update_web() {
 
 ipset_apply_counter=0
 ipset_apply() {
-	local ipset="${1}" ipv="${2}" hash="${3}" file="${4}" entries= tmpname= opts= ret= ips=
+	local ipset="${1}" ipv="${2}" hash="${3}" file="${4}" entries="" tmpname="" opts="" ret="" ips=""
 
 	if [ ${IPSETS_APPLY} -eq 0 ]
 		then
@@ -2818,9 +2851,9 @@ update() {
 	IPSET_PUBLIC_URL=
 	ipset_attributes "${ipset}" "${@}"
 
-	local	tmp= error=0 now= date= ret= \
+	local	tmp="" error=0 now="" date="" ret="" \
 			pre_filter="$CAT_CMD" post_filter="$CAT_CMD" post_filter2="$CAT_CMD" filter="$CAT_CMD" \
-			src="${ipset}.source" dst=
+			src="${ipset}.source" dst=""
 
 	# check
 	if [ -z "${info}" ]
@@ -2999,8 +3032,8 @@ update() {
 		return 1
 	fi
 
-	local h= hmax=-1
-	[ "${history_mins}" = "0" ] && history_mins=
+	local h="" hmax=-1
+	[ "${history_mins}" = "0" ] && history_mins=""
 
 	if [ ! -z "${history_mins}" ]
 		then
@@ -3556,7 +3589,7 @@ pix_deny_rules_to_ipv4() {
 
 # extract CIDRs from the dshield table format
 dshield_parser() {
-	local net= mask=
+	local net="" mask=""
 	remove_comments |\
 		$GREP_CMD "^[1-9]" |\
 		$CUT_CMD -d ' ' -f 1,3 |\
@@ -4212,7 +4245,7 @@ ip2location_country() {
 		$TR_CMD '"\r' '  ' |\
 		trim >countries
 
-	local code= name=
+	local code="" name=""
 	while IFS="|" read code name
 	do
 		if [ "a${code}" = "a-" ]
@@ -4226,7 +4259,7 @@ ip2location_country() {
 
 	ipset_info "${ipset}" "extracting countries..."
 	local x=
-	for x in ${!IP2LOCATION_COUNTRY_NAMES[@]}
+	for x in "${!IP2LOCATION_COUNTRY_NAMES[@]}"
 	do
 		if [ "a${x}" = "a-" ]
 			then
@@ -4382,7 +4415,7 @@ ipip_country() {
 		$SORT_CMD -u |\
 		trim >countries
 
-	local x= code= name=
+	local x="" code="" name=""
 	while read x
 	do
 		code="${x,,}"
@@ -4514,7 +4547,7 @@ EOF_ESENTIRE
 # make sure ipsets with common source files are linked to each other
 # so that the source file will be downloaded only once from the maintainer
 ipsets_with_common_source_file() {
-	local real= x=
+	local real="" x=
 
 	# find the real file (the newest one, if many exist)
 	for x in "${@}"
@@ -7115,7 +7148,7 @@ update uscert_hidden_cobra $[24*60] 0 ipv4 ip \
 # BadIPs.com
 
 badipscom() {
-	local ret= x= i=
+	local ret="" x="" i=""
 
 	ipset_shall_be_run "badips"
 	case "$?" in
@@ -7158,7 +7191,7 @@ badipscom() {
 		done
 	fi
 
-	local category= file= score= age= ipset= url= info= count=0
+	local category="" file="" score="" age="" ipset="" url="" info="" count=0
 	for category in ${categories}
 	do
 		#echo >&2 "CATEGORY: '${category}'"
@@ -7261,7 +7294,7 @@ badipscom
 # normshield
 
 normshield() {
-	local ret= url= x= severity=
+	local ret="" url="" x="" severity=""
 
 	ipset_shall_be_run "normshield"
 	case "$?" in
@@ -7299,7 +7332,7 @@ normshield() {
 		done
 	fi
 
-	local category= ipset= info=
+	local category="" ipset="" info=""
 	for x in ${categories}
 	do
 		for severity in all high
@@ -7882,7 +7915,7 @@ merge firehol_webclient ipv4 both \
 # -----------------------------------------------------------------------------
 # load all third party ipsets
 
-cd "${RUN_DIR}" || continue
+cd "${RUN_DIR}"
 for supplied_ipsets_dir in "${ADMIN_SUPPLIED_IPSETS}" "${DISTRIBUTION_SUPPLIED_IPSETS}" "${USER_SUPPLIED_IPSETS}"
 do
 	[ -z "${supplied_ipsets_dir}" ] && continue
