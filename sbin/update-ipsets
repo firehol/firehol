@@ -300,6 +300,20 @@ then
 	exit 1
 fi
 
+iprange_cmd() {
+  ${IPRANGE_CMD} "${@}"
+  local ret=$?
+
+  if [ $ret -ne 0 ]
+  then
+    error "iprange command [${IPRANGE_CMD} ${*}] failed with exit code $ret"
+    printf "%q " ${IPRANGE_CMD} "${@}" >&2
+    printf "\n" >&2
+  fi
+
+  return $ret
+}
+
 # -----------------------------------------------------------------------------
 # CONFIGURATION
 
@@ -1011,7 +1025,7 @@ history_get() {
 	touch_in_the_past ${mins} "${RUN_DIR}/history.reference" || return 3
 
 	# get all the history files, that are newer than our reference
-	${IPRANGE_CMD} --union-all $($FIND_CMD "${HISTORY_DIR}/${ipset}"/*.set -newer "${RUN_DIR}/history.reference")
+	iprange_cmd --union-all $($FIND_CMD "${HISTORY_DIR}/${ipset}"/*.set -newer "${RUN_DIR}/history.reference")
 	$RM_CMD "${RUN_DIR}/history.reference"
 
 	return 0
@@ -1696,10 +1710,10 @@ iprange_compare_with_retention_files() {
 
   ${IPRANGE_CMD} --has-directory-loading 2>/dev/null
   if [ $? -eq 0 ]; then
-    ${IPRANGE_CMD} "${LIB_DIR}/${ipset}/latest" --compare-next "@${LIB_DIR}/${ipset}/new"
+    iprange_cmd "${LIB_DIR}/${ipset}/latest" --compare-next "@${LIB_DIR}/${ipset}/new"
   else
     local -a new_files=("${LIB_DIR}/${ipset}/new"/*)
-    ${IPRANGE_CMD} "${LIB_DIR}/${ipset}/latest" --compare-next "${new_files[@]}"
+    iprange_cmd "${LIB_DIR}/${ipset}/latest" --compare-next "${new_files[@]}"
   fi
 }
 
@@ -1708,10 +1722,10 @@ iprange_count_unique_retention_files() {
 
   ${IPRANGE_CMD} --has-directory-loading 2>/dev/null
   if [ $? -eq 0 ]; then
-    ${IPRANGE_CMD} --count-unique-all "@${LIB_DIR}/${ipset}/new"
+    iprange_cmd --count-unique-all "@${LIB_DIR}/${ipset}/new"
   else
     local -a new_files=("${LIB_DIR}/${ipset}/new"/*)
-    ${IPRANGE_CMD} --count-unique-all "${new_files[@]}"
+    iprange_cmd --count-unique-all "${new_files[@]}"
   fi
 }
 
@@ -1775,7 +1789,7 @@ retention_detect() {
 
 	# find the new ips in this set
 	ipset_verbose "${ipset}" "finding the new IPs in this update..."
-	${IPRANGE_CMD} "${IPSET_FILE[${ipset}]}" --exclude-next "${LIB_DIR}/${ipset}/latest" --print-binary >"${LIB_DIR}/${ipset}/new/${ndate}" || ipset_error "${ipset}" "cannot find the new IPs in this update."
+	iprange_cmd "${IPSET_FILE[${ipset}]}" --exclude-next "${LIB_DIR}/${ipset}/latest" --print-binary >"${LIB_DIR}/${ipset}/new/${ndate}" || ipset_error "${ipset}" "cannot find the new IPs in this update."
 	$TOUCH_CMD -r "${IPSET_FILE[${ipset}]}" "${LIB_DIR}/${ipset}/new/${ndate}"
 
 	local ips_added=0
@@ -1785,13 +1799,13 @@ retention_detect() {
 		ipset_verbose "${ipset}" "no new IPs in this update"
 		$RM_CMD "${LIB_DIR}/${ipset}/new/${ndate}"
 	else
-		ips_added=$(${IPRANGE_CMD} -C "${LIB_DIR}/${ipset}/new/${ndate}")
+		ips_added=$(iprange_cmd -C "${LIB_DIR}/${ipset}/new/${ndate}")
 		ips_added=${ips_added/*,/}
 		ipset_verbose "${ipset}" "added ${ips_added} new IPs"
 	fi
 
 	ipset_verbose "${ipset}" "finding the removed IPs in this update..."
-	local ips_removed=$(${IPRANGE_CMD} "${LIB_DIR}/${ipset}/latest" --exclude-next "${IPSET_FILE[${ipset}]}" | ${IPRANGE_CMD} -C)
+	local ips_removed=$(iprange_cmd "${LIB_DIR}/${ipset}/latest" --exclude-next "${IPSET_FILE[${ipset}]}" | iprange_cmd -C)
 	ips_removed=${ips_removed/*,/}
 	ipset_verbose "${ipset}" "removed ${ips_removed} IPs"
 
@@ -1803,7 +1817,7 @@ retention_detect() {
 
 	# ok keep it
 	ipset_silent "${ipset}" "keeping this update as the latest..."
-	${IPRANGE_CMD} "${IPSET_FILE[${ipset}]}" --print-binary >"${LIB_DIR}/${ipset}/latest" || ipset_error "${ipset}" "failed to keep the ${ndate} update as the latest"
+	iprange_cmd "${IPSET_FILE[${ipset}]}" --print-binary >"${LIB_DIR}/${ipset}/latest" || ipset_error "${ipset}" "failed to keep the ${ndate} update as the latest"
 	$TOUCH_CMD -r "${IPSET_FILE[${ipset}]}" "${LIB_DIR}/${ipset}/latest"
 
 	if [ ! -f "${LIB_DIR}/${ipset}/retention.csv" ]
@@ -1850,12 +1864,12 @@ retention_detect() {
 		hours=$[ (ndate + 1800 - odate) / 3600 ]
 
 		# are all the IPs of this file still the latest?
-		${IPRANGE_CMD} --common "${x}" "${LIB_DIR}/${ipset}/latest" --print-binary >"${x}.stillthere" || ipset_error "${ipset}" "cannot find IPs still present in ${x}"
-		${IPRANGE_CMD} "${x}" --exclude-next "${x}.stillthere" --print-binary >"${x}.removed" || ipset_error "${ipset}" "cannot find IPs removed from ${x}"
+		iprange_cmd --common "${x}" "${LIB_DIR}/${ipset}/latest" --print-binary >"${x}.stillthere" || ipset_error "${ipset}" "cannot find IPs still present in ${x}"
+		iprange_cmd "${x}" --exclude-next "${x}.stillthere" --print-binary >"${x}.removed" || ipset_error "${ipset}" "cannot find IPs removed from ${x}"
 		if [ -s "${x}.removed" ]
 			then
 			# no, something removed, find it
-			removed=$(${IPRANGE_CMD} -C "${x}.removed")
+			removed=$(iprange_cmd -C "${x}.removed")
 			$RM_CMD "${x}.removed"
 
 			# these are the unique IPs removed
@@ -2252,7 +2266,7 @@ update_web() {
 	echo >&2 "Comparing all ipsets (${all_count} x ${all_count} = $[all_count * (all_count - 1) / 2 - 1] unique comparisons)..."
 
 	local before=$($DATE_CMD +%s)
-	${IPRANGE_CMD} --compare "${all[@]}" |\
+	iprange_cmd --compare "${all[@]}" |\
 		${GREP_CMD} -v ",0$" |\
 		$SORT_CMD |\
 		while IFS="," read name1 name2 entries1 entries2 ips1 ips2 combined common
@@ -2290,7 +2304,7 @@ update_web() {
 		echo >&2 "-------------------------------------------------------------------------------"
 		echo >&2 "Comparing updated ipsets with GeoLite2 country..."
 
-		${IPRANGE_CMD} "${updated[@]}" --compare-next "${geolite2_country[@]}" |\
+		iprange_cmd "${updated[@]}" --compare-next "${geolite2_country[@]}" |\
 			${GREP_CMD} -v ",0$" |\
 			$SORT_CMD |\
 			while IFS="," read name1 name2 entries1 entries2 ips1 ips2 combined common
@@ -2316,7 +2330,7 @@ update_web() {
 		echo >&2 "-------------------------------------------------------------------------------"
 		echo >&2 "Comparing updated ipsets with IPDeny country..."
 
-		${IPRANGE_CMD} "${updated[@]}" --compare-next "${ipdeny_country[@]}" |\
+		iprange_cmd "${updated[@]}" --compare-next "${ipdeny_country[@]}" |\
 			${GREP_CMD} -v ",0$" |\
 			$SORT_CMD |\
 			while IFS="," read name1 name2 entries1 entries2 ips1 ips2 combined common
@@ -2344,7 +2358,7 @@ update_web() {
 		echo >&2 "-------------------------------------------------------------------------------"
 		echo >&2 "Comparing updated ipsets with IP2Location country..."
 
-		${IPRANGE_CMD} "${updated[@]}" --compare-next "${ip2location_country[@]}" |\
+		iprange_cmd "${updated[@]}" --compare-next "${ip2location_country[@]}" |\
 			${GREP_CMD} -v ",0$" |\
 			$SORT_CMD |\
 			while IFS="," read name1 name2 entries1 entries2 ips1 ips2 combined common
@@ -2372,7 +2386,7 @@ update_web() {
 		echo >&2 "-------------------------------------------------------------------------------"
 		echo >&2 "Comparing updated ipsets with IPIP country..."
 
-		${IPRANGE_CMD} "${updated[@]}" --compare-next "${ipip_country[@]}" |\
+		iprange_cmd "${updated[@]}" --compare-next "${ipip_country[@]}" |\
 			${GREP_CMD} -v ",0$" |\
 			$SORT_CMD |\
 			while IFS="," read name1 name2 entries1 entries2 ips1 ips2 combined common
@@ -2480,14 +2494,14 @@ ipset_apply() {
 
 		if [ "${hash}" = "net" ]
 			then
-			${IPRANGE_CMD} "${file}" \
+			iprange_cmd "${file}" \
 				--ipset-reduce ${IPSET_REDUCE_FACTOR} \
 				--ipset-reduce-entries ${IPSET_REDUCE_ENTRIES} \
 				--print-prefix "-A ${tmpname} " >"${RUN_DIR}/${tmpname}"
 			ret=$?
 		elif [ "${hash}" = "ip" ]
 			then
-			${IPRANGE_CMD} -1 "${file}" --print-prefix "-A ${tmpname} " >"${RUN_DIR}/${tmpname}"
+			iprange_cmd -1 "${file}" --print-prefix "-A ${tmpname} " >"${RUN_DIR}/${tmpname}"
 			ret=$?
 		fi
 
@@ -2650,7 +2664,7 @@ finalize() {
 
 	if [ -f "${BASE_DIR}/${dst}" -a ! -z "${IPSET_FILE[${ipset}]}" -a ${REPROCESS_ALL} -eq 0 ]
 		then
-		${IPRANGE_CMD} "${BASE_DIR}/${dst}" --diff "${tmp}" --quiet
+		iprange_cmd "${BASE_DIR}/${dst}" --diff "${tmp}" --quiet
 		if [ $? -eq 0 ]
 		then
 			# they are the same
@@ -2672,7 +2686,7 @@ finalize() {
 
 	# calculate how many entries/IPs are in it
 	local ipset_opts=
-	local entries=$(${IPRANGE_CMD} -C "${tmp}")
+	local entries=$(iprange_cmd -C "${tmp}")
 	local ips=${entries/*,/}
 	local entries=${entries/,*/}
 
@@ -2872,15 +2886,15 @@ update() {
 						hash="ip"
 						limit="ip"
 						pre_filter="$CAT_CMD"
-						filter="filter_ip4"	# without this, '${IPRANGE_CMD} -1' may output huge number of IPs
-						post_filter="${IPRANGE_CMD} -1"
+						filter="filter_ip4"	# without this, 'iprange_cmd -1' may output huge number of IPs
+						post_filter="iprange_cmd -1"
 						;;
 
 				net|nets)	# output is full CIDRs without any single IPs (/32)
 						hash="net"
 						limit="net"
 						pre_filter="filter_all4"
-						filter="${IPRANGE_CMD}"
+						filter="iprange_cmd"
 						post_filter="filter_net4"
 						;;
 
@@ -2888,7 +2902,7 @@ update() {
 						hash="net"
 						limit=""
 						pre_filter="filter_all4"
-						filter="${IPRANGE_CMD}"
+						filter="iprange_cmd"
 						post_filter="$CAT_CMD"
 						;;
 
@@ -3628,14 +3642,14 @@ p2p_gz() {
 	$ZCAT_CMD |\
 		$CUT_CMD -d ':' -f 2 |\
 		$EGREP_CMD "^${IP4_MATCH}-${IP4_MATCH}$" |\
-		${IPRANGE_CMD}
+		iprange_cmd
 }
 
 p2p_gz_ips() {
 	$ZCAT_CMD |\
 		$CUT_CMD -d ':' -f 2 |\
 		$EGREP_CMD "^${IP4_MATCH}-${IP4_MATCH}$" |\
-		${IPRANGE_CMD} -1
+		iprange_cmd -1
 }
 
 # extract only the lines starting with Proxy from the P2P blocklist
@@ -3644,7 +3658,7 @@ p2p_gz_proxy() {
 		$GREP_CMD "^Proxy" |\
 		$CUT_CMD -d ':' -f 2 |\
 		$EGREP_CMD "^${IP4_MATCH}-${IP4_MATCH}$" |\
-		${IPRANGE_CMD} -1
+		iprange_cmd -1
 }
 
 # get the first column from the csv
@@ -3696,7 +3710,7 @@ hostname_resolver() {
 		printf >&2 "${print_ipset_spacer}DNS: "
 	fi
 
-	${IPRANGE_CMD} -1 --dns-threads ${PARALLEL_DNS_QUERIES} ${opts}
+	iprange_cmd -1 --dns-threads ${PARALLEL_DNS_QUERIES} ${opts}
 }
 
 # convert hphosts file to IPs, by resolving all IPs
@@ -3804,7 +3818,7 @@ geolite2_asn() {
 
 		$CAT_CMD "${x}" |\
 			filter_all4 |\
-			${IPRANGE_CMD} |\
+			iprange_cmd |\
 			filter_invalid4 >"${tmp}"
 
 		$TOUCH_CMD -r "${BASE_DIR}/${ipset}.source" "${tmp}"
@@ -3986,7 +4000,7 @@ geolite2_country() {
 
 		$CAT_CMD "${x}" |\
 			filter_all4 |\
-			${IPRANGE_CMD} |\
+			iprange_cmd |\
 			filter_invalid4 >"${tmp}"
 
 		$TOUCH_CMD -r "${BASE_DIR}/${ipset}.source" "${tmp}"
@@ -4127,7 +4141,7 @@ ipdeny_country() {
 
 		$CAT_CMD "${x}" |\
 			filter_all4 |\
-			${IPRANGE_CMD} |\
+			iprange_cmd |\
 			filter_invalid4 >"${tmp}"
 
 		$TOUCH_CMD -r "${BASE_DIR}/${ipset}.source" "${tmp}"
@@ -4278,7 +4292,7 @@ ip2location_country() {
 			$CUT_CMD -d ',' -f 1,2 	|\
 			$SED_CMD 's/","/ - /g' 	|\
 			$TR_CMD '"' ' ' 		|\
-			${IPRANGE_CMD} 			|\
+			iprange_cmd 			  |\
 			filter_invalid4 >"ip2location_country_${code}.source.tmp"
 
 		if [ ! -z "${IP2LOCATION_COUNTRY_CONTINENTS[${code}]}" ]
@@ -4428,7 +4442,7 @@ ipip_country() {
 		$CAT_CMD "${file}" 			|\
 			$GREP_CMD -E "[[:space:]]+${x}[[:space:]]*$" |\
 			$CUT_CMD -f 1 			|\
-			${IPRANGE_CMD} 			|\
+			iprange_cmd   			|\
 			filter_invalid4 >"ipip_country_${code}.source.tmp"
 
 		if [ ! -z "${IPIP_COUNTRY_CONTINENTS[${code}]}" ]
