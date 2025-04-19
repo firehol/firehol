@@ -2723,6 +2723,8 @@ finalize() {
 	IPSET_MAINTAINER[${ipset}]="${maintainer}"
 	IPSET_MAINTAINER_URL[${ipset}]="${maintainer_url}"
 
+  [ -z "${IPSET_ENTRIES[${ipset}]}" ] && IPSET_ENTRIES[${ipset}]="0"
+
 	[ -z "${IPSET_ENTRIES_MIN[${ipset}]}" ] && IPSET_ENTRIES_MIN[${ipset}]="${IPSET_ENTRIES[${ipset}]}"
 	[ "${IPSET_ENTRIES_MIN[${ipset}]}" -gt "${IPSET_ENTRIES[${ipset}]}" ] && IPSET_ENTRIES_MIN[${ipset}]="${IPSET_ENTRIES[${ipset}]}"
 
@@ -6281,12 +6283,12 @@ update pushing_inertia_blocklist $[24*60] 0 ipv4 both \
 # -----------------------------------------------------------------------------
 # http://nullsecure.org/
 
-update nullsecure $[8*60] 0 ipv4 ip \
-	"http://nullsecure.org/threatfeed/master.txt" \
-	extract_ipv4_from_any_file \
-	"reputation" \
-	"[nullsecure.org](http://nullsecure.org/) This is a free threat feed provided for use in any acceptable manner. This feed was aggregated using the [Tango Honeypot Intelligence Splunk App](https://github.com/aplura/Tango) by Brian Warehime, a Senior Security Analyst at Defense Point Security." \
-	"nullsecure.org" "http://nullsecure.org/"
+#update nullsecure $[8*60] 0 ipv4 ip \
+#	"http://nullsecure.org/threatfeed/master.txt" \
+#	extract_ipv4_from_any_file \
+#	"reputation" \
+#	"[nullsecure.org](http://nullsecure.org/) This is a free threat feed provided for use in any acceptable manner. This feed was aggregated using the [Tango Honeypot Intelligence Splunk App](https://github.com/aplura/Tango) by Brian Warehime, a Senior Security Analyst at Defense Point Security." \
+#	"nullsecure.org" "http://nullsecure.org/"
 
 
 # -----------------------------------------------------------------------------
