@@ -7111,26 +7111,26 @@ update gpf_comics $[24*60] 0 ipv4 ip \
 # -----------------------------------------------------------------------------
 # http://urandom.us.to/report.php
 
-parse_urandom_us_to() {
-	${TR_CMD} '\r' '\n' |\
-		${SED_CMD} -e 's|^.* IP=\(.*\) INFO=.* TAG=\(.*\) SOURCE=\(.*\)$|\1|g'
-}
-
-for x in dns ftp http mailer malware ntp smb spam ssh rdp telnet unspecified vnc
-do
-	case "${x}" in
-		malware) category="malware" ;;
-		mailer|spam) category="spam" ;;
-		*) category="attacks" ;;
-	esac
-
-	update urandomusto_${x} $[60] 0 ipv4 ip \
-		"http://urandom.us.to/report.php?ip=&info=&tag=${x}&out=txt&submit=go" \
-		parse_urandom_us_to \
-		"${category}" \
-		"IP Feed about ${x}, crawled from several sources, including several twitter accounts." \
-		"urandom.us.to" "http://urandom.us.to/"
-done
+#parse_urandom_us_to() {
+#	${TR_CMD} '\r' '\n' |\
+#		${SED_CMD} -e 's|^.* IP=\(.*\) INFO=.* TAG=\(.*\) SOURCE=\(.*\)$|\1|g'
+#}
+#
+#for x in dns ftp http mailer malware ntp smb spam ssh rdp telnet unspecified vnc
+#do
+#	case "${x}" in
+#		malware) category="malware" ;;
+#		mailer|spam) category="spam" ;;
+#		*) category="attacks" ;;
+#	esac
+#
+#	update urandomusto_${x} $[60] 0 ipv4 ip \
+#		"http://urandom.us.to/report.php?ip=&info=&tag=${x}&out=txt&submit=go" \
+#		parse_urandom_us_to \
+#		"${category}" \
+#		"IP Feed about ${x}, crawled from several sources, including several twitter accounts." \
+#		"urandom.us.to" "http://urandom.us.to/"
+#done
 
 
 # -----------------------------------------------------------------------------
