@@ -3667,12 +3667,12 @@ gz_proxyrss() {
 		$CUT_CMD -d ':' -f 1
 }
 
-# extract IPs from the maxmind proxy fraud page
-parse_maxmind_proxy_fraud() {
-	$GREP_CMD "href=\"high-risk-ip-sample/" |\
-		$CUT_CMD -d '>' -f 2 |\
-		$CUT_CMD -d '<' -f 1
-}
+## extract IPs from the maxmind proxy fraud page
+#parse_maxmind_proxy_fraud() {
+#	$GREP_CMD "href=\"high-risk-ip-sample/" |\
+#		$CUT_CMD -d '>' -f 2 |\
+#		$CUT_CMD -d '<' -f 1
+#}
 
 extract_ipv4_from_any_file() {
 	$GREP_CMD --text -oP "(^|[[:punct:]]|[[:space:]]|[[:cntrl:]])${IP4_MATCH}([[:punct:]]|[[:space:]]|[[:cntrl:]]|$)" |\
@@ -4480,60 +4480,63 @@ ipip_country() {
 	return 0
 }
 
-eSentire() {
-	local base="https://raw.githubusercontent.com/eSentire/malfeed/master"
-
-	cd "${RUN_DIR}" || return 1
-
-	local ipset="esentire" limit="" hash="ip" ipv="ipv4" \
-		mins=$[24 * 60 * 1] history_mins=0 \
-		url="${base}/index.txt" \
-		info="[eSentire](https://github.com/eSentire/malfeed)" \
-		ret=
-
-	ipset_shall_be_run "${ipset}"
-	case "$?" in
-		0)	;;
-
-		1)	[ -d "${BASE_DIR}/.git" ] && echo >"${BASE_DIR}/${ipset}.setinfo" "${ipset}|${info}|${ipv} hash:${hash}|disabled|`if [ ! -z "${url}" ]; then echo "updated every $(mins_to_text ${mins}) from [this link](${url})"; fi`"
-			return 1
-			;;
-
-		*)	return 1
-			;;
-	esac
-
-	# download it
-	download_manager "${ipset}" "${mins}" "${url}"
-	ret=$?
-	if [ $ret -eq ${DOWNLOAD_FAILED} -o $ret -eq ${DOWNLOAD_NOT_UPDATED} ]
-		then
-		[ ! -s "${BASE_DIR}/${ipset}.source" ] && return 1
-		[ -d "${BASE_DIR}/${ipset}" -a ${REPROCESS_ALL} -eq 0 ] && return 1
-	fi
-
-	echo >"${RUN_DIR}/esentire.sh"
-	$CAT_CMD "${BASE_DIR}/${ipset}.source" |\
-		while IFS="," read file type description
-		do
-			name="$( echo "${file/_watch_ip.lst/}" | $TR_CMD -c "[a-zA-Z0-9\n]" "_")"
-			
-			$CAT_CMD >>"${RUN_DIR}/esentire.sh" <<EOF_ESENTIRE
-update esentire_${name} "${mins}" 0 ipv4 ip \
-	"${base}/${file}" \
-	remove_comments \
-	"malware" \
-	"${description}" \
-	"eSentire" "https://github.com/eSentire/malfeed"
-EOF_ESENTIRE
-		done
-
-	source "${RUN_DIR}/esentire.sh"
-
-	return 0
-}
-
-
+#eSentire() {
+#	local base="https://raw.githubusercontent.com/eSentire/malfeed/master"
+#
+#	cd "${RUN_DIR}" || return 1
+#
+#	local ipset="esentire" limit="" hash="ip" ipv="ipv4" \
+#		mins=$[24 * 60 * 1] history_mins=0 \
+#		url="${base}/index.txt" \
+#		info="[eSentire](https://github.com/eSentire/malfeed)" \
+#		ret=
+#
+#	ipset_shall_be_run "${ipset}"
+#	case "$?" in
+#		0)	;;
+#
+#		1)	[ -d "${BASE_DIR}/.git" ] && echo >"${BASE_DIR}/${ipset}.setinfo" "${ipset}|${info}|${ipv} hash:${hash}|disabled|`if [ ! -z "${url}" ]; then echo "updated every $(mins_to_text ${mins}) from [this link](${url})"; fi`"
+#			return 1
+#			;;
+#
+#		*)	return 1
+#			;;
+#	esac
+#
+#	# download it
+#	download_manager "${ipset}" "${mins}" "${url}"
+#	ret=$?
+#	if [ $ret -eq ${DOWNLOAD_FAILED} -o $ret -eq ${DOWNLOAD_NOT_UPDATED} ]
+#		then
+#		[ ! -s "${BASE_DIR}/${ipset}.source" ] && return 1
+#		[ -d "${BASE_DIR}/${ipset}" -a ${REPROCESS_ALL} -eq 0 ] && return 1
+#	fi
+#
+#	echo >"${RUN_DIR}/esentire.sh"
+#	$CAT_CMD "${BASE_DIR}/${ipset}.source" |\
+#		while IFS="," read file type description
+#		do
+#			name="$( echo "${file/_watch_ip.lst/}" | $TR_CMD -c "[a-zA-Z0-9\n]" "_")"
+#
+#			$CAT_CMD >>"${RUN_DIR}/esentire.sh" <<EOF_ESENTIRE
+#update esentire_${name} "${mins}" 0 ipv4 ip \
+#	"${base}/${file}" \
+#	remove_comments \
+#	"malware" \
+#	"${description}" \
+#	"eSentire" "https://github.com/eSentire/malfeed"
+#EOF_ESENTIRE
+#		done
+#
+#	source "${RUN_DIR}/esentire.sh"
+#
+#	return 0
+#}
+#
+## -----------------------------------------------------------------------------
+## eSentire
+#
+#eSentire
 
 # -----------------------------------------------------------------------------
 # Common source files for many ipsets
@@ -4911,12 +4914,12 @@ update botvrij_src $[24 * 60] 0 ipv4 ip \
 # -----------------------------------------------------------------------------
 # cruzit.com
 
-update cruzit_web_attacks $[12 * 60] 0 ipv4 ip \
-	"http://www.cruzit.com/xwbl2txt.php" \
-	$CAT_CMD \
-	"attacks" \
-	"[CruzIt.com](http://www.cruzit.com/wbl.php) IPs of compromised machines scanning for vulnerabilities and DDOS attacks" \
-	"CruzIt.com" "http://www.cruzit.com/wbl.php"
+#update cruzit_web_attacks $[12 * 60] 0 ipv4 ip \
+#	"http://www.cruzit.com/xwbl2txt.php" \
+#	$CAT_CMD \
+#	"attacks" \
+#	"[CruzIt.com](http://www.cruzit.com/wbl.php) IPs of compromised machines scanning for vulnerabilities and DDOS attacks" \
+#	"CruzIt.com" "http://www.cruzit.com/wbl.php"
 
 
 # -----------------------------------------------------------------------------
@@ -4944,12 +4947,12 @@ update et_compromised $[12*60] 0 ipv4 ip \
 	"Emerging Threats" "http://www.emergingthreats.net/"
 
 # Command & Control servers by shadowserver.org
-update et_botcc $[12*60] 0 ipv4 ip \
-	"http://rules.emergingthreats.net/fwrules/emerging-PIX-CC.rules" \
-	pix_deny_rules_to_ipv4 \
-	"reputation" \
-	"[EmergingThreats.net Command and Control IPs](http://doc.emergingthreats.net/bin/view/Main/BotCC) These IPs are updates every 24 hours and should be considered VERY highly reliable indications that a host is communicating with a known and active Bot or Malware command and control server - (although they say this includes abuse.ch trackers, it does not - check its overlaps)" \
-	"Emerging Threats" "http://www.emergingthreats.net/"
+#update et_botcc $[12*60] 0 ipv4 ip \
+#	"http://rules.emergingthreats.net/fwrules/emerging-PIX-CC.rules" \
+#	pix_deny_rules_to_ipv4 \
+#	"reputation" \
+#	"[EmergingThreats.net Command and Control IPs](http://doc.emergingthreats.net/bin/view/Main/BotCC) These IPs are updates every 24 hours and should be considered VERY highly reliable indications that a host is communicating with a known and active Bot or Malware command and control server - (although they say this includes abuse.ch trackers, it does not - check its overlaps)" \
+#	"Emerging Threats" "http://www.emergingthreats.net/"
 
 # This appears to be the SPAMHAUS DROP list
 update et_spamhaus $[12*60] 0 ipv4 both \
@@ -5533,12 +5536,12 @@ delete_ipset multiproxy
 # Open Proxies from proxylists.net
 # http://www.proxylists.net/proxylists.xml
 
-update proxylists 60 "$[24*60] $[7*24*60] $[30*24*60]" ipv4 ip \
-	"http://www.proxylists.net/proxylists.xml" \
-	parse_rss_proxy \
-	"anonymizers" \
-	"[proxylists.net](http://www.proxylists.net/) open proxies (this list is composed using an RSS feed)" \
-	"ProxyLists.net" "http://www.proxylists.net/"
+#update proxylists 60 "$[24*60] $[7*24*60] $[30*24*60]" ipv4 ip \
+#	"http://www.proxylists.net/proxylists.xml" \
+#	parse_rss_proxy \
+#	"anonymizers" \
+#	"[proxylists.net](http://www.proxylists.net/) open proxies (this list is composed using an RSS feed)" \
+#	"ProxyLists.net" "http://www.proxylists.net/"
 
 
 # -----------------------------------------------------------------------------
@@ -5572,12 +5575,12 @@ update proxyrss $[4*60] "$[24*60] $[7*24*60] $[30*24*60]" ipv4 ip \
 # Anonymous Proxies
 # was: https://www.maxmind.com/en/anonymous-proxy-fraudulent-ip-address-list
 
-update maxmind_proxy_fraud $[4*60] 0 ipv4 ip \
-	"https://www.maxmind.com/en/high-risk-ip-sample-list" \
-	parse_maxmind_proxy_fraud \
-	"anonymizers" \
-	"[MaxMind.com](https://www.maxmind.com/en/high-risk-ip-sample-list) sample list of high-risk IP addresses." \
-	"MaxMind.com" "https://www.maxmind.com/en/high-risk-ip-sample-list"
+#update maxmind_proxy_fraud $[4*60] 0 ipv4 ip \
+#	"https://www.maxmind.com/en/high-risk-ip-sample-list" \
+#	parse_maxmind_proxy_fraud \
+#	"anonymizers" \
+#	"[MaxMind.com](https://www.maxmind.com/en/high-risk-ip-sample-list) sample list of high-risk IP addresses." \
+#	"MaxMind.com" "https://www.maxmind.com/en/high-risk-ip-sample-list"
 
 
 # -----------------------------------------------------------------------------
@@ -5697,24 +5700,24 @@ update blocklist_net_ua $[10] 0 ipv4 ip \
 # -----------------------------------------------------------------------------
 # Turris
 
-parse_turris_greylist() { $CUT_CMD -d ',' -f 1; }
-update turris_greylist $[7 * 24 * 60] 0 ipv4 ip \
-	"https://www.turris.cz/greylist-data/greylist-latest.csv" \
-	parse_turris_greylist \
-	"reputation" \
-	"[Turris Greylist](https://www.turris.cz/en/greylist) IPs that are blocked on the firewalls of Turris routers. The data is processed and classified every week and behaviour of IP addresses that accessed a larger number of Turris routers is evaluated. The result is a list of addresses that have tried to obtain information about services on the router or tried to gain access to them. We do not recommend to use these data as a list of addresses that should be blocked but it can be used for example in analysis of the traffic in other networks." \
-	"Turris" "https://www.turris.cz/en/greylist"
-
+#parse_turris_greylist() { $CUT_CMD -d ',' -f 1; }
+#update turris_greylist $[7 * 24 * 60] 0 ipv4 ip \
+#	"https://www.turris.cz/greylist-data/greylist-latest.csv" \
+#	parse_turris_greylist \
+#	"reputation" \
+#	"[Turris Greylist](https://www.turris.cz/en/greylist) IPs that are blocked on the firewalls of Turris routers. The data is processed and classified every week and behaviour of IP addresses that accessed a larger number of Turris routers is evaluated. The result is a list of addresses that have tried to obtain information about services on the router or tried to gain access to them. We do not recommend to use these data as a list of addresses that should be blocked but it can be used for example in analysis of the traffic in other networks." \
+#	"Turris" "https://www.turris.cz/en/greylist"
+#
 
 # -----------------------------------------------------------------------------
 # http://www.urlvir.com/
 
-update urlvir $[24 * 60] 0 ipv4 ip \
-	"http://www.urlvir.com/export-ip-addresses/" \
-	remove_comments \
-	"malware" \
-	"[URLVir.com](http://www.urlvir.com/) Active Malicious IP Addresses Hosting Malware. URLVir is an online security service developed by NoVirusThanks Company Srl that automatically monitors changes of malicious URLs (executable files)." \
-	"URLVir.com" "http://www.urlvir.com/"
+#update urlvir $[24 * 60] 0 ipv4 ip \
+#	"http://www.urlvir.com/export-ip-addresses/" \
+#	remove_comments \
+#	"malware" \
+#	"[URLVir.com](http://www.urlvir.com/) Active Malicious IP Addresses Hosting Malware. URLVir is an online security service developed by NoVirusThanks Company Srl that automatically monitors changes of malicious URLs (executable files)." \
+#	"URLVir.com" "http://www.urlvir.com/"
 
 
 # -----------------------------------------------------------------------------
@@ -6232,44 +6235,39 @@ delete_ipset trustedsec_atif
 # -----------------------------------------------------------------------------
 # bbcan177
 
-update bbcan177_ms1 $[24*60] 0 ipv4 both \
-	"https://gist.githubusercontent.com/BBcan177/bf29d47ea04391cb3eb0/raw" \
-	remove_comments \
-	"malware" \
-	"pfBlockerNG Malicious Threats" \
-	"BBcan177" "https://gist.github.com/BBcan177"
-
-update bbcan177_ms3 $[24*60] 0 ipv4 both \
-	"https://gist.githubusercontent.com/BBcan177/d7105c242f17f4498f81/raw" \
-	remove_comments \
-	"malware" \
-	"pfBlockerNG Malicious Threats" \
-	"BBcan177" "https://gist.github.com/BBcan177"
-
-# -----------------------------------------------------------------------------
-# eSentire
-
-eSentire
+#update bbcan177_ms1 $[24*60] 0 ipv4 both \
+#	"https://gist.githubusercontent.com/BBcan177/bf29d47ea04391cb3eb0/raw" \
+#	remove_comments \
+#	"malware" \
+#	"pfBlockerNG Malicious Threats" \
+#	"BBcan177" "https://gist.github.com/BBcan177"
+#
+#update bbcan177_ms3 $[24*60] 0 ipv4 both \
+#	"https://gist.githubusercontent.com/BBcan177/d7105c242f17f4498f81/raw" \
+#	remove_comments \
+#	"malware" \
+#	"pfBlockerNG Malicious Threats" \
+#	"BBcan177" "https://gist.github.com/BBcan177"
 
 
 # -----------------------------------------------------------------------------
 # Pushing Inertia
 # https://github.com/pushinginertia/ip-blacklist
 
-parse_pushing_inertia() { $GREP_CMD "^deny from " | $CUT_CMD -d ' ' -f 3-; }
-
-update pushing_inertia_blocklist $[24*60] 0 ipv4 both \
-	"https://raw.githubusercontent.com/pushinginertia/ip-blacklist/master/ip_blacklist.conf" \
-	parse_pushing_inertia \
-	"reputation" \
-	"[Pushing Inertia](https://github.com/pushinginertia/ip-blacklist) IPs of hosting providers that are known to host various bots, spiders, scrapers, etc. to block access from these providers to web servers." \
-	"Pushing Inertia" "https://github.com/pushinginertia/ip-blacklist" \
-	license "MIT" \
-	intended_use "firewall_block_service" \
-	protection "inbound" \
-	grade "unknown" \
-	false_positives "none" \
-	poisoning "not_possible"
+#parse_pushing_inertia() { $GREP_CMD "^deny from " | $CUT_CMD -d ' ' -f 3-; }
+#
+#update pushing_inertia_blocklist $[24*60] 0 ipv4 both \
+#	"https://raw.githubusercontent.com/pushinginertia/ip-blacklist/master/ip_blacklist.conf" \
+#	parse_pushing_inertia \
+#	"reputation" \
+#	"[Pushing Inertia](https://github.com/pushinginertia/ip-blacklist) IPs of hosting providers that are known to host various bots, spiders, scrapers, etc. to block access from these providers to web servers." \
+#	"Pushing Inertia" "https://github.com/pushinginertia/ip-blacklist" \
+#	license "MIT" \
+#	intended_use "firewall_block_service" \
+#	protection "inbound" \
+#	grade "unknown" \
+#	false_positives "none" \
+#	poisoning "not_possible"
 
 
 # -----------------------------------------------------------------------------
@@ -6388,21 +6386,21 @@ update cta_cryptowall $[24*60] 0 ipv4 ip \
 # -----------------------------------------------------------------------------
 # https://github.com/client9/ipcat
 
-parse_client9_ipcat_datacenters() {
-	 $CUT_CMD -d ',' -f 1,2 |\
-	 	$TR_CMD "," "-" |\
-	 	$IPRANGE_CMD
-}
-
-update datacenters $[24*60] 0 ipv4 both \
-	"https://raw.githubusercontent.com/client9/ipcat/master/datacenters.csv" \
-	parse_client9_ipcat_datacenters \
-	"organizations" \
-	"[Nick Galbreath](https://github.com/client9/ipcat) This is a list of IPv4 address that correspond to datacenters, co-location centers, shared and virtual webhosting providers. In other words, ip addresses that end web consumers should not be using." \
-	"Nick Galbreath" "https://github.com/client9/ipcat" \
-	license "GPLv3" \
-	never_empty
-
+#parse_client9_ipcat_datacenters() {
+#	 $CUT_CMD -d ',' -f 1,2 |\
+#	 	$TR_CMD "," "-" |\
+#	 	$IPRANGE_CMD
+#}
+#
+#update datacenters $[24*60] 0 ipv4 both \
+#	"https://raw.githubusercontent.com/client9/ipcat/master/datacenters.csv" \
+#	parse_client9_ipcat_datacenters \
+#	"organizations" \
+#	"[Nick Galbreath](https://github.com/client9/ipcat) This is a list of IPv4 address that correspond to datacenters, co-location centers, shared and virtual webhosting providers. In other words, ip addresses that end web consumers should not be using." \
+#	"Nick Galbreath" "https://github.com/client9/ipcat" \
+#	license "GPLv3" \
+#	never_empty
+#
 
 # -----------------------------------------------------------------------------
 # https://cleantalk.org/
@@ -6636,13 +6634,13 @@ update iblocklist_spyware $[12*60] 0 ipv4 both \
 	"iBlocklist.com" "https://www.iblocklist.com/" \
 	dont_redistribute
 
-update iblocklist_badpeers $[12*60] 0 ipv4 both \
-	"http://list.iblocklist.com/?list=cwworuawihqvocglcoss&fileformat=p2p&archiveformat=gz" \
-	p2p_gz \
-	"reputation" \
-	"IPs that have been reported for bad deeds in p2p." \
-	"iBlocklist.com" "https://www.iblocklist.com/" \
-	dont_redistribute
+#update iblocklist_badpeers $[12*60] 0 ipv4 both \
+#	"http://list.iblocklist.com/?list=cwworuawihqvocglcoss&fileformat=p2p&archiveformat=gz" \
+#	p2p_gz \
+#	"reputation" \
+#	"IPs that have been reported for bad deeds in p2p." \
+#	"iBlocklist.com" "https://www.iblocklist.com/" \
+#	dont_redistribute
 
 update iblocklist_hijacked $[12*60] 0 ipv4 both \
 	"http://list.iblocklist.com/?list=usrcshglbiilevmyfhse&fileformat=p2p&archiveformat=gz" \
@@ -7136,16 +7134,16 @@ update gpf_comics $[24*60] 0 ipv4 ip \
 # -----------------------------------------------------------------------------
 # https://www.us-cert.gov/ncas/alerts/TA17-164A
 
-parse_uscert_csv() {
-	${GREP_CMD} "IP Watchlist" | ${CUT_CMD} -d ',' -f 1
-}
-
-update uscert_hidden_cobra $[24*60] 0 ipv4 ip \
-	"https://www.us-cert.gov/sites/default/files/publications/TA-17-164A_csv.csv" \
-	parse_uscert_csv \
-	"attacks" \
-	"Since 2009, HIDDEN COBRA actors have leveraged their capabilities to target and compromise a range of victims; some intrusions have resulted in the exfiltration of data while others have been disruptive in nature. Commercial reporting has referred to this activity as Lazarus Group and Guardians of Peace. DHS and FBI assess that HIDDEN COBRA actors will continue to use cyber operations to advance their government’s military and strategic objectives. Tools and capabilities used by HIDDEN COBRA actors include DDoS botnets, keyloggers, remote access tools (RATs), and wiper malware. Variants of malware and tools used by HIDDEN COBRA actors include Destover, Wild Positron/Duuzer and Hangman." \
-	"US Cert" "https://www.us-cert.gov/ncas/alerts/TA17-164A"
+#parse_uscert_csv() {
+#	${GREP_CMD} "IP Watchlist" | ${CUT_CMD} -d ',' -f 1
+#}
+#
+#update uscert_hidden_cobra $[24*60] 0 ipv4 ip \
+#	"https://www.us-cert.gov/sites/default/files/publications/TA-17-164A_csv.csv" \
+#	parse_uscert_csv \
+#	"attacks" \
+#	"Since 2009, HIDDEN COBRA actors have leveraged their capabilities to target and compromise a range of victims; some intrusions have resulted in the exfiltration of data while others have been disruptive in nature. Commercial reporting has referred to this activity as Lazarus Group and Guardians of Peace. DHS and FBI assess that HIDDEN COBRA actors will continue to use cyber operations to advance their government’s military and strategic objectives. Tools and capabilities used by HIDDEN COBRA actors include DDoS botnets, keyloggers, remote access tools (RATs), and wiper malware. Variants of malware and tools used by HIDDEN COBRA actors include Destover, Wild Positron/Duuzer and Hangman." \
+#	"US Cert" "https://www.us-cert.gov/ncas/alerts/TA17-164A"
 
 # -----------------------------------------------------------------------------
 # BadIPs.com
@@ -7551,12 +7549,12 @@ badipscom
 # we don't have yet the license to add this script here
 # (the script is ours, but sorbs.net is very sceptical about this)
 
-update sorbs_dul 1 0 ipv4 both "" \
-	$CAT_CMD \
-	"spam" "[Sorbs.net](https://www.sorbs.net/) Dynamic IP Addresses." \
-	"Sorbs.net" "https://www.sorbs.net/" \
-	dont_redistribute \
-	dont_enable_with_all
+#update sorbs_dul 1 0 ipv4 both "" \
+#	$CAT_CMD \
+#	"spam" "[Sorbs.net](https://www.sorbs.net/) Dynamic IP Addresses." \
+#	"Sorbs.net" "https://www.sorbs.net/" \
+#	dont_redistribute \
+#	dont_enable_with_all
 
 #update sorbs_socks 1 0 ipv4 both "" \
 #	$CAT_CMD \
@@ -7775,7 +7773,6 @@ merge firehol_level3 ipv4 both \
 	bruteforceblocker \
 	ciarmy \
 	dshield_30d \
-	maxmind_proxy_fraud \
 	myip \
 	vxvault \
 
@@ -7785,7 +7782,6 @@ merge firehol_level4 ipv4 both \
 	"FireHOL" "http://iplists.firehol.org/" \
 	blocklist_net_ua \
 	botscout_30d \
-	cruzit_web_attacks \
 	cybercrime \
 	iblocklist_hijacked \
 	iblocklist_spyware \
@@ -7821,9 +7817,7 @@ merge firehol_webserver ipv4 both \
 	"attacks" \
 	"A web server IP blacklist made from blocklists that track IPs that should never be used by your web users. (This list includes IPs that are servers hosting malware, bots, etc or users having a long criminal history. This list is to be used on top of firehol_level1, firehol_level2, firehol_level3 and possibly firehol_proxies or firehol_anonymous)." \
 	"FireHOL" "http://iplists.firehol.org/" \
-	maxmind_proxy_fraud \
 	myip \
-	pushing_inertia_blocklist \
 	stopforumspam_toxic \
 
 merge firehol_proxies ipv4 both \
@@ -7831,9 +7825,7 @@ merge firehol_proxies ipv4 both \
 	"An ipset made from all sources that track open proxies. It includes IPs reported or detected in the last 30 days." \
 	"FireHOL" "http://iplists.firehol.org/" \
 	iblocklist_proxies \
-	maxmind_proxy_fraud \
 	ip2proxy_px1lite \
-	proxylists_30d \
 	proxyrss_30d \
 	ri_connect_proxies_30d \
 	ri_web_proxies_30d \
@@ -7855,7 +7847,6 @@ merge firehol_webclient ipv4 both \
 	"An IP blacklist made from blocklists that track IPs that a web client should never talk to. This list is to be used on top of firehol_level1." \
 	"FireHOL" "http://iplists.firehol.org/" \
 	cybercrime \
-	maxmind_proxy_fraud \
 
 
 # -----------------------------------------------------------------------------
