@@ -288,7 +288,7 @@ SERVICE dhcp
 		    interface eth0 dhcp
 		      policy return
 		      server dhcp accept
-		    interface eth0 lan src "$mylan" dst "$myip"
+		    interface eth0 lan src `"$mylan"` dst `"$myip"`
 		      client all accept
 		-
 		This service implicitly sets its client or server to ipv4 mode.
