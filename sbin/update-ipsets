@@ -3305,7 +3305,6 @@ rename_ipset rosi_web_proxies ri_web_proxies
 rename_ipset rosi_connect_proxies ri_connect_proxies
 rename_ipset danmetor dm_tor
 rename_ipset autoshun shunlist
-rename_ipset tor_servers bm_tor
 rename_ipset stop_forum_spam stopforumspam
 rename_ipset stop_forum_spam_1h stopforumspam_1d
 rename_ipset stop_forum_spam_7d stopforumspam_7d
@@ -4846,28 +4845,22 @@ update dshield 10 "$[24*60] $[7*24*60] $[30*24*60]" ipv4 both \
 # TOR is not necessary hostile, you may need this just for sensitive services.
 
 # https://www.dan.me.uk/tornodes
-# This contains a full TOR nodelist (no more than 30 minutes old).
+# This contains an exit TOR nodelist (no more than 30 minutes old).
 # The page has download limit that does not allow download in less than 30 min.
 update dm_tor 30 0 ipv4 ip \
-	"https://www.dan.me.uk/torlist/" \
+	"https://www.dan.me.uk/torlist/?exit" \
 	remove_comments \
 	"anonymizers" \
-	"[dan.me.uk](https://www.dan.me.uk) dynamic list of TOR nodes" \
+	"[dan.me.uk](https://www.dan.me.uk) dynamic list of TOR exit nodes" \
 	"dan.me.uk" "https://www.dan.me.uk/"
 
+et_tor_exit_nodes_only() { $GREP_CMD "Known Tor Exit Node" | snort_alert_rules_to_ipv4; }
 update et_tor $[12*60] 0 ipv4 ip \
 	"http://rules.emergingthreats.net/blockrules/emerging-tor.rules" \
-	snort_alert_rules_to_ipv4 \
+	et_tor_exit_nodes_only \
 	"anonymizers" \
 	"[EmergingThreats.net TOR list](http://doc.emergingthreats.net/bin/view/Main/TorRules) of TOR network IPs" \
 	"Emerging Threats" "http://www.emergingthreats.net/"
-
-update bm_tor 30 0 ipv4 ip \
-	"https://torstatus.blutmagie.de/ip_list_all.php/Tor_ip_list_ALL.csv" \
-	remove_comments \
-	"anonymizers" \
-	"[torstatus.blutmagie.de](https://torstatus.blutmagie.de) list of all TOR network servers" \
-	"torstatus.blutmagie.de" "https://torstatus.blutmagie.de/"
 
 torproject_exits() { $GREP_CMD "^ExitAddress " | $CUT_CMD -d ' ' -f 2; }
 update tor_exits 5 "$[24*60] $[7*24*60] $[30*24*60]" ipv4 ip \
@@ -7837,7 +7830,6 @@ merge firehol_anonymous ipv4 both \
 	"An ipset that includes all the anonymizing IPs of the world." \
 	"FireHOL" "http://iplists.firehol.org/" \
 	anonymous \
-	bm_tor \
 	dm_tor \
 	firehol_proxies \
 	tor_exits \
