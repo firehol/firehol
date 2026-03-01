@@ -335,6 +335,8 @@ if test x"$RENICE" = x; then
 AC_SUBST([RENICE], [:])
 fi
 AX_NEED_PROG([RM], [rm], [])
+AX_NEED_PROG([SEQ], [seq], [])
+AX_NEED_PROG([SLEEP], [sleep], [])
 AX_NEED_PROG([SORT], [sort], [])
 AX_NEED_PROG([TAIL], [tail], [])
 AX_NEED_PROG([TAR], [tar], [])
