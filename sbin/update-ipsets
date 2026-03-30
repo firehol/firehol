@@ -6161,6 +6161,69 @@ update greensnow 30 0 ipv4 ip \
 
 
 # -----------------------------------------------------------------------------
+# IPsum
+# https://github.com/stamparm/ipsum
+# Daily threat intelligence feed based on 30+ blacklists
+# Level files contain IPs appearing on N or more blacklists
+
+update ipsum $[24 * 60] 0 ipv4 ip \
+	"https://raw.githubusercontent.com/stamparm/ipsum/master/levels/1.txt" \
+	remove_comments \
+	"attacks" \
+	"[IPsum](https://github.com/stamparm/ipsum) threat intelligence feed of IPs appearing on at least 1 blacklist. Based on analysis of 30+ publicly available blacklists updated daily. This is the full list with the most entries and the highest false positive rate." \
+	"stamparm" "https://github.com/stamparm/ipsum"
+
+update ipsum_2 $[24 * 60] 0 ipv4 ip \
+	"https://raw.githubusercontent.com/stamparm/ipsum/master/levels/2.txt" \
+	remove_comments \
+	"attacks" \
+	"[IPsum](https://github.com/stamparm/ipsum) threat intelligence feed of IPs appearing on at least 2 blacklists. Based on analysis of 30+ publicly available blacklists updated daily." \
+	"stamparm" "https://github.com/stamparm/ipsum"
+
+update ipsum_3 $[24 * 60] 0 ipv4 ip \
+	"https://raw.githubusercontent.com/stamparm/ipsum/master/levels/3.txt" \
+	remove_comments \
+	"attacks" \
+	"[IPsum](https://github.com/stamparm/ipsum) threat intelligence feed of IPs appearing on at least 3 blacklists. Based on analysis of 30+ publicly available blacklists updated daily. This is the recommended level for most use cases." \
+	"stamparm" "https://github.com/stamparm/ipsum"
+
+update ipsum_4 $[24 * 60] 0 ipv4 ip \
+	"https://raw.githubusercontent.com/stamparm/ipsum/master/levels/4.txt" \
+	remove_comments \
+	"attacks" \
+	"[IPsum](https://github.com/stamparm/ipsum) threat intelligence feed of IPs appearing on at least 4 blacklists. Based on analysis of 30+ publicly available blacklists updated daily." \
+	"stamparm" "https://github.com/stamparm/ipsum"
+
+update ipsum_5 $[24 * 60] 0 ipv4 ip \
+	"https://raw.githubusercontent.com/stamparm/ipsum/master/levels/5.txt" \
+	remove_comments \
+	"attacks" \
+	"[IPsum](https://github.com/stamparm/ipsum) threat intelligence feed of IPs appearing on at least 5 blacklists. Based on analysis of 30+ publicly available blacklists updated daily." \
+	"stamparm" "https://github.com/stamparm/ipsum"
+
+update ipsum_6 $[24 * 60] 0 ipv4 ip \
+	"https://raw.githubusercontent.com/stamparm/ipsum/master/levels/6.txt" \
+	remove_comments \
+	"attacks" \
+	"[IPsum](https://github.com/stamparm/ipsum) threat intelligence feed of IPs appearing on at least 6 blacklists. Based on analysis of 30+ publicly available blacklists updated daily." \
+	"stamparm" "https://github.com/stamparm/ipsum"
+
+update ipsum_7 $[24 * 60] 0 ipv4 ip \
+	"https://raw.githubusercontent.com/stamparm/ipsum/master/levels/7.txt" \
+	remove_comments \
+	"attacks" \
+	"[IPsum](https://github.com/stamparm/ipsum) threat intelligence feed of IPs appearing on at least 7 blacklists. Based on analysis of 30+ publicly available blacklists updated daily." \
+	"stamparm" "https://github.com/stamparm/ipsum"
+
+update ipsum_8 $[24 * 60] 0 ipv4 ip \
+	"https://raw.githubusercontent.com/stamparm/ipsum/master/levels/8.txt" \
+	remove_comments \
+	"attacks" \
+	"[IPsum](https://github.com/stamparm/ipsum) threat intelligence feed of IPs appearing on at least 8 blacklists. Based on analysis of 30+ publicly available blacklists updated daily. This is the most conservative level with the highest confidence and fewest entries." \
+	"stamparm" "https://github.com/stamparm/ipsum"
+
+
+# -----------------------------------------------------------------------------
 # http://cybercrime-tracker.net/fuckerz.php
 
 update cybercrime $[12 * 60] 0 ipv4 ip \
