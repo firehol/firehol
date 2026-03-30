@@ -1,0 +1,23 @@
+
+This IP list is a composition of other IP lists.
+<p/>
+<strong>An ipset made from blocklists that track attacks, but may include a large number of false positives.</strong>
+<p/>
+It includes the following IP lists:
+<ul>
+	<li><a href="?ipset=blocklist_net_ua">blocklist_net_ua</a> &mdash; <a href="https://blocklist.net.ua/" target="_blank">blocklist.net.ua</a> IPs that have been observed performing attacks, collected by Ukrainian honeypots.
+	</li>
+	<li><a href="?ipset=botscout_30d">botscout_30d</a> &mdash; <a href="http://botscout.com/" target="_blank">BotScout</a> IPs of bots caught registering on forums and polluting databases over the last 30 days.
+	</li>
+	<li><a href="?ipset=cybercrime">cybercrime</a> &mdash; <a href="http://cybercrime-tracker.net/" target="_blank">CyberCrime</a> IPs used by malware Command and Control servers.
+	</li>
+	<li><a href="?ipset=iblocklist_hijacked">iblocklist_hijacked</a> &mdash; iBlocklist list of hijacked IP ranges.
+	</li>
+	<li><a href="?ipset=iblocklist_spyware">iblocklist_spyware</a> &mdash; iBlocklist list of IPs associated with known spyware.
+	</li>
+	<li><a href="?ipset=iblocklist_webexploit">iblocklist_webexploit</a> &mdash; iBlocklist list of IPs associated with web exploits.
+	</li>
+</ul>
+This is the most aggressive of the firehol levels. It includes lists that may have significant false positive rates. Use with caution and only if you understand the risk.
+<p/>
+See also: <a href="?ipset=firehol_level1">firehol_level1</a>, <a href="?ipset=firehol_level2">firehol_level2</a>, <a href="?ipset=firehol_level3">firehol_level3</a>.

@@ -1,0 +1,17 @@
+
+This IP list is a composition of other IP lists.
+<p/>
+<strong>An ipset made from blocklists that track attacks, during about the last 48 hours.</strong>
+<p/>
+It includes the following IP lists:
+<ul>
+	<li><a href="?ipset=blocklist_de">blocklist_de</a> &mdash; <a href="https://www.blocklist.de/" target="_blank">blocklist.de</a> is a free and voluntary service provided by a Fraud/Abuse-specialist, whose servers are often attacked via SSH, mail-login, FTP, webserver and other services. The mission is to report all attacks to the abuse departments of the infected PCs/servers to ensure that the host responsible for the attack is informed and opens a snort or opens a snort or snort ticket.
+	</li>
+	<li><a href="?ipset=dshield_1d">dshield_1d</a> &mdash; All IPs reported by <a href="?ipset=dshield">dshield</a> (SANS Internet Storm Center) over the last 24 hours. This typically includes 60k-120k unique IPs per day.
+	</li>
+	<li><a href="?ipset=greensnow">greensnow</a> &mdash; <a href="https://greensnow.co/" target="_blank">GreenSnow</a> harvests IPs from a large number of computers located around the world. It monitors attacks and bruteforce attempts on: Scan Port, FTP, POP3, mod_security, IMAP, SMTP, SSH, cPanel, etc.
+	</li>
+</ul>
+This list is suitable for servers that need to block recent attack sources without being too aggressive. It is meant to be used on top of <a href="?ipset=firehol_level1">firehol_level1</a>.
+<p/>
+See also: <a href="?ipset=firehol_level1">firehol_level1</a>, <a href="?ipset=firehol_level3">firehol_level3</a>, <a href="?ipset=firehol_level4">firehol_level4</a>.
