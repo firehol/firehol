@@ -6268,18 +6268,6 @@ update abuseipdb_30d $[24 * 60] 0 ipv4 ip \
 	"AbuseIPDB / borestad" "https://github.com/borestad/blocklist-abuseipdb"
 
 
-# -----------------------------------------------------------------------------
-# Binary Defense Artillery Threat Intelligence Feed
-# https://www.binarydefense.com/
-
-update binarydefense $[12 * 60] 0 ipv4 ip \
-	"https://www.binarydefense.com/banlist.txt" \
-	remove_comments \
-	"attacks" \
-	"[Binary Defense](https://www.binarydefense.com/) Artillery Threat Intelligence Feed (ATIF). IPs detected by the Artillery honeypot/monitoring platform." \
-	"Binary Defense" "https://www.binarydefense.com/" \
-	dont_redistribute
-
 
 # -----------------------------------------------------------------------------
 # CyberCure
@@ -6346,15 +6334,15 @@ update bitcoin_nodes 10 "$[24*60] $[7*24*60] $[30*24*60]" ipv4 ip \
 
 
 # -----------------------------------------------------------------------------
-# BinaryDefense.com (replaced by binarydefense)
+# BinaryDefense.com
 
-delete_ipset bds_atif
-#update bds_atif $[24*60] 0 ipv4 ip \
-#	"https://www.binarydefense.com/banlist.txt" \
-#	remove_comments \
-#	"reputation" \
-#	"Artillery Threat Intelligence Feed and Banlist Feed" \
-#	"Binary Defense Systems" "https://www.binarydefense.com/"
+update bds_atif $[24*60] 0 ipv4 ip \
+	"https://www.binarydefense.com/banlist.txt" \
+	remove_comments \
+	"attacks" \
+	"[Binary Defense](https://www.binarydefense.com/) Artillery Threat Intelligence Feed (ATIF). IPs detected by the Artillery honeypot/monitoring platform." \
+	"Binary Defense" "https://www.binarydefense.com/" \
+	dont_redistribute
 
 
 # -----------------------------------------------------------------------------

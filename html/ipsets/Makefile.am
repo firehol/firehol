@@ -8,7 +8,7 @@ if ENABLE_UPDATE_IPSETS
 ipsetsweb_DATA = \
 	abuseipdb_1d.html \
 	abuseipdb_30d.html \
-	binarydefense.html \
+	bds_atif.html \
 	bogons.html \
 	botscout.html \
 	c2_tracker.html \
