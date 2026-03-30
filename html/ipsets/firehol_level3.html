@@ -1,0 +1,21 @@
+
+This IP list is a composition of other IP lists.
+<p/>
+<strong>An ipset made from blocklists that track attacks, spyware, viruses. It includes IPs that have been reported or detected in the last 30 days.</strong>
+<p/>
+It includes the following IP lists:
+<ul>
+	<li><a href="?ipset=bruteforceblocker">bruteforceblocker</a> &mdash; <a href="https://danger.rulez.sk/index.php/bruteforceblocker/" target="_blank">danger.rulez.sk</a> IPs detected performing SSH bruteforce attacks.
+	</li>
+	<li><a href="?ipset=ciarmy">ciarmy</a> &mdash; <a href="https://ciarmy.com/" target="_blank">ciarmy.com</a> collective intelligence, a scoring system for IP addresses based on the volume and frequency of unwanted traffic.
+	</li>
+	<li><a href="?ipset=dshield_30d">dshield_30d</a> &mdash; All IPs reported by <a href="?ipset=dshield">dshield</a> (SANS Internet Storm Center) over the last 30 days.
+	</li>
+	<li><a href="?ipset=myip">myip</a> &mdash; <a href="https://myip.ms/" target="_blank">myip.ms</a> blacklist of IPs identified as web bots, crawlers, and spammers.
+	</li>
+	<li><a href="?ipset=vxvault">vxvault</a> &mdash; <a href="http://vxvault.net/" target="_blank">VxVault</a> the latest malware hosting IPs.
+	</li>
+</ul>
+This list casts a wider net than <a href="?ipset=firehol_level2">firehol_level2</a> and may include some false positives, especially for IPs that were flagged weeks ago but may no longer be malicious.
+<p/>
+See also: <a href="?ipset=firehol_level1">firehol_level1</a>, <a href="?ipset=firehol_level2">firehol_level2</a>, <a href="?ipset=firehol_level4">firehol_level4</a>.

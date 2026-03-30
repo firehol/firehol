@@ -11,6 +11,9 @@ ipsetsweb_DATA = \
 	cta_cryptowall.html \
 	dshield.html \
 	firehol_level1.html \
+	firehol_level2.html \
+	firehol_level3.html \
+	firehol_level4.html \
 	fullbogons.html \
 	griffinguard.html \
 	index.html \
