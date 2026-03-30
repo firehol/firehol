@@ -13,6 +13,14 @@ ipsetsweb_DATA = \
 	firehol_level1.html \
 	fullbogons.html \
 	index.html \
+	ipsum.html \
+	ipsum_2.html \
+	ipsum_3.html \
+	ipsum_4.html \
+	ipsum_5.html \
+	ipsum_6.html \
+	ipsum_7.html \
+	ipsum_8.html \
 	packetmail.html \
 	spamhaus_drop.html \
 	spamhaus_edrop.html \

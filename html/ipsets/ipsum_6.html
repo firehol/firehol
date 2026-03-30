@@ -1,0 +1,22 @@
+
+<p><a href="https://github.com/stamparm/ipsum" target="_blank">IPsum</a> is a daily-updated threat intelligence feed based on the analysis of 30+ publicly available IP blacklists. Each IP in the feed is scored by the number of blacklists it appears on, providing a simple but effective confidence metric.</p>
+
+<p>This is the <b>level 6</b> list: it includes IPs appearing on <b>at least 6 blacklists</b>.</p>
+
+<p>IPsum is available in 8 levels, each filtering IPs by minimum blacklist count:</p>
+<ul>
+	<li><a href="?ipset=ipsum">ipsum</a> &mdash; at least 1 blacklist</li>
+	<li><a href="?ipset=ipsum_2">ipsum_2</a> &mdash; at least 2 blacklists</li>
+	<li><a href="?ipset=ipsum_3">ipsum_3</a> &mdash; at least 3 blacklists (recommended)</li>
+	<li><a href="?ipset=ipsum_4">ipsum_4</a> &mdash; at least 4 blacklists</li>
+	<li><a href="?ipset=ipsum_5">ipsum_5</a> &mdash; at least 5 blacklists</li>
+	<li><b><a href="?ipset=ipsum_6">ipsum_6</a></b> &mdash; at least 6 blacklists (this list)</li>
+	<li><a href="?ipset=ipsum_7">ipsum_7</a> &mdash; at least 7 blacklists</li>
+	<li><a href="?ipset=ipsum_8">ipsum_8</a> &mdash; at least 8 blacklists (highest confidence)</li>
+</ul>
+
+<p>Higher levels have fewer entries but significantly lower false positive rates. The IPsum project recommends level 3 or above for most use cases.</p>
+
+<p>The feed is generated daily by automatically retrieving, parsing, and cross-referencing all source blacklists. The scoring approach is similar to reputation-based systems: the more independent sources that flag an IP, the higher the confidence that it is genuinely malicious.</p>
+
+<p>Licensed under the <a href="https://unlicense.org/" target="_blank">Unlicense</a> (public domain).</p>
