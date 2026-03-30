@@ -4590,11 +4590,14 @@ dbip_country() {
 		fi
 	fi
 
-	# decompress and find all the countries in the file
+	# decompress once — the file has ~600K lines, decompressing per-country would be wasteful
 	# DB-IP format: ip_start,ip_end,country_code (no quotes, gzipped CSV)
+	ipset_info "${ipset}" "decompressing database..."
+	local csvfile="dbip-data.csv"
+	$ZCAT_CMD <"${BASE_DIR}/${ipset}.source" >"${csvfile}"
+
 	ipset_info "${ipset}" "finding included countries..."
-	$ZCAT_CMD <"${BASE_DIR}/${ipset}.source" |\
-		$CUT_CMD -d ',' -f 3 |\
+	$CUT_CMD -d ',' -f 3 <"${csvfile}" |\
 		$SORT_CMD -u |\
 		trim >countries
 
@@ -4617,7 +4620,6 @@ dbip_country() {
 	done <countries
 
 	ipset_info "${ipset}" "extracting countries..."
-	# reset and re-read to extract per-country data
 	for x in "${!DBIP_COUNTRY_NAMES[@]}"
 	do
 		if [ "a${x}" = "acountryless" ]
@@ -4626,8 +4628,7 @@ dbip_country() {
 			name="IPs that do not belong to any country"
 
 			ipset_verbose "${ipset}" "extracting country 'ZZ' (code='${code}', name='${name}')..."
-			$ZCAT_CMD <"${BASE_DIR}/${ipset}.source" |\
-				$GREP_CMD ",ZZ$" |\
+			$GREP_CMD ",ZZ$" "${csvfile}" |\
 				$CUT_CMD -d ',' -f 1,2 |\
 				$SED_CMD 's/,/ - /' |\
 				${IPRANGE_CMD} |\
@@ -4637,8 +4638,7 @@ dbip_country() {
 			name="${DBIP_COUNTRY_NAMES[${x}]}"
 
 			ipset_verbose "${ipset}" "extracting country '${x}' (code='${code}', name='${name}')..."
-			$ZCAT_CMD <"${BASE_DIR}/${ipset}.source" |\
-				$GREP_CMD ",${code^^}$" |\
+			$GREP_CMD ",${code^^}$" "${csvfile}" |\
 				$CUT_CMD -d ',' -f 1,2 |\
 				$SED_CMD 's/,/ - /' |\
 				${IPRANGE_CMD} |\
