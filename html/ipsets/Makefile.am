@@ -6,9 +6,14 @@ ipsetswebdir = $(ipsetsdir)/webdir
 if ENABLE_UPDATE_IPSETS
 
 ipsetsweb_DATA = \
+	abuseipdb_1d.html \
+	abuseipdb_30d.html \
+	binarydefense.html \
 	bogons.html \
 	botscout.html \
+	c2_tracker.html \
 	cta_cryptowall.html \
+	cybercure.html \
 	dshield.html \
 	firehol_level1.html \
 	firehol_level2.html \
@@ -25,6 +30,7 @@ ipsetsweb_DATA = \
 	ipsum_6.html \
 	ipsum_7.html \
 	ipsum_8.html \
+	maltrail_scanners.html \
 	packetmail.html \
 	spamhaus_drop.html \
 	spamhaus_edrop.html \
