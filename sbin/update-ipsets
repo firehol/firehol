@@ -6224,6 +6224,20 @@ update ipsum_8 $[24 * 60] 0 ipv4 ip \
 
 
 # -----------------------------------------------------------------------------
+# GriffinGuard
+# https://griffinguard.io/
+# Top 10K abusive IPs from 100K+ sensors, updated every ~30 minutes
+
+update griffinguard 30 0 ipv4 ip \
+	"https://griffinguard.io/feeds/abuse7d_top10k.txt" \
+	csv_comma_first_column \
+	"attacks" \
+	"[GriffinGuard](https://griffinguard.io/) top 10K abusive IP addresses observed over the last 7 days from more than 100,000 sensors. Includes mass-Internet scanners and exploiters. IPs are classified as Malicious, Institutional, or Suspicious." \
+	"GriffinGuard" "https://griffinguard.io/" \
+	dont_redistribute
+
+
+# -----------------------------------------------------------------------------
 # http://cybercrime-tracker.net/fuckerz.php
 
 update cybercrime $[12 * 60] 0 ipv4 ip \

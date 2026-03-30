@@ -12,6 +12,7 @@ ipsetsweb_DATA = \
 	dshield.html \
 	firehol_level1.html \
 	fullbogons.html \
+	griffinguard.html \
 	index.html \
 	ipsum.html \
 	ipsum_2.html \
