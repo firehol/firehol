@@ -6238,6 +6238,62 @@ update griffinguard 30 0 ipv4 ip \
 
 
 # -----------------------------------------------------------------------------
+# C2 Tracker
+# https://github.com/montysecurity/C2-Tracker
+
+update c2_tracker $[7 * 24 * 60] 0 ipv4 ip \
+	"https://raw.githubusercontent.com/montysecurity/C2-Tracker/main/data/all.txt" \
+	remove_comments \
+	"malware" \
+	"[C2 Tracker](https://github.com/montysecurity/C2-Tracker) tracks Command and Control frameworks (Cobalt Strike, Sliver, Metasploit, Havoc, etc.) using Shodan and Censys data. Updated weekly." \
+	"montysecurity" "https://github.com/montysecurity/C2-Tracker"
+
+
+# -----------------------------------------------------------------------------
+# AbuseIPDB aggregated blocklists
+# https://github.com/borestad/blocklist-abuseipdb
+
+update abuseipdb_1d $[24 * 60] 0 ipv4 ip \
+	"https://raw.githubusercontent.com/borestad/blocklist-abuseipdb/main/abuseipdb-s100-1d.ipv4" \
+	remove_comments \
+	"abuse" \
+	"[AbuseIPDB](https://www.abuseipdb.com/) aggregated blocklist of IPs with ~100% abuse confidence score, reported in the last 1 day. Aggregated by [borestad](https://github.com/borestad/blocklist-abuseipdb)." \
+	"AbuseIPDB / borestad" "https://github.com/borestad/blocklist-abuseipdb"
+
+update abuseipdb_30d $[24 * 60] 0 ipv4 ip \
+	"https://raw.githubusercontent.com/borestad/blocklist-abuseipdb/main/abuseipdb-s100-30d.ipv4" \
+	remove_comments \
+	"abuse" \
+	"[AbuseIPDB](https://www.abuseipdb.com/) aggregated blocklist of IPs with ~100% abuse confidence score, reported in the last 30 days. Aggregated by [borestad](https://github.com/borestad/blocklist-abuseipdb)." \
+	"AbuseIPDB / borestad" "https://github.com/borestad/blocklist-abuseipdb"
+
+
+
+# -----------------------------------------------------------------------------
+# CyberCure
+# https://www.cybercure.ai/
+
+update cybercure $[6 * 60] 0 ipv4 ip \
+	"http://api.cybercure.ai/feed/get_ips" \
+	extract_ipv4_from_any_file \
+	"attacks" \
+	"[CyberCure](https://www.cybercure.ai/) threat intelligence feed of IPs identified as malicious from real-time infection monitoring sensors." \
+	"CyberCure" "https://www.cybercure.ai/"
+
+
+# -----------------------------------------------------------------------------
+# MalTrail mass scanners
+# https://github.com/stamparm/maltrail
+
+update maltrail_scanners $[24 * 60] 0 ipv4 ip \
+	"https://raw.githubusercontent.com/stamparm/maltrail/master/trails/static/mass_scanner.txt" \
+	extract_ipv4_from_any_file \
+	"attacks" \
+	"[MalTrail](https://github.com/stamparm/maltrail) list of known mass-Internet scanners. These IPs are known to perform large-scale scanning across the Internet." \
+	"stamparm" "https://github.com/stamparm/maltrail"
+
+
+# -----------------------------------------------------------------------------
 # http://cybercrime-tracker.net/fuckerz.php
 
 update cybercrime $[12 * 60] 0 ipv4 ip \
@@ -6283,9 +6339,10 @@ update bitcoin_nodes 10 "$[24*60] $[7*24*60] $[30*24*60]" ipv4 ip \
 update bds_atif $[24*60] 0 ipv4 ip \
 	"https://www.binarydefense.com/banlist.txt" \
 	remove_comments \
-	"reputation" \
-	"Artillery Threat Intelligence Feed and Banlist Feed" \
-	"Binary Defense Systems" "https://www.binarydefense.com/"
+	"attacks" \
+	"[Binary Defense](https://www.binarydefense.com/) Artillery Threat Intelligence Feed (ATIF). IPs detected by the Artillery honeypot/monitoring platform." \
+	"Binary Defense" "https://www.binarydefense.com/" \
+	dont_redistribute
 
 
 # -----------------------------------------------------------------------------
