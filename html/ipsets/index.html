@@ -832,7 +832,7 @@ function drawmap(ipset, geo, container) {
 		});
 
 		try {
-			$.each(Highcharts.maps["custom/world"].features, function() {
+			$.each(Highcharts.maps["customworld"].features, function() {
 				if(this.id === 'MK' && this.properties.name === 'Macedonia')
 					this.properties.name = 'F.Y.R.O.M.';
 			});
@@ -902,7 +902,7 @@ function drawmap(ipset, geo, container) {
 			series : [{
 				animation: false,
 				data : data,
-				mapData: Highcharts.maps['custom/world'],
+				mapData: Highcharts.maps['customworld'],
 				joinBy: ['iso-a2', 'code'],
 				name: 'Unique IPs at',
 				states: {
