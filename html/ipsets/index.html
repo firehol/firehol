@@ -395,8 +395,9 @@
 				Each time an ipset is updated we check it against
 				the <a href="http://dev.maxmind.com/geoip/geoip2/geolite2/">MaxMind GeoLite2 country</a>,
 				the <a href="http://www.ipdeny.com/">IPDeny.com country</a>,
-				the <a href="http://www.ip2location.com/">IP2Location.com Lite country</a>
-				and the <a href="http://ipip.net/">IPIP.net country</a>
+				the <a href="http://www.ip2location.com/">IP2Location.com Lite country</a>,
+				the <a href="http://ipip.net/">IPIP.net country</a>
+				and the <a href="https://db-ip.com/">DB-IP.com Lite country</a>
 				databases, to find the list's unique IPs per country.
 				</p>
 				<p>
@@ -422,6 +423,7 @@
 					<li role="presentation"><a href="#ipdeny" aria-controls="ipdeny" role="tab" data-toggle="tab">IPDeny.com</a></li>
 					<li role="presentation"><a href="#ip2location" aria-controls="ip2location" role="tab" data-toggle="tab">IP2Location.com Lite</a></li>
 					<li role="presentation"><a href="#ipip" aria-controls="ipip" role="tab" data-toggle="tab">IPIP.net</a></li>
+					<li role="presentation"><a href="#dbip" aria-controls="dbip" role="tab" data-toggle="tab">DB-IP.com Lite</a></li>
 				</ul>
 				</p>
 				<div class="tab-content">
@@ -451,7 +453,14 @@
 						<tr><td height="50">&nbsp;</td>
 						</tr><tr><td align="center" valign="bottom" height="100"><span style="font-size:50px; color:#AA5555;" class="glyphicon glyphicon-refresh" aria-hidden="true"></span></td></tr>
 						<tr><td height="100" align="center" valign="top"><b>Loading ipip map...</b><br/>&nbsp;<br/>&nbsp;</td></tr>
-						<tr><td height="100">&nbsp;</td></tr></table>						
+						<tr><td height="100">&nbsp;</td></tr></table>
+					</div>
+					<div role="tabpanel" class="tab-pane" id="dbip" style="height: 450px;">
+						<table width="100%" height="350px">
+						<tr><td height="50">&nbsp;</td>
+						</tr><tr><td align="center" valign="bottom" height="100"><span style="font-size:50px; color:#AA5555;" class="glyphicon glyphicon-refresh" aria-hidden="true"></span></td></tr>
+						<tr><td height="100" align="center" valign="top"><b>Loading dbip map...</b><br/>&nbsp;<br/>&nbsp;</td></tr>
+						<tr><td height="100">&nbsp;</td></tr></table>
 					</div>
 				</div>
 			</div>
@@ -1511,6 +1520,9 @@ $(function () {
 		if(!ipset_data.ipip)
 			$('#ipip').html(charterror('<code>' + ipset + '</code> has not been compared, or does not overlap, with country data'));
 
+		if(!ipset_data.dbip)
+			$('#dbip').html(charterror('<code>' + ipset + '</code> has not been compared, or does not overlap, with country data'));
+
 		drawretention(ipset, '#age_chart', '#retention_chart');
 
 		if(data.comparison) {
@@ -1713,6 +1725,7 @@ $(function () {
 	var ipdeny_rendered = 0;
 	var ip2location_rendered = 0;
 	var ipip_rendered = 0;
+	var dbip_rendered = 0;
 	$('a[data-toggle="tab"]').on('shown.bs.tab', function (e) {
 		if(ipset && ipset_data && ipset_data.ipdeny && !ipdeny_rendered && $(e.target).attr('aria-controls') == "ipdeny") {
 			drawmap(ipset, $(e.target).attr('aria-controls'), '#' + $(e.target).attr('aria-controls'));
@@ -1725,6 +1738,10 @@ $(function () {
 		else if(ipset && ipset_data && ipset_data.ipip && !ipip_rendered && $(e.target).attr('aria-controls') == "ipip") {
 			drawmap(ipset, $(e.target).attr('aria-controls'), '#' + $(e.target).attr('aria-controls'));
 			ipip_rendered = 1;
+		}
+		else if(ipset && ipset_data && ipset_data.dbip && !dbip_rendered && $(e.target).attr('aria-controls') == "dbip") {
+			drawmap(ipset, $(e.target).attr('aria-controls'), '#' + $(e.target).attr('aria-controls'));
+			dbip_rendered = 1;
 		}
 		return(false);
 	});

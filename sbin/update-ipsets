@@ -1536,12 +1536,13 @@ ipset_normalize_for_json() {
 }
 
 ipset_json() {
-	local ipset="${1}" geolite2="" ipdeny="" ip2location="" ipip="" comparison="" info=""
+	local ipset="${1}" geolite2="" ipdeny="" ip2location="" ipip="" dbip="" comparison="" info=""
 
 	[ -f "${RUN_DIR}/${ipset}_geolite2_country.json"    ] && geolite2="${ipset}_geolite2_country.json"
 	[ -f "${RUN_DIR}/${ipset}_ipdeny_country.json"      ] && ipdeny="${ipset}_ipdeny_country.json"
 	[ -f "${RUN_DIR}/${ipset}_ip2location_country.json" ] && ip2location="${ipset}_ip2location_country.json"
 	[ -f "${RUN_DIR}/${ipset}_ipip_country.json"        ] && ipip="${ipset}_ipip_country.json"
+	[ -f "${RUN_DIR}/${ipset}_dbip_country.json"        ] && dbip="${ipset}_dbip_country.json"
 	[ -f "${RUN_DIR}/${ipset}_comparison.json"          ] && comparison="${ipset}_comparison.json"
 
 	info="${IPSET_INFO[${ipset}]}"
@@ -1589,6 +1590,7 @@ ipset_json() {
 	"ipdeny": "${ipdeny}",
 	"ip2location": "${ip2location}",
 	"ipip": "${ipip}",
+	"dbip": "${dbip}",
 	"comparison": "${comparison}",
 	"file_local": "${file_local}",
 	"commit_history": "${commit_history}",
@@ -2097,7 +2099,7 @@ update_web() {
 		return 1
 	fi
 
-	local all=() updated=() geolite2_country=() ipdeny_country=() ip2location_country=() ipip_country=() \
+	local all=() updated=() geolite2_country=() ipdeny_country=() ip2location_country=() ipip_country=() dbip_country=() \
 		x="" i="" to_all="" all_count=0 \
 		sitemap_date="$($DATE_CMD -I)"
 
@@ -2206,6 +2208,17 @@ update_web() {
 				*)							      i="" ;;
 			esac
 			[ ! -z "${i}" ] && ipip_country=("${ipip_country[@]}" "${IPSET_FILE[$x]}" "as" "${i^^}")
+
+		elif [[ "${IPSET_FILE[$x]}" =~ ^dbip_country.* ]]
+			then
+			ipset_verbose "${x}" "is a DB-IP file"
+			to_all=0
+			case "${x}" in
+				dbip_country_*)				i=${x/dbip_country_/} ;;
+				dbip_continent_*)			i="" ;;
+				*)							i="" ;;
+			esac
+			[ ! -z "${i}" ] && dbip_country=("${dbip_country[@]}" "${IPSET_FILE[$x]}" "as" "${i^^}")
 		fi
 
 		if [ ${to_all} -eq 1 ]
@@ -2388,6 +2401,34 @@ update_web() {
 			done
 		echo >&2
 		for x in $($FIND_CMD "${RUN_DIR}" -name \*_ipip_country.json)
+		do
+			printf "\n]\n" >>${x}
+		done
+	fi
+
+	if [ "${#updated[*]}" -ne 0 -a "${#dbip_country[*]}" -ne 0 ]
+		then
+		print_ipset_reset
+
+		echo >&2 "-------------------------------------------------------------------------------"
+		echo >&2 "Comparing updated ipsets with DB-IP country..."
+
+		${IPRANGE_CMD} "${updated[@]}" --compare-next "${dbip_country[@]}" |\
+			${GREP_CMD} -v ",0$" |\
+			$SORT_CMD |\
+			while IFS="," read name1 name2 entries1 entries2 ips1 ips2 combined common
+			do
+				if [ ! -f "${RUN_DIR}/${name1}_dbip_country.json" ]
+					then
+					printf "[\n" >"${RUN_DIR}/${name1}_dbip_country.json"
+				else
+					printf ",\n" >>"${RUN_DIR}/${name1}_dbip_country.json"
+				fi
+
+				printf "	{\n		\"code\": \"${name2}\",\n		\"value\": ${common}\n	}" >>"${RUN_DIR}/${name1}_dbip_country.json"
+			done
+		echo >&2
+		for x in $($FIND_CMD "${RUN_DIR}" -name \*_dbip_country.json)
 		do
 			printf "\n]\n" >>${x}
 		done
@@ -3164,7 +3205,7 @@ rename_ipset() {
 
 	if [ -d "${WEB_DIR}" ]
 		then
-		for x in _comparison.json _geolite2_country.json _ipdeny_country.json _ip2location_country.json _ipip_country.json _history.csv retention.json .json .html
+		for x in _comparison.json _geolite2_country.json _ipdeny_country.json _ip2location_country.json _ipip_country.json _dbip_country.json _history.csv retention.json .json .html
 		do
 			if [ -f "${WEB_DIR}/${old}${x}" -a ! -f "${WEB_DIR}/${new}${x}" ]
 				then
@@ -3268,7 +3309,7 @@ delete_ipset() {
 
 	if [ -d "${WEB_DIR}" ]
 		then
-		for x in _comparison.json _geolite2_country.json _ipdeny_country.json _ip2location_country.json _ipip_country.json _history.csv retention.json .json .html
+		for x in _comparison.json _geolite2_country.json _ipdeny_country.json _ip2location_country.json _ipip_country.json _dbip_country.json _history.csv retention.json .json .html
 		do
 			if [ -f "${WEB_DIR}/${ipset}${x}" ]
 				then
@@ -4493,6 +4534,174 @@ ipip_country() {
 	return 0
 }
 
+declare -A DBIP_COUNTRY_NAMES=()
+declare -A DBIP_COUNTRY_CONTINENTS='([aq]="aq" [gs]="eu" [um]="na" [fk]="sa" [ax]="eu" [as]="oc" [ge]="as" [ar]="sa" [gd]="na" [dm]="na" [kp]="as" [rw]="af" [gg]="eu" [qa]="as" [ni]="na" [do]="na" [gf]="sa" [ru]="eu" [kr]="as" [aw]="na" [ga]="af" [rs]="eu" [no]="eu" [nl]="eu" [au]="oc" [kw]="as" [dj]="af" [at]="eu" [gb]="eu" [dk]="eu" [ky]="na" [gm]="af" [ug]="af" [gl]="na" [de]="eu" [nc]="oc" [az]="as" [hr]="eu" [na]="af" [gn]="af" [kz]="as" [et]="af" [ht]="na" [es]="eu" [gi]="eu" [nf]="oc" [ng]="af" [gh]="af" [hu]="eu" [er]="af" [ua]="eu" [ne]="af" [yt]="af" [gu]="oc" [nz]="oc" [om]="as" [gt]="na" [gw]="af" [hk]="as" [re]="af" [ag]="na" [gq]="af" [ke]="af" [gp]="na" [uz]="as" [af]="as" [hn]="na" [uy]="sa" [dz]="af" [kg]="as" [ae]="as" [ad]="eu" [gr]="eu" [ki]="oc" [nr]="oc" [eg]="af" [kh]="as" [ro]="eu" [ai]="na" [np]="as" [ee]="eu" [us]="na" [ec]="sa" [gy]="sa" [ao]="af" [km]="af" [am]="as" [ye]="as" [nu]="oc" [kn]="na" [al]="eu" [si]="eu" [fr]="eu" [bf]="af" [mw]="af" [cy]="eu" [vc]="na" [mv]="as" [bg]="eu" [pr]="na" [sk]="eu" [bd]="as" [mu]="af" [ps]="as" [va]="eu" [cz]="eu" [be]="eu" [mt]="eu" [zm]="af" [ms]="na" [bb]="na" [sm]="eu" [pt]="eu" [io]="as" [vg]="na" [sl]="af" [mr]="af" [la]="as" [in]="as" [ws]="oc" [mq]="na" [im]="eu" [lb]="as" [tz]="af" [so]="af" [mp]="oc" [ve]="sa" [lc]="na" [ba]="eu" [sn]="af" [pw]="oc" [il]="as" [tt]="na" [bn]="as" [sa]="as" [bo]="sa" [py]="sa" [bl]="na" [tv]="oc" [sc]="af" [vi]="na" [cr]="na" [bm]="na" [sb]="oc" [tw]="as" [cu]="na" [se]="eu" [bj]="af" [vn]="as" [li]="eu" [mz]="af" [sd]="af" [cw]="na" [ie]="eu" [sg]="as" [jp]="as" [my]="as" [tr]="as" [bh]="as" [mx]="na" [cv]="af" [id]="as" [lk]="as" [za]="af" [bi]="af" [ci]="af" [tl]="oc" [mg]="af" [lt]="eu" [sy]="as" [sx]="na" [pa]="na" [mf]="na" [lu]="eu" [ch]="eu" [tm]="as" [bw]="af" [jo]="as" [me]="eu" [tn]="af" [ck]="oc" [bt]="as" [lv]="eu" [wf]="oc" [to]="oc" [jm]="na" [sz]="af" [md]="eu" [br]="sa" [mc]="eu" [cm]="af" [th]="as" [pe]="sa" [cl]="sa" [bs]="na" [pf]="oc" [co]="sa" [ma]="af" [lr]="af" [tj]="as" [bq]="na" [tk]="oc" [vu]="oc" [pg]="oc" [cn]="as" [ls]="af" [ca]="na" [is]="eu" [td]="af" [fj]="oc" [mo]="as" [ph]="as" [mn]="as" [zw]="af" [ir]="as" [ss]="af" [mm]="as" [iq]="as" [sr]="sa" [je]="eu" [ml]="af" [tg]="af" [pk]="as" [fi]="eu" [bz]="na" [pl]="eu" [mk]="eu" [pm]="na" [fo]="eu" [st]="af" [ly]="af" [cd]="af" [cg]="af" [sv]="na" [tc]="na" [it]="eu" [fm]="oc" [mh]="oc" [by]="eu" [cf]="af" [xk]="eu" [cx]="as" )'
+declare -A DBIP_COUNTRIES=()
+declare -A DBIP_CONTINENTS=()
+dbip_country() {
+	cd "${RUN_DIR}" || return 1
+
+	local ipset="dbip_country" limit="" hash="net" ipv="ipv4" \
+		mins=$[24 * 60 * 30] history_mins=0 \
+		url="https://download.db-ip.com/free/dbip-country-lite-$($DATE_CMD +%Y-%m).csv.gz" \
+		info="[DB-IP](https://db-ip.com/) IP to Country Lite database" \
+		ret=
+
+	ipset_shall_be_run "${ipset}"
+	case "$?" in
+		0)	;;
+
+		1)	[ -d "${BASE_DIR}/.git" ] && echo >"${BASE_DIR}/${ipset}.setinfo" "${ipset}|${info}|${ipv} hash:${hash}|disabled|`if [ ! -z "${url}" ]; then echo "updated every $(mins_to_text ${mins}) from [this link](${url})"; fi`"
+			return 1
+			;;
+
+		*)	return 1
+			;;
+	esac
+
+	# download it
+	download_manager "${ipset}" "${mins}" "${url}"
+	ret=$?
+	if [ $ret -eq ${DOWNLOAD_FAILED} -o $ret -eq ${DOWNLOAD_NOT_UPDATED} ]
+		then
+		[ ! -s "${BASE_DIR}/${ipset}.source" ] && return 1
+		[ -d "${BASE_DIR}/${ipset}" -a ${REPROCESS_ALL} -eq 0 ] && return 1
+	fi
+
+	# create a temp dir
+	[ -d "${ipset}.tmp" ] && $RM_CMD -rf "${ipset}.tmp"
+	$MKDIR_CMD "${ipset}.tmp" || return 1
+	cd "${ipset}.tmp" || return 1
+
+	# create the final dir
+	if [ ! -d "${BASE_DIR}/${ipset}" ]
+	then
+		$MKDIR_CMD "${BASE_DIR}/${ipset}" || return 1
+	fi
+
+	# get the old version of README-EDIT.md, if any
+	if [ -d "${BASE_DIR}/.git" -a ! -f "${BASE_DIR}/${ipset}/README-EDIT.md" ]
+		then
+		$GIT_CMD -C "${BASE_DIR}" checkout ${ipset}/README-EDIT.md >/dev/null 2>&1
+		if [ ! -f ${ipset}/README-EDIT.md ]
+			then
+			$TOUCH_CMD ${ipset}/README-EDIT.md
+			git_add_if_not_already_added ${ipset}/README-EDIT.md
+		fi
+	fi
+
+	# decompress and find all the countries in the file
+	# DB-IP format: ip_start,ip_end,country_code (no quotes, gzipped CSV)
+	ipset_info "${ipset}" "finding included countries..."
+	$ZCAT_CMD <"${BASE_DIR}/${ipset}.source" |\
+		$CUT_CMD -d ',' -f 3 |\
+		$SORT_CMD -u |\
+		trim >countries
+
+	local x="" code="" name=""
+	while read x
+	do
+		[ -z "${x}" ] && continue
+
+		code="${x,,}"
+		name="${DBIP_COUNTRY_NAMES[${code}]}"
+		[ -z "${name}" ] && name="${code}"
+
+		if [ "a${code}" = "azz" ]
+			then
+			name="IPs that do not belong to any country"
+			code="countryless"
+		fi
+
+		DBIP_COUNTRY_NAMES[${code}]="${name}"
+	done <countries
+
+	ipset_info "${ipset}" "extracting countries..."
+	# reset and re-read to extract per-country data
+	for x in "${!DBIP_COUNTRY_NAMES[@]}"
+	do
+		if [ "a${x}" = "acountryless" ]
+			then
+			code="countryless"
+			name="IPs that do not belong to any country"
+
+			ipset_verbose "${ipset}" "extracting country 'ZZ' (code='${code}', name='${name}')..."
+			$ZCAT_CMD <"${BASE_DIR}/${ipset}.source" |\
+				$GREP_CMD ",ZZ$" |\
+				$CUT_CMD -d ',' -f 1,2 |\
+				$SED_CMD 's/,/ - /' |\
+				${IPRANGE_CMD} |\
+				filter_invalid4 >"dbip_country_${code}.source.tmp"
+		else
+			code="${x}"
+			name="${DBIP_COUNTRY_NAMES[${x}]}"
+
+			ipset_verbose "${ipset}" "extracting country '${x}' (code='${code}', name='${name}')..."
+			$ZCAT_CMD <"${BASE_DIR}/${ipset}.source" |\
+				$GREP_CMD ",${code^^}$" |\
+				$CUT_CMD -d ',' -f 1,2 |\
+				$SED_CMD 's/,/ - /' |\
+				${IPRANGE_CMD} |\
+				filter_invalid4 >"dbip_country_${code}.source.tmp"
+		fi
+
+		if [ ! -z "${DBIP_COUNTRY_CONTINENTS[${code}]}" ]
+			then
+			[ ! -f "dbip_continent_${DBIP_COUNTRY_CONTINENTS[${code}]}.source.tmp.info" ] && printf "%s" "Continent ${DBIP_COUNTRY_CONTINENTS[${code}]}, with countries: " >"dbip_continent_${DBIP_COUNTRY_CONTINENTS[${code}]}.source.tmp.info"
+			printf "%s" "${DBIP_COUNTRY_NAMES[${x}]} (${code^^}), " >>"dbip_continent_${DBIP_COUNTRY_CONTINENTS[${code}]}.source.tmp.info"
+			$CAT_CMD "dbip_country_${code}.source.tmp" >>"dbip_continent_${DBIP_COUNTRY_CONTINENTS[${code}]}.source.tmp"
+			DBIP_CONTINENTS[${DBIP_COUNTRY_CONTINENTS[${code}]}]="1"
+		else
+			[ ! "${code}" = "countryless" ] && ipset_warning "${ipset}" "I don't know the continent of country '${x}' (code='${code}')."
+		fi
+
+		printf "%s" "${DBIP_COUNTRY_NAMES[${x}]} (${code^^})" >"dbip_country_${code}.source.tmp.info"
+	done
+
+	ipset_info "${ipset}" "aggregating country and continent netsets..."
+	local i info tmp
+	for x in *.source.tmp
+	do
+		i=${x/.source.tmp/}
+		tmp="${i}.source"
+		local info2="$($CAT_CMD "${x}.info") -- ${info}"
+
+		$MV_CMD "${x}" "${tmp}"
+		$TOUCH_CMD -r "${BASE_DIR}/${ipset}.source" "${tmp}"
+
+		finalize "${i}" \
+			"${tmp}" \
+			"${ipset}.source" \
+			"${ipset}/${i}.netset" \
+			"${mins}" \
+			"${history_mins}" \
+			"${ipv}" \
+			"${limit}" \
+			"${hash}" \
+			"${url}" \
+			"geolocation" \
+			"${info2}" \
+			"DB-IP.com" \
+			"https://db-ip.com/" \
+			service "geolocation"
+
+		[ -f "${BASE_DIR}/${i}.setinfo" ] && $MV_CMD -f "${BASE_DIR}/${i}.setinfo" "${BASE_DIR}/${ipset}/${i}.setinfo"
+
+	done
+
+	if [ -d "${BASE_DIR}/.git" ]
+	then
+		# generate a setinfo for the home page
+		echo >"${BASE_DIR}/${ipset}.setinfo" "[${ipset}](${GITHUB_SETINFO}dbip_country)|[DB-IP.com](https://db-ip.com/) geolocation database|ipv4 hash:net|All the world|updated every `mins_to_text ${mins}` from [this link](${url})"
+	fi
+
+	# remove the temporary dir
+	cd "${RUN_DIR}"
+	$RM_CMD -rf ${ipset}.tmp
+
+	return 0
+}
+
 #eSentire() {
 #	local base="https://raw.githubusercontent.com/eSentire/malfeed/master"
 #
@@ -4705,6 +4914,12 @@ ip2location_country
 # ipip.net
 
 ipip_country
+
+
+# -----------------------------------------------------------------------------
+# DB-IP.com
+
+dbip_country
 
 
 # -----------------------------------------------------------------------------
