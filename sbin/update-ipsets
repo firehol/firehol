@@ -3708,9 +3708,15 @@ geolite2_asn() {
 
 	cd "${RUN_DIR}" || return 1
 
+	if [ -z "${MAXMIND_LICENSE_KEY}" ]
+	then
+		ipset_error "geolite2_asn" "Please set MAXMIND_LICENSE_KEY='...' in ${CONFIG_FILE}. Get a free key at https://www.maxmind.com/en/geolite2/signup"
+		return 1
+	fi
+
 	local ipset="geolite2_asn" limit="" hash="net" ipv="ipv4" \
 		mins=$[24 * 60 * 7] history_mins=0 \
-		url="http://geolite.maxmind.com/download/geoip/database/GeoLite2-ASN-CSV.zip" \
+		url="https://download.maxmind.com/app/geoip_download?edition_id=GeoLite2-ASN-CSV&license_key=${MAXMIND_LICENSE_KEY}&suffix=zip" \
 		info="[MaxMind GeoLite2 ASN](https://dev.maxmind.com/geoip/geoip2/geolite2/)" \
 		ret=
 
@@ -3848,10 +3854,16 @@ geolite2_country() {
 
 	cd "${RUN_DIR}" || return 1
 
+	if [ -z "${MAXMIND_LICENSE_KEY}" ]
+	then
+		ipset_error "geolite2_country" "Please set MAXMIND_LICENSE_KEY='...' in ${CONFIG_FILE}. Get a free key at https://www.maxmind.com/en/geolite2/signup"
+		return 1
+	fi
+
 	local ipset="geolite2_country" limit="" hash="net" ipv="ipv4" \
 		mins=$[24 * 60 * 7] history_mins=0 \
-		url="http://geolite.maxmind.com/download/geoip/database/GeoLite2-Country-CSV.zip" \
-		info="[MaxMind GeoLite2](http://dev.maxmind.com/geoip/geoip2/geolite2/)" \
+		url="https://download.maxmind.com/app/geoip_download?edition_id=GeoLite2-Country-CSV&license_key=${MAXMIND_LICENSE_KEY}&suffix=zip" \
+		info="[MaxMind GeoLite2](https://dev.maxmind.com/geoip/geoip2/geolite2/)" \
 		ret=
 
 	ipset_shall_be_run "${ipset}"
