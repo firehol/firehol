@@ -33,6 +33,7 @@ ipsetsweb_DATA = \
 	maltrail_scanners.html \
 	packetmail.html \
 	spamhaus_drop.html \
+	threatfox_ioc_ips.html \
 	spamhaus_edrop.html \
 	typeahead.css
 
