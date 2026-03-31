@@ -5375,6 +5375,19 @@ update feodo_badips 30 0 ipv4 ip \
 
 
 # -----------------------------------------------------------------------------
+# ThreatFox by abuse.ch
+# https://threatfox.abuse.ch/
+# IP addresses from ThreatFox IOC database, compiled by elliotwutingfeng
+
+update threatfox_ioc_ips 60 0 ipv4 ip \
+	"https://raw.githubusercontent.com/elliotwutingfeng/ThreatFox-IOC-IPs/main/ips.txt" \
+	remove_comments \
+	"malware" \
+	"[ThreatFox](https://threatfox.abuse.ch/) by Abuse.ch IP addresses associated with malware C2 infrastructure including CobaltStrike, Havoc, Sliver, DCRat, XWorm, RedLine Stealer, Remcos and 50+ other malware families. Compiled by [elliotwutingfeng](https://github.com/elliotwutingfeng/ThreatFox-IOC-IPs), updated hourly." \
+	"Abuse.ch" "https://threatfox.abuse.ch/"
+
+
+# -----------------------------------------------------------------------------
 # ransomwaretracker.abuse.ch
 # by abuse.ch
 
