@@ -2994,7 +2994,7 @@ update() {
 			then
 			ipset_silent "${ipset}" "download manager reports not updated source"
 			check_file_too_old "${ipset}" "${BASE_DIR}/${dst}"
-			return 1
+			return 0
 		fi
 
 		[ ! -z "${IPSET_PUBLIC_URL}" ] && url="${IPSET_PUBLIC_URL}"
