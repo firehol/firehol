@@ -6386,6 +6386,17 @@ update greensnow 30 0 ipv4 ip \
 	"[GreenSnow](https://greensnow.co/) is a team harvesting a large number of IPs from different computers located around the world. GreenSnow is comparable with SpamHaus.org for attacks of any kind except for spam. Their list is updated automatically and you can withdraw at any time your IP address if it has been listed. Attacks / bruteforce that are monitored are: Scan Port, FTP, POP3, mod_security, IMAP, SMTP, SSH, cPanel, etc." \
 	"GreenSnow.co" "https://greensnow.co/"
 
+# -----------------------------------------------------------------------------
+# IPWhois.net Blacklist (community feed)
+# https://ipwhois.net/blacklist
+
+update ipwhois_bl 30 0 ipv4 ip \
+	"https://bl.ipwhois.net/feed.txt" \
+	remove_comments \
+	"attacks" \
+	"[IPWhois.net Blacklist](https://ipwhois.net/blacklist) is a community-driven IP blacklist. This feed contains first-party data only: IPs reported by users via the free API, fail2ban and CSF integrations, and IPWhois.net honeypots. Third-party feeds mirrored on the IPWhois.net website are excluded from this file, so it is safe to re-aggregate. Entries have a confidence of at least 50 and were seen within the last 90 days. The file is regenerated every 30 minutes." \
+	"IPWhois.net" "https://ipwhois.net/blacklist"
+
 
 # -----------------------------------------------------------------------------
 # IPsum
