@@ -63,7 +63,7 @@ the traffic that is matched. See
 
 - `manual` to use the `cthelper` helper to configure the trusts in `firehol.conf`.
 
-When set to `kernel`, FireHOL will set `net.netfilter.nf_conntrack_helper=1`. In all other cases, FireHOL will set `net.netfilter.nf_conntrack_helper=0`.
+When set to `kernel`, FireHOL will set `net.netfilter.nf_conntrack_helper=1`. In all other cases, FireHOL will set `net.netfilter.nf_conntrack_helper=0`. The sysctl is only set when it exists: Linux 6.0 removed it together with automatic helper assignment, so on newer kernels helpers are only ever assigned explicitly.
 
 # EXAMPLES
 
