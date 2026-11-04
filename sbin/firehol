@@ -6349,7 +6349,10 @@ close_master() {
 			postprocess -warn ${SYSCTL_CMD} -w "net.netfilter.nf_conntrack_helper=1" || return 1
 		fi
 	else
-		postprocess -warn ${SYSCTL_CMD} -w "net.netfilter.nf_conntrack_helper=0" || return 1
+		if [ -f /proc/sys/net/netfilter/nf_conntrack_helper ]
+		then
+			postprocess -warn ${SYSCTL_CMD} -w "net.netfilter.nf_conntrack_helper=0" || return 1
+		fi
 	fi
 
 	if [ ! -z "${FIREHOL_CONNTRACK_LOOSE_MATCHING}"	]; then postprocess -warn ${SYSCTL_CMD} -w "net.netfilter.nf_conntrack_tcp_loose=${FIREHOL_CONNTRACK_LOOSE_MATCHING}" || return 1; fi
