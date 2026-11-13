@@ -6521,6 +6521,19 @@ update maltrail_scanners $[24 * 60] 0 ipv4 ip \
 
 
 # -----------------------------------------------------------------------------
+# OffSeq Mirage
+# https://feeds.offseq.com/
+# Attacker IPs seen by the Mirage honeypot fleet in the last 7 days, rebuilt daily
+
+update offseq_mirage $[24 * 60] 0 ipv4 ip \
+	"https://feeds.offseq.com/mirage-feed/latest/ipv4-7d.txt" \
+	remove_comments \
+	"attacks" \
+	"[OffSeq Mirage](https://feeds.offseq.com/) IP addresses that attacked the Mirage honeypot fleet in the last 7 days. An IP is listed only after it completes a handshake with a sensor; known research scanners are excluded. Data is CC BY 4.0." \
+	"OffSeq" "https://feeds.offseq.com/"
+
+
+# -----------------------------------------------------------------------------
 # http://cybercrime-tracker.net/fuckerz.php
 
 update cybercrime $[12 * 60] 0 ipv4 ip \
