@@ -31,6 +31,7 @@ ipsetsweb_DATA = \
 	ipsum_7.html \
 	ipsum_8.html \
 	maltrail_scanners.html \
+	offseq_mirage.html \
 	packetmail.html \
 	spamhaus_drop.html \
 	spamhaus_edrop.html \
